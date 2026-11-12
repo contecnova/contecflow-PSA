@@ -11,6 +11,7 @@ La confirmación del pago se realiza vía webhook (``STRIPE_WEBHOOK_SECRET``), q
 es una pieza separada del ciclo de cobro.
 """
 from __future__ import annotations
+import logging
 
 import httpx
 
@@ -97,6 +98,7 @@ def create_checkout_session(
         try:
             msg = resp.json().get("error", {}).get("message", resp.text)
         except Exception:
+            logging.getLogger(__name__).warning("create_checkout_session: excepcion ignorada", exc_info=True)
             msg = resp.text
         raise StripeError(f"Stripe rechazó la petición ({resp.status_code}): {msg}")
 

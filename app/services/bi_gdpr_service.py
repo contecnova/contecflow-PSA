@@ -58,6 +58,7 @@ def _get_setting(db: Session, key: str, org_id: Optional[str], default: Any) -> 
     try:
         return json.loads(row.value)
     except Exception:
+        logger.debug("_get_setting: excepcion ignorada", exc_info=True)
         return default
 
 

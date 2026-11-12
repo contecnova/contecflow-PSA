@@ -60,8 +60,8 @@ const S: Record<string, React.CSSProperties> = {
   input:  { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   select: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none' },
   label:  { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 },
-  btnOrange: { padding: '7px 16px', borderRadius: 8, background: 'var(--orange)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-  btnRed:    { padding: '7px 16px', borderRadius: 8, background: 'var(--danger)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
+  btnOrange: { padding: '7px 16px', borderRadius: 8, background: 'var(--orange)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
+  btnRed:    { padding: '7px 16px', borderRadius: 8, background: 'var(--danger)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
 }
 
 export default function BiAnomalyPanel() {
@@ -145,7 +145,7 @@ export default function BiAnomalyPanel() {
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                 <span style={{ color: 'var(--orange)' }}>⚠</span>
                 <span>{a.period ?? `punto ${a.index ?? i}`}: {a.value?.toFixed?.(2) ?? a.value}</span>
-                {a.score != null && <span style={{ color: 'var(--text-3)' }}>score: {a.score.toFixed(3)}</span>}
+                {a.score != null && <span className="u-text3">score: {a.score.toFixed(3)}</span>}
               </div>
             ))}
           </div>

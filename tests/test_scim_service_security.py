@@ -11,6 +11,7 @@ from app.services.scim_service import (
     require_scim_token,
     scim_token_expected,
 )
+from app.core.errores import ErrorDeDominio
 
 
 def _make_org(db, name="Org A"):
@@ -45,7 +46,7 @@ def test_per_org_token_rejected_for_other_org(db):
     token_a = generate_scim_token(db, org_a.id)
 
     # Token of org A must NOT administer org B → 403 cross-tenant.
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         require_scim_token(db, f"Bearer {token_a}", org_b.id)
     assert exc.value.status_code == 403
 
@@ -54,7 +55,7 @@ def test_missing_bearer_token_returns_401(db):
     org = _make_org(db)
     generate_scim_token(db, org.id)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         require_scim_token(db, None, org.id)
     assert exc.value.status_code == 401
 
@@ -65,7 +66,7 @@ def test_unknown_token_returns_403(db, monkeypatch):
     generate_scim_token(db, org.id)
     monkeypatch.setattr(settings, "SCIM_BEARER_TOKEN", "", raising=False)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         require_scim_token(db, "Bearer totally-wrong", org.id)
     assert exc.value.status_code == 403
 
@@ -75,7 +76,7 @@ def test_returns_503_when_scim_not_configured(db, monkeypatch):
     org = _make_org(db)
     monkeypatch.setattr(settings, "SCIM_BEARER_TOKEN", "", raising=False)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         require_scim_token(db, "Bearer something", org.id)
     assert exc.value.status_code == 503
 
@@ -99,7 +100,7 @@ def test_legacy_global_token_bound_to_allowed_org(db, monkeypatch):
     # Bound org works...
     assert require_scim_token(db, "Bearer global-secret", org_a.id).id == org_a.id
     # ...other org is rejected even with the valid global token.
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         require_scim_token(db, "Bearer global-secret", org_b.id)
     assert exc.value.status_code == 403
 
@@ -112,7 +113,7 @@ def test_legacy_global_token_rejected_in_prod_without_allowed_org(db, monkeypatc
     monkeypatch.delenv("TESTING", raising=False)
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         require_scim_token(db, "Bearer global-secret", org.id)
     # Prod + no SCIM_ALLOWED_ORG_ID → legacy global token is NOT honoured.
     assert exc.value.status_code == 403

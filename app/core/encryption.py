@@ -147,6 +147,7 @@ def decrypt_value(ciphertext: str) -> Optional[str]:
                     clave = _get_key() if secreto == settings.SECRET_KEY else _derive_key(secreto)
                     return Fernet(clave).decrypt(ciphertext.encode()).decode()
                 except Exception:
+                    logger.debug("decrypt_value: excepcion ignorada", exc_info=True)
                     continue
             logger.warning("Decrypt fallback: treating legacy value as plaintext")
             return ciphertext

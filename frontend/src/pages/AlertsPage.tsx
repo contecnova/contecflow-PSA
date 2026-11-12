@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
-import { alertsApi } from '../services/api'
+import { alertsApi, type PathId, type UserPublic, type ProjectListItem } from '../services/api'
 import { Button, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -12,7 +12,24 @@ import { fmtRelative, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
-function alertSourceUrl(alert: any) {
+/** `AlertOut` (app/schemas/alerts.py). */
+interface Alert {
+  id: string
+  alert_type: string
+  severity: string
+  title: string
+  description: string | null
+  value: number | null
+  threshold: number | null
+  unit: string | null
+  user: UserPublic | null
+  project: ProjectListItem | null
+  is_read: boolean
+  is_resolved: boolean
+  created_at: string
+}
+
+function alertSourceUrl(alert: Alert) {
   if (alert.project?.id) return `/projects/${alert.project.id}`
   const t = alert.alert_type
   if (t === 'task_blocked' || t === 'hours_deviation') return '/tasks'
@@ -48,7 +65,7 @@ export default function AlertsPage(): JSX.Element {
   const navigate = useNavigate()
   const [tab, setTab] = useState<string>('operational')
 
-  const { data: alerts = [], isLoading } = useQuery({
+  const { data: alerts = [], isLoading } = useQuery<Alert[]>({
     queryKey: ['alerts-page'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
     refetchInterval: 30_000,
@@ -62,22 +79,22 @@ export default function AlertsPage(): JSX.Element {
   })
 
   const { mutate: resolve } = useMutation({
-    mutationFn: (id: any) => alertsApi.resolve(id),
+    mutationFn: (id: PathId) => alertsApi.resolve(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
   const { mutate: markRead } = useMutation({
-    mutationFn: (id: any) => alertsApi.read(id),
+    mutationFn: (id: PathId) => alertsApi.read(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
-  const unread = alerts.filter((a: any) => !a.is_read).length
-  const bySeverity: Record<string, any[]> = {
-    critical: alerts.filter((a: any) => a.severity === 'critical'),
-    warning:  alerts.filter((a: any) => a.severity === 'warning'),
-    info:     alerts.filter((a: any) => a.severity === 'info'),
+  const unread = alerts.filter((a) => !a.is_read).length
+  const bySeverity: Record<string, Alert[]> = {
+    critical: alerts.filter((a) => a.severity === 'critical'),
+    warning:  alerts.filter((a) => a.severity === 'warning'),
+    info:     alerts.filter((a) => a.severity === 'info'),
   }
 
   return (
@@ -125,19 +142,19 @@ export default function AlertsPage(): JSX.Element {
               <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: cfg.dot }}>
                 {bySeverity[sev].length}
               </div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t(cfg.label)}</div>
+              <div className="u-text2-sm">{t(cfg.label)}</div>
             </div>
           </div>
         ))}
       </div>
 
       {isLoading ? (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>{t('alerts.loading')}</span></div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}><Spinner /><span className="u-text2">{t('alerts.loading')}</span></div>
       ) : alerts.length === 0 ? (
         <EmptyState icon="✅" title={t('alerts.no_alerts')} description={t('alerts.empty_description')} />
       ) : (
-        <div data-export-table="alerts-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {alerts.map((alert: any) => {
+        <div data-export-table="alerts-list" className="u-stack-10">
+          {alerts.map((alert) => {
             const cfg = SEVERITY_CONFIG[alert.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.info
             const sourceUrl = alertSourceUrl(alert)
             return (
@@ -152,12 +169,12 @@ export default function AlertsPage(): JSX.Element {
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.dot, marginTop: 4, flexShrink: 0 }} />
 
                 {/* Icon + content */}
-                <div style={{ flex: 1 }}>
+                <div className="u-flex1">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="u-row-center-8">
                       <span style={{ fontSize: "var(--text-lg-em)" }}>{TYPE_ICONS[alert.alert_type as keyof typeof TYPE_ICONS] || '🔔'}</span>
                       <div>
-                        <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{alert.title}</div>
+                        <div className="u-md-700">{alert.title}</div>
                         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           {alert.alert_type} · {fmtRelative(alert.created_at)}
                           {alert.project?.name && <span style={{ marginLeft: 6, color: cfg.dot }}>· {alert.project.name}</span>}
@@ -165,7 +182,7 @@ export default function AlertsPage(): JSX.Element {
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="u-row-8">
                       {sourceUrl && (
                         <button onClick={() => navigate(sourceUrl)}
                           style={{ background: 'transparent', border: `1px solid ${cfg.border}`, borderRadius: 6, padding: '4px 10px', color: cfg.dot, cursor: 'pointer', fontSize: "var(--text-xs)", display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -194,7 +211,7 @@ export default function AlertsPage(): JSX.Element {
                       <span style={{ color: cfg.dot, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                         {alert.value?.toFixed(0)}{unidad(alert.unit)}
                       </span>
-                      <span style={{ color: 'var(--text-3)' }}> / {t('alerts.threshold_label')} {alert.threshold?.toFixed(0)}{unidad(alert.unit)}</span>
+                      <span className="u-text3"> / {t('alerts.threshold_label')} {alert.threshold?.toFixed(0)}{unidad(alert.unit)}</span>
                     </div>
                   )}
                 </div>

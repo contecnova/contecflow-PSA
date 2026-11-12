@@ -45,12 +45,12 @@ retenido. Y si un caso activo no nombra a nadie, no retiene nada — en vez de
 retenerlo todo.
 """
 from __future__ import annotations
+import logging
 
 import json
 from datetime import timedelta
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -65,6 +65,7 @@ from app.models.collaboration import (
 from app.models.settings import AppSetting
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org
+from app.core.errores import ErrorDeDominio
 
 #: Clave del ajuste por tenant con los meses de retención por defecto y el tope.
 RETENTION_SETTINGS_KEY = "collaboration.retention.settings"
@@ -128,6 +129,7 @@ def get_retention_settings(db: Session, org_id: str) -> dict:
     except Exception:
         # Un ajuste ilegible no puede dejar la retención sin valores: se cae a
         # los de por defecto en vez de propagar.
+        logging.getLogger(__name__).debug("get_retention_settings: excepcion ignorada", exc_info=True)
         return dict(RETENCION_POR_DEFECTO)
 
 
@@ -166,7 +168,7 @@ def create_policy(db: Session, user, datos: dict) -> CollaborationRetentionPolic
     ajustes = get_retention_settings(db, org)
     meses = datos.get("retention_months")
     if meses is not None and meses > ajustes["max_months"]:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=422,
             detail=f"retention_months exceeds tenant max ({ajustes['max_months']})",
         )
@@ -298,7 +300,7 @@ def release_hold(db: Session, user, hold_id: str) -> None:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Hold no encontrado")
+        raise ErrorDeDominio(404, "Hold no encontrado")
     fila.is_active = False
     fila.ended_at = utcnow()
     audit_log.write(

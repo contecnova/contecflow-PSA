@@ -107,7 +107,7 @@ def test_la_cobertura_alcanza_a_todos_los_dominios_no_exentos():
         "más de 100 (los 126 dominios menos los exentos)."
     )
     # Dominios financieramente sensibles que ANTES no tenían ninguna casilla.
-    for critico in ("budgets", "revenue", "profitability", "accounting", "user-costs",
+    for critico in ("budgets", "revenue-recognition", "profitability", "accounting", "user-costs",
                     "rate-cards", "imputations", "pipeline", "gdpr", "organizations"):
         assert critico in modulos, f"{critico} sigue fuera del catálogo GRC"
 

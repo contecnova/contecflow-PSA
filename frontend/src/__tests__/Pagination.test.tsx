@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Pagination from '../components/ui/Pagination';
 import { AppLangProvider } from '../i18n/AppLangContext';
-// `Pagination` y `TimerWidget` pasan ahora sus textos por `t()`, y `useAppLang`
+// `Pagination` pasa ahora sus textos por `t()`, y `useAppLang`
 // lanza a proposito si no encuentra el proveedor: es la guarda que impide que
 // alguien use la traduccion fuera del arbol donde existe. Lo correcto es que el
 // test monte el contexto, no debilitar la guarda para que el test pase.

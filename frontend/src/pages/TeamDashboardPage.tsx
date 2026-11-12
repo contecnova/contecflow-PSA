@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi } from '../services/api'
+import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi, type Absence } from '../services/api'
 import { Spinner } from '../components/ui'
 import {
   Users, Target, Star, GraduationCap, Plane, Zap,
@@ -32,12 +32,6 @@ interface PerfReview {
 }
 
 interface TrainingItem {
-  status?: string
-}
-
-interface AbsenceItem {
-  start_date?: string
-  end_date?: string
   status?: string
 }
 
@@ -111,14 +105,12 @@ export default function TeamDashboardPage() {
   })
   const trainings = trainingsRaw as TrainingItem[]
 
-  const { data: absencesRaw = [] } = useQuery({
+  const { data: absences = [] } = useQuery({
     queryKey: ['team-dash-absences'],
-    queryFn: () => absencesApi.list({ page_size: 100 }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    // `todasLasPaginas` siempre devuelve el array ya desenvuelto.
+    queryFn: () => absencesApi.list({ page_size: 100 }).then(r => r.data).catch((): Absence[] => []),
     staleTime: 60_000,
   })
-  const absences = absencesRaw as AbsenceItem[]
 
   if (lr) return (
     <div style={{ padding: 32, display: 'flex', justifyContent: 'center', minHeight: 300, alignItems: 'center' }}>

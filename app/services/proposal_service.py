@@ -15,11 +15,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.pipeline import Opportunity, ProposalTemplate
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 # ── Template variable map ──────────────────────────────────────────────────────
 
@@ -75,9 +75,13 @@ Las condiciones definitivas se recogerán en el contrato de prestación de servi
 
 def _build_vars(opp: Opportunity) -> dict:
     """Build the variable substitution map from an Opportunity."""
+    from sqlalchemy.orm import object_session
+    from app.services.formato_regional import formatear_importe, simbolo_de_moneda
+    simbolo = simbolo_de_moneda(object_session(opp), getattr(opp, "organization_id", None),
+                                moneda=getattr(opp, "currency", None))
+
     def fmt_currency(v):
-        if v is None: return "—"
-        return f"{v:,.0f} €"
+        return formatear_importe(v, simbolo)
 
     return {
         "client_name":       opp.client_name or "—",
@@ -90,7 +94,7 @@ def _build_vars(opp: Opportunity) -> dict:
         "description":       opp.description or "",
         "today":             str(timeutil.today()),
         "contract_type":     CONTRACT_TYPE_LABELS.get(opp.contract_type or "", "—"),
-        "hourly_rate":       f"{opp.hourly_rate} €/h" if opp.hourly_rate else "—",
+        "hourly_rate":       f"{opp.hourly_rate} {simbolo}/h" if opp.hourly_rate else "—",
     }
 
 
@@ -124,15 +128,15 @@ def list_templates(db: Session) -> list:
 def get_template(db: Session, template_id: str) -> ProposalTemplate:
     t = db.query(ProposalTemplate).filter(ProposalTemplate.id == template_id).first()
     if not t:
-        raise HTTPException(404, "Plantilla no encontrada")
+        raise ErrorDeDominio(404, "Plantilla no encontrada")
     return t
 
 
 def create_template(db: Session, organization_id: str, user_id: str, data: dict) -> ProposalTemplate:
     if not data.get("name"):
-        raise HTTPException(422, "El campo 'name' es obligatorio para crear una plantilla de propuesta")
+        raise ErrorDeDominio(422, "El campo 'name' es obligatorio para crear una plantilla de propuesta")
     if not organization_id:
-        raise HTTPException(422, "El usuario no tiene organización asignada")
+        raise ErrorDeDominio(422, "El usuario no tiene organización asignada")
     t = ProposalTemplate(
         id=str(uuid.uuid4()),
         organization_id=organization_id,
@@ -176,7 +180,7 @@ def generate_proposal(
     """
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
+        raise ErrorDeDominio(404, "Oportunidad no encontrada")
 
     if template_id:
         tmpl = get_template(db, template_id)
@@ -200,9 +204,9 @@ def generate_proposal(
 def mark_proposal_sent(db: Session, opp_id: str) -> Opportunity:
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
+        raise ErrorDeDominio(404, "Oportunidad no encontrada")
     if not opp.proposal_content:
-        raise HTTPException(400, "Genera la propuesta antes de marcarla como enviada")
+        raise ErrorDeDominio(400, "Genera la propuesta antes de marcarla como enviada")
     opp.proposal_sent_at = datetime.now(timezone.utc)
     db.commit()
     return opp
@@ -226,5 +230,5 @@ def get_opportunity_by_id(db: Session, opp_id: str) -> Opportunity:
     """Fetch an Opportunity by id, raising 404 if not found."""
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
+        raise ErrorDeDominio(404, "Oportunidad no encontrada")
     return opp

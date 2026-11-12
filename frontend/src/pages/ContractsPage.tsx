@@ -14,6 +14,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -178,10 +179,10 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
   return (
     <Modal open title={isEdit ? `Editar contrato` : 'Nuevo Contrato'} onClose={onClose} width={620}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder={traducir('contracts.nombre_del_contrato')} aria-label={traducir('contracts.nombre_del_contrato')} />
-          {validation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.name}</p>}
+          {validation.errors.name && <p className="u-field-error">{validation.errors.name}</p>}
         </div>
         <div>
           <label style={ls}>Proyecto *</label>
@@ -189,7 +190,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
             <option value="">Seleccionar...</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
-          {validation.errors.project_id && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.project_id}</p>}
+          {validation.errors.project_id && <p className="u-field-error">{validation.errors.project_id}</p>}
         </div>
         <div>
           <label style={ls}>Cliente *</label>
@@ -201,14 +202,14 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
             }}
             style={validation.inputStyle(fs, 'client_id')}
           />
-          {validation.errors.client_id && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.client_id}</p>}
+          {validation.errors.client_id && <p className="u-field-error">{validation.errors.client_id}</p>}
         </div>
         <div>
           <label style={ls}>{traducir('contracts.tipo_de_contrato')}</label>
           <select value={form.contract_type} onChange={set('contract_type')} style={validation.inputStyle(fs, 'contract_type')}>
             {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-          {validation.errors.contract_type && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.contract_type}</p>}
+          {validation.errors.contract_type && <p className="u-field-error">{validation.errors.contract_type}</p>}
         </div>
         <div>
           <label style={ls}>Estado</label>
@@ -220,14 +221,14 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           <div>
             <label style={ls}>Importe total (€)</label>
             <input type="number" value={form.total_amount} onChange={set('total_amount')} style={validation.inputStyle(fs, 'total_amount')} placeholder="Importe total" aria-label="Importe total" />
-            {validation.errors.total_amount && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.total_amount}</p>}
+            {validation.errors.total_amount && <p className="u-field-error">{validation.errors.total_amount}</p>}
           </div>
         )}
         {form.contract_type === 'time_material' && (
           <div>
             <label style={ls}>Tarifa €/hora</label>
             <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder={traducir('contracts.tarifa_por_hora')} aria-label={traducir('contracts.tarifa_por_hora')} />
-            {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
+            {validation.errors.hourly_rate && <p className="u-field-error">{validation.errors.hourly_rate}</p>}
           </div>
         )}
         {form.contract_type === 'hourly_bag' && (
@@ -235,12 +236,12 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
             <div>
               <label style={ls}>{traducir('contracts.bolsa_de_horas')}</label>
               <input type="number" value={form.hours_bag} onChange={set('hours_bag')} style={validation.inputStyle(fs, 'hours_bag')} placeholder="Horas incluidas" aria-label="Horas incluidas" />
-              {validation.errors.hours_bag && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hours_bag}</p>}
+              {validation.errors.hours_bag && <p className="u-field-error">{validation.errors.hours_bag}</p>}
             </div>
             <div>
               <label style={ls}>Tarifa €/hora</label>
               <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder={traducir('contracts.tarifa_por_hora')} aria-label={traducir('contracts.tarifa_por_hora')} />
-              {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
+              {validation.errors.hourly_rate && <p className="u-field-error">{validation.errors.hourly_rate}</p>}
             </div>
           </>
         )}
@@ -248,27 +249,27 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           <div>
             <label style={ls}>Retainer mensual (€)</label>
             <input type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} style={validation.inputStyle(fs, 'monthly_retainer')} placeholder="Importe mensual" aria-label="Importe mensual" />
-            {validation.errors.monthly_retainer && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.monthly_retainer}</p>}
+            {validation.errors.monthly_retainer && <p className="u-field-error">{validation.errors.monthly_retainer}</p>}
           </div>
         )}
         <div>
           <label style={ls}>Fecha inicio</label>
-          <input type="date" value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
+          <DateInput value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
         </div>
         <div>
           <label style={ls}>Fecha fin</label>
-          <input type="date" value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
-          {validation.errors.end_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.end_date}</p>}
+          <DateInput value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+          {validation.errors.end_date && <p className="u-field-error">{validation.errors.end_date}</p>}
         </div>
         <div>
           <label style={ls}>Fecha firma</label>
-          <input type="date" value={form.signed_date} onChange={set('signed_date')} style={fs} />
+          <DateInput value={form.signed_date} onChange={set('signed_date')} style={fs} />
         </div>
         <div>
           <label style={ls}>{traducir('contracts.condiciones_de_pago')}</label>
           <input value={form.payment_terms} onChange={set('payment_terms')} style={fs} placeholder="Ej. 30 dias fecha factura" aria-label={traducir('contracts.condiciones_de_pago')} />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>Notas</label>
           <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} />
         </div>
@@ -316,7 +317,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
     <Modal open title={`${contract.code} — ${contract.name}`} onClose={onClose} width={760}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, textTransform: 'uppercase' }}>{cfg.label}</span>
-        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{contract.contract_type_label}</span>
+        <span className="u-text2-sm">{contract.contract_type_label}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
         {[
@@ -331,13 +332,13 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
         ].map(({ label, value }) => (
           <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{value}</div>
+            <div className="u-base-600">{value}</div>
           </div>
         ))}
       </div>
 
       {/* Work Orders */}
-      <div style={{ marginBottom: 16 }}>
+      <div className="u-mb-16">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{traducir('contracts.ordenes_de_trabajo')}{contract.work_orders?.length || 0})</h4>
           <Button size="sm" onClick={() => setShowWO(true)} icon="＋">{traducir('contracts.nueva_ot')}</Button>
@@ -345,14 +346,14 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
         {contract.work_orders?.length === 0 ? (
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>{traducir('contracts.sin_ordenes_de_trabajo')}</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="u-stack-8">
             {contract.work_orders!.map(wo => {
               const wocfg = WO_STATUS[wo.status || ''] || WO_STATUS.open
               return (
                 <div key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{wo.code} — {wo.name}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                  <div className="u-flex1">
+                    <div className="u-base-600">{wo.code} — {wo.name}</div>
+                    <div className="u-text2-xs">
                       {wo.amount ? fmtCurrency(wo.amount) : ''} {wo.hours ? `· ${wo.hours}h` : ''}
                       {wo.start_date ? ` · ${fmtDate(wo.start_date)}` : ''}
                     </div>
@@ -372,23 +373,23 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <input value={woForm.name} onChange={e => { setWoForm(f => ({ ...f, name: e.target.value })); woValidation.clearFieldError('name') }} style={woValidation.inputStyle(fs, 'name')} placeholder={traducir('contracts.nombre_de_la_orden')} aria-label={traducir('contracts.nombre_de_la_orden')} />
-                {woValidation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.name}</p>}
+                {woValidation.errors.name && <p className="u-field-error">{woValidation.errors.name}</p>}
               </div>
               <div>
                 <input type="number" value={woForm.amount} onChange={e => { setWoForm(f => ({ ...f, amount: e.target.value })); woValidation.clearFieldError('amount') }} style={woValidation.inputStyle(fs, 'amount')} placeholder="Importe" aria-label="Importe" />
-                {woValidation.errors.amount && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.amount}</p>}
+                {woValidation.errors.amount && <p className="u-field-error">{woValidation.errors.amount}</p>}
               </div>
               <div>
                 <input type="number" value={woForm.hours} onChange={e => { setWoForm(f => ({ ...f, hours: e.target.value })); woValidation.clearFieldError('hours') }} style={woValidation.inputStyle(fs, 'hours')} placeholder="Horas" aria-label="Horas" />
-                {woValidation.errors.hours && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.hours}</p>}
+                {woValidation.errors.hours && <p className="u-field-error">{woValidation.errors.hours}</p>}
               </div>
-              <div><input type="date" value={woForm.start_date} onChange={e => { setWoForm(f => ({ ...f, start_date: e.target.value })); woValidation.clearFieldError('start_date') }} style={woValidation.inputStyle(fs, 'start_date')} /></div>
+              <div><DateInput value={woForm.start_date} onChange={e => { setWoForm(f => ({ ...f, start_date: e.target.value })); woValidation.clearFieldError('start_date') }} style={woValidation.inputStyle(fs, 'start_date')} /></div>
               <div>
-                <input type="date" value={woForm.end_date} onChange={e => { setWoForm(f => ({ ...f, end_date: e.target.value })); woValidation.clearFieldError('end_date') }} style={woValidation.inputStyle(fs, 'end_date')} />
-                {woValidation.errors.end_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.end_date}</p>}
+                <DateInput value={woForm.end_date} onChange={e => { setWoForm(f => ({ ...f, end_date: e.target.value })); woValidation.clearFieldError('end_date') }} style={woValidation.inputStyle(fs, 'end_date')} />
+                {woValidation.errors.end_date && <p className="u-field-error">{woValidation.errors.end_date}</p>}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <Button size="sm" onClick={submitWO}>Crear OT</Button>
               <Button size="sm" variant="secondary" onClick={() => setShowWO(false)}>{t('common.cancel')}</Button>
             </div>
@@ -397,9 +398,9 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
       </div>
 
       {/* Revisión 2026-11: el contrato firmado y sus anexos viven en contecmind, con versiones y aprobación. */}
-      <div style={{ marginBottom: 20 }}><DocumentosDeFicha ficha="contract" id={contract.id} preguntar /></div>
+      <div className="u-mb-20"><DocumentosDeFicha ficha="contract" id={contract.id} preguntar /></div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>Cerrar</Button>
         <Button onClick={() => { onClose(); onEdit(contract) }}>✏️ Editar</Button>
       </div>
@@ -462,7 +463,7 @@ export default function ContractsPage(): JSX.Element {
 
       {/* Banner de contratos próximos a vencer */}
       {expiring.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           {expiring.map(c => {
             const color = c.daysLeft <= 14 ? 'var(--danger)' : c.daysLeft <= 30 ? 'var(--warning)' : 'var(--accent)'
             const bg    = c.daysLeft <= 14 ? 'var(--danger-bg)' : c.daysLeft <= 30 ? 'var(--warning-bg)' : 'var(--accent-muted)'
@@ -474,7 +475,7 @@ export default function ContractsPage(): JSX.Element {
                 borderRadius: 10, marginBottom: 6, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}
                 onClick={() => setDetail(c)}>
                 <span style={{ fontSize: "var(--text-lg)" }}>{icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>
                     {c.code} — {c.name}
                   </span>
@@ -527,17 +528,17 @@ export default function ContractsPage(): JSX.Element {
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => setDetail(c)}>
                 <div>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{c.name}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{c.code} · {c.client_name}</div>
+                  <div className="u-base-600">{c.name}</div>
+                  <div className="u-text2-xs">{c.code} · {c.client_name}</div>
                 </div>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.contract_type_label}</span>
+                <span className="u-text2-sm">{c.contract_type_label}</span>
                 <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>
                   {c.total_amount ? fmtCurrency(c.total_amount) : c.monthly_retainer ? `${fmtCurrency(c.monthly_retainer)}/m` : c.hours_bag ? `${c.hours_bag}h` : '—'}
                 </span>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.start_date ? fmtDate(c.start_date) : '—'}</span>
+                <span className="u-text2-sm">{c.start_date ? fmtDate(c.start_date) : '—'}</span>
                 <span style={{ fontSize: "var(--text-sm)", color: c.end_date && new Date(c.end_date) < new Date() ? 'var(--danger)' : 'var(--text-2)' }}>{c.end_date ? fmtDate(c.end_date) : '—'}</span>
                 <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.work_orders?.length || 0}</span>
+                <span className="u-text2-sm">{c.work_orders?.length || 0}</span>
               </button>
             )
           })}
@@ -553,9 +554,9 @@ export default function ContractsPage(): JSX.Element {
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = alpha(cfg.color, '30')}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
-                  <div style={{ minWidth: 0 }}>
+                  <div className="u-min0">
                     <div style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)', marginBottom: 2 }}>{c.code}</div>
-                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.name}</div>
+                    <div className="u-md-700">{c.name}</div>
                     {c.client_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>🏢 {c.client_name}</div>}
                   </div>
                   <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, whiteSpace: 'nowrap', flexShrink: 0 }}>{cfg.label}</span>

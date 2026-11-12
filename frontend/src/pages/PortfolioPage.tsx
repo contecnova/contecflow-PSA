@@ -3,8 +3,9 @@
  * Vista RAG (Red/Amber/Green) de salud + EVM consolidado + hitos cruzados.
  */
 import React, { useState } from 'react';
-import type { ComponentType, CSSProperties} from 'react';
+import type { CSSProperties} from 'react';
 import PageShell from '../components/layout/PageShell'
+import { useDialogo } from '../components/ui'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../context/ToastContext';
@@ -14,10 +15,12 @@ import { useAppT } from '../i18n/AppLangContext'
 import {
   Briefcase, Plus, ChevronRight, ChevronDown, X, Check,
   AlertTriangle, CheckCircle, Clock,
-  DollarSign, BarChart2, Calendar
+  DollarSign, BarChart2, Calendar,
+  type LucideIcon,
 } from 'lucide-react';
 import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
+import DateInput from '../components/ui/DateInput'
 
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
 type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
@@ -83,11 +86,11 @@ const _fmt  = (n: number | string | null | undefined) => n == null ? '—' : Num
 const fmtE = (n: number | string | null | undefined) => n == null ? '—' : `${Number(n).toLocaleString(localeActivo(), { maximumFractionDigits: 0 })} €`;
 const fmtI = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
-const RAG: Record<string, { color: string; label: string; Icon: ComponentType<any> }> = {
-  green:  { color: 'var(--success)', label: 'En control',  Icon: CheckCircle as ComponentType<any> },
-  yellow: { color: 'var(--warning)', label: 'Atención',    Icon: AlertTriangle as ComponentType<any> },
-  red:    { color: 'var(--danger)',  label: 'En riesgo',   Icon: AlertTriangle as ComponentType<any> },
-  grey:   { color: 'var(--text-2)', label: 'Sin datos',   Icon: Clock as ComponentType<any> },
+const RAG: Record<string, { color: string; label: string; Icon: LucideIcon }> = {
+  green:  { color: 'var(--success)', label: 'En control',  Icon: CheckCircle },
+  yellow: { color: 'var(--warning)', label: 'Atención',    Icon: AlertTriangle },
+  red:    { color: 'var(--danger)',  label: 'En riesgo',   Icon: AlertTriangle },
+  grey:   { color: 'var(--text-2)', label: 'Sin datos',   Icon: Clock },
 };
 
 // ── RAG pill ───────────────────────────────────────────────────────────────────
@@ -126,15 +129,16 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
   const set = <K extends keyof PortfolioFormData>(k: K) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value as PortfolioFormData[K] }));
   const fs: CSSProperties = { width: '100%', padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box' };
   const ls: CSSProperties = { display: 'block', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 5 };
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose);
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="portfolio-create-title" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-create-title" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
         <div id="portfolio-create-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 20 }}>{initial ? 'Editar cartera' : 'Nueva cartera'}</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="u-stack-14">
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder={t('portfolio.nombre_de_la_cartera')} /></div>
           <div><label style={ls}>{t('portfolio.descripcion')}</label><textarea value={form.description || ''} onChange={set('description')} style={{ ...fs, resize: 'vertical', minHeight: 70 }} /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="u-grid2-12">
             <div><label style={ls}>Estado</label>
               <select value={form.status} onChange={set('status')} style={fs}>
                 <option value="planning">{t('portfolio.planificacion')}</option>
@@ -144,9 +148,9 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
             </div>
             <div><label style={ls}>Presupuesto total (€)</label><input type="number" value={form.budget_total || ''} onChange={set('budget_total')} style={fs} placeholder="Ej: 500000" /></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div><label style={ls}>Fecha inicio</label><input type="date" value={form.start_date || ''} onChange={set('start_date')} style={fs} /></div>
-            <div><label style={ls}>Fecha fin</label><input type="date" value={form.end_date || ''} onChange={set('end_date')} style={fs} /></div>
+          <div className="u-grid2-12">
+            <div><label style={ls}>Fecha inicio</label><DateInput value={form.start_date || ''} onChange={set('start_date')} style={fs} /></div>
+            <div><label style={ls}>Fecha fin</label><DateInput value={form.end_date || ''} onChange={set('end_date')} style={fs} /></div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
@@ -180,10 +184,11 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
 
   const available = allProjects.filter(p => !existingIds.includes(p.id) &&
     p.name.toLowerCase().includes(search.toLowerCase()));
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose);
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="portfolio-add-project-title" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-add-project-title" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
         <div id="portfolio-add-project-title" style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 14 }}>{t('portfolio.anadir_proyecto_a_la_cartera')}</div>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proyectos..."
           style={{ padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", marginBottom: 12 }} />
@@ -194,8 +199,8 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               <div>
-                <div style={{ fontWeight: 600, fontSize: "var(--text-base)" }}>{p.name}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{p.status}</div>
+                <div className="u-base-600">{p.name}</div>
+                <div className="u-text3-xs">{p.status}</div>
               </div>
               <Plus size={14} color="var(--accent)" />
             </button>
@@ -228,13 +233,15 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }),
     onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo quitar el proyecto')),
   });
+  // Con AddProjectModal abierto encima, cede Esc y foco a ese dialogo.
+  const dialogRef = useDialogo<HTMLDivElement>(Boolean(portfolioId) && !(showAddProject && dash), onClose);
 
   if (!portfolioId) return null;
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 40, overflowY: 'auto' }} onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="portfolio-dashboard-title" style={{ background: 'var(--surface-1)', borderRadius: 16, padding: 32, width: 900, maxWidth: '96vw', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', marginBottom: 40 }} onMouseDown={e => e.stopPropagation()}>
-        {isLoading && <div style={{ color: 'var(--text-3)' }}>Cargando dashboard…</div>}
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-dashboard-title" style={{ background: 'var(--surface-1)', borderRadius: 16, padding: 32, width: 900, maxWidth: '96vw', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', marginBottom: 40 }} onMouseDown={e => e.stopPropagation()}>
+        {isLoading && <div className="u-text3">Cargando dashboard…</div>}
         {dash && <>
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -244,7 +251,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                 {dash.project_count} proyectos · {dash.status}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div className="u-row-center-10">
               <button onClick={() => setShowAddProject(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-base)", fontWeight: 600 }}>
                 <Plus size={13} /> {t('portfolio.anadir_proyecto')}
@@ -263,11 +270,11 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
             ].map(({ label, value, sub, Icon, color }) => (
               <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '14px 18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{label}</div>
+                  <div className="u-text3-xs">{label}</div>
                   <Icon size={15} color="var(--accent)" />
                 </div>
                 <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color, margin: '6px 0 2px' }}>{value}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{sub}</div>
+                <div className="u-text3-xs">{sub}</div>
               </div>
             ))}
           </div>
@@ -308,11 +315,11 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                           </span>
                         </td>
                         <td style={{ padding: '11px 14px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div className="u-row-center-8">
                             <div style={{ width: 50, background: 'var(--surface-4)', borderRadius: 3, height: 5 }}>
                               <div style={{ width: `${p.pct_complete}%`, background: RAG[p.rag]?.color || 'var(--text-3)', height: '100%', borderRadius: 3 }} />
                             </div>
-                            <span style={{ fontSize: "var(--text-xs)" }}>{p.pct_complete}%</span>
+                            <span className="u-xs">{p.pct_complete}%</span>
                           </div>
                         </td>
                         <td style={{ padding: '11px 14px', fontWeight: 600, color: p.cpi == null ? 'var(--text-3)' : p.cpi >= 0.9 ? 'var(--success)' : 'var(--danger)' }}>{fmtI(p.cpi)}</td>
@@ -321,12 +328,12 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                         <td style={{ padding: '11px 14px', color: 'var(--text-2)' }}>{fmtE(p.ac)}</td>
                         <td style={{ padding: '11px 14px' }}>
                           {nextMs ? (
-                            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                            <span className="u-text2-xs">
                               <Calendar size={10} style={{ marginRight: 4, verticalAlign: 'middle' }} />
                               {nextMs.title} · {nextMs.due_date}
                               {nextMs.is_completed && <Check size={10} color="var(--success)" style={{ marginLeft: 4 }} />}
                             </span>
-                          ) : <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>—</span>}
+                          ) : <span className="u-text3-xs">—</span>}
                         </td>
                         <td style={{ padding: '11px 14px' }}>
                           <button onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:'¿Quitar del portfolio?',onConfirm:()=>removeProject(p.project_id),danger:true}) }}
@@ -338,12 +345,12 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                           <td colSpan={9} style={{ padding: '8px 28px 14px' }}>
                             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 8 }}>{t('portfolio.hitos_proximos')}</div>
                             {p.milestones.length === 0
-                              ? <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('portfolio.sin_hitos_proximos')}</span>
+                              ? <span className="u-text3-sm">{t('portfolio.sin_hitos_proximos')}</span>
                               : p.milestones.map(m => (
                                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', fontSize: "var(--text-sm)" }}>
-                                  {m.is_completed ? <Check size={12} color="var(--success)" /> : <Clock size={12} color="#f59e0b" />}
+                                  {m.is_completed ? <Check size={12} color="var(--success)" /> : <Clock size={12} color="var(--warning)" />}
                                   <span>{m.title}</span>
-                                  <span style={{ color: 'var(--text-3)' }}>{m.due_date}</span>
+                                  <span className="u-text3">{m.due_date}</span>
                                 </div>
                               ))}
                           </td>
@@ -449,7 +456,7 @@ export default function PortfolioPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: "var(--text-md-em)", marginBottom: 3 }}>{p.name}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{p.project_count} proyectos · {p.status}</div>
+                  <div className="u-text3-xs">{p.project_count} proyectos · {p.status}</div>
                 </div>
                 <span style={{ fontSize: "var(--text-2xs)", fontWeight: 600, padding: '3px 10px', borderRadius: 20,
                   background: p.status === 'active' ? '#22c55e22' : p.status === 'planning' ? '#6366f122' : '#6b728022',
@@ -466,7 +473,7 @@ export default function PortfolioPage() {
               {p.budget_total != null && (
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 10 }}>
                   <DollarSign size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Presupuesto: <strong style={{ color: 'var(--text-1)' }}>{Number(p.budget_total).toLocaleString(localeActivo(), { maximumFractionDigits: 0 })} €</strong>
+                  Presupuesto: <strong className="u-text1">{Number(p.budget_total).toLocaleString(localeActivo(), { maximumFractionDigits: 0 })} €</strong>
                 </div>
               )}
 

@@ -5,12 +5,12 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.advanced_config import RateTable
 from app.models.advanced_config import RateEntry
 from app.models.advanced_config import RateOverride
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ def get_rate_table_or_404(db: Session, table_id: str, org_id, is_superadmin: boo
     q = _org_filter(q, RateTable, org_id, is_superadmin)
     t = q.first()
     if not t:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return t
 
 
@@ -153,7 +153,7 @@ def update_entry(
         RateEntry.is_active == True,
     ).first()
     if not e:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     allowed = ["label", "cost_rate", "billing_rate", "escalation_pct", "valid_from", "valid_to", "notes"]
     for k, v in payload.items():
         if k in allowed:
@@ -170,7 +170,7 @@ def delete_entry(db: Session, table_id: str, entry_id: str, org_id, is_superadmi
         RateEntry.is_active == True,
     ).first()
     if not e:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     e.is_active = False
     db.commit()
 
@@ -180,7 +180,7 @@ def delete_entry(db: Session, table_id: str, entry_id: str, org_id, is_superadmi
 def add_override(db: Session, table_id: str, payload_dict: dict, org_id, is_superadmin: bool):
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     if not payload_dict.get("client_id") and not payload_dict.get("project_id"):
-        raise HTTPException(400, "Debe especificar client_id o project_id")
+        raise ErrorDeDominio(400, "Debe especificar client_id o project_id")
     o = RateOverride(id=str(uuid.uuid4()), table_id=table_id, **payload_dict)
     db.add(o)
     db.commit()
@@ -195,7 +195,7 @@ def delete_override(db: Session, table_id: str, override_id: str, org_id, is_sup
         RateOverride.table_id == table_id,
     ).first()
     if not o:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     db.delete(o)
     db.commit()
 

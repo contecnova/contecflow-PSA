@@ -227,6 +227,22 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+
+  /* Videollamada (CallPage) — superficie SIEMPRE oscura, como la de cualquier
+     cliente de vídeo: no sigue al tema a propósito (en el claro, el vídeo y el
+     texto blanco quedarían sobre blanco). Por eso los temas no la redefinen. */
+  --call-bg:            #0a0d14;
+  --call-bar:           #0e1322;
+  --call-tile:          #1f2738;
+  --call-tile-border:   #2c3a55;
+  --call-text:          #e0e7ff;
+  --call-text-soft:     #cbd5e1;
+  --call-text-muted:    #94a3b8;
+  --call-danger:        #dc2626;
+  --call-danger-soft:   #fca5a5;
+  --call-danger-border: #b91c1c;
+  --call-warning-text:  #fcd34d;
+  --call-avatar-to:     #7c3aed;
 }
 
 /* ── Reset base ───────────────────────────────────────────────── */
@@ -1813,6 +1829,21 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .ds-pill--info    { background: var(--info-bg); color: var(--info); border-color: var(--info-border); }
 .ds-pill--accent  { background: var(--accent-muted); color: var(--accent); border-color: var(--accent-border); }
 .ds-pill--purple  { background: var(--purple-bg); color: var(--purple); border-color: var(--purple-border); }
+.ds-pill--orange  { background: var(--orange-bg); color: var(--orange); border-color: var(--orange-border); }
+/* Color libre (<StatusBadge color="…">): fondo y borde derivados del color. */
+.ds-pill--custom  {
+  color: var(--pill-color);
+  background: color-mix(in srgb, var(--pill-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--pill-color) 30%, transparent);
+}
+.ds-pill--outline { background: transparent; }
+.ds-pill--nocaps  { text-transform: none; letter-spacing: normal; }
+.ds-status-dot--orange { background: var(--orange); }
+.ds-status-dot--custom { background: var(--pill-color); }
+
+/* <DateInput>: el icono y el desplegable del calendario siguen al tema. */
+:root:not([data-theme="light"]) .ds-date-input { color-scheme: dark; }
+[data-theme="light"] .ds-date-input { color-scheme: light; }
 
 /* Subtle divider between sections inside a card */
 .ds-divider {
@@ -1898,4 +1929,51 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   color: var(--on-accent);
 }
 
-
+/* ══════════════════════════════════════════════════════════════
+   Utilidades u-* (auditoría 2026-11, #17)
+   ══════════════════════════════════════════════════════════════
+   Los 40 estilos en línea más repetidos, como clases. Las aplica
+   scripts/codemods/estilos-a-clases.mjs, que tiene la misma tabla: si se
+   cambia una regla aquí, cambiarla también allí. Van al final del fichero a
+   propósito: con la misma especificidad ganan a las reglas anteriores, como
+   ganaba el estilo en línea al que sustituyen. */
+.u-text3-xs { color: var(--text-3); font-size: var(--text-xs); }
+.u-text2-sm { color: var(--text-2); font-size: var(--text-sm); }
+.u-text2-xs { color: var(--text-2); font-size: var(--text-xs); }
+.u-flex1 { flex: 1; }
+.u-col-full { grid-column: 1/-1; }
+.u-field-error { color: var(--danger); font-size: var(--text-xs); margin-top: 4px; }
+.u-flex1-min0 { flex: 1; min-width: 0; }
+.u-text3-sm { color: var(--text-3); font-size: var(--text-sm); }
+.u-stack-14 { display: flex; flex-direction: column; gap: 14px; }
+.u-text2 { color: var(--text-2); }
+.u-stack-10 { display: flex; flex-direction: column; gap: 10px; }
+.u-row-8 { display: flex; gap: 8px; }
+.u-text3 { color: var(--text-3); }
+.u-row-center-8 { display: flex; align-items: center; gap: 8px; }
+.u-actions-10 { display: flex; gap: 10px; justify-content: flex-end; }
+.u-text1 { color: var(--text-1); }
+.u-row-6 { display: flex; gap: 6px; }
+.u-stack-12 { display: flex; flex-direction: column; gap: 12px; }
+.u-actions-8 { display: flex; gap: 8px; justify-content: flex-end; }
+.u-md-700 { font-size: var(--text-md); font-weight: 700; }
+.u-stack-8 { display: flex; flex-direction: column; gap: 8px; }
+.u-base-600 { font-size: var(--text-base); font-weight: 600; }
+.u-sm { font-size: var(--text-sm); }
+.u-grid2-12 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.u-stack-16 { display: flex; flex-direction: column; gap: 16px; }
+.u-mb-16 { margin-bottom: 16px; }
+.u-scroll-x { overflow-x: auto; }
+.u-text2-base { color: var(--text-2); font-size: var(--text-base); }
+.u-row-center-10 { display: flex; align-items: center; gap: 10px; }
+.u-stack-6 { display: flex; flex-direction: column; gap: 6px; }
+.u-wrap-8 { display: flex; flex-wrap: wrap; gap: 8px; }
+.u-mb-20 { margin-bottom: 20px; }
+.u-hint { color: var(--text-3); font-size: var(--text-xs); margin-top: 4px; }
+.u-danger { color: var(--danger); }
+.u-text3-2xs { color: var(--text-3); font-size: var(--text-2xs); }
+.u-wrap-6 { display: flex; flex-wrap: wrap; gap: 6px; }
+.u-xs { font-size: var(--text-xs); }
+.u-row-between { display: flex; align-items: center; justify-content: space-between; }
+.u-warning { color: var(--warning); }
+.u-min0 { min-width: 0; }

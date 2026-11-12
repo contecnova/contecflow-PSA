@@ -199,7 +199,8 @@ def test_el_tope_acota_la_pasada_y_lo_dice(db, monkeypatch):
         _cambio(db, ORG, i)
     db.commit()
 
-    monkeypatch.setattr(svc, "TOPE_DE_CAMBIOS_POR_PASADA", 2)
+    # El tope se lee en el submodulo del CAB (auditoria 2026-11, #24).
+    monkeypatch.setattr(svc.cab, "TOPE_DE_CAMBIOS_POR_PASADA", 2)
     datos = svc.puntuar_cambios_pendientes(db, _Usuario(ORG))
 
     assert datos["total_pending"] == 5, (

@@ -14,6 +14,9 @@ from fastapi.testclient import TestClient
 
 # Disable rate limiting for the entire test suite
 os.environ["TESTING"] = "1"
+# El valor por defecto de ENVIRONMENT es production (cierra por defecto); la
+# suite se escribio contra development.
+os.environ.setdefault("ENVIRONMENT", "development")
 from sqlalchemy import create_engine
 from sqlalchemy import event as _sa_event
 from sqlalchemy import inspect as _sa_inspect

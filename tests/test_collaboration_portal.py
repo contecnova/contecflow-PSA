@@ -35,6 +35,7 @@ usarlo, no duplicarlo.
 from __future__ import annotations
 
 import pytest
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-portal-colab"
 
@@ -201,7 +202,7 @@ def test_un_cliente_que_no_participa_no_puede_escribir(db, escenario):
     db.add(intruso)
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.send_message(db, intruso, _Payload(escenario["conv"].id, "cuela?"))
     assert exc.value.status_code == 403
 
@@ -211,7 +212,7 @@ def test_el_envio_exige_conversacion(db, escenario):
 
     from app.services.collaboration import portal as svc
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.send_message(db, escenario["cliente"], _Payload(None, "sin destino"))
     assert exc.value.status_code == 400
 
@@ -294,7 +295,7 @@ def test_un_cliente_que_no_participa_no_lee_los_mensajes(db, escenario):
     db.add(intruso)
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.list_messages(db, intruso, escenario["conv"].id)
     assert exc.value.status_code == 403
 

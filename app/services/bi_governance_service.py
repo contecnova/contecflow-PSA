@@ -37,6 +37,7 @@ def _get_json(db: Session, key: str, organization_id: Optional[str], default: An
     try:
         return json.loads(row.value)
     except Exception:
+        logger.debug("_get_json: excepcion ignorada", exc_info=True)
         return default
 
 

@@ -47,7 +47,7 @@ export default function PoliticasDeGasto({ categorias }: { categorias: { id: str
   const listo = nueva.nombre.trim().length >= 2 && REGLAS.some(r => nueva[r] !== '')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('gas.politicas_ayuda')}</p>
       {q.isLoading ? <Spinner /> : (q.data?.items ?? []).length === 0
         ? <EmptyState icon="🛡️" title={t('gas.sin_politicas')} description="" />
@@ -56,8 +56,8 @@ export default function PoliticasDeGasto({ categorias }: { categorias: { id: str
             {q.data!.items.map(p => (
               <div key={p.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) 140px minmax(0, 2fr) 120px 90px 36px', gap: 10, alignItems: 'center', padding: '10px 12px', borderTop: '1px solid var(--surface-3)', fontSize: 'var(--text-sm)', opacity: p.activa ? 1 : 0.55 }}>
                 <strong>{p.nombre}</strong>
-                <span style={{ color: 'var(--text-2)' }}>{etiquetaCat(p.categoria)}</span>
-                <span style={{ color: 'var(--text-2)', fontSize: 'var(--text-xs)' }}>
+                <span className="u-text2">{etiquetaCat(p.categoria)}</span>
+                <span className="u-text2-xs">
                   {REGLAS.filter(r => p[r] != null).map(r => t(`gas.regla_${r}`, { n: p[r] as number })).join(' · ')}
                 </span>
                 <select aria-label={t('gas.accion')} value={p.accion} onChange={e => cambiar(p, { accion: e.target.value as 'bloquear' | 'avisar' })} style={campo}>
@@ -73,17 +73,17 @@ export default function PoliticasDeGasto({ categorias }: { categorias: { id: str
           </div>
         )}
       <section aria-label={t('gas.nueva_politica')} style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, alignItems: 'end' }}>
-        <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('gas.nombre')}</span><input aria-label={t('gas.nombre')} value={nueva.nombre} onChange={set('nombre')} style={campo} /></label>
-        <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('gas.categoria')}</span>
+        <label><span className="u-text3-xs">{t('gas.nombre')}</span><input aria-label={t('gas.nombre')} value={nueva.nombre} onChange={set('nombre')} style={campo} /></label>
+        <label><span className="u-text3-xs">{t('gas.categoria')}</span>
           <select aria-label={t('gas.categoria')} value={nueva.categoria} onChange={set('categoria')} style={campo}>
             <option value="">{t('gas.todas_las_categorias')}</option>
             {categorias.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select></label>
         {REGLAS.map(r => (
-          <label key={r}><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`gas.campo_${r}`)}</span>
+          <label key={r}><span className="u-text3-xs">{t(`gas.campo_${r}`)}</span>
             <input aria-label={t(`gas.campo_${r}`)} type="number" min={0} step="0.01" value={nueva[r]} onChange={set(r)} style={campo} /></label>
         ))}
-        <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('gas.accion')}</span>
+        <label><span className="u-text3-xs">{t('gas.accion')}</span>
           <select aria-label={t('gas.accion')} value={nueva.accion} onChange={set('accion')} style={campo}>
             <option value="bloquear">{t('gas.accion_bloquear')}</option><option value="avisar">{t('gas.accion_avisar')}</option>
           </select></label>

@@ -106,7 +106,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
 
   return (
     <Modal open title={`Editar posición — ${user.full_name}`} onClose={onClose}>
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div className="u-stack-14">
         <div style={{ padding:'10px 14px', background:'var(--surface-2)', borderRadius:8,
           border:'1px solid var(--surface-4)' }}>
           <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>{user.full_name}</div>
@@ -153,7 +153,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
             : ' quedará pendiente de asignación de aprobador.'}
         </div>
 
-        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving} loading={saving}>{t('orgchart.guardar_posicion')}</Button>
         </div>
@@ -190,10 +190,10 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
         <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0,
           background: getRoleColor(node.role),
           display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize: "var(--text-sm)", fontWeight:700, color:'#fff' }}>
+          fontSize: "var(--text-sm)", fontWeight:700, color:'var(--on-accent-light)' }}>
           {node.full_name?.charAt(0)?.toUpperCase()}
         </div>
-        <div style={{ flex:1, minWidth:0 }}>
+        <div className="u-flex1-min0">
           <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)',
             overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {node.full_name}
@@ -265,7 +265,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
   return (
     <div style={{ display:'grid', gridTemplateColumns:'240px 1fr', gap:20 }}>
       {/* Sidebar */}
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div className="u-stack-14">
         <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
           borderRadius:12, padding:16 }}>
           <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)', marginBottom:10,
@@ -282,7 +282,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
                   style={{ padding:'6px 10px', background:'var(--surface-1)', borderRadius:6,
                     cursor:'pointer', fontSize: "var(--text-sm)", width:'100%', textAlign:'left', fontFamily:'inherit', border:'none' }}>
                   <div style={{ fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{u.job_title||u.role}</div>
+                  <div className="u-text3-xs">{u.job_title||u.role}</div>
                 </button>
               ))}
             </div>
@@ -297,7 +297,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
             {deptCounts.map(([dept, count]) => (
               <div key={dept} style={{ display:'flex', justifyContent:'space-between',
                 padding:'5px 0', borderBottom:'1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
-                <span style={{ color:'var(--text-1)' }}>{dept}</span>
+                <span className="u-text1">{dept}</span>
                 <span style={{ color:'var(--text-3)', fontWeight:600 }}>{count}</span>
               </div>
             ))}
@@ -312,7 +312,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
             <div key={role} style={{ display:'flex', alignItems:'center', gap:8,
               padding:'4px 0', fontSize: "var(--text-sm)" }}>
               <div style={{ width:9, height:9, borderRadius:'50%', background:color }} />
-              <span style={{ color:'var(--text-1)' }}>{getRoleLabel(role)}</span>
+              <span className="u-text1">{getRoleLabel(role)}</span>
             </div>
           ))}
         </div>
@@ -387,7 +387,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
           <option value="">{t('orgchart.todos_los_departamentos')}</option>
           {depts.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        <span style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{filtered.length} persona{filtered.length!==1?'s':''}</span>
+        <span className="u-text3-sm">{filtered.length} persona{filtered.length!==1?'s':''}</span>
       </div>
 
       {/* Tabla */}
@@ -413,12 +413,12 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                       <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
                         background: ROLE_COLOR[u.role]||'#7a8aaa',
                         display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize: "var(--text-xs)", fontWeight:700, color:'#fff' }}>
+                        fontSize: "var(--text-xs)", fontWeight:700, color:'var(--on-accent-light)' }}>
                         {u.full_name?.charAt(0)?.toUpperCase()}
                       </div>
                       <div>
                         <div style={{ fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
-                        <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{u.email}</div>
+                        <div className="u-text3-xs">{u.email}</div>
                       </div>
                     </div>
                   </td>
@@ -443,12 +443,12 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                         <div style={{ width:22, height:22, borderRadius:'50%',
                           background: getRoleColor(managerUser.role),
                           display:'flex', alignItems:'center', justifyContent:'center',
-                          fontSize: "var(--text-2xs)", fontWeight:700, color:'#fff', flexShrink:0 }}>
+                          fontSize: "var(--text-2xs)", fontWeight:700, color:'var(--on-accent-light)', flexShrink:0 }}>
                           {managerUser.full_name?.charAt(0)}
                         </div>
                         <div>
                           <div style={{ fontSize: "var(--text-sm)", fontWeight:600, color:'var(--text-1)' }}>{managerUser.full_name}</div>
-                          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{managerUser.job_title||getRoleLabel(managerUser.role)}</div>
+                          <div className="u-text3-xs">{managerUser.job_title||getRoleLabel(managerUser.role)}</div>
                         </div>
                       </div>
                     ) : (
@@ -560,7 +560,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                 width:'100%', textAlign:'left', fontFamily:'inherit',
               }}>
               <div style={{ fontSize: "var(--text-sm-h)", fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
-              <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>
+              <div className="u-text3-xs">
                 {u.job_title || ROLE_LABEL[u.role]}{u.department ? ` · ${u.department}` : ''}
               </div>
             </button>
@@ -571,7 +571,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
       {/* Resultado de la cadena */}
       <div>
         {chain ? (
-          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          <div className="u-stack-16">
             {/* Usuario */}
             <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
               borderRadius:12, padding:'16px 20px' }}>
@@ -582,12 +582,12 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <div style={{ width:40, height:40, borderRadius:'50%',
                   background:'var(--accent)', display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize: "var(--text-lg)", fontWeight:700, color:'#fff' }}>
+                  justifyContent:'center', fontSize: "var(--text-lg)", fontWeight:700, color:'var(--on-accent-light)' }}>
                   {chain.user_name?.charAt(0)}
                 </div>
                 <div>
                   <div style={{ fontSize: "var(--text-md-em)", fontWeight:700, color:'var(--text-1)' }}>{chain.user_name}</div>
-                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>
+                  <div className="u-text3-sm">
                     {selectedUser?.job_title || ''} {selectedUser?.department ? `· ${selectedUser.department}` : ''}
                   </div>
                 </div>
@@ -647,7 +647,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                           <div style={{ display:'flex', alignItems:'center', gap:8,
                             padding:'4px 0 4px 16px' }}>
                             <div style={{ width:2, height:24, background:'var(--surface-4)' }} />
-                            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>
+                            <span className="u-text3-xs">
                               {idx === 0 ? 'aprobación directa' : `escalado nivel ${idx+1}`}
                             </span>
                           </div>
@@ -659,21 +659,21 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                             <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0,
                               background: getRoleColor(approver.role),
                               display:'flex', alignItems:'center', justifyContent:'center',
-                              fontSize: "var(--text-md)", fontWeight:700, color:'#fff' }}>
+                              fontSize: "var(--text-md)", fontWeight:700, color:'var(--on-accent-light)' }}>
                               {approver.full_name?.charAt(0)}
                             </div>
-                            <div style={{ flex:1 }}>
-                              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <div className="u-flex1">
+                              <div className="u-row-center-8">
                                 <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>
                                   {approver.full_name}
                                 </span>
                                 {idx === 0 && (
                                   <span style={{ fontSize: "var(--text-2xs)", padding:'2px 8px', borderRadius:4,
-                                    background:'rgba(0,229,160,0.15)', color:'#34d399',
+                                    background:'rgba(0,229,160,0.15)', color:'var(--success)',
                                     fontWeight:700 }}>APROBADOR DIRECTO</span>
                                 )}
                               </div>
-                              <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>
+                              <div className="u-text3-sm">
                                 {approver.job_title || getRoleLabel(approver.role)}
                                 {approver.department ? ` · ${approver.department}` : ''}
                               </div>

@@ -1,157 +1,103 @@
-"""Enlaces de pago y webhook de Stripe.
+"""Webhook de Stripe: marca como pagada la factura cuando Stripe confirma el cobro.
 
-Auditoria 2026-08 (hallazgo 22). Este codigo vivia en `v238_service.py`, un
-fichero de 784 lineas nombrado por NUMERO DE VERSION y con SEIS dominios sin
-relacion dentro: etapas del embudo, planificacion de capacidad, analitica
-ad-hoc, pagos, instantaneas de colaboracion y SCIM.
+Auditoria 2026-11. Este modulo no lo importaba nadie: tenia un segundo creador
+de enlaces de pago (duplicado del de `stripe_service`, que es el que usa
+`POST /invoices/{id}/payment-link`) y el unico manejador del webhook, que no
+estaba montado en ninguna ruta. Resultado: se generaban enlaces de cobro y la
+factura nunca pasaba a pagada. El duplicado se ha borrado y el webhook se monta
+en `POST /invoices/stripe/webhook`.
 
-Agrupar por version en lugar de por dominio tiene un coste concreto: nadie sabe
-donde buscar, y un fichero con seis dominios no tiene revisor natural — quien
-entra a tocar los pagos no revisa la analitica que hay 300 lineas mas abajo. Fue
-esa misma mala ubicacion la que oculto el P0 numero 1 de la auditoria, escondido
-en un fichero llamado `mfa_service`.
-
-El reparto se pudo hacer mecanicamente porque los seis dominios nunca estuvieron
-acoplados, solo apilados: se comprobo por AST que no habia ni una llamada entre
-grupos ni un solo ciclo. Los cuerpos se movieron verbatim.
+Ademas el manejador antiguo aceptaba el evento SIN firma si faltaba el secreto o
+la cabecera: cualquiera podia marcar facturas como pagadas. Ahora la firma es
+obligatoria, con tolerancia de tiempo contra reenvios, como pide Stripe.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from __future__ import annotations
+
+import hashlib
+import hmac
 import json
 import logging
-import hmac
-import hashlib
+import time
+from datetime import datetime, timezone
+from typing import Optional
+
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
-from app.core.config import settings
-from app.models.billing_reports import Invoice
+
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
+from app.models.billing_reports import Invoice
 
 logger = logging.getLogger(__name__)
 
+# https://docs.stripe.com/webhooks#verify-manually: 5 minutos por defecto.
+_TOLERANCIA_S = 300
 
-def create_payment_link_record(invoice_id: str, db: Session) -> dict:
+
+def _secreto(db: Session) -> Optional[str]:
     from app.services.integration_credentials_service import get_credential
-    org_id = None  # Stripe creds resolved at org-NULL scope unless caller threads through
-    stripe_secret = get_credential(db, "stripe", "secret_key", org_id=org_id)
-    if not stripe_secret:
-        raise HTTPException(
-            status_code=503,
-            detail="Stripe no configurado. Edita en Settings → Sistema → Credenciales → Stripe, o define STRIPE_SECRET_KEY en .env."
-        )
-    inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    if not inv:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    if inv.status not in ("sent", "overdue"):
-        raise HTTPException(status_code=400, detail=f"Invoice status must be 'sent' or 'overdue', got '{inv.status}'")
-    if not inv.total or inv.total <= 0:
-        raise HTTPException(status_code=400, detail="Invoice total must be greater than 0")
+    return get_credential(db, "stripe", "webhook_secret")
 
-    if inv.stripe_payment_link_url:
-        return {
-            "invoice_id": invoice_id,
-            "payment_link_url": inv.stripe_payment_link_url,
-            "stripe_payment_link_id": inv.stripe_payment_link_id,
-            "already_existed": True,
-        }
 
-    import httpx
-    amount_cents = int(inv.total * 100)
-    currency = (inv.currency or settings.DEFAULT_CURRENCY).lower()
-
-    try:
-        from app.services.settings_service import outbound_http_timeout
-        with httpx.Client(timeout=outbound_http_timeout(db, default=10.0)) as client:
-            price_resp = client.post(
-                "https://api.stripe.com/v1/prices",
-                auth=(stripe_secret, ""),
-                data={
-                    "unit_amount": str(amount_cents),
-                    "currency": currency,
-                    "product_data[name]": f"Factura {inv.number}",
-                },
-            )
-            if price_resp.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Stripe price creation failed: {price_resp.text}")
-            price_id = price_resp.json()["id"]
-
-            link_resp = client.post(
-                "https://api.stripe.com/v1/payment_links",
-                auth=(stripe_secret, ""),
-                data={
-                    "line_items[0][price]": price_id,
-                    "line_items[0][quantity]": "1",
-                    "metadata[invoice_id]": invoice_id,
-                    "metadata[invoice_number]": inv.number,
-                    "after_completion[type]": "redirect",
-                    "after_completion[redirect][url]": f"{settings.FRONTEND_URL}/invoices?paid={invoice_id}",
-                },
-            )
-            if link_resp.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Stripe payment link creation failed: {link_resp.text}")
-            link_data = link_resp.json()
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Stripe API error: {str(e)}")
-
-    inv.stripe_payment_link_id = link_data["id"]
-    inv.stripe_payment_link_url = link_data["url"]
-    db.commit()
-
-    return {
-        "invoice_id": invoice_id,
-        "invoice_number": inv.number,
-        "payment_link_url": link_data["url"],
-        "stripe_payment_link_id": link_data["id"],
-        "amount": inv.total,
-        "currency": currency,
-    }
+def verificar_firma(raw_body: bytes, cabecera: Optional[str], secreto: str, ahora: Optional[float] = None) -> bool:
+    """`Stripe-Signature: t=...,v1=...[,v1=...]` con HMAC-SHA256 de `t.body`."""
+    if not cabecera:
+        return False
+    marca, firmas = None, []
+    for parte in cabecera.split(","):
+        clave, _, valor = parte.strip().partition("=")
+        if clave == "t":
+            marca = valor
+        elif clave == "v1":
+            firmas.append(valor)
+    if not marca or not firmas or not marca.isdigit():
+        return False
+    if abs((ahora if ahora is not None else time.time()) - int(marca)) > _TOLERANCIA_S:
+        return False
+    esperada = hmac.new(secreto.encode(), marca.encode() + b"." + raw_body, hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(esperada, f) for f in firmas)
 
 
 def handle_stripe_webhook(raw_body: bytes, stripe_signature: Optional[str], db: Session) -> dict:
-    from app.services.integration_credentials_service import get_credential
-    webhook_secret = get_credential(db, "stripe", "webhook_secret")
-
-    if webhook_secret and stripe_signature:
-        try:
-            parts = {p.split("=")[0]: p.split("=")[1] for p in stripe_signature.split(",")}
-            timestamp = parts.get("t", "")
-            sig = parts.get("v1", "")
-            signed_payload = f"{timestamp}.{raw_body.decode('utf-8')}"
-            expected = hmac.new(
-                webhook_secret.encode("utf-8"),
-                signed_payload.encode("utf-8"),
-                hashlib.sha256,
-            ).hexdigest()
-            if not hmac.compare_digest(expected, sig):
-                raise HTTPException(status_code=400, detail="Invalid Stripe signature")
-        except HTTPException:
-            raise
-        except Exception:
-            raise HTTPException(status_code=400, detail="Signature verification failed")
+    secreto = _secreto(db)
+    if not secreto:
+        # Sin secreto no se puede autenticar: no se procesa nada.
+        raise ErrorDeDominio(status_code=503, detail="Webhook de Stripe no configurado (STRIPE_WEBHOOK_SECRET).")
+    if not verificar_firma(raw_body, stripe_signature, secreto):
+        raise ErrorDeDominio(status_code=400, detail="Firma de Stripe invalida")
 
     try:
         event = json.loads(raw_body)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+        raise ErrorDeDominio(status_code=400, detail="JSON invalido")
 
     event_type = event.get("type", "")
-    data = event.get("data", {}).get("object", {})
+    data = (event.get("data") or {}).get("object") or {}
 
-    if event_type in ("checkout.session.completed", "payment_intent.succeeded"):
-        invoice_id = (data.get("metadata") or {}).get("invoice_id")
-        if invoice_id:
-            inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-            if inv and inv.status != "paid":
-                inv.status = "paid"
-                inv.paid_date = timeutil.today()
-                inv.stripe_paid_at = datetime.now(timezone.utc)
-                if data.get("payment_intent"):
-                    inv.stripe_payment_intent_id = data["payment_intent"]
-                db.commit()
-                logger.info(f"Invoice {invoice_id} marked as paid via Stripe webhook")
+    # El enlace se crea como Checkout Session (stripe_service); solo cuenta
+    # como cobrada si Stripe dice `paid` (los pagos diferidos llegan despues
+    # como `checkout.session.async_payment_succeeded`).
+    pagada = (
+        event_type == "checkout.session.completed" and data.get("payment_status") == "paid"
+    ) or event_type == "checkout.session.async_payment_succeeded"
+    if not pagada:
+        return {"received": True, "event_type": event_type, "applied": False}
 
-    return {"received": True, "event_type": event_type}
+    invoice_id = (data.get("metadata") or {}).get("invoice_id")
+    if not invoice_id:
+        return {"received": True, "event_type": event_type, "applied": False}
+    inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    # La sesion tiene que ser la que se genero para esa factura: el metadata
+    # solo no basta para atar el evento a la factura.
+    if not inv or (inv.stripe_payment_link_id and inv.stripe_payment_link_id != data.get("id")):
+        logger.warning("Stripe webhook: sesion %s no corresponde a la factura %s", data.get("id"), invoice_id)
+        return {"received": True, "event_type": event_type, "applied": False}
+    if inv.status != "paid":
+        inv.status = "paid"
+        inv.paid_date = timeutil.today()
+        inv.stripe_paid_at = datetime.now(timezone.utc)
+        if data.get("payment_intent"):
+            inv.stripe_payment_intent_id = data["payment_intent"]
+        db.commit()
+        logger.info("Factura %s pagada via webhook de Stripe", invoice_id)
+    return {"received": True, "event_type": event_type, "applied": True}

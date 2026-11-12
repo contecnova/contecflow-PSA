@@ -19,6 +19,7 @@ from app.core.network import extract_client_ip
 from app.models.enterprise import SSOConfig, SSOProvider
 from app.models.mfa import Organization, WebAuthnCredential
 from app.models.sessions import UserSession
+from app.core.errores import ErrorDeDominio
 
 
 def test_login_admin(client, db):
@@ -132,7 +133,7 @@ def test_validate_https_discovery_url_accepts_https():
     "",
 ])
 def test_validate_https_discovery_url_rejects_non_https(url):
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         _validate_https_discovery_url(url)
 
 

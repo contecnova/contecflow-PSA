@@ -28,6 +28,7 @@ from app.core.uploads import (
     safe_filename,
     validate_upload,
 )
+from app.core.errores import ErrorDeDominio
 
 PDF = b"%PDF-1.7\n" + b"a" * 512
 PNG = b"\x89PNG\r\n\x1a\n" + b"b" * 512
@@ -48,31 +49,31 @@ def test_ejecutable_disfrazado_de_imagen_es_rechazado():
     Un ELF con nombre .png y Content-Type image/png pasaba la comprobación
     anterior, que sólo miraba la cabecera declarada por el cliente.
     """
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         validate_upload("factura.png", "image/png", ELF, UploadProfile.RECEIPT)
     assert exc.value.status_code == 415
 
 
 def test_ejecutable_windows_disfrazado_es_rechazado():
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         validate_upload("recibo.pdf", "application/pdf", EXE, UploadProfile.RECEIPT)
     assert exc.value.status_code == 415
 
 
 def test_tipo_real_distinto_del_declarado_es_rechazado():
     """Un PNG real declarado como PDF: incoherencia detectada por bytes mágicos."""
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         validate_upload("doc.pdf", "application/pdf", PNG, UploadProfile.DOCUMENT)
     assert exc.value.status_code == 415
 
 
 def test_zip_bloqueado_aunque_la_extension_mienta():
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         validate_upload("informe.pdf", "application/pdf", ZIP, UploadProfile.DOCUMENT)
 
 
 def test_extension_de_archivo_comprimido_bloqueada():
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         validate_upload("backup.zip", "application/zip", b"", UploadProfile.DOCUMENT)
     assert exc.value.status_code == 415
 
@@ -81,7 +82,7 @@ def test_extension_de_archivo_comprimido_bloqueada():
 
 def test_perfil_pdf_only_rechaza_una_imagen_valida():
     """Antes ai_modules sólo miraba el sufijo del nombre."""
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         validate_upload("contrato.png", "image/png", PNG, UploadProfile.PDF_ONLY)
 
 
@@ -95,7 +96,7 @@ def test_perfil_receipt_acepta_imagen_y_pdf():
 
 
 def test_perfil_csv_rechaza_un_pdf():
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         validate_upload("datos.pdf", "application/pdf", PDF, UploadProfile.CSV_IMPORT)
 
 
@@ -119,7 +120,7 @@ def test_el_tope_global_sale_de_settings_no_de_una_constante_local():
 
 def test_pasarse_del_tope_lanza_413():
     grande = _upload("x.png", "image/png", PNG + b"z" * (2 * 1024 * 1024))
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         read_upload_within_limit_sync(grande, 1024 * 1024)
     assert exc.value.status_code == 413
 
@@ -143,7 +144,7 @@ def test_la_lectura_no_bufferiza_mas_alla_del_tope():
     subida = UploadFile(
         filename="x.png", file=_Contador(payload), headers={"content-type": "image/png"}
     )
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         read_upload_within_limit_sync(subida, tope)
 
     # Se permite el tope más un trozo de lectura (1 MB), no el payload entero.

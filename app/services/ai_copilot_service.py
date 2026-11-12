@@ -10,13 +10,13 @@ from datetime import timedelta
 from app.core.timeutil import utcnow
 from typing import Dict
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.service_desk import Ticket, KBArticle
 from app.models.task import Task
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,11 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
     # de org A podría ver tasks/títulos de org B vía suggestions.
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
-        raise HTTPException(404, "Project not found")
+        raise ErrorDeDominio(404, "Project not found")
     if current_user is not None and not bool(getattr(current_user, "is_superadmin", False)):
         cu_org = getattr(current_user, "organization_id", None)
         if cu_org and getattr(proj, "organization_id", None) and proj.organization_id != cu_org:
-            raise HTTPException(404, "Project not found")
+            raise ErrorDeDominio(404, "Project not found")
 
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     today = timeutil.today()
@@ -102,10 +102,10 @@ def _autorizar_consulta_de_anomalias(db: Session, user_id: str, current_user) ->
 
     objetivo = db.query(_User).filter(_User.id == user_id).first()
     if not objetivo:
-        raise HTTPException(404, "User not found")
+        raise ErrorDeDominio(404, "User not found")
     organizacion = getattr(current_user, "organization_id", None)
     if organizacion and getattr(objetivo, "organization_id", None) != organizacion:
-        raise HTTPException(404, "User not found")
+        raise ErrorDeDominio(404, "User not found")
 
 
 def _umbral_de_horas(horas_por_dia: dict) -> tuple[float, str]:
@@ -210,7 +210,7 @@ def get_ai_ticket_kb_suggestions(ticket_id: str, db: Session) -> dict:
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise HTTPException(404, "Ticket not found")
+        raise ErrorDeDominio(404, "Ticket not found")
 
     text = f"{ticket.title or ''} {ticket.description or ''}".lower()
     words = set(w for w in text.split() if len(w) > 3)

@@ -51,6 +51,7 @@ def _pdf_thumbnail(data: bytes) -> bytes | None:
     try:
         from pdf2image import convert_from_bytes
     except Exception:
+        logger.debug("_pdf_thumbnail: excepcion ignorada", exc_info=True)
         return None
     try:
         from pdf2image import convert_from_bytes
@@ -108,6 +109,7 @@ def generate_for_attachment(attachment_id: str) -> None:
         try:
             data = storage.read(att.storage_key)
         except Exception:
+            logger.warning("generate_for_attachment: excepcion ignorada", exc_info=True)
             att.preview_status = "failed"
             db.commit()
             return

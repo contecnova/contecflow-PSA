@@ -281,20 +281,20 @@ export default function OrganizationsPage() {
           {isLoading ? <Spinner /> : orgs.length === 0 ? (
             <EmptyState icon="🏢" title={t('organizations.no_orgs')} description="Crea la primera organizacion para gestionar entornos aislados" />
           ) : (
-            <div data-export-table="organizations-list" style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <div data-export-table="organizations-list" className="u-stack-10">
               {orgs.map(o => (
                 <div key={o.id} onClick={() => setSelected(selected===o.id?null:o.id)}
                   role="button" tabIndex={0}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected===o.id?null:o.id) } }}
                   style={{ ...card, padding:'16px 20px', cursor:'pointer', opacity: o.is_active ? 1 : 0.6, border:selected===o.id?'.5px solid rgba(0,212,255,0.25)':'var(--surface-4) .5px solid' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div className="u-row-between">
                     <div>
                       <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
                         <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{o.name}</span>
                         <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: (o.plan && PLAN_COLORS[o.plan]) || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
                         {!o.is_active && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>{o.deletion_purge_after ? `Baja · se borra el ${o.deletion_purge_after.slice(0, 10)}` : 'Suspendida'}</span>}
                       </div>
-                      <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
+                      <div className="u-text2-sm">
                         {o.slug}{o.domain ? ` · ${o.domain}` : ''} · {o.admin_email || '—'}
                       </div>
                       {/* Uso frente al límite del plan: el alta de usuarios y proyectos se para al llegar. */}
@@ -309,8 +309,8 @@ export default function OrganizationsPage() {
                         <div style={{ fontSize: "var(--text-sm)", color:'var(--danger)', marginTop:2 }}>Motivo: {o.suspension_reason}</div>
                       )}
                     </div>
-                    <div style={{ display:'flex', gap:8 }}>
-                      <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{o.created_at}</span>
+                    <div className="u-row-8">
+                      <span className="u-text2-sm">{o.created_at}</span>
                       <button onClick={e => { e.stopPropagation(); if (o.is_active) { setSuspendiendo(o); setMotivo('') } else toggle({ id:o.id, is_active:true }) }}
                         style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
                         {o.is_active ? 'Suspender' : 'Activar'}
@@ -358,7 +358,7 @@ export default function OrganizationsPage() {
               return (
                 <div key={u.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:4, padding:'6px 0', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                   <span>{u.full_name}</span>
-                  <span style={{ color:'var(--text-2)' }}>{u.role}</span>
+                  <span className="u-text2">{u.role}</span>
                   <Button size="xs" variant="secondary" style={{ marginLeft:8 }}
                     title="Entrar como este usuario (soporte; queda auditado)"
                     onClick={() => { setMotivo(''); setPidiendoMotivo({ tipo: 'entrar', userId: String(u.id), nombre: u.full_name }) }}>Entrar como</Button>
@@ -404,7 +404,7 @@ export default function OrganizationsPage() {
                           return ''
                         })()}
                       </div>
-                      <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+                      <div className="u-actions-10">
                         <Button variant="secondary" onClick={()=>setShowAssignUser(false)}>Cancelar</Button>
                         <Button
                           onClick={()=>assignUser({ orgId: detail.id, userId: assignUserId })}
@@ -420,17 +420,17 @@ export default function OrganizationsPage() {
 
       {showCreate && (
         <Modal open title={t('organizations.nueva_organizacion_2')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={520}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div className="u-stack-14">
+            <div className="u-grid2-12">
               <div>
                 <label style={ls}>Nombre</label>
                 <input value={form.name} onChange={e=>{ setForm(f=>({...f,name:e.target.value})); createValidation.clearFieldError('name') }} style={createValidation.inputStyle(fs, 'name')} />
-                {createValidation.errors.name && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.name}</div>}
+                {createValidation.errors.name && <div className="u-field-error">{createValidation.errors.name}</div>}
               </div>
               <div>
                 <label style={ls}>{t('organizations.slug_identificador_unico')}</label>
                 <input value={form.slug} onChange={e=>{ setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')})); createValidation.clearFieldError('slug') }} style={createValidation.inputStyle(fs, 'slug')} />
-                {createValidation.errors.slug && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.slug}</div>}
+                {createValidation.errors.slug && <div className="u-field-error">{createValidation.errors.slug}</div>}
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
@@ -442,19 +442,19 @@ export default function OrganizationsPage() {
               <div>
                 <label style={ls}>{t('organizations.max_usuarios')}</label>
                 <input type="number" value={form.max_users} onChange={e=>{ setForm(f=>({...f,max_users:+e.target.value})); createValidation.clearFieldError('max_users') }} style={createValidation.inputStyle(fs, 'max_users')} />
-                {createValidation.errors.max_users && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.max_users}</div>}
+                {createValidation.errors.max_users && <div className="u-field-error">{createValidation.errors.max_users}</div>}
               </div>
               <div>
                 <label style={ls}>{t('organizations.max_proyectos')}</label>
                 <input type="number" value={form.max_projects} onChange={e=>{ setForm(f=>({...f,max_projects:+e.target.value})); createValidation.clearFieldError('max_projects') }} style={createValidation.inputStyle(fs, 'max_projects')} />
-                {createValidation.errors.max_projects && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.max_projects}</div>}
+                {createValidation.errors.max_projects && <div className="u-field-error">{createValidation.errors.max_projects}</div>}
               </div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="u-grid2-12">
               <div>
                 <label style={ls}>{t('organizations.email_del_admin')}</label>
                 <input value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} style={createValidation.inputStyle(fs, 'admin_email')} />
-                {createValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.admin_email}</div>}
+                {createValidation.errors.admin_email && <div className="u-field-error">{createValidation.errors.admin_email}</div>}
               </div>
               <div>
                 <label style={ls}>Nombre del admin</label>
@@ -467,9 +467,9 @@ export default function OrganizationsPage() {
             <div>
               <label style={ls}>Dominio propio (opcional)</label>
               <input value={form.domain} placeholder="app.cliente.com" onChange={e=>{ setForm(f=>({...f,domain:e.target.value})); createValidation.clearFieldError('domain') }} style={createValidation.inputStyle(fs, 'domain')} />
-              {createValidation.errors.domain && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.domain}</div>}
+              {createValidation.errors.domain && <div className="u-field-error">{createValidation.errors.domain}</div>}
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={()=>{ setShowCreate(false); createValidation.setErrors({}) }}>Cancelar</Button>
               <Button onClick={submitCreate} disabled={isPending}>{isPending?'Creando...':'Crear'}</Button>
             </div>
@@ -479,15 +479,15 @@ export default function OrganizationsPage() {
 
       {showEdit && editForm && (
         <Modal open title="Editar organizacion" onClose={() => { setShowEdit(false); editValidation.setErrors({}) }} width={520}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div className="u-stack-14">
+            <div className="u-grid2-12">
               <div>
                 <label style={ls}>Nombre</label>
                 <input value={editForm?.name ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,name:e.target.value})); editValidation.clearFieldError('name') }} style={editValidation.inputStyle(fs, 'name')} />
-                {editValidation.errors.name && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.name}</div>}
+                {editValidation.errors.name && <div className="u-field-error">{editValidation.errors.name}</div>}
               </div>
               {/* El slug no se puede editar */}
-              <div><label style={ls}>Slug</label><input value={detail?.slug ?? ''} disabled style={{...fs, background:'#f5f5f5'}} /></div>
+              <div><label style={ls}>Slug</label><input value={detail?.slug ?? ''} disabled style={{...fs, background:'var(--surface-1)'}} /></div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
               <div><label style={ls}>Plan</label>
@@ -498,18 +498,18 @@ export default function OrganizationsPage() {
               <div>
                 <label style={ls}>{t('organizations.max_usuarios')}</label>
                 <input type="number" value={editForm?.max_users ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} style={editValidation.inputStyle(fs, 'max_users')} />
-                {editValidation.errors.max_users && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.max_users}</div>}
+                {editValidation.errors.max_users && <div className="u-field-error">{editValidation.errors.max_users}</div>}
               </div>
               <div>
                 <label style={ls}>{t('organizations.max_proyectos')}</label>
                 <input type="number" value={editForm?.max_projects ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} style={editValidation.inputStyle(fs, 'max_projects')} />
-                {editValidation.errors.max_projects && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.max_projects}</div>}
+                {editValidation.errors.max_projects && <div className="u-field-error">{editValidation.errors.max_projects}</div>}
               </div>
             </div>
             <div>
               <label style={ls}>Dominio propio (opcional)</label>
               <input value={editForm?.domain ?? ''} placeholder="app.cliente.com" onChange={e=>{ setEditForm(f => f && ({...f,domain:e.target.value})); editValidation.clearFieldError('domain') }} style={editValidation.inputStyle(fs, 'domain')} />
-              {editValidation.errors.domain && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.domain}</div>}
+              {editValidation.errors.domain && <div className="u-field-error">{editValidation.errors.domain}</div>}
             </div>
             {/* Revisión 2026-11: la MFA obligatoria sólo se podía activar por API. */}
             <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize: "var(--text-sm)", cursor:'pointer' }}>
@@ -522,9 +522,9 @@ export default function OrganizationsPage() {
             <div>
               <label style={ls}>{t('organizations.email_del_admin')}</label>
               <input value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />
-              {editValidation.errors.admin_email && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{editValidation.errors.admin_email}</div>}
+              {editValidation.errors.admin_email && <div className="u-field-error">{editValidation.errors.admin_email}</div>}
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={()=>{ setShowEdit(false); editValidation.setErrors({}) }}>Cancelar</Button>
               <Button onClick={submitEdit} disabled={isUpdating}>{isUpdating?'Guardando...':'Guardar'}</Button>
             </div>
@@ -533,15 +533,15 @@ export default function OrganizationsPage() {
       )}
       {suspendiendo && (
         <Modal open title={`Suspender ${suspendiendo.name ?? ''}`} onClose={() => setSuspendiendo(null)} width={460}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
+          <div className="u-stack-14">
+            <div className="u-text2-sm">
               Nadie de la empresa podrá entrar, y las sesiones abiertas se cortan en su siguiente petición. Se puede reactivar.
             </div>
             <div>
               <label style={ls} htmlFor="motivo_suspension">Motivo</label>
               <textarea id="motivo_suspension" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setSuspendiendo(null)}>Cancelar</Button>
               <Button variant="danger" disabled={!motivo.trim()}
                 onClick={() => toggle({ id: suspendiendo.id, is_active: false, suspension_reason: motivo.trim() })}>Suspender</Button>
@@ -553,8 +553,8 @@ export default function OrganizationsPage() {
       {pidiendoMotivo && (
         <Modal open title={pidiendoMotivo.tipo === 'baja' ? `Dar de baja ${detail?.name ?? ''}` : `Entrar como ${pidiendoMotivo.nombre ?? ''}`}
           onClose={() => setPidiendoMotivo(null)} width={460}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
+          <div className="u-stack-14">
+            <div className="u-text2-sm">
               {pidiendoMotivo.tipo === 'baja'
                 ? 'La empresa se suspende ahora. Al acabar la cuarentena se borran todos sus datos; antes se puede deshacer y exportar.'
                 : 'Entrarás con su sesión durante un tiempo limitado, sin poder tocar credenciales. Queda en la auditoría de su empresa. Para volver, «Salir» en el aviso superior.'}
@@ -563,7 +563,7 @@ export default function OrganizationsPage() {
               <label style={ls} htmlFor="motivo_org">Motivo</label>
               <textarea id="motivo_org" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setPidiendoMotivo(null)}>Cancelar</Button>
               <Button variant={pidiendoMotivo.tipo === 'baja' ? 'danger' : 'primary'} disabled={!motivo.trim() || dandoDeBaja || entrando}
                 onClick={() => pidiendoMotivo.tipo === 'baja'

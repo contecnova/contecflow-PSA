@@ -6,13 +6,13 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from app.models.user import User
 from app.models.billing_reports import FinancialApprovalAuditLog
 from app.models.billing_reports import ApprovalRequest
 from app.models.billing_reports import ApprovalWorkflow
 from app.models.billing_reports import ApprovalGroup
+from app.core.errores import ErrorDeDominio
 
 
 logger = logging.getLogger(__name__)
@@ -172,13 +172,15 @@ def _correo_de_aprobacion(db: Session, user_id: str, titulo: str, cuerpo: str, r
     from app.services.preferencias_de_aviso import quiere
     if not quiere(db, user_id, "approval_requested", "email"):
         return
+    from app.core.segundo_plano import encolar
     from app.services.notification_service import send_email_notification
     fila = db.query(User.email).filter(User.id == user_id).first()
     if not fila or not fila[0]:
         return
     from app.services.approval_engine.por_correo import crear_enlace
     bandeja = f"{_cfg.FRONTEND_URL.rstrip('/')}/approvals?request={request.id}"
-    send_email_notification(
+    encolar(  # auditoria 2026-11: el SMTP fuera de la peticion
+        send_email_notification,
         fila[0], titulo,
         f"{cuerpo}\n\nAprobar o rechazar desde aquí (sin entrar): {crear_enlace(db, request, user_id)}"
         f"\n\nO en la bandeja: {bandeja}")
@@ -455,6 +457,8 @@ def exigir_que_no_sea_suyo(db: Session, solicitante_id, usuario: User, modulo: s
     if not solicitante_id or solicitante_id != usuario.id:
         return
     try:
+        if db is None:  # sin sesion no hay donde registrar; la regla se aplica igual
+            raise ErrorDeDominio(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
         from app.services.grc_sod import record_sod_violation
         from app.models.billing_reports import SodRule
         regla = db.query(SodRule).filter(SodRule.module_a == modulo, SodRule.module_b == modulo,
@@ -463,10 +467,12 @@ def exigir_que_no_sea_suyo(db: Session, solicitante_id, usuario: User, modulo: s
             record_sod_violation(db=db, rule_id=regla.id, user_id=usuario.id, role=str(usuario.role),
                                  context_type=modulo, context_id=str(entidad_id))
             db.commit()
+    except ErrorDeDominio:
+        raise
     except Exception:
         db.rollback()
         logger.warning("No se pudo registrar la infracción SoD de %s %s", modulo, entidad_id, exc_info=True)
-    raise HTTPException(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
+    raise ErrorDeDominio(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
 
 
 def _record_sod_violation(req, current_user: User, db: Session) -> None:

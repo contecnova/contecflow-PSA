@@ -143,7 +143,7 @@ export default function SprintChartsPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: "var(--text-lg)", color: 'var(--text-1)' }}>{t('sprintcharts.velocity_ultimos_sprints')}</h3>
             {avgVel > 0 && (
-              <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
+              <span className="u-text2-base">
                 Velocidad media: <strong style={{ color: 'var(--info)' }}>{avgVel} pts</strong>
               </span>
             )}
@@ -181,8 +181,8 @@ export default function SprintChartsPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: "var(--text-lg)", color: 'var(--text-1)' }}>📈 Burnup — {burnupData?.sprint?.name || 'Sprint'}</h3>
             {(burnupData?.target ?? 0) > 0 && (
-              <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-                Objetivo: <strong style={{ color: 'var(--warning)' }}>{burnupData?.target} pts</strong>
+              <span className="u-text2-base">
+                Objetivo: <strong className="u-warning">{burnupData?.target} pts</strong>
               </span>
             )}
           </div>

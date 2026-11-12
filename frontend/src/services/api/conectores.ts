@@ -53,7 +53,6 @@ export const conectoresApi = {
   cmDisponible: () => D<{ configurado: boolean; puede_escribir: boolean }>(api.get('/conectores/contecmind/disponible')),
   buscar: (q: string, limit?: number) => D<{ items: DocHit[] }>(api.get('/conectores/contecmind/buscar', { params: { q, limit } })),
   documento: (id: string) => D<DocDetalle>(api.get(`/conectores/contecmind/documentos/${id}`)),
-  urlOriginal: (id: string) => `/conectores/contecmind/documentos/${id}/original`,
   original: (id: string) => api.get(`/conectores/contecmind/documentos/${id}/original`, { responseType: 'blob' }),
   aprobacion: (id: string) => D<Aprobacion>(api.get(`/conectores/contecmind/documentos/${id}/aprobacion`)),
   pedirAprobacion: (id: string, version_no?: number) =>
@@ -70,9 +69,6 @@ export const conectoresApi = {
     return D<Enlace>(api.post(`/conectores/contecmind/fichas/${f}/${id}/subir`, fd))
   },
   desenlazar: (f: Ficha, id: string, enlaceId: string) => api.delete(`/conectores/contecmind/fichas/${f}/${id}/documentos/${enlaceId}`),
-  carpeta: (f: Ficha, id: string) =>
-    D<{ carpeta: { folder_id: string; ruta: string } | null; items: { id: string; title: string; mime_type?: string; updated_at?: string }[] }>(
-      api.get(`/conectores/contecmind/fichas/${f}/${id}/carpeta`)),
   preguntarCarpeta: (f: Ficha, id: string, pregunta: string) =>
     D<RespuestaCarpeta>(api.post(`/conectores/contecmind/fichas/${f}/${id}/preguntar`, { pregunta })),
 
@@ -80,17 +76,12 @@ export const conectoresApi = {
   ciDisponible: () => D<{ configurado: boolean; analista: boolean; fuente_por_defecto: string | null; pasar_preguntas: boolean }>(
     api.get('/conectores/contecintelligence/disponible')),
   fuentes: () => D<{ items: Fuente[] }>(api.get('/conectores/contecintelligence/fuentes')),
-  preguntar: (question: string, source_id?: string, conversation_id?: string | null) =>
-    D<RespuestaCI>(api.post('/conectores/contecintelligence/preguntar', { question, source_id, conversation_id })),
   metricas: (source_id?: string) => D<{ items: Metrica[] }>(api.get('/conectores/contecintelligence/metricas', { params: { source_id } })),
   consultar: (source_id: string, query: Record<string, unknown>) =>
     D<{ metric: string; label: string; columns: string[]; rows: unknown[][]; row_count: number; executed_sql?: string; governed?: boolean }>(
       api.post('/conectores/contecintelligence/metricas/consultar', { source_id, query })),
   explicar: (body: { source_id: string; metric: string; actual: { column: string; start: string; end: string }; anterior: { column: string; start: string; end: string }; dimensions?: string[] }) =>
     D<Record<string, unknown>>(api.post('/conectores/contecintelligence/metricas/explicar', body)),
-  anomalias: (body: { source_id: string; metric: string; time_column: string; start: string; end: string; granularity: string }) =>
-    D<Record<string, unknown>>(api.post('/conectores/contecintelligence/metricas/anomalias', body)),
-  recibo: (id: string) => D<Record<string, unknown>>(api.get(`/conectores/contecintelligence/recibos/${id}`)),
   verificarRecibo: (id: string) => D<{ valid: boolean; reason?: string }>(api.get(`/conectores/contecintelligence/recibos/${id}/verificar`)),
 }
 
@@ -99,10 +90,4 @@ export function mensajeDeConector(e: unknown, porDefecto: string): string {
   const r = (e as { response?: { data?: { detail?: unknown } } })?.response
   const d = r?.data?.detail
   return typeof d === 'string' && d ? d : porDefecto
-}
-
-/** Código del fallo (no_configurado, no_alta, sin_permiso, no_encontrado, rechazado, no_responde). */
-export function codigoDeConector(e: unknown): string | null {
-  const h = (e as { response?: { headers?: Record<string, string> } })?.response?.headers
-  return h?.['x-conector-codigo'] ?? null
 }

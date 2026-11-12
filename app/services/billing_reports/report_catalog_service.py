@@ -120,8 +120,8 @@ DATA_SOURCES = {
             {"field": "hours", "label": "Horas", "type": "number", "aggregate": True},
             {"field": "is_billable", "label": "Facturable", "type": "boolean"},
             {"field": "work_type", "label": "Tipo trabajo", "type": "string"},
-            {"field": "hourly_rate", "label": "Tarifa €/h", "type": "number"},
-            {"field": "cost", "label": "Coste €", "type": "number", "aggregate": True},
+            {"field": "hourly_rate", "label": "Tarifa ¤/h", "type": "number"},
+            {"field": "cost", "label": "Coste ¤", "type": "number", "aggregate": True},
         ]
     },
     "projects": {
@@ -131,7 +131,7 @@ DATA_SOURCES = {
             {"field": "name", "label": "Nombre", "type": "string"},
             {"field": "status", "label": "Estado", "type": "string"},
             {"field": "client_name", "label": "Cliente", "type": "string"},
-            {"field": "budget_amount", "label": "Presupuesto €", "type": "number"},
+            {"field": "budget_amount", "label": "Presupuesto ¤", "type": "number"},
             {"field": "budget_used_pct", "label": "% Presupuesto usado", "type": "number"},
             {"field": "hours_logged", "label": "Horas registradas", "type": "number"},
             {"field": "margin_pct", "label": "Margen %", "type": "number"},
@@ -164,7 +164,7 @@ DATA_SOURCES = {
             {"field": "user_name", "label": "Empleado", "type": "string"},
             {"field": "project_name", "label": "Proyecto", "type": "string"},
             {"field": "category", "label": "Categoría", "type": "string"},
-            {"field": "amount", "label": "Importe €", "type": "number", "aggregate": True},
+            {"field": "amount", "label": "Importe ¤", "type": "number", "aggregate": True},
             {"field": "expense_date", "label": "Fecha", "type": "date"},
             {"field": "is_billable", "label": "Facturable", "type": "boolean"},
             {"field": "status", "label": "Estado", "type": "string"},
@@ -176,9 +176,9 @@ DATA_SOURCES = {
             {"field": "name", "label": "Oportunidad", "type": "string"},
             {"field": "client_name", "label": "Cliente", "type": "string"},
             {"field": "stage", "label": "Fase", "type": "string"},
-            {"field": "amount", "label": "Importe €", "type": "number"},
+            {"field": "amount", "label": "Importe ¤", "type": "number"},
             {"field": "probability_pct", "label": "Probabilidad %", "type": "number"},
-            {"field": "weighted_amount", "label": "Importe ponderado €", "type": "number"},
+            {"field": "weighted_amount", "label": "Importe ponderado ¤", "type": "number"},
             {"field": "expected_close", "label": "Cierre previsto", "type": "date"},
         ]
     },
@@ -230,8 +230,10 @@ def build_report_catalog(db: Session, current_user: User) -> dict:
     }
 
 
-def get_data_sources() -> dict:
-    return DATA_SOURCES
+def get_data_sources(db=None, org_id=None) -> dict:
+    """Las etiquetas de importe llevan `¤`: se sirven con el símbolo de la organización."""
+    from app.services.formato_regional import con_moneda, simbolo_de_moneda
+    return con_moneda(DATA_SOURCES, simbolo_de_moneda(db, org_id))
 
 
 def dispatch_report(

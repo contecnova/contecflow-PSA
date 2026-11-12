@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -37,6 +36,7 @@ from app.services.collaboration._search import search_engine
 from app.services.collaboration._storage import scan_dlp
 import logging
 from app.core.background import spawn
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -53,24 +53,24 @@ def _resolve_conversation(db: Session, *, conversation_id: Optional[str], channe
     if conversation_id:
         c = db.query(CollaborationConversation).filter(CollaborationConversation.id == conversation_id).first()
         if not c:
-            raise HTTPException(404, "Conversación no encontrada")
+            raise ErrorDeDominio(404, "Conversación no encontrada")
         return c
     if channel_id:
         ch = db.query(CollaborationChannel).filter(CollaborationChannel.id == channel_id).first()
         if not ch:
-            raise HTTPException(404, "Canal no encontrado")
+            raise ErrorDeDominio(404, "Canal no encontrado")
         return db.query(CollaborationConversation).filter(CollaborationConversation.id == ch.conversation_id).first()
     if direct_id:
         d = db.query(CollaborationDirectConversation).filter(CollaborationDirectConversation.id == direct_id).first()
         if not d:
-            raise HTTPException(404, "Direct no encontrada")
+            raise ErrorDeDominio(404, "Direct no encontrada")
         return db.query(CollaborationConversation).filter(CollaborationConversation.id == d.conversation_id).first()
     if group_id:
         g = db.query(CollaborationGroupConversation).filter(CollaborationGroupConversation.id == group_id).first()
         if not g:
-            raise HTTPException(404, "Grupo no encontrado")
+            raise ErrorDeDominio(404, "Grupo no encontrado")
         return db.query(CollaborationConversation).filter(CollaborationConversation.id == g.conversation_id).first()
-    raise HTTPException(400, "Indica conversation_id / channel_id / direct_id / group_id")
+    raise ErrorDeDominio(400, "Indica conversation_id / channel_id / direct_id / group_id")
 
 
 # ── Notifications fan-out ────────────────────────────────────────────────────
@@ -292,7 +292,7 @@ def _autorizar_envio(db: Session, user, conv, *, client_user_id, bot_id) -> None
             is_client_conversation_participant,
         )
         if not is_client_conversation_participant(db, user, conv.id):
-            raise HTTPException(403, "No tienes acceso a esta conversación")
+            raise ErrorDeDominio(403, "No tienes acceso a esta conversación")
         return
     if bot_id:
         return
@@ -492,11 +492,11 @@ def edit_message(db: Session, user, message_id: str, body: str, metadata_json: O
         CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org,
     ).first()
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     if msg.user_id != user.id:
-        raise HTTPException(403, "Solo puedes editar tus propios mensajes")
+        raise ErrorDeDominio(403, "Solo puedes editar tus propios mensajes")
     if msg.status == "deleted":
-        raise HTTPException(409, "Mensaje borrado")
+        raise ErrorDeDominio(409, "Mensaje borrado")
     # Save version
     db.add(CollaborationMessageVersion(
         organization_id=org, message_id=msg.id, body=msg.body, body_html=msg.body_html,
@@ -526,11 +526,11 @@ def delete_message(db: Session, user, message_id: str) -> None:
         CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org,
     ).first()
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     if msg.user_id != user.id and not getattr(user, "is_superadmin", False):
         # team_lead and admin can delete others' messages — relax later via policy
         if getattr(user, "role", None) not in ("admin",):
-            raise HTTPException(403, "No puedes borrar mensajes de otros")
+            raise ErrorDeDominio(403, "No puedes borrar mensajes de otros")
     msg.status = "deleted"
     msg.deleted_at = datetime.now(timezone.utc)
     msg.body = "[mensaje eliminado]"
@@ -571,7 +571,7 @@ def get_message_versions(db: Session, user, message_id: str) -> list[Collaborati
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     assert_conversation_access(db, user, msg.conversation_id)
     return db.query(CollaborationMessageVersion).filter(CollaborationMessageVersion.message_id == message_id).order_by(CollaborationMessageVersion.edited_at.asc()).all()
 
@@ -581,7 +581,7 @@ def toggle_reaction(db: Session, user, message_id: str, emoji: str) -> dict:
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     assert_conversation_access(db, user, msg.conversation_id)
     existing = db.query(CollaborationReaction).filter(
         CollaborationReaction.message_id == message_id,
@@ -649,7 +649,7 @@ def pin_message(db: Session, user, message_id: str) -> None:
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     assert_conversation_access(db, user, msg.conversation_id)
     if not db.query(CollaborationPinnedMessage).filter(
         CollaborationPinnedMessage.conversation_id == msg.conversation_id,
@@ -675,7 +675,7 @@ def unpin_message(db: Session, user, message_id: str) -> None:
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     assert_conversation_access(db, user, msg.conversation_id)
     row = db.query(CollaborationPinnedMessage).filter(
         CollaborationPinnedMessage.conversation_id == msg.conversation_id,
@@ -716,7 +716,7 @@ def save_message(db: Session, user, message_id: str, note: Optional[str] = None)
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     assert_conversation_access(db, user, msg.conversation_id)
     if not db.query(CollaborationSavedMessage).filter(
         CollaborationSavedMessage.user_id == user.id,
@@ -927,7 +927,7 @@ def _mensaje_accesible(db: Session, user, message_id: str) -> CollaborationMessa
         .first()
     )
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     assert_conversation_access(db, user, msg.conversation_id)
     return msg
 
@@ -945,7 +945,7 @@ def link_message(db: Session, user, message_id: str, *, kind: str, linked_id) ->
     msg = _mensaje_accesible(db, user, message_id)
     kind = (kind or "").lower()
     if kind not in ENTIDADES_ANCLABLES:
-        raise HTTPException(400, "kind debe ser task|ticket|deliverable|risk")
+        raise ErrorDeDominio(400, "kind debe ser task|ticket|deliverable|risk")
     setattr(msg, f"linked_{kind}_id", linked_id)
     audit_log.write(
         db, organization_id=org, actor_user_id=user.id, actor_client_id=None,

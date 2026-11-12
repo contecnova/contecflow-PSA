@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy import event as sa_event
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-portal-a"
 OTRA = "org-portal-b"
@@ -178,7 +179,7 @@ def test_un_token_que_no_es_de_cliente_no_deja_contexto(db):
     # misma: un token que no es de cliente no publica nada.
     antes = dict(db.info)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         get_current_client(
             authorization=f"Bearer {token}", portal_access_token=None, db=db)
     assert exc.value.status_code == 401

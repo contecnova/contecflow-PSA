@@ -2,12 +2,13 @@
 sprint_velocity_trend, sprint_completion_rate, tasks_by_status,
 tasks_by_priority, tasks_overdue_by_assignee, task_completion_trend,
 tasks_by_assignee, epics_by_status, milestones_on_time_rate."""
+import logging
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 from ._monthly import agrupar_por_mes, serie_de_cuentas
 from app.core import timeutil
 
@@ -47,6 +48,7 @@ def metric_sprint_velocity_trend(
                 "completed": s.completed_points or 0,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_sprint_velocity_trend: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Story Points"}
 
@@ -89,6 +91,7 @@ def metric_sprint_completion_rate(
                 "completed": completed,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_sprint_completion_rate: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Completado (%)"}
 
@@ -117,6 +120,7 @@ def metric_tasks_by_status(
 
         rows = [{"label": r.status or "Sin estado", "value": r.cnt} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_tasks_by_status: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -149,6 +153,7 @@ def metric_tasks_by_priority(
             key=lambda x: PRIORITY_ORDER.get(x["label"], 99)
         )
     except Exception:
+        logging.getLogger(__name__).warning("metric_tasks_by_priority: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -188,6 +193,7 @@ def metric_tasks_overdue_by_assignee(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_tasks_overdue_by_assignee: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Tareas vencidas"}
 
@@ -222,6 +228,7 @@ def metric_task_completion_trend(
 
         rows = serie_de_cuentas(agrupar_por_mes(q.all(), lambda r: r[0]))
     except Exception:
+        logging.getLogger(__name__).warning("metric_task_completion_trend: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Tareas completadas"}
 
@@ -259,6 +266,7 @@ def metric_tasks_by_assignee(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_tasks_by_assignee: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Tareas abiertas"}
 
@@ -287,6 +295,7 @@ def metric_epics_by_status(
 
         rows = [{"label": r.status or "Sin estado", "value": r.cnt} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_epics_by_status: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -325,5 +334,6 @@ def metric_milestones_on_time_rate(
             {"label": "Con retraso", "value": late},
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_milestones_on_time_rate: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}

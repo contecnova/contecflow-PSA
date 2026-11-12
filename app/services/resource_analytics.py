@@ -16,11 +16,11 @@ from app.models.resources import (
 )
 from app.models.bookings import ResourceBooking
 from datetime import timezone
-from fastapi import HTTPException
 from sqlalchemy import func as sqlfunc
 from app.core.config import settings
 from sqlalchemy import case as sa_case
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -425,7 +425,7 @@ def acknowledge_alert_record(db: Session, alert_id: str, current_user: User) -> 
 
     alert = db.query(ResourceAlert).filter(ResourceAlert.id == alert_id).first()
     if not alert:
-        raise HTTPException(status_code=404, detail="Alerta no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Alerta no encontrada")
 
     alert.acknowledged_at = datetime.now(timezone.utc)
     alert.acknowledged_by = str(current_user.id)

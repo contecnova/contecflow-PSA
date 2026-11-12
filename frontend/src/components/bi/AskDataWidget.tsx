@@ -6,6 +6,7 @@ import { analyticsApi, conectoresApi } from '../../services/api'
 import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { Table } from '../ui'
 
 const EXAMPLE_QUESTIONS = [
   '¿Cuáles son los 5 proyectos con más horas imputadas este mes?',
@@ -19,34 +20,14 @@ function ResultTable({ columns, rows }: { columns?: string[]; rows?: Array<Recor
   if (!columns?.length || !rows?.length) return null
   return (
     <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
-        <thead>
-          <tr style={{ background: 'var(--surface-3)' }}>
-            {columns.map(col => (
-              <th key={col} style={{
-                padding: '8px 12px', textAlign: 'left',
-                fontWeight: 600, color: 'var(--text-2)',
-                borderBottom: '1px solid var(--surface-4)',
-                whiteSpace: 'nowrap',
-              }}>{col}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} style={{
-              background: i % 2 === 0 ? 'transparent' : 'var(--surface-1)',
-              borderBottom: '1px solid var(--surface-4)',
-            }}>
-              {columns.map(col => (
-                <td key={col} style={{ padding: '7px 12px', color: 'var(--text-1)' }}>
-                  {row[col] == null ? '—' : String(row[col])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Table
+        data={rows}
+        columns={columns.map(col => ({
+          key: col,
+          label: <span style={{ whiteSpace: 'nowrap' }}>{col}</span>,
+          render: (_v: never, row: Record<string, unknown>) => (row[col] == null ? '—' : String(row[col])),
+        }))}
+      />
     </div>
   )
 }
@@ -78,7 +59,7 @@ function PistasSinFilas({ pistas }: { pistas: AskResult['zero_result_hints'] }) 
       {faltan.map((p, i) => (
         <div key={i} style={{ marginTop: i ? 6 : 0 }}>
           {t('askdatawidget.pista_no_existe', { columna: `${p.table}.${p.column}`, valor: p.searched })}{' '}
-          <span style={{ color: 'var(--text-2)' }}>
+          <span className="u-text2">
             {!p.sample.length ? t('askdatawidget.pista_sin_datos') : (
               <>
                 {t(p.closest.length ? 'askdatawidget.pista_parecidos' : 'askdatawidget.pista_existen')}{' '}
@@ -164,7 +145,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>
             Ask the Data
           </div>
-          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
+          <div className="u-text3-2xs">
             {t('askdatawidget.pregunta_en_lenguaje_natural_responde_con_sql')}
           </div>
         </div>
@@ -172,7 +153,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
 
       {/* Input */}
       <div style={{ padding: '16px 20px 0' }}>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8 }}>
+        <form onSubmit={handleSubmit} className="u-row-8">
           <input
             ref={inputRef}
             value={question}
@@ -188,7 +169,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
           <button type="submit" disabled={mutation.isPending || !question.trim()} style={{
             padding: '9px 16px', borderRadius: 8, border: 'none',
             background: mutation.isPending ? 'var(--surface-4)' : COLOR.accent,
-            color: '#fff', cursor: mutation.isPending ? 'not-allowed' : 'pointer',
+            color: 'var(--on-accent-light)', cursor: mutation.isPending ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: "var(--text-sm)",
           }}>
             <Send size={13} />
@@ -233,7 +214,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
         )}
 
         {mutation.data && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             {mutation.data.error ? (
               <div style={{
                 display: 'flex', alignItems: 'flex-start', gap: 8,
@@ -249,8 +230,8 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
               </div>
             ) : (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                <div className="u-row-between">
+                  <span className="u-text3-xs">
                     {mutation.data.row_count} resultado{mutation.data.row_count !== 1 ? 's' : ''}
                     {mutation.data.truncated ? ' (truncado a 200)' : ''}
                   </span>
@@ -282,7 +263,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                   </div>
                 )}
                 {mutation.data.retried_with_real_values && (
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>↻ {t('askdatawidget.reintentada_con_valores_reales')}</div>
+                  <div className="u-text2-xs">↻ {t('askdatawidget.reintentada_con_valores_reales')}</div>
                 )}
                 <Verificacion v={mutation.data.verification} />
                 <PistasSinFilas pistas={mutation.data.zero_result_hints} />

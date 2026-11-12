@@ -128,6 +128,23 @@ def mfa_verify_setup(
     return {"ok": True, "message": "Autenticación de dos factores activada correctamente"}
 
 
+_MFA_MAX_FALLOS_POR_RETO = 5
+
+
+def _paso_totp(totp, code: str):
+    """El paso de 30 s (±1) en que `code` es valido, o None."""
+    import time
+
+    if not code:
+        return None
+    ahora = time.time()
+    for desfase in (0, -1, 1):
+        instante = ahora + desfase * totp.interval
+        if totp.verify(code, for_time=instante, valid_window=0):
+            return totp.timecode(datetime.fromtimestamp(instante, tz=timezone.utc))
+    return None
+
+
 @router.post("/mfa/validate", summary="Validar código TOTP durante el login")
 @limiter.limit("10/minute")
 def mfa_validate(
@@ -158,8 +175,13 @@ def mfa_validate(
         raise HTTPException(400, "Este usuario no tiene TOTP activo. Usa autenticación WebAuthn/passkey.")
 
     totp  = pyotp.TOTP(decrypt_value(user.mfa_secret) or "")
-    valid = totp.verify(code, valid_window=1)
-    if not valid:
+    # Auditoria 2026-11: un codigo TOTP valido se podia reutilizar dentro de su
+    # ventana. Se guarda el paso aceptado y no se admite ninguno igual o anterior.
+    paso = _paso_totp(totp, code)
+    valid = paso is not None and (user.mfa_last_timestep is None or paso > user.mfa_last_timestep)
+    if valid:
+        user.mfa_last_timestep = paso
+    else:
         # Codigos de respaldo que entrega la pantalla /mfa al activarse.
         from app.services.mfa_service import consumir_codigo_de_respaldo
         valid = consumir_codigo_de_respaldo(user, code, db)
@@ -171,6 +193,16 @@ def mfa_validate(
                 soc.mfa_failed(user_id=user.id, ip=_client_ip(request), method="totp")
         except Exception:
             logger.warning("SOC mfa_failed audit raised for user=%s", user.id, exc_info=True)
+        # Auditoria 2026-11: el reto no tenia contador; con la contrasena ya
+        # sabida, el unico freno era 10/min por IP. Agotado, hay que volver a
+        # hacer login.
+        challenge_row.failed_attempts = (challenge_row.failed_attempts or 0) + 1
+        agotado = challenge_row.failed_attempts >= _MFA_MAX_FALLOS_POR_RETO
+        if agotado:
+            _consume_mfa_challenge(challenge_row)
+        _svc.commit_db(db)
+        if agotado:
+            raise HTTPException(401, "Demasiados intentos. Vuelve a iniciar sesión.")
         raise HTTPException(401, "Código 2FA incorrecto")
 
     from app.services import entrada_service as _entrada

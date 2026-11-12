@@ -21,6 +21,7 @@ import { voiceApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { Mic, Square, X } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { useDialogo } from '../ui'
 
 
 // TODO type: voice pending_action payload — needs shared type from voiceApi
@@ -205,6 +206,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
       toast.error(msg)
     },
   })
+  const dialogRef = useDialogo<HTMLDivElement>(open, onClose)
 
   if (!open) return null
 
@@ -216,7 +218,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
       zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div role="dialog" aria-modal="true" tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Escape') onClose() }}
         style={{
@@ -275,7 +277,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
               </button>
             ) : (
               <button onClick={handleStop} style={{
-                background: 'var(--danger)', color: '#fff', border: 'none',
+                background: 'var(--danger)', color: 'var(--on-accent-light)', border: 'none',
                 padding: '10px 22px', borderRadius: 8, cursor: 'pointer',
                 fontWeight: 600, fontSize: 'var(--text-base)',
                 display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -363,7 +365,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                   <strong>{traducir('voicecommandmodal.confirmacion_requerida')}</strong>
                   <div style={{ marginTop: 4 }}>{pendingLabel}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <div className="u-actions-8">
                   <button onClick={onClose} disabled={isConfirming}
                     style={{
                       background: 'var(--surface-3)', color: 'var(--text-2)',
@@ -374,7 +376,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                   </button>
                   <button onClick={() => confirm()} disabled={isConfirming}
                     style={{
-                      background: 'var(--success)', color: '#fff', border: 'none',
+                      background: 'var(--success)', color: 'var(--on-accent-light)', border: 'none',
                       padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
                       fontWeight: 600, fontSize: 'var(--text-sm)',
                       opacity: isConfirming ? 0.6 : 1,

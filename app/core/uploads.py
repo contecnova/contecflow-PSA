@@ -267,6 +267,11 @@ def validate_upload(
     permitidos = _PROFILE_MIME.get(profile, ALLOWED_MIME_TYPES)
 
     _comprobar_extension(file_name, permitidas)
+    # Auditoria 2026-11: sin extension no habia lista que aplicar y el fichero
+    # pasaba (un .html o .svg renombrado a `informe`). Sin extension, solo si
+    # los bytes dicen que es un tipo permitido.
+    if not os.path.splitext(file_name or "")[1] and detect_mime_from_magic(content) not in permitidos:
+        raise HTTPException(415, "Archivo sin extensión y de tipo no reconocido: añade la extensión.")
     if content_type and content_type not in permitidos and content_type not in _TIPOS_SIN_OPINION:
         raise HTTPException(415, f"Tipo de contenido no permitido: {content_type}.")
     _comprobar_ejecutable(content)

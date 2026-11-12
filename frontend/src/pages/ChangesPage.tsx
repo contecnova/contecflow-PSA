@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
-import { openConfirmGlobal } from '../context/ConfirmContext'
+import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { alpha } from '../constants/theme'
+import DsBadge from '../components/ui/StatusBadge'
 
 type ImpactLevel = 'low' | 'medium' | 'high' | 'critical' | string
 type ChangeStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'implemented' | string
@@ -126,7 +127,7 @@ const reviewSchema = z.object({
 
 function StatusBadge({ status }: { status?: ChangeStatus }) {
   const cfg = (status && STATUS_CFG[status]) || STATUS_CFG.draft
-  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{cfg.label}</span>
+  return <DsBadge color={cfg.color}>{cfg.label}</DsBadge>
 }
 
 function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; projectId: string | number; onClose: () => void }) {
@@ -169,42 +170,42 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; pr
   return (
     <Modal open title={isEdit ? `Editar CR — ${cr.code}` : 'Nueva Solicitud de Cambio'} onClose={onClose} width={620}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-title`} style={ls}>{t('changes.titulo')}</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('changes.titulo_de_la_solicitud')} aria-label={t('changes.titulo_de_la_solicitud')} />
-          {validation.errors.title && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.title}</p>}
+          {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-description`} style={ls}>{t('changes.descripcion')}</label>
           <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'description')} placeholder={t('changes.describe_el_cambio_solicitado')} aria-label={t('changes.descripcion_del_cambio')} />
-          {validation.errors.description && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.description}</p>}
+          {validation.errors.description && <p className="u-field-error">{validation.errors.description}</p>}
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-justification`} style={ls}>{t('changes.justificacion')}</label>
           <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'justification')} placeholder={t('changes.justificacion_del_cambio')} aria-label={t('changes.justificacion_del_cambio')} />
-          {validation.errors.justification && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.justification}</p>}
+          {validation.errors.justification && <p className="u-field-error">{validation.errors.justification}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} style={ls}>Impacto</label>
           <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} style={validation.inputStyle(fs, 'impact')}>
             {Object.entries(IMPACT_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
           </select>
-          {validation.errors.impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.impact}</p>}
+          {validation.errors.impact && <p className="u-field-error">{validation.errors.impact}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-cost-impact`} style={ls}>Impacto en coste (€)</label>
           <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} style={validation.inputStyle(fs, 'cost_impact')} placeholder="Impacto economico" aria-label="Impacto economico" />
-          {validation.errors.cost_impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.cost_impact}</p>}
+          {validation.errors.cost_impact && <p className="u-field-error">{validation.errors.cost_impact}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-schedule-impact`} style={ls}>{t('changes.impacto_en_plazo_dias')}</label>
           <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={validation.inputStyle(fs, 'schedule_impact_days')} placeholder="Dias adicionales" aria-label="Dias adicionales" />
-          {validation.errors.schedule_impact_days && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.schedule_impact_days}</p>}
+          {validation.errors.schedule_impact_days && <p className="u-field-error">{validation.errors.schedule_impact_days}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-scope-impact`} style={ls}>Impacto en alcance</label>
           <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={validation.inputStyle(fs, 'scope_impact')} placeholder={t('changes.impacto_en_el_alcance')} aria-label={t('changes.impacto_en_el_alcance')} />
-          {validation.errors.scope_impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.scope_impact}</p>}
+          {validation.errors.scope_impact && <p className="u-field-error">{validation.errors.scope_impact}</p>}
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -239,7 +240,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectI
 
   return (
     <Modal open title={`Revisar CR — ${cr.code}`} onClose={onClose} width={520}>
-      <div style={{ marginBottom: 16 }}>
+      <div className="u-mb-16">
         <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 8 }}>{cr.title}</div>
         <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 12 }}>{cr.description}</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -250,19 +251,19 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectI
           ].map(({ label, value }) => (
             <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{value}</div>
+              <div className="u-base-600">{value}</div>
             </div>
           ))}
         </div>
         {cr.scope_impact && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px' }}>📋 {cr.scope_impact}</p>}
       </div>
-      <div style={{ marginBottom: 16 }}>
+      <div className="u-mb-16">
         <label htmlFor={`${idPrefix}-resolution-notes`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{t('changes.notas_de_resolucion')}</label>
         <textarea id={`${idPrefix}-resolution-notes`} value={notes} onChange={e => { setNotes(e.target.value); validation.clearFieldError('resolution_notes') }} rows={2}
           style={validation.inputStyle({ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }, 'resolution_notes')} />
-        {validation.errors.resolution_notes && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.resolution_notes}</p>}
+        {validation.errors.resolution_notes && <p className="u-field-error">{validation.errors.resolution_notes}</p>}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant="danger" onClick={() => submitReview(false)} disabled={isPending} loading={isPending}>✕ Rechazar</Button>
         <Button onClick={() => submitReview(true)} disabled={isPending} loading={isPending}>✓ Aprobar</Button>
@@ -276,11 +277,17 @@ function CABBoard() {
   const t = useAppT() as (key: string) => string
   const { hasRole } = useAuth() as RoleAuth
   // Cerrar es de admin en el servidor. Contra el recuento, o con empate, pide motivo (revisión 2026-11).
-  const cerrar = (cr: ChangeRequest, decision: 'approved' | 'rejected') => {
+  const cerrar = async (cr: ChangeRequest, decision: 'approved' | 'rejected') => {
     const aFavor = cr.votes?.approve ?? 0, enContra = cr.votes?.reject ?? 0
     const mayoria = aFavor > enContra ? 'approved' : enContra > aFavor ? 'rejected' : null
     if (decision === mayoria) { close({ id: cr.id, decision }); return }
-    const reason = window.prompt(`La decisión no sigue la votación (${aFavor} a favor, ${enContra} en contra). Motivo:`)
+    const reason = await pedirTexto({
+      title: 'Motivo de la decisión',
+      message: `La decisión no sigue la votación (${aFavor} a favor, ${enContra} en contra).`,
+      label: 'Motivo',
+      required: true,
+      multiline: true,
+    })
     if (reason && reason.trim()) close({ id: cr.id, decision, reason })
   }
   const toast = useToast()
@@ -311,7 +318,7 @@ function CABBoard() {
       <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
         <div>
           <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>{t('changes.crs_pendientes_de_votacion_cab')}{pendingCRs.length})</div>
-          {isLoading ? <div style={{ color:'var(--text-2)', fontSize: "var(--text-base)" }}>{t('common.loading')}</div> :
+          {isLoading ? <div className="u-text2-base">{t('common.loading')}</div> :
             pendingCRs.length === 0 ? (
               <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>{t('changes.sin_crs_pendientes_de_votacion')}</div>
             ) : pendingCRs.map((cr) => {
@@ -324,8 +331,8 @@ function CABBoard() {
                       <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:6 }}>{cr.title}</div>
                       <div style={{ display:'flex', gap:12, fontSize: "var(--text-sm)" }}>
                         <span style={{ color:ic.color, fontWeight:500 }}>{ic.label} impacto</span>
-                        {cr.cost_impact && <span style={{ color:'var(--danger)' }}>+{cr.cost_impact}€</span>}
-                        {cr.schedule_impact_days && <span style={{ color:'var(--warning)' }}>+{cr.schedule_impact_days}d</span>}
+                        {cr.cost_impact && <span className="u-danger">+{cr.cost_impact}€</span>}
+                        {cr.schedule_impact_days && <span className="u-warning">+{cr.schedule_impact_days}d</span>}
                       </div>
                     </div>
                     <div style={{ textAlign:'right', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
@@ -333,7 +340,7 @@ function CABBoard() {
                       <div>{cr.requester}</div>
                     </div>
                   </div>
-                  <div style={{ display:'flex', gap:8 }}>
+                  <div className="u-row-8">
                     {cr.my_vote ? (
                       <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', fontStyle:'italic' }}>Has votado: {cr.my_vote}</span>
                     ) : <>
@@ -482,29 +489,29 @@ export default function ChangesPage(): JSX.Element {
           ) : isLoading ? <Spinner /> : crs.length === 0 ? (
             <EmptyState icon="✅" title={t('changes.no_changes')} description="Este proyecto no tiene CRs registradas" />
           ) : (
-            <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div data-export-table="changes-list" className="u-stack-10">
               {crs.map((cr) => {
                 const impact = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
                 return (
                   <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha((STATUS_CFG[cr.status ?? '']?.color ?? 'var(--surface-4)'), '30')}`, borderRadius: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                      <div style={{ flex: 1 }}>
+                      <div className="u-flex1">
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{cr.code}</span>
-                          <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{cr.title}</span>
+                          <span className="u-md-700">{cr.title}</span>
                         </div>
                         <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 8 }}>{cr.description}</p>
                         <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)" }}>
                           <span style={{ color: impact.color, fontWeight: 700 }}>⚡ {impact.label}</span>
-                          {cr.cost_impact && <span style={{ color: 'var(--danger)' }}>💰 +{fmtCurrency(cr.cost_impact)}</span>}
-                          {cr.schedule_impact_days && <span style={{ color: 'var(--warning)' }}>📅 +{cr.schedule_impact_days}d</span>}
-                          {cr.requester_name && <span style={{ color: 'var(--text-2)' }}>👤 {cr.requester_name}</span>}
+                          {cr.cost_impact && <span className="u-danger">💰 +{fmtCurrency(cr.cost_impact)}</span>}
+                          {cr.schedule_impact_days && <span className="u-warning">📅 +{cr.schedule_impact_days}d</span>}
+                          {cr.requester_name && <span className="u-text2">👤 {cr.requester_name}</span>}
                         </div>
                         {cr.resolution_notes && <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>💬 {cr.resolution_notes}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                         <StatusBadge status={cr.status} />
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div className="u-row-6">
                           {cr.status === 'draft' && <>
                             <button onClick={() => setEditing(cr)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
                             <Button size="sm" onClick={() => submit(cr)} loading={saving}>Enviar</Button>
@@ -531,19 +538,19 @@ export default function ChangesPage(): JSX.Element {
         allPending.length === 0 ? (
           <EmptyState icon="✅" title={t('changes.sin_pendientes')} description="No hay solicitudes de cambio pendientes de revision" />
         ) : (
-          <div data-export-table="changes-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div data-export-table="changes-list" className="u-stack-10">
             {allPending.map((cr) => {
               const impact = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
               return (
                 <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                    <div style={{ flex: 1 }}>
+                    <div className="u-flex1">
                       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{cr.project_code} · {cr.project_name} · {cr.code}</div>
                       <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 6 }}>{cr.title}</div>
                       <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)" }}>
                         <span style={{ color: impact.color, fontWeight: 700 }}>{impact.label}</span>
-                        {cr.cost_impact && <span style={{ color: 'var(--danger)' }}>+{fmtCurrency(cr.cost_impact)}</span>}
-                        {cr.schedule_impact_days && <span style={{ color: 'var(--warning)' }}>+{cr.schedule_impact_days}d</span>}
+                        {cr.cost_impact && <span className="u-danger">+{fmtCurrency(cr.cost_impact)}</span>}
+                        {cr.schedule_impact_days && <span className="u-warning">+{cr.schedule_impact_days}d</span>}
                       </div>
                     </div>
                     <Button size="sm" onClick={() => { setSelectedProject(cr.project_id); setReviewing(cr); setTab('project') }}>Revisar</Button>

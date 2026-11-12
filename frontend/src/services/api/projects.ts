@@ -4,41 +4,147 @@
 import type { AxiosResponse } from 'axios'
 import api from './_core'
 import { todasLasPaginas } from './todasLasPaginas'
+import type { UserPublic } from './users'
 
+/** `ProjectStatus` (app/schemas/common_enums.py). */
+export type ProjectStatus =
+  | 'planning' | 'active' | 'on_hold' | 'paused' | 'completed' | 'closed' | 'cancelled' | 'archived'
+/** `ProjectType` (app/schemas/common_enums.py). */
+export type ProjectType = 'development' | 'maintenance' | 'rd' | 'internal' | 'consulting'
+/** `ProjectRisk` (app/schemas/common_enums.py). */
+export type ProjectRisk = 'low' | 'medium' | 'high' | 'critical'
+
+/** `ProjectSummary` (app/schemas/projects.py): elemento de `GET /projects`.
+ *  Auditoría 2026-11 (#25): el tipo anterior anunciaba `client_id`, `manager_id`,
+ *  `end_date` y `budget`, que el listado no manda. */
 export interface ProjectListItem {
   id: string
   code: string
   name: string
-  status: string
-  client_id: string | null
-  client_name?: string | null
-  manager_id?: string | null
-  start_date?: string | null
-  end_date?: string | null
-  budget?: number | null
+  project_type: ProjectType
+  status: ProjectStatus
+  risk_level: ProjectRisk
+  pm_name: string | null
+  client_name: string | null
+  department: string | null
+  budget_amount: number | null
+  total_cost_spent: number | null
+  budget_used_pct: number | null
+  progress_pct: number | null
+  team_size: number
+  start_date: string | null
+  end_date_planned: string | null
 }
 
+/** `ProjectPhaseOut` (app/schemas/projects.py). */
+export interface ProjectPhase {
+  id: string
+  project_id: string
+  name: string
+  description: string | null
+  order: number
+  budget_hours: number | null
+  start_date: string | null
+  end_date: string | null
+  status: ProjectStatus
+  created_at: string
+}
+
+/** `ProjectOut` (app/schemas/projects.py): detalle, alta y edición. */
+export interface ProjectDetail {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  project_type: ProjectType
+  status: ProjectStatus
+  risk_level: ProjectRisk
+  client_name: string | null
+  client_id: string | null
+  department: string | null
+  is_billable: boolean
+  billing_rate: number | null
+  budget_hours: number | null
+  budget_amount: number | null
+  start_date: string | null
+  end_date_planned: string | null
+  tags: string | null
+  jira_project_key: string | null
+  pm_id: string | null
+  project_manager: UserPublic | null
+  phases: ProjectPhase[]
+  created_at: string
+  total_hours_spent: number | null
+  total_cost_spent: number | null
+  budget_used_pct: number | null
+  progress_pct: number | null
+  team_size: number
+  tasks_total: number
+  tasks_done: number
+}
+
+/** Filtros de `GET /projects` (list_projects en app/api/v1/endpoints/projects). */
 export interface ProjectListParams {
-  status?: string
-  client_id?: string
-  manager_id?: string
-  q?: string
+  status?: ProjectStatus
+  project_type?: ProjectType
+  pm_id?: string
+  search?: string
   page?: number
   page_size?: number
 }
 
-export interface ProjectCreatePayload {
-  code: string
+/** `ProjectPhaseCreate` (app/schemas/projects.py). */
+export interface ProjectPhaseCreatePayload {
   name: string
-  client_id?: string
-  status?: string
-  start_date?: string
-  end_date?: string
-  budget?: number
-  manager_id?: string
+  description?: string | null
+  order?: number
+  budget_hours?: number | null
+  start_date?: string | null
+  end_date?: string | null
+  status?: ProjectStatus
 }
 
-export type ProjectUpdatePayload = Partial<ProjectCreatePayload>
+/** `ProjectCreate` (app/schemas/projects.py). `code` es opcional: si falta, lo pone el servidor. */
+export interface ProjectCreatePayload {
+  name: string
+  code?: string | null
+  description?: string | null
+  project_type?: ProjectType
+  client_name?: string | null
+  client_id?: string | null
+  department?: string | null
+  is_billable?: boolean
+  billing_rate?: number | null
+  budget_hours?: number | null
+  budget_amount?: number | null
+  start_date?: string | null
+  end_date_planned?: string | null
+  tags?: string | null
+  jira_project_key?: string | null
+  pm_id?: string | null
+  phases?: ProjectPhaseCreatePayload[]
+}
+
+/** `ProjectUpdate` (app/schemas/projects.py). */
+export interface ProjectUpdatePayload {
+  name?: string | null
+  description?: string | null
+  project_type?: ProjectType | null
+  status?: ProjectStatus | null
+  risk_level?: ProjectRisk | null
+  pm_id?: string | null
+  client_name?: string | null
+  client_id?: string | null
+  department?: string | null
+  budget_hours?: number | null
+  budget_amount?: number | null
+  billing_rate?: number | null
+  start_date?: string | null
+  end_date_planned?: string | null
+  end_date_real?: string | null
+  tags?: string | null
+  jira_project_key?: string | null
+}
 
 export interface PhaseCreatePayload {
   name: string
@@ -73,13 +179,13 @@ export const projectsApi = {
     // Auditoría 2026-11: sin `page`, todas las páginas (antes, solo las 50 primeras).
     todasLasPaginas('/projects', params as Record<string, unknown> | undefined),
 
-  get: (id: string): Promise<AxiosResponse<ProjectListItem>> =>
+  get: (id: string): Promise<AxiosResponse<ProjectDetail>> =>
     api.get(`/projects/${id}`),
 
-  create: (data: ProjectCreatePayload): Promise<AxiosResponse<ProjectListItem>> =>
+  create: (data: ProjectCreatePayload): Promise<AxiosResponse<ProjectDetail>> =>
     api.post('/projects', data),
 
-  update: (id: string, data: ProjectUpdatePayload): Promise<AxiosResponse<ProjectListItem>> =>
+  update: (id: string, data: ProjectUpdatePayload): Promise<AxiosResponse<ProjectDetail>> =>
     api.patch(`/projects/${id}`, data),
 
   delete: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
@@ -87,9 +193,6 @@ export const projectsApi = {
 
   team: (id: string): Promise<AxiosResponse<unknown>> =>
     api.get(`/projects/${id}/team`),
-
-  addPhase: (id: string, data: PhaseCreatePayload): Promise<AxiosResponse<unknown>> =>
-    api.post(`/projects/${id}/phases`, data),
 
   members: (id: string): Promise<AxiosResponse<unknown>> =>
     api.get(`/projects/${id}/members`),
@@ -102,27 +205,6 @@ export const projectsApi = {
 
   milestones: (params?: Record<string, unknown>): Promise<AxiosResponse<unknown>> =>
     api.get('/projects/milestones', { params }),
-
-  changelog: (id: string, params?: Record<string, unknown>): Promise<AxiosResponse<ChangelogEntry[]>> =>
-    api.get(`/projects/${id}/changelog`, { params }),
-
-  createChangelog: (id: string, data: Partial<ChangelogEntry>): Promise<AxiosResponse<ChangelogEntry>> =>
-    api.post(`/projects/${id}/changelog`, data),
-
-  generateChangelog: (id: string, data: Record<string, unknown>): Promise<AxiosResponse<ChangelogEntry>> =>
-    api.post(`/projects/${id}/changelog/generate`, data),
-
-  deleteChangelog: (id: string, entryId: string): Promise<AxiosResponse<{ ok: boolean }>> =>
-    api.delete(`/projects/${id}/changelog/${entryId}`),
-
-  raci: (id: string): Promise<AxiosResponse<RaciEntry[]>> =>
-    api.get(`/projects/${id}/raci`),
-
-  updateRaci: (id: string, data: RaciEntry[]): Promise<AxiosResponse<RaciEntry[]>> =>
-    api.put(`/projects/${id}/raci`, data),
-
-  deleteRaci: (id: string, entryId: string): Promise<AxiosResponse<{ ok: boolean }>> =>
-    api.delete(`/projects/${id}/raci/${entryId}`),
 
   evm: (id: string): Promise<AxiosResponse<unknown>> =>
     api.get(`/projects/${id}/evm`),

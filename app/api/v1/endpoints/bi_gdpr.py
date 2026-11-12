@@ -27,6 +27,7 @@ from app.models.user import User
 from app.services import bi_gdpr_service as svc
 
 import logging
+from app.core.errores import ErrorDeDominio
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -263,7 +264,7 @@ def execute_erasure(
         svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes="Erasure pipeline executed automatically", execute_erasure_pipeline=False)
         return APIResponse.ok(data={"ok": True, "dsr_id": dsr_id, "erasure_report": report})
     # intentional: chained re-raise preserves context
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception:
         logger.exception("GDPR erasure execution failed for dsr=%s", dsr_id)

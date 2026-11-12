@@ -34,7 +34,12 @@ class Settings(
     PROJECT_NAME: str = Field(default="Contecflow", env="PROJECT_NAME")
     VERSION: str = Field(default="23.9.3", env="VERSION")
     API_V1_STR: str = Field(default="/api/v1", env="API_V1_STR")
-    ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
+    # Auditoria 2026-11: por defecto era "development", y sin la variable se
+    # apagaban en silencio el bloqueo de login, las cookies Secure, el veto al
+    # JWT en la URL del WS y la firma de modelos. Cierra por defecto, como
+    # `app/core/entorno.py`: setup.sh/setup.bat escriben development en .env y
+    # docker-compose pone production.
+    ENVIRONMENT: str = Field(default="production", env="ENVIRONMENT")
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")  # DEBUG|INFO|WARNING|ERROR|CRITICAL
 
     # ── Auth / Tokens ────────────────────────────────────────────────────────
@@ -255,6 +260,10 @@ class Settings(
     # Revisión 2026-11: las monedas que ofrecen las pantallas y sus símbolos (antes, listas fijas en cada sitio).
     SUPPORTED_CURRENCIES: str = Field(default="EUR,USD,GBP,PLN,CHF,SEK,DKK,NOK,JPY,CAD,AUD,MXN,BRL", env="SUPPORTED_CURRENCIES")
     CURRENCY_SYMBOLS: str = Field(default="EUR:€,USD:$,GBP:£", env="CURRENCY_SYMBOLS")
+    # Auditoría 2026-11 (hallazgo 30): los costes de empresa por país (cotización
+    # del empleador, horas productivas) salen de `app/core/country_employer_costs.json`;
+    # una instalación puede usar el suyo apuntando aquí a otro JSON con la misma forma.
+    COUNTRY_EMPLOYER_COSTS_PATH: str = Field(default="", env="COUNTRY_EMPLOYER_COSTS_PATH")
 
     # ── Business rules ────────────────────────────────────────────────────────
     DEFAULT_TAX_RATE: float = Field(default=21.0, env="DEFAULT_TAX_RATE")
@@ -356,6 +365,9 @@ class Settings(
     # configurar de ninguna manera: los tres `getattr` devolvian None siempre.
     TWILIO_ACCOUNT_SID: Optional[str] = Field(default=None, env="TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN: Optional[str] = Field(default=None, env="TWILIO_AUTH_TOKEN")
+    # Hosts internos a los que SI se permite llamar aunque resuelvan a red
+    # privada (Jira on-premise, etc.), separados por comas. Ver core/outbound_url.py.
+    OUTBOUND_PRIVATE_HOSTS_ALLOWED: str = Field(default="", env="OUTBOUND_PRIVATE_HOSTS_ALLOWED")
     TWILIO_FROM_NUMBER: Optional[str] = Field(default=None, env="TWILIO_FROM_NUMBER")
 
     # Portal de cliente: caducidad de tokens y de enlaces compartidos. Son

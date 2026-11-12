@@ -143,15 +143,7 @@ def list_cycle_questions(cycle_id: str, db: Session = Depends(get_db),
 def add_cycle_question(cycle_id: str, payload: ReviewQuestionIn,
                        db: Session = Depends(get_db),
                        cu: User = Depends(require_admin_or_hr)):
-    c = performance_service.get_cycle(db, cycle_id)
-    if not c:
-        raise HTTPException(404, "Ciclo no encontrado")
-    try:
-        q = performance_service.add_question(db, c, payload.model_dump(exclude_unset=True))
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    db.commit()
-    db.refresh(q)
+    q = performance_service.anadir_pregunta(db, cycle_id, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=_ser_question(q))
 
 
@@ -159,13 +151,7 @@ def add_cycle_question(cycle_id: str, payload: ReviewQuestionIn,
 def update_cycle_question(question_id: str, payload: ReviewQuestionUpdate,
                           db: Session = Depends(get_db),
                           cu: User = Depends(require_admin_or_hr)):
-    q = performance_service.pregunta_propia(db, cu, question_id)
-    try:
-        q = performance_service.update_question(db, q, payload.model_dump(exclude_unset=True))
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    db.commit()
-    db.refresh(q)
+    q = performance_service.actualizar_pregunta(db, cu, question_id, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=_ser_question(q))
 
 
@@ -173,12 +159,7 @@ def update_cycle_question(question_id: str, payload: ReviewQuestionUpdate,
 def delete_cycle_question(question_id: str, db: Session = Depends(get_db),
                           cu: User = Depends(require_admin_or_hr)):
     enforce_abac(db, cu, "performance_question", question_id, action="delete")
-    q = performance_service.pregunta_propia(db, cu, question_id)
-    try:
-        performance_service.delete_question(db, q)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    db.commit()
+    performance_service.borrar_pregunta(db, cu, question_id)
     return None
 
 
@@ -186,13 +167,7 @@ def delete_cycle_question(question_id: str, db: Session = Depends(get_db),
              summary="Sembrar preguntas por defecto en el ciclo")
 def seed_default_questions(cycle_id: str, db: Session = Depends(get_db),
                            cu: User = Depends(require_admin_or_hr)):
-    c = performance_service.get_cycle(db, cycle_id)
-    if not c:
-        raise HTTPException(404, "Ciclo no encontrado")
-    if c.status != ReviewCycleStatus.draft:
-        raise HTTPException(400, "Solo se pueden añadir preguntas a ciclos en borrador")
-    performance_service.seed_default_questions_for_cycle(db, c)
-    db.commit()
+    performance_service.sembrar_preguntas_por_defecto(db, cycle_id)
     return APIListResponse.ok(items=[_ser_question(q) for q in performance_service.list_questions(db, cycle_id)])
 
 
@@ -201,16 +176,7 @@ def seed_default_questions(cycle_id: str, db: Session = Depends(get_db),
 def clone_cycle_questions(cycle_id: str, source_cycle_id: str,
                           db: Session = Depends(get_db),
                           cu: User = Depends(require_admin_or_hr)):
-    dest = performance_service.get_cycle(db, cycle_id)
-    if not dest:
-        raise HTTPException(404, "Ciclo destino no encontrado")
-    if dest.status != ReviewCycleStatus.draft:
-        raise HTTPException(400, "Solo se pueden añadir preguntas a ciclos en borrador")
-    src = performance_service.get_cycle(db, source_cycle_id)
-    if not src:
-        raise HTTPException(404, "Ciclo origen no encontrado")
-    n = performance_service.clone_questions(db, source_cycle_id=source_cycle_id, dest_cycle=dest)
-    db.commit()
+    n = performance_service.clonar_preguntas(db, cycle_id, source_cycle_id)
     return APIResponse.ok(data={"cloned": n})
 
 

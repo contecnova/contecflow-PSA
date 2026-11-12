@@ -81,6 +81,7 @@ def _embed_text(text: str) -> list[float]:
         return emb.tolist() if hasattr(emb, "tolist") else list(emb)
     except Exception:
         # Lightweight fallback: character 3-gram frequency vector (dim=256)
+        logger.debug("_embed_text: excepcion ignorada", exc_info=True)
         import hashlib
         vec = [0.0] * 256
         text_lower = text.lower()

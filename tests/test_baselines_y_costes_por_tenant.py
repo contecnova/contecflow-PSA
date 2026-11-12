@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-mia-bl"
 OTRA = "org-ajena-bl"
@@ -74,7 +75,7 @@ def test_EL_HALLAZGO_el_proyecto_de_otro_cliente_da_404(db, proyectos):
     from app.services import baselines_service as svc
 
     ajeno = proyectos[OTRA]["proyecto"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.proyecto_propio(db, _Usuario(ORG), ajeno.id)
     assert exc.value.status_code == 404
 
@@ -86,7 +87,7 @@ def test_no_se_listan_las_lineas_base_de_un_proyecto_ajeno(db, proyectos):
     from app.services import baselines_service as svc
 
     ajeno = proyectos[OTRA]["proyecto"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.list_baselines(db, _Usuario(ORG), ajeno.id)
     assert exc.value.status_code == 404
 
@@ -116,7 +117,7 @@ def test_no_se_puede_congelar_el_cronograma_de_otro_cliente(db, proyectos):
     from app.services import baselines_service as svc
 
     ajeno = proyectos[OTRA]["proyecto"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.crear_linea_base(
             db, _Usuario(ORG), ajeno.id, name="X", description=None,
             is_initial=False)
@@ -133,11 +134,11 @@ def test_la_linea_base_de_otro_proyecto_no_se_compara_ni_se_borra(db, proyectos)
 
     mio = proyectos[ORG]["proyecto"]
     # Ni pasando el proyecto propio con la linea ajena...
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.comparar_con_linea_base(db, _Usuario(ORG), mio.id, linea_ajena.id)
     assert exc.value.status_code == 404
     # ...ni pasando el proyecto ajeno.
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.borrar_linea_base(db, _Usuario(ORG), ajeno.id, linea_ajena.id)
     assert exc.value.status_code == 404
 
@@ -187,7 +188,7 @@ def test_EL_HALLAZGO_no_se_lee_el_coste_de_una_persona_de_otro_cliente(db, perso
     from app.services import cost_service as svc
 
     ajena = personas[OTRA]["usuario"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.usuario_propio(db, _Usuario(ORG), ajena.id)
     assert exc.value.status_code == 404
 
@@ -199,7 +200,7 @@ def test_EL_HALLAZGO_no_se_edita_el_perfil_de_coste_de_otro_cliente(db, personas
     from app.services import cost_service as svc
 
     ajeno = personas[OTRA]["perfil"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.perfil_propio(db, _Usuario(ORG), ajeno.id)
     assert exc.value.status_code == 404
 
@@ -248,7 +249,7 @@ def test_un_preset_global_de_pais_se_puede_leer_pero_no_borrar(db):
         db.commit()
 
     assert svc.preset_propio_o_global(db, _Usuario(ORG), global_.id).id == global_.id
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.borrar_preset_de_pais(db, _Usuario(ORG), global_.id)
     assert exc.value.status_code == 400
 
@@ -263,7 +264,7 @@ def test_el_preset_de_otro_cliente_no_se_ve(db):
     db.add(ajeno)
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.preset_propio_o_global(db, _Usuario(ORG), ajeno.id)
     assert exc.value.status_code == 404
 

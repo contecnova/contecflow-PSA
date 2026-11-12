@@ -1,5 +1,6 @@
 from __future__ import annotations
 from sqlalchemy.orm import Session
+from app.core.errores import ErrorDeDominio
 # Devuelve un query filtrable y el total para paginación
 def query_documents(db: Session, current_user, category=None, tags=None, search=None, project_id=None, is_archived=False, task_id=None, ticket_id=None):
     q = db.query(Document).filter(Document.is_archived == is_archived)
@@ -80,7 +81,6 @@ from app.models.user import UserRole
 from app.models.user import User
 from app.schemas.documents import DocumentOut, DocumentVersionOut, DocumentPermissionOut
 from app.services.s3_service import file_storage
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy import and_
 
@@ -123,7 +123,7 @@ def get_document_or_404(db, doc_id: str, current_user=None):
         q = q.filter(Document.created_by.in_(org_user_ids))
     doc = q.first()
     if not doc:
-        raise HTTPException(404, "Document not found")
+        raise ErrorDeDominio(404, "Document not found")
     return doc
 
 
@@ -196,7 +196,7 @@ def check_document_access(doc, user, required_level=None) -> None:
 
     if _nivel_concedido(doc, user) >= _NIVELES.index(required_level):
         return
-    raise HTTPException(403, "Insufficient access level to this document")
+    raise ErrorDeDominio(403, "Insufficient access level to this document")
 
 
 # ── Serialization ─────────────────────────────────────────────────────────────
@@ -430,6 +430,7 @@ def _visual_summary_from_pdf_first_page(raw: bytes, *, file_name: str) -> str:
     try:
         import pypdfium2 as pdfium
     except Exception:
+        logger.debug("_visual_summary_from_pdf_first_page: excepcion ignorada", exc_info=True)
         return ""
 
     with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
@@ -513,6 +514,7 @@ def _ocr_image_bytes(raw: bytes) -> str:
         from PIL import Image
         import pytesseract
     except Exception:
+        logger.debug("_ocr_image_bytes: excepcion ignorada", exc_info=True)
         return ""
 
     image = Image.open(io.BytesIO(raw))
@@ -746,7 +748,7 @@ def add_document_permission(db, doc_id: str, payload, current_user):
     user_id / role / department."""
     subjects = [bool(payload.user_id), bool(payload.role), bool(payload.department)]
     if sum(subjects) != 1:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400,
             detail="Provide exactly one of user_id, role or department",
         )
@@ -755,12 +757,12 @@ def add_document_permission(db, doc_id: str, payload, current_user):
     if payload.user_id:
         user = db.query(User).filter(User.id == payload.user_id).first()
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise ErrorDeDominio(status_code=404, detail="User not found")
 
     if payload.role:
         valid_roles = {r.value for r in UserRole}
         if payload.role not in valid_roles:
-            raise HTTPException(status_code=400, detail=f"Invalid role: {payload.role}")
+            raise ErrorDeDominio(status_code=400, detail=f"Invalid role: {payload.role}")
 
     # Detect duplicate grant (same subject)
     q = db.query(DocumentPermission).filter(DocumentPermission.document_id == doc_id)
@@ -771,7 +773,7 @@ def add_document_permission(db, doc_id: str, payload, current_user):
     elif payload.department:
         q = q.filter(DocumentPermission.department == payload.department)
     if q.first():
-        raise HTTPException(status_code=409, detail="A grant already exists for this subject")
+        raise ErrorDeDominio(status_code=409, detail="A grant already exists for this subject")
 
     perm = DocumentPermission(
         document_id=doc_id,
@@ -821,14 +823,14 @@ def remove_document_permission(db, doc_id: str, perm_id: str):
         )
     ).first()
     if not perm:
-        raise HTTPException(status_code=404, detail="Permission not found")
+        raise ErrorDeDominio(status_code=404, detail="Permission not found")
     db.delete(perm)
     db.commit()
 
 
 def approve_document(db, doc, payload, current_user):
     if not doc.requires_approval:
-        raise HTTPException(status_code=400, detail="This document does not require approval")
+        raise ErrorDeDominio(status_code=400, detail="This document does not require approval")
 
     if doc.approval_request_id:
         # Route through the multi-level workflow engine
@@ -861,14 +863,14 @@ def submit_for_approval(db, doc, current_user):
         new ApprovalRequest is opened.
     """
     if not doc.requires_approval:
-        raise HTTPException(status_code=400, detail="This document does not require approval")
+        raise ErrorDeDominio(status_code=400, detail="This document does not require approval")
 
     if doc.approval_request_id:
         from app.models.billing_reports import ApprovalRequest as ARModel
         prev = db.get(ARModel, doc.approval_request_id)
         prev_status = (getattr(prev, "status", None) or "").lower() if prev else None
         if prev and prev_status not in ("rejected", "cancelled"):
-            raise HTTPException(status_code=409, detail="Document already has an active approval request")
+            raise ErrorDeDominio(status_code=409, detail="Document already has an active approval request")
         # Reset document to allow a fresh submission. The previous request stays
         # in the DB as audit trail; we just unlink it from the document.
         doc.approval_request_id = None
@@ -880,7 +882,7 @@ def submit_for_approval(db, doc, current_user):
 
     ar_id = _auto_create_approval_request(db, doc, current_user)
     if not ar_id:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=422,
             detail="No approval workflow configured for this document category. "
                    "Please configure a workflow in Settings > Approval Workflows.",
@@ -989,7 +991,7 @@ def remove_tag(db, doc_id: str, tag_name: str):
         DocumentTag.tag_name == tag_name,
     ).first()
     if not tag:
-        raise HTTPException(404, "Tag not found")
+        raise ErrorDeDominio(404, "Tag not found")
     db.delete(tag)
     db.commit()
 

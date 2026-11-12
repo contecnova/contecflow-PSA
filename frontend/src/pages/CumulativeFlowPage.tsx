@@ -180,7 +180,7 @@ export default function CumulativeFlowPage(): JSX.Element {
           {/* Tabla de datos */}
           <div style={{...ps,marginTop:16}}>
             <div style={{fontSize: "var(--text-base)",fontWeight:600,marginBottom:12}}>{t('cumulative_flow.table_title')}</div>
-            <div style={{overflowX:'auto'}}>
+            <div className="u-scroll-x">
               <table style={{width:'100%',borderCollapse:'collapse',fontSize: "var(--text-sm)"}}>
                 <thead>
                   <tr style={{borderBottom:'1px solid var(--surface-4)'}}>

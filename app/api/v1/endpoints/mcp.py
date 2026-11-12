@@ -5,6 +5,7 @@ y una respuesta JSON. La autenticación es la de toda la API: sesión, token o
 clave de API (`Authorization: Bearer nxpm_…`); la credencial actúa como su dueño.
 """
 from __future__ import annotations
+import logging
 
 from typing import Any
 
@@ -27,6 +28,7 @@ async def mcp(request: Request, db: Session = Depends(get_db), current_user: Use
     try:
         mensaje: Any = await request.json()
     except Exception:
+        logging.getLogger(__name__).debug("mcp: excepcion ignorada", exc_info=True)
         return JSONResponse(mcp_service._error(None, mcp_service.PARSE_ERROR, "cuerpo JSON no válido"), status_code=400)
     if isinstance(mensaje, list):
         return JSONResponse(mcp_service._error(None, mcp_service.INVALID_REQUEST, "no se admiten lotes JSON-RPC"),

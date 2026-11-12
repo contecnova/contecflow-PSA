@@ -42,7 +42,7 @@ export default function TimePage() {
         />
       </div>
 
-      <div style={{ flex: 1 }}>
+      <div className="u-flex1">
         <Suspense fallback={<TabFallback />}>
           {tab === 'log'   && <ImputarPage />}
           {tab === 'timer' && <TimerPageContent />}

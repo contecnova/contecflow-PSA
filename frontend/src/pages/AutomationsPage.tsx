@@ -14,7 +14,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, automationsApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Page, Table } from '../components/ui'
 import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
 } from 'lucide-react'
@@ -55,6 +55,43 @@ const CRON_PLANTILLAS: Array<[string, string]> = [
   ['cron_monthly', '0 9 1 * *'], ['cron_hourly', '0 * * * *'],
 ]
 
+type AccionRegla = { type: string; params?: Record<string, string> }
+/** Regla tal como la devuelve `GET /automations`. */
+interface ReglaAutomatizacion {
+  id: string
+  name: string
+  description?: string | null
+  project_id?: string | null
+  project_name?: string | null
+  is_global?: boolean
+  is_active: boolean
+  trigger_type: string
+  trigger_conditions?: Condicion | null
+  actions: AccionRegla[]
+  schedule_cron?: string | null
+  run_count?: number
+  last_run_at?: string | null
+  next_run_at?: string | null
+  last_error?: string | null
+}
+interface PlantillaRegla {
+  id: string
+  name: string
+  trigger_type: string
+  trigger_conditions?: Condicion | null
+  actions: AccionRegla[]
+}
+interface EjecucionRegla {
+  executed_at: string
+  success: boolean
+  actions_taken?: Array<{ action: string; ok?: boolean; error?: string }>
+}
+interface ResultadoPrueba {
+  enabled?: boolean
+  scan?: boolean
+  results?: Array<{ action: string; ok: boolean; would?: string; error?: string }>
+}
+
 type ParamDef = { key: string; type: string; options?: string[] | null; required?: boolean }
 type Catalog = {
   triggers: Array<{ type: string; category: string; fields: string[]; scan?: boolean; schedule?: boolean }>
@@ -79,11 +116,11 @@ function byCategory<T extends { category: string }>(items: T[]): Array<[string, 
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-function escapeRegExp(value: any) {
+function escapeRegExp(value: string) {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function highlightText(text: any, term: any) {
+function highlightText(text: string | null | undefined, term: string) {
   const value = String(text || '')
   const q = String(term || '').trim()
   if (!q || !value) return value
@@ -108,7 +145,7 @@ function highlightText(text: any, term: any) {
 }
 
 // ── Rule card ─────────────────────────────────────────────────────────────────
-function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlightTerm }: { rule: any; onEdit: (r: any) => void; onDelete: (id: any) => void; onTest: (r: any) => void; onToggle: (r: any) => void; onHistory: (r: any) => void; highlightTerm: any }) {
+function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlightTerm }: { rule: ReglaAutomatizacion; onEdit: (r: ReglaAutomatizacion) => void; onDelete: (id: string) => void; onTest: (r: ReglaAutomatizacion) => void; onToggle: (r: ReglaAutomatizacion) => void; onHistory: (r: ReglaAutomatizacion) => void; highlightTerm: string }) {
   const t = useAppT()
   const trigger = { icon: TRIGGER_ICONS[rule.trigger_type] || '⚙️', label: rule.trigger_type }
   const actions = Array.isArray(rule.actions) ? rule.actions : []
@@ -116,12 +153,12 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
   return (
     <div style={{ background: 'var(--surface-2)', border: `1px solid ${rule.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 12, padding: '16px 20px', opacity: rule.is_active ? 1 : 0.6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div style={{ flex: 1 }}>
+        <div className="u-flex1">
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: "var(--text-lg)" }}>{trigger.icon}</span>
-            <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{highlightText(rule.name, highlightTerm)}</span>
+            <span className="u-md-700">{highlightText(rule.name, highlightTerm)}</span>
             {rule.is_global && <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'var(--purple-bg)', color: 'var(--purple)' }}>GLOBAL</span>}
-            {rule.project_name && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>· {highlightText(rule.project_name, highlightTerm)}</span>}
+            {rule.project_name && <span className="u-text2-xs">· {highlightText(rule.project_name, highlightTerm)}</span>}
           </div>
           {rule.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{highlightText(rule.description, highlightTerm)}</div>}
         </div>
@@ -149,24 +186,24 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border-strong)', borderRadius: 8, padding: '6px 12px', fontSize: "var(--text-sm)" }}>
           <span style={{ color: 'var(--purple)', fontWeight: 700 }}>{t('automations.si_label')} </span>
-          <span style={{ color: 'var(--text-1)' }}>{trigger.icon} {highlightText(t('automations.trig_' + rule.trigger_type, trigger.label), highlightTerm)}</span>
-          {rule.schedule_cron && <span style={{ color: 'var(--text-2)' }}> · <code>{rule.schedule_cron}</code></span>}
+          <span className="u-text1">{trigger.icon} {highlightText(t('automations.trig_' + rule.trigger_type, trigger.label), highlightTerm)}</span>
+          {rule.schedule_cron && <span className="u-text2"> · <code>{rule.schedule_cron}</code></span>}
           {rule.trigger_conditions && aGrupo(rule.trigger_conditions).conditions.map((c: Condicion, i: number) => (
-            <span key={i} style={{ color: 'var(--text-2)' }}>
+            <span key={i} className="u-text2">
               {i === 0 ? ' · ' : ` ${t(aGrupo(rule.trigger_conditions).match === 'any' ? 'automations.or_lbl' : 'automations.and_lbl')} `}
-              {esGrupo(c) ? `(${t('automations.nested_group')})` : <>{c.field} {t('automations.op_' + c.operator)} <strong style={{ color: 'var(--text-1)' }}>{c.value}</strong></>}
+              {esGrupo(c) ? `(${t('automations.nested_group')})` : <>{c.field} {t('automations.op_' + c.operator)} <strong className="u-text1">{c.value}</strong></>}
             </span>
           ))}
         </div>
         <span style={{ fontSize: "var(--text-lg-em)", color: 'var(--text-3)' }}>→</span>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {actions.map((a: any, i: number) => {
+        <div className="u-wrap-6">
+          {actions.map((a, i) => {
             const aCfg = { icon: ACTION_ICONS[a.type] || '⚙️', label: a.type }
             return (
               <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '6px 12px', fontSize: "var(--text-sm)" }}>
                 <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{t('automations.entonces_label')}</span>
-                <span style={{ color: 'var(--text-1)' }}>{aCfg.icon} {highlightText(t('automations.act_' + a.type, aCfg.label), highlightTerm)}</span>
-                {a.params?.message && <span style={{ color: 'var(--text-2)' }}> · &quot;{a.params.message.slice(0, 40)}&quot;</span>}
+                <span className="u-text1">{aCfg.icon} {highlightText(t('automations.act_' + a.type, aCfg.label), highlightTerm)}</span>
+                {a.params?.message && <span className="u-text2"> · &quot;{a.params.message.slice(0, 40)}&quot;</span>}
               </div>
             )
           })}
@@ -177,14 +214,14 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
         <span>⚡ {rule.run_count || 0} {t('automations.executions')}</span>
         {rule.last_run_at && <span>{t('automations.last_exec')}: {rule.last_run_at}</span>}
         {rule.next_run_at && rule.is_active && <span>🗓 {t('automations.next_run')}: {fmtDateTime(rule.next_run_at)}</span>}
-        {rule.last_error && <span style={{ color: 'var(--danger)' }}>⚠ {rule.last_error.slice(0, 60)}</span>}
+        {rule.last_error && <span className="u-danger">⚠ {rule.last_error.slice(0, 60)}</span>}
       </div>
     </div>
   )
 }
 
 // ── Rule editor modal ─────────────────────────────────────────────────────────
-function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
+function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
@@ -197,7 +234,7 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
     is_global: rule?.is_global ?? false,
     trigger_type: rule?.trigger_type || 'task_status_changed',
     trigger_conditions: rule?.trigger_conditions || null,
-    actions: rule?.actions || [{ type: 'create_alert', params: { message: '', severity: 'warning' } }],
+    actions: rule?.actions || [{ type: 'create_alert', params: { message: '', severity: 'warning' } }] as AccionRegla[],
   })
   const [hasCondition, setHasCondition] = useState(!!rule?.trigger_conditions)
   const inicial = aGrupo(rule?.trigger_conditions)
@@ -208,21 +245,21 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
   const cambiarCondicion = (i: number, campo: string, valor: string) =>
     setCondiciones(cs => cs.map((c, j) => j === i ? { ...c, [campo]: valor } : c))
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => (r.data as any)?.items ?? r.data ?? []) })
+  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data ?? []) })
   const projects = Array.isArray(projRaw) ? projRaw : []
   const { data: catalog, isError: catalogError } = useCatalog()
   const triggerDefs = catalog?.triggers ?? []
   const actionDefs = catalog?.actions ?? []
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => isEdit ? automationsApi.update(rule.id, d) : automationsApi.create(d as any),
+    mutationFn: (d: typeof form & { schedule_cron: string | null }) => isEdit ? automationsApi.update(rule.id, d) : automationsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['automations'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 
   const addAction = () => setForm(f => ({ ...f, actions: [...f.actions, { type: 'create_alert', params: { message: '', severity: 'info' } }] }))
-  const removeAction = (i: number) => setForm(f => ({ ...f, actions: f.actions.filter((_: any, idx: number) => idx !== i) }))
-  const updateAction = (i: number, field: any, value: any) => setForm(f => {
+  const removeAction = (i: number) => setForm(f => ({ ...f, actions: f.actions.filter((_, idx) => idx !== i) }))
+  const updateAction = (i: number, field: string, value: string) => setForm(f => {
     const actions = [...f.actions]
     if (field === 'type') actions[i] = { type: value, params: {} }
     else {
@@ -240,15 +277,15 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
     const validas = condiciones.filter(c => esGrupo(c) || c.field)
     const trigger_conditions = !hasCondition || !validas.length ? null
       : validas.length === 1 && !esGrupo(validas[0]) ? validas[0] : { match, conditions: validas }
-    mutate({ ...form, trigger_conditions, schedule_cron: isSchedule ? cron.trim() : null } as any)
+    mutate({ ...form, trigger_conditions, schedule_cron: isSchedule ? cron.trim() : null })
   }
 
   return (
     <Modal open title={isEdit ? t('automations.edit_rule_title') : t('automations.new_rule_title')} onClose={onClose} width={680}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         {/* Basic info */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="u-col-full">
             <label htmlFor={`${idPrefix}-name`} style={ls}>{t('automations.rule_name_lbl')}</label>
             <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('automations.rule_name_lbl')} />
           </div>
@@ -282,8 +319,8 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
                   </optgroup>
                 ))}
               </select>
-              {catalogError && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', marginTop: 4 }}>{t('automations.catalog_unavailable')}</div>}
-              {isScan && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>{t('automations.simulation_scan')}</div>}
+              {catalogError && <div role="alert" className="u-field-error">{t('automations.catalog_unavailable')}</div>}
+              {isScan && <div className="u-hint">{t('automations.simulation_scan')}</div>}
             </div>
 
             {/* Condition */}
@@ -322,7 +359,7 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
                   </div>
                 )}
                 {condiciones.map((c, i) => esGrupo(c) ? (
-                  <div key={i} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>({t('automations.nested_group')})</div>
+                  <div key={i} className="u-text3-sm">({t('automations.nested_group')})</div>
                 ) : (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
                     <div>
@@ -361,7 +398,7 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {t('automations.entonces_label')}
           </div>
-          {form.actions.map((action: any, i: number) => {
+          {form.actions.map((action, i) => {
             const paramDefs = actionDefs.find(d => d.type === action.type)?.params ?? []
             return (
               <div key={i} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
@@ -410,7 +447,7 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
         </div>
 
         {/* Save */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSave} loading={isPending} disabled={isPending || !form.name || form.actions.length === 0}>
             {isPending ? t('common.saving') : isEdit ? t('automations.save_rule_btn') : t('automations.create_rule_btn')}
@@ -422,43 +459,37 @@ function RuleModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
 }
 
 // ── Executions modal ──────────────────────────────────────────────────────────
-function ExecutionsModal({ rule, onClose }: { rule: any; onClose: () => void }) {
+function ExecutionsModal({ rule, onClose }: { rule: ReglaAutomatizacion; onClose: () => void }) {
   const t = useAppT()
   const { data = [], isLoading } = useQuery({
     queryKey: ['automation_executions', rule.id],
-    queryFn: () => automationsApi.executions(rule.id).then(r => (Array.isArray(r.data) ? r.data : [])),
+    queryFn: () => automationsApi.executions(rule.id).then((r): EjecucionRegla[] => (Array.isArray(r.data) ? r.data : [])),
     enabled: !!rule?.id,
   })
   return (
     <Modal open title={`${t('automations.executions_title')} — ${rule.name}`} onClose={onClose} width={700}>
       <div style={{ minHeight: 120 }}>
         {isLoading ? <Spinner /> : data.length === 0 ? (
-          <div style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>{t('automations.no_executions')}</div>
+          <div className="u-text2-sm">{t('automations.no_executions')}</div>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{t('automations.exec_date')}</th>
-                <th>{t('automations.exec_status')}</th>
-                <th>{t('automations.exec_result')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((exec: any) => (
-                <tr key={exec.id}>
-                  <td>{exec.executed_at}</td>
-                  <td style={{ color: exec.success ? 'var(--success)' : 'var(--danger)' }}>
-                    {exec.success ? t('automations.exec_status_success') : t('automations.exec_status_error')}
-                  </td>
-                  <td style={{ fontSize: 'var(--text-xs)' }}>
-                    {(exec.actions_taken || []).map((a: any, i: number) => (
-                      <div key={i}>{a.ok === false ? '✗' : '✓'} {t('automations.act_' + a.action, a.action)}{a.error ? `: ${a.error}` : ''}</div>
-                    ))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table
+            data={data}
+            columns={[
+              { key: 'executed_at', label: t('automations.exec_date') },
+              { key: 'success', label: t('automations.exec_status'), render: (_v, exec) => (
+                <span style={{ color: exec.success ? 'var(--success)' : 'var(--danger)' }}>
+                  {exec.success ? t('automations.exec_status_success') : t('automations.exec_status_error')}
+                </span>
+              ) },
+              { key: 'actions_taken', label: t('automations.exec_result'), render: (_v, exec) => (
+                <div className="u-xs">
+                  {(exec.actions_taken || []).map((a, i) => (
+                    <div key={i}>{a.ok === false ? '✗' : '✓'} {t('automations.act_' + a.action, a.action)}{a.error ? `: ${a.error}` : ''}</div>
+                  ))}
+                </div>
+              ) },
+            ]}
+          />
         )}
       </div>
     </Modal>
@@ -470,60 +501,60 @@ export default function AutomationsPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState<ReglaAutomatizacion | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
-  const [execHistory, setExecHistory] = useState(null)
+  const [execHistory, setExecHistory] = useState<ReglaAutomatizacion | null>(null)
   const [filterActive, setFilterActive] = useState<boolean | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [testResult, setTestResult] = useState<any>(null)
+  const [testResult, setTestResult] = useState<ResultadoPrueba | null>(null)
 
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['automations'],
-    queryFn: () => automationsApi.list().then(r => (r.data as any)?.items ?? r.data ?? []),
+    queryFn: () => automationsApi.list().then((r): ReglaAutomatizacion[] => r.data?.items ?? r.data ?? []),
     refetchInterval: 60000,
   })
   const rules = Array.isArray(raw) ? raw : []
 
   const { data: templates = [] } = useQuery({
     queryKey: ['auto-templates'],
-    queryFn: () => automationsApi.templates().then(r => r.data),
+    queryFn: () => automationsApi.templates().then((r): PlantillaRegla[] => r.data),
     enabled: showTemplates,
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: (id: any) => automationsApi.delete(id),
+    mutationFn: (id: string) => automationsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['automations'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, active }: { id: any; active: boolean }) => automationsApi.update(id, { is_active: active } as any),
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => automationsApi.update(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['automations'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: test } = useMutation({
-    mutationFn: (id: any) => automationsApi.test(id).then(r => r.data),
+    mutationFn: (id: string) => automationsApi.test(id).then((r): ResultadoPrueba => r.data),
     onSuccess: (data) => setTestResult(data),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createFromTemplate } = useMutation({
-    mutationFn: (tpl: any) => automationsApi.create({
+    mutationFn: (tpl: PlantillaRegla) => automationsApi.create({
       name: tpl.name,
       trigger_type: tpl.trigger_type,
       trigger_conditions: tpl.trigger_conditions,
       actions: tpl.actions,
       is_global: true,
-    } as any),
+    }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['automations'] }); setShowTemplates(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const filtered = filterActive === null ? rules : rules.filter((r: any) => r.is_active === filterActive)
+  const filtered = filterActive === null ? rules : rules.filter(r => r.is_active === filterActive)
   const searched = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     if (!q) return filtered
-    return filtered.filter((rule: any) => {
-      const inActions = (Array.isArray(rule.actions) ? rule.actions : []).some((a: any) =>
+    return filtered.filter(rule => {
+      const inActions = (Array.isArray(rule.actions) ? rule.actions : []).some(a =>
         String(a?.type || '').toLowerCase().includes(q)
       )
       return (
@@ -535,7 +566,7 @@ export default function AutomationsPage(): JSX.Element {
       )
     })
   }, [filtered, searchTerm])
-  const active = rules.filter((r: any) => r.is_active).length
+  const active = rules.filter(r => r.is_active).length
 
   return (
     <Page
@@ -559,7 +590,7 @@ export default function AutomationsPage(): JSX.Element {
         {[
           { label: t('automations.stats_active'),      value: active,                                              color: 'var(--accent)',  Icon: Zap },
           { label: t('automations.stats_paused'),      value: rules.length - active,                               color: 'var(--text-2)',  Icon: Pause },
-          { label: t('automations.stats_total_exec'),  value: rules.reduce((s: number, r: any) => s + (r.run_count || 0), 0),    color: 'var(--success)', Icon: Play },
+          { label: t('automations.stats_total_exec'),  value: rules.reduce((s, r) => s + (r.run_count || 0), 0),    color: 'var(--success)', Icon: Play },
           { label: t('automations.stats_total_rules'), value: rules.length,                                        color: 'var(--purple)',  Icon: SettingsIcon },
         ].map(({ label, value, color, Icon }) => (
           <div key={label} className="ds-card" style={{ padding: '14px 16px', gap: 4 }}>
@@ -610,8 +641,8 @@ export default function AutomationsPage(): JSX.Element {
           action={<Button onClick={() => setShowTemplates(true)}>{t('automations.view_templates_btn')}</Button>}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {searched.map((rule: any) => (
+        <div className="u-stack-12">
+          {searched.map(rule => (
             <RuleCard key={rule.id} rule={rule}
               onEdit={r => setEditing(r)}
               onDelete={id => del(id)}
@@ -637,7 +668,7 @@ export default function AutomationsPage(): JSX.Element {
             {testResult.enabled === false && <div role="alert" style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', marginBottom: 12 }}>{t('automations.simulation_off')}</div>}
             {testResult.scan && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 12 }}>{t('automations.simulation_scan')}</div>}
             <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 14 }}>
-              {(testResult.results || []).map((r: any, i: number) => (
+              {(testResult.results || []).map((r, i) => (
                 <div key={i} style={{ fontSize: "var(--text-sm)", padding: '4px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', color: r.ok ? 'var(--text-1)' : 'var(--danger)' }}>
                   {r.ok ? '✓' : '✗'} {t('automations.act_' + r.action, r.action)}: {r.ok ? r.would : r.error}
                 </div>
@@ -653,8 +684,8 @@ export default function AutomationsPage(): JSX.Element {
       {/* Templates modal */}
       {showTemplates && (
         <Modal open title={t('automations.templates_title')} onClose={() => setShowTemplates(false)} width={680}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {templates.map((tpl: any) => {
+          <div className="u-grid2-12">
+            {templates.map(tpl => {
               const trigger = { icon: TRIGGER_ICONS[tpl.trigger_type] || '⚙️', label: tpl.trigger_type }
               return (
                 <div key={tpl.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
@@ -664,7 +695,7 @@ export default function AutomationsPage(): JSX.Element {
                     {tpl.trigger_conditions && ` · ${tpl.trigger_conditions.field} ${tpl.trigger_conditions.operator} ${tpl.trigger_conditions.value}`}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                    {tpl.actions.map((a: any, i: number) => {
+                    {tpl.actions.map((a, i) => {
                       const aCfg = { icon: ACTION_ICONS[a.type] || '⚙️', label: a.type }
                       return <span key={i} style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{aCfg.icon} {t('automations.act_' + a.type, aCfg.label)}</span>
                     })}

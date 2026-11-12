@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, Query
 from app.core.deps import get_current_user
 from app.core.responses import APIResponse
@@ -41,5 +42,6 @@ def get_translations(
     try:
         translations = json.loads(js_obj)
     except Exception as e:
+        logging.getLogger(__name__).debug("get_translations: excepcion ignorada", exc_info=True)
         return APIResponse.ok(data={"translations": {}, "error": f"Error al parsear: {str(e)}"})
     return APIResponse.ok(data={"translations": translations})

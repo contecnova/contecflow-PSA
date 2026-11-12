@@ -92,7 +92,7 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       )}
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <div className="u-actions-8">
         <button onClick={onClose} style={{
           padding: '8px 16px', borderRadius: 8,
           background: 'transparent', border: '1px solid var(--surface-4)',
@@ -106,7 +106,7 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
           style={{
             padding: '8px 18px', borderRadius: 8,
             background: 'var(--accent)', border: 'none',
-            color: '#fff', cursor: title.trim() ? 'pointer' : 'not-allowed',
+            color: 'var(--on-accent-light)', cursor: title.trim() ? 'pointer' : 'not-allowed',
             fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit',
             opacity: title.trim() ? 1 : 0.5,
           }}

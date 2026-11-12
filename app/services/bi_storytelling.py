@@ -12,7 +12,11 @@ Resolution order for AI provider:
   - Error message if no providers available
 
 Public API:
-    generate_narrative(org_id, lang='es') -> dict
+    generate_narrative(org_id, lang=None, user_id=None) -> dict
+
+Auditoria 2026-11 (hallazgo 30): sin `lang`, el idioma es el del usuario / la
+organizacion (`formato_regional.idioma`, `"es"` solo de ultimo respaldo), y los
+importes van en la moneda de la organizacion, no en `€` fijo.
 """
 from __future__ import annotations
 
@@ -28,6 +32,7 @@ Tu trabajo es escribir un resumen ejecutivo conciso (máximo 5 párrafos) en {la
 basándote exclusivamente en los siguientes KPIs del período actual.
 
 No inventes datos. Si un valor es None o 0, indícalo como "sin datos".
+Los importes están en {moneda} (símbolo «{simbolo}»).
 Usa un tono profesional, orientado a decisiones. Incluye:
   1. Estado general del portfolio de proyectos
   2. Rendimiento financiero (costes, margen, facturabilidad)
@@ -52,7 +57,7 @@ def _to_number(value, default: float = 0.0) -> float:
         return default
 
 
-def _build_cache_key(org_id: Optional[str], lang: str = "es") -> str:
+def _build_cache_key(org_id: Optional[str], lang: str) -> str:
     # Versioned key to invalidate stale narratives after KPI/LLM improvements.
     # v3 (revisión 2026-11): con el idioma, y fuera las narrativas cortadas a
     # media frase que guardó la v2.
@@ -71,10 +76,28 @@ def _get_kpi_context(org_id: Optional[str]) -> dict:
         return {"source": "unavailable", "error": str(exc)}
 
 
+def _regional(org_id: Optional[str], user_id: Optional[str], lang: Optional[str]) -> tuple[str, str, str]:
+    """(idioma, codigo de moneda, simbolo) de la organizacion / el usuario."""
+    from app.services.formato_regional import codigo_de_moneda, idioma, simbolo_de_moneda
+    try:
+        from app.db.session import SessionLocal
+        db = SessionLocal()
+    except Exception:
+        logger.debug("_regional: sin sesion; ajustes globales", exc_info=True)
+        db = None
+    try:
+        return (lang or idioma(db, user_id=user_id, org_id=org_id),
+                codigo_de_moneda(db, org_id), simbolo_de_moneda(db, org_id))
+    finally:
+        if db is not None:
+            db.close()
+
+
 def generate_narrative(
     org_id: Optional[str] = None,
-    lang: str = "es",
+    lang: Optional[str] = None,
     force_refresh: bool = False,
+    user_id: Optional[str] = None,
 ) -> dict:
     """Generate (or return cached) executive narrative for the given org.
 
@@ -89,6 +112,7 @@ def generate_narrative(
     """
     from app.services.analytics_service import cache_get, cache_set
 
+    lang, moneda, simbolo = _regional(org_id, user_id, lang)
     cache_key = _build_cache_key(org_id, lang)
 
     if not force_refresh:
@@ -103,6 +127,8 @@ def generate_narrative(
     lang_label = _LANG_LABELS.get(lang, lang)
     prompt_text = STORYTELLING_PROMPT.format(
         lang=lang_label,
+        moneda=moneda,
+        simbolo=simbolo,
         kpis_json=json.dumps(kpis, ensure_ascii=False, indent=2),
     )
 
@@ -134,7 +160,7 @@ def generate_narrative(
             raise RuntimeError("La IA no dio un resumen")
     except Exception as exc:
         logger.warning("LLM narrative generation failed: %s", exc)
-        narrative_text = _fallback_narrative(kpis, lang)
+        narrative_text = _fallback_narrative(kpis, lang, simbolo)
 
     result = {
         "narrative": narrative_text,
@@ -152,8 +178,9 @@ def generate_narrative(
     return result
 
 
-def _fallback_narrative(kpis: dict, lang: str) -> str:
+def _fallback_narrative(kpis: dict, lang: str, simbolo: str) -> str:
     """Simple template fallback when LLM is unavailable."""
+    from app.services.formato_regional import formatear_importe
     projects = int(_to_number(kpis.get("active_projects"), 0))
     margin = round(_to_number(kpis.get("avg_margin_pct"), 0.0), 1)
     pipeline = round(_to_number(kpis.get("pipeline_weighted"), 0.0), 0)
@@ -165,11 +192,11 @@ def _fallback_narrative(kpis: dict, lang: str) -> str:
             f"**Resumen ejecutivo** (generado automáticamente)\n\n"
             f"El portfolio activo cuenta con {projects} proyectos en curso, con un margen medio "
             f"del {margin}%. El pipeline comercial presenta {opps} oportunidades abiertas "
-            f"con un revenue ponderado de {pipeline}€.\n\n"
+            f"con un revenue ponderado de {formatear_importe(pipeline, simbolo)}.\n\n"
             f"{'⚠ Atención: hay ' + str(high_risk) + ' proyectos en riesgo alto.' if high_risk else ''}"
         )
     return (
         f"**Executive Summary** (auto-generated)\n\n"
         f"Active portfolio: {projects} projects with avg margin {margin}%. "
-        f"Pipeline: {opps} open opportunities, weighted revenue {pipeline}€."
+        f"Pipeline: {opps} open opportunities, weighted revenue {formatear_importe(pipeline, simbolo)}."
     )

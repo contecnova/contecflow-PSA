@@ -16,11 +16,8 @@ from __future__ import annotations
 
 import logging
 import os
-import smtplib
 from datetime import timedelta
 from app.core.timeutil import utcnow
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -31,28 +28,15 @@ logger = logging.getLogger(__name__)
 
 
 def _send(to_email: str, subject: str, html: str) -> bool:
+    """Por el emisor comun (auditoria 2026-11, hallazgo 20)."""
     if not settings.SMTP_HOST or not to_email:
         return False
-    msg = MIMEMultipart("alternative")
-    msg["From"] = settings.SMTP_FROM or settings.NOTIFICATION_EMAIL_FROM
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(html, "html", "utf-8"))
-    try:
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as s:
-            s.ehlo()
-            try:
-                s.starttls()
-            # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:
-                logger.debug("_send: fallo best-effort ignorado", exc_info=True)
-            if settings.SMTP_USER:
-                s.login(settings.SMTP_USER, settings.SMTP_PASS)
-            s.send_message(msg)
-        return True
-    except Exception as exc:
-        logger.warning("digest send failed for %s: %s", to_email, exc)
-        return False
+    from app.services.notification_service import ServidorSmtp, enviar_correo
+    servidor = ServidorSmtp.del_entorno(timeout=30.0)
+    return enviar_correo(
+        to_email, subject, html, servidor=servidor,
+        remitente=settings.SMTP_FROM or settings.NOTIFICATION_EMAIL_FROM,
+    ).enviado
 
 
 def _render(notifs, user_name: str) -> str:

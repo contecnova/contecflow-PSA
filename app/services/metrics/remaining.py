@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 from app.core.config import settings
 from app.models.imputation import Imputation
 from app.models.user import User

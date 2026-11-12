@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services/api'
+import { imputationsApi, projectsApi, tasksApi, aiCopilotApi, type TaskListParams } from '../services/api'
 import { queueImputation } from '../services/offlineQueue'
-import { Button, Card } from '../components/ui'
+import { Button, Card, Drawer } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Clock } from 'lucide-react'
@@ -13,6 +13,7 @@ import { fmtDate, fmtNumber, extractErr} from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
+import DateInput from '../components/ui/DateInput'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
 
@@ -156,7 +157,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
         <span>{t('imputa_page.total')}: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtNumber(weekData.total_hours, 2)}h</span></span>
-        <span>{t('imputa_page.capacity')}: <span style={{ color: 'var(--text-1)' }}>{weekData.capacity_hours}h</span></span>
+        <span>{t('imputa_page.capacity')}: <span className="u-text1">{weekData.capacity_hours}h</span></span>
         <span style={{ color: (weekData.load_pct ?? 0) > 100 ? 'var(--danger)' : (weekData.load_pct ?? 0) > 85 ? 'var(--warning)' : 'var(--success)', fontWeight: 700 }}>
           {weekData.load_pct?.toFixed(0)}{t('imputa_page.load_pct')}
         </span>
@@ -175,51 +176,30 @@ interface AnomaliesDrawerProps {
 function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps) {
   const traducir = useAppT()
   // Auditoría 2026-08 (P1-6): el panel NO se cerraba con Escape — sólo con el
-  // ratón sobre el fondo o la X. Para quien navega con teclado era una trampa.
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
-
-  if (!open) return null
+  // ratón sobre el fondo o la X. <Drawer> da Escape, trampa de foco y
+  // devolución del foco.
   const items: Anomaly[] = anomaliesData?.anomalies || []
   return (
-    <div
-      // El fondo es decorativo: cerrar pulsándolo es un atajo de ratón, no la
-      // vía accesible. Esa la da el Escape de arriba y el botón ✕ del panel.
-      role="presentation"
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-        zIndex: 1000, display: 'flex', justifyContent: 'flex-end',
-      }}
+    <Drawer
+      open={open}
+      onClose={onClose}
+      ariaLabel={traducir('imputar.anomalias_en_imputaciones')}
+      variant="borde"
+      width={420}
+      zIndex={1000}
+      backdrop="rgba(0,0,0,0.45)"
+      style={{ maxWidth: '92vw', boxShadow: 'none', padding: '20px 22px', overflowY: 'auto', gap: 12 }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={traducir('imputar.anomalias_en_imputaciones')}
-        // Detiene la propagación para que pulsar dentro no cierre el panel.
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-        style={{
-          width: 420, maxWidth: '92vw', height: '100%',
-          background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
-          padding: '20px 22px', overflowY: 'auto',
-          display: 'flex', flexDirection: 'column', gap: 12,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="u-row-between">
           <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>
             {traducir('imputar.anomalias_en_imputaciones_2')}
           </h3>
-          <button onClick={onClose}
+          <button onClick={onClose} aria-label="Cerrar"
             style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', fontSize: 20, cursor: 'pointer' }}>
             ✕
           </button>
         </div>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+        <div className="u-text3-sm">
           Periodo analizado: {anomaliesData?.period?.from} → {anomaliesData?.period?.to}
           {' · '}{anomaliesData?.total_entries} imputaciones
         </div>
@@ -243,14 +223,13 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
               {a.message}
             </div>
             {a.suggestion && (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+              <div className="u-text2-sm">
                 💡 {a.suggestion}
               </div>
             )}
           </div>
         ))}
-      </div>
-    </div>
+    </Drawer>
   )
 }
 
@@ -281,7 +260,10 @@ export default function ImputarPage(): JSX.Element {
 
   const { data: tasks = [] } = useQuery<TaskOption[]>({
     queryKey: ['tasks-my', form.project_id],
-    queryFn: () => tasksApi.list({ project_id: form.project_id, assigned_to: user?.id }).then(r => {
+    // Auditoría 2026-11 (#25): `GET /tasks` no tiene filtro `assigned_to` (es `assignee_id`
+    // o `assigned_to_me`); el servidor lo ignora y salen todas las tareas del proyecto. Se
+    // deja como estaba para no cambiar el comportamiento: el `as` sólo admite la clave de más.
+    queryFn: () => tasksApi.list({ project_id: form.project_id, assigned_to: user?.id } as TaskListParams).then(r => {
       const d = r.data as unknown as { items?: TaskOption[] } | TaskOption[] | null | undefined
       return (Array.isArray(d) ? d : d?.items ?? []) as TaskOption[]
     }),
@@ -457,9 +439,9 @@ export default function ImputarPage(): JSX.Element {
 
       <Card>
         {/* Project */}
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
-            {t('imputa_page.project_label')} <span style={{ color: 'var(--danger)' }}>*</span>
+            {t('imputa_page.project_label')} <span className="u-danger">*</span>
           </label>
           <select
             value={form.project_id}
@@ -474,7 +456,7 @@ export default function ImputarPage(): JSX.Element {
         </div>
 
         {/* Task */}
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.task_label')}
           </label>
@@ -492,12 +474,11 @@ export default function ImputarPage(): JSX.Element {
         </div>
 
         {/* Date */}
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
-            {t('imputa_page.date_label')} <span style={{ color: 'var(--danger)' }}>*</span>
+            {t('imputa_page.date_label')} <span className="u-danger">*</span>
           </label>
-          <input
-            type="date"
+          <DateInput
             value={form.date}
             onChange={e => set('date')(e.target.value)}
             max={today}
@@ -506,9 +487,9 @@ export default function ImputarPage(): JSX.Element {
         </div>
 
         {/* Hours */}
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
-            {t('imputa_page.hours_label')} <span style={{ color: 'var(--danger)' }}>*</span>
+            {t('imputa_page.hours_label')} <span className="u-danger">*</span>
           </label>
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             {HOUR_OPTIONS.map(h => (
@@ -537,7 +518,7 @@ export default function ImputarPage(): JSX.Element {
         </div>
 
         {/* Description */}
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 'var(--space-2)' }}>
             {t('imputa_page.description_label')}
           </label>
@@ -659,7 +640,7 @@ export default function ImputarPage(): JSX.Element {
                       {t('imputa_page.billable_label')}
                     </label>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="u-row-6">
                     <Button
                       onClick={() => updateImp({ id: imp.id, data: { hours: editForm.hours, description: editForm.description, is_billable: editForm.is_billable } })}
                       disabled={updating || editForm.hours <= 0}
@@ -681,7 +662,7 @@ export default function ImputarPage(): JSX.Element {
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="u-row-center-8">
                     <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{imp.hours}h</span>
                     <button
                       onClick={() => { setEditingId(imp.id); setEditForm({ hours: imp.hours, description: imp.description || '', is_billable: imp.is_billable ?? false }) }}

@@ -398,6 +398,7 @@ def _fecha_de_ajuste(row) -> Optional[datetime]:
     try:
         return _str_to_dt(row.value)
     except Exception:
+        logger.debug("_fecha_de_ajuste: excepcion ignorada", exc_info=True)
         return None
 
 
@@ -408,6 +409,7 @@ def _rotacion_activada(db) -> bool:
     try:
         activada = get_runtime_bool(db, "KEY_ROTATION_ENABLED")
     except Exception:
+        logger.debug("_rotacion_activada: excepcion ignorada", exc_info=True)
         return settings.KEY_ROTATION_ENABLED
     return settings.KEY_ROTATION_ENABLED if activada is None else activada
 

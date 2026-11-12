@@ -182,10 +182,10 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
             <span style={chip(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>
           )}
           {session.channel && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>· {session.channel}</span>
+            <span className="u-text3-xs">· {session.channel}</span>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="u-row-center-8">
           {session.ticket_id ? (
             <Button
               size="sm"
@@ -223,7 +223,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
           borderRadius: 8, padding: '10px 12px', marginBottom: 12,
           display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
         }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{t('voiceagent.cerrar_como')}</span>
+          <span className="u-text2-xs">{t('voiceagent.cerrar_como')}</span>
           <select value={resolution} onChange={e => setResolution(e.target.value)}
             style={{ ...inputBase, width: 'auto', padding: '4px 10px' }}>
             {Object.entries(RESOLUTION_LABEL).map(([id, label]) => (
@@ -304,7 +304,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
 
       {/* Add turn (sólo si activa) */}
       {session.status === 'active' && (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="u-row-8">
           <input
             type="text"
             placeholder={t('voiceagent.anadir_turno_texto_del_usuario')}
@@ -399,7 +399,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
   const intentList = Object.keys(INTENT_COLORS).filter(k => k !== 'unknown')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       {/* Greeting + idioma + silencio */}
       <div>
         <div style={fieldLabel}>{t('sd.voice.greeting', 'Saludo (greeting)')}</div>
@@ -411,7 +411,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="u-grid2-12">
         <div>
           <div style={fieldLabel}>Idioma (BCP-47)</div>
           <select value={draft.language} onChange={e => setField('language', e.target.value)} style={inputBase}>
@@ -438,7 +438,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
         <div style={fieldLabel}>{t('sd.voice.dtmf_menu', 'Menú DTMF (tonos del teclado)')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
           {Object.entries(draft.dtmf_menu || {}).length === 0 && (
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('voiceagent.sin_opciones_dtmf_configuradas')}</div>
+            <div className="u-text3-xs">{t('voiceagent.sin_opciones_dtmf_configuradas')}</div>
           )}
           {Object.entries(draft.dtmf_menu || {}).map(([key, val]) => (
             <div key={key} style={{
@@ -512,7 +512,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>
           {t('voiceagent.si_la_transcripcion_del_usuario_contiene_alguna')}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-stack-8">
           {intentList.map(intent => {
             const kws = (draft.intent_keywords || {})[intent] || []
             const isEditing = editingIntent === intent
@@ -525,7 +525,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                   <span style={chip(color)}>{intent}</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{kws.length} palabras</span>
+                  <span className="u-text3-xs">{kws.length} palabras</span>
                   <button
                     type="button"
                     onClick={() => { setEditingIntent(isEditing ? null : intent); setNewKw('') }}
@@ -572,7 +572,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      <div className="u-actions-8">
         <Button variant="secondary" onClick={() => setDraft(null)}>Descartar cambios</Button>
         <Button onClick={() => onSave(draft)} loading={saving}>{t('voiceagent.guardar_configuracion')}</Button>
       </div>
@@ -589,8 +589,8 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
   const entities: VoiceEntities = session.entities || {}
   return (
     <Modal open title={`Sesión ${session.caller_id}`} onClose={onClose} width={620}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div className="u-stack-12">
+        <div className="u-wrap-6">
           <span style={chip(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
           {session.intent && <span style={chip(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>}
           {session.resolution && (
@@ -598,11 +598,11 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
               {RESOLUTION_LABEL[session.resolution] || session.resolution}
             </span>
           )}
-          {session.channel && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>· {session.channel}</span>}
+          {session.channel && <span className="u-text3-xs">· {session.channel}</span>}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
-          {session.created_at && <span><span style={{ color: 'var(--text-3)' }}>Inicio:</span> {new Date(session.created_at).toLocaleString(localeActivo())}</span>}
-          {session.closed_at && <span><span style={{ color: 'var(--text-3)' }}>Cierre:</span> {new Date(session.closed_at).toLocaleString(localeActivo())}</span>}
+          {session.created_at && <span><span className="u-text3">Inicio:</span> {new Date(session.created_at).toLocaleString(localeActivo())}</span>}
+          {session.closed_at && <span><span className="u-text3">Cierre:</span> {new Date(session.closed_at).toLocaleString(localeActivo())}</span>}
           {session.ticket_id && (
             <button
               type="button"
@@ -615,7 +615,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
         {(entities.email || entities.ticket_ref || entities.urgency_words?.length) && (
           <div>
             <div style={fieldLabel}>{t('voiceagent.entidades_extraidas')}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div className="u-wrap-6">
               {entities.email && <span style={chip('var(--accent)')}>✉ {entities.email}</span>}
               {entities.ticket_ref && <span style={chip('var(--purple)')}>🔗 {entities.ticket_ref}</span>}
               {(entities.urgency_words || []).map((w, i) => <span key={i} style={chip('var(--orange)')}>{w}</span>)}
@@ -758,7 +758,7 @@ export default function VoiceAgentPanel() {
   return (
     <Card style={{ padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <Phone size={18} style={{ color: 'var(--success)' }} />
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
             {t('sd.voice.title', 'Agente de voz / IVR')}
@@ -783,9 +783,9 @@ export default function VoiceAgentPanel() {
       {tab === 'sessions' && (
         <div>
           {/* Crear sesión */}
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <div style={fieldLabel}>{t('sd.voice.new_session', 'Iniciar sesión manual')}</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="u-wrap-8">
               <input
                 type="text"
                 placeholder="+34600000000"
@@ -852,7 +852,7 @@ export default function VoiceAgentPanel() {
           ) : sessions.length === 0 ? (
             <EmptyState icon="📞" title={t('sd.voice.no_sessions', 'Sin sesiones')} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="u-stack-6">
               {sessions.filter((s: VoiceSession) => s.id !== activeSessionId).slice(0, 30).map((s: VoiceSession) => (
                 <button
                   key={s.id}
@@ -880,13 +880,13 @@ export default function VoiceAgentPanel() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-1)' }}>{s.caller_id}</span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>· {s.channel}</span>
+                    <span className="u-text3-xs">· {s.channel}</span>
                     {s.created_at && (
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                      <span className="u-text3-xs">
                         · {new Date(s.created_at).toLocaleString(localeActivo())}
                       </span>
                     )}
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                    <span className="u-text3-xs">
                       · {(s.transcript || []).length} turnos
                     </span>
                   </div>

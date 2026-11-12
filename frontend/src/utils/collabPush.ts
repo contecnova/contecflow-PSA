@@ -1,6 +1,7 @@
 /**
  * Register service worker + Web Push subscription against the backend.
  */
+import { collabApi } from '../services/collaborationApi'
 
 export type CollabPushFailureReason =
   | 'unsupported'
@@ -11,11 +12,6 @@ export type CollabPushFailureReason =
 export type CollabPushResult =
   | { ok: true }
   | { ok: false; reason: CollabPushFailureReason; error?: string }
-
-interface VapidPublicKeyResponse {
-  configured?: boolean
-  public_key?: string
-}
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4)
@@ -39,10 +35,8 @@ export async function registerCollabPush(): Promise<CollabPushResult> {
   const perm = await Notification.requestPermission()
   if (perm !== 'granted') return { ok: false, reason: 'permission-denied' }
 
-  // Envelope canónico: este bare-fetch no pasa por el interceptor de axios,
-  // así que desenvolvemos {data,meta} → data manualmente.
-  const pubRaw = await fetch('/api/v1/collaboration/push/public-key', { credentials: 'include' }).then(r => r.json())
-  const pub: VapidPublicKeyResponse = (pubRaw && typeof pubRaw === 'object' && 'data' in pubRaw && 'meta' in pubRaw) ? pubRaw.data : pubRaw
+  // Por el cliente API: el interceptor ya desenvuelve {data,meta} → data.
+  const pub = await collabApi.pushPublicKey()
   if (!pub?.configured || !pub?.public_key) return { ok: false, reason: 'vapid-not-configured' }
 
   let sub = await reg.pushManager.getSubscription()
@@ -53,11 +47,6 @@ export async function registerCollabPush(): Promise<CollabPushResult> {
       applicationServerKey: urlBase64ToUint8Array(pub.public_key) as BufferSource,
     })
   }
-  await fetch('/api/v1/collaboration/push/subscribe', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription: sub.toJSON(), user_agent: navigator.userAgent }),
-  })
+  await collabApi.pushSubscribe({ subscription: sub.toJSON(), user_agent: navigator.userAgent })
   return { ok: true }
 }

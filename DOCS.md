@@ -21,7 +21,6 @@ Plataforma para gestión integral de servicios profesionales:
 
 Rutas principales:
 - API v1: `/api/v1`
-- API v2: `/api/v2` (superficie parcial de compatibilidad)
 
 Entradas clave:
 - `app/main.py`
@@ -95,7 +94,7 @@ Crear `frontend/.env` desde `frontend/.env.example`.
 - `./setup.sh start` — solo arranca y preserva la base de datos existente.
 - `./setup.sh stop`, `update`, `docker-stop`, `docker-clean` — parar, actualizar y parar o borrar la infraestructura Docker.
 - `clean`, `demo` y `docker-clean` se niegan (salida 2) si `ENVIRONMENT` no es de desarrollo o pruebas.
-- `setup.bat` soporta `demo`, `clean` (también `admin-only`), `start demo`, `start clean` y la variable `SETUP_INIT_MODE=demo|clean` antes de `setup.bat start` para modo no interactivo.
+- `setup.bat` tiene los mismos modos que `setup.sh` (`demo`, `clean`, `start`, `stop`, `update`, `docker-stop`, `docker-clean`) más `install` (instala y pregunta el modo), `start demo|clean` y la variable `SETUP_INIT_MODE=demo|clean`. Sin argumentos muestra la lista de opciones. `setup.bat start` sin modo conserva la base de datos.
 
 ### Opción manual
 1. API backend: `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
@@ -136,7 +135,7 @@ esas funcionalidades. Se cerró con la revisión `089_schema_gap_missing_tables`
 Reglas que se derivan de eso:
 
 - **Nunca** `create_all` en el arranque ni en el despliegue. Cada modelo nuevo
-  necesita su revisión. `app/db/migrate.py` ya no se usa en ningún flujo.
+  necesita su revisión. `app/db/migrate.py` se borró (auditoría 2026-11): no lo usaba ningún flujo.
 - `tests/test_alembic_schema_parity.py` levanta una base vacía, corre
   `upgrade head` de verdad y compara con los modelos. Es el test que faltaba.
 - Una sola cabeza de migración. Dos significan ramas divergentes sin fusionar y

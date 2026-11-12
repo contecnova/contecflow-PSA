@@ -114,7 +114,7 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
                     onChange={() => toggle(col.id)}
                     style={{ accentColor: 'var(--accent)', cursor: isFirst ? 'not-allowed' : 'pointer' }}
                   />
-                  <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{col.label}</span>
+                  <span className="u-text2-sm">{col.label}</span>
                   {isFirst && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginLeft: 'auto' }}>fijo</span>}
                 </label>
               )

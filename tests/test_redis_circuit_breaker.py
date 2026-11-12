@@ -13,7 +13,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from app.services import auth_service as svc
+# El estado del cortocircuito vive en el submodulo (auditoria 2026-11, #24).
+from app.services.auth_service import estado_efimero as svc
 
 
 @pytest.fixture(autouse=True)

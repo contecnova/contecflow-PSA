@@ -26,6 +26,7 @@ from app.services.billing_reports_service import (
     update_invoice_status,
     validate_import_csv,
 )
+from app.core.errores import ErrorDeDominio
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -190,37 +191,37 @@ class TestRunSystemReport:
     def _db(self):
         return MagicMock()
 
-    @patch("app.services.billing_reports_service.run_imputations_report", return_value={"rows": []})
+    @patch("app.services.billing_reports_service.informes.run_imputations_report", return_value={"rows": []})
     def test_utilization_by_person_routes_to_imputations(self, mock_fn):
         run_system_report(self._db(), "utilization_by_person", {}, None, None)
         mock_fn.assert_called_once()
 
-    @patch("app.services.billing_reports_service.run_projects_report", return_value={"rows": []})
+    @patch("app.services.billing_reports_service.informes.run_projects_report", return_value={"rows": []})
     def test_margin_by_project_routes_to_projects(self, mock_fn):
         run_system_report(self._db(), "margin_by_project", {}, None, None)
         mock_fn.assert_called_once()
 
-    @patch("app.services.billing_reports_service.run_tickets_report", return_value={"rows": []})
+    @patch("app.services.billing_reports_service.informes.run_tickets_report", return_value={"rows": []})
     def test_sla_compliance_routes_to_tickets(self, mock_fn):
         run_system_report(self._db(), "sla_compliance", {}, None, None)
         mock_fn.assert_called_once()
 
-    @patch("app.services.billing_reports_service.run_expenses_report", return_value={"rows": []})
+    @patch("app.services.billing_reports_service.informes.run_expenses_report", return_value={"rows": []})
     def test_expense_by_project_routes_to_expenses(self, mock_fn):
         run_system_report(self._db(), "expense_by_project", {}, None, None)
         mock_fn.assert_called_once()
 
-    @patch("app.services.billing_reports_service.run_capacity_report", return_value={"by_user": []})
+    @patch("app.services.billing_reports_service.informes.run_capacity_report", return_value={"by_user": []})
     def test_capacity_forecast_routes_to_capacity(self, mock_fn):
         run_system_report(self._db(), "capacity_forecast_12w", {}, None, None)
         mock_fn.assert_called_once()
 
-    @patch("app.services.billing_reports_service.run_projects_report", return_value={"rows": []})
+    @patch("app.services.billing_reports_service.informes.run_projects_report", return_value={"rows": []})
     def test_unknown_id_falls_back_to_projects(self, mock_fn):
         run_system_report(self._db(), "nonexistent_report", {}, None, None)
         mock_fn.assert_called_once()
 
-    @patch("app.services.billing_reports_service.run_skills_report", return_value={})
+    @patch("app.services.billing_reports_service.informes.run_skills_report", return_value={})
     def test_resource_skills_matrix_routes_to_skills(self, mock_fn):
         run_system_report(self._db(), "resource_skills_matrix", {}, None, None)
         mock_fn.assert_called_once()
@@ -269,10 +270,10 @@ class TestInvoiceSerializationConflicts:
         )
 
         with (
-            patch("app.services.billing_reports_service.next_invoice_number", return_value="INV-2026-0001"),
-            patch("app.services.billing_reports_service.audit_log"),
+            patch("app.services.billing_reports_service.facturas.next_invoice_number", return_value="INV-2026-0001"),
+            patch("app.services.billing_reports_service.facturas.audit_log"),
         ):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises((HTTPException, ErrorDeDominio)) as exc_info:
                 create_invoice(payload, current_user, db)
 
         assert exc_info.value.status_code == 409
@@ -297,14 +298,18 @@ class TestInvoiceSerializationConflicts:
         current_user = SimpleNamespace(id="u-1", organization_id="org-1", is_superadmin=False)
 
         with (
-            patch("app.services.billing_reports_service._scope_invoice_query", return_value=query),
-            patch("app.services.billing_reports_service.audit_log"),
-            patch("app.services.billing_reports_service.is_postgres", return_value=False),
+            patch("app.services.billing_reports_service.facturas._scope_invoice_query", return_value=query),
+            patch("app.services.billing_reports_service.facturas.audit_log"),
+            # Tras partir el servicio (auditoria 2026-11, #24) `is_postgres` se
+            # consulta en dos submodulos: el estado de la factura y el nivel de
+            # aislamiento. Se parchean los dos, que es lo que hacia el original.
+            patch("app.services.billing_reports_service.facturas.is_postgres", return_value=False),
+            patch("app.services.billing_reports_service._comun.is_postgres", return_value=False),
             # Con la base simulada, el MagicMock pasaria por flujo de aprobacion
             # de facturas; aqui se mide solo el conflicto de serializacion.
-            patch("app.services.billing_reports_service._aprobacion_antes_de_enviar"),
+            patch("app.services.billing_reports_service.facturas._aprobacion_antes_de_enviar"),
         ):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises((HTTPException, ErrorDeDominio)) as exc_info:
                 update_invoice_status("inv-1", {"status": "sent"}, current_user, db)
 
         assert exc_info.value.status_code == 409
@@ -424,14 +429,14 @@ class TestValidateImportCsv:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestNextInvoiceNumber:
-    @patch("app.services.billing_reports_service.next_numbered_code", return_value="INV-2026-0001")
+    @patch("app.services.billing_reports_service.facturas.next_numbered_code", return_value="INV-2026-0001")
     def test_returns_formatted_code(self, mock_next):
         db = MagicMock()
         result = next_invoice_number(db)
         assert result == "INV-2026-0001"
         mock_next.assert_called_once()
 
-    @patch("app.services.billing_reports_service.next_numbered_code", return_value="INV-2026-0001")
+    @patch("app.services.billing_reports_service.facturas.next_numbered_code", return_value="INV-2026-0001")
     def test_passes_correct_prefix(self, mock_next):
         db = MagicMock()
         next_invoice_number(db)

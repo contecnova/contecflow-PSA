@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException, Response
+from fastapi import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -12,6 +12,7 @@ from app.services.pagination_service import paginate_query
 from app.services.service_desk.scoping import scope_kb_query
 from app.services.sla_service import next_kb_number as _next_kb_number
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def _articulo_visible(db: Session, article_id: str, solo_publico: bool) -> KBArt
         q = q.filter(KBArticle.status == KBStatus.published, KBArticle.is_public == True)  # noqa: E712
     article = q.first()
     if not article:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return article
 
 
@@ -142,7 +143,7 @@ def build_kb_article(db: Session, payload, author_id: str) -> KBArticle:
 def get_scoped_kb_article_or_404(db: Session, current_user: User, article_id: str) -> KBArticle:
     article = scope_kb_query(db.query(KBArticle), db, current_user).filter(KBArticle.id == article_id).first()
     if not article:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return article
 
 
@@ -203,9 +204,9 @@ def update_kb_helpful_vote(db: Session, article_id: str, helpful: bool, solo_pub
 def create_kb_from_ticket(db: Session, ticket_id: str, title: str, author_id: str) -> KBArticle:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if not ticket.resolution:
-        raise HTTPException(400, "El ticket no tiene resolución")
+        raise ErrorDeDominio(400, "El ticket no tiene resolución")
 
     article = KBArticle(
         number=_next_kb_number(db),
@@ -295,7 +296,7 @@ def rollback_kb_to_version(
         .first()
     )
     if not target:
-        raise HTTPException(404, "KB version not found")
+        raise ErrorDeDominio(404, "KB version not found")
 
     article.title = target.title
     article.body = target.body
@@ -335,7 +336,7 @@ def puede_publicar(db: Session, user: User) -> bool:
 
 def exigir_que_pueda_publicar(db: Session, user: User, nuevo_estado) -> None:
     if getattr(nuevo_estado, "value", nuevo_estado) == KBStatus.published.value and not puede_publicar(db, user):
-        raise HTTPException(403, "Este artículo necesita revisión: envíalo a revisar")
+        raise ErrorDeDominio(403, "Este artículo necesita revisión: envíalo a revisar")
 
 
 def revisores(db: Session, user: User) -> list[str]:
@@ -353,7 +354,7 @@ def enviar_a_revision(db: Session, article: KBArticle, user: User) -> None:
     from app.services.notifications import notify_user
 
     if article.status not in (KBStatus.draft, KBStatus.draft.value):
-        raise HTTPException(409, "Solo se envía a revisión un borrador")
+        raise ErrorDeDominio(409, "Solo se envía a revisión un borrador")
     article.status = KBStatus.in_review
     article.review_comment = None
     for uid in revisores(db, user):
@@ -368,11 +369,11 @@ def revisar(db: Session, article: KBArticle, user: User, publicar: bool, comenta
     from app.services.service_desk.kb_sugerencias import refrescar_vector
 
     if article.status not in (KBStatus.in_review, KBStatus.in_review.value):
-        raise HTTPException(409, "El artículo no está en revisión")
+        raise ErrorDeDominio(409, "El artículo no está en revisión")
     if not puede_publicar(db, user):
-        raise HTTPException(403, "Solo un revisor puede publicar")
+        raise ErrorDeDominio(403, "Solo un revisor puede publicar")
     if not publicar and not (comentario or "").strip():
-        raise HTTPException(422, "Devolver un artículo pide decir qué cambiar")
+        raise ErrorDeDominio(422, "Devolver un artículo pide decir qué cambiar")
     article.reviewer_id = user.id
     article.review_comment = (comentario or "").strip() or None
     if publicar:

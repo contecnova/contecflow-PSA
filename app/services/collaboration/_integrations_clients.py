@@ -47,6 +47,7 @@ async def jira_create_issue(integration, project_key: str, summary: str, descrip
             r = await c.post(url, headers=headers, json=body)
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
+        logger.warning("jira_create_issue: excepcion ignorada", exc_info=True)
         return {"error": str(exc)}
 
 
@@ -64,6 +65,7 @@ async def github_create_issue(integration, owner: str, repo: str, title: str, bo
             }, json={"title": title, "body": body})
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
+        logger.warning("github_create_issue: excepcion ignorada", exc_info=True)
         return {"error": str(exc)}
 
 
@@ -79,6 +81,7 @@ async def gitlab_create_issue(integration, project_id: str, title: str, descript
                              json={"title": title, "description": description})
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
+        logger.warning("gitlab_create_issue: excepcion ignorada", exc_info=True)
         return {"error": str(exc)}
 
 
@@ -116,6 +119,7 @@ async def google_calendar_list(
                             params=params)
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
+        logger.warning("google_calendar_list: excepcion ignorada", exc_info=True)
         return {"error": str(exc)}
 
 
@@ -133,6 +137,7 @@ async def google_calendar_create(integration, summary: str, start_iso: str, end_
             })
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
+        logger.warning("google_calendar_create: excepcion ignorada", exc_info=True)
         return {"error": str(exc)}
 
 
@@ -171,6 +176,7 @@ async def m365_calendar_list(
             r = await c.get(url, headers={"Authorization": f"Bearer {token}"})
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
+        logger.warning("m365_calendar_list: excepcion ignorada", exc_info=True)
         return {"error": str(exc)}
 
 
@@ -192,4 +198,5 @@ async def m365_send_mail(integration, to: str, subject: str, body: str) -> dict:
                              headers={"Authorization": f"Bearer {token}"}, json=payload)
             return {"ok": r.status_code < 400, "status": r.status_code}
     except Exception as exc:
+        logger.warning("m365_send_mail: excepcion ignorada", exc_info=True)
         return {"error": str(exc)}

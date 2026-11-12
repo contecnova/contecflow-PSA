@@ -131,6 +131,7 @@ def decode_token(token: str) -> Optional[dict]:
             kid = jwt.get_unverified_header(token).get("kid")
         # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
+            logger.warning("decode_token: excepcion ignorada", exc_info=True)
             kid = None
 
         if kid and kid in keys:
@@ -142,6 +143,7 @@ def decode_token(token: str) -> Optional[dict]:
                 return jwt.decode(token, key, algorithms=[ALGORITHM])
             # intentional: best-effort fallback, log noise outweighs diagnostic value
             except Exception:  # noqa: S112
+                logger.debug("decode_token: excepcion ignorada", exc_info=True)
                 continue
         return None
     except jwt.ExpiredSignatureError:

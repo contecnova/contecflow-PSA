@@ -11,7 +11,7 @@ import { Database } from 'lucide-react'
 import { COLOR, alpha } from '../constants/theme'
 import { useAppLang } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
-import { biIntelligenceApi, biPlatformApi, unwrapList, wsApi } from '../services/api'
+import { biIntelligenceApi, biPlatformApi, unwrapList, wsApi, apiWsUrl } from '../services/api'
 import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
 import { localeActivo } from '../utils/helpers'
@@ -104,8 +104,7 @@ export default function DataPlatformPage(): JSX.Element {
         // URL se rechaza en producción y la pantalla reconectaba sin fin.
         const ticket = (await wsApi.ticket())?.data?.ticket
         if (!ticket || closed) return
-        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        ws = new WebSocket(`${proto}//${window.location.host}/api/v1/bi/intelligence/realtime/stream?ticket=${encodeURIComponent(ticket)}`)
+        ws = new WebSocket(apiWsUrl(`/bi/intelligence/realtime/stream?ticket=${encodeURIComponent(ticket)}`))
         ws.onmessage = (ev) => {
           try {
             const data = JSON.parse(ev.data) as StreamFrame
@@ -160,8 +159,8 @@ export default function DataPlatformPage(): JSX.Element {
                 {reportPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <button onClick={() => refetchPreview()} style={S.btnAccentOutline()}>{t('dataplatform.previsualizar')}</button>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('dataplatform.filas_preview', { n: previewData?.count || 0 })}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+              <div className="u-text3-xs">{t('dataplatform.filas_preview', { n: previewData?.count || 0 })}</div>
+              <div className="u-text3-xs">
                 {t('dataplatform.envios', { activos: deliveryOverview?.active ?? 0, errores: deliveryOverview?.errored ?? 0 })}
               </div>
             </div>
@@ -173,7 +172,7 @@ export default function DataPlatformPage(): JSX.Element {
                 style={{ ...S.btnAccentOutline(streamLive ? COLOR.success : 'var(--surface-5)'), color: streamLive ? COLOR.success : 'var(--text-2)' }}>
                 {t(streamLive ? 'dataplatform.streaming_activo' : 'dataplatform.activar_streaming')}
               </button>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+              <div className="u-text3-xs">
                 {streamSnapshot?.timestamp
                   ? t('dataplatform.instantanea', { hora: new Date(streamSnapshot.timestamp).toLocaleTimeString(getLocale(lang)), n: streamSnapshot.anomaly_count ?? 0 })
                   : t('dataplatform.sin_instantanea')}
@@ -183,16 +182,16 @@ export default function DataPlatformPage(): JSX.Element {
           <div style={S.card}>
             <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>{t('dataplatform.linaje')}</div></div>
             <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+              <div className="u-text2-sm">
                 {t('dataplatform.aristas_y_versiones', { aristas: phase3LineageEdges.length, versiones: phase3SnapshotItems.length })}
               </div>
               <input aria-label={t('dataplatform.dataset')} value={datasetKey} onChange={e => setDatasetKey(e.target.value)} placeholder={t('dataplatform.dataset')} style={S.input} />
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="u-wrap-8">
                 <button onClick={handleCreateSnapshot} style={S.btnAccentOutline()}>{t('dataplatform.crear_version')}</button>
                 <button onClick={handleDiffLastSnapshots} style={S.btnSecondary}>{t('dataplatform.diff_ultimos_2')}</button>
                 <button onClick={() => refetchPhase3Lineage()} style={S.btnSecondary}>{t('dataplatform.refrescar')}</button>
               </div>
-              {snapshotDiff && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('dataplatform.cambios', { n: snapshotDiff?.change_count ?? 0 })}</div>}
+              {snapshotDiff && <div className="u-text3-xs">{t('dataplatform.cambios', { n: snapshotDiff?.change_count ?? 0 })}</div>}
             </div>
           </div>
         </div>

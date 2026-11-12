@@ -4158,7 +4158,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 | `ms_graph` | tenant_id, client_id, client_secret\*, teams_webhook\*, teams_bot_app_id, sharepoint_site_id | **only** `service_desk/buzones.py` (Graph mailbox). **The `/m365` endpoints read `settings.AZURE_*` / `TEAMS_WEBHOOK_URL` from env and ignore this store.** | token request |
 | `slack` | webhook_url\*, signing_secret\* | **nothing but the probe.** Slack consumers read `settings.SLACK_WEBHOOK_URL` / `SLACK_SIGNING_SECRET`, `slack_configs` or `integration_configs` | POST to the webhook |
 | `twilio` | account_sid, auth_token\*, from_number | **nothing but the probe.** `sms_service.py` reads env `TWILIO_*` only, and these fields have no env fallback | account fetch |
-| `stripe` | publishable_key, secret_key\*, webhook_secret\* | `payments_service.py` (secret_key, webhook_secret) | `GET /v1/balance` |
+| `stripe` | publishable_key, secret_key\*, webhook_secret\* | `stripe_service.py` (secret_key), `payments_service.py` (webhook_secret, `POST /invoices/stripe/webhook`) | `GET /v1/balance` |
 | `docusign` | integration_key\*, secret_key\*, account_id, base_url | **nothing but the probe.** E-sign reads `app_settings` `esign.*` keys and then env | passive: only checks `account_id` is set |
 | `adobe_sign` | client_id, client_secret\*, base_url | **nothing but the probe** (same as DocuSign) | GET `{base}/baseUris` |
 | `ai_providers` | anthropic_api_key\*, openai_api_key\*, azure_speech_key\*, google_stt_api_key\* | `ai_provider_service.proveedor_de_credencial`, `stt/*` | Anthropic `count_tokens`, else OpenAI `/v1/models` |
@@ -4176,7 +4176,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 237 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 239 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4328,6 +4328,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | ai | ASK_DATA_RETRY_WITH_REAL_VALUES | bool | true | Ask the Data — with zero rows and a close real value, ask the model once more with the real values | rt |
 | ai | ASK_DATA_REUSE_EXACT_EXAMPLE | bool | true | Ask the Data — the same question as a validated one reuses its query without calling the model | rt |
 | ai | TEAMS_KB_ANSWERS_ENABLED | bool | true | Teams bot — a message that is not a command is answered from the knowledge base | rt |
+| ai | SLACK_TEAM_ID | str | — | Slack bot — workspace (team_id) of this company; the user is looked up only here | rt |
+| ai | TEAMS_TENANT_ID | str | — | Teams bot — Microsoft tenant id of this company; the user is looked up only here | rt |
 | ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
 | audit | AUDIT_EXPORT_MAX_ROWS | int | 100000 | Audit log — maximum rows in the signed export (the most recent) | rt |
 | audit | COMPLIANCE_GDPR_MAX_DAYS | int | 30 | GDPR request deadline (DSR) and the compliance-report check | rt (`bi_gdpr_service`, `informe_de_cumplimiento`) |
@@ -4863,7 +4865,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - **Never valid for managing credentials:** `/auth/*` (except `GET /auth/me`), `/mfa`, `/bookings/api-keys`, `/developer/apps`, `/enterprise/sso`, `/bookings/sso` → 403.
 - Per-key limits `rate_limit_per_hour` / `rate_limit_per_day` return 429; the counters reset each hour and each day (before, they never reset). Expired or revoked keys → 401.
 - Keys created before migration 119 get their digest the first time they are used (one bcrypt check by prefix).
-- `POST /bookings/api-keys/verify` (unauthenticated) uses the same check and counts as a use.
+- To check a key, call `GET /auth/me` with it (the unauthenticated `POST /bookings/api-keys/verify` was removed in the 2026-11 audit: it was a key oracle).
 
 **Limitations (measured).**
 - **`/oauth-integrations/{id}/sync` calls the real services** (`cab_service.sync_*`):
@@ -5187,7 +5189,7 @@ The axios client (`src/services/api/_core.ts`) uses `baseURL = VITE_API_URL || '
 
 #### 1.4 Storage
 
-- **Relational:** PostgreSQL in Docker (`contecflow-postgres`, published on `127.0.0.1:5434`), or SQLite (`sqlite:///./contecflow.db`) when Docker is unavailable — `setup.sh` silently falls back to SQLite (`revert_env_to_sqlite`). `setup.bat` (Windows) uses SQLite only and never touches Docker.
+- **Relational:** PostgreSQL in Docker (`contecflow-postgres`, published on `127.0.0.1:5434`), or SQLite (`sqlite:///./contecflow.db`) when Docker is unavailable — `setup.sh` silently falls back to SQLite (`revert_env_to_sqlite`). `setup.bat` (Windows) uses SQLite only; it touches Docker only through `docker-stop` / `docker-clean`.
 - **Objects:** S3-compatible. The compose service `s3` runs **versitygw v1.8.0** pinned by digest (`ghcr.io/versity/versitygw@sha256:3029…2499`), POSIX backend, bucket created with `mkdir`, health at `/health`, published on `127.0.0.1:9003`. It is behind the profiles `s3` and `app`. Variables keep MinIO's names: `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_BUCKET`, `MINIO_PORT`. `S3Service` only uses S3 when `AWS_ACCESS_KEY` and `AWS_SECRET_KEY` are set; otherwise documents go to `UPLOAD_DIR` (`uploads/`). Presigned URLs are SigV4 and versitygw enforces the region, so `AWS_REGION` must equal the gateway's `VGW_REGION` (the compose file wires both from `AWS_REGION`).
 - **OLAP:** DuckDB file (`DUCKDB_PATH`), loaded by the nightly `olap_nightly_etl` task.
 
@@ -5218,7 +5220,7 @@ There is no dedicated search engine for the core domain. Measured:
 | `app/models/` | SQLAlchemy models | 64 files, 415 mapped classes, 416 tables |
 | `app/schemas/` | Pydantic schemas | 48 files |
 | `app/core/` | Config, security, CSRF, ABAC/GRC enforcement, tenancy, encryption, metrics, rate limiter, uploads, timezone context | 30 files + `config_groups/` (5 mixins) |
-| `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (9 modules, 1,969 lines), `migrate.py` (legacy, unused by setup flows) | — |
+| `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (9 modules, 1,969 lines) | — |
 | `alembic/versions/` | Migrations, single linear chain, head `144_presupuestos` | 98 revisions |
 | `tests/` | Backend pytest suite | 304 `test_*.py`, **4,021 tests collected** |
 | `tests_e2e/` | Python Playwright E2E | 13 files |
@@ -5276,8 +5278,8 @@ What `setup_backend` does, step by step:
 
 #### 3.3 `setup.bat` (Windows), measured differences
 
-- Modes: `demo` (aliases `seed`), `clean` (aliases `zero`, `cero`, `admin-only`, `admin_only`), `start [demo|clean]`, `stop`, `update`; no argument = full install plus an interactive data-mode prompt (default demo). `SETUP_INIT_MODE=demo|clean` skips the prompt.
-- **`setup.bat start` re-applies a data mode on every start** (`resolve_init_mode` → `apply_selected_data_mode`): demo re-seeds, clean wipes. Unlike `setup.sh start`, it does not just preserve the DB.
+- Modes: `demo` (aliases `seed`), `clean` (aliases `zero`, `cero`, `admin-only`, `admin_only`), `install` (full install plus an interactive data-mode prompt, default demo), `start [demo|clean]`, `stop`, `update`, `docker-stop`, `docker-clean` (same ENVIRONMENT gate as `setup.sh`). Options are case-insensitive. No argument or an unknown option prints the usage list and exits 1, like `setup.sh`.
+- `setup.bat start` preserves the DB like `setup.sh start`. A data mode is applied only when given explicitly (`start demo|clean` or `SETUP_INIT_MODE`): demo re-seeds, clean wipes.
 - Always runs `alembic upgrade head`; sets `PYTHONUTF8=1`; SQLite only; expects `.venv\Scripts\python.exe`.
 - Cosmetic bug: the banner prints `contecflow2024! - Plataforma PSA Enterprise` (the historic default password used as the product name).
 
@@ -5338,7 +5340,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 377)
+#### 4.2 Settings fields (`Settings`, 379)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5460,6 +5462,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SMTP_FROM` | `''` | SMTP From. |
 | `TWILIO_ACCOUNT_SID` | `None` | Twilio (SMS/voice). |
 | `TWILIO_AUTH_TOKEN` | `None` | Twilio token. |
+| `OUTBOUND_PRIVATE_HOSTS_ALLOWED` | `""` | Internal hosts (comma separated) that outbound calls may reach even if they resolve to a private network (e.g. an on-premise Jira). See `app/core/outbound_url.py`. |
+| `COUNTRY_EMPLOYER_COSTS_PATH` | `""` | JSON file that replaces the employer social-cost presets per country (`app/core/country_employer_costs.json`). |
 | `TWILIO_FROM_NUMBER` | `None` | Twilio sender. |
 | `CLIENT_TOKEN_EXPIRE_HOURS` | `72` | Client-portal token TTL. |
 | `PORTAL_SHARE_LINK_EXPIRE_HOURS` | `72` | Portal share-link TTL. |
@@ -6049,7 +6053,7 @@ Structural guard tests worth knowing (all in `tests/`):
 | `Schema drift detectado` / `No existe tabla alembic_version` | DB behind the Alembic heads (fatal in staging/production) | `python -m alembic upgrade head` |
 | A page with a Plotly chart (CMDB topology, box, violin, 3D) breaks in dev with `ReferenceError: global is not defined` | `plotly.js/lib/*` is CommonJS that reads Node's `global`; Vite's dev pre-bundle does not translate it. `src/charts/globalShim.ts`, imported before plotly, provides it; if a new chart imports plotly before the shim, it breaks again | Import the shim first, reload the page |
 | Backend not ready after 60 s | Port 8000 busy, import error | `tail -20 /tmp/contecflow-backend.log`, `lsof -i :8000` |
-| `SQLite quick_check` fails | WAL/SHM leftovers | `setup.sh` removes `contecflow.db-wal/-shm` itself. Its fallback message suggests `python -m app.db.migrate`, which is the legacy `create_all` path the project abandoned; use `rm -f contecflow.db* && python -m alembic upgrade head` instead |
+| `SQLite quick_check` fails | WAL/SHM leftovers | `setup.sh` removes `contecflow.db-wal/-shm` itself. If it still fails: `rm -f contecflow.db* && python -m alembic upgrade head` |
 | `setup.sh` silently ends up on SQLite | Docker daemon not ready, `up` failed, or Postgres not ready in 30 s | Check `docker compose ps`, re-run |
 | `external volume "contecflow_postgres_data" not found` | Volumes are `external: true` | `docker volume create contecflow_postgres_data contecflow_s3_data` |
 | S3 download 400/403, "region … is wrong" | SigV4 and region mismatch | Keep `AWS_REGION` equal for app and gateway |

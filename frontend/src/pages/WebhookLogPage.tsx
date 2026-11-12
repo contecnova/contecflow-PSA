@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { webhooksApi } from '../services/api'
-import { Spinner, EmptyState, Modal } from '../components/ui'
+import { Spinner, EmptyState, Modal, Table } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Webhook } from 'lucide-react'
@@ -130,60 +130,48 @@ export default function WebhookLogPage() {
       ) : (
         <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
           borderRadius:12, overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom:'1px solid var(--surface-4)' }}>
-                {['Timestamp','Webhook','Evento','URL destino','Status','Duración'].map(h => (
-                  <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize: "var(--text-xs)",
-                    fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
-                    letterSpacing:'0.06em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {allLogs.slice(0, 200).map((log, i) => {
+          <Table
+            data={allLogs.slice(0, 200)}
+            onRowClick={log => setSelectedLog(log)}
+            columns={[
+              { key: 'created_at', label: 'Timestamp', render: (_v, log) => (
+                <span style={{ fontSize: "var(--text-sm)", fontFamily:'var(--font-mono)', color:'var(--text-2)', whiteSpace:'nowrap' }}>
+                  {log.created_at ? log.created_at.slice(0, 19).replace('T', ' ') : '—'}
+                </span>
+              ) },
+              { key: 'webhook_name', label: 'Webhook', render: (_v, log) => (
+                <span className="u-base-600">{log.webhook_name || '—'}</span>
+              ) },
+              { key: 'event_type', label: 'Evento', render: (_v, log) => (
+                <span style={{ fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:20,
+                  background:'var(--accent-muted)', color:'var(--accent)' }}>
+                  {log.event_type || log.trigger_slug || '—'}
+                </span>
+              ) },
+              { key: 'webhook_url', label: 'URL destino', render: (_v, log) => (
+                <span style={{ display:'block', fontSize: "var(--text-xs)", color:'var(--text-2)', fontFamily:'var(--font-mono)', maxWidth:200,
+                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {log.webhook_url || '—'}
+                </span>
+              ) },
+              { key: 'http_status', label: 'Status', render: (_v, log) => {
                 const statusColor = getStatusColor(log.http_status)
                 const ok = (log.http_status ?? 0) >= 200 && (log.http_status ?? 0) < 300
                 return (
-                  <tr key={log.id || i}
-                    style={{ borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', cursor:'pointer' }}
-                    onClick={() => setSelectedLog(log)}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding:'10px 14px', fontSize: "var(--text-sm)",
-                      fontFamily:'var(--font-mono)', color:'var(--text-2)', whiteSpace:'nowrap' }}>
-                      {log.created_at ? log.created_at.slice(0, 19).replace('T', ' ') : '—'}
-                    </td>
-                    <td style={{ padding:'10px 14px', fontSize: "var(--text-base)", fontWeight:600 }}>
-                      {log.webhook_name || '—'}
-                    </td>
-                    <td style={{ padding:'10px 14px' }}>
-                      <span style={{ fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:20,
-                        background:'var(--accent-muted)', color:'var(--accent)' }}>
-                        {log.event_type || log.trigger_slug || '—'}
-                      </span>
-                    </td>
-                    <td style={{ padding:'10px 14px', fontSize: "var(--text-xs)",
-                      color:'var(--text-2)', fontFamily:'var(--font-mono)', maxWidth:200,
-                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {log.webhook_url || '—'}
-                    </td>
-                    <td style={{ padding:'10px 14px' }}>
-                      <span style={{ fontSize: "var(--text-sm)", fontWeight:800, padding:'2px 8px',
-                        borderRadius:6, fontFamily:'var(--font-mono)',
-                        background:alpha(statusColor, '20'), color:statusColor }}>
-                        {ok ? '✓' : '✗'} {log.http_status || 'ERR'}
-                      </span>
-                    </td>
-                    <td style={{ padding:'10px 14px', fontSize: "var(--text-sm)",
-                      color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>
-                      {log.duration_ms ? `${log.duration_ms}ms` : '—'}
-                    </td>
-                  </tr>
+                  <span style={{ fontSize: "var(--text-sm)", fontWeight:800, padding:'2px 8px',
+                    borderRadius:6, fontFamily:'var(--font-mono)',
+                    background:alpha(statusColor, '20'), color:statusColor }}>
+                    {ok ? '✓' : '✗'} {log.http_status || 'ERR'}
+                  </span>
                 )
-              })}
-            </tbody>
-          </table>
+              } },
+              { key: 'duration_ms', label: 'Duración', render: (_v, log) => (
+                <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>
+                  {log.duration_ms ? `${log.duration_ms}ms` : '—'}
+                </span>
+              ) },
+            ]}
+          />
         </div>
       )}
 
@@ -191,7 +179,7 @@ export default function WebhookLogPage() {
       {selectedLog && (
         <Modal open onClose={() => setSelectedLog(null)}
           title={`Detalle — ${selectedLog.webhook_name || 'Webhook'}`} width={640}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             {[
               ['Timestamp', selectedLog.created_at?.slice(0,19).replace('T',' ') || '—'],
               ['Webhook', selectedLog.webhook_name || '—'],

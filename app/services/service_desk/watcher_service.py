@@ -1,8 +1,8 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket, TicketWatcher
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def serialize_ticket_watcher(watcher: TicketWatcher) -> dict:
 def ensure_ticket_exists(db: Session, ticket_id: str) -> None:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
 
 
 def find_user_watcher(db: Session, ticket_id: str, user_id: str):

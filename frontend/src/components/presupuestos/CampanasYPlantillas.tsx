@@ -19,6 +19,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { campo } from './FormularioDePartida'
+import DateInput from '../ui/DateInput'
 
 const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }
 const rejilla: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))', gap: 10, alignItems: 'end' }
@@ -45,13 +46,13 @@ export function CampanasDePresupuesto() {
       <div style={{ ...caja, ...rejilla }}>
         <label><span style={lbl}>{t('pres.campana_nombre')}</span><input aria-label={t('pres.campana_nombre')} value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} style={campo} /></label>
         <label><span style={lbl}>{t('pres.ejercicio')}</span><input aria-label={t('pres.ejercicio')} type="number" value={f.year} onChange={e => setF(v => ({ ...v, year: e.target.value }))} style={campo} /></label>
-        <label><span style={lbl}>{t('pres.fecha_limite')}</span><input aria-label={t('pres.fecha_limite')} type="date" value={f.fecha_limite} onChange={e => setF(v => ({ ...v, fecha_limite: e.target.value }))} style={campo} /></label>
+        <label><span style={lbl}>{t('pres.fecha_limite')}</span><DateInput aria-label={t('pres.fecha_limite')} value={f.fecha_limite} onChange={e => setF(v => ({ ...v, fecha_limite: e.target.value }))} style={campo} /></label>
         <label style={{ gridColumn: '1 / -1' }}><span style={lbl}>{t('pres.instrucciones')}</span>
           <textarea aria-label={t('pres.instrucciones')} rows={2} value={f.instrucciones} onChange={e => setF(v => ({ ...v, instrucciones: e.target.value }))} style={{ ...campo, resize: 'vertical' }} /></label>
         <div><Button loading={ocupado} disabled={!f.nombre.trim() || !f.fecha_limite || !f.year}
           onClick={() => guardar({ nombre: f.nombre, year: Number(f.year), fecha_limite: f.fecha_limite, instrucciones: f.instrucciones || null })}>{t('pres.abrir_campana')}</Button></div>
       </div>
-      {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
+      {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
         : (q.data ?? []).length === 0 ? <EmptyState title={t('pres.sin_campanas')} description={t('pres.campanas_ayuda')} />
         : (q.data ?? []).map(c => (
           <div key={c.id} style={{ ...caja, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -113,7 +114,7 @@ export function PlantillasDePresupuesto() {
                 {pl.partidas.map(x => x.descripcion).filter(Boolean).slice(0, 6).join(' · ')}
               </div>
             </div>
-            <span style={{ fontSize: 'var(--text-xs)' }}>{pl.partidas.length} {t('pres.partidas')}</span>
+            <span className="u-xs">{pl.partidas.length} {t('pres.partidas')}</span>
             <Button size="sm" variant="ghost" onClick={() => borrar(pl.id)}>{t('pres.quitar')}</Button>
           </div>
         ))}

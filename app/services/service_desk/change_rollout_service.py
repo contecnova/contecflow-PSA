@@ -10,6 +10,7 @@ Provides:
   - Rollout status tracking
 """
 from __future__ import annotations
+import logging
 
 import json
 import uuid
@@ -36,6 +37,7 @@ def _get(db: Session, org_id: Optional[str]) -> dict:
     try:
         return json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("_get: excepcion ignorada", exc_info=True)
         return {}
 
 

@@ -6,6 +6,7 @@
  */
 import type { AxiosResponse } from 'axios'
 import api from './_core'
+import type { CreationOptionsJSON, RequestOptionsJSON } from '../../lib/webauthn'
 
 // ── Request / response payloads ──────────────────────────────────────────────
 
@@ -102,7 +103,7 @@ export const authApi = {
   validateMfa: (payload: MfaValidatePayload): Promise<AxiosResponse<LoginResponse>> =>
     api.post('/auth/mfa/validate', payload),
 
-  startPasskeyAuth: (payload: PasskeyStartPayload): Promise<AxiosResponse<{ options: Record<string, unknown>; webauthn_challenge_token: string }>> =>
+  startPasskeyAuth: (payload: PasskeyStartPayload): Promise<AxiosResponse<{ options: RequestOptionsJSON; webauthn_challenge_token: string }>> =>
     api.post('/auth/mfa/webauthn/authenticate/start', payload),
 
   finishPasskeyAuth: (payload: PasskeyFinishPayload): Promise<AxiosResponse<LoginResponse>> =>
@@ -119,7 +120,7 @@ export const authApi = {
     api.post(`/auth/sso/${providerId}/callback`, payload),
 
   // Gestión de passkeys del propio usuario (Perfil → Seguridad).
-  passkeyRegisterStart: (): Promise<AxiosResponse<{ options: Record<string, unknown>; webauthn_challenge_token: string }>> =>
+  passkeyRegisterStart: (): Promise<AxiosResponse<{ options: CreationOptionsJSON; webauthn_challenge_token: string }>> =>
     api.post('/auth/mfa/webauthn/register/start'),
   passkeyRegisterFinish: (payload: { webauthn_challenge_token: string; credential: Record<string, unknown>; name?: string }): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/mfa/webauthn/register/finish', payload),
@@ -131,7 +132,7 @@ export const authApi = {
     api.delete(`/auth/mfa/webauthn/credentials/${id}`),
 
   // Acceso solo con passkey (credencial descubrible), sin usuario ni contraseña.
-  passkeyLoginStart: (): Promise<AxiosResponse<{ options: Record<string, unknown>; webauthn_challenge_token: string }>> =>
+  passkeyLoginStart: (): Promise<AxiosResponse<{ options: RequestOptionsJSON; webauthn_challenge_token: string }>> =>
     api.post('/auth/passkey/login/start'),
 
   passkeyLoginFinish: (payload: { webauthn_challenge_token: string; credential: Record<string, unknown> }): Promise<AxiosResponse<LoginResponse>> =>
@@ -152,9 +153,6 @@ export const authApi = {
 
   resetPassword: (payload: ResetPasswordPayload): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/password/reset', payload),
-
-  me: (): Promise<AxiosResponse<MeResponse>> =>
-    api.get('/auth/me'),
 
   changePassword: (data: ChangePasswordPayload): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/change-password', data),

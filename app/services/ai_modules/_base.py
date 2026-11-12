@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.services.ai_dispatch import call_ai
+from app.services.ai_provider_service import call_ai
 from app.models.ai_chat import (
     AIActionLog,
 )

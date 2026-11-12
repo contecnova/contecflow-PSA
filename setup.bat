@@ -2,13 +2,14 @@
 setlocal EnableDelayedExpansion
 
 :: Contecflow - Script de instalación para Windows
-:: Uso:
-::   setup.bat          - instala todo y arranca
+:: Uso (sin argumentos muestra esta lista):
+::   setup.bat demo^|clean - instala y arranca con modo de datos
+::   setup.bat install  - instala y pregunta el modo de datos
 ::   setup.bat start    - solo arranca
 ::   setup.bat start demo^|clean - solo arranca con modo de datos
-::   setup.bat demo^|clean - instala y arranca con modo de datos
 ::   setup.bat stop     - para los servicios
 ::   setup.bat update   - actualiza dependencias
+::   setup.bat docker-stop / docker-clean - para Docker (clean borra volumenes)
 ::   SETUP_INIT_MODE=demo^|clean setup.bat start  - modo no interactivo (CI/CD)
 
 :: La consola de Windows arranca en la pagina de codigos 850 o 1252, y el
@@ -37,19 +38,100 @@ echo  ============================================
 echo  contecflow2024^! - Plataforma PSA Enterprise
 echo.
 
-if "%1"=="start"  goto :start_only
-if "%1"=="stop"   goto :stop_services
-if "%1"=="update" goto :update_mode
+:: Sin argumentos se muestra la ayuda (igual que setup.sh). Antes, `setup.bat`
+:: a secas lanzaba la instalacion completa con pregunta interactiva, y cualquier
+:: opcion desconocida (p. ej. `setup.bat Demo2`) hacia lo mismo en silencio.
+set "CMD=%~1"
+if "%CMD%"=="" goto :usage
 
-if /I "%1"=="demo"  set "REQUESTED_MODE=demo"
-if /I "%1"=="seed"  set "REQUESTED_MODE=demo"
-if /I "%1"=="clean" set "REQUESTED_MODE=clean"
-if /I "%1"=="zero"  set "REQUESTED_MODE=clean"
-if /I "%1"=="cero"  set "REQUESTED_MODE=clean"
-if /I "%1"=="admin-only" set "REQUESTED_MODE=clean"
-if /I "%1"=="admin_only" set "REQUESTED_MODE=clean"
+if /I "%CMD%"=="help"   goto :usage
+if /I "%CMD%"=="-h"     goto :usage
+if /I "%CMD%"=="--help" goto :usage
+if /I "%CMD%"=="/?"     goto :usage
 
-goto :full_install
+if /I "%CMD%"=="start"        goto :start_only
+if /I "%CMD%"=="stop"         goto :stop_services
+if /I "%CMD%"=="update"       goto :update_mode
+if /I "%CMD%"=="docker-stop"  goto :docker_stop
+if /I "%CMD%"=="docker-clean" goto :docker_clean
+
+if /I "%CMD%"=="install" set "REQUESTED_MODE="& goto :full_install
+if /I "%CMD%"=="demo"  set "REQUESTED_MODE=demo"
+if /I "%CMD%"=="seed"  set "REQUESTED_MODE=demo"
+if /I "%CMD%"=="clean" set "REQUESTED_MODE=clean"
+if /I "%CMD%"=="zero"  set "REQUESTED_MODE=clean"
+if /I "%CMD%"=="cero"  set "REQUESTED_MODE=clean"
+if /I "%CMD%"=="admin-only" set "REQUESTED_MODE=clean"
+if /I "%CMD%"=="admin_only" set "REQUESTED_MODE=clean"
+
+if not "%REQUESTED_MODE%"=="" goto :full_install
+
+echo [ERROR] Opcion desconocida: %CMD%
+echo.
+goto :usage
+
+:usage
+echo Uso:
+echo   setup.bat demo               -^> instala y arranca con datos demo
+echo   setup.bat clean              -^> instala y arranca con BD vacia ^(solo admin^)
+echo   setup.bat install            -^> instala y pregunta el modo de datos
+echo   setup.bat start              -^> solo arranca ^(BD existente^)
+echo   setup.bat start demo^|clean   -^> arranca re-sembrando con ese modo
+echo   setup.bat stop               -^> para la app ^(Docker sigue activo^)
+echo   setup.bat update             -^> actualiza dependencias
+echo   setup.bat docker-stop        -^> para la infraestructura Docker
+echo   setup.bat docker-clean       -^> para Docker y borra todos los datos
+echo.
+echo   Alias: seed = demo; zero / cero / admin-only = clean
+echo   CI/CD: set SETUP_INIT_MODE=demo^|clean ^&^& setup.bat start
+endlocal
+exit /b 1
+
+:docker_stop
+echo [INFO] Parando infraestructura Docker (Postgres + Redis)...
+call :docker_compose down
+if errorlevel 1 goto :end
+echo [OK] Docker detenido (datos conservados en volumenes)
+goto :end
+
+:docker_clean
+call :get_environment
+set "ENV_OK="
+for %%E in (development dev local test testing demo) do (
+    if /I "!APP_ENVIRONMENT!"=="%%E" set "ENV_OK=1"
+)
+if not defined ENV_OK (
+    echo [ERROR] docker-clean borra los volumenes y ENVIRONMENT=!APP_ENVIRONMENT!. Solo en desarrollo o pruebas.
+    endlocal
+    exit /b 2
+)
+echo [INFO] Parando infraestructura Docker y borrando volumenes...
+call :docker_compose down -v
+if errorlevel 1 goto :end
+echo [OK] Docker detenido y volumenes eliminados
+goto :end
+
+:: Ejecuta `docker compose` (o `docker-compose` antiguo) en la carpeta del proyecto.
+:docker_compose
+if not exist "%SCRIPT_DIR%\docker-compose.yml" (
+    echo [WARN] docker-compose.yml no encontrado
+    exit /b 1
+)
+where docker >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] Docker no disponible
+    exit /b 1
+)
+pushd "%SCRIPT_DIR%"
+docker compose version >nul 2>&1
+if errorlevel 1 (
+    docker-compose %*
+) else (
+    docker compose %*
+)
+set "DC_RC=!errorlevel!"
+popd
+exit /b %DC_RC%
 
 :full_install
 call :setup_backend
@@ -67,7 +149,7 @@ goto :end
 
 :start_only
 echo [INFO] Modo: solo arrancar
-set "REQUESTED_MODE=%2"
+set "REQUESTED_MODE=%~2"
 if not exist "%SCRIPT_DIR%\.venv\Scripts\python.exe" (
     call :setup_backend
     if errorlevel 1 goto :error
@@ -78,10 +160,18 @@ if not exist "%SCRIPT_DIR%\frontend\node_modules\vite\dist\node\cli.js" (
 )
 call :apply_migrations
 if errorlevel 1 goto :error
+:: Como `setup.sh start`: sin modo explicito (argumento o SETUP_INIT_MODE) se
+:: conserva la BD. Antes preguntaba demo/clean en cada arranque y re-sembraba
+:: o vaciaba la base aunque solo se quisiera arrancar.
+if "%REQUESTED_MODE%%SETUP_INIT_MODE%"=="" (
+    echo [INFO] Se conserva la base de datos existente
+    goto :start_only_run
+)
 call :resolve_init_mode "%REQUESTED_MODE%"
 if errorlevel 1 goto :error
 call :apply_selected_data_mode
 if errorlevel 1 goto :error
+:start_only_run
 call :start_services
 goto :end
 
@@ -212,13 +302,13 @@ if "!PYTHON!"=="" (
     set PY_INSTALLER=%TEMP%\python312.exe
     curl -L -o "!PY_INSTALLER!" "!PY_URL!"
     if errorlevel 1 (
-        echo [ERROR] No se pudo descargar Python. Instálalo manualmente desde https://python.org
+        echo [ERROR] No se pudo descargar Python. Instalalo manualmente desde https://python.org
         exit /b 1
     )
     "!PY_INSTALLER!" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
     if errorlevel 1 (
-        echo [ERROR] No se pudo instalar Python automáticamente.
-        echo [ERROR] Instálalo manualmente desde https://www.python.org/downloads/ y reinicia el terminal.
+        echo [ERROR] No se pudo instalar Python automaticamente.
+        echo [ERROR] Instalalo manualmente desde https://www.python.org/downloads/ y reinicia el terminal.
         del "!PY_INSTALLER!" >nul 2>&1
         exit /b 1
     )
@@ -227,19 +317,19 @@ if "!PYTHON!"=="" (
 
     where !PYTHON! >nul 2>&1
     if errorlevel 1 (
-        echo [ERROR] Python se instaló, pero no está en PATH en esta sesión.
+        echo [ERROR] Python se instalo, pero no esta en PATH en esta sesion.
         echo [ERROR] Cierra y abre el terminal, o instala manualmente desde https://www.python.org/downloads/
         exit /b 1
     )
 
     for /f "tokens=*" %%v in ('!PYTHON! -c "import sys; v=sys.version_info; print(v.major*100+v.minor)" 2^>nul') do set PY_VER_NUM=%%v
     if not defined PY_VER_NUM (
-        echo [ERROR] No se pudo verificar la versión de Python tras la instalación.
+        echo [ERROR] No se pudo verificar la version de Python tras la instalacion.
         exit /b 1
     )
     if !PY_VER_NUM! LSS 310 (
-        echo [ERROR] Python detectado no cumple versión mínima 3.10+.
-        echo [ERROR] Instala manualmente una versión compatible desde https://www.python.org/downloads/
+        echo [ERROR] Python detectado no cumple version minima 3.10+.
+        echo [ERROR] Instala manualmente una version compatible desde https://www.python.org/downloads/
         exit /b 1
     )
 )
@@ -289,6 +379,16 @@ if "!NEED_PIP_INSTALL!"=="1" (
     >"!REQ_HASH_FILE!" echo !REQ_HASH!
 ) else (
     echo [INFO] Dependencias Python sin cambios, omitiendo pip install
+)
+
+:: Solo Windows: Python usa su propia lista de CAs (certifi), no la de Windows.
+:: Detras de un proxy corporativo con inspeccion TLS, las llamadas HTTPS (p.ej.
+:: proveedores de IA) fallaban con CERTIFICATE_VERIFY_FAILED. pip-system-certs
+:: hace que Python confie en el almacen de certificados de Windows.
+.venv\Scripts\python -m pip show pip-system-certs >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] Instalando pip-system-certs ^(certificados de Windows para Python^)...
+    .venv\Scripts\python -m pip install --quiet pip-system-certs || echo [WARN] No se pudo instalar pip-system-certs ^(no es bloqueante^)
 )
 
 if exist "requirements-ml.txt" (
@@ -374,35 +474,35 @@ if not exist ".env" (
 :: Patch existing .env: ensure required variables are present
 findstr /b "CLIENT_PORTAL_SECRET=" .env >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] CLIENT_PORTAL_SECRET no encontrado en .env - añadiendo valor por defecto
-    echo CLIENT_PORTAL_SECRET=contecflow-portal-secret-change-in-production^!^! >> .env
+    echo [WARN] CLIENT_PORTAL_SECRET no encontrado en .env - anadiendo valor por defecto
+    >>.env echo CLIENT_PORTAL_SECRET=contecflow-portal-secret-change-in-production
 )
 findstr /b "SECRET_KEY=" .env >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] SECRET_KEY no encontrado en .env - añadiendo valor por defecto
-    echo SECRET_KEY=contecflow-secret-key-change-in-production-min32chars^!^! >> .env
+    echo [WARN] SECRET_KEY no encontrado en .env - anadiendo valor por defecto
+    >>.env echo SECRET_KEY=contecflow-secret-key-change-in-production-min32chars
 )
 findstr /b "SUPERADMIN_EMAIL=" .env >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] SUPERADMIN_EMAIL no encontrado en .env - añadiendo valor por defecto
-    echo SUPERADMIN_EMAIL=admin@company.com >> .env
+    echo [WARN] SUPERADMIN_EMAIL no encontrado en .env - anadiendo valor por defecto
+    >>.env echo SUPERADMIN_EMAIL=admin@company.com
 )
 findstr /b "SUPERADMIN_PASSWORD=" .env >nul 2>&1
 if errorlevel 1 (
     echo [WARN] SUPERADMIN_PASSWORD no encontrado en .env - generando una aleatoria
-    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(15)).Replace('+','x').Replace('/','y').Replace('=','') + 'Aa1!'"') do echo SUPERADMIN_PASSWORD=%%S >> .env
+    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(15)).Replace('+','x').Replace('/','y').Replace('=','') + 'Aa1!'"') do >>.env echo SUPERADMIN_PASSWORD=%%S
 )
 findstr /b "DEFAULT_USER_PASSWORD=" .env >nul 2>&1
 if errorlevel 1 (
     echo [WARN] DEFAULT_USER_PASSWORD no encontrado en .env - generando una aleatoria
-    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(15)).Replace('+','x').Replace('/','y').Replace('=','') + 'Aa1!'"') do echo DEFAULT_USER_PASSWORD=%%S >> .env
+    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(15)).Replace('+','x').Replace('/','y').Replace('=','') + 'Aa1!'"') do >>.env echo DEFAULT_USER_PASSWORD=%%S
 )
 :: ENVIRONMENT gobierna el gate de :sync_demo_passwords. Si falta, los scripts
 :: asumen production y NO reescriben credenciales.
 findstr /b "ENVIRONMENT=" .env >nul 2>&1
 if errorlevel 1 (
     echo [INFO] ENVIRONMENT no encontrado en .env - estableciendo development
-    echo ENVIRONMENT=development >> .env
+    >>.env echo ENVIRONMENT=development
 )
 
 :: Regenerar SECRET_KEY si quedó con placeholder/insegura
@@ -412,60 +512,50 @@ if /I "!SECRET_STATUS!"=="ROTATED" (
     echo [WARN] SECRET_KEY insegura detectada en .env - regenerada automaticamente
 )
 
-set "MODELS_HASH_FILE=.venv\.models_hash"
-set "MODELS_HASH="
-for /f "delims=" %%H in ('powershell -NoProfile -Command "$files=Get-ChildItem -Path 'app/models' -Recurse -Filter '*.py' -File -ErrorAction SilentlyContinue ^| Sort-Object FullName; if(-not $files){ 'nohash'; exit 0 }; $joined=($files ^| ForEach-Object { $h=(Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLower(); $_.FullName + '|' + $h }) -join \"`n\"; $bytes=[Text.Encoding]::UTF8.GetBytes($joined); $sha=[Security.Cryptography.SHA256]::Create(); (($sha.ComputeHash($bytes) ^| ForEach-Object { $_.ToString('x2') }) -join '')"') do set "MODELS_HASH=%%H"
-
-set "NEED_MIGRATE=0"
-if not exist "contecflow.db" set "NEED_MIGRATE=1"
-if not exist "!MODELS_HASH_FILE!" set "NEED_MIGRATE=1"
-if exist "!MODELS_HASH_FILE!" (
-    set /p STORED_MODELS_HASH=<"!MODELS_HASH_FILE!"
-    if /I not "!STORED_MODELS_HASH!"=="!MODELS_HASH!" set "NEED_MIGRATE=1"
+:: Esquema. BD con usuarios: `alembic upgrade head` (conserva los datos).
+:: BD nueva, vacia o ilegible: se crea desde los modelos y se marca con
+:: `alembic stamp head`. La cadena completa de revisiones no arranca sobre una
+:: SQLite vacia (la 089 pide modelos ya retirados), y sin usuarios no hay nada
+:: que conservar. El sembrado lo hace el modo demo/clean, no este paso.
+:: El fichero sale de DATABASE_URL en .env (no siempre es contecflow.db). Si no
+:: es SQLite, nunca se borra nada: se trata como base existente.
+set "DB_URL="
+set "DB_FILE="
+for /f "tokens=1,* delims==" %%A in ('findstr /b "DATABASE_URL=" .env 2^>nul') do set "DB_URL=%%B"
+if not defined DB_URL set "DB_URL=sqlite:///./contecflow.db"
+if /I "!DB_URL:~0,10!"=="sqlite:///" (
+    set "DB_FILE=!DB_URL:~10!"
+    set "DB_FILE=!DB_FILE:/=\!"
+)
+set "DB_STATUS="
+if not defined DB_FILE set "DB_STATUS=ok"
+if defined DB_FILE if exist "!DB_FILE!" (
+    for /f "tokens=*" %%r in ('.venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; db=SessionLocal(); c=db.query(User).filter(User.hashed_password.isnot(None)).count(); db.close(); print('ok' if c>0 else 'empty')" 2^>nul') do set DB_STATUS=%%r
 )
 
-if "!NEED_MIGRATE!"=="1" (
-    echo [INFO] Aplicando migraciones de base de datos...
-    .venv\Scripts\python -m app.db.migrate
+if "!DB_STATUS!"=="ok" (
+    echo [INFO] Base de datos OK - datos existentes conservados
+    .venv\Scripts\python -m alembic upgrade head
     if errorlevel 1 (
         echo [ERROR] Fallo al aplicar migraciones.
         echo [ERROR] Revisa tu archivo .env ^(especialmente SECRET_KEY^) y vuelve a ejecutar setup.bat
         exit /b 1
     )
-    >"!MODELS_HASH_FILE!" echo !MODELS_HASH!
 ) else (
-    echo [INFO] Modelos sin cambios, omitiendo migracion
-)
-
-:: Comprobar si la BD tiene usuarios
-for /f "tokens=*" %%r in ('.venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; db=SessionLocal(); c=db.query(User).filter(User.hashed_password!=None).count(); db.close(); print('ok' if c>0 else 'empty')" 2^>nul') do set DB_STATUS=%%r
-
-if "!DB_STATUS!"=="empty" (
-    echo [INFO] Base de datos vacía - ejecutando seed...
-    del /f contecflow.db >nul 2>&1
-    .venv\Scripts\python -m app.db.migrate
-    if errorlevel 1 (
-        echo [ERROR] Fallo al aplicar migraciones durante inicialización de base de datos.
+    echo [INFO] Base de datos nueva o sin usuarios - creando esquema desde los modelos...
+    del /f "!DB_FILE!" "!DB_FILE!-wal" "!DB_FILE!-shm" "!DB_FILE!-journal" >nul 2>&1
+    if exist "!DB_FILE!" (
+        echo [ERROR] No se pudo borrar !DB_FILE! ^(esta abierta en otro programa?^)
         exit /b 1
     )
-    .venv\Scripts\python -m app.db.seed
+    .venv\Scripts\python -c "import app.models; from app.db.base import Base; from app.db.session import engine; Base.metadata.create_all(bind=engine)"
     if errorlevel 1 (
-        echo [ERROR] Fallo al ejecutar seed de base de datos.
+        echo [ERROR] Fallo al crear el esquema de la base de datos.
         exit /b 1
     )
-) else if "!DB_STATUS!"=="ok" (
-    echo [INFO] Base de datos OK - datos existentes conservados
-) else (
-    echo [INFO] Inicializando base de datos nueva...
-    del /f contecflow.db >nul 2>&1
-    .venv\Scripts\python -m app.db.migrate
+    .venv\Scripts\python -m alembic stamp head
     if errorlevel 1 (
-        echo [ERROR] Fallo al aplicar migraciones durante inicialización de base de datos.
-        exit /b 1
-    )
-    .venv\Scripts\python -m app.db.seed
-    if errorlevel 1 (
-        echo [ERROR] Fallo al ejecutar seed de base de datos.
+        echo [ERROR] Fallo al marcar la version de Alembic.
         exit /b 1
     )
 )
@@ -487,26 +577,26 @@ if errorlevel 1 (
     set NODE_INSTALLER=%TEMP%\nodejs.msi
     curl -L -o "!NODE_INSTALLER!" "!NODE_URL!"
     if errorlevel 1 (
-        echo [ERROR] No se pudo descargar Node.js. Instálalo desde https://nodejs.org
+        echo [ERROR] No se pudo descargar Node.js. Instalalo desde https://nodejs.org
         exit /b 1
     )
     msiexec /i "!NODE_INSTALLER!" /quiet /norestart
     if errorlevel 1 (
-        echo [ERROR] No se pudo instalar Node.js automáticamente.
-        echo [ERROR] Instálalo manualmente desde https://nodejs.org/ y reinicia el terminal.
+        echo [ERROR] No se pudo instalar Node.js automaticamente.
+        echo [ERROR] Instalalo manualmente desde https://nodejs.org/ y reinicia el terminal.
         del "!NODE_INSTALLER!" >nul 2>&1
         exit /b 1
     )
     del "!NODE_INSTALLER!" >nul 2>&1
     where node >nul 2>&1
     if errorlevel 1 (
-        echo [ERROR] Node.js se instaló, pero no está en PATH en esta sesión.
+        echo [ERROR] Node.js se instalo, pero no esta en PATH en esta sesion.
         echo [ERROR] Cierra y abre el terminal, o instala manualmente desde https://nodejs.org/
         exit /b 1
     )
     where npm >nul 2>&1
     if errorlevel 1 (
-        echo [ERROR] npm no está disponible tras la instalación de Node.js.
+        echo [ERROR] npm no esta disponible tras la instalacion de Node.js.
         echo [ERROR] Reinstala Node.js desde https://nodejs.org/ y reinicia el terminal.
         exit /b 1
     )
@@ -561,13 +651,13 @@ echo [PASO 3/3] Arrancando servicios...
 cd /d "%SCRIPT_DIR%"
 
 if not exist ".venv\Scripts\python.exe" (
-    echo [WARN] Entorno virtual no encontrado. Inicializando backend automáticamente...
+    echo [WARN] Entorno virtual no encontrado. Inicializando backend automaticamente...
     call :setup_backend
     if errorlevel 1 exit /b 1
 )
 
 if not exist "%SCRIPT_DIR%\frontend\node_modules\vite\dist\node\cli.js" (
-    echo [WARN] Frontend no preparado. Inicializando frontend automáticamente...
+    echo [WARN] Frontend no preparado. Inicializando frontend automaticamente...
     call :setup_frontend
     if errorlevel 1 exit /b 1
 )
@@ -642,7 +732,7 @@ echo [INFO] Backend listo
 if not exist "frontend\node_modules" mkdir "frontend\node_modules" >nul 2>&1
 
 set "VITE_HASH="
-for /f "delims=" %%H in ('powershell -NoProfile -Command "$files=Get-ChildItem -Path 'frontend/src' -Recurse -File -Include '*.js','*.jsx' -ErrorAction SilentlyContinue ^| Sort-Object FullName; if(-not $files){ 'nohash'; exit 0 }; $joined=($files ^| ForEach-Object { $h=(Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLower(); $_.FullName + '|' + $h }) -join \"`n\"; $bytes=[Text.Encoding]::UTF8.GetBytes($joined); $sha=[Security.Cryptography.SHA256]::Create(); (($sha.ComputeHash($bytes) ^| ForEach-Object { $_.ToString('x2') }) -join '')"') do set "VITE_HASH=%%H"
+for /f "delims=" %%H in ('powershell -NoProfile -Command "$files=Get-ChildItem -Path 'frontend/src' -Recurse -File -Include '*.ts','*.tsx','*.js','*.jsx' -ErrorAction SilentlyContinue | Sort-Object FullName; if(-not $files){ 'nohash'; exit 0 }; $joined=($files | ForEach-Object { $h=(Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLower(); $_.FullName + '|' + $h }) -join [char]10; $bytes=[Text.Encoding]::UTF8.GetBytes($joined); $sha=[Security.Cryptography.SHA256]::Create(); (($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '')"') do set "VITE_HASH=%%H"
 set "VITE_HASH_FILE=frontend\node_modules\.vite_src_hash"
 set "REFRESH_VITE_CACHE=0"
 if not exist "!VITE_HASH_FILE!" set "REFRESH_VITE_CACHE=1"
@@ -657,7 +747,7 @@ if "!REFRESH_VITE_CACHE!"=="1" (
 
 if exist "frontend\node_modules\@babel\parser\lib\index.js" (
     set "JSX_HASH="
-    for /f "delims=" %%H in ('powershell -NoProfile -Command "$files=Get-ChildItem -Path 'frontend/src' -Recurse -Filter '*.jsx' -File -ErrorAction SilentlyContinue ^| Sort-Object FullName; if(-not $files){ 'nohash'; exit 0 }; $joined=($files ^| ForEach-Object { $h=(Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLower(); $_.FullName + '|' + $h }) -join \"`n\"; $bytes=[Text.Encoding]::UTF8.GetBytes($joined); $sha=[Security.Cryptography.SHA256]::Create(); (($sha.ComputeHash($bytes) ^| ForEach-Object { $_.ToString('x2') }) -join '')"') do set "JSX_HASH=%%H"
+    for /f "delims=" %%H in ('powershell -NoProfile -Command "$files=Get-ChildItem -Path 'frontend/src' -Recurse -Filter '*.jsx' -File -ErrorAction SilentlyContinue | Sort-Object FullName; if(-not $files){ 'nohash'; exit 0 }; $joined=($files | ForEach-Object { $h=(Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLower(); $_.FullName + '|' + $h }) -join [char]10; $bytes=[Text.Encoding]::UTF8.GetBytes($joined); $sha=[Security.Cryptography.SHA256]::Create(); (($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '')"') do set "JSX_HASH=%%H"
     set "JSX_HASH_FILE=frontend\node_modules\.jsx_hash"
     set "RUN_JSX_VALIDATE=0"
     if not exist "!JSX_HASH_FILE!" set "RUN_JSX_VALIDATE=1"
@@ -852,19 +942,19 @@ if "!CURRENT_HASH!"=="" set "CURRENT_HASH=nocheck"
 if exist "%PWD_HASH_FILE%" (
     set /p STORED_HASH=<"%PWD_HASH_FILE%"
     if "!STORED_HASH!"=="!CURRENT_HASH!" (
-        echo [INFO] Contraseñas demo sin cambios, omitiendo rehash
+        echo [INFO] Contrasenas demo sin cambios, omitiendo rehash
         endlocal
         exit /b 0
     )
 )
 
-echo [INFO] Sincronizando contraseñas demo con DEFAULT_USER_PASSWORD...
+echo [INFO] Sincronizando contrasenas demo con DEFAULT_USER_PASSWORD...
 .venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; from app.core.security import get_password_hash; db=SessionLocal(); [setattr(u,'hashed_password',get_password_hash('!DEMO_PWD!')) for u in db.query(User).filter(User.username.in_(['admin','ana.torres','luis.vega','rrhh'])).all()]; db.commit(); db.close(); print('ok')"
 if errorlevel 1 (
-    echo [WARN] No se pudieron sincronizar las contraseñas demo automáticamente
+    echo [WARN] No se pudieron sincronizar las contrasenas demo automaticamente
 ) else (
     echo !CURRENT_HASH!> "%PWD_HASH_FILE%"
-    echo [INFO] Contraseñas actualizadas correctamente
+    echo [INFO] Contrasenas actualizadas correctamente
 )
 endlocal
 exit /b 0
@@ -872,7 +962,7 @@ exit /b 0
 :: -----------------------------------------------------------------------
 :error
 echo.
-echo [ERROR] La instalación ha fallado.
+echo [ERROR] La instalacion ha fallado.
 echo Comprueba los mensajes anteriores para ver el problema.
 echo.
 pause

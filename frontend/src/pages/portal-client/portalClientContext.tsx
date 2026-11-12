@@ -9,7 +9,8 @@ import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i
 import { STATUS_CFG } from '../../constants/sharedStatus'
 import { useIdleTimeout } from '../../hooks/useIdleTimeout'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { alpha } from '../../constants/theme'
+import { API_BASE_URL } from '../../services/api/urls'
+import StatusBadge from '../../components/ui/StatusBadge'
 
 type ApiListBody = {
   items: unknown[]
@@ -29,7 +30,9 @@ function isApiListBody(body: unknown): body is ApiListBody {
 }
 
 // ── API client ────────────────────────────────────────────────────────────────
-export const CLIENT_API = axios.create({ baseURL: '/api/v1', withCredentials: true, timeout: 30000 })
+// Instancia propia: el portal de clientes tiene su propia sesión y su propio
+// manejo de 401 (no debe disparar el refresco de la sesión de empleado).
+export const CLIENT_API = axios.create({ baseURL: API_BASE_URL, withCredentials: true, timeout: 30000 })
 
 // Desenvuelve los dos sobres del servidor, como el cliente de la aplicación
 // (services/api/_core.ts). Auditoría 2026-11: solo desenvolvía las listas, y
@@ -298,7 +301,6 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
 export const S = {
   page: { minHeight: '100vh', background: 'var(--surface-0)', color: 'var(--text-1)', fontFamily: "'Inter', system-ui, sans-serif" },
   card: { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: 'var(--space-4) var(--space-5)' },
-  badge: (color: string) => ({ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: alpha(color, '20'), color, border: `1px solid ${alpha(color, '40')}`, textTransform: 'uppercase' }),
   btn: { background: 'var(--accent)', border: 'none', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--portal-bg)', fontSize: "var(--text-md)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
   btnSec: { background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' },
   input: { background: 'var(--surface-4)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
@@ -308,7 +310,7 @@ export const S = {
 // ── Shared components ─────────────────────────────────────────────────────────
 export function Badge({ status }: { status?: string }) {
   const cfg = (status && STATUS_CFG[status]) || { label: status, color: 'var(--text-2)' }
-  return <span style={S.badge(cfg.color)}>{cfg.label}</span>
+  return <StatusBadge color={cfg.color}>{cfg.label}</StatusBadge>
 }
 
 interface LangSelectorProps {
@@ -320,7 +322,7 @@ interface LangSelectorProps {
 
 export function LangSelector({ onChange, current, dark = false }: LangSelectorProps) {
   return (
-    <div style={{ display: 'flex', gap: 6 }}>
+    <div className="u-row-6">
       {LANGUAGES.map(l => (
         <button key={l.code} onClick={() => onChange(l.code)}
           title={l.label}
@@ -389,7 +391,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
             width: 44, height: 44, borderRadius: 12,
             background: 'linear-gradient(135deg, var(--accent), var(--purple))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 'var(--text-xl-em)', fontWeight: 800, color: '#fff',
+            fontSize: 'var(--text-xl-em)', fontWeight: 800, color: 'var(--on-accent-light)',
           }}>◈</div>
           <div>
             <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 800 }}>Contecflow</div>
@@ -420,7 +422,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
             ))}
           </div>
         </div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+        <div className="u-text3-xs">
           © {new Date().getFullYear()} Contecflow PSA — Portal cliente
         </div>
       </div>
@@ -436,7 +438,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 24px' }}>
             {traducir('portalclientcontext.usa_tu_correo_corporativo_para_acceder')}
           </p>
-          <form onSubmit={e => { e.preventDefault(); handleLogin() }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <form onSubmit={e => { e.preventDefault(); handleLogin() }} className="u-stack-14">
             <div>
               <label htmlFor={`${idPrefix}-email`} style={labelStyle}>{t('login_email')}</label>
               <input id={`${idPrefix}-email`} type="email" autoComplete="email"

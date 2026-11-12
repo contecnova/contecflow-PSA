@@ -1,7 +1,7 @@
 // Audit #C10 — services/api.ts is now a thin shim.
 //
 // The original 1,890-LOC god-file has been moved verbatim to
-// `services/api/_core.ts`. The public surface (`from '@/services/api'`)
+// `services/api/_core.ts`. The public surface (`from '.../services/api'`)
 // re-exports the `services/api/` barrel, which in turn re-exports `_core`
 // plus any new strictly-typed slices (`auth.ts`, `users.ts`, …).
 //

@@ -2,7 +2,6 @@ import math
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import (
@@ -17,6 +16,7 @@ from app.services.service_desk.status_compat import normalize_ticket_status, san
 from app.services.service_desk.ticket_query_service import build_ticket_list_query
 from app.services.service_desk.dynamic_ticket_fields_service import get_ticket_dynamic_fields
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +194,7 @@ def client_ticket_detail_payload(db: Session, client_id: str, ticket_id: str, ti
     )
 
     if not ticket:
-        raise HTTPException(404, "Ticket no encontrado")
+        raise ErrorDeDominio(404, "Ticket no encontrado")
 
     return {
         **ticket_out(ticket, include_comments=True),
@@ -220,7 +220,7 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
 
     ticket = scope_ticket_query(query, db, current_user).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise HTTPException(404, "Ticket no encontrado")
+        raise ErrorDeDominio(404, "Ticket no encontrado")
 
     from app.services.service_desk import catalog_approval_service as _aprobacion
     payload = {
@@ -315,7 +315,7 @@ def candidatos_de_asignacion(
 
     ticket = get_scoped_ticket_or_404(db, current_user, ticket_id)
     if not ticket.assigned_group_id:
-        raise HTTPException(400, "El ticket no tiene grupo asignado")
+        raise ErrorDeDominio(400, "El ticket no tiene grupo asignado")
 
     miembros = (
         db.query(AgentGroupMember)

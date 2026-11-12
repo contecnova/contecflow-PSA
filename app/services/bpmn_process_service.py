@@ -15,6 +15,7 @@ from xml.sax.saxutils import escape
 from sqlalchemy.orm import Session
 
 from app.models.bpmn_process import BPMNProcess, BPMNProcessVersion, BPMNProcessStatus
+from app.core.asignacion import es_asignable
 
 
 # ── Seed catalogue ────────────────────────────────────────────────────────────
@@ -551,7 +552,7 @@ def update_metadata(db: Session, process_id: str, **fields) -> Optional[BPMNProc
             continue
         if k == "status":
             proc.status = BPMNProcessStatus(val)
-        elif hasattr(proc, k):
+        elif es_asignable(proc, k):
             setattr(proc, k, val)
     proc.updated_at = datetime.now(timezone.utc)
     db.commit()

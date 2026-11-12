@@ -10,7 +10,7 @@
  */
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { openConfirmGlobal } from '../context/ConfirmContext'
+import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { grcApi, approvalsApi, usersApi, governanceApi } from '../services/api'
@@ -51,11 +51,11 @@ type Role = { id: string; label: string; color: string }
 // ROLES se carga dinámicamente desde la API — ver useRoles() en GrcPage
 const FALLBACK_ROLES = [
   { id: 'admin',     label: 'Admin',      color: 'var(--accent)' },
-  { id: 'pm',        label: 'PM',         color: '#a78bfa' },
-  { id: 'team_lead', label: 'Team Lead',  color: '#0891b2' },
-  { id: 'employee',  label: 'Employee',   color: '#34d399' },
-  { id: 'hr',        label: 'HR',         color: '#f59e0b' },
-  { id: 'subcontractor', label: 'Subcontratado', color: '#f97316' },
+  { id: 'pm',        label: 'PM',         color: 'var(--purple)' },
+  { id: 'team_lead', label: 'Team Lead',  color: 'var(--sky-blue)' },
+  { id: 'employee',  label: 'Employee',   color: 'var(--success)' },
+  { id: 'hr',        label: 'HR',         color: 'var(--warning)' },
+  { id: 'subcontractor', label: 'Subcontratado', color: 'var(--orange)' },
 ]
 
 const RISK_COLOR: Record<string, string> = { critical: '#f87171', high: '#fb923c', medium: '#f59e0b', low: '#34d399' }
@@ -123,7 +123,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="u-row-8">
           <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻ {t('grc.refresh')}</button>
           <button onClick={() => { openConfirmGlobal({ message: t('grc.reset_confirm'), onConfirm: () => resetMatrix(), danger: true }) }}
             style={{ background: 'transparent', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '6px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}
@@ -133,7 +133,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
         </div>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
+      <div className="u-scroll-x">
         <table style={{ borderCollapse: 'collapse', minWidth: 600, width: '100%' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
@@ -255,9 +255,9 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
 
   return (
     <Modal open title={isEdit ? t('grc.edit_sod_rule') : t('grc.new_sod_rule')} onClose={onClose} width={580}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.6 }}>
-          {t('grc.sod_rule_desc1')} <strong style={{ color: 'var(--text-1)' }}>{t('grc.sod_rule_desc2')}</strong>. {t('grc.sod_rule_desc3')}
+          {t('grc.sod_rule_desc1')} <strong className="u-text1">{t('grc.sod_rule_desc2')}</strong>. {t('grc.sod_rule_desc3')}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 8, padding: '12px 14px' }}>
@@ -323,7 +323,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('grc.cancel')}</Button>
           <Button onClick={() => mutate({ ...form, mitigated_by_workflow_id: form.mitigated_by_workflow_id || null })} loading={isPending} disabled={isPending || !form.description}>
             {isPending ? t('grc.saving') : isEdit ? t('grc.save_changes') : t('grc.create_rule')}
@@ -401,11 +401,11 @@ function SodTab({ roles }: { roles: Role[] }) {
       {violations.length > 0 && (
         <div style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid var(--danger-border)', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>🚨 {t('grc.sod_conflicts_detected')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="u-stack-6">
             {violations.map((v: SodViolation, i: number) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: "var(--text-sm)" }}>
                 <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: alpha(RISK_COLOR[v.risk || ''], '20'), color: RISK_COLOR[v.risk || ''], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
-                <span style={{ color: 'var(--text-1)' }}><strong>{v.conflicting_role}</strong> {t('grc.can')} {v.action_a} <em>{v.module_a}</em> {t('grc.and')} {v.action_b} <em>{v.module_b}</em></span>
+                <span className="u-text1"><strong>{v.conflicting_role}</strong> {t('grc.can')} {v.action_a} <em>{v.module_a}</em> {t('grc.and')} {v.action_b} <em>{v.module_b}</em></span>
                 {v.mitigated && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--success)', background: 'rgba(0,229,160,0.1)', padding: '1px 6px', borderRadius: 4 }}>✓ {t('grc.mitigated')}</span>}
               </div>
             ))}
@@ -420,7 +420,7 @@ function SodTab({ roles }: { roles: Role[] }) {
       {isLoading ? <Spinner /> : rules.length === 0 ? (
         <EmptyState icon="⚠️" title={traducir('grc.sin_reglas_sod')} description="Crea reglas para detectar conflictos de segregacion de funciones" />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           {rules.map((rule: SodRule) => {
             const rc = RISK_COLOR[rule.risk || ''] || '#7a8aaa'
             const modA = MODULES.find(m => m.id === rule.module_a)
@@ -431,12 +431,12 @@ function SodTab({ roles }: { roles: Role[] }) {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, background: alpha(rc, '20'), color: rc, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{rule.risk}</span>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a || ''] || rule.action_a}</span>
-                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{traducir('grc.conflicto_con')}</span>
+                    <span className="u-text3-sm">{traducir('grc.conflicto_con')}</span>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b || ''] || rule.action_b}</span>
                     {rule.mitigated_by_workflow_id && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'rgba(0,229,160,0.12)', color: 'var(--success)' }}>✓ Mitigado</span>}
                     {!rule.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-3)' }}>Inactiva</span>}
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="u-row-6">
                     <button onClick={() => toggle({ id: rule.id, active: !rule.is_active })}
                       aria-label={rule.is_active ? 'Desactivar regla SoD' : 'Activar regla SoD'}
                       style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
@@ -453,7 +453,7 @@ function SodTab({ roles }: { roles: Role[] }) {
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: (rule.roles_conflict?.length ?? 0) > 0 ? 8 : 0 }}>{rule.description}</div>
                 {(rule.roles_conflict?.length ?? 0) > 0 && (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{traducir('grc.roles_con_conflicto')}</span>
+                    <span className="u-text3-xs">{traducir('grc.roles_con_conflicto')}</span>
                     {rule.roles_conflict?.map((r: string) => {
                       const role = roles.find((x: Role) => x.id === r)
                       return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: alpha(role.color, '20'), color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : <span key={r} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', color: 'var(--text-2)', padding: '2px 8px', borderRadius: 4 }}>{r}</span>
@@ -510,7 +510,7 @@ function ViolationsTab() {
   return (
     <div>
       <div style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-        <strong style={{ color: 'var(--danger)' }}>Violaciones SoD en tiempo real</strong> {traducir('grc.registradas_cuando_el_mismo_usuario_intenta_realizar')}
+        <strong className="u-danger">Violaciones SoD en tiempo real</strong> {traducir('grc.registradas_cuando_el_mismo_usuario_intenta_realizar')}
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
@@ -526,7 +526,7 @@ function ViolationsTab() {
       {isLoading ? <Spinner /> : violations.length === 0 ? (
         <EmptyState icon={filter === false ? '✅' : '🔍'} title={filter === false ? 'Sin violaciones pendientes' : 'Sin violaciones registradas'} description={filter === false ? 'No hay violaciones SoD pendientes de resolver' : 'No hay violaciones registradas'} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           {violations.map(v => (
             <div key={v.id} style={{ ...card, padding: '14px 18px', borderLeft: `3px solid ${v.resolved ? 'var(--success)' : 'var(--danger)'}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -542,8 +542,9 @@ function ViolationsTab() {
                   {v.resolution_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--success)', marginTop: 2 }}>{traducir('grc.resolucion')} {v.resolution_note}</div>}
                 </div>
                 {!v.resolved && (
-                  <button onClick={() => {
-                    const note = window.prompt('Nota de resolución (opcional):') ?? ''
+                  <button onClick={async () => {
+                    const note = await pedirTexto({ title: 'Resolver violación', message: 'Puedes añadir una nota de resolución.', label: 'Nota de resolución (opcional)', multiline: true, confirmLabel: 'Resolver' })
+                    if (note === null) return
                     resolve({ id: v.id, note })
                   }}
                     style={{ background: 'var(--success-bg)', border: '1px solid rgba(0,229,160,0.3)', borderRadius: 6, padding: '5px 12px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -592,11 +593,11 @@ function AuditLogTab() {
   return (
     <div>
       <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-        <strong style={{ color: 'var(--text-1)' }}>Audit Log inmutable GRC</strong> {traducir('grc.todos_los_eventos_de_seguridad_cambios_de')}
+        <strong className="u-text1">Audit Log inmutable GRC</strong> {traducir('grc.todos_los_eventos_de_seguridad_cambios_de')}
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Severidad:</span>
+        <span className="u-text2-sm">Severidad:</span>
         {[['', 'Todas'], ['info', 'Info'], ['warning', 'Aviso'], ['critical', 'Crítico']].map(([val, label]) => (
           <button key={val} onClick={() => setSeverity(val)}
             style={{ padding: '7px 16px', borderRadius: 6, border: `1px solid ${severity === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: severity === val ? 'var(--accent-muted)' : 'transparent', color: severity === val ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -615,7 +616,7 @@ function AuditLogTab() {
             return (
               <div key={e.id} style={{ ...card, padding: '10px 14px', borderLeft: `3px solid ${sc}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div className="u-row-center-8">
                     <span style={{ fontSize: "var(--text-md-em)" }}>{ACTION_ICONS[e.action_type || ''] || '📋'}</span>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{(e.action_type || '').replace(/_/g, ' ')}</span>
                     {e.resource_type && <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', background: 'var(--surface-4)', color: 'var(--text-3)', borderRadius: 4 }}>{e.resource_type}</span>}
@@ -623,7 +624,7 @@ function AuditLogTab() {
                   </div>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 12 }}>{e.timestamp}</span>
                 </div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                <div className="u-text2-xs">
                   {e.user_name && <span>Actor: <strong>{e.user_name}</strong>{e.ip_address ? ` · IP: ${e.ip_address}` : ''}</span>}
                   {e.detail && typeof e.detail === 'object' && (
                     <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
@@ -651,7 +652,7 @@ function ApprovalsTab() {
     <div>
       <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--surface-2)',
         borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-        {traducir('grc.los')} <strong style={{ color: 'var(--text-1)' }}>{traducir('grc.flujos_de_aprobacion')}</strong> {traducir('grc.mitigan_los_riesgos_sod_anadiendo_revision_obligatoria')}{' '}
+        {traducir('grc.los')} <strong className="u-text1">{traducir('grc.flujos_de_aprobacion')}</strong> {traducir('grc.mitigan_los_riesgos_sod_anadiendo_revision_obligatoria')}{' '}
         <a href="/approvals" style={{ color: 'var(--accent)' }}>Aprobaciones</a>.
       </div>
 
@@ -659,7 +660,7 @@ function ApprovalsTab() {
         <EmptyState icon="✅" title={traducir('grc.sin_flujos_de_aprobacion')}
           description="Configura flujos de aprobacion para mitigar riesgos SoD" />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           {workflows.map(wf => (
             <div key={wf.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
               borderRadius: 10, padding: '14px 18px' }}>
@@ -676,7 +677,7 @@ function ApprovalsTab() {
                   {wf.is_active ? '● Activo' : '○ Inactivo'}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div className="u-wrap-6">
                 {(wf.steps || []).map((step, i) => (
                   <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: "var(--text-md)" }}>→</span>}
@@ -688,7 +689,7 @@ function ApprovalsTab() {
                   </div>
                 ))}
                 {(!wf.steps || wf.steps.length === 0) && (
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{traducir('grc.sin_pasos_configurados')}</span>
+                  <span className="u-text3-sm">{traducir('grc.sin_pasos_configurados')}</span>
                 )}
               </div>
             </div>
@@ -773,7 +774,7 @@ function RetencionTab() {
                   </td>
                   <td style={{ padding: 8, color: p.is_active ? 'var(--success)' : 'var(--text-3)' }}>
                     {p.is_active ? t('grc.retencion_activa') : t('grc.retencion_apagada')}
-                    {p.last_run_at && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('grc.retencion_ultima', { n: p.last_deleted ?? 0, fecha: new Date(p.last_run_at).toLocaleString() })}</div>}
+                    {p.last_run_at && <div className="u-text3-xs">{t('grc.retencion_ultima', { n: p.last_deleted ?? 0, fecha: new Date(p.last_run_at).toLocaleString() })}</div>}
                   </td>
                   <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
                     <Button size="sm" variant={p.is_active ? 'secondary' : 'primary'} onClick={() => guardar(p, !p.is_active)}>
@@ -801,7 +802,7 @@ function RetencionTab() {
           <input aria-label={t('grc.bloqueo_valor')} placeholder={t('grc.bloqueo_valor')} value={nuevo.value} onChange={e => setNuevo({ ...nuevo, value: e.target.value })} style={{ ...campo, minWidth: 260, fontFamily: 'var(--font-mono)' }} />
           <Button size="sm" onClick={crear} disabled={!nuevo.case_reference.trim() || !nuevo.value.trim()}>{t('grc.bloqueo_crear')}</Button>
         </div>
-        {bloqueos.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('grc.bloqueo_ninguno')}</div> : (
+        {bloqueos.length === 0 ? <div className="u-text3-sm">{t('grc.bloqueo_ninguno')}</div> : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
             <tbody>
               {bloqueos.map(b => (
@@ -869,7 +870,7 @@ function InformeDeCumplimientoTab() {
                   <td style={{ padding: '8px', color: COLOR_CONTROL[c.status], fontWeight: 700, whiteSpace: 'nowrap' }}>{t(`grc.informe_estado_${c.status}`)}</td>
                   <td style={{ padding: '8px' }}>
                     <div style={{ fontWeight: 600 }}>{t(`grc.informe_control_${c.id}`)}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{c.source}</div>
+                    <div className="u-text3-xs">{c.source}</div>
                   </td>
                   <td style={{ padding: '8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
                     {Object.entries(c.measured).map(([k, v]) => <div key={k}>{k}: {valor(v)}</div>)}
@@ -891,11 +892,12 @@ function ExplicarAccesoTab() {
   const toast = useToast()
   const [usuario, setUsuario] = useState('')
   const [metodo, setMetodo] = useState('GET')
+  // No es una URL que pida el cliente: es la ruta del servidor que se quiere explicar (las de `rutas` llevan el mismo prefijo).
   const [camino, setCamino] = useState('/api/v1/projects')
   const [res, setRes] = useState<Explicacion | null>(null)
   const [cargando, setCargando] = useState(false)
   const { data: usuarios = [] } = useQuery<{ id: string; full_name?: string; email?: string; role?: string }[]>({
-    queryKey: ['users'], queryFn: () => usersApi.list().then((r: { data: any }) => r.data?.items ?? r.data ?? []),
+    queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data ?? []),
   })
   const { data: rutas = [] } = useQuery<{ method: string; path: string }[]>({
     queryKey: ['grc-explainer-routes'], queryFn: () => grcApi.explainerRoutes().then(r => r.data),
@@ -953,7 +955,7 @@ function ExplicarAccesoTab() {
                   {t(`grc.acceso_estado_${c.verdict}`)}
                 </span>
                 <span style={{ minWidth: 170, fontWeight: 600, fontSize: 'var(--text-sm)' }}>{t(`grc.acceso_capa_${c.layer}`)}</span>
-                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{detalle(c)}</span>
+                <span className="u-text2-sm">{detalle(c)}</span>
               </li>
             ))}
           </ol>

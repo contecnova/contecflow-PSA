@@ -46,6 +46,7 @@ import pytest
 
 from tests.conftest import fila_global
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-sd-mia"
 OTRA = "org-sd-ajena"
@@ -110,7 +111,7 @@ def test_EL_HALLAZGO_los_candidatos_de_un_ticket_ajeno_dan_404(
     from app.services.service_desk import ticket_read_service as svc
 
     ajeno = tickets_de_dos_organizaciones[OTRA]["ticket"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.candidatos_de_asignacion(db, _Usuario(ORG), ajeno.id)
     assert exc.value.status_code == 404
 
@@ -147,7 +148,7 @@ def test_un_ticket_sin_grupo_da_400_y_no_404(db, tickets_de_dos_organizaciones):
     mio.assigned_group_id = None
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.candidatos_de_asignacion(db, _Usuario(ORG), mio.id)
     assert exc.value.status_code == 400
 
@@ -199,7 +200,7 @@ def test_la_guarda_da_404_con_texto(db, tickets_de_dos_organizaciones):
     from app.services.service_desk.scoping import get_scoped_ticket_or_404
 
     ajeno = tickets_de_dos_organizaciones[OTRA]["ticket"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         get_scoped_ticket_or_404(db, _Usuario(ORG), ajeno.id)
     assert exc.value.status_code == 404
     assert exc.value.detail == "Ticket no encontrado"

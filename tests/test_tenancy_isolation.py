@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from app.core.tenancy import org_scoped_or_404, assert_same_org
 from app.models.workflow_designer import WorkflowBlueprint
+from app.core.errores import ErrorDeDominio
 
 
 class _User:
@@ -39,13 +40,13 @@ def test_same_org_row_is_returned(db):
 
 def test_other_org_row_is_404(db):
     bp = _mk_blueprint(db, "org-A")
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         org_scoped_or_404(db, WorkflowBlueprint, bp.id, _User("org-B"))
     assert exc.value.status_code == 404
 
 
 def test_missing_row_is_404(db):
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         org_scoped_or_404(db, WorkflowBlueprint, "does-not-exist", _User("org-A"))
     assert exc.value.status_code == 404
 
@@ -63,7 +64,7 @@ def test_null_org_row_is_global(db):
 
 
 def test_assert_same_org_raises_on_mismatch():
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         assert_same_org(_User("org-A"), "org-B")
     # matching / null / superadmin pass silently
     assert_same_org(_User("org-A"), "org-A")

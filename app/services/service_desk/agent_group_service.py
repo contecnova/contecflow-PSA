@@ -1,9 +1,9 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import AgentGroup, AgentGroupMember
 from app.models.user import User
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def create_group_record(db, payload) -> AgentGroup:
 def get_group_or_404(db: Session, group_id: str) -> AgentGroup:
     group = db.query(AgentGroup).filter(AgentGroup.id == group_id).first()
     if not group:
-        raise HTTPException(404, "Grupo no encontrado")
+        raise ErrorDeDominio(404, "Grupo no encontrado")
     return group
 
 
@@ -67,14 +67,14 @@ def add_group_member_record(db: Session, group_id: str, user_id: str, is_lead: b
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise ErrorDeDominio(404, "Usuario no encontrado")
 
     existing = db.query(AgentGroupMember).filter(
         AgentGroupMember.group_id == group_id,
         AgentGroupMember.user_id == user_id,
     ).first()
     if existing:
-        raise HTTPException(400, "Ya es miembro")
+        raise ErrorDeDominio(400, "Ya es miembro")
 
     db.add(AgentGroupMember(group_id=group_id, user_id=user_id, is_lead=is_lead))
 
@@ -85,5 +85,5 @@ def remove_group_member_record(db: Session, group_id: str, user_id: str) -> None
         AgentGroupMember.user_id == user_id,
     ).first()
     if not member:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     db.delete(member)

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.financial import ProjectMilestone
 from app.models.task import Task
-from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
@@ -20,7 +20,7 @@ def m365_configured() -> bool:
 
 def require_m365() -> None:
     if not m365_configured():
-        raise HTTPException(503, detail={
+        raise ErrorDeDominio(503, detail={
             "error": "M365_NOT_CONFIGURED",
             "message": "Configura las variables de entorno: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET",
             "docs_url": "https://learn.microsoft.com/en-us/graph/auth-v2-service",
@@ -38,7 +38,7 @@ async def get_graph_token() -> str:
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(url, data=data)
     if resp.status_code != 200:
-        raise HTTPException(502, "Error obteniendo token de Azure AD")
+        raise ErrorDeDominio(502, "Error obteniendo token de Azure AD")
     return resp.json()["access_token"]
 
 
@@ -53,7 +53,7 @@ def get_graph_token_sync() -> str:
     with httpx.Client(timeout=15) as client:
         resp = client.post(url, data=data)
     if resp.status_code != 200:
-        raise HTTPException(502, "Error obteniendo token de Azure AD")
+        raise ErrorDeDominio(502, "Error obteniendo token de Azure AD")
     return resp.json()["access_token"]
 
 

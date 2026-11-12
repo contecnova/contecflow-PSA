@@ -13,6 +13,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Layers } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import DateInput from '../components/ui/DateInput'
 
 type EpicStatus = 'open' | 'in_progress' | 'done' | 'cancelled'
 type EpicPriority = 'low' | 'medium' | 'high' | 'critical'
@@ -99,10 +100,10 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
 
   return (
     <Modal open onClose={onClose} title={isEdit ? t('epics.edit_epic') : t('epics.new_epic')}>
-      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+      <div className="u-stack-14">
         <div><label style={ls}>{t('epics.title_label')}</label><input style={is} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/></div>
         <div><label style={ls}>{t('common.description')}</label><textarea style={{...is,height:70,resize:'vertical'}} value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div className="u-grid2-12">
           <div><label style={ls}>{t('common.status')}</label>
             <select style={is} value={form.status} onChange={e=>set('status')(e.target.value as EpicStatus)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
@@ -114,12 +115,12 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
             </select>
           </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <div><label style={ls}>{t('epics.start_date')}</label><input type="date" style={is} value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
-          <div><label style={ls}>{t('epics.end_date')}</label><input type="date" style={is} value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
+        <div className="u-grid2-12">
+          <div><label style={ls}>{t('epics.start_date')}</label><DateInput style={is} value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
+          <div><label style={ls}>{t('epics.end_date')}</label><DateInput style={is} value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
         </div>
         <div><label style={ls}>{t('epics.color_label')}</label>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <div className="u-wrap-8">
             {COLORS.map(c=>(
               <button key={c} onClick={()=>set('color')(c)}
                 style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}}/>
@@ -161,10 +162,10 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
   const hechas = enlazadas.filter(x => x.status === 'done').length
   return (
     <Modal open onClose={onClose} title={epic.title}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('epics.avance_de_tareas', { hechas, total: enlazadas.length })}</div>
+      <div className="u-stack-12">
+        <div className="u-text2-sm">{t('epics.avance_de_tareas', { hechas, total: enlazadas.length })}</div>
         {ficha.isLoading ? <Spinner /> : enlazadas.length === 0
-          ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('epics.sin_tareas')}</div>
+          ? <div className="u-text3-sm">{t('epics.sin_tareas')}</div>
           : enlazadas.map(x => (
             <div key={x.id} style={{ display: 'flex', gap: 8, alignItems: 'center', borderTop: '1px solid var(--surface-3)', paddingTop: 6 }}>
               <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', fontSize: 'var(--text-sm)' }}>{x.title}</span>
@@ -172,7 +173,7 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
               {canEdit && <Button size="xs" variant="ghost" onClick={() => enlazar(x.id, true)}>{t('epics.quitar')}</Button>}
             </div>))}
         {canEdit && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="u-wrap-8">
             <select aria-label={t('epics.anadir_tarea')} value={elegida} onChange={e => setElegida(e.target.value)}
               style={{ flex: '1 1 220px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontFamily: 'inherit' }}>
               <option value="">{t('epics.anadir_tarea')}</option>
@@ -215,7 +216,7 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
   }
 
   return (
-    <div style={{overflowX:'auto'}}>
+    <div className="u-scroll-x">
       <div style={{minWidth:700}}>
         {/* Cabecera meses */}
         <div style={{display:'flex',marginLeft:160,marginBottom:8,gap:0}}>
@@ -234,10 +235,10 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
               </div>
               <div style={{flex:1,height:28,position:'relative',background:'var(--surface-1)',borderRadius:4,border:'1px solid #1e2d45'}}>
                 <div style={{position:'absolute',left:`${left}%`,width:`${w}%`,height:'100%',background:epic.color||'var(--purple)',borderRadius:4,opacity:0.85,display:'flex',alignItems:'center',paddingLeft:8,overflow:'hidden',minWidth:4}}>
-                  {w>8&&<span style={{fontSize: "var(--text-xs)",fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{epic.title}</span>}
+                  {w>8&&<span style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--on-accent-light)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{epic.title}</span>}
                 </div>
                 {(epic.progress ?? 0)>0&&(
-                  <div style={{position:'absolute',left:`${left}%`,width:`${w*(epic.progress ?? 0)/100}%`,height:'100%',background:'#fff',opacity:0.15,borderRadius:4}}/>
+                  <div style={{position:'absolute',left:`${left}%`,width:`${w*(epic.progress ?? 0)/100}%`,height:'100%',background:'var(--on-accent-light)',opacity:0.15,borderRadius:4}}/>
                 )}
               </div>
               <div style={{width:50,flexShrink:0,textAlign:'right',fontSize: "var(--text-xs)",color:'var(--text-2)',paddingLeft:8}}>{epic.progress||0}%</div>
@@ -302,7 +303,7 @@ export default function EpicsPage(): JSX.Element {
     <PageShell>
       <PageHeader icon={<Layers size={18} />} title={t('epics.title')} subtitle={t('epics.subtitle')}
         actions={project&&(
-          <div style={{display:'flex',gap:8}}>
+          <div className="u-row-8">
             <button onClick={()=>setView('list')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='list'?'var(--accent-muted)':'transparent',color:view==='list'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>{t('epics.list_view')}</button>
             <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>🗺 {t('epics.roadmap')}</button>
             {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>}
@@ -350,14 +351,14 @@ export default function EpicsPage(): JSX.Element {
               return (
                 <div key={s} style={{...ps,padding:'14px 16px'}}>
                   <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:c.color}}>{cnt}</div>
-                  <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{c.label}</div>
+                  <div className="u-text2-xs">{c.label}</div>
                 </div>
               )
             })}
           </div>
 
           {/* Lista de épicas */}
-          <div data-export-table="epics-list" style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div data-export-table="epics-list" className="u-stack-10">
             {epics.map(epic=>{
               const st  = STATUS_CFG[epic.status ?? 'open']  || STATUS_CFG.open
               const pri = PRIORITY_CFG[epic.priority ?? 'medium'] || PRIORITY_CFG.medium
@@ -367,7 +368,7 @@ export default function EpicsPage(): JSX.Element {
                   onClick={()=>setDetailEpic(epic)}>
                   <div style={{display:'flex',alignItems:'flex-start',gap:14}}>
                     <div style={{width:4,height:48,borderRadius:2,background:epic.color,flexShrink:0,marginTop:2}}/>
-                    <div style={{flex:1}}>
+                    <div className="u-flex1">
                       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
                         <span style={{fontWeight:600,fontSize: "var(--text-md)"}}>{epic.title}</span>
                         <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,background:st.bg,color:st.color}}>{st.label}</span>

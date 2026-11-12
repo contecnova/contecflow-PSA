@@ -19,6 +19,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+from app.core.config import settings
 
 
 class CountryEmployerCost(Base):
@@ -64,7 +65,7 @@ class UserCostProfile(Base):
 
     # Country drives the default employer cost % when creating the profile
     country_code = Column(String(2), nullable=True, index=True)
-    currency = Column(String(3), nullable=False, default="EUR")
+    currency = Column(String(3), nullable=False, default=lambda: settings.DEFAULT_CURRENCY)
 
     # Inputs
     gross_annual_salary = Column(Float, nullable=False)              # salary in `currency`

@@ -85,7 +85,7 @@ class LegalHold(Base):
     released_at = Column(DateTime(timezone=True), nullable=True)
 
 
-# El bloqueo legal también frena el borrado manual (ver app/services/retencion.py).
+# El bloqueo legal también frena el borrado manual (ver app/db/bloqueo_legal.py).
 from sqlalchemy import event as _sa_event  # noqa: E402
 from sqlalchemy.orm import Session as _SesionBase  # noqa: E402
 
@@ -93,5 +93,5 @@ from sqlalchemy.orm import Session as _SesionBase  # noqa: E402
 @_sa_event.listens_for(_SesionBase, "before_flush")
 def _bloqueo_legal_antes_de_borrar(session, flush_context, instances) -> None:
     if session.deleted:
-        from app.services.retencion import comprobar_borrados
+        from app.db.bloqueo_legal import comprobar_borrados
         comprobar_borrados(session)

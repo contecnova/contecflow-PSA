@@ -36,7 +36,7 @@ export default function Pagination({ page, totalPages, onChange, maxVisible = 7 
     ...btnBase,
     background: 'var(--accent)',
     borderColor: 'var(--accent)',
-    color: '#fff',
+    color: 'var(--on-accent-light)',
     fontWeight: 700,
   }
 

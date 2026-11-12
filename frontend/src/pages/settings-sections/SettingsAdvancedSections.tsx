@@ -1,6 +1,6 @@
 import ConfigCorreoEntrante from '../service-desk/ConfigCorreoEntrante'
 import EstadoDeConectores from '../../components/conectores/EstadoDeConectores'
-import type { CSSProperties, ReactNode } from 'react'
+import type { ChangeEvent, CSSProperties, ReactNode } from 'react'
 import { Fragment, useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -11,13 +11,15 @@ import { PORTAL_TRANSLATIONS, PORTAL_LANGUAGES, getPortalKeys } from '../../i18n
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Card } from '../../components/ui'
-import { portalClientsApi, settingsApi } from '../../services/api'
+import { portalClientsApi, settingsApi, type IntegrationProvider, type IntegrationTestResult, type LogLevel, type RuntimeSetting } from '../../services/api'
+import { settingsApi as ajustesGeneralesApi, type SettingOut } from '../../services/settingsApi'
+import type { PortalDictionary } from '../../i18n/portalTranslations'
 import { alpha } from '../../constants/theme'
 
 function Section({ icon, title, description, children }: { icon?: ReactNode; title?: ReactNode; description?: ReactNode; children?: ReactNode }) {
   return (
     <Card style={{ marginBottom: 24 }}>
-      <div style={{ marginBottom: 20 }}>
+      <div className="u-mb-20">
         <div style={{ fontSize: "var(--text-lg)", fontWeight: 700 }}>{icon} {title}</div>
         {description && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginTop: 4 }}>{description}</div>}
       </div>
@@ -25,6 +27,13 @@ function Section({ icon, title, description, children }: { icon?: ReactNode; tit
     </Card>
   )
 }
+
+/** Textos por módulo y clave: `{módulo: {clave: texto}}`. */
+type TextosPorModulo = Record<string, Record<string, string>>
+/** Ediciones del portal por clave e idioma: `{clave: {idioma: texto}}`. */
+type EdicionesPortal = Record<string, Record<string, string>>
+type ClaveDeTraduccion = { module: string; key: string; full_key: string; base_es: string }
+const TEXTOS_PORTAL = PORTAL_TRANSLATIONS as Record<string, PortalDictionary>
 
 function descargarJSON(nombre: string, datos: unknown) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' }))
@@ -42,30 +51,30 @@ export function IdiomasSection() {
     queryFn: () => portalClientsApi.translations().then(r => r.data).catch(() => ({})),
   })
   const { mutate: savePortalTrans, isPending: savingPortal } = useMutation({
-    mutationFn: (d: any) => portalClientsApi.saveTranslations(d),
+    mutationFn: (d: Record<string, Record<string, string>>) => portalClientsApi.saveTranslations(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-translations'] }); toast.success(t('i18n.saved_ok')) },
-    onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const [activeTab, setActiveTab] = useState('operator')
   const [appLang, setAppLang] = useState('en')
-  const [appTranslations, setAppTranslations] = useState<Record<string, any>>({})
+  const [appTranslations, setAppTranslations] = useState<TextosPorModulo>({})
   const [loadingAppLang, setLoadingAppLang] = useState(true)
   const [portalLang, setPortalLang] = useState('en')
   const [searchKey, setSearchKey] = useState('')
   const [activeModule, setActiveModule] = useState('all')
-  const [appEdits, setAppEdits] = useState<Record<string, any>>({})
-  const [portalEdits, setPortalEdits] = useState<Record<string, any>>({})
+  const [appEdits, setAppEdits] = useState<TextosPorModulo>({})
+  const [portalEdits, setPortalEdits] = useState<EdicionesPortal>({})
   const [portalSearch, setPortalSearch] = useState('')
   const [hasUnsaved, setHasUnsaved] = useState(false)
 
-  const allKeys: any[] = getAllKeys(es)
-  const modules = ['all', ...new Set(allKeys.map((k: any) => k.module))]
+  const allKeys: ClaveDeTraduccion[] = getAllKeys(es)
+  const modules = ['all', ...new Set(allKeys.map(k => k.module))]
 
   useEffect(() => {
     let cancelled = false
     setLoadingAppLang(true)
-    loadLanguage(appLang).then((tr: any) => {
+    loadLanguage(appLang).then((tr: TextosPorModulo) => {
       if (!cancelled) {
         setAppTranslations(tr)
         setLoadingAppLang(false)
@@ -74,7 +83,7 @@ export function IdiomasSection() {
     return () => { cancelled = true }
   }, [appLang])
 
-  const filteredKeys = allKeys.filter((k: any) => {
+  const filteredKeys = allKeys.filter(k => {
     const matchMod = activeModule === 'all' || k.module === activeModule
     const matchSrc = !searchKey || k.key.includes(searchKey.toLowerCase()) ||
       k.base_es.toLowerCase().includes(searchKey.toLowerCase()) ||
@@ -85,7 +94,7 @@ export function IdiomasSection() {
   const getAppVal = (lang: string, module: string, key: string) =>
     (lang === appLang ? (
       appEdits?.[module]?.[key] ??
-      (customTrans as any)?.[lang]?.[module]?.[key] ??
+      (customTrans as Record<string, TextosPorModulo>)?.[lang]?.[module]?.[key] ??
       appTranslations?.[module]?.[key]
     ) : '') ?? ''
 
@@ -98,7 +107,7 @@ export function IdiomasSection() {
     setHasUnsaved(true)
   }
 
-  const importJSON = (e: any) => {
+  const importJSON = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
@@ -122,15 +131,15 @@ export function IdiomasSection() {
   // Revisión 2026-11: se guardan en el servidor, para toda la empresa. Antes
   // solo en el localStorage de este navegador: nadie más las veía.
   const { mutate: saveAppTrans } = useMutation({
-    mutationFn: () => settingsApi.saveAppTranslations({ [appLang]: appEdits }).then((r: any) => r.data),
-    onSuccess: (todas: any) => {
+    mutationFn: () => settingsApi.saveAppTranslations({ [appLang]: appEdits }).then(r => r.data),
+    onSuccess: todas => {
       setCustomTranslations(todas || {})
       qc.setQueryData(['app-translations'], todas || {})
       setAppEdits({})
       setHasUnsaved(false)
       toast.success(t('i18n.saved_ok'))
     },
-    onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   // Revisión 2026-11: exporta el MISMO formato que acepta «Importar JSON»
@@ -149,7 +158,7 @@ export function IdiomasSection() {
     const modelo: Record<string, string> = {}
     for (const { key } of getPortalKeys()) {
       modelo[key] = String(portalEdits[key]?.[portalLang] ?? portalTrans[portalLang]?.[key]
-        ?? (PORTAL_TRANSLATIONS as any)[portalLang]?.[key] ?? '')
+        ?? TEXTOS_PORTAL[portalLang]?.[key] ?? '')
     }
     descargarJSON(`portal_translations_${portalLang}.json`, { [portalLang]: modelo })
   }
@@ -174,7 +183,7 @@ export function IdiomasSection() {
         <div style={card}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--surface-4)' }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{t('settingsadvanced.idioma_del_operador_back_office')}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+            <div className="u-text2-sm">
               {t('settingsadvanced.idioma_de_la_interfaz_interna_cada_usuario')}
             </div>
           </div>
@@ -201,7 +210,7 @@ export function IdiomasSection() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IDIOMA A EDITAR</div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="u-row-6">
                 {APP_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button key={l.code} onClick={() => setAppLang(l.code)}
                     style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -210,7 +219,7 @@ export function IdiomasSection() {
                 ))}
               </div>
             </div>
-            <div style={{ flex: 1 }}>
+            <div className="u-flex1">
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>BUSCAR CLAVE</div>
               <input value={searchKey} onChange={e => setSearchKey(e.target.value)}
                 placeholder={t('settingsadvanced.buscar_clave_de_traduccion')} aria-label={t('settingsadvanced.buscar_clave_de_traduccion')} style={{ ...fs, width: 280 }} />
@@ -273,10 +282,10 @@ export function IdiomasSection() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-              {filteredKeys.length} claves · {allKeys.length} total · {hasUnsaved && <span style={{ color: 'var(--warning)' }}>{t('settingsadvanced.cambios_sin_guardar')}</span>}
+            <div className="u-text2-sm">
+              {filteredKeys.length} claves · {allKeys.length} total · {hasUnsaved && <span className="u-warning">{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <button onClick={() => saveAppTrans()} disabled={!hasUnsaved}
                 style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit' }}>
                 💾 Guardar traduccion
@@ -291,7 +300,7 @@ export function IdiomasSection() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IDIOMA A EDITAR</div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="u-row-6">
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button key={l.code} onClick={() => setPortalLang(l.code)}
                     style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -316,10 +325,10 @@ export function IdiomasSection() {
                   reader.onload = evt => {
                     try {
                       const data = JSON.parse(String(evt.target?.result ?? ''))
-                      setPortalEdits((prev: Record<string, any>) => {
-                        const merged: Record<string, any> = { ...prev }
-                        for (const [lang, keys] of Object.entries(data as Record<string, any>)) {
-                          for (const [key, value] of Object.entries(keys as Record<string, any>)) {
+                      setPortalEdits(prev => {
+                        const merged: EdicionesPortal = { ...prev }
+                        for (const [lang, keys] of Object.entries(data as Record<string, Record<string, string>>)) {
+                          for (const [key, value] of Object.entries(keys)) {
                             if (!merged[key]) merged[key] = {}
                             merged[key][lang] = value
                           }
@@ -358,7 +367,7 @@ export function IdiomasSection() {
               .map(({ key, base_es }, idx) => {
                 const currentVal = portalEdits[key]?.[portalLang]
                   ?? portalTrans[portalLang]?.[key]
-                  ?? (PORTAL_TRANSLATIONS as any)[portalLang]?.[key] ?? ''
+                  ?? TEXTOS_PORTAL[portalLang]?.[key] ?? ''
                 const isModified = portalEdits[key]?.[portalLang] !== undefined
                 return (
                   <div key={key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
@@ -367,7 +376,7 @@ export function IdiomasSection() {
                     <input
                       value={currentVal}
                       onChange={e => {
-                        setPortalEdits((prev: Record<string, any>) => ({ ...prev, [key]: { ...(prev[key] || {}), [portalLang]: e.target.value } }))
+                        setPortalEdits(prev => ({ ...prev, [key]: { ...(prev[key] || {}), [portalLang]: e.target.value } }))
                         setHasUnsaved(true)
                       }}
                       style={{ ...fs, padding: '4px 8px', borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
@@ -379,16 +388,16 @@ export function IdiomasSection() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+            <div className="u-text2-sm">
               {getPortalKeys().length} claves · 8 idiomas
               {hasUnsaved && <span style={{ color: 'var(--warning)', marginLeft: 8 }}>{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <button onClick={() => {
                 // Solo lo editado: el servidor lo fusiona por clave (vacío = quitar).
-                const cambios: Record<string, any> = {}
+                const cambios: Record<string, Record<string, string>> = {}
                 for (const [key, langs] of Object.entries(portalEdits)) {
-                  for (const [lang, val] of Object.entries(langs as Record<string, any>)) {
+                  for (const [lang, val] of Object.entries(langs)) {
                     if (!cambios[lang]) cambios[lang] = {}
                     cambios[lang][key] = val
                   }
@@ -407,6 +416,8 @@ export function IdiomasSection() {
   )
 }
 
+type VentanaConLogger = Window & { __contecflowLogger?: { setLevel: (level: string) => void } }
+
 export function LogLevelSection() {
   const { t } = useAppLang()
   const toast = useToast()
@@ -416,7 +427,7 @@ export function LogLevelSection() {
   )
   const qc = useQueryClient()
 
-  const { data: serverLevel, isLoading } = useQuery<any>({
+  const { data: serverLevel, isLoading } = useQuery({
     queryKey: ['log-level'],
     queryFn: () => settingsApi.logLevel().then(r => r.data),
   })
@@ -432,7 +443,7 @@ export function LogLevelSection() {
     try {
       const lvl = String(level).toUpperCase()
       setBackendLevel(lvl)
-      await settingsApi.setLogLevel({ level: lvl as any })
+      await settingsApi.setLogLevel({ level: lvl as LogLevel })
       toast.success(`Nivel backend cambiado a ${lvl}`)
       qc.invalidateQueries({ queryKey: ['log-level'] })
     } catch {
@@ -443,7 +454,8 @@ export function LogLevelSection() {
   const handleSetFrontend = (level: string) => {
     setFrontendLevel(level)
     localStorage.setItem('contecflow_log_level', level)
-    if ((window as any).__contecflowLogger) (window as any).__contecflowLogger.setLevel(level)
+    const logger = (window as VentanaConLogger).__contecflowLogger
+    if (logger) logger.setLevel(level)
     toast.success(`Nivel frontend cambiado a ${level.toUpperCase()} (activo hasta recarga)`)
   }
 
@@ -466,7 +478,7 @@ export function LogLevelSection() {
               </span>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="u-wrap-8">
             {LEVELS.map(l => (
               <button key={l} onClick={() => handleSetBackend(l)}
                 style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`,
@@ -487,7 +499,7 @@ export function LogLevelSection() {
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--success)', marginBottom: 12 }}>
             Nivel actual: <strong>{frontendLevel.toUpperCase()}</strong>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="u-wrap-8">
             {['DEBUG', 'INFO', 'WARN', 'ERROR', 'SILENT'].map(l => (
               <button key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
                 style={{ padding: '6px 14px', borderRadius: 8,
@@ -555,7 +567,7 @@ const SYSTEM_KEY_GROUPS = [
   },
 ]
 
-const isInternalKey = (key: any) => {
+const isInternalKey = (key: string | null | undefined) => {
   if (!key) return false
   const k = String(key).toLowerCase()
   if (k.includes('.')) return true
@@ -564,7 +576,7 @@ const isInternalKey = (key: any) => {
   return false
 }
 
-const groupForKey = (key: any) => {
+const groupForKey = (key: string) => {
   const k = String(key).toLowerCase()
   for (const g of SYSTEM_KEY_GROUPS) {
     if (g.prefixes.some(p => k.startsWith(p))) return g.label
@@ -572,8 +584,11 @@ const groupForKey = (key: any) => {
   return 'Otros'
 }
 
-const dedupeSettingsByKey = (rows: any[]) => {
-  const byKey = new Map<string, any>()
+/** Fila de `/settings/general`; el ámbito y la fecha solo llegan si el backend los añade. */
+type FilaAjuste = SettingOut & { organization_id?: string | null; organizationId?: string | null; updated_at?: string | null }
+
+const dedupeSettingsByKey = (rows: FilaAjuste[]) => {
+  const byKey = new Map<string, FilaAjuste>()
   for (const row of rows || []) {
     const key = String(row?.key || '')
     if (!key) continue
@@ -599,7 +614,7 @@ const dedupeSettingsByKey = (rows: any[]) => {
   return Array.from(byKey.values())
 }
 
-function tryFormatValue(raw: any) {
+function tryFormatValue(raw: unknown): string | null {
   if (raw == null || raw === '') return null
   if (typeof raw === 'object') {
     try { return JSON.stringify(raw, null, 2) } catch { return String(raw) }
@@ -616,7 +631,7 @@ function tryFormatValue(raw: any) {
   return raw
 }
 
-function SystemSettingItem({ setting }: { setting: any }) {
+function SystemSettingItem({ setting }: { setting: FilaAjuste }) {
   const [expanded, setExpanded] = useState(false)
   const formatted = tryFormatValue(setting.value)
   const isJson = formatted && (formatted.startsWith('{') || formatted.startsWith('['))
@@ -676,7 +691,7 @@ function AislamientoEnLaBase() {
   const { t } = useAppLang()
   const { data } = useQuery<{ armed: boolean; role?: string; tables_with_rls?: number; tables_expected?: number; reason?: string | null }>({
     queryKey: ['db-isolation'],
-    queryFn: () => settingsApi.dbIsolation().then(r => r.data as any),
+    queryFn: () => settingsApi.dbIsolation().then(r => r.data),
   })
   if (!data) return null
   const color = data.armed ? 'var(--success)' : 'var(--warning)'
@@ -694,14 +709,14 @@ function AislamientoEnLaBase() {
 
 export function SystemStateSection() {
   const { t } = useAppLang()
-  const { data: settings = [], isLoading } = useQuery<any[]>({
+  const { data: settings = [], isLoading } = useQuery<FilaAjuste[]>({
     queryKey: ['settings-general'],
-    queryFn: () => settingsApi.general().then(r => r.data as any),
+    queryFn: () => ajustesGeneralesApi.getGeneral().then(r => r.data),
   })
 
-  const internal = dedupeSettingsByKey((settings || []).filter((s: any) => isInternalKey(s.key)))
+  const internal = dedupeSettingsByKey((settings || []).filter(s => isInternalKey(s.key)))
   // Agrupar por grupo lógico
-  const grouped: Record<string, any[]> = {}
+  const grouped: Record<string, FilaAjuste[]> = {}
   for (const s of internal) {
     const label = groupForKey(s.key)
     if (!grouped[label]) grouped[label] = []
@@ -715,7 +730,7 @@ export function SystemStateSection() {
     <Section icon="🔧" title={t('settingsadvanced.estado_del_sistema')} description="Lectura del estado interno persistido por servicios BI / ITSM (admin · solo lectura)">
       <AislamientoEnLaBase />
       {isLoading ? (
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Cargando…</div>
+        <div className="u-text3-sm">Cargando…</div>
       ) : internal.length === 0 ? (
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
           {t('settingsadvanced.sin_estado_interno_registrado')}
@@ -728,7 +743,7 @@ export function SystemStateSection() {
             borderRadius: 10, padding: '10px 14px',
             fontSize: 'var(--text-xs)', color: 'var(--text-2)', lineHeight: 1.5,
           }}>
-            <strong style={{ color: 'var(--warning)' }}>{t('settingsadvanced.vista_de_solo_lectura')}</strong>{' '}
+            <strong className="u-warning">{t('settingsadvanced.vista_de_solo_lectura')}</strong>{' '}
             {t('settingsadvanced.estos_blobs_son_estado_interno_de_servicios')}<code style={{ fontFamily: 'var(--font-mono)' }}>/bi/govern</code>, <code style={{ fontFamily: 'var(--font-mono)' }}>/bi/data</code>,
             <code style={{ fontFamily: 'var(--font-mono)' }}>{t('settingsadvanced.service_desk_voz_ml_auto_resolucion')}</code>{t('settingsadvanced.editarlos_directamente_puede_romper_el_modulo_correspondiente')}
           </div>
@@ -757,7 +772,7 @@ export function SystemStateSection() {
                   }}>{items.length}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 10 }}>
-                  {items.map((s: any, idx: number) => {
+                  {items.map((s, idx) => {
                     const orgScope = s.organization_id ?? s.organizationId ?? 'global'
                     return <SystemSettingItem key={`${s.key}::${orgScope}::${idx}`} setting={s} />
                   })}
@@ -807,28 +822,28 @@ const RUNTIME_GROUPS = [
 export function RuntimeGroupEditor({ groupId, description }: { groupId: string; description?: string }) {
   const { t } = useAppLang()
   // Los ajustes de plataforma sólo los cambia el superadmin (revisión 2026-11).
-  const esSuperadmin = !!(useAuth().user as any)?.is_superadmin
+  const esSuperadmin = !!useAuth().user?.is_superadmin
   const toast = useToast()
   const qc = useQueryClient()
 
-  const { data, isLoading, isError, error } = useQuery<any>({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['runtime-flags', groupId],
     queryFn: () => settingsApi.runtimeGroup(groupId).then(r => r.data),
   })
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: any }) => settingsApi.setRuntime(groupId, key, value),
+    mutationFn: ({ key, value }: { key: string; value: string | boolean }) => settingsApi.setRuntime(groupId, key, value),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['runtime-flags', groupId] })
       toast.success('Guardado')
     },
-    onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [draft, setDraft] = useState<Record<string, any>>({})
+  const [draft, setDraft] = useState<Record<string, string>>({})
   useEffect(() => {
     if (data?.items) {
-      const next: Record<string, any> = {}
+      const next: Record<string, string> = {}
       for (const it of data.items) next[it.key] = it.value == null ? '' : String(it.value)
       setDraft(next)
     }
@@ -840,10 +855,10 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
   const items = data?.items || []
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{description}</div>
+    <div className="u-stack-14">
+      <div className="u-text2-sm">{description}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 200px auto', gap: 10, alignItems: 'center' }}>
-        {items.map((it: any) => {
+        {items.map(it => {
           const current = draft[it.key] ?? ''
           const isBool = it.type === 'bool'
           const dirty = String(it.value ?? '') !== String(current)
@@ -855,13 +870,13 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
               isBool={isBool}
               dirty={dirty}
               disabled={isPending || (it.plataforma && !esSuperadmin)}
-              onChange={(v: any) => setDraft({ ...draft, [it.key]: v })}
-              onSave={() => save({ key: it.key, value: isBool ? (current === 'true' || current === true) : current })}
+              onChange={v => setDraft({ ...draft, [it.key]: v })}
+              onSave={() => save({ key: it.key, value: isBool ? current === 'true' : current })}
             />
           )
         })}
       </div>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+      <div className="u-text3-xs">
         {t('settingsadvanced.los_cambios_reemplazan_el_valor_por_defecto')}
       </div>
     </div>
@@ -869,7 +884,7 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
 }
 
 
-function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSave }: { item: any; current: any; isBool: boolean; dirty: boolean; disabled: boolean; onChange: (v: any) => void; onSave: () => void }) {
+function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSave }: { item: RuntimeSetting; current: string; isBool: boolean; dirty: boolean; disabled: boolean; onChange: (v: string) => void; onSave: () => void }) {
   const inputStyle: CSSProperties = {
     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
     borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
@@ -917,41 +932,41 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
 
 // ── Integration credentials (Phase 2: encrypted per-org provider creds) ─────
 
-function IntegrationProviderEditor({ provider, label }: { provider: any; label?: string }) {
+function IntegrationProviderEditor({ provider, label }: { provider: IntegrationProvider; label?: string }) {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data, isLoading, isError, error } = useQuery<any>({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['integration', provider],
     queryFn: () => settingsApi.integrationProvider(provider).then(r => r.data),
   })
   const { mutate: save, isPending } = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: any }) => settingsApi.setIntegration(provider, key, value),
+    mutationFn: ({ key, value }: { key: string; value: string }) => settingsApi.setIntegration(provider, key, value),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['integration', provider] })
       toast.success('Guardado')
     },
-    onError: (e: any) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [testResult, setTestResult] = useState<any>(null)
+  const [testResult, setTestResult] = useState<IntegrationTestResult | null>(null)
   const { mutate: runTest, isPending: testing } = useMutation({
     mutationFn: () => settingsApi.testIntegration(provider).then(r => r.data),
-    onSuccess: (result: any) => {
+    onSuccess: result => {
       setTestResult(result)
       if (result?.ok) toast.success(result.detail || 'Conexión OK')
       else toast.error(result?.detail || 'Test de conexión falló')
     },
-    onError: (e: any) => {
+    onError: (e: unknown) => {
       setTestResult({ ok: false, detail: extractErr(e, GENERIC_ERROR_FALLBACK) })
       toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
     },
   })
 
-  const [draft, setDraft] = useState<Record<string, any>>({})
+  const [draft, setDraft] = useState<Record<string, string>>({})
   useEffect(() => {
     if (data?.items) {
-      const next: Record<string, any> = {}
+      const next: Record<string, string> = {}
       // Secrets never echo back — start as empty so admin types the new value.
       for (const it of data.items) next[it.key] = it.is_secret ? '' : (it.value == null ? '' : String(it.value))
       setDraft(next)
@@ -967,10 +982,10 @@ function IntegrationProviderEditor({ provider, label }: { provider: any; label?:
     <form
       onSubmit={(e) => e.preventDefault()}
       autoComplete="off"
-      style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+      className="u-stack-14"
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+        <div className="u-text2-sm">
           {label}{t('settingsadvanced.valores_cifrados_en_reposo_resuelven_org_global')}
         </div>
         <button
@@ -998,7 +1013,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: any; label?:
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px auto auto', gap: 10, alignItems: 'center' }}>
-        {items.map((it: any) => {
+        {items.map(it => {
           const inputStyle: CSSProperties = {
             width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
@@ -1060,7 +1075,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: any; label?:
 
 export function IntegrationCredentialsSection() {
   const { t } = useAppLang()
-  const { data, isLoading, isError, error } = useQuery<any>({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['integration-providers'],
     queryFn: () => settingsApi.integrations().then(r => r.data),
   })
@@ -1068,7 +1083,7 @@ export function IntegrationCredentialsSection() {
   // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
   // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
   const providers = useMemo(() => data?.providers || [], [data?.providers])
-  const [active, setActive] = useState<any>(null)
+  const [active, setActive] = useState<IntegrationProvider | null>(null)
   useEffect(() => {
     if (!active && providers.length) setActive(providers[0].provider)
   }, [providers, active])
@@ -1076,7 +1091,7 @@ export function IntegrationCredentialsSection() {
   if (isLoading) return <Section icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div></Section>
   if (isError)   return <Section icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></Section>
 
-  const currentProvider = providers.find((p: any) => p.provider === active)
+  const currentProvider = providers.find(p => p.provider === active)
 
   return (
     <Section
@@ -1086,7 +1101,7 @@ export function IntegrationCredentialsSection() {
     >
       <EstadoDeConectores />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        {providers.map((p: any) => (
+        {providers.map(p => (
           <button
             key={p.provider}
             onClick={() => setActive(p.provider)}

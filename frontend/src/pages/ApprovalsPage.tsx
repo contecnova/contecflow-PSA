@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { ComponentProps, CSSProperties, MouseEvent } from 'react'
 import CondicionesDelFlujo from '../components/aprobaciones/CondicionesDelFlujo'
 import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -14,10 +14,11 @@ import {
   CheckCircle, CheckCircle2, Info, Trash2,
   Clock as ClockIcon, Users, BarChart3, Sparkles, Layers,
 } from 'lucide-react'
-import { Button, Modal, EmptyState, Tabs, Page } from '../components/ui'
+import { Button, Modal, EmptyState, Tabs, Page, Table } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { UserSelect } from '../components/ui/EntitySelect'
+import DateInput from '../components/ui/DateInput'
 
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -57,8 +58,171 @@ const approverTypeLabels = (t: (k: string) => string): Record<string, string> =>
 
 const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finance']
 
+// Formas de las respuestas de /approvals (el backend devuelve dicts: se
+// describen los campos que usa esta pantalla).
+
+/** Paso de un flujo (`StepIn` en app/schemas/approvals.py + nombre del aprobador). */
+interface ApprovalStep {
+  id: string
+  step_order: number
+  name: string
+  approver_type: string
+  approver_role?: string | null
+  approver_user_id?: string | null
+  approver_user_name?: string | null
+  approver_department?: string | null
+  is_optional?: boolean
+  timeout_hours?: number
+  on_timeout?: string
+  approver_group_id?: string | null
+  parallel_quorum?: boolean
+  required_approvals?: number
+  step_condition?: string | null
+  requires_attachment?: boolean
+  reminder_hours?: number | null
+}
+
+/** Flujo de aprobación (`WorkflowIn` + id, estado y pasos). */
+interface ApprovalWorkflow {
+  id: string
+  name: string
+  description?: string | null
+  entity_type: string
+  is_default?: boolean
+  is_active?: boolean
+  trigger_conditions?: string | null
+  step_count?: number
+  steps?: ApprovalStep[]
+}
+
+interface WorkflowTemplate {
+  id: string
+  name: string
+  description?: string | null
+  entity_type: string
+  steps?: unknown[]
+}
+
+interface ApprovalGroup {
+  id: string
+  name: string
+  description?: string | null
+  /** Lista de ids de usuario serializada como JSON. */
+  member_ids?: string | null
+}
+
+/** Solicitud pendiente de mi decisión (`/approvals/requests/pending-my-action`). */
+interface PendingRequest {
+  id: string
+  entity_type: string
+  entity_id: string
+  entity_summary?: string | null
+  step_name?: string | null
+  step_order?: number
+  requester_name?: string
+  created_at?: string
+}
+
+interface ApprovalStats {
+  pending?: number
+  approved?: number
+  rejected?: number
+}
+
+interface SimulationPayload {
+  entity_type: string
+  context: { category: string; department: string; amount?: number; requested_by_user_id?: string }
+}
+
+interface SimulationRouteStep {
+  step_order: number
+  step_name: string
+  resolved_approver?: string | null
+  timeout_hours?: number
+  on_timeout?: string
+}
+
+interface SimulationResult {
+  matched: boolean
+  reason?: string
+  workflow?: { name: string } | null
+  estimated_total_timeout_hours?: number
+  route?: SimulationRouteStep[]
+}
+
+interface BottleneckItem {
+  workflow_id: string
+  workflow_name: string
+  step_order: number
+  step_name: string
+  decisions_total: number
+  avg_decision_time_hours: number
+  rejection_rate_pct: number
+  pending_count: number
+  sla_risk_pct: number
+  bottleneck_score: number
+}
+
+interface BottleneckSummary {
+  steps_analyzed: number
+  critical_steps: number
+  pending_total: number
+  avg_decision_time_hours: number
+}
+
+interface WorkflowAtRisk {
+  workflow_id?: string
+  workflow_name: string
+  avg_bottleneck_score: number
+  max_sla_risk_pct: number
+  pending_total: number
+}
+
+interface WeeklyRejection {
+  week: string
+  rejection_rate_pct: number
+}
+
+interface Recommendation {
+  priority: string
+  title: string
+  action: string
+  why: string
+}
+
+/** `/approvals/analytics/bottlenecks`. */
+interface BottlenecksResponse {
+  items?: BottleneckItem[]
+  summary?: BottleneckSummary
+  top_workflows?: WorkflowAtRisk[]
+  weekly_trend?: WeeklyRejection[]
+  recommendations?: Recommendation[]
+}
+
+interface ApproverLoadRow {
+  user_name: string
+  pending_count?: number
+  avg_response_hours?: number | null
+  rejection_rate?: number | null
+  load_score?: number | null
+}
+
+/** `/approvals/analytics/approver-load`. */
+interface ApproverLoadResponse {
+  load?: ApproverLoadRow[]
+  overloaded_approvers?: string[]
+}
+
+type CondicionesDeDisparo = ComponentProps<typeof CondicionesDelFlujo>['actuales']
+
+interface GroupForm {
+  name: string
+  description: string
+  member_ids: string[]
+}
+
 // ── Modal de paso ─────────────────────────────────────────────────────────────
-function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; onClose: () => void }) {
+function StepModal({ workflowId, step, onClose }: { workflowId: string; step: ApprovalStep | null; onClose: () => void }) {
   const traducir = useAppT()
   const t = useAppT()
   const idPrefix = useId()
@@ -85,22 +249,22 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
     reminder_hours:      step?.reminder_hours      || '',
   })
 
-  const { data: users = [] } = useQuery<any[]>({
+  const { data: users = [] } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
   })
 
-  const { data: groups = [] } = useQuery<any[]>({
+  const { data: groups = [] } = useQuery<ApprovalGroup[]>({
     queryKey: ['approval-groups'],
     queryFn: () => approvalsApi.listGroups().then(r => r.data),
   })
-  const { data: depts = [] } = useQuery<any[]>({
+  const { data: depts = [] } = useQuery({
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => isEdit
+    mutationFn: (d: typeof form) => isEdit
       ? approvalsApi.updateStep(workflowId, step.id, d)
       : approvalsApi.addStep(workflowId, d),
     onSuccess: () => {
@@ -122,7 +286,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
           <label htmlFor={`${idPrefix}-order`} style={lbl}>{t('approvals.order')}</label>
           <input id={`${idPrefix}-order`} type="number" value={form.step_order} onChange={e => setForm(f=>({...f,step_order:+e.target.value}))} style={inp} min="1" max="10" />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-approver-type`} style={lbl}>{t('approvals.approver_type')}</label>
           <select id={`${idPrefix}-approver-type`} value={form.approver_type} onChange={e => setForm(f=>({...f,approver_type:e.target.value}))} style={inp}>
             {Object.entries(approverTypeLabels(t)).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
@@ -130,7 +294,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
         </div>
 
         {form.approver_type === 'role' && (
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="u-col-full">
             <label htmlFor={`${idPrefix}-approver-role`} style={lbl}>{t('approvals.required_role')}</label>
             <select id={`${idPrefix}-approver-role`} value={form.approver_role} onChange={e => setForm(f=>({...f,approver_role:e.target.value}))} style={inp}>
               <option value="">{t('approvals.select_role')}</option>
@@ -140,7 +304,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
         )}
 
         {form.approver_type === 'user' && (
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="u-col-full">
             <label htmlFor={`${idPrefix}-approver-user`} style={lbl}>{t('approvals.approver_user_label')}</label>
             <select id={`${idPrefix}-approver-user`} value={form.approver_user_id} onChange={e => setForm(f=>({...f,approver_user_id:e.target.value}))} style={inp}>
               <option value="">{t('approvals.select_user')}</option>
@@ -150,7 +314,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
         )}
 
         {form.approver_type === 'any_in_department' && (
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="u-col-full">
             <label htmlFor={`${idPrefix}-approver-department`} style={lbl}>{t('approvals.department')}</label>
             <select id={`${idPrefix}-approver-department`} value={form.approver_department} onChange={e => setForm(f=>({...f,approver_department:e.target.value}))} style={inp}>
               <option value="">{traducir('approvals.sin_departamento')}</option>
@@ -171,7 +335,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
             <option value="reject">{t('approvals.timeout_reject')}</option>
           </select>
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-is-optional`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
             <input id={`${idPrefix}-is-optional`} type="checkbox" checked={form.is_optional} onChange={e => setForm(f=>({...f,is_optional:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
             {t('approvals.optional_step_label')}
@@ -180,7 +344,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
 
         {/* ── v2 enterprise fields ── */}
         {form.approver_type === 'group' && (
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="u-col-full">
             <label htmlFor={`${idPrefix}-group`} style={lbl}>{traducir('approvals.grupo_de_aprobadores')}</label>
             <select id={`${idPrefix}-group`} value={form.approver_group_id} onChange={e => setForm(f=>({...f,approver_group_id:e.target.value}))} style={inp}>
               <option value="">— Seleccionar grupo —</option>
@@ -189,7 +353,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
           </div>
         )}
 
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
             <input type="checkbox" checked={form.parallel_quorum} onChange={e => setForm(f=>({...f,parallel_quorum:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
             {traducir('approvals.quorum_paralelo_varios_aprobadores_simultaneos')}
@@ -210,14 +374,14 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
             onChange={e => setForm(f=>({...f,reminder_hours:e.target.value ? +e.target.value : ''}))} style={inp} placeholder="p.e. 24" />
         </div>
 
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
             <input type="checkbox" checked={form.requires_attachment} onChange={e => setForm(f=>({...f,requires_attachment:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
             {traducir('approvals.requiere_adjunto_obligatorio_para_aprobar')}
           </label>
         </div>
 
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-condition`} style={lbl}>{traducir('approvals.condicion_de_paso_json_opcional')}</label>
           <textarea id={`${idPrefix}-condition`} value={form.step_condition} rows={2}
             onChange={e => setForm(f=>({...f,step_condition:e.target.value}))}
@@ -228,7 +392,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
           </p>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <div className="u-actions-8">
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
         <Button onClick={() => mutate(form)} loading={isPending} disabled={!form.name || isPending}>
           {isEdit ? t('approvals.save_step') : t('approvals.add_step')}
@@ -239,34 +403,34 @@ function StepModal({ workflowId, step, onClose }: { workflowId: any; step: any; 
 }
 
 // ── Detalle de flujo ──────────────────────────────────────────────────────────
-function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () => void }) {
+function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: () => void }) {
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showStep, setShowStep] = useState(false)
-  const [editStep, setEditStep] = useState<any>(null)
+  const [editStep, setEditStep] = useState<ApprovalStep | null>(null)
 
-  const { data: wf } = useQuery<any>({
+  const { data: wf } = useQuery<ApprovalWorkflow>({
     queryKey: ['approval-workflow', workflowId],
     queryFn: () => approvalsApi.getWorkflow(workflowId).then(r => r.data),
   })
 
   const { mutate: delStep } = useMutation({
-    mutationFn: (sid: any) => approvalsApi.deleteStep(workflowId, sid),
+    mutationFn: (sid: string) => approvalsApi.deleteStep(workflowId, sid),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }); toast.success(t('approvals.step_deleted')) },
 
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
   const { mutate: toggleActive } = useMutation({
-    mutationFn: (val: any) => approvalsApi.updateWorkflow(workflowId, { is_active: val }),
+    mutationFn: (val: boolean) => approvalsApi.updateWorkflow(workflowId, { is_active: val }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }),
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
   const { mutate: updateCategory } = useMutation({
-    mutationFn: (cat: any) => approvalsApi.updateWorkflow(workflowId, {
+    mutationFn: (cat: string) => approvalsApi.updateWorkflow(workflowId, {
       trigger_conditions: cat ? JSON.stringify({ category: cat }) : '{}'
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] }); toast.success('Categoría actualizada') },
@@ -276,10 +440,10 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () =>
   const [editingCategory, setEditingCategory] = useState(false)
 
   if (!wf) return null
-  const steps = [...(wf.steps || [])].sort((a: any, b: any) => a.step_order - b.step_order)
+  const steps = [...(wf.steps || [])].sort((a, b) => a.step_order - b.step_order)
   const entity = entityLabels(t)[wf.entity_type] || { label: wf.entity_type, icon: '○', color: 'var(--text-2)' }
 
-  let parsedConditions: any = {}
+  let parsedConditions: CondicionesDeDisparo = {}
   try { parsedConditions = JSON.parse(wf.trigger_conditions || '{}') } catch (_) {}
   const configuredCategory = parsedConditions.category || ''
 
@@ -303,9 +467,9 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () =>
       )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
         <button aria-label={t('approvals.back')} onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('approvals.back')}</button>
-        <div style={{ flex: 1 }}>
+        <div className="u-flex1">
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>{wf.name}</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+          <div className="u-text2-sm">
             <span style={{ color: entity.color }}>{entity.icon} {entity.label}</span>
             {wf.is_default && <span style={{ marginLeft: 8, fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{t('approvals.default_badge')}</span>}
             {!wf.is_active && <span style={{ marginLeft: 8, fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)' }}>{t('approvals.inactive_badge')}</span>}
@@ -367,13 +531,13 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () =>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{step.name}</div>
-                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                      <div className="u-text2-sm">
                         {approverTypeLabels(t)[step.approver_type]}
                         {step.approver_role && ` · ${t('approvals.role_prefix')}: ${step.approver_role}`}
                         {step.approver_user_name && ` · ${step.approver_user_name}`}
                         {step.approver_department && ` · ${t('approvals.dept_prefix')}: ${step.approver_department}`}
                       </div>
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>
+                      <div className="u-hint">
                         {t('approvals.timeout_summary', {
                           hours: step.timeout_hours,
                           action: step.on_timeout === 'escalate'
@@ -385,7 +549,7 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: any; onBack: () =>
                         {step.is_optional && ` · ${t('approvals.optional_short')}`}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div className="u-row-6">
                       <button aria-label={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
                       <button aria-label={t('approvals.delete_step_aria', { name: step.name })} onClick={() => { openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                     </div>
@@ -442,10 +606,10 @@ function FueraDeLaOficina() {
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 4 }}>Delegar en</div>
           <UserSelect value={actual.delegate_id} onChange={id => setForm({ ...actual, delegate_id: id })} placeholder="Elige a quién" />
         </div>
-        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Desde<br />
-          <input type="date" value={actual.away_from} onChange={e => setForm({ ...actual, away_from: e.target.value })} style={campo} /></label>
-        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Hasta<br />
-          <input type="date" value={actual.away_until} onChange={e => setForm({ ...actual, away_until: e.target.value })} style={campo} /></label>
+        <label className="u-text3-xs">Desde<br />
+          <DateInput value={actual.away_from} onChange={e => setForm({ ...actual, away_from: e.target.value })} style={campo} /></label>
+        <label className="u-text3-xs">Hasta<br />
+          <DateInput value={actual.away_until} onChange={e => setForm({ ...actual, away_until: e.target.value })} style={campo} /></label>
         <Button size="sm" disabled={isPending || !actual.delegate_id || !actual.away_from || !actual.away_until} onClick={() => guardar(actual)}>Guardar</Button>
         {data?.delegate_id && <Button size="sm" variant="secondary" disabled={isPending} onClick={() => guardar({ delegate_id: '', away_from: '', away_until: '' })}>Quitar</Button>}
       </div>
@@ -459,11 +623,11 @@ function MyPendingTab() {
   const { user, loading } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selectedIds, setSelectedIds] = useState<Set<any>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [entityFilter, setEntityFilter] = useState('all')
   const [sortMode, setSortMode] = useState('oldest') // oldest | newest
 
-  const { data: pending = [], isLoading } = useQuery<any[]>({
+  const { data: pending = [], isLoading } = useQuery<PendingRequest[]>({
     queryKey: ['approvals-pending-me'],
     queryFn: () => approvalsApi.pendingMyAction().then(r => r.data),
     refetchInterval: 30000,
@@ -471,7 +635,7 @@ function MyPendingTab() {
   })
 
   const { mutate: decide, isPending: deciding } = useMutation({
-    mutationFn: ({ id, decision, note }: { id: any; decision: string; note?: string }) => approvalsApi.decide(id, { decision, note }),
+    mutationFn: ({ id, decision, note }: { id: string; decision: string; note?: string }) => approvalsApi.decide(id, { decision, note }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['approvals-pending-me'] })
       // Cascade to the affected entity caches (approval could be for timesheets, expenses, or absences)
@@ -509,25 +673,25 @@ function MyPendingTab() {
     }
   }
 
-  const toggleSelect = (id: any) => setSelectedIds(prev => {
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
     const next = new Set(prev)
     next.has(id) ? next.delete(id) : next.add(id)
     return next
   })
 
   const toggleAll = () => setSelectedIds(prev =>
-    prev.size === queue.length ? new Set() : new Set(queue.map((r: any) => r.id))
+    prev.size === queue.length ? new Set() : new Set(queue.map(r => r.id))
   )
 
   const queue = pending
-    .filter((r: any) => entityFilter === 'all' ? true : r.entity_type === entityFilter)
-    .sort((a: any, b: any) => {
+    .filter(r => entityFilter === 'all' ? true : r.entity_type === entityFilter)
+    .sort((a, b) => {
       const ta = new Date(a.created_at || 0).getTime()
       const tb = new Date(b.created_at || 0).getTime()
       return sortMode === 'oldest' ? ta - tb : tb - ta
     })
 
-  const statsByEntity: Record<string, number> = pending.reduce((acc: Record<string, number>, r: any) => {
+  const statsByEntity: Record<string, number> = pending.reduce((acc: Record<string, number>, r) => {
     acc[r.entity_type] = (acc[r.entity_type] || 0) + 1
     return acc
   }, {})
@@ -599,7 +763,7 @@ function MyPendingTab() {
         )}
       </div>
       <div data-export-table="approvals-export" className="ds-stack-sm">
-        {queue.map((req: any) => {
+        {queue.map(req => {
           const entity = entityLabels(t)[req.entity_type] || { label: req.entity_type, icon: '○', color: 'var(--text-2)' }
           const ageHours = Math.max(0, Math.floor((Date.now() - new Date(req.created_at || Date.now()).getTime()) / 3600000))
           const isUrgent = ageHours >= 24
@@ -617,7 +781,7 @@ function MyPendingTab() {
                   onChange={() => toggleSelect(req.id)}
                   style={{ width: 15, height: 15, marginTop: 4, cursor: 'pointer', flexShrink: 0, accentColor: 'var(--accent)' }}
                 />
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <div className="ds-row-wrap" style={{ marginBottom: 6 }}>
                     <span className="ds-pill" style={{
                       background: alpha(entity.color, '20'), color: entity.color,
@@ -626,7 +790,7 @@ function MyPendingTab() {
                       {entity.icon} {entity.label}
                     </span>
                     {req.step_name && (
-                      <span className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                      <span className="ds-muted u-xs">
                         {t('approvals.step_n', { order: req.step_order })}: {req.step_name}
                       </span>
                     )}
@@ -691,16 +855,16 @@ function WorkflowTemplatesTab() {
     ],
   })
 
-  const { data: templates = [], isLoading } = useQuery<any[]>({
+  const { data: templates = [], isLoading } = useQuery<WorkflowTemplate[]>({
     queryKey: ['approval-workflow-templates'],
     queryFn: () => approvalsApi.listTemplates().then(r => r.data || []),
   })
-  const { data: depts = [] } = useQuery<any[]>({
+  const { data: depts = [] } = useQuery({
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
   const { mutate: createFromTemplate, isPending } = useMutation({
-    mutationFn: (payload: any) => approvalsApi.createFromTemplate(payload),
+    mutationFn: (payload: { template_id: string }) => approvalsApi.createFromTemplate(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['approval-workflows'] })
       toast.success('Flujo creado desde plantilla')
@@ -709,7 +873,7 @@ function WorkflowTemplatesTab() {
   })
 
   const { mutate: createScratchWorkflow, isPending: isCreatingScratch } = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: typeof scratch) => {
       const triggerConditions = payload.entity_type === 'document' && payload.document_category
         ? JSON.stringify({ category: payload.document_category })
         : '{}'
@@ -724,8 +888,8 @@ function WorkflowTemplatesTab() {
 
       const workflowId = created?.data?.id
       const normalizedSteps = (payload.steps || [])
-        .filter((s: any) => (s.name || '').trim())
-        .map((s: any, idx: number) => ({
+        .filter(s => (s.name || '').trim())
+        .map((s, idx) => ({
           step_order: idx + 1,
           name: s.name.trim(),
           approver_type: s.approver_type,
@@ -786,7 +950,7 @@ function WorkflowTemplatesTab() {
     }))
   }
 
-  const updateScratchStep = (index: number, field: string, value: any) => {
+  const updateScratchStep = (index: number, field: keyof typeof scratch.steps[number], value: string) => {
     setScratch(s => ({
       ...s,
       steps: s.steps.map((step, idx) => (idx === index ? { ...step, [field]: value } : step)),
@@ -800,7 +964,7 @@ function WorkflowTemplatesTab() {
     }))
   }
 
-  const canCreateScratch = (scratch.name || '').trim().length > 0 && (scratch.steps || []).some((s: any) => (s.name || '').trim().length > 0)
+  const canCreateScratch = (scratch.name || '').trim().length > 0 && (scratch.steps || []).some(s => (s.name || '').trim().length > 0)
 
   return (
     <>
@@ -816,7 +980,7 @@ function WorkflowTemplatesTab() {
 
       {!isLoading && templates.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
-          {templates.map((tpl: any) => (
+          {templates.map(tpl => (
             <div key={tpl.id} style={{ ...panel, padding: '14px 16px' }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>{tpl.name}</div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{tpl.description || 'Plantilla de flujo lista para usar.'}</div>
@@ -841,12 +1005,12 @@ function WorkflowTemplatesTab() {
               </select>
             </div>
             {scratch.entity_type === 'document' && (
-              <div style={{ gridColumn: '1/-1' }}>
+              <div className="u-col-full">
                 <label htmlFor={`${idPrefix}-scratch-category`} style={lbl}>Categoria documento (opcional)</label>
                 <input id={`${idPrefix}-scratch-category`} value={scratch.document_category} onChange={e => setScratch(s => ({ ...s, document_category: e.target.value }))} style={inp} placeholder="legal, deliverable, proposal..." />
               </div>
             )}
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="u-col-full">
               <label htmlFor={`${idPrefix}-scratch-description`} style={lbl}>Descripcion</label>
               <input id={`${idPrefix}-scratch-description`} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} style={inp} placeholder="Flujo creado manualmente desde plantillas" />
             </div>
@@ -932,15 +1096,15 @@ function WorkflowSimulatorTab() {
   const [department, setDepartment] = useState('')
   const [amount, setAmount] = useState('')
   const [requestedByUserId, setRequestedByUserId] = useState('')
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<SimulationResult | null>(null)
   const toast = useToast()
-  const { data: depts = [] } = useQuery<any[]>({
+  const { data: depts = [] } = useQuery({
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
 
   const { mutate: simulate, isPending } = useMutation({
-    mutationFn: (payload: any) => approvalsApi.simulate(payload),
+    mutationFn: (payload: SimulationPayload) => approvalsApi.simulate(payload),
     onSuccess: (res) => setResult(res.data),
     onError: e => toast.error(extractErr(e, 'Error simulando flujo')),
   })
@@ -993,11 +1157,11 @@ function WorkflowSimulatorTab() {
             <>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>Flujo seleccionado: {result.workflow?.name}</div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>SLA estimado total: {result.estimated_total_timeout_hours}h</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(result.route || []).map((step: any) => (
+              <div className="u-stack-8">
+                {(result.route || []).map(step => (
                   <div key={step.step_order} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', background: 'var(--surface-3)' }}>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>Paso {step.step_order}: {step.step_name}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Aprobador: {step.resolved_approver || 'No resoluble'} · Timeout: {step.timeout_hours}h · On timeout: {step.on_timeout}</div>
+                    <div className="u-text2-xs">Aprobador: {step.resolved_approver || 'No resoluble'} · Timeout: {step.timeout_hours}h · On timeout: {step.on_timeout}</div>
                   </div>
                 ))}
               </div>
@@ -1009,9 +1173,9 @@ function WorkflowSimulatorTab() {
   )
 }
 
-function exportBottlenecksCSV(items: any[], recommendations: any[], days: number, workflowFilterName: string | null) {
+function exportBottlenecksCSV(items: BottleneckItem[], recommendations: Recommendation[], days: number, workflowFilterName: string | null) {
   const header = ['Workflow', 'Paso', 'Step name', 'Decisiones', 'Avg h', 'Reject %', 'Pending', 'SLA risk %', 'Score']
-  const rows = items.map((it: any) => [
+  const rows = items.map(it => [
     it.workflow_name,
     it.step_order,
     it.step_name,
@@ -1024,10 +1188,10 @@ function exportBottlenecksCSV(items: any[], recommendations: any[], days: number
   ])
 
   const recHeader = ['Priority', 'Title', 'Action', 'Why']
-  const recRows = recommendations.map((r: any) => [r.priority, r.title, r.action, r.why])
+  const recRows = recommendations.map(r => [r.priority, r.title, r.action, r.why])
 
-  const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
-  const toCSV = (hdr: any[], data: any[]) => [hdr, ...data].map((r: any) => r.map(escape).join(',')).join('\n')
+  const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const toCSV = (hdr: unknown[], data: unknown[][]) => [hdr, ...data].map(r => r.map(escape).join(',')).join('\n')
 
   const label = workflowFilterName ? `Workflow: ${workflowFilterName}` : 'Todos los flujos'
   const content = [
@@ -1054,43 +1218,43 @@ function WorkflowBottlenecksTab() {
   const [days, setDays] = useState(90)
   const [workflowFilter, setWorkflowFilter] = useState('')
 
-  const { data: workflowsData = [] } = useQuery<any[]>({
+  const { data: workflowsData = [] } = useQuery<ApprovalWorkflow[]>({
     queryKey: ['approval-workflows'],
     queryFn: () => approvalsApi.listWorkflows(undefined).then(r => r.data),
   })
 
   const params = { days, ...(workflowFilter ? { workflow_id: workflowFilter } : {}) }
-  const { data, isLoading, refetch, isFetching } = useQuery<any>({
+  const { data, isLoading, refetch, isFetching } = useQuery<BottlenecksResponse>({
     queryKey: ['approval-bottlenecks', days, workflowFilter],
     queryFn: () => approvalsApi.bottlenecks(params).then(r => r.data),
   })
 
-  const items: any[] = data?.items || []
-  const summary = data?.summary || {
+  const items: BottleneckItem[] = data?.items || []
+  const summary: BottleneckSummary = data?.summary || {
     steps_analyzed: items.length,
-    critical_steps: items.filter((it: any) => it.sla_risk_pct >= 80 || it.pending_count >= 3 || it.rejection_rate_pct >= 25).length,
-    pending_total: items.reduce((acc: number, it: any) => acc + (it.pending_count || 0), 0),
-    avg_decision_time_hours: items.length ? Number((items.reduce((acc: number, it: any) => acc + (it.avg_decision_time_hours || 0), 0) / items.length).toFixed(2)) : 0,
+    critical_steps: items.filter(it => it.sla_risk_pct >= 80 || it.pending_count >= 3 || it.rejection_rate_pct >= 25).length,
+    pending_total: items.reduce((acc: number, it) => acc + (it.pending_count || 0), 0),
+    avg_decision_time_hours: items.length ? Number((items.reduce((acc: number, it) => acc + (it.avg_decision_time_hours || 0), 0) / items.length).toFixed(2)) : 0,
   }
-  const topWorkflows: any[] = data?.top_workflows || []
-  const weeklyTrend: any[] = data?.weekly_trend || []
-  const recommendations: any[] = data?.recommendations || []
+  const topWorkflows: WorkflowAtRisk[] = data?.top_workflows || []
+  const weeklyTrend: WeeklyRejection[] = data?.weekly_trend || []
+  const recommendations: Recommendation[] = data?.recommendations || []
 
   const selectedWorkflowName = workflowFilter
     ? (workflowsData.find(w => w.id === workflowFilter)?.name || workflowFilter)
     : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-stack-12">
       <div style={{ ...panel, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Ventana</span>
+        <span className="u-text2-sm">Ventana</span>
         <select value={String(days)} onChange={e => setDays(Number(e.target.value))} style={{ ...inp, width: 130 }}>
           <option value="30">30 dias</option>
           <option value="60">60 dias</option>
           <option value="90">90 dias</option>
           <option value="180">180 dias</option>
         </select>
-        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Flujo</span>
+        <span className="u-text2-sm">Flujo</span>
         <select value={workflowFilter} onChange={e => setWorkflowFilter(e.target.value)} style={{ ...inp, width: 200 }}>
           <option value="">{traducir('approvals.todos_los_flujos')}</option>
           {workflowsData.map(w => (
@@ -1129,11 +1293,11 @@ function WorkflowBottlenecksTab() {
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
               <div style={{ ...panel, padding: '12px 14px' }}>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Top workflows at risk</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="u-stack-8">
                   {topWorkflows.map((wf, idx) => (
                     <div key={wf.workflow_id || idx} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, alignItems: 'center', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', background: 'var(--surface-3)' }}>
                       <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{wf.workflow_name}</span>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>Score {wf.avg_bottleneck_score}</span>
+                      <span className="u-text2-xs">Score {wf.avg_bottleneck_score}</span>
                       <span style={{ fontSize: 'var(--text-xs)', color: wf.max_sla_risk_pct >= 80 ? 'var(--danger)' : wf.max_sla_risk_pct >= 50 ? 'var(--warning)' : 'var(--success)' }}>SLA {wf.max_sla_risk_pct}%</span>
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>Pend {wf.pending_total}</span>
                     </div>
@@ -1144,16 +1308,16 @@ function WorkflowBottlenecksTab() {
               <div style={{ ...panel, padding: '12px 14px' }}>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Weekly rejection trend</div>
                 {weeklyTrend.length === 0 ? (
-                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{traducir('approvals.sin_tendencia_semanal_disponible')}</div>
+                  <div className="u-text2-sm">{traducir('approvals.sin_tendencia_semanal_disponible')}</div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="u-stack-6">
                     {weeklyTrend.slice(-8).map(row => (
                       <div key={row.week} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 52px', gap: 8, alignItems: 'center' }}>
                         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{row.week}</span>
                         <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-4)', overflow: 'hidden' }}>
                           <div style={{ width: `${Math.min(100, row.rejection_rate_pct)}%`, height: '100%', background: row.rejection_rate_pct >= 25 ? 'var(--danger)' : row.rejection_rate_pct >= 10 ? 'var(--warning)' : 'var(--success)' }} />
                         </div>
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{row.rejection_rate_pct}%</span>
+                        <span className="u-text2-xs">{row.rejection_rate_pct}%</span>
                       </div>
                     ))}
                   </div>
@@ -1165,10 +1329,10 @@ function WorkflowBottlenecksTab() {
           {recommendations.length > 0 && (
             <div style={{ ...panel, padding: '12px 14px' }}>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Recommended actions</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="u-stack-8">
                 {recommendations.map((rec, idx) => (
                   <div key={`${rec.title}-${idx}`} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, background: 'var(--surface-3)', padding: '10px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="u-row-center-8">
                       <span style={{ fontSize: 'var(--text-xs)', color: rec.priority === 'high' ? 'var(--danger)' : 'var(--warning)', textTransform: 'uppercase', fontWeight: 700 }}>{rec.priority}</span>
                       <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{rec.title}</span>
                     </div>
@@ -1194,10 +1358,10 @@ function WorkflowBottlenecksTab() {
               <div key={`${it.workflow_id}-${it.step_order}`} style={{ display: 'grid', gridTemplateColumns: '1.5fr 70px 90px 90px 90px 90px 90px', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{it.workflow_name}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Paso {it.step_order}: {it.step_name}</div>
+                  <div className="u-text3-xs">Paso {it.step_order}: {it.step_name}</div>
                 </div>
-                <span style={{ fontSize: 'var(--text-sm)' }}>{it.decisions_total}</span>
-                <span style={{ fontSize: 'var(--text-sm)' }}>{it.avg_decision_time_hours}</span>
+                <span className="u-sm">{it.decisions_total}</span>
+                <span className="u-sm">{it.avg_decision_time_hours}</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: it.rejection_rate_pct >= 20 ? 'var(--danger)' : 'var(--text-2)' }}>{it.rejection_rate_pct}%</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: it.pending_count > 0 ? 'var(--warning)' : 'var(--text-2)' }}>{it.pending_count}</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: it.sla_risk_pct >= 80 ? 'var(--danger)' : it.sla_risk_pct >= 50 ? 'var(--warning)' : 'var(--success)' }}>{it.sla_risk_pct}%</span>
@@ -1216,20 +1380,20 @@ function ApprovalGroupsTab() {
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const { data: groups = [], isLoading } = useQuery<any[]>({
+  const { data: groups = [], isLoading } = useQuery<ApprovalGroup[]>({
     queryKey: ['approval-groups'],
     queryFn: () => approvalsApi.listGroups().then(r => r.data),
   })
-  const { data: users = [] } = useQuery<any[]>({
+  const { data: users = [] } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
   })
   const [showCreate, setShowCreate] = useState(false)
-  const [editGroup, setEditGroup] = useState<any>(null)
-  const [form, setForm] = useState<{ name: string; description: string; member_ids: any[] }>({ name: '', description: '', member_ids: [] })
+  const [editGroup, setEditGroup] = useState<ApprovalGroup | null>(null)
+  const [form, setForm] = useState<GroupForm>({ name: '', description: '', member_ids: [] })
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: (d: any) => editGroup ? approvalsApi.updateGroup(editGroup.id, d) : approvalsApi.createGroup(d),
+    mutationFn: (d: GroupForm) => editGroup ? approvalsApi.updateGroup(editGroup.id, d) : approvalsApi.createGroup(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['approval-groups'] }); setShowCreate(false); setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); toast.success(editGroup ? 'Grupo actualizado' : 'Grupo creado') },
     onError: e => toast.error(extractErr(e, 'Error guardando grupo')),
   })
@@ -1239,16 +1403,16 @@ function ApprovalGroupsTab() {
     onError: e => toast.error(extractErr(e, 'Error eliminando grupo')),
   })
 
-  const openEdit = (g: any) => {
+  const openEdit = (g: ApprovalGroup) => {
     setEditGroup(g)
-    const members = (() => { try { return JSON.parse(g.member_ids || '[]') } catch { return [] } })()
+    const members: string[] = (() => { try { return JSON.parse(g.member_ids || '[]') } catch { return [] } })()
     setForm({ name: g.name, description: g.description || '', member_ids: members })
     setShowCreate(true)
   }
 
-  const toggleMember = (uid: any) => setForm(f => ({
+  const toggleMember = (uid: string) => setForm(f => ({
     ...f,
-    member_ids: f.member_ids.includes(uid) ? f.member_ids.filter((x: any) => x !== uid) : [...f.member_ids, uid],
+    member_ids: f.member_ids.includes(uid) ? f.member_ids.filter(x => x !== uid) : [...f.member_ids, uid],
   }))
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando grupos…</div>
@@ -1268,7 +1432,7 @@ function ApprovalGroupsTab() {
               <div key={g.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 18px' }}>
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 {g.name}</div>
                 {g.description && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 8 }}>{g.description}</div>}
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{members.length} miembro{members.length !== 1 ? 's' : ''}</div>
+                <div className="u-text3-xs">{members.length} miembro{members.length !== 1 ? 's' : ''}</div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
                   <button onClick={() => openEdit(g)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>Editar</button>
                   <button onClick={() => openConfirmGlobal({ message: `¿Eliminar grupo "${g.name}"?`, onConfirm: () => del(g.id), danger: true })} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>🗑</button>
@@ -1295,13 +1459,13 @@ function ApprovalGroupsTab() {
                 {users.map(u => (
                   <label key={u.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0', cursor: 'pointer', fontSize: 'var(--text-sm)' }}>
                     <input type="checkbox" checked={form.member_ids.includes(u.id)} onChange={() => toggleMember(u.id)} style={{ accentColor: 'var(--accent)' }} />
-                    {u.full_name} <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>({u.role})</span>
+                    {u.full_name} <span className="u-text3-xs">({u.role})</span>
                   </label>
                 ))}
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => { setShowCreate(false); setEditGroup(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => save(form)} loading={isPending} disabled={!form.name || isPending}>Guardar</Button>
           </div>
@@ -1315,7 +1479,7 @@ function ApprovalGroupsTab() {
 function ApproverLoadTab() {
   const traducir = useAppT()
   const [days, setDays] = useState(90)
-  const { data, isLoading } = useQuery<any>({
+  const { data, isLoading } = useQuery<ApproverLoadResponse>({
     queryKey: ['approver-load', days],
     queryFn: () => approvalsApi.approverLoad({ days }).then(r => r.data),
   })
@@ -1323,7 +1487,7 @@ function ApproverLoadTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{traducir('approvals.periodo')}</span>
+        <span className="u-text2-sm">{traducir('approvals.periodo')}</span>
         {[30, 60, 90, 180].map(d => (
           <button key={d} onClick={() => setDays(d)}
             style={{ background: days === d ? 'var(--accent)' : 'var(--surface-3)', border: 'none', borderRadius: 6, padding: '4px 12px', color: days === d ? '#fff' : 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
@@ -1337,38 +1501,28 @@ function ApproverLoadTab() {
         <>
           {(data.overloaded_approvers || []).length > 0 && (
             <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
-              <strong style={{ color: 'var(--danger)' }}>⚠ Aprobadores sobrecargados:</strong>
+              <strong className="u-danger">⚠ Aprobadores sobrecargados:</strong>
               <span style={{ marginLeft: 8, fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{data.overloaded_approvers.join(', ')}</span>
             </div>
           )}
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-                  {['Aprobador', 'Pendientes', 'Tiempo Resp. (h)', 'Tasa Rechazo', 'Score Carga', ''].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 600 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(data.load || []).map((row: any) => (
-                  <tr key={row.user_id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 600 }}>{row.user_name}</td>
-                    <td style={{ padding: '10px 12px' }}>{row.pending_count}</td>
-                    <td style={{ padding: '10px 12px' }}>{row.avg_response_hours != null ? row.avg_response_hours.toFixed(1) : '—'}</td>
-                    <td style={{ padding: '10px 12px' }}>{row.rejection_rate != null ? (row.rejection_rate * 100).toFixed(0) + '%' : '—'}</td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: row.load_score > 7 ? 'var(--danger)' : row.load_score > 4 ? 'var(--warning)' : 'var(--success)' }}>
-                        {row.load_score?.toFixed(1) || '—'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      {row.load_score > 7 && <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 700 }}>Sobrecargado</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="u-scroll-x">
+            <Table
+              data={data.load || []}
+              columns={[
+                { key: 'user_name', label: 'Aprobador', render: (_v, row) => <span style={{ fontWeight: 600 }}>{row.user_name}</span> },
+                { key: 'pending_count', label: 'Pendientes' },
+                { key: 'avg_response_hours', label: 'Tiempo Resp. (h)', render: (_v, row) => (row.avg_response_hours != null ? row.avg_response_hours.toFixed(1) : '—') },
+                { key: 'rejection_rate', label: 'Tasa Rechazo', render: (_v, row) => (row.rejection_rate != null ? (row.rejection_rate * 100).toFixed(0) + '%' : '—') },
+                { key: 'load_score', label: 'Score Carga', render: (_v, row) => (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: row.load_score > 7 ? 'var(--danger)' : row.load_score > 4 ? 'var(--warning)' : 'var(--success)' }}>
+                    {row.load_score?.toFixed(1) || '—'}
+                  </span>
+                ) },
+                { key: 'overloaded', label: '', render: (_v, row) => (
+                  row.load_score > 7 && <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 700 }}>Sobrecargado</span>
+                ) },
+              ]}
+            />
           </div>
         </>
       )}
@@ -1377,20 +1531,20 @@ function ApproverLoadTab() {
 }
 
 // ── Matriz de aprobación ──────────────────────────────────────────────────────
-function ApprovalMatrixTab({ workflows = [] }: { workflows?: any[] }) {
+function ApprovalMatrixTab({ workflows = [] }: { workflows?: ApprovalWorkflow[] }) {
   const traducir = useAppT()
   const t = useAppT()
   const entityMap = entityLabels(t)
   const entityTypes = Object.keys(entityMap)
   // Collect all unique workflow names (across entity types)
-  const allWorkflowNames = [...new Set(workflows.map((w: any) => w.name))]
+  const allWorkflowNames = [...new Set(workflows.map(w => w.name))]
 
   return (
     <div>
       <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 16 }}>
         {traducir('approvals.vista_de_que_flujos_estan_activos_por')}
       </p>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="u-scroll-x">
         <table style={{ borderCollapse: 'collapse', fontSize: 'var(--text-xs)', minWidth: 600 }}>
           <thead>
             <tr>
@@ -1445,18 +1599,18 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
   const qc = useQueryClient()
   const isConfigMode = mode === 'config'
   const [tab, setTab]           = useState(isConfigMode ? 'workflows' : 'pending')
-  const [selected, setSelected] = useState<any>(null)
+  const [selected, setSelected] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', entity_type: 'timesheet', is_default: false, document_category: '', chain_on_approval_workflow_id: '', sla_block_on_breach: false, auto_approval_rules: '' })
   const canQueryProtected = !loading && !!user
 
-  const { data: workflows = [], isLoading } = useQuery<any[]>({
+  const { data: workflows = [], isLoading } = useQuery<ApprovalWorkflow[]>({
     queryKey: ['approval-workflows'],
     queryFn: () => approvalsApi.listWorkflows(undefined).then(r => r.data),
     enabled: canQueryProtected && tab === 'workflows',
   })
 
-  const { data: stats } = useQuery<any>({
+  const { data: stats } = useQuery<ApprovalStats>({
     queryKey: ['approval-stats'],
     queryFn: () => approvalsApi.stats().then(r => r.data),
     enabled: canQueryProtected && tab === 'workflows',
@@ -1480,7 +1634,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
-  const runValidate = async (e: any, workflowId: any) => {
+  const runValidate = async (e: MouseEvent, workflowId: string) => {
     e.stopPropagation()
     try {
       const res = await approvalsApi.validateWorkflow(workflowId)
@@ -1494,7 +1648,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     }
   }
 
-  const runPublish = async (e: any, workflowId: any) => {
+  const runPublish = async (e: MouseEvent, workflowId: string) => {
     e.stopPropagation()
     try {
       await approvalsApi.publishWorkflow(workflowId)
@@ -1505,7 +1659,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     }
   }
 
-  const runClone = async (e: any, workflowId: any) => {
+  const runClone = async (e: MouseEvent, workflowId: string) => {
     e.stopPropagation()
     try {
       await approvalsApi.cloneVersion(workflowId, {})
@@ -1528,7 +1682,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
         display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
       }}>
         <Info size={14} aria-hidden style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+        <div className="u-text2-sm">
           {isConfigMode ? t('approvals.info_config') : t('approvals.info_inbox')}
         </div>
       </div>
@@ -1609,10 +1763,10 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
                       onMouseLeave={e => e.currentTarget.style.borderColor = wf.is_active ? alpha(cfg.color, '30') : 'var(--surface-4)'}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div className="u-row-center-8">
                           <span style={{ fontSize: "var(--text-xl)" }}>{cfg.icon}</span>
                           <div>
-                            <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{wf.name}</div>
+                            <div className="u-md-700">{wf.name}</div>
                             <div style={{ fontSize: "var(--text-xs)", color: cfg.color }}>{cfg.label}</div>
                           </div>
                         </div>
@@ -1647,8 +1801,8 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
               {workflows.filter(w => !Object.keys(entityLabels(t)).includes(w.entity_type)).map(wf => (
                 <div key={wf.id} role="button" tabIndex={0} onClick={() => setSelected(wf.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }} aria-label={t('approvals.workflow_open_aria', { name: wf.name })}
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', cursor: 'pointer' }}>
-                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{wf.name}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{wf.entity_type} · {wf.step_count} {t('approvals.steps_word')}</div>
+                  <div className="u-md-700">{wf.name}</div>
+                  <div className="u-text2-xs">{wf.entity_type} · {wf.step_count} {t('approvals.steps_word')}</div>
                 </div>
               ))}
             </div>
@@ -1722,7 +1876,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
                 placeholder='[{"condition":"amount_lt","value":100,"action":"auto_approve"}]' />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => {
               const { document_category, ...rest } = form

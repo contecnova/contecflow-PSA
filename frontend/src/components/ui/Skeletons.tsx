@@ -151,7 +151,7 @@ export function SkeletonKanban({ cols = 4 }: SkeletonKanbanProps) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 12 }}>
         {Array.from({ length: cols }).map((_, col) => (
-          <div key={col} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div key={col} className="u-stack-8">
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0' }}>
               <div className="skeleton-line" style={{ width: '60%', height: 14 }} />
               <div className="skeleton-line" style={{ width: 22, height: 22, borderRadius: '50%', marginLeft: 'auto' }} />
@@ -224,7 +224,7 @@ export function SkeletonServiceDesk() {
 export function SkeletonFinance() {
   return (
     <div style={{ padding: '24px 32px' }}>
-      <div style={{ marginBottom: 20 }}>
+      <div className="u-mb-20">
         <div className="skeleton-line" style={{ width: 200, height: 22, marginBottom: 8 }} />
         <div className="skeleton-line" style={{ width: 340, height: 12, opacity: 0.6 }} />
       </div>

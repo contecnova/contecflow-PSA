@@ -32,7 +32,7 @@ export function valorDeHecho(v: Hecho['valor']): string {
 
 export function TablaDeHechos({ hechos }: { hechos: Hecho[] }) {
   const t = useAppT()
-  if (!hechos.length) return <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('lec.sin_hechos')}</div>
+  if (!hechos.length) return <div className="u-text3-sm">{t('lec.sin_hechos')}</div>
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
       <tbody>{hechos.map(h => (
@@ -94,7 +94,7 @@ export default function FormularioDeLeccion({ origen, leccion, onClose, onGuarda
         <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{extractErr(borrador.error, GENERIC_ERROR_FALLBACK)}</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: hechos.length ? 'minmax(0, 1fr) 320px' : '1fr', gap: 20 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="u-stack-12">
             {borrador.data && (
               <div style={{ fontSize: 'var(--text-xs)', color: borrador.data.ia ? 'var(--accent)' : 'var(--text-3)', display: 'flex', gap: 6, alignItems: 'center' }}>
                 <Sparkles size={13} />{borrador.data.ia ? t('lec.propuesta_ia') : (borrador.data.aviso || t('lec.propuesta_hechos'))}

@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Ticket, TicketStatus
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,9 @@ def submit_ticket_csat(
         .first()
     )
     if not ticket:
-        raise HTTPException(404, "Ticket no encontrado")
+        raise ErrorDeDominio(404, "Ticket no encontrado")
     if ticket.status not in ["resolved", "closed"]:
-        raise HTTPException(400, "Solo tickets resueltos")
+        raise ErrorDeDominio(400, "Solo tickets resueltos")
 
     ticket.csat_score = score
     ticket.csat_comment = comment

@@ -65,7 +65,7 @@ export default function ConfigPaginaDeEstado() {
             <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: i ? '1px solid var(--surface-4)' : 'none', flexWrap: 'wrap' }}>
               <span aria-hidden style={{ width: 10, height: 10, borderRadius: 999, background: COLOR_ESTADO[c.status] ?? 'var(--text-3)' }} />
               <strong style={{ flex: '1 1 160px' }}>{c.name}</strong>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{c.group_name}</span>
+              <span className="u-text3-xs">{c.group_name}</span>
               <select aria-label={c.name} value={c.status} onChange={e => cambiar.mutate({ c, status: e.target.value })} style={{ ...IS, width: 200 }}>
                 {ESTADOS.map(s => <option key={s} value={s}>{t(`sd_cfg.sp_st_${s}`)}</option>)}
               </select>
@@ -95,7 +95,7 @@ function FormComponente({ pendiente, onCancelar, onGuardar }: { pendiente: boole
   const t = useAppT()
   const [f, setF] = useState({ name: '', group_name: '', description: '', is_public: true })
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-stack-12">
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
         <div><label style={LS} htmlFor="sp-name">{t('sd_cfg.chg_name')} *</label><input id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} style={IS} /></div>
         <div><label style={LS} htmlFor="sp-group">{t('sd_cfg.sp_group')}</label><input id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} style={IS} /></div>
@@ -103,7 +103,7 @@ function FormComponente({ pendiente, onCancelar, onGuardar }: { pendiente: boole
       <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
         <input type="checkbox" aria-label={t('sd_cfg.sp_public')} checked={f.is_public} onChange={e => setF({ ...f, is_public: e.target.checked })} />{t('sd_cfg.sp_public')}
       </label>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!f.name.trim() || pendiente} loading={pendiente}
           onClick={() => onGuardar({ name: f.name.trim(), group_name: f.group_name || null, description: f.description || null, is_public: f.is_public })}>{t('common.save')}</Button>
@@ -118,14 +118,14 @@ function FormIncidente({ pendiente, onCancelar, onGuardar }: { pendiente: boolea
   const [impacto, setImpacto] = useState('partial_outage')
   const [mensaje, setMensaje] = useState('')
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-stack-12">
       <div><label style={LS} htmlFor="sp-title">{t('sd_cfg.sp_incident_title')} *</label><input id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} style={IS} /></div>
       <div><label style={LS} htmlFor="sp-impact">{t('sd_cfg.chg_status')}</label>
         <select id="sp-impact" aria-label={t('sd_cfg.chg_status')} value={impacto} onChange={e => setImpacto(e.target.value)} style={IS}>
           {ESTADOS.filter(s => s !== 'operational').map(s => <option key={s} value={s}>{t(`sd_cfg.sp_st_${s}`)}</option>)}
         </select></div>
       <div><label style={LS} htmlFor="sp-msg">{t('sd_cfg.sp_message')}</label><textarea id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} style={{ ...IS, resize: 'vertical' }} /></div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!titulo.trim() || pendiente} loading={pendiente}
           onClick={() => onGuardar({ title: titulo.trim(), impact: impacto, update_message: mensaje || null })}>{t('sd_cfg.sp_declare')}</Button>

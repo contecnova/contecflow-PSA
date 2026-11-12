@@ -53,4 +53,5 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
             return {"error": f"Herramienta desconocida: {tool_name}"}
         return handler(tool_input, db, user, now, is_financial_role)
     except Exception as e:
+        _logger.warning("execute_tool: excepcion ignorada", exc_info=True)
         return {"error": str(e)[:300]}

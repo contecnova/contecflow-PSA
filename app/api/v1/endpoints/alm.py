@@ -10,7 +10,7 @@ from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.services.alm_ciclo_de_vida import (
-    abrir_ticket_de_renovacion, activo_o_404, activos_del_ci, historial, proximos_vencimientos,
+    abrir_ticket_de_renovacion_confirmado, activo_o_404, activos_del_ci, historial, proximos_vencimientos,
 )
 from app.services.alm_service import (
     get_alm_dashboard,
@@ -183,9 +183,7 @@ def get_asset_history(aid: str, db: Session = Depends(get_db), _=Depends(get_cur
 
 @router.post("/assets/{aid}/refresh-ticket", summary="Abrir (o recuperar) el ticket de renovación del activo")
 def open_refresh_ticket(aid: str, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
-    datos = abrir_ticket_de_renovacion(db, activo_o_404(db, aid), cu.id)
-    db.commit()
-    return APIResponse.ok(data=datos)
+    return APIResponse.ok(data=abrir_ticket_de_renovacion_confirmado(db, aid, cu.id))
 
 
 

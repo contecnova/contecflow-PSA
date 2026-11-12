@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { developerAppsApi } from '../services/api'
+import { developerAppsApi, apiUrl, apiUrlAbsoluta } from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -91,7 +91,7 @@ function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => 
 
   if (newSecret) return (
     <Modal open title={t('developer.app_created')} onClose={onClose} width={520}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: 16 }}>
           <p style={{ color: 'var(--success)', fontSize: "var(--text-base)", marginBottom: 12, fontWeight: 600 }}>
             {t('developer.secret_warning')}
@@ -112,7 +112,7 @@ function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => 
 
   return (
     <Modal open title={isEdit ? t('developer.edit_app', { name: app.name }) : t('developer.new_oauth_app')} onClose={onClose} width={540}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div>
           <label style={LS}>{t('developer.app_name_label')}</label>
           <input value={f.name} onChange={set('name')} style={FS} placeholder={t('developer.app_name_placeholder')} />
@@ -132,7 +132,7 @@ function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => 
         </div>
         <div>
           <label style={LS}>{t('developer.app_scopes_label')}</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div className="u-wrap-8">
             {AVAILABLE_SCOPES.map(s => (
               <button key={s} onClick={() => toggleScope(s)} style={{
                 padding: '5px 12px', borderRadius: 20, border: `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}`,
@@ -171,10 +171,10 @@ function AppDetail({ app, onClose, onRotated }: { app: DeveloperApp; onClose: ()
 
   return (
     <Modal open title={t('developer.credentials_modal_title', { name: app.name })} onClose={onClose} width={540}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         <div>
           <label style={LS}>{t('developer.client_id')}</label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="u-row-center-8">
             <code style={{ ...MONO, flex: 1 }}>{app.client_id}</code>
             <Button variant="secondary" onClick={() => copy(app.client_id)} style={{ fontSize: "var(--text-sm)", flexShrink: 0 }}>{t('developer.copy_btn')}</Button>
           </div>
@@ -192,15 +192,15 @@ function AppDetail({ app, onClose, onRotated }: { app: DeveloperApp; onClose: ()
         </div>
         <div>
           <label style={LS}>{t('developer.token_endpoint')}</label>
-          <code style={MONO}>{window.location.origin}/api/v1/developer/token</code>
+          <code style={MONO}>{apiUrlAbsoluta('/developer/token')}</code>
         </div>
         <div>
           <label style={LS}>{t('developer.userinfo_endpoint')}</label>
-          <code style={MONO}>{window.location.origin}/api/v1/developer/userinfo</code>
+          <code style={MONO}>{apiUrlAbsoluta('/developer/userinfo')}</code>
         </div>
         <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 12, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <strong>{t('developer.client_credentials_example')}</strong>
-          <pre style={{ marginTop: 8, fontSize: "var(--text-xs)", whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--text-1)' }}>{`POST /api/v1/developer/token
+          <pre style={{ marginTop: 8, fontSize: "var(--text-xs)", whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--text-1)' }}>{`POST ${apiUrl('/developer/token')}
 Content-Type: application/json
 
 {
@@ -279,7 +279,7 @@ export default function DeveloperPortalPage(): JSX.Element {
                   <span key={s} style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--surface-3)', color: 'var(--text-2)', border: '1px solid var(--surface-4)' }}>{s}</span>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="u-wrap-8">
                 <Button variant="secondary" onClick={() => setViewCreds(app)} style={{ fontSize: "var(--text-sm)" }}>{t('developer.credentials_btn')}</Button>
                 <Button variant="secondary" onClick={() => setEditing(app)} style={{ fontSize: "var(--text-sm)" }}>{t('developer.edit_btn')}</Button>
                 <Button variant="danger" style={{ fontSize: "var(--text-sm)" }} onClick={() =>
@@ -298,7 +298,7 @@ export default function DeveloperPortalPage(): JSX.Element {
       )}
       {rotatedSecret && (
         <Modal open title={t('developer.new_secret_generated')} onClose={() => { setRotatedSecret(null); setViewCreds(null) }} width={480}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="u-stack-12">
             <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: 14 }}>
               <p style={{ color: 'var(--success)', fontSize: "var(--text-base)", marginBottom: 10, fontWeight: 600 }}>
                 {t('developer.save_new_secret')}

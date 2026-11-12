@@ -122,7 +122,7 @@ function NPSGauge({ nps }: { nps?: number | null }) {
   return (
     <div style={{ textAlign: 'center', padding: '8px 0' }}>
       <div style={{ fontSize: "var(--text-42)", fontWeight: 900, color }}>{nps > 0 ? `+${nps}` : nps}</div>
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>NPS</div>
+      <div className="u-text2-xs">NPS</div>
     </div>
   )
 }
@@ -281,7 +281,7 @@ export default function NPSPage() {
                     ] as Array<{ label: string; key: 'promoters' | 'passives' | 'detractors'; color: string }>)
                       .map(({ label, key, color }) => (
                       <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)" }}>
-                        <span style={{ color: 'var(--text-2)' }}>{label}</span>
+                        <span className="u-text2">{label}</span>
                         <span style={{ color }}>{summary?.[key] ?? 0}</span>
                       </div>
                     ))}
@@ -298,10 +298,10 @@ export default function NPSPage() {
             {/* Submit NPS */}
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('nps.register_nps')}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="u-stack-12">
                 <div>
                   <label style={ls}>{t('nps.score_label')}</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  <div className="u-wrap-6">
                     {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
                       <button key={n} onClick={() => setScoreInput(n)} style={{
                         width: 32, height: 32, borderRadius: 6,
@@ -318,7 +318,7 @@ export default function NPSPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <div style={{ flex: 1 }}>
+                  <div className="u-flex1">
                     <label style={ls}>{t('nps.respondent')}</label>
                     <input value={respondent} onChange={e => setRespondent(e.target.value)}
                       style={fs} placeholder={t('nps.respondent')} />

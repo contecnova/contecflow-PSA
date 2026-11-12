@@ -41,10 +41,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.bpmn_process import BPMNInstance, BPMNInstanceStep, BPMNProcess, BPMNProcessVersion
+from app.core.errores import ErrorDeDominio
 
 _NS = "{http://www.omg.org/spec/BPMN/20100524/MODEL}"
 _XSI_TYPE = "{http://www.w3.org/2001/XMLSchema-instance}type"
@@ -259,7 +259,7 @@ def _version(db: Session, proc: BPMNProcess) -> BPMNProcessVersion:
     v = q.filter(BPMNProcessVersion.is_published.is_(True)).order_by(BPMNProcessVersion.version.desc()).first() \
         or q.order_by(BPMNProcessVersion.version.desc()).first()
     if v is None:
-        raise HTTPException(422, "El proceso no tiene ningún diagrama guardado")
+        raise ErrorDeDominio(422, "El proceso no tiene ningún diagrama guardado")
     return v
 
 
@@ -361,7 +361,7 @@ def iniciar(db: Session, proc: BPMNProcess, user, variables: Optional[dict] = No
     v = _version(db, proc)
     g = leer(v.bpmn_xml)
     if g.problemas:
-        raise HTTPException(422, "El diagrama no se puede ejecutar: " + "; ".join(g.problemas[:20]))
+        raise ErrorDeDominio(422, "El diagrama no se puede ejecutar: " + "; ".join(g.problemas[:20]))
     inst = BPMNInstance(process_id=proc.id, version=v.version, organization_id=proc.organization_id,
                         status="running", variables=json.dumps(variables or {}), started_by_user_id=user.id)
     db.add(inst)
@@ -381,11 +381,11 @@ def completar(db: Session, inst: BPMNInstance, paso_id: str, user, variables: Op
     paso = db.query(BPMNInstanceStep).filter(BPMNInstanceStep.id == paso_id,
                                              BPMNInstanceStep.instance_id == inst.id).first()
     if paso is None:
-        raise HTTPException(404, "Paso no encontrado")
+        raise ErrorDeDominio(404, "Paso no encontrado")
     if inst.status != "running" or paso.status != "active" or paso.element_type not in HUMANOS:
-        raise HTTPException(409, "Ese paso no está pendiente de completar")
+        raise ErrorDeDominio(409, "Ese paso no está pendiente de completar")
     if not puede_completar(paso, user):
-        raise HTTPException(403, f"Este paso es para el rol {paso.candidate_role}")
+        raise ErrorDeDominio(403, f"Este paso es para el rol {paso.candidate_role}")
     if variables:
         inst.variables = json.dumps({**_variables(inst), **variables})
     paso.status = "completed"
@@ -401,7 +401,7 @@ def completar(db: Session, inst: BPMNInstance, paso_id: str, user, variables: Op
 
 def cancelar(db: Session, inst: BPMNInstance) -> BPMNInstance:
     if inst.status != "running":
-        raise HTTPException(409, "La instancia ya ha terminado")
+        raise ErrorDeDominio(409, "La instancia ya ha terminado")
     for p in inst.steps:
         if p.status == "active":
             p.status = "cancelled"
@@ -474,7 +474,7 @@ def instancia(db: Session, instance_id: str, user) -> BPMNInstance:
     inst = _de_la_organizacion(db.query(BPMNInstance).filter(BPMNInstance.id == instance_id),
                                BPMNInstance, user).first()
     if inst is None:
-        raise HTTPException(404, "Instancia no encontrada")
+        raise ErrorDeDominio(404, "Instancia no encontrada")
     return inst
 
 

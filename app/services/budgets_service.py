@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.mfa import Budget, BudgetLine
 from app.services import presupuestos_preparar as prep
 from app.services.audit import audit_log
+from app.core.errores import ErrorDeDominio
 
 AMBITOS = ("proyecto", "proyecto_previsto", "departamento", "area")
 EDITABLE = ("borrador", "rechazado")
@@ -68,7 +69,7 @@ def puede_aprobar(db: Session, u) -> bool:
 
 def _exigir_gestor(db: Session, u) -> None:
     if not puede_gestionar(db, u):
-        raise HTTPException(403, "Tu rol no gestiona presupuestos (lo decide BUDGET_MANAGER_ROLES en Admin)")
+        raise ErrorDeDominio(403, "Tu rol no gestiona presupuestos (lo decide BUDGET_MANAGER_ROLES en Admin)")
 
 
 # ── Meses ─────────────────────────────────────────────────────────────────────
@@ -107,7 +108,7 @@ def _mes_actual() -> str:
 def _cargar(db: Session, budget_id: str) -> Budget:
     b = db.query(Budget).options(joinedload(Budget.lines)).filter(Budget.id == budget_id).first()
     if b is None:
-        raise HTTPException(404, "Presupuesto no encontrado")
+        raise ErrorDeDominio(404, "Presupuesto no encontrado")
     return b
 
 
@@ -421,31 +422,31 @@ _CABECERA = ("name", "ambito", "department", "area", "project_id", "cliente_id",
 def _aviso_del_padre(db: Session, b: Budget) -> Optional[str]:
     try:
         return prep.comprobar_techo_del_padre(db, b)
-    except HTTPException as e:      # con «bloquear» también se avisa en la ficha
+    except (HTTPException, ErrorDeDominio) as e:      # con «bloquear» también se avisa en la ficha
         return str(e.detail)
 
 
 def _validar_cabecera(db: Session, u, d: dict) -> None:
     from app.services.project_service import get_project_scoped_or_404
     if d.get("ambito") not in AMBITOS:
-        raise HTTPException(400, f"Ámbito no válido: {d.get('ambito')}")
+        raise ErrorDeDominio(400, f"Ámbito no válido: {d.get('ambito')}")
     if d["ambito"] == "proyecto":
         if not d.get("project_id"):
-            raise HTTPException(400, "Elige el proyecto")
+            raise ErrorDeDominio(400, "Elige el proyecto")
         get_project_scoped_or_404(db, d["project_id"], u)
     if d["ambito"] == "departamento" and not d.get("department"):
-        raise HTTPException(400, "Elige el departamento")
+        raise ErrorDeDominio(400, "Elige el departamento")
     if d["ambito"] == "area" and not d.get("area_id"):
-        raise HTTPException(400, "Elige el área")
+        raise ErrorDeDominio(400, "Elige el área")
     if d.get("techo") is not None and d["ambito"] not in ("area", "departamento"):
-        raise HTTPException(400, "Sólo un área o un departamento tiene techo para sus presupuestos hijos")
+        raise ErrorDeDominio(400, "Sólo un área o un departamento tiene techo para sus presupuestos hijos")
     if d.get("techo") is not None and float(d["techo"]) < 0:
-        raise HTTPException(400, "El techo no puede ser negativo")
+        raise ErrorDeDominio(400, "El techo no puede ser negativo")
     prep.validar_padre(db, d["ambito"], d.get("padre_id"))
     if not (d.get("periodo_desde") and d.get("periodo_hasta")):
-        raise HTTPException(400, "Indica el periodo")
+        raise ErrorDeDominio(400, "Indica el periodo")
     if _primero(d["periodo_hasta"]) < _primero(d["periodo_desde"]):
-        raise HTTPException(400, "El periodo acaba antes de empezar")
+        raise ErrorDeDominio(400, "El periodo acaba antes de empezar")
 
 
 def crear(db: Session, u, datos: dict) -> dict:
@@ -459,7 +460,7 @@ def crear(db: Session, u, datos: dict) -> dict:
     _validar_cabecera(db, u, d)
     d["periodo_desde"], d["periodo_hasta"] = _primero(d["periodo_desde"]), _primero(d["periodo_hasta"])
     if not d.get("name"):
-        raise HTTPException(400, "Ponle un nombre")
+        raise ErrorDeDominio(400, "Ponle un nombre")
     if "padre_id" not in d:
         d["padre_id"] = prep.padre_por_defecto(db, d)
     d.setdefault("responsable_id", u.id)
@@ -471,7 +472,7 @@ def crear(db: Session, u, datos: dict) -> dict:
     if datos.get("plantilla_id"):
         plantilla = db.query(BudgetTemplate).filter(BudgetTemplate.id == datos["plantilla_id"]).first()
         if plantilla is None:
-            raise HTTPException(404, "Plantilla no encontrada")
+            raise ErrorDeDominio(404, "Plantilla no encontrada")
         prep.aplicar_plantilla(db, b, plantilla)
     if datos.get("copiar_de"):
         prep.copiar_de_otro(db, b, _cargar(db, datos["copiar_de"]), datos.get("base") or "plan",
@@ -485,7 +486,7 @@ def crear(db: Session, u, datos: dict) -> dict:
 def _editable(db: Session, u, b: Budget) -> None:
     _exigir_gestor(db, u)
     if b.estado not in EDITABLE:
-        raise HTTPException(409, "Sólo se cambia un presupuesto en borrador o rechazado: haz una versión nueva")
+        raise ErrorDeDominio(409, "Sólo se cambia un presupuesto en borrador o rechazado: haz una versión nueva")
 
 
 def editar(db: Session, u, budget_id: str, datos: dict) -> dict:
@@ -533,24 +534,24 @@ def _preparar_linea(db: Session, b: Budget, l: BudgetLine, datos: dict) -> None:
     l.sentido = l.sentido or "gasto"
     l.naturaleza = l.naturaleza or "opex"
     if l.sentido not in ("gasto", "ingreso"):
-        raise HTTPException(400, "Una partida es de gasto o de ingreso")
+        raise ErrorDeDominio(400, "Una partida es de gasto o de ingreso")
     validos = prep.tipos_de_ingreso(db, b.organization_id) if l.sentido == "ingreso" else tipos(db, b.organization_id)
     if l.tipo not in validos:
         clave = "BUDGET_REVENUE_TYPES" if l.sentido == "ingreso" else "BUDGET_LINE_TYPES"
-        raise HTTPException(400, f"Tipo de partida no válido: {l.tipo} (los de {clave})")
+        raise ErrorDeDominio(400, f"Tipo de partida no válido: {l.tipo} (los de {clave})")
     if l.naturaleza not in ("opex", "capex"):
-        raise HTTPException(400, "La naturaleza es OPEX o CAPEX")
+        raise ErrorDeDominio(400, "La naturaleza es OPEX o CAPEX")
     if l.naturaleza == "capex" and not (l.vida_meses and int(l.vida_meses) > 0):
-        raise HTTPException(400, "Una partida CAPEX necesita su vida en meses para amortizarla")
+        raise ErrorDeDominio(400, "Una partida CAPEX necesita su vida en meses para amortizarla")
     if not (l.descripcion or "").strip():
-        raise HTTPException(400, "Describe la partida")
+        raise ErrorDeDominio(400, "Describe la partida")
     if l.horas is not None and l.coste_hora is None and l.user_id:
         l.coste_hora = db.query(User.hourly_rate).filter(User.id == l.user_id).scalar()
     meses = datos.get("meses")
     if meses:
         suma = round(sum(float(v) for v in meses.values()), 2)
         if l.importe is not None and abs(suma - float(l.importe)) > 0.01 and "importe" in datos:
-            raise HTTPException(400, f"El reparto por meses suma {suma} y la partida es {l.importe}")
+            raise ErrorDeDominio(400, f"El reparto por meses suma {suma} y la partida es {l.importe}")
     prep.calcular(db, b, l, meses or None)
 
 
@@ -570,7 +571,7 @@ def editar_linea(db: Session, u, budget_id: str, linea_id: str, datos: dict) -> 
     _editable(db, u, b)
     l = next((x for x in b.lines if x.id == linea_id), None)
     if l is None:
-        raise HTTPException(404, "Partida no encontrada")
+        raise ErrorDeDominio(404, "Partida no encontrada")
     _preparar_linea(db, b, l, datos)
     db.commit()
     return detalle(db, u, b.id)
@@ -581,7 +582,7 @@ def borrar_linea(db: Session, u, budget_id: str, linea_id: str) -> dict:
     _editable(db, u, b)
     l = next((x for x in b.lines if x.id == linea_id), None)
     if l is None:
-        raise HTTPException(404, "Partida no encontrada")
+        raise ErrorDeDominio(404, "Partida no encontrada")
     db.delete(l)
     db.commit()
     return detalle(db, u, b.id)
@@ -594,7 +595,7 @@ def enviar(db: Session, u, budget_id: str) -> dict:
     b = _cargar(db, budget_id)
     _editable(db, u, b)
     if not b.lines:
-        raise HTTPException(400, "Un presupuesto sin partidas no se envía")
+        raise ErrorDeDominio(400, "Un presupuesto sin partidas no se envía")
     prep.exigir_justificaciones(db, b)
     prep.comprobar_techo_del_padre(db, b)     # con BUDGET_CEILING_POLICY = bloquear, 409
     b.estado, b.motivo_rechazo = "enviado", None
@@ -611,9 +612,9 @@ def decidir(db: Session, u, budget_id: str, aprobado: bool, motivo: Optional[str
     from app.services.approval_engine import fuentes
     b = _cargar(db, budget_id)
     if not desde_bandeja and not puede_aprobar(db, u):
-        raise HTTPException(403, "Aprobar presupuestos es de los roles de BUDGET_APPROVER_ROLES")
+        raise ErrorDeDominio(403, "Aprobar presupuestos es de los roles de BUDGET_APPROVER_ROLES")
     if b.estado != "enviado":
-        raise HTTPException(409, "Sólo se decide un presupuesto enviado")
+        raise ErrorDeDominio(409, "Sólo se decide un presupuesto enviado")
     if aprobado:
         for previa in db.query(Budget).filter(Budget.origen_id == (b.origen_id or b.id), Budget.id != b.id,
                                               Budget.estado == "aprobado").all():
@@ -622,7 +623,7 @@ def decidir(db: Session, u, budget_id: str, aprobado: bool, motivo: Optional[str
         b.approved_by, b.approved_at = u.id, datetime.now(timezone.utc)
     else:
         if not (motivo or "").strip():
-            raise HTTPException(400, "Indica el motivo del rechazo")
+            raise ErrorDeDominio(400, "Indica el motivo del rechazo")
         b.estado, b.motivo_rechazo = "rechazado", motivo
     if not desde_bandeja:
         fuentes.cerrar(db, "budget", b.id, "approved" if aprobado else "rejected", f"Decidido en Presupuestos por {u.full_name}")
@@ -641,7 +642,7 @@ def nueva_version(db: Session, u, budget_id: str) -> dict:
     origen = b.origen_id or b.id
     ultima = max(v for (v,) in db.query(Budget.version).filter(Budget.origen_id == origen).all())
     if db.query(Budget).filter(Budget.origen_id == origen, Budget.estado.in_(("borrador", "enviado"))).first():
-        raise HTTPException(409, "Ya hay una versión en curso de este presupuesto")
+        raise ErrorDeDominio(409, "Ya hay una versión en curso de este presupuesto")
     n = Budget(organization_id=b.organization_id, created_by=u.id, total_amount=0, estado="borrador",
                version=ultima + 1, origen_id=origen, year=b.year, name=b.name, ambito=b.ambito,
                department=b.department, area=b.area, project_id=b.project_id, cliente_id=b.cliente_id,
@@ -668,7 +669,7 @@ def crear_escenario(db: Session, u, budget_id: str, nombre: str, supuestos: Opti
     b = _cargar(db, budget_id)
     nombre = (nombre or "").strip()
     if not nombre or nombre == b.escenario:
-        raise HTTPException(400, "Ponle un nombre distinto al escenario")
+        raise ErrorDeDominio(400, "Ponle un nombre distinto al escenario")
     n = Budget(organization_id=b.organization_id, created_by=u.id, total_amount=0, estado="borrador", version=1,
                year=b.year, name=b.name, ambito=b.ambito, department=b.department, area=b.area,
                project_id=b.project_id, cliente_id=b.cliente_id, tipo_proyecto=b.tipo_proyecto,
@@ -696,7 +697,7 @@ def vincular_proyecto(db: Session, u, budget_id: str, project_id: str) -> dict:
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
     if b.ambito != "proyecto_previsto":
-        raise HTTPException(409, "Sólo se vincula el presupuesto de un proyecto previsto")
+        raise ErrorDeDominio(409, "Sólo se vincula el presupuesto de un proyecto previsto")
     get_project_scoped_or_404(db, project_id, u)
     for v in db.query(Budget).filter(Budget.origen_id == (b.origen_id or b.id)).all():
         v.project_id = project_id
@@ -731,7 +732,7 @@ def guardar_plantilla(db: Session, u, datos: dict, plantilla_id: Optional[str] =
     if plantilla_id:
         t = db.query(BudgetTemplate).filter(BudgetTemplate.id == plantilla_id).first()
         if t is None:
-            raise HTTPException(404, "Plantilla no encontrada")
+            raise ErrorDeDominio(404, "Plantilla no encontrada")
     else:
         t = BudgetTemplate(organization_id=u.organization_id, created_by=u.id, nombre="")
         db.add(t)
@@ -745,10 +746,10 @@ def guardar_plantilla(db: Session, u, datos: dict, plantilla_id: Optional[str] =
         validos = set(tipos(db, u.organization_id)) | set(prep.tipos_de_ingreso(db, u.organization_id))
         for p in datos["partidas"] or []:
             if p.get("tipo") not in validos or not (p.get("descripcion") or "").strip():
-                raise HTTPException(400, "Cada partida de la plantilla necesita un tipo válido y una descripción")
+                raise ErrorDeDominio(400, "Cada partida de la plantilla necesita un tipo válido y una descripción")
         t.partidas = json.dumps(datos["partidas"] or [])
     if not (t.nombre or "").strip():
-        raise HTTPException(400, "Ponle un nombre a la plantilla")
+        raise ErrorDeDominio(400, "Ponle un nombre a la plantilla")
     db.commit()
     return _plantilla_dict(t)
 
@@ -758,7 +759,7 @@ def borrar_plantilla(db: Session, u, plantilla_id: str) -> dict:
     _exigir_gestor(db, u)
     t = db.query(BudgetTemplate).filter(BudgetTemplate.id == plantilla_id).first()
     if t is None:
-        raise HTTPException(404, "Plantilla no encontrada")
+        raise ErrorDeDominio(404, "Plantilla no encontrada")
     db.delete(t)
     db.commit()
     return {"ok": True}
@@ -787,11 +788,11 @@ def listar_campanas(db: Session, u) -> list[dict]:
 def guardar_campana(db: Session, u, datos: dict, campana_id: Optional[str] = None) -> dict:
     from app.models.mfa import BudgetCampaign
     if not puede_aprobar(db, u):
-        raise HTTPException(403, "Abrir y cerrar campañas es de los roles de BUDGET_APPROVER_ROLES")
+        raise ErrorDeDominio(403, "Abrir y cerrar campañas es de los roles de BUDGET_APPROVER_ROLES")
     if campana_id:
         c = db.query(BudgetCampaign).filter(BudgetCampaign.id == campana_id).first()
         if c is None:
-            raise HTTPException(404, "Campaña no encontrada")
+            raise ErrorDeDominio(404, "Campaña no encontrada")
     else:
         c = BudgetCampaign(organization_id=u.organization_id, abierta=True)
         db.add(c)
@@ -801,6 +802,6 @@ def guardar_campana(db: Session, u, datos: dict, campana_id: Optional[str] = Non
     if "fecha_limite" in datos and datos["fecha_limite"]:
         c.fecha_limite = date.fromisoformat(str(datos["fecha_limite"])[:10])
     if not (c.nombre and c.year and c.fecha_limite):
-        raise HTTPException(400, "La campaña necesita nombre, ejercicio y fecha límite")
+        raise ErrorDeDominio(400, "La campaña necesita nombre, ejercicio y fecha límite")
     db.commit()
     return _campana_dict(db, c)

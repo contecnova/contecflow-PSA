@@ -29,7 +29,8 @@ from app.models.clients import ClientContact, ClientLicenseLink, ClientContractL
 from app.models.pipeline import Contract
 from app.models.project import Project
 from app.models.service_desk import Ticket
-from fastapi import HTTPException
+from app.core.asignacion import campos_asignables, es_asignable
+from app.core.errores import ErrorDeDominio
 
 
 # ── Scoped query helpers ───────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ def scoped_client_query(db: Session, current_user: User):
 def get_scoped_client_or_404(db: Session, current_user: User, client_id: str):
     c = scoped_client_query(db, current_user).filter_by(id=client_id).first()
     if not c:
-        raise HTTPException(404, "Cliente no encontrado")
+        raise ErrorDeDominio(404, "Cliente no encontrado")
     return c
 
 
@@ -90,10 +91,10 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
     from app.db.transactions import atomic
 
     if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
-        raise HTTPException(status_code=403, detail="Solo admin o PM pueden crear clientes")
+        raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden crear clientes")
 
     with atomic(db):
-        c = Client(**{k: v for k, v in data.items() if hasattr(Client, k) and v != "" and v is not None})
+        c = Client(**{k: v for k, v in campos_asignables(Client, data).items() if v != "" and v is not None})
         c.created_by = current_user.id
         db.add(c)
         db.flush()
@@ -309,7 +310,7 @@ def get_client_360(client_id: str, db: Session) -> dict:
         Client.id == client_id, Client.is_active == True,  # noqa: E712
     ).first()
     if not c:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
 
     ahora = datetime.now(timezone.utc)
     hace_30_dias = ahora - timedelta(days=30)
@@ -384,10 +385,10 @@ def get_client_360(client_id: str, db: Session) -> dict:
 
 def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict:
     if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
-        raise HTTPException(status_code=403, detail="Solo admin o PM pueden editar clientes")
+        raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden editar clientes")
     c = get_scoped_client_or_404(db, current_user, cid)
     for k, v in data.items():
-        if hasattr(c, k):
+        if es_asignable(c, k):
             setattr(c, k, v if v != "" else None)
     db.commit()
     db.refresh(c)
@@ -396,7 +397,7 @@ def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict
 
 def delete_client(cid: str, current_user: User, db: Session) -> dict:
     if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
-        raise HTTPException(status_code=403, detail="Solo admin o PM pueden eliminar clientes")
+        raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden eliminar clientes")
     c = get_scoped_client_or_404(db, current_user, cid)
     dependencies = []
     project_count = db.query(func.count(Project.id)).filter(Project.client_id == cid).scalar() or 0
@@ -443,7 +444,7 @@ def delete_client(cid: str, current_user: User, db: Session) -> dict:
         dependencies.append(f"{active_portal_users} usuario(s) de portal activos")
 
     if dependencies:
-        raise HTTPException(400, f"No se puede eliminar: {', '.join(dependencies)}")
+        raise ErrorDeDominio(400, f"No se puede eliminar: {', '.join(dependencies)}")
 
     c.is_active = False
     c.status = "inactive"
@@ -467,8 +468,8 @@ def list_contacts(cid: str, db: Session) -> list:
 def add_contact(cid: str, data: dict, db: Session) -> dict:
     c = db.query(Client).filter(Client.id == cid, Client.is_active == True).first()
     if not c:
-        raise HTTPException(404)
-    ct = ClientContact(client_id=cid, **{k: v for k, v in data.items() if hasattr(ClientContact, k)})
+        raise ErrorDeDominio(404)
+    ct = ClientContact(client_id=cid, **campos_asignables(ClientContact, data, ("client_id",)))
     db.add(ct)
     db.commit()
     db.refresh(ct)
@@ -484,9 +485,9 @@ def update_contact(cid: str, contact_id: str, data: dict, db: Session) -> dict:
         ClientContact.is_active == True,
     ).first()
     if not ct:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     for k, v in data.items():
-        if hasattr(ct, k):
+        if es_asignable(ct, k, ("client_id",)):
             setattr(ct, k, v)
     db.commit()
     db.refresh(ct)
@@ -500,7 +501,7 @@ def delete_contact(cid: str, contact_id: str, db: Session) -> dict:
         ClientContact.is_active == True,
     ).first()
     if not ct:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     ct.is_active = False
     db.commit()
     return {"ok": True, "message": "Contacto eliminado correctamente"}
@@ -529,16 +530,16 @@ def list_client_licenses(cid: str, db: Session) -> list:
 
 def link_license(cid: str, data: dict, db: Session) -> dict:
     if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
-        raise HTTPException(404, "Cliente no encontrado")
+        raise ErrorDeDominio(404, "Cliente no encontrado")
     lic_id = data.get("license_id")
     if not lic_id or not db.query(ALMLicense).filter(ALMLicense.id == lic_id).first():
-        raise HTTPException(404, "Licencia no encontrada")
+        raise ErrorDeDominio(404, "Licencia no encontrada")
     existing = db.query(ClientLicenseLink).filter(
         ClientLicenseLink.client_id == cid,
         ClientLicenseLink.license_id == lic_id,
     ).first()
     if existing and existing.is_active:
-        raise HTTPException(409, "Licencia ya vinculada a este cliente")
+        raise ErrorDeDominio(409, "Licencia ya vinculada a este cliente")
     if existing and not existing.is_active:
         existing.is_active = True
         existing.notes = data.get("notes")
@@ -558,7 +559,7 @@ def unlink_license(cid: str, link_id: str, db: Session) -> dict:
         ClientLicenseLink.is_active == True,
     ).first()
     if not ll:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     ll.is_active = False
     db.commit()
     return {"ok": True, "message": "Licencia desvinculada correctamente"}
@@ -606,16 +607,16 @@ def list_client_contracts(cid: str, db: Session) -> list:
 
 def link_contract(cid: str, data: dict, db: Session) -> dict:
     if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
-        raise HTTPException(404, "Cliente no encontrado")
+        raise ErrorDeDominio(404, "Cliente no encontrado")
     con_id = data.get("contract_id")
     if not con_id or not db.query(Contract).filter(Contract.id == con_id).first():
-        raise HTTPException(404, "Contrato no encontrado")
+        raise ErrorDeDominio(404, "Contrato no encontrado")
     existing = db.query(ClientContractLink).filter(
         ClientContractLink.client_id == cid,
         ClientContractLink.contract_id == con_id,
     ).first()
     if existing and existing.is_active:
-        raise HTTPException(409, "Contrato ya vinculado")
+        raise ErrorDeDominio(409, "Contrato ya vinculado")
     if existing and not existing.is_active:
         existing.is_active = True
         db.commit()
@@ -634,7 +635,7 @@ def unlink_contract(cid: str, link_id: str, db: Session) -> dict:
         ClientContractLink.is_active == True,
     ).first()
     if not cl:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     cl.is_active = False
     db.commit()
     return {"ok": True, "message": "Contrato desvinculado correctamente"}
@@ -644,7 +645,7 @@ def unlink_contract(cid: str, link_id: str, db: Session) -> dict:
 
 def get_portal_config(cid: str, db: Session) -> dict:
     if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == cid).first()
     if not cfg:
         return {"client_id": cid, "enabled_modules": ["service_desk", "projects"], "sd_without_project": True}
@@ -665,7 +666,7 @@ def get_portal_config(cid: str, db: Session) -> dict:
 
 def update_portal_config(cid: str, data: dict, db: Session) -> dict:
     if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == cid).first()
     if not cfg:
         cfg = ClientPortalConfig(client_id=cid)
@@ -673,7 +674,7 @@ def update_portal_config(cid: str, data: dict, db: Session) -> dict:
     for k, v in data.items():
         if k == "enabled_modules":
             setattr(cfg, k, json.dumps(v))
-        elif hasattr(cfg, k) and k not in ("client_id", "id", "created_at", "updated_at"):
+        elif es_asignable(cfg, k, ("client_id",)):
             setattr(cfg, k, v)
     db.commit()
     db.refresh(cfg)
@@ -777,13 +778,13 @@ def list_available_projects(cid: str, db: Session) -> list:
 def link_project(cid: str, project_id: str, db: Session) -> dict:
     client = db.query(Client).filter(Client.id == cid, Client.is_active == True).first()
     if not client:
-        raise HTTPException(404, "Cliente no encontrado")
+        raise ErrorDeDominio(404, "Cliente no encontrado")
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise ErrorDeDominio(404, "Proyecto no encontrado")
     if project.client_id and project.client_id != cid:
         other = db.query(Client).filter(Client.id == project.client_id).first()
-        raise HTTPException(409, f"El proyecto ya está vinculado al cliente '{other.name if other else project.client_id}'")
+        raise ErrorDeDominio(409, f"El proyecto ya está vinculado al cliente '{other.name if other else project.client_id}'")
     project.client_id = cid
     project.client_name = client.name
     db.commit()
@@ -795,7 +796,7 @@ def unlink_project(cid: str, project_id: str, db: Session) -> dict:
         Project.id == project_id, Project.client_id == cid
     ).first()
     if not project:
-        raise HTTPException(404, "Proyecto no encontrado o no vinculado a este cliente")
+        raise ErrorDeDominio(404, "Proyecto no encontrado o no vinculado a este cliente")
     project.client_id = None
     project.client_name = None
     db.commit()

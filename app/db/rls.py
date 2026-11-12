@@ -155,6 +155,7 @@ def sincronizar(session, *, libre: bool = False) -> None:
         if session.get_bind().dialect.name != "postgresql":
             return
     except Exception:
+        logger.debug("sincronizar: excepcion ignorada", exc_info=True)
         return
     deseado = "" if libre else tenant_de(session.info)
     conexion = session.connection()

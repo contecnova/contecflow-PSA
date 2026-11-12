@@ -5,7 +5,6 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
-import type { TaskListParams } from '../services/api/tasks'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -95,8 +94,8 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
   return (
     <Modal open onClose={onClose} title={t('dependencies.title')}>
-      <div style={{display:'flex', flexDirection:'column', gap:14}}>
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+      <div className="u-stack-14">
+        <div className="u-grid2-12">
           <div>
             <label style={ls}>{t('dependencies.from_task')}</label>
             <select style={is} value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
@@ -116,7 +115,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
         <div>
           <label style={ls}>{t('dependencies.tipo_de_dependencia')}</label>
-          <div style={{display:'flex', flexDirection:'column', gap:6}}>
+          <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
                 style={{display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8,
@@ -124,9 +123,9 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
                   background:form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent',
                   cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
                 <div style={{width:10, height:10, borderRadius:'50%', background:dt.color, flexShrink:0}} />
-                <div style={{flex:1}}>
+                <div className="u-flex1">
                   <div style={{fontSize: "var(--text-base)", fontWeight:form.dependency_type===dt.value?600:400, color:form.dependency_type===dt.value?dt.color:'var(--text-1)'}}>{dt.label}</div>
-                  <div style={{fontSize: "var(--text-xs)", color:'var(--text-2)'}}>{dt.desc}</div>
+                  <div className="u-text2-xs">{dt.desc}</div>
                 </div>
                 {form.dependency_type===dt.value && <span style={{color:dt.color}}>✓</span>}
               </button>
@@ -134,12 +133,12 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
           </div>
         </div>
 
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+        <div className="u-grid2-12">
           <div>
             <label style={ls}>{t('dependencies.dias_de_lag_retraso')}</label>
             <input type="number" style={is} value={form.lag_days} min={0}
               onChange={e => set('lag_days')(+e.target.value)} />
-            <div style={{fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:4}}>{t('dependencies.dias_extra_tras_cumplir_la_condicion')}</div>
+            <div className="u-hint">{t('dependencies.dias_extra_tras_cumplir_la_condicion')}</div>
           </div>
         </div>
 
@@ -148,11 +147,11 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
             <span style={{color:selType?.color, fontWeight:600}}>
               &quot;{tasks.find(task=>String(task.id)===form.predecessor_id)?.title?.slice(0,30)}&quot;
             </span>
-            <span style={{color:'var(--text-2)'}}> {selType?.label.toLowerCase()} </span>
+            <span className="u-text2"> {selType?.label.toLowerCase()} </span>
             <span style={{color:'var(--accent)', fontWeight:600}}>
               &quot;{tasks.find(task=>String(task.id)===form.successor_id)?.title?.slice(0,30)}&quot;
             </span>
-            {form.lag_days > 0 && <span style={{color:'var(--text-2)'}}> + {form.lag_days}d</span>}
+            {form.lag_days > 0 && <span className="u-text2"> + {form.lag_days}d</span>}
           </div>
         )}
 
@@ -181,7 +180,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
   const _blockingIds = new Set(edges.map(e => e.from_task_id))
 
   return (
-    <div style={{overflowX:'auto'}}>
+    <div className="u-scroll-x">
       <div style={{minWidth:600}}>
         {/* Cabecera */}
         <div style={{display:'grid', gridTemplateColumns:'200px 60px 1fr 80px', gap:0,
@@ -216,7 +215,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                       <span style={{color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:180}}>
                         {target?.title}
                       </span>
-                      {(e.lag_days ?? 0) > 0 && <span style={{color:'var(--text-3)'}}>+{e.lag_days}d</span>}
+                      {(e.lag_days ?? 0) > 0 && <span className="u-text3">+{e.lag_days}d</span>}
                     </div>
                   )
                 })}
@@ -237,8 +236,8 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                 )}
               </div>
               <div style={{fontSize: "var(--text-2xs)", color:'var(--text-2)'}}>
-                {isBlocking && <div style={{color:'var(--danger)'}}>⬆ bloquea</div>}
-                {isBlocked  && <div style={{color:'var(--warning)'}}>⬇ bloqueada</div>}
+                {isBlocking && <div className="u-danger">⬆ bloquea</div>}
+                {isBlocked  && <div className="u-warning">⬇ bloqueada</div>}
               </div>
             </div>
           )
@@ -264,7 +263,7 @@ export default function DependenciesPage(): JSX.Element {
   const { data: tasks = [] } = useQuery<TaskItem[]>({
     queryKey: ['tasks-list', project],
     queryFn: () => project
-      ? tasksApi.list({ project_id: project, limit: 500 } as TaskListParams)
+      ? tasksApi.list({ project_id: project, limit: 500 })
           .then(r => Array.isArray(r.data) ? r.data : [])
           .catch(() => [])
       : Promise.resolve([]),
@@ -319,7 +318,7 @@ export default function DependenciesPage(): JSX.Element {
             </select>
           </div>
           {project && (
-            <div style={{display:'flex', gap:6}}>
+            <div className="u-row-6">
               {(['list','visual'] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
                   style={{padding:'7px 14px', borderRadius:8, border:'1px solid var(--surface-4)',

@@ -36,11 +36,11 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.core.encryption import encrypt_value
 from app.models.marketplace import IntegrationConnector
 from app.models.marketplace import IntegrationInstance
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -167,13 +167,13 @@ def validar_parametros_de_sincronizacion(
     un valor inventado.
     """
     if sync_direction not in SENTIDOS_DE_SINCRONIZACION:
-        raise HTTPException(
+        raise ErrorDeDominio(
             422,
             "Invalid sync_direction. Allowed: "
             f"{sorted(SENTIDOS_DE_SINCRONIZACION)}",
         )
     if sync_frequency not in FRECUENCIAS_DE_SINCRONIZACION:
-        raise HTTPException(
+        raise ErrorDeDominio(
             422,
             "Invalid sync_frequency. Allowed: "
             f"{sorted(FRECUENCIAS_DE_SINCRONIZACION)}",
@@ -338,7 +338,7 @@ def instalar_por_id(db: Session, user, datos: dict) -> IntegrationInstance:
     """
     org_id = getattr(user, "organization_id", None)
     if not org_id:
-        raise HTTPException(400, "organization_id no disponible")
+        raise ErrorDeDominio(400, "organization_id no disponible")
 
     sentido = datos.get("sync_direction") or "bidirectional"
     frecuencia = datos.get("sync_frequency") or "hourly"
@@ -351,7 +351,7 @@ def instalar_por_id(db: Session, user, datos: dict) -> IntegrationInstance:
         .first()
     )
     if not connector:
-        raise HTTPException(404, "Connector not found")
+        raise ErrorDeDominio(404, "Connector not found")
 
     return crear_instancia(
         db,
@@ -421,9 +421,9 @@ def install_integration_connector(
         .first()
     )
     if not connector:
-        raise HTTPException(404, f"Connector '{connector_slug}' not found in marketplace")
+        raise ErrorDeDominio(404, f"Connector '{connector_slug}' not found in marketplace")
     if not organization_id:
-        raise HTTPException(400, "User has no associated organization")
+        raise ErrorDeDominio(400, "User has no associated organization")
 
     instance = crear_instancia(
         db,
@@ -479,6 +479,6 @@ def uninstall_integration_connector(
         IntegrationInstance.is_enabled == True,
     ).first()
     if not inst:
-        raise HTTPException(404, "Integration instance not found")
+        raise ErrorDeDominio(404, "Integration instance not found")
     inst.is_enabled = False
     db.commit()

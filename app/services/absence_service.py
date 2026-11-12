@@ -15,6 +15,7 @@ from app.models.user import User
 from app.models.user import UserRole
 from datetime import timedelta
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +90,7 @@ def exigir_saldo(db: Session, user_id: str, tipo, start_date: date, dias: float,
         return
     quedan = get_vacation_balance(db, user_id, start_date.year)["days_remaining"] + liberados
     if dias > quedan:
-        from fastapi import HTTPException
-        raise HTTPException(400, f"Pides {dias:g} días de vacaciones y te quedan {quedan:g} en {start_date.year}")
+        raise ErrorDeDominio(400, f"Pides {dias:g} días de vacaciones y te quedan {quedan:g} en {start_date.year}")
 
 
 def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
@@ -104,6 +104,7 @@ def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
         entitled = bal.days_entitled if bal else _dias_por_defecto(db, user_id)
         carried = bal.days_carried_over if bal else 0
     except Exception:
+        logger.warning("get_vacation_balance: excepcion ignorada", exc_info=True)
         entitled = _dias_por_defecto(db, user_id)
         carried = 0
 

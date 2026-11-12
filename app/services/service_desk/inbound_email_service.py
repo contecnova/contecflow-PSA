@@ -8,10 +8,10 @@ el secreto de la pasarela, el de esa organizacion o el del `.env`.
 import hmac
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.services.service_desk import inbound_mail
+from app.core.errores import ErrorDeDominio
 
 
 def parse_email_address(raw: Optional[str]) -> tuple[str, str]:
@@ -27,9 +27,9 @@ def _secreto(db: Session, org_id: Optional[str]) -> str:
 
 def _validate_inbound_secret(configured_secret: str, provided_secret: Optional[str]) -> None:
     if not configured_secret:
-        raise HTTPException(403, "Email inbound deshabilitado: configura el secreto de la pasarela")
+        raise ErrorDeDominio(403, "Email inbound deshabilitado: configura el secreto de la pasarela")
     if not hmac.compare_digest(provided_secret or "", configured_secret):
-        raise HTTPException(403, "Firma inválida")
+        raise ErrorDeDominio(403, "Firma inválida")
 
 
 def process_inbound_email(db: Session, payload: dict, provided_secret: Optional[str]) -> inbound_mail.Resultado:

@@ -206,8 +206,8 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
           {t('sd.cmdb3d.title', 'Mapa 3D de Dependencias CMDB')}
         </h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('cmdb3dgraph.max_nodos')}</span>
+        <div className="u-row-center-8">
+          <span className="u-text3-xs">{t('cmdb3dgraph.max_nodos')}</span>
           <select
             value={maxNodes}
             onChange={e => setMaxNodes(Number(e.target.value))}
@@ -283,17 +283,17 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
           return (
             <div style={{ marginTop: 12, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
               <div style={{ marginBottom: 8 }}>
-                <strong style={{ color: 'var(--text-1)' }}>{ciName}</strong>
+                <strong className="u-text1">{ciName}</strong>
                 {' afecta a '}
                 <strong style={{ color: total > 0 ? 'var(--danger)' : 'var(--success)' }}>{total}</strong>
                 {' CI(s) dependientes'}
               </div>
               {list.length === 0 ? (
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                <div className="u-text3-xs">
                   {t('cmdb3dgraph.ningun_ci_depende_de_este_fallo_aislado')}
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div className="u-wrap-6">
                   {list.slice(0, 20).map((ci, idx) => {
                     const id = typeof ci === 'string' ? ci : ci.id
                     const label = typeof ci === 'string' ? ci : (ci.name || ci.id)

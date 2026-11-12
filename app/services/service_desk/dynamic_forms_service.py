@@ -16,6 +16,7 @@ el portal recibia los clientes y los elementos de configuracion de **todas** las
 organizaciones (ver `tests/test_portal_contexto_de_tenant.py`).
 """
 from __future__ import annotations
+import logging
 
 import json
 from datetime import datetime, timezone
@@ -55,6 +56,7 @@ def _get_json(db: Session, key: str, org_id: Optional[str], fallback):
     try:
         return json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("_get_json: excepcion ignorada", exc_info=True)
         return fallback
 
 
@@ -109,6 +111,19 @@ def _default_rules() -> dict:
             {"when": {"field": "impact", "equals": "enterprise"}, "set": {"priority": "p2_high"}},
         ],
     }
+
+
+def reglas_o_sembrar(db: Session, org_id: Optional[str]) -> dict:
+    """Las reglas de la organizacion (`None`: las globales del portal).
+
+    Si aun no hay, siembra las de por defecto y confirma.
+    """
+    rules = _get_json(db, _RULES_KEY, org_id, fallback=None)
+    if not isinstance(rules, dict):
+        rules = _default_rules()
+        _set_json(db, _RULES_KEY, org_id, rules, "Service Desk dynamic forms rules")
+        db.commit()
+    return rules
 
 
 def _append_history(db: Session, org_id: Optional[str], snapshot: dict) -> None:

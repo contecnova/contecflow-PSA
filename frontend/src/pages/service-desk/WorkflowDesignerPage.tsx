@@ -13,36 +13,114 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import type { AxiosError } from 'axios'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ReactFlow, ReactFlowProvider, addEdge, useNodesState, useEdgesState,
   Background, Controls, MiniMap, MarkerType, Handle, Position, useReactFlow,
 } from '@xyflow/react'
+import type { Connection, Edge, Node, NodeProps, XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
   GitBranch, Plus, Search, Trash2, Copy, ArrowLeft, Save, CheckCircle,
   AlertTriangle, Sparkles, X, Layers, Clock, Bell, Globe, Ticket,
   Play, XCircle, Activity,
 } from 'lucide-react'
-import { sdWorkflowDesignerApi } from '../../services/api'
+import { sdWorkflowDesignerApi, type ApiError } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
-import { Button, Spinner, Page, StatusBadge } from '../../components/ui'
+import { Button, Spinner, Page, StatusBadge, useDialogo } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
 const NODE_VISUAL: Record<string, { color: string; icon: string; label: string }> = {
-  start:         { color: '#10b981', icon: '▶', label: 'Inicio' },
-  end:           { color: '#ef4444', icon: '■', label: 'Fin' },
-  state:         { color: '#3b82f6', icon: '●', label: 'Estado' },
-  decision:      { color: '#f59e0b', icon: '◆', label: 'Decisión' },
-  approval:      { color: '#8b5cf6', icon: '✓', label: 'Aprobación' },
-  wait:          { color: '#6b7280', icon: '⏱', label: 'Espera' },
-  notify:        { color: '#14b8a6', icon: '🔔', label: 'Notificar' },
-  http_call:     { color: '#ec4899', icon: '🌐', label: 'HTTP' },
-  create_ticket: { color: '#0ea5e9', icon: '🎫', label: 'Ticket' },
+  start:         { color: 'var(--success)', icon: '▶', label: 'Inicio' },
+  end:           { color: 'var(--danger)', icon: '■', label: 'Fin' },
+  state:         { color: 'var(--accent)', icon: '●', label: 'Estado' },
+  decision:      { color: 'var(--warning)', icon: '◆', label: 'Decisión' },
+  approval:      { color: 'var(--purple)', icon: '✓', label: 'Aprobación' },
+  wait:          { color: 'var(--text-3)', icon: '⏱', label: 'Espera' },
+  notify:        { color: 'var(--chart-teal)', icon: '🔔', label: 'Notificar' },
+  http_call:     { color: 'var(--chart-pink)', icon: '🌐', label: 'HTTP' },
+  create_ticket: { color: 'var(--sky-blue)', icon: '🎫', label: 'Ticket' },
 }
+
+// ── Tipos (app/services/service_desk/workflow_designer_service.py y workflow_engine.py) ──
+type ValorConfig = string | number | null | undefined
+type ConfigNodo = Record<string, ValorConfig>
+type DatosNodo = { label?: string; type: string; config?: ConfigNodo }
+type NodoFlujo = Node<DatosNodo>
+type AristaFlujo = Edge<{ branch?: string }>
+
+/** Nodo y arista tal como se guardan en `graph_json`. */
+interface NodoGuardado { id: string; type: string; position?: XYPosition; data?: DatosNodo; label?: string; config?: ConfigNodo }
+interface AristaGuardada { id: string; source: string; target: string; branch?: string; label?: string }
+interface GrafoGuardado { nodes?: NodoGuardado[]; edges?: AristaGuardada[] }
+
+/** `serialize_blueprint`. */
+interface Blueprint {
+  id: string
+  name: string
+  description: string | null
+  process_type: string
+  scope: string | null
+  status: string
+  latest_version: number
+  published_version: number | null
+  is_active: boolean
+  created_at: string
+  updated_at: string | null
+}
+/** `serialize_version`. */
+interface VersionBlueprint {
+  id: string
+  blueprint_id: string
+  version: number
+  graph: GrafoGuardado
+  is_published: boolean
+  published_at: string | null
+  created_at: string
+}
+interface DetalleBlueprint { blueprint: Blueprint; versions: VersionBlueprint[] }
+/** `builtin_templates`. */
+interface PlantillaFlujo { id: string; name: string; description: string; process_type: string; graph: GrafoGuardado }
+/** `workflow_engine.serialize_run`. */
+interface EjecucionFlujo {
+  id: string
+  blueprint_id: string
+  blueprint_version: number
+  target_entity_type: string | null
+  target_entity_id: string | null
+  status: string
+  current_node_id: string | null
+  wake_at: string | null
+  last_error: string | null
+  context: Record<string, unknown>
+  created_by_user_id: string | null
+  started_at: string | null
+  completed_at: string | null
+}
+/** `workflow_engine.serialize_step`. */
+interface PasoFlujo {
+  id: string
+  node_id: string
+  node_type: string
+  status: string
+  branch_taken: string | null
+  payload: Record<string, unknown>
+  error: string | null
+  created_at: string | null
+  completed_at: string | null
+}
+interface DetalleEjecucion { run: EjecucionFlujo; steps: PasoFlujo[] }
+/** `validate_graph`. */
+interface ValidacionGrafo { valid: boolean; errors?: string[]; warnings?: string[] }
+
+/** `detail` de un error del diseñador: texto, o `{message, errors}` si el grafo no valida. */
+type DetalleError = string | { message?: string; errors?: string[] }
+type ErrorDeFlujo = AxiosError<{ detail?: DetalleError }>
+const mensajeDelDetalle = (d: DetalleError | undefined) => (typeof d === 'object' ? d?.message : undefined)
 
 const PROCESS_LABEL: Record<string, string> = { ticket: 'Ticket', change: 'Cambio', approval: 'Aprobación' }
 
@@ -61,7 +139,7 @@ const labelStyle: CSSProperties = {
 }
 
 // ── Custom node para ReactFlow ───────────────────────────────────────────────
-function WorkflowNode({ data, selected }: { data: any; selected: boolean }) {
+function WorkflowNode({ data, selected }: NodeProps<NodoFlujo>) {
   const v = NODE_VISUAL[data.type] || NODE_VISUAL.state
   const showInput = data.type !== 'start'
   const showOutput = data.type !== 'end'
@@ -113,12 +191,12 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
   const [filter, setFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
-  const [cloneTarget, setCloneTarget] = useState<any>(null)   // { id, name } | null
-  const [archiveTarget, setArchiveTarget] = useState<any>(null) // { id, name } | null
+  const [cloneTarget, setCloneTarget] = useState<{ id: string; name: string } | null>(null)
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null)
 
   const { data: blueprints = [], isLoading } = useQuery({
     queryKey: ['sd-wf-blueprints', filter],
-    queryFn: () => sdWorkflowDesignerApi.blueprints(filter ? { process_type: filter } : undefined).then(r => r.data),
+    queryFn: () => sdWorkflowDesignerApi.blueprints(filter ? { process_type: filter } : undefined).then((r): Blueprint[] => r.data),
   })
 
   const archive = useMutation({
@@ -127,23 +205,23 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Blueprint archivado')
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al archivar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al archivar'),
   })
 
   const clone = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => sdWorkflowDesignerApi.clone(id, { name }),
-    onSuccess: (r: any) => {
+    onSuccess: r => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Blueprint clonado')
       onOpen(r.data.id)
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al clonar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al clonar'),
   })
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return blueprints
-    return blueprints.filter((b: any) =>
+    return blueprints.filter(b =>
       (b.name || '').toLowerCase().includes(q) ||
       (b.description || '').toLowerCase().includes(q),
     )
@@ -186,7 +264,7 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
         <EmptyState search={search} filter={filter} />
       ) : (
         <div className="ds-grid-cards">
-          {filtered.map((bp: any) => (
+          {filtered.map(bp => (
             <BlueprintCard key={bp.id} bp={bp}
               onOpen={() => onOpen(bp.id)}
               onClone={() => setCloneTarget({ id: bp.id, name: bp.name })}
@@ -199,13 +277,13 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
       {showCreate && (
         <CreateBlueprintModal
           onClose={() => setShowCreate(false)}
-          onCreated={(bp: any) => { setShowCreate(false); onOpen(bp.id) }}
+          onCreated={bp => { setShowCreate(false); onOpen(bp.id) }}
         />
       )}
       {showTemplates && (
         <TemplatePickerModal
           onClose={() => setShowTemplates(false)}
-          onPicked={(bp: any) => { setShowTemplates(false); onOpen(bp.id) }}
+          onPicked={bp => { setShowTemplates(false); onOpen(bp.id) }}
         />
       )}
       {cloneTarget && (
@@ -242,7 +320,7 @@ function EmptyState({ search, filter }: { search: string; filter: string }) {
   )
 }
 
-function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: any; onOpen: () => void; onClone: () => void; onArchive: () => void }) {
+function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: Blueprint; onOpen: () => void; onClone: () => void; onArchive: () => void }) {
   const statusKind = bp.status === 'published' ? 'success'
                     : bp.status === 'draft' ? 'warning' : 'neutral'
   const statusLabel = bp.status === 'published' ? 'Publicado'
@@ -254,7 +332,7 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: any; onOpen: ()
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
     >
       <div className="ds-row-between" style={{ alignItems: 'flex-start' }}>
-        <div style={{ minWidth: 0 }}>
+        <div className="u-min0">
           <div style={{ fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bp.name}</div>
           {bp.description && (
             <div className="ds-muted" style={{ marginTop: 2,
@@ -265,7 +343,7 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: any; onOpen: ()
         </div>
         <StatusBadge kind={statusKind}>{statusLabel}</StatusBadge>
       </div>
-      <div className="ds-row" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+      <div className="ds-row u-text2-xs">
         <span style={{ background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
           {PROCESS_LABEL[bp.process_type] || bp.process_type}
         </span>
@@ -283,12 +361,12 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: any; onOpen: ()
   )
 }
 
-function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: any; onClose: () => void; onConfirm: (name: string) => void }) {
+function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: { name: string }; onClose: () => void; onConfirm: (name: string) => void }) {
   const { t: traducir } = useAppLang()
   const [name, setName] = useState(`${bp.name} (copia)`)
   return (
     <Modal title="Clonar blueprint" onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-stack-12">
         <div>
           <label style={labelStyle}>{traducir('workflowdesigner.nombre_de_la_copia')}</label>
           <input autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
@@ -305,9 +383,9 @@ function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: any; onClose: () 
 function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onConfirm }: { title: string; message: string; confirmLabel?: string; onClose: () => void; onConfirm: () => void }) {
   return (
     <Modal title={title} onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         <p style={{ color: 'var(--text-1)', margin: 0 }}>{message}</p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={onConfirm}>{confirmLabel}</Button>
         </div>
@@ -316,7 +394,7 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onC
   )
 }
 
-function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (bp: any) => void }) {
+function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (bp: Blueprint) => void }) {
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -334,17 +412,17 @@ function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onC
         edges: [{ id: 'e1', source: 'start_1', target: 'end_1', branch: 'next' }],
       },
     }),
-    onSuccess: (r: any) => {
+    onSuccess: r => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Blueprint creado')
       onCreated?.(r.data)
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail?.message || e?.response?.data?.detail || 'Error'),
+    onError: (e: ErrorDeFlujo) => toast.error(mensajeDelDetalle(e?.response?.data?.detail) || e?.response?.data?.detail || 'Error'),
   })
 
   return (
     <Modal title={traducir('workflowdesigner.nuevo_blueprint')} onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-stack-12">
         <div>
           <label style={labelStyle}>Nombre</label>
           <input autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder={traducir('workflowdesigner.p_ej_triaje_de_incidentes')} />
@@ -372,32 +450,32 @@ function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onC
   )
 }
 
-function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPicked?: (bp: any) => void }) {
+function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPicked?: (bp: Blueprint) => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['sd-wf-templates'],
-    queryFn: () => sdWorkflowDesignerApi.templates().then(r => r.data),
+    queryFn: () => sdWorkflowDesignerApi.templates().then((r): PlantillaFlujo[] => r.data),
   })
 
   const useTemplate = useMutation({
-    mutationFn: (tpl: any) => sdWorkflowDesignerApi.createBlueprint({
+    mutationFn: (tpl: PlantillaFlujo) => sdWorkflowDesignerApi.createBlueprint({
       name: tpl.name, process_type: tpl.process_type, description: tpl.description,
       graph: tpl.graph,
     }),
-    onSuccess: (r: any) => {
+    onSuccess: r => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Blueprint creado desde plantilla')
       onPicked?.(r.data)
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail?.message || 'Error al crear'),
+    onError: (e: ErrorDeFlujo) => toast.error(mensajeDelDetalle(e?.response?.data?.detail) || 'Error al crear'),
   })
 
   return (
     <Modal title="Elegir plantilla" onClose={onClose} width={620}>
       {isLoading ? <Spinner /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {templates.map((tpl: any) => (
+        <div className="u-stack-8">
+          {templates.map(tpl => (
             <button key={tpl.id} onClick={() => useTemplate.mutate(tpl)}
               style={{
                 textAlign: 'left', cursor: 'pointer',
@@ -413,8 +491,8 @@ function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPic
                   {PROCESS_LABEL[tpl.process_type] || tpl.process_type}
                 </span>
               </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{tpl.description}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+              <div className="u-text2-xs">{tpl.description}</div>
+              <div className="u-hint">
                 {tpl.graph.nodes.length} nodos · {tpl.graph.edges.length} aristas
               </div>
             </button>
@@ -443,33 +521,33 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ['sd-wf-blueprint', id],
-    queryFn: () => sdWorkflowDesignerApi.blueprint(id).then(r => r.data),
+    queryFn: () => sdWorkflowDesignerApi.blueprint(id).then((r): DetalleBlueprint => r.data),
   })
 
   const blueprint = detail?.blueprint
   const versions = detail?.versions || []
   const head = versions[0]  // Order by version desc en backend
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<any>([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<any>([])
-  const [selected, setSelected] = useState<any>(null)
-  const [validation, setValidation] = useState<any>(null)
+  const [nodes, setNodes, onNodesChange] = useNodesState<NodoFlujo>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<AristaFlujo>([])
+  const [selected, setSelected] = useState<NodoFlujo | null>(null)
+  const [validation, setValidation] = useState<ValidacionGrafo | null>(null)
 
   // Carga inicial
   useEffect(() => {
     if (!head) return
-    const g = head.graph || {}
-    const n = (g.nodes || []).map((node: any) => ({
+    const g: GrafoGuardado = head.graph || {}
+    const n = (g.nodes || []).map((node): NodoFlujo => ({
       ...node,
       type: 'wf',
       position: node.position || { x: 100, y: 100 },
       data: node.data || { label: node.label || node.type, type: node.type, config: node.config || {} },
     }))
     // Aseguramos que data.type siga existiendo (es el tipo lógico)
-    n.forEach((nn: any) => {
-      if (!nn.data.type) nn.data.type = (g.nodes || []).find((o: any) => o.id === nn.id)?.type || 'state'
+    n.forEach(nn => {
+      if (!nn.data.type) nn.data.type = (g.nodes || []).find(o => o.id === nn.id)?.type || 'state'
     })
-    const e = (g.edges || []).map((edge: any) => ({
+    const e = (g.edges || []).map((edge): AristaFlujo => ({
       ...edge,
       type: 'smoothstep',
       animated: true,
@@ -494,13 +572,13 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
     return () => clearTimeout(t)
   }, [nodes, edges])
 
-  const onConnect = useCallback((params: any) => {
-    const sourceNode = nodes.find((n: any) => n.id === params.source)
+  const onConnect = useCallback((params: Connection) => {
+    const sourceNode = nodes.find(n => n.id === params.source)
     const branch = sourceNode?.data?.type === 'decision' ? 'true'
       : sourceNode?.data?.type === 'approval' ? 'approved'
       : sourceNode?.data?.type === 'http_call' ? 'success'
       : 'next'
-    setEdges((eds: any) => addEdge({
+    setEdges(eds => addEdge({
       ...params, type: 'smoothstep', animated: true, label: branch,
       data: { branch },
       markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--accent)' },
@@ -511,23 +589,23 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
   const addNode = (type: string) => {
     const id = `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
     const v = NODE_VISUAL[type]
-    setNodes((n: any) => [...n, {
+    setNodes(n => [...n, {
       id, type: 'wf',
       position: { x: 200 + Math.random() * 200, y: 200 + Math.random() * 80 },
       data: { label: v.label, type, config: {} },
     }])
   }
 
-  const updateSelectedNode = (patch: any) => {
+  const updateSelectedNode = (patch: Partial<DatosNodo>) => {
     if (!selected) return
-    setNodes((ns: any) => ns.map((n: any) => n.id === selected.id ? { ...n, data: { ...n.data, ...patch } } : n))
-    setSelected((s: any) => s ? { ...s, data: { ...s.data, ...patch } } : s)
+    setNodes(ns => ns.map(n => n.id === selected.id ? { ...n, data: { ...n.data, ...patch } } : n))
+    setSelected(s => s ? { ...s, data: { ...s.data, ...patch } } : s)
   }
 
   const deleteSelected = () => {
     if (!selected) return
-    setNodes((ns: any) => ns.filter((n: any) => n.id !== selected.id))
-    setEdges((es: any) => es.filter((e: any) => e.source !== selected.id && e.target !== selected.id))
+    setNodes(ns => ns.filter(n => n.id !== selected.id))
+    setEdges(es => es.filter(e => e.source !== selected.id && e.target !== selected.id))
     setSelected(null)
   }
 
@@ -538,9 +616,10 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
       toast.success('Versión guardada')
     },
-    onError: (e: any) => {
+    onError: (e: ErrorDeFlujo) => {
       const detail = e?.response?.data?.detail
-      const msg = detail?.errors?.length ? detail.errors.join(' · ') : (detail?.message || detail || 'Error al guardar')
+      const obj = typeof detail === 'object' ? detail : undefined
+      const msg = obj?.errors?.length ? obj.errors.join(' · ') : (obj?.message || detail || 'Error al guardar')
       toast.error(msg)
     },
   })
@@ -564,9 +643,9 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <Button variant="secondary" onClick={onBack}><ArrowLeft size={14} /> Volver</Button>
-        <div style={{ minWidth: 0 }}>
+        <div className="u-min0">
           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)' }}>{blueprint.name}</div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+          <div className="u-text3-xs">
             {PROCESS_LABEL[blueprint.process_type]} · v{blueprint.latest_version}
             {blueprint.published_version && ` · publicada v${blueprint.published_version}`}
           </div>
@@ -577,7 +656,7 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
             <button key={t} onClick={() => setTab(t)}
               style={{
                 background: tab === t ? 'var(--accent)' : 'transparent',
-                color: tab === t ? '#fff' : 'var(--text-2)',
+                color: tab === t ? 'var(--on-accent-light)' : 'var(--text-2)',
                 border: 'none', padding: '6px 14px', borderRadius: 6,
                 cursor: 'pointer', fontSize: 'var(--text-xs)', fontWeight: 600,
                 display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -587,7 +666,7 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
             </button>
           ))}
         </div>
-        <div style={{ flex: 1 }} />
+        <div className="u-flex1" />
         {tab === 'editor' && <ValidationBadge validation={validation} />}
         {tab === 'editor' && (
           <Button variant="secondary" onClick={() => save.mutate()} disabled={save.isPending || !validation?.valid}>
@@ -643,8 +722,8 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
           >
             <Background gap={16} color="var(--surface-4)" />
             <Controls showInteractive={false} />
-            <MiniMap pannable zoomable
-              nodeColor={(n: any) => NODE_VISUAL[n.data?.type]?.color || '#94a3b8'}
+            <MiniMap<NodoFlujo> pannable zoomable
+              nodeColor={n => NODE_VISUAL[n.data?.type]?.color || 'var(--text-3)'}
               maskColor="rgba(0,0,0,0.45)" />
           </ReactFlow>
           {validation && (validation.errors?.length || validation.warnings?.length) ? (
@@ -667,16 +746,16 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
   const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
-  const [activeRunId, setActiveRunId] = useState<any>(null)
+  const [activeRunId, setActiveRunId] = useState<string | null>(null)
 
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ['sd-wf-runs', blueprintId],
-    queryFn: () => sdWorkflowDesignerApi.runs({ blueprint_id: blueprintId }).then(r => r.data),
+    queryFn: () => sdWorkflowDesignerApi.runs({ blueprint_id: blueprintId }).then((r): EjecucionFlujo[] => r.data),
     refetchInterval: 8_000,
   })
   const { data: runDetail } = useQuery({
     queryKey: ['sd-wf-run', activeRunId],
-    queryFn: () => sdWorkflowDesignerApi.run(activeRunId).then(r => r.data),
+    queryFn: () => sdWorkflowDesignerApi.run(activeRunId).then((r): DetalleEjecucion => r.data),
     enabled: !!activeRunId,
     refetchInterval: 4_000,
   })
@@ -688,7 +767,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
       qc.invalidateQueries({ queryKey: ['sd-wf-run', activeRunId] })
       toast.success('Ejecución reanudada')
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
   })
   const cancel = useMutation({
     mutationFn: (runId: string) => sdWorkflowDesignerApi.cancelRun(runId, 'cancelled by user'),
@@ -699,10 +778,10 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
     },
   })
 
-  const fmtDate = (iso: any) => iso ? new Date(iso).toLocaleString(localeActivo()) : ''
+  const fmtDate = (iso: string | null) => iso ? new Date(iso).toLocaleString(localeActivo()) : ''
   const statusColor = (s: string): string => (({
-    running: '#3b82f6', waiting: '#f59e0b', completed: '#10b981',
-    cancelled: 'var(--text-3)', error: '#ef4444',
+    running: 'var(--accent)', waiting: 'var(--warning)', completed: 'var(--success)',
+    cancelled: 'var(--text-3)', error: 'var(--danger)',
   } as Record<string, string>)[s] || 'var(--text-3)')
 
   return (
@@ -717,7 +796,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
           <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-3)' }}>
             <Activity size={32} style={{ marginBottom: 8 }} />
             <div style={{ fontWeight: 600 }}>{traducir('workflowdesigner.aun_no_hay_ejecuciones')}</div>
-            <div style={{ fontSize: 'var(--text-sm)' }}>
+            <div className="u-sm">
               {traducir('workflowdesigner.pulsa_ejecutar_para_iniciar_una_nueva')}
             </div>
           </div>
@@ -733,7 +812,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
               </tr>
             </thead>
             <tbody>
-              {runs.map((r: any) => (
+              {runs.map(r => (
                 <tr key={r.id} onClick={() => setActiveRunId(r.id)}
                   style={{
                     cursor: 'pointer',
@@ -766,17 +845,17 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
         padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         {!activeRunId ? (
-          <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
+          <div className="u-text3-sm">
             {traducir('workflowdesigner.selecciona_una_ejecucion_para_ver_su_historial')}
           </div>
         ) : !runDetail ? (
           <Spinner />
         ) : (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="u-row-between">
               <div>
                 <div style={{ fontWeight: 700 }}>{runDetail.run.id.slice(0, 8)}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                <div className="u-text3-xs">
                   {runDetail.run.status} · v{runDetail.run.blueprint_version}
                 </div>
               </div>
@@ -788,7 +867,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
             </div>
 
             {runDetail.run.last_error && (
-              <div style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444',
+              <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)',
                 border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6,
                 padding: '6px 10px', fontSize: 'var(--text-xs)' }}>
                 {runDetail.run.last_error}
@@ -808,8 +887,8 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
                 Historial ({runDetail.steps.length})
               </div>
               {runDetail.steps.length === 0 ? (
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('workflowdesigner.sin_pasos_aun')}</div>
-              ) : runDetail.steps.map((s: any, i: number) => (
+                <div className="u-text3-xs">{traducir('workflowdesigner.sin_pasos_aun')}</div>
+              ) : runDetail.steps.map((s, i) => (
                 <div key={s.id} style={{
                   borderLeft: `2px solid ${NODE_VISUAL[s.node_type]?.color || 'var(--text-3)'}`,
                   paddingLeft: 10, marginBottom: 8,
@@ -822,8 +901,8 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
                       {s.status}{s.branch_taken ? ` → ${s.branch_taken}` : ''}
                     </span>
                   </div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{s.node_id}</div>
-                  {s.error && <div style={{ color: '#ef4444', fontSize: 'var(--text-xs)' }}>{s.error}</div>}
+                  <div className="u-text3-xs">{s.node_id}</div>
+                  {s.error && <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)' }}>{s.error}</div>}
                 </div>
               ))}
             </div>
@@ -846,12 +925,12 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
   )
 }
 
-function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: any; onResume: (branch: string) => void; pending: boolean }) {
+function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: DetalleEjecucion; onResume: (branch: string) => void; pending: boolean }) {
   const { t: traducir } = useAppLang()
   // Branch options según el tipo del nodo actual
-  const nodeType = runDetail.steps?.find((s: any) => s.status === 'waiting')?.node_type || 'approval'
+  const nodeType = runDetail.steps?.find(s => s.status === 'waiting')?.node_type || 'approval'
   const branches: { b: string; label: string; color?: string }[] = ({
-    approval: [{ b: 'approved', label: 'Aprobar', color: '#10b981' }, { b: 'rejected', label: 'Rechazar', color: '#ef4444' }],
+    approval: [{ b: 'approved', label: 'Aprobar', color: 'var(--success)' }, { b: 'rejected', label: 'Rechazar', color: 'var(--danger)' }],
     decision: [{ b: 'true', label: 'Verdadero' }, { b: 'false', label: 'Falso' }],
     wait: [{ b: 'next', label: 'Continuar' }],
     http_call: [{ b: 'success', label: 'Éxito' }, { b: 'failure', label: 'Fallo' }],
@@ -862,15 +941,15 @@ function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: any; 
       background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.4)',
       borderRadius: 8, padding: 10,
     }}>
-      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>
+      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>
         {traducir('workflowdesigner.esperando_intervencion')} {NODE_VISUAL[nodeType]?.label || nodeType}
       </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div className="u-wrap-6">
         {branches.map(({ b, label, color }) => (
           <button key={b} onClick={() => onResume(b)} disabled={pending}
             style={{
               cursor: 'pointer', border: 'none', borderRadius: 6,
-              background: color || 'var(--accent)', color: '#fff',
+              background: color || 'var(--accent)', color: 'var(--on-accent-light)',
               padding: '6px 12px', fontSize: 'var(--text-xs)', fontWeight: 600,
               opacity: pending ? 0.6 : 1,
             }}>
@@ -882,7 +961,7 @@ function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: any; 
   )
 }
 
-function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: any; onClose: () => void; onStarted?: () => void }) {
+function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint; onClose: () => void; onStarted?: () => void }) {
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const [contextJson, setContextJson] = useState('{\n  "priority": "P3"\n}')
@@ -900,17 +979,17 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: any; onCl
       })
     },
     onSuccess: () => { toast.success('Ejecución iniciada'); onStarted?.() },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || e?.message || 'Error'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || e?.message || 'Error'),
   })
   return (
     <Modal title={traducir('workflowdesigner.iniciar_ejecucion')} onClose={onClose} width={520}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-stack-12">
         <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ flex: 1 }}>
+          <div className="u-flex1">
             <label style={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
             <input value={targetType} onChange={e => setTargetType(e.target.value)} style={inputStyle} placeholder="ticket / change / manual" />
           </div>
-          <div style={{ flex: 1 }}>
+          <div className="u-flex1">
             <label style={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
             <input value={targetId} onChange={e => setTargetId(e.target.value)} style={inputStyle} placeholder="123e4567-…" />
           </div>
@@ -919,7 +998,7 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: any; onCl
           <label style={labelStyle}>Contexto inicial (JSON)</label>
           <textarea value={contextJson} onChange={e => setContextJson(e.target.value)} rows={6}
             style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 'var(--text-xs)', resize: 'vertical' }} />
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+          <div className="u-hint">
             {traducir('workflowdesigner.las_decisiones_del_workflow_lo_evaluaran_p')} <code>priority == 'P1'</code>).
           </div>
         </div>
@@ -969,7 +1048,7 @@ function Palette({ onAdd }: { onAdd: (type: string) => void }) {
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)' }}
           >
             <span style={{ color: v.color, display: 'inline-flex' }}>{it.icon}</span>
-            <span style={{ flex: 1 }}>{v.label}</span>
+            <span className="u-flex1">{v.label}</span>
           </button>
         )
       })}
@@ -982,7 +1061,7 @@ const DISPARADORES_DE_FLUJO = ['created', 'assigned', 'group_assigned', 'status_
   'commented', 'sla_warning', 'sla_breached', 'ola_breached', 'uc_breached', 'escalated']
 const ESTADOS_DE_TICKET = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled']
 
-function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (patch: any) => void; onDelete: () => void }) {
+function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null; onChange: (patch: Partial<DatosNodo>) => void; onDelete: () => void }) {
   const { t: traducir } = useAppLang()
   if (!node) {
     return (
@@ -996,16 +1075,16 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
   }
   const t = node.data.type
   const config = node.data.config || {}
-  const setConfig = (k: string, v: any) => onChange({ config: { ...config, [k]: v } })
+  const setConfig = (k: string, v: ValorConfig) => onChange({ config: { ...config, [k]: v } })
 
   return (
     <div style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
       padding: 14, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="u-row-between">
         <div style={{ fontWeight: 700, color: NODE_VISUAL[t]?.color }}>
-          {NODE_VISUAL[t]?.label} <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>· {node.id.slice(0, 10)}</span>
+          {NODE_VISUAL[t]?.label} <span className="u-text3-xs">· {node.id.slice(0, 10)}</span>
         </div>
         <button onClick={onDelete} title="Eliminar nodo (Backspace)"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
@@ -1025,7 +1104,7 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
         ]} />
         {config.trigger && <>
           <FieldText label={traducir('sd_cfg.wf_condition')} value={config.condition} onChange={v => setConfig('condition', v)} placeholder={traducir('sd_cfg.wf_condition_hint')} />
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('sd_cfg.wf_condition_help')}</div>
+          <div className="u-text3-xs">{traducir('sd_cfg.wf_condition_help')}</div>
         </>}
       </>}
       {t === 'state' && <>
@@ -1076,7 +1155,7 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: any; onChange: (p
   )
 }
 
-function FieldText({ label, value, onChange, placeholder }: { label: string; value: any; onChange: (v: any) => void; placeholder?: string }) {
+function FieldText({ label, value, onChange, placeholder }: { label: string; value: ValorConfig; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -1084,7 +1163,7 @@ function FieldText({ label, value, onChange, placeholder }: { label: string; val
     </div>
   )
 }
-function FieldNumber({ label, value, onChange }: { label: string; value: any; onChange: (v: any) => void }) {
+function FieldNumber({ label, value, onChange }: { label: string; value: ValorConfig; onChange: (v: number | null) => void }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -1092,7 +1171,7 @@ function FieldNumber({ label, value, onChange }: { label: string; value: any; on
     </div>
   )
 }
-function FieldSelect({ label, value, onChange, options }: { label: string; value: any; onChange: (v: any) => void; options: { v: string; l: string }[] }) {
+function FieldSelect({ label, value, onChange, options }: { label: string; value: ValorConfig; onChange: (v: string) => void; options: { v: string; l: string }[] }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -1102,7 +1181,7 @@ function FieldSelect({ label, value, onChange, options }: { label: string; value
     </div>
   )
 }
-function FieldTextarea({ label, value, onChange }: { label: string; value: any; onChange: (v: any) => void }) {
+function FieldTextarea({ label, value, onChange }: { label: string; value: ValorConfig; onChange: (v: string) => void }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -1111,30 +1190,30 @@ function FieldTextarea({ label, value, onChange }: { label: string; value: any; 
   )
 }
 
-function ValidationBadge({ validation }: { validation: any }) {
+function ValidationBadge({ validation }: { validation: ValidacionGrafo | null }) {
   const { t: traducir } = useAppLang()
   if (!validation) return null
   const errs = validation.errors?.length || 0
   const warns = validation.warnings?.length || 0
   if (errs === 0 && warns === 0) {
-    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#10b981', fontSize: 'var(--text-xs)' }}>
+    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--success)', fontSize: 'var(--text-xs)' }}>
       <CheckCircle size={12} /> {traducir('workflowdesigner.valido')}
     </span>
   }
   if (errs > 0) {
-    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#ef4444', fontSize: 'var(--text-xs)' }}>
+    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--danger)', fontSize: 'var(--text-xs)' }}>
       <AlertTriangle size={12} /> {errs} error{errs !== 1 ? 'es' : ''}
     </span>
   }
-  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#f59e0b', fontSize: 'var(--text-xs)' }}>
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--warning)', fontSize: 'var(--text-xs)' }}>
     <AlertTriangle size={12} /> {warns} aviso{warns !== 1 ? 's' : ''}
   </span>
 }
 
-function ValidationBanner({ validation }: { validation: any }) {
+function ValidationBanner({ validation }: { validation: ValidacionGrafo }) {
   const msgs = [
-    ...(validation.errors || []).map((m: any) => ({ kind: 'error', text: m })),
-    ...(validation.warnings || []).map((m: any) => ({ kind: 'warn', text: m })),
+    ...(validation.errors || []).map(m => ({ kind: 'error', text: m })),
+    ...(validation.warnings || []).map(m => ({ kind: 'warn', text: m })),
   ].slice(0, 4)
   return (
     <div style={{
@@ -1145,7 +1224,7 @@ function ValidationBanner({ validation }: { validation: any }) {
     }}>
       {msgs.map((m, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-          <AlertTriangle size={11} style={{ marginTop: 2, color: m.kind === 'error' ? '#ef4444' : '#f59e0b' }} />
+          <AlertTriangle size={11} style={{ marginTop: 2, color: m.kind === 'error' ? 'var(--danger)' : 'var(--warning)' }} />
           <span>{m.text}</span>
         </div>
       ))}
@@ -1154,15 +1233,15 @@ function ValidationBanner({ validation }: { validation: any }) {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-function serializeGraph(nodes: any, edges: any) {
+function serializeGraph(nodes: NodoFlujo[], edges: AristaFlujo[]) {
   return {
-    nodes: nodes.map((n: any) => ({
+    nodes: nodes.map(n => ({
       id: n.id,
       type: n.data.type,
       position: n.position,
       data: { label: n.data.label, type: n.data.type, config: n.data.config || {} },
     })),
-    edges: edges.map((e: any) => ({
+    edges: edges.map(e => ({
       id: e.id, source: e.source, target: e.target,
       branch: e.data?.branch || e.label || 'next',
     })),
@@ -1170,12 +1249,14 @@ function serializeGraph(nodes: any, edges: any) {
 }
 
 function Modal({ title, onClose, width = 480, children }: { title: ReactNode; onClose: () => void; width?: number; children?: ReactNode }) {
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
   return (
     <div role="presentation" onClick={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }}>
-      <div role="dialog" aria-modal="true" tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
+        aria-label={typeof title === 'string' ? title : undefined}
         onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Escape') onClose() }}
         style={{
@@ -1184,8 +1265,8 @@ function Modal({ title, onClose, width = 480, children }: { title: ReactNode; on
           display: 'flex', flexDirection: 'column', gap: 12,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>{title}</div>
+        <div className="u-row-between">
+          <div className="u-md-700">{title}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
             <X size={16} />
           </button>

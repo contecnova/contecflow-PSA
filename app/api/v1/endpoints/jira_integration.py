@@ -48,7 +48,7 @@ from app.services.service_desk.jira_sync_service import (
     procesar_webhook,
     registro_de_sincronizacion,
     ticket_propio,
-    push_ticket_to_jira,
+    empujar_ticket_confirmado,
     run_incremental_sync,
 )
 
@@ -205,13 +205,15 @@ def test_jira_connection(
 
     config = configuracion_propia(db, current_user, config_id)
 
+    from app.services.service_desk.jira_sync_service import jira_base_url_segura, jira_token_en_claro
     creds = base64.b64encode(
-        f"{config.jira_email}:{config.jira_api_token_enc}".encode()
+        f"{config.jira_email}:{jira_token_en_claro(config)}".encode()
     ).decode()
+    base_url = jira_base_url_segura(config)  # auditoria 2026-11: SSRF
 
     try:
         resp = httpx.get(
-            f"{config.jira_base_url.rstrip('/')}/rest/api/3/myself",
+            f"{base_url}/rest/api/3/myself",
             headers={"Authorization": f"Basic {creds}", "Accept": "application/json"},
             timeout=10.0,
         )
@@ -268,17 +270,12 @@ def push_ticket(
     ticket = ticket_propio(db, current_user, ticket_id)
     config = configuracion_activa_propia(db, current_user, config_id)
 
-    try:
-        sync_map = push_ticket_to_jira(db, config, ticket)
-        db.commit()
-        return APIResponse.ok(data={
-            "ok": True,
-            "jira_issue_key": sync_map.jira_issue_key,
-            "sync_status": sync_map.sync_status,
-        })
-    except Exception as exc:
-        db.rollback()
-        raise HTTPException(502, f"Jira push failed: {exc}") from exc
+    sync_map = empujar_ticket_confirmado(db, config, ticket)
+    return APIResponse.ok(data={
+        "ok": True,
+        "jira_issue_key": sync_map.jira_issue_key,
+        "sync_status": sync_map.sync_status,
+    })
 
 
 @router.post("/webhook", summary="Recibir webhook de Jira Cloud")

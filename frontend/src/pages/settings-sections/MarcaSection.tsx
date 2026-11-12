@@ -65,7 +65,7 @@ export default function MarcaSection() {
         </div>
         <div style={{ height: 4, background: form.accent_color || 'var(--accent)' }} />
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="u-row-8">
         <button type="button" onClick={guardar} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{t('marca.guardar')}</button>
         {!data.is_default && (
           <button type="button" onClick={restablecer} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>{t('marca.restablecer')}</button>

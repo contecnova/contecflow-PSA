@@ -76,28 +76,28 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
   const total = editando ? Math.round((subtotal + impuestos) * 100) / 100 : (f.total ?? 0)
   return (
     <Modal open onClose={onClose} size="xl"
-      title={<span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      title={<span className="u-row-center-10">
         <span style={{ fontFamily: 'var(--font-mono)' }}>{f.number}</span>
         <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, padding: '2px 8px', borderRadius: 20, color: estado.color, border: `1px solid ${estado.color}` }}>{estado.label}</span>
       </span>}>
       <div style={{ display: 'grid', gap: 16 }}>
-        {!borrador && <div role="status" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('invoices.ficha_emitida')}</div>}
+        {!borrador && <div role="status" className="u-text2-sm">{t('invoices.ficha_emitida')}</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
           {CABECERA.filter(c => c !== 'notes' && c !== 'client_address').map(c => (
             <label key={c}>
               <div style={etiqueta}>{t(`invoices.campo_${c}`)}</div>
               {editando
                 ? <input aria-label={t(`invoices.campo_${c}`)} type={c.endsWith('_date') ? 'date' : 'text'} value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} style={campo} />
-                : <div style={{ fontSize: 'var(--text-sm)' }}>{(f[c] as string) || '—'}</div>}
+                : <div className="u-sm">{(f[c] as string) || '—'}</div>}
             </label>
           ))}
           <div>
             <div style={etiqueta}>{t('invoices.project')}</div>
-            <div style={{ fontSize: 'var(--text-sm)' }}>{f.project_code ? `${f.project_code} · ${f.project_name ?? ''}` : '—'}</div>
+            <div className="u-sm">{f.project_code ? `${f.project_code} · ${f.project_name ?? ''}` : '—'}</div>
           </div>
           <div>
             <div style={etiqueta}>{t('invoices.ficha_periodo')}</div>
-            <div style={{ fontSize: 'var(--text-sm)' }}>{f.period_from ? `${f.period_from} → ${f.period_to ?? ''}` : '—'}</div>
+            <div className="u-sm">{f.period_from ? `${f.period_from} → ${f.period_to ?? ''}` : '—'}</div>
           </div>
         </div>
         <label>
@@ -141,8 +141,8 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
           </button>
         )}
         <div style={{ justifySelf: 'end', display: 'grid', gridTemplateColumns: 'auto auto', gap: '4px 18px', fontSize: 'var(--text-sm)' }}>
-          <span style={{ color: 'var(--text-3)' }}>{t('invoices.ficha_subtotal')}</span><span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(subtotal, f.currency)}</span>
-          <span style={{ color: 'var(--text-3)' }}>
+          <span className="u-text3">{t('invoices.ficha_subtotal')}</span><span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(subtotal, f.currency)}</span>
+          <span className="u-text3">
             {t('invoices.ficha_impuestos')} {editando
               ? <input aria-label={t('invoices.ficha_impuestos')} type="number" value={String(form.tax_rate ?? 0)} onChange={e => setForm(v => ({ ...v, tax_rate: e.target.value }))} style={{ ...campo, width: 70, display: 'inline-block' }} />
               : `(${f.tax_rate ?? 0}%)`}

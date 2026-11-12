@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { analyticsApi, scheduledReportsApi } from '../services/api'
+import api, { analyticsApi, scheduledReportsApi, apiUrl } from '../services/api'
 import { Card, Button, Spinner, EmptyState } from '../components/ui'
 import { Page } from '../components/ui'
 import {
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { fmtCurrency, extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
-import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
+import { CHART_COLORS_EXTENDED, COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
@@ -21,6 +21,7 @@ import {
   XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
   CartesianGrid, AreaChart, Area, ScatterChart, Scatter,
 } from 'recharts'
+import DateInput from '../components/ui/DateInput'
 
 // ── Colours ───────────────────────────────────────────────────────────────────
 const PALETTE = CHART_COLORS_EXTENDED
@@ -39,146 +40,266 @@ const CAT_ICONS: Record<string, string> = { Horas: '⏱️', Costes: '💸', Ren
 // ── Presets ───────────────────────────────────────────────────────────────────
 const PRESETS = [
   // Horas y costes
-  { id: 'p1',  label: 'Horas mensuales',        icon: '⏱️', metric: 'hours_by_month',            chart: 'area',        color: '#4f8ef7', cat: 'Horas' },
-  { id: 'p2',  label: 'Carga por persona',       icon: '👥', metric: 'hours_by_person',            chart: 'bar',         color: '#34d399', cat: 'Horas' },
-  { id: 'p3',  label: 'Heatmap horas',           icon: '▦',  metric: 'hours_heatmap',              chart: 'heatmap',     color: '#4f8ef7', cat: 'Horas' },
-  { id: 'p4',  label: 'Facturables vs internas', icon: '⚖️', metric: 'hours_billable_vs_internal', chart: 'bar_stacked', color: '#4f8ef7', cat: 'Horas' },
-  { id: 'p24', label: 'Horas por proyecto',      icon: '📁', metric: 'hours_by_project',           chart: 'bar',         color: '#60a5fa', cat: 'Horas' },
-  { id: 'p25', label: 'Horas semanales',         icon: '🗓️', metric: 'hours_by_week',              chart: 'line',        color: '#4f8ef7', cat: 'Horas' },
-  { id: 'p26', label: 'Horas por departamento',  icon: '🏢', metric: 'hours_by_department',        chart: 'pie',         color: '#4f8ef7', cat: 'Horas' },
+  { id: 'p1',  label: 'Horas mensuales',        icon: '⏱️', metric: 'hours_by_month',            chart: 'area',        color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p2',  label: 'Carga por persona',       icon: '👥', metric: 'hours_by_person',            chart: 'bar',         color: 'var(--success)', cat: 'Horas' },
+  { id: 'p3',  label: 'Heatmap horas',           icon: '▦',  metric: 'hours_heatmap',              chart: 'heatmap',     color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p4',  label: 'Facturables vs internas', icon: '⚖️', metric: 'hours_billable_vs_internal', chart: 'bar_stacked', color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p24', label: 'Horas por proyecto',      icon: '📁', metric: 'hours_by_project',           chart: 'bar',         color: 'var(--info)', cat: 'Horas' },
+  { id: 'p25', label: 'Horas semanales',         icon: '🗓️', metric: 'hours_by_week',              chart: 'line',        color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p26', label: 'Horas por departamento',  icon: '🏢', metric: 'hours_by_department',        chart: 'pie',         color: 'var(--accent)', cat: 'Horas' },
   // Rentabilidad y costes
-  { id: 'p5',  label: 'Margen por proyecto',     icon: '💰', metric: 'margin_by_project',          chart: 'bar_grouped', color: '#f59e0b', cat: 'Rentabilidad' },
-  { id: 'p6',  label: 'Coste vs Presupuesto',    icon: '💸', metric: 'cost_vs_budget',             chart: 'bar_grouped', color: '#f87171', cat: 'Rentabilidad' },
-  { id: 'p7',  label: 'Evolución del margen',    icon: '📈', metric: 'margin_evolution',           chart: 'line',        color: '#34d399', cat: 'Rentabilidad' },
-  { id: 'p8',  label: 'Consumo de presupuesto',  icon: '📊', metric: 'budget_consumption',         chart: 'bar',         color: '#f59e0b', cat: 'Rentabilidad' },
-  { id: 'p27', label: 'Coste por proyecto',      icon: '📂', metric: 'cost_by_project',            chart: 'bar',         color: '#fb923c', cat: 'Costes' },
-  { id: 'p28', label: 'Coste por persona',       icon: '👤', metric: 'cost_by_person',             chart: 'bar',         color: '#fb923c', cat: 'Costes' },
-  { id: 'p29', label: 'Coste mensual',           icon: '📆', metric: 'cost_by_month',              chart: 'line',        color: '#f87171', cat: 'Costes' },
+  { id: 'p5',  label: 'Margen por proyecto',     icon: '💰', metric: 'margin_by_project',          chart: 'bar_grouped', color: 'var(--warning)', cat: 'Rentabilidad' },
+  { id: 'p6',  label: 'Coste vs Presupuesto',    icon: '💸', metric: 'cost_vs_budget',             chart: 'bar_grouped', color: 'var(--danger)', cat: 'Rentabilidad' },
+  { id: 'p7',  label: 'Evolución del margen',    icon: '📈', metric: 'margin_evolution',           chart: 'line',        color: 'var(--success)', cat: 'Rentabilidad' },
+  { id: 'p8',  label: 'Consumo de presupuesto',  icon: '📊', metric: 'budget_consumption',         chart: 'bar',         color: 'var(--warning)', cat: 'Rentabilidad' },
+  { id: 'p27', label: 'Coste por proyecto',      icon: '📂', metric: 'cost_by_project',            chart: 'bar',         color: 'var(--orange)', cat: 'Costes' },
+  { id: 'p28', label: 'Coste por persona',       icon: '👤', metric: 'cost_by_person',             chart: 'bar',         color: 'var(--orange)', cat: 'Costes' },
+  { id: 'p29', label: 'Coste mensual',           icon: '📆', metric: 'cost_by_month',              chart: 'line',        color: 'var(--danger)', cat: 'Costes' },
   // Estructura de coste (perfiles versionados, multi-país)
-  { id: 'pc1', label: 'Coste/hora por persona',     icon: '🧮', metric: 'cost_per_hour_by_person',     chart: 'bar',  color: '#fb923c', cat: 'Costes' },
-  { id: 'pc2', label: 'Coste/hora por departamento',icon: '🏢', metric: 'cost_per_hour_by_department', chart: 'bar',  color: '#f59e0b', cat: 'Costes' },
-  { id: 'pc3', label: 'Coste/hora por país',        icon: '🌍', metric: 'cost_per_hour_by_country',    chart: 'bar',  color: '#fbbf24', cat: 'Costes' },
-  { id: 'pc4', label: 'Coste empresa anual / persona', icon: '💼', metric: 'annual_cost_by_person',    chart: 'bar',  color: '#f87171', cat: 'Costes' },
-  { id: 'pc5', label: 'Coste empresa anual / país', icon: '🌐', metric: 'annual_cost_by_country',      chart: 'bar',  color: '#dc2626', cat: 'Costes' },
-  { id: 'pc6', label: 'Cobertura perfiles de coste',icon: '📋', metric: 'cost_profile_coverage',       chart: 'pie',  color: '#34d399', cat: 'Costes' },
-  { id: 'pc7', label: '% Coste empresa por país',   icon: '🧾', metric: 'employer_cost_pct_by_country',chart: 'bar',  color: '#a78bfa', cat: 'Costes' },
-  { id: 'pc8', label: 'Evolución coste/hora medio', icon: '📈', metric: 'cost_per_hour_drift',         chart: 'line', color: '#60a5fa', cat: 'Costes' },
+  { id: 'pc1', label: 'Coste/hora por persona',     icon: '🧮', metric: 'cost_per_hour_by_person',     chart: 'bar',  color: 'var(--orange)', cat: 'Costes' },
+  { id: 'pc2', label: 'Coste/hora por departamento',icon: '🏢', metric: 'cost_per_hour_by_department', chart: 'bar',  color: 'var(--warning)', cat: 'Costes' },
+  { id: 'pc3', label: 'Coste/hora por país',        icon: '🌍', metric: 'cost_per_hour_by_country',    chart: 'bar',  color: 'var(--warning)', cat: 'Costes' },
+  { id: 'pc4', label: 'Coste empresa anual / persona', icon: '💼', metric: 'annual_cost_by_person',    chart: 'bar',  color: 'var(--danger)', cat: 'Costes' },
+  { id: 'pc5', label: 'Coste empresa anual / país', icon: '🌐', metric: 'annual_cost_by_country',      chart: 'bar',  color: 'var(--danger)', cat: 'Costes' },
+  { id: 'pc6', label: 'Cobertura perfiles de coste',icon: '📋', metric: 'cost_profile_coverage',       chart: 'pie',  color: 'var(--success)', cat: 'Costes' },
+  { id: 'pc7', label: '% Coste empresa por país',   icon: '🧾', metric: 'employer_cost_pct_by_country',chart: 'bar',  color: 'var(--purple)', cat: 'Costes' },
+  { id: 'pc8', label: 'Evolución coste/hora medio', icon: '📈', metric: 'cost_per_hour_drift',         chart: 'line', color: 'var(--info)', cat: 'Costes' },
   // Proyectos y agilidad
-  { id: 'p9',  label: 'Tareas por estado',        icon: '▦',  metric: 'tasks_by_status',            chart: 'pie',         color: '#4f8ef7', cat: 'Proyectos' },
-  { id: 'p10', label: 'Velocity de sprint',       icon: '🏃', metric: 'sprint_velocity',            chart: 'bar',         color: '#a78bfa', cat: 'Agilidad' },
-  { id: 'p11', label: 'Tareas con retraso',       icon: '⚠️', metric: 'tasks_overdue',              chart: 'bar',         color: '#f87171', cat: 'Agilidad' },
-  { id: 'p12', label: 'Lead time por proyecto',   icon: '⏳', metric: 'tasks_lead_time',            chart: 'bar',         color: '#f59e0b', cat: 'Agilidad' },
-  { id: 'p30', label: 'Tareas por proyecto',      icon: '🧩', metric: 'tasks_by_project',           chart: 'bar',         color: '#4f8ef7', cat: 'Proyectos' },
-  { id: 'p31', label: 'Proyectos por estado',     icon: '📌', metric: 'projects_by_status',         chart: 'pie',         color: '#14b8a6', cat: 'Proyectos' },
-  { id: 'p32', label: 'Proyectos por tipo',       icon: '🗂️', metric: 'projects_by_type',           chart: 'pie',         color: '#0d9488', cat: 'Proyectos' },
-  { id: 'p33', label: 'Entregables por estado',   icon: '📦', metric: 'deliverables_status',        chart: 'pie',         color: '#a78bfa', cat: 'Proyectos' },
-  { id: 'p34', label: 'Riesgos por nivel',        icon: '🛡️', metric: 'risks_by_level',             chart: 'pie',         color: '#f87171', cat: 'Proyectos' },
-  { id: 'p35', label: 'Tareas por responsable',   icon: '👥', metric: 'tasks_by_assignee',          chart: 'bar_grouped', color: '#2dd4bf', cat: 'Agilidad' },
-  { id: 'p36', label: 'Tareas bloqueadas',        icon: '🚫', metric: 'tasks_blocked_by_project',   chart: 'bar',         color: '#f87171', cat: 'Agilidad' },
-  { id: 'p37', label: 'Cumplimiento de sprint',   icon: '✅', metric: 'sprint_completion_rate',     chart: 'line',        color: '#34d399', cat: 'Agilidad' },
-  { id: 'p38', label: 'Estado de cambios',        icon: '🔄', metric: 'change_requests_status',     chart: 'bar',         color: '#f59e0b', cat: 'Agilidad' },
+  { id: 'p9',  label: 'Tareas por estado',        icon: '▦',  metric: 'tasks_by_status',            chart: 'pie',         color: 'var(--accent)', cat: 'Proyectos' },
+  { id: 'p10', label: 'Velocity de sprint',       icon: '🏃', metric: 'sprint_velocity',            chart: 'bar',         color: 'var(--purple)', cat: 'Agilidad' },
+  { id: 'p11', label: 'Tareas con retraso',       icon: '⚠️', metric: 'tasks_overdue',              chart: 'bar',         color: 'var(--danger)', cat: 'Agilidad' },
+  { id: 'p12', label: 'Lead time por proyecto',   icon: '⏳', metric: 'tasks_lead_time',            chart: 'bar',         color: 'var(--warning)', cat: 'Agilidad' },
+  { id: 'p30', label: 'Tareas por proyecto',      icon: '🧩', metric: 'tasks_by_project',           chart: 'bar',         color: 'var(--accent)', cat: 'Proyectos' },
+  { id: 'p31', label: 'Proyectos por estado',     icon: '📌', metric: 'projects_by_status',         chart: 'pie',         color: 'var(--chart-teal)', cat: 'Proyectos' },
+  { id: 'p32', label: 'Proyectos por tipo',       icon: '🗂️', metric: 'projects_by_type',           chart: 'pie',         color: 'var(--chart-teal)', cat: 'Proyectos' },
+  { id: 'p33', label: 'Entregables por estado',   icon: '📦', metric: 'deliverables_status',        chart: 'pie',         color: 'var(--purple)', cat: 'Proyectos' },
+  { id: 'p34', label: 'Riesgos por nivel',        icon: '🛡️', metric: 'risks_by_level',             chart: 'pie',         color: 'var(--danger)', cat: 'Proyectos' },
+  { id: 'p35', label: 'Tareas por responsable',   icon: '👥', metric: 'tasks_by_assignee',          chart: 'bar_grouped', color: 'var(--chart-teal)', cat: 'Agilidad' },
+  { id: 'p36', label: 'Tareas bloqueadas',        icon: '🚫', metric: 'tasks_blocked_by_project',   chart: 'bar',         color: 'var(--danger)', cat: 'Agilidad' },
+  { id: 'p37', label: 'Cumplimiento de sprint',   icon: '✅', metric: 'sprint_completion_rate',     chart: 'line',        color: 'var(--success)', cat: 'Agilidad' },
+  { id: 'p38', label: 'Estado de cambios',        icon: '🔄', metric: 'change_requests_status',     chart: 'bar',         color: 'var(--warning)', cat: 'Agilidad' },
   // Service Desk
-  { id: 'p13', label: 'Volumen de tickets',       icon: '🎫', metric: 'ticket_volume_trend',        chart: 'line',        color: '#4f8ef7', cat: 'Service Desk' },
-  { id: 'p14', label: 'Cumplimiento SLA',         icon: '✅', metric: 'ticket_sla_compliance',      chart: 'line',        color: '#34d399', cat: 'Service Desk' },
-  { id: 'p15', label: 'Tiempo de resolución',     icon: '⚡', metric: 'ticket_resolution_time',     chart: 'bar',         color: '#a78bfa', cat: 'Service Desk' },
-  { id: 'p16', label: 'CSAT por agente',          icon: '⭐', metric: 'ticket_csat',                chart: 'bar',         color: '#f59e0b', cat: 'Service Desk' },
-  { id: 'p39', label: 'Tickets por estado',       icon: '📊', metric: 'tickets_by_status',          chart: 'pie',         color: '#4f8ef7', cat: 'Service Desk' },
-  { id: 'p40', label: 'Tickets por tipo',         icon: '🧾', metric: 'tickets_by_type',            chart: 'bar',         color: '#60a5fa', cat: 'Service Desk' },
-  { id: 'p41', label: 'Tickets por prioridad',    icon: '🚨', metric: 'tickets_by_priority',        chart: 'bar',         color: '#f43f5e', cat: 'Service Desk' },
-  { id: 'p42', label: 'Tickets por agente',       icon: '👩‍💻', metric: 'tickets_by_agent',          chart: 'bar_grouped', color: '#4f8ef7', cat: 'Service Desk' },
+  { id: 'p13', label: 'Volumen de tickets',       icon: '🎫', metric: 'ticket_volume_trend',        chart: 'line',        color: 'var(--accent)', cat: 'Service Desk' },
+  { id: 'p14', label: 'Cumplimiento SLA',         icon: '✅', metric: 'ticket_sla_compliance',      chart: 'line',        color: 'var(--success)', cat: 'Service Desk' },
+  { id: 'p15', label: 'Tiempo de resolución',     icon: '⚡', metric: 'ticket_resolution_time',     chart: 'bar',         color: 'var(--purple)', cat: 'Service Desk' },
+  { id: 'p16', label: 'CSAT por agente',          icon: '⭐', metric: 'ticket_csat',                chart: 'bar',         color: 'var(--warning)', cat: 'Service Desk' },
+  { id: 'p39', label: 'Tickets por estado',       icon: '📊', metric: 'tickets_by_status',          chart: 'pie',         color: 'var(--accent)', cat: 'Service Desk' },
+  { id: 'p40', label: 'Tickets por tipo',         icon: '🧾', metric: 'tickets_by_type',            chart: 'bar',         color: 'var(--info)', cat: 'Service Desk' },
+  { id: 'p41', label: 'Tickets por prioridad',    icon: '🚨', metric: 'tickets_by_priority',        chart: 'bar',         color: 'var(--coral)', cat: 'Service Desk' },
+  { id: 'p42', label: 'Tickets por agente',       icon: '👩‍💻', metric: 'tickets_by_agent',          chart: 'bar_grouped', color: 'var(--accent)', cat: 'Service Desk' },
   // Negocio y RRHH
-  { id: 'p17', label: 'Pipeline por etapa',       icon: '🎪', metric: 'pipeline_by_stage',          chart: 'bar',         color: '#a78bfa', cat: 'Negocio' },
-  { id: 'p18', label: 'Win rate comercial',       icon: '🏆', metric: 'win_rate_evolution',         chart: 'line',        color: '#34d399', cat: 'Negocio' },
-  { id: 'p19', label: 'Ingresos por cliente',     icon: '🏢', metric: 'revenue_by_client',          chart: 'bar',         color: '#f59e0b', cat: 'Negocio' },
-  { id: 'p20', label: 'Productividad equipo',     icon: '📊', metric: 'productivity_by_person',     chart: 'bar_grouped', color: '#84cc16', cat: 'RRHH' },
-  { id: 'p21', label: 'Ausencias por tipo',       icon: '🏖️', metric: 'absences_by_type',           chart: 'pie',         color: '#f59e0b', cat: 'RRHH' },
-  { id: 'p43', label: 'Evolución del pipeline',   icon: '📈', metric: 'pipeline_evolution',         chart: 'line',        color: '#a78bfa', cat: 'Negocio' },
-  { id: 'p44', label: 'Contratos por estado',     icon: '📃', metric: 'contracts_by_status',        chart: 'bar',         color: '#a78bfa', cat: 'Negocio' },
-  { id: 'p45', label: 'Proyectos por cliente',    icon: '🤝', metric: 'projects_by_client',         chart: 'bar_grouped', color: '#2dd4bf', cat: 'Negocio' },
-  { id: 'p46', label: 'Ausencias por persona',    icon: '🧑', metric: 'absences_by_person',         chart: 'bar',         color: '#f59e0b', cat: 'RRHH' },
-  { id: 'p47', label: 'Ausencias mensuales',      icon: '🗓️', metric: 'absences_by_month',          chart: 'line',        color: '#fb923c', cat: 'RRHH' },
-  { id: 'p48', label: 'Carga semanal por persona',icon: '🧮', metric: 'load_by_person',             chart: 'line',        color: '#2dd4bf', cat: 'Capacidad' },
-  { id: 'p49', label: 'Carga media semanal',      icon: '📉', metric: 'load_by_week',               chart: 'line',        color: '#0891b2', cat: 'Capacidad' },
+  { id: 'p17', label: 'Pipeline por etapa',       icon: '🎪', metric: 'pipeline_by_stage',          chart: 'bar',         color: 'var(--purple)', cat: 'Negocio' },
+  { id: 'p18', label: 'Win rate comercial',       icon: '🏆', metric: 'win_rate_evolution',         chart: 'line',        color: 'var(--success)', cat: 'Negocio' },
+  { id: 'p19', label: 'Ingresos por cliente',     icon: '🏢', metric: 'revenue_by_client',          chart: 'bar',         color: 'var(--warning)', cat: 'Negocio' },
+  { id: 'p20', label: 'Productividad equipo',     icon: '📊', metric: 'productivity_by_person',     chart: 'bar_grouped', color: 'var(--chart-lime)', cat: 'RRHH' },
+  { id: 'p21', label: 'Ausencias por tipo',       icon: '🏖️', metric: 'absences_by_type',           chart: 'pie',         color: 'var(--warning)', cat: 'RRHH' },
+  { id: 'p43', label: 'Evolución del pipeline',   icon: '📈', metric: 'pipeline_evolution',         chart: 'line',        color: 'var(--purple)', cat: 'Negocio' },
+  { id: 'p44', label: 'Contratos por estado',     icon: '📃', metric: 'contracts_by_status',        chart: 'bar',         color: 'var(--purple)', cat: 'Negocio' },
+  { id: 'p45', label: 'Proyectos por cliente',    icon: '🤝', metric: 'projects_by_client',         chart: 'bar_grouped', color: 'var(--chart-teal)', cat: 'Negocio' },
+  { id: 'p46', label: 'Ausencias por persona',    icon: '🧑', metric: 'absences_by_person',         chart: 'bar',         color: 'var(--warning)', cat: 'RRHH' },
+  { id: 'p47', label: 'Ausencias mensuales',      icon: '🗓️', metric: 'absences_by_month',          chart: 'line',        color: 'var(--orange)', cat: 'RRHH' },
+  { id: 'p48', label: 'Carga semanal por persona',icon: '🧮', metric: 'load_by_person',             chart: 'line',        color: 'var(--chart-teal)', cat: 'Capacidad' },
+  { id: 'p49', label: 'Carga media semanal',      icon: '📉', metric: 'load_by_week',               chart: 'line',        color: 'var(--sky-blue)', cat: 'Capacidad' },
   // ALM e IA
-  { id: 'p22', label: 'Coste licencias/proveedor',icon: '🔑', metric: 'license_cost_by_vendor',     chart: 'bar',         color: '#4f8ef7', cat: 'ALM' },
-  { id: 'p23', label: 'Precisión asignación IA',  icon: '🧠', metric: 'semantic_accuracy_trend',    chart: 'line',        color: '#a78bfa', cat: 'IA' },
-  { id: 'p50', label: 'Vencimiento de licencias', icon: '⏳', metric: 'license_expiry_timeline',    chart: 'bar',         color: '#4f8ef7', cat: 'ALM' },
-  { id: 'p51', label: 'Utilización de licencias', icon: '📐', metric: 'license_utilization',        chart: 'bar',         color: '#60a5fa', cat: 'ALM' },
-  { id: 'p52', label: 'Activos por tipo',         icon: '🧰', metric: 'assets_by_type',             chart: 'pie',         color: '#22d3ee', cat: 'ALM' },
-  { id: 'p53', label: 'Asignaciones por modo IA', icon: '⚙️', metric: 'semantic_assignments_by_mode', chart: 'pie',       color: '#a78bfa', cat: 'IA' },
-  { id: 'p54', label: 'Proyección de ingresos',   icon: '🎯', metric: 'forecast_revenue',           chart: 'bar_stacked', color: '#34d399', cat: 'Estrategia' },
-  { id: 'p55', label: 'Riesgo de burnout',        icon: '🧘', metric: 'burnout_index',              chart: 'bar',         color: '#fb923c', cat: 'Bienestar' },
+  { id: 'p22', label: 'Coste licencias/proveedor',icon: '🔑', metric: 'license_cost_by_vendor',     chart: 'bar',         color: 'var(--accent)', cat: 'ALM' },
+  { id: 'p23', label: 'Precisión asignación IA',  icon: '🧠', metric: 'semantic_accuracy_trend',    chart: 'line',        color: 'var(--purple)', cat: 'IA' },
+  { id: 'p50', label: 'Vencimiento de licencias', icon: '⏳', metric: 'license_expiry_timeline',    chart: 'bar',         color: 'var(--accent)', cat: 'ALM' },
+  { id: 'p51', label: 'Utilización de licencias', icon: '📐', metric: 'license_utilization',        chart: 'bar',         color: 'var(--info)', cat: 'ALM' },
+  { id: 'p52', label: 'Activos por tipo',         icon: '🧰', metric: 'assets_by_type',             chart: 'pie',         color: 'var(--sky-blue)', cat: 'ALM' },
+  { id: 'p53', label: 'Asignaciones por modo IA', icon: '⚙️', metric: 'semantic_assignments_by_mode', chart: 'pie',       color: 'var(--purple)', cat: 'IA' },
+  { id: 'p54', label: 'Proyección de ingresos',   icon: '🎯', metric: 'forecast_revenue',           chart: 'bar_stacked', color: 'var(--success)', cat: 'Estrategia' },
+  { id: 'p55', label: 'Riesgo de burnout',        icon: '🧘', metric: 'burnout_index',              chart: 'bar',         color: 'var(--orange)', cat: 'Bienestar' },
   // OKR
-  { id: 'p56', label: 'Progreso OKR',               icon: '🎯', metric: 'okr_progress_by_objective',   chart: 'bar',         color: '#34d399', cat: 'OKR' },
-  { id: 'p57', label: 'Tasa KR por objetivo',        icon: '🎯', metric: 'okr_kr_completion_rate',       chart: 'bar',         color: '#34d399', cat: 'OKR' },
+  { id: 'p56', label: 'Progreso OKR',               icon: '🎯', metric: 'okr_progress_by_objective',   chart: 'bar',         color: 'var(--success)', cat: 'OKR' },
+  { id: 'p57', label: 'Tasa KR por objetivo',        icon: '🎯', metric: 'okr_kr_completion_rate',       chart: 'bar',         color: 'var(--success)', cat: 'OKR' },
   // NPS
-  { id: 'p58', label: 'NPS por cliente',             icon: '⭐', metric: 'nps_by_client',                chart: 'bar',         color: '#f59e0b', cat: 'NPS' },
-  { id: 'p59', label: 'Evolución NPS',               icon: '⭐', metric: 'nps_trend',                    chart: 'line',        color: '#f59e0b', cat: 'NPS' },
-  { id: 'p60', label: 'Distribución NPS',            icon: '⭐', metric: 'nps_distribution',             chart: 'pie',         color: '#fb923c', cat: 'NPS' },
-  { id: 'p61', label: 'Health score cliente',        icon: '⭐', metric: 'client_health_score',          chart: 'bar',         color: '#f87171', cat: 'NPS' },
+  { id: 'p58', label: 'NPS por cliente',             icon: '⭐', metric: 'nps_by_client',                chart: 'bar',         color: 'var(--warning)', cat: 'NPS' },
+  { id: 'p59', label: 'Evolución NPS',               icon: '⭐', metric: 'nps_trend',                    chart: 'line',        color: 'var(--warning)', cat: 'NPS' },
+  { id: 'p60', label: 'Distribución NPS',            icon: '⭐', metric: 'nps_distribution',             chart: 'pie',         color: 'var(--orange)', cat: 'NPS' },
+  { id: 'p61', label: 'Health score cliente',        icon: '⭐', metric: 'client_health_score',          chart: 'bar',         color: 'var(--danger)', cat: 'NPS' },
   // Formación
-  { id: 'p62', label: 'Finalización cursos',         icon: '🎓', metric: 'training_completion_rate',     chart: 'bar',         color: '#a78bfa', cat: 'Formación' },
-  { id: 'p63', label: 'Certificaciones por persona', icon: '🎓', metric: 'certifications_by_user',        chart: 'bar',         color: '#a78bfa', cat: 'Formación' },
+  { id: 'p62', label: 'Finalización cursos',         icon: '🎓', metric: 'training_completion_rate',     chart: 'bar',         color: 'var(--purple)', cat: 'Formación' },
+  { id: 'p63', label: 'Certificaciones por persona', icon: '🎓', metric: 'certifications_by_user',        chart: 'bar',         color: 'var(--purple)', cat: 'Formación' },
   // Git
-  { id: 'p64', label: 'PRs por autor',               icon: '🔀', metric: 'prs_by_author',                chart: 'bar',         color: '#60a5fa', cat: 'Git' },
-  { id: 'p65', label: 'PRs por proyecto',            icon: '🔀', metric: 'prs_by_project',               chart: 'bar',         color: '#38bdf8', cat: 'Git' },
-  { id: 'p66', label: 'Tiempo ciclo PR',             icon: '🔀', metric: 'pr_cycle_time',                chart: 'bar',         color: '#7dd3fc', cat: 'Git' },
-  { id: 'p67', label: 'Despliegues por entorno',     icon: '🔀', metric: 'deployments_by_env',           chart: 'bar',         color: '#0369a1', cat: 'Git' },
-  { id: 'p68', label: 'Tasa éxito despliegues',      icon: '🔀', metric: 'deployment_success_rate',      chart: 'bar',         color: '#075985', cat: 'Git' },
+  { id: 'p64', label: 'PRs por autor',               icon: '🔀', metric: 'prs_by_author',                chart: 'bar',         color: 'var(--info)', cat: 'Git' },
+  { id: 'p65', label: 'PRs por proyecto',            icon: '🔀', metric: 'prs_by_project',               chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
+  { id: 'p66', label: 'Tiempo ciclo PR',             icon: '🔀', metric: 'pr_cycle_time',                chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
+  { id: 'p67', label: 'Despliegues por entorno',     icon: '🔀', metric: 'deployments_by_env',           chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
+  { id: 'p68', label: 'Tasa éxito despliegues',      icon: '🔀', metric: 'deployment_success_rate',      chart: 'bar',         color: 'var(--accent-dim)', cat: 'Git' },
   // Ingresos
-  { id: 'p69', label: 'Ingresos reconocidos/mes',   icon: '📈', metric: 'revenue_recognized_by_month',  chart: 'line',        color: '#34d399', cat: 'Ingresos' },
-  { id: 'p70', label: 'Ingresos por contrato',       icon: '📈', metric: 'revenue_by_contract',          chart: 'bar',         color: '#15803d', cat: 'Ingresos' },
+  { id: 'p69', label: 'Ingresos reconocidos/mes',   icon: '📈', metric: 'revenue_recognized_by_month',  chart: 'line',        color: 'var(--success)', cat: 'Ingresos' },
+  { id: 'p70', label: 'Ingresos por contrato',       icon: '📈', metric: 'revenue_by_contract',          chart: 'bar',         color: 'var(--success)', cat: 'Ingresos' },
   // Gastos
-  { id: 'p71', label: 'Gastos por categoría',        icon: '🧾', metric: 'expenses_by_category',         chart: 'pie',         color: '#f87171', cat: 'Gastos' },
-  { id: 'p72', label: 'Gastos por proyecto',         icon: '🧾', metric: 'expenses_by_project',          chart: 'bar',         color: '#b91c1c', cat: 'Gastos' },
-  { id: 'p73', label: 'Gastos fact. vs internos',    icon: '🧾', metric: 'expenses_billable_vs_internal', chart: 'pie',        color: '#f87171', cat: 'Gastos' },
-  { id: 'p74', label: 'Evolución de gastos',         icon: '🧾', metric: 'expenses_trend',               chart: 'line',        color: '#f87171', cat: 'Gastos' },
-  { id: 'p75', label: 'Gastos pendientes aprobación',icon: '🧾', metric: 'expenses_pending_approval',    chart: 'bar',         color: '#f87171', cat: 'Gastos' },
+  { id: 'p71', label: 'Gastos por categoría',        icon: '🧾', metric: 'expenses_by_category',         chart: 'pie',         color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p72', label: 'Gastos por proyecto',         icon: '🧾', metric: 'expenses_by_project',          chart: 'bar',         color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p73', label: 'Gastos fact. vs internos',    icon: '🧾', metric: 'expenses_billable_vs_internal', chart: 'pie',        color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p74', label: 'Evolución de gastos',         icon: '🧾', metric: 'expenses_trend',               chart: 'line',        color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p75', label: 'Gastos pendientes aprobación',icon: '🧾', metric: 'expenses_pending_approval',    chart: 'bar',         color: 'var(--danger)', cat: 'Gastos' },
   // Sprints
-  { id: 'p76', label: 'Velocidad por sprint',          icon: '🏃', metric: 'sprint_velocity_trend',         chart: 'line',        color: '#4f8ef7', cat: 'Sprints' },
-  { id: 'p77', label: 'Completado por sprint',         icon: '🏃', metric: 'sprint_completion_rate',        chart: 'bar',         color: '#818cf8', cat: 'Sprints' },
+  { id: 'p76', label: 'Velocidad por sprint',          icon: '🏃', metric: 'sprint_velocity_trend',         chart: 'line',        color: 'var(--accent)', cat: 'Sprints' },
+  { id: 'p77', label: 'Completado por sprint',         icon: '🏃', metric: 'sprint_completion_rate',        chart: 'bar',         color: 'var(--purple)', cat: 'Sprints' },
   // Tareas
-  { id: 'p78', label: 'Tareas por estado',             icon: '✅', metric: 'tasks_by_status',               chart: 'pie',         color: '#34d399', cat: 'Tareas' },
-  { id: 'p79', label: 'Tareas por prioridad',          icon: '✅', metric: 'tasks_by_priority',             chart: 'pie',         color: '#34d399', cat: 'Tareas' },
-  { id: 'p80', label: 'Tareas vencidas por persona',   icon: '✅', metric: 'tasks_overdue_by_assignee',     chart: 'bar',         color: '#f87171', cat: 'Tareas' },
-  { id: 'p81', label: 'Completado mensual de tareas',  icon: '✅', metric: 'task_completion_trend',         chart: 'line',        color: '#4ade80', cat: 'Tareas' },
-  { id: 'p82', label: 'Carga de trabajo por persona',  icon: '✅', metric: 'tasks_by_assignee',             chart: 'bar',         color: '#86efac', cat: 'Tareas' },
-  { id: 'p83', label: 'Épicas por estado',             icon: '✅', metric: 'epics_by_status',               chart: 'pie',         color: '#bbf7d0', cat: 'Tareas' },
-  { id: 'p84', label: 'Hitos: a tiempo vs tarde',      icon: '⬡',  metric: 'milestones_on_time_rate',       chart: 'pie',         color: '#60a5fa', cat: 'Proyectos' },
+  { id: 'p78', label: 'Tareas por estado',             icon: '✅', metric: 'tasks_by_status',               chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p79', label: 'Tareas por prioridad',          icon: '✅', metric: 'tasks_by_priority',             chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p80', label: 'Tareas vencidas por persona',   icon: '✅', metric: 'tasks_overdue_by_assignee',     chart: 'bar',         color: 'var(--danger)', cat: 'Tareas' },
+  { id: 'p81', label: 'Completado mensual de tareas',  icon: '✅', metric: 'task_completion_trend',         chart: 'line',        color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p82', label: 'Carga de trabajo por persona',  icon: '✅', metric: 'tasks_by_assignee',             chart: 'bar',         color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p83', label: 'Épicas por estado',             icon: '✅', metric: 'epics_by_status',               chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p84', label: 'Hitos: a tiempo vs tarde',      icon: '⬡',  metric: 'milestones_on_time_rate',       chart: 'pie',         color: 'var(--info)', cat: 'Proyectos' },
   // Portfolio
-  { id: 'p85', label: 'Uso de presupuesto portfolio',  icon: '🗂️', metric: 'portfolio_budget_usage',        chart: 'bar_stacked', color: '#a78bfa', cat: 'Portfolio' },
+  { id: 'p85', label: 'Uso de presupuesto portfolio',  icon: '🗂️', metric: 'portfolio_budget_usage',        chart: 'bar_stacked', color: 'var(--purple)', cat: 'Portfolio' },
   // RRHH evaluaciones
-  { id: 'p86', label: 'Score de desempeño por persona',icon: '👥', metric: 'performance_scores_by_person',  chart: 'bar',         color: '#f59e0b', cat: 'RRHH' },
-  { id: 'p87', label: 'Completado ciclos evaluación',  icon: '👥', metric: 'performance_cycle_completion_rate', chart: 'bar',    color: '#f59e0b', cat: 'RRHH' },
+  { id: 'p86', label: 'Score de desempeño por persona',icon: '👥', metric: 'performance_scores_by_person',  chart: 'bar',         color: 'var(--warning)', cat: 'RRHH' },
+  { id: 'p87', label: 'Completado ciclos evaluación',  icon: '👥', metric: 'performance_cycle_completion_rate', chart: 'bar',    color: 'var(--warning)', cat: 'RRHH' },
   // Horas (timesheets)
-  { id: 'p88', label: 'Partes de horas por estado',    icon: '⏱️', metric: 'timesheets_approval_rate',      chart: 'pie',         color: '#60a5fa', cat: 'Horas' },
-  { id: 'p89', label: 'H. facturables mensual (partes)',icon: '⏱️', metric: 'timesheets_billable_hours_trend', chart: 'line',     color: '#4f8ef7', cat: 'Horas' },
+  { id: 'p88', label: 'Partes de horas por estado',    icon: '⏱️', metric: 'timesheets_approval_rate',      chart: 'pie',         color: 'var(--info)', cat: 'Horas' },
+  { id: 'p89', label: 'H. facturables mensual (partes)',icon: '⏱️', metric: 'timesheets_billable_hours_trend', chart: 'line',     color: 'var(--accent)', cat: 'Horas' },
   // RRHH ausencias
-  { id: 'p90', label: 'Ausencias por tipo',            icon: '👥', metric: 'absences_by_type',              chart: 'pie',         color: '#a78bfa', cat: 'RRHH' },
-  { id: 'p91', label: 'Ausencias por persona',         icon: '👥', metric: 'absences_by_person',            chart: 'bar',         color: '#c4b5fd', cat: 'RRHH' },
+  { id: 'p90', label: 'Ausencias por tipo',            icon: '👥', metric: 'absences_by_type',              chart: 'pie',         color: 'var(--purple)', cat: 'RRHH' },
+  { id: 'p91', label: 'Ausencias por persona',         icon: '👥', metric: 'absences_by_person',            chart: 'bar',         color: 'var(--purple)', cat: 'RRHH' },
   // Facturación
-  { id: 'p92', label: 'Facturas por estado',           icon: '🧾', metric: 'invoices_by_status',            chart: 'bar',         color: '#0891b2', cat: 'Facturación' },
-  { id: 'p93', label: 'Facturación mensual',           icon: '🧾', metric: 'invoice_amount_by_month',       chart: 'line',        color: '#2dd4bf', cat: 'Facturación' },
-  { id: 'p94', label: 'Facturación por cliente',       icon: '🧾', metric: 'invoice_amount_by_client',      chart: 'bar',         color: '#67e8f9', cat: 'Facturación' },
-  { id: 'p95', label: 'Facturas vencidas',             icon: '🧾', metric: 'invoice_overdue_amount',        chart: 'bar',         color: '#f87171', cat: 'Facturación' },
+  { id: 'p92', label: 'Facturas por estado',           icon: '🧾', metric: 'invoices_by_status',            chart: 'bar',         color: 'var(--sky-blue)', cat: 'Facturación' },
+  { id: 'p93', label: 'Facturación mensual',           icon: '🧾', metric: 'invoice_amount_by_month',       chart: 'line',        color: 'var(--chart-teal)', cat: 'Facturación' },
+  { id: 'p94', label: 'Facturación por cliente',       icon: '🧾', metric: 'invoice_amount_by_client',      chart: 'bar',         color: 'var(--sky-blue)', cat: 'Facturación' },
+  { id: 'p95', label: 'Facturas vencidas',             icon: '🧾', metric: 'invoice_overdue_amount',        chart: 'bar',         color: 'var(--danger)', cat: 'Facturación' },
   // Alertas
-  { id: 'p96', label: 'Alertas por severidad',         icon: '🔔', metric: 'alerts_by_severity',            chart: 'pie',         color: '#fb923c', cat: 'Alertas' },
-  { id: 'p97', label: 'Alertas por tipo',              icon: '🔔', metric: 'alerts_by_type',                chart: 'bar',         color: '#fb923c', cat: 'Alertas' },
-  { id: 'p98', label: 'Alertas no resueltas/proyecto', icon: '🔔', metric: 'unresolved_alerts_by_project',  chart: 'bar',         color: '#fdba74', cat: 'Alertas' },
+  { id: 'p96', label: 'Alertas por severidad',         icon: '🔔', metric: 'alerts_by_severity',            chart: 'pie',         color: 'var(--orange)', cat: 'Alertas' },
+  { id: 'p97', label: 'Alertas por tipo',              icon: '🔔', metric: 'alerts_by_type',                chart: 'bar',         color: 'var(--orange)', cat: 'Alertas' },
+  { id: 'p98', label: 'Alertas no resueltas/proyecto', icon: '🔔', metric: 'unresolved_alerts_by_project',  chart: 'bar',         color: 'var(--orange)', cat: 'Alertas' },
   // Service Desk SLA
-  { id: 'p99', label: 'Incumplimientos SLA/mes',       icon: '🎫', metric: 'sla_breach_trend',              chart: 'line',        color: '#f87171', cat: 'Service Desk' },
-  { id: 'p100', label: 'Incumplimientos SLA por tipo', icon: '🎫', metric: 'sla_breach_by_type',            chart: 'bar',         color: '#b91c1c', cat: 'Service Desk' },
+  { id: 'p99', label: 'Incumplimientos SLA/mes',       icon: '🎫', metric: 'sla_breach_trend',              chart: 'line',        color: 'var(--danger)', cat: 'Service Desk' },
+  { id: 'p100', label: 'Incumplimientos SLA por tipo', icon: '🎫', metric: 'sla_breach_by_type',            chart: 'bar',         color: 'var(--danger)', cat: 'Service Desk' },
   // Automatizaciones
-  { id: 'p101', label: 'Éxito automatizaciones',       icon: '⚙️', metric: 'automation_success_rate',       chart: 'pie',         color: '#a78bfa', cat: 'Automatizaciones' },
-  { id: 'p102', label: 'Ejecuciones por regla',        icon: '⚙️', metric: 'automation_run_stats',          chart: 'bar_stacked', color: '#6d28d9', cat: 'Automatizaciones' },
+  { id: 'p101', label: 'Éxito automatizaciones',       icon: '⚙️', metric: 'automation_success_rate',       chart: 'pie',         color: 'var(--purple)', cat: 'Automatizaciones' },
+  { id: 'p102', label: 'Ejecuciones por regla',        icon: '⚙️', metric: 'automation_run_stats',          chart: 'bar_stacked', color: 'var(--purple)', cat: 'Automatizaciones' },
   // CMDB
-  { id: 'p103', label: 'CMDB por estado',              icon: '🖥️', metric: 'cmdb_items_by_status',          chart: 'pie',         color: '#1d4ed8', cat: 'CMDB' },
-  { id: 'p104', label: 'CMDB por entorno',             icon: '🖥️', metric: 'cmdb_items_by_environment',     chart: 'bar',         color: '#4f8ef7', cat: 'CMDB' },
-  { id: 'p105', label: 'CMDB por tipo de CI',          icon: '🖥️', metric: 'cmdb_items_by_type',            chart: 'pie',         color: '#4f8ef7', cat: 'CMDB' },
+  { id: 'p103', label: 'CMDB por estado',              icon: '🖥️', metric: 'cmdb_items_by_status',          chart: 'pie',         color: 'var(--accent-dim)', cat: 'CMDB' },
+  { id: 'p104', label: 'CMDB por entorno',             icon: '🖥️', metric: 'cmdb_items_by_environment',     chart: 'bar',         color: 'var(--accent)', cat: 'CMDB' },
+  { id: 'p105', label: 'CMDB por tipo de CI',          icon: '🖥️', metric: 'cmdb_items_by_type',            chart: 'pie',         color: 'var(--accent)', cat: 'CMDB' },
   // Negocio extra
-  { id: 'p106', label: 'Clientes por sector',          icon: '💼', metric: 'clients_by_industry',           chart: 'pie',         color: '#0f766e', cat: 'Negocio' },
-  { id: 'p107', label: 'Pipeline por responsable',     icon: '💼', metric: 'opportunity_by_owner',          chart: 'bar',         color: '#0d9488', cat: 'Negocio' },
+  { id: 'p106', label: 'Clientes por sector',          icon: '💼', metric: 'clients_by_industry',           chart: 'pie',         color: 'var(--chart-teal)', cat: 'Negocio' },
+  { id: 'p107', label: 'Pipeline por responsable',     icon: '💼', metric: 'opportunity_by_owner',          chart: 'bar',         color: 'var(--chart-teal)', cat: 'Negocio' },
 ]
+
+type Preset = typeof PRESETS[number]
+
+/** Celda de una fila de métrica: `label`, `value`, `status` o una serie por columna. */
+type MetricCell = string | number | null | undefined
+
+/** Fila de `/analytics/query/{metric}` (`rows`). */
+interface MetricRow {
+  label?: string
+  value?: number
+  status?: string
+  [columna: string]: MetricCell
+}
+
+/** `meta` de una métrica (registro de métricas del backend). */
+interface MetricMeta {
+  label?: string
+  category?: string
+  description?: string
+  y_label?: string
+  weeks?: string[]
+  error?: string
+}
+
+/** `summary` de una métrica (`compute_summary`). */
+interface MetricSummary {
+  total?: number
+  max?: number
+  avg?: number
+  count?: number
+}
+
+/** Respuesta de `/analytics/query/{metric}` (`_respuesta_de_metrica`). */
+interface MetricResult {
+  metric_id: string
+  meta?: MetricMeta
+  rows: MetricRow[]
+  total: number
+  summary?: MetricSummary
+}
+
+interface CatalogueItem {
+  id: string
+  label: string
+  default_chart?: string
+}
+
+/** `/analytics/catalogue`: métricas agrupadas por categoría. */
+type Catalogue = Record<string, CatalogueItem[]>
+
+interface FilterOption {
+  id: string
+  label: string
+}
+
+/** `/analytics/filters/options`. */
+interface FilterOptions {
+  projects?: FilterOption[]
+  users?: FilterOption[]
+  departments?: string[]
+}
+
+/** Configuración de un informe del explorador (lo que se guarda). */
+interface ReportConfig {
+  name?: string
+  metric?: string
+  chartType?: string
+  color?: string
+  dateFrom?: string
+  dateTo?: string
+  projectId?: string
+  userId?: string
+  department?: string
+  topN?: number
+}
+
+/** Informe guardado en `extra.informes_guardados` de las preferencias. */
+interface SavedReport extends ReportConfig {
+  id: string
+  savedAt?: string
+}
+
+interface UserPreferences {
+  extra?: { informes_guardados?: SavedReport[]; [clave: string]: unknown }
+  [clave: string]: unknown
+}
+
+/** `ScheduledReportOut` (app/schemas/billing_reports.py). */
+interface ScheduledReport {
+  id: string
+  name: string
+  metric?: string | null
+  frequency: string
+  recipients: string[]
+  include_pdf: boolean
+  is_active: boolean
+  last_run_at?: string | null
+  next_run_at?: string | null
+  created_at?: string | null
+}
+
+interface ScheduledReportCreate {
+  name: string
+  metric: string
+  frequency: string
+  include_pdf: boolean
+  recipients: string[]
+}
+
+/** `ScheduledReportRunOut` (app/schemas/billing_reports.py). */
+interface ScheduledReportRun {
+  ok: boolean
+  recipients: string[]
+}
+
+interface TooltipEntry {
+  name?: string
+  value?: number | string
+  color?: string
+}
 
 const CHART_TYPES = [
   { id: 'bar',         label: 'Barras',          icon: '▬' },
@@ -194,9 +315,9 @@ const CHART_TYPES = [
 ]
 
 // ── Tooltip customizado ───────────────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { active?: any; payload?: any; label?: any; isCurrency?: any; isPercent?: any }) => {
+const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { active?: boolean; payload?: TooltipEntry[]; label?: ReactNode; isCurrency?: boolean; isPercent?: boolean }) => {
   if (!active || !payload?.length) return null
-  const fmt = (v: any) => {
+  const fmt = (v: number | string | null | undefined) => {
     if (v == null) return '—'
     if (isCurrency) return fmtCurrency(Number(v) || 0)
     if (isPercent) return `${Number(v) || 0}%`
@@ -205,7 +326,7 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { acti
   return (
     <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)" }}>
       <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text-1)' }}>{label}</div>
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i) => (
         <div key={i} style={{ color: p.color || 'var(--text-1)', marginBottom: 2 }}>
           {p.name}: <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{fmt(p.value)}</span>
         </div>
@@ -215,12 +336,12 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { acti
 }
 
 // ── Heatmap component ─────────────────────────────────────────────────────────
-function HeatmapChart({ data, meta }: { data: any[]; meta?: any }) {
+function HeatmapChart({ data, meta }: { data: MetricRow[]; meta?: MetricMeta }) {
   const traducir = useAppT()
   const weeks = meta?.weeks || []
   if (!data.length || !weeks.length) return <EmptyState svgIcon={<Grid3X3 size={36} />} title={traducir('reports.sin_datos_disponibles')} />
-  const maxVal = Math.max(...data.flatMap((r: any) => weeks.map((w: any) => r[w] || 0)))
-  const getColor = (v: any) => {
+  const maxVal = Math.max(...data.flatMap(r => weeks.map(w => Number(r[w] || 0))))
+  const getColor = (v: number) => {
     if (!v) return 'var(--surface-3)'
     const pct = v / maxVal
     if (pct > 0.75) return 'var(--danger)'
@@ -229,20 +350,20 @@ function HeatmapChart({ data, meta }: { data: any[]; meta?: any }) {
     return 'var(--success)'
   }
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="u-scroll-x">
       <table style={{ borderCollapse: 'separate', borderSpacing: 3, fontSize: "var(--text-xs)" }}>
         <thead>
           <tr>
             <th style={{ padding: '4px 8px', color: 'var(--text-2)', textAlign: 'left', minWidth: 120 }}>Persona</th>
-            {weeks.map((w: any) => <th key={w} style={{ padding: '4px 4px', color: 'var(--text-2)', textAlign: 'center', minWidth: 42 }}>{w}</th>)}
+            {weeks.map(w => <th key={w} style={{ padding: '4px 4px', color: 'var(--text-2)', textAlign: 'center', minWidth: 42 }}>{w}</th>)}
           </tr>
         </thead>
         <tbody>
-          {data.map((row: any) => (
+          {data.map(row => (
             <tr key={row.label}>
               <td style={{ padding: '3px 8px', fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 600 }}>{row.label}</td>
-              {weeks.map((w: any) => {
-                const v = row[w] || 0
+              {weeks.map(w => {
+                const v = Number(row[w] || 0)
                 return (
                   <td key={w} title={`${row.label} · ${w}: ${v}h`} style={{ padding: 2 }}>
                     <div style={{ width: 38, height: 28, borderRadius: 5, background: getColor(v), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-2xs)", fontWeight: 700, color: v ? 'var(--surface-0)' : 'transparent' }}>
@@ -267,18 +388,18 @@ function HeatmapChart({ data, meta }: { data: any[]; meta?: any }) {
 }
 
 // ── Data table ────────────────────────────────────────────────────────────────
-function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: any; isPercent?: any }) {
+function DataTable({ data, isCurrency, isPercent }: { data: MetricRow[]; isCurrency?: boolean; isPercent?: boolean }) {
   const traducir = useAppT()
   if (!data.length) return <EmptyState svgIcon={<TableIcon size={36} />} title={traducir('reports.sin_datos_disponibles')} />
   const keys = Object.keys(data[0]).filter(k => k !== 'status')
-  const fmt = (v: any) => {
+  const fmt = (v: MetricCell) => {
     if (typeof v !== 'number') return v
     if (isCurrency) return fmtCurrency(v)
     if (isPercent) return `${v.toFixed(1)}%`
     return v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
   }
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="u-scroll-x">
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
@@ -286,7 +407,7 @@ function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: 
           </tr>
         </thead>
         <tbody>
-          {data.map((row: any, i: number) => (
+          {data.map((row, i) => (
             <tr key={i} style={{ borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' }}>
               {keys.map(k => (
                 <td key={k} style={{ padding: '10px 12px', textAlign: k === 'label' ? 'left' : 'right', fontFamily: k !== 'label' ? 'var(--font-mono)' : 'inherit', fontWeight: k === 'value' ? 700 : 400, color: k === 'value' ? (row.status ? STATUS_COLORS[row.status] : 'var(--text-1)') : 'var(--text-1)' }}>
@@ -302,7 +423,7 @@ function DataTable({ data, isCurrency, isPercent }: { data: any[]; isCurrency?: 
 }
 
 // ── Chart renderer ────────────────────────────────────────────────────────────
-function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }: { data: any[]; chartType?: any; meta?: any; color?: string; height?: number }) {
+function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }: { data: MetricRow[]; chartType?: string; meta?: MetricMeta; color?: string; height?: number }) {
   const traducir = useAppT()
   // Revisión 2026-11: un cálculo que falla lo dice; antes salía como «sin datos».
   if (meta?.error) return <EmptyState svgIcon={<BarChartBig size={36} />} title={meta.error} />
@@ -310,7 +431,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
 
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent = meta?.y_label?.includes('%')
-  const fmtY = (v: any) => {
+  const fmtY = (v: number | string) => {
     const n = Number(v) || 0
     return isCurrency ? `${(n / 1000).toFixed(0)}k€` : isPercent ? `${n}%` : String(n)
   }
@@ -325,13 +446,13 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
           <Pie data={data} dataKey="value" nameKey="label" cx="50%" cy="50%"
             innerRadius={chartType === 'donut' ? 70 : 0} outerRadius={120}
             paddingAngle={2}>
-            {data.map((_: any, i: number) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+            {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
           </Pie>
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
         </PieChart>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {data.map((row: any, i: number) => {
-            const total = data.reduce((s: number, r: any) => s + (r.value || 0), 0)
+        <div className="u-stack-8">
+          {data.map((row, i) => {
+            const total = data.reduce((s: number, r) => s + (r.value || 0), 0)
             const pct = total > 0 ? ((row.value / total) * 100).toFixed(1) : 0
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: "var(--text-base)" }}>
@@ -342,7 +463,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
                     ? fmtCurrency(Number(row.value) || 0)
                     : (Number(row.value) || 0).toLocaleString(localeActivo(), { maximumFractionDigits: 1 })}
                 </span>
-                <span style={{ color: 'var(--text-2)', fontSize: "var(--text-xs)" }}>{pct}%</span>
+                <span className="u-text2-xs">{pct}%</span>
               </div>
             )
           })}
@@ -440,7 +561,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
         <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
         <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
         <Bar dataKey="value" radius={[3, 3, 0, 0]}>
-          {data.map((row: any, i: number) => (
+          {data.map((row, i) => (
             <Cell key={i} fill={row.status ? STATUS_COLORS[row.status] || color : color} />
           ))}
         </Bar>
@@ -450,14 +571,14 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
 }
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
-function SummaryBar({ summary, meta, prevSummary }: { summary?: any; meta?: any; prevSummary?: any }) {
+function SummaryBar({ summary, meta, prevSummary }: { summary?: MetricSummary; meta?: MetricMeta; prevSummary?: MetricSummary }) {
   const traducir = useAppT()
   if (!summary || !summary.total) return null
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent  = meta?.y_label?.includes('%')
-  const fmt = (v: any) => isCurrency ? fmtCurrency(v) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
+  const fmt = (v: number) => isCurrency ? fmtCurrency(v) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
 
-  const trend = (curr: any, prev: any) => {
+  const trend = (curr: number, prev: number | undefined) => {
     if (!prev || prev === 0) return null
     const pct = ((curr - prev) / Math.abs(prev) * 100)
     const up  = pct >= 0
@@ -494,7 +615,7 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: any; meta?: any;
 }
 
 // ── Report panel ──────────────────────────────────────────────────────────────
-function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: any; initialChart?: any; onSave?: any }) {
+function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: string; initialChart?: string; onSave?: (config: ReportConfig) => void }) {
   const traducir = useAppT()
   const narrow = useMediaQuery('(max-width: 900px)')
   const today = new Date().toISOString().split('T')[0]
@@ -512,10 +633,10 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
   const [color, setColor] = useState('#4f8ef7')
   const [reportName, setReportName] = useState('')
 
-  const { data: catalogue } = useQuery({ queryKey: ['analytics-catalogue'], queryFn: () => analyticsApi.catalogue().then(r => r.data).catch(() => ({})) })
-  const { data: filters } = useQuery({ queryKey: ['analytics-filters'], queryFn: () => analyticsApi.filterOptions().then(r => r.data).catch(() => ({})) })
+  const { data: catalogue } = useQuery<Catalogue>({ queryKey: ['analytics-catalogue'], queryFn: () => analyticsApi.catalogue().then(r => r.data).catch(() => ({})) })
+  const { data: filters } = useQuery<FilterOptions>({ queryKey: ['analytics-filters'], queryFn: () => analyticsApi.filterOptions().then(r => r.data).catch(() => ({})) })
 
-  const { data: result, isLoading, isFetching } = useQuery({
+  const { data: result, isLoading, isFetching } = useQuery<MetricResult | null>({
     queryKey: ['analytics-query', metric, dateFrom, dateTo, projectId, userId, department, topN],
     queryFn: () => analyticsApi.query(metric, { date_from: dateFrom, date_to: dateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN }).then(r => r.data).catch(() => null),
     enabled: !!metric,
@@ -530,7 +651,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
   }, [dateFrom, dateTo])
   const prevDateTo = dateFrom
 
-  const { data: prevResult } = useQuery({
+  const { data: prevResult } = useQuery<MetricResult | null>({
     queryKey: ['analytics-prev', metric, prevDateFrom, prevDateTo, projectId, userId, department, topN],
     queryFn: () => analyticsApi.query(metric, { date_from: prevDateFrom, date_to: prevDateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN }).then(r => r.data).catch(() => null),
     enabled: !!metric && !!prevDateFrom,
@@ -539,11 +660,11 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
   })
 
   // Auto-set chart type from metric default
-  const handleMetricChange = (m: any) => {
+  const handleMetricChange = (m: string) => {
     setMetric(m)
     if (catalogue) {
-      for (const cat of Object.values(catalogue) as any[]) {
-        const found = cat.find((item: any) => item.id === m)
+      for (const cat of Object.values(catalogue)) {
+        const found = cat.find(item => item.id === m)
         if (found) { setChartType(found.default_chart || 'bar'); break }
       }
     }
@@ -554,7 +675,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
     { label: '6m', days: 180 }, { label: '1a', days: 365 },
   ]
 
-  const setDatePreset = (days: any) => {
+  const setDatePreset = (days: number) => {
     const end = new Date()
     const start = new Date(Date.now() - days * 86400000)
     setDateFrom(start.toISOString().split('T')[0])
@@ -572,9 +693,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <label style={ls}>{traducir('reports.metrica')}</label>
             <select value={metric} onChange={e => handleMetricChange(e.target.value)} style={fs}>
               <option value="">{traducir('reports.seleccionar_metrica')}</option>
-              {catalogue && Object.entries(catalogue).map(([cat, items]: [string, any]) => (
+              {catalogue && Object.entries(catalogue).map(([cat, items]) => (
                 <optgroup key={cat} label={`${CAT_ICONS[cat] || '📊'} ${cat}`}>
-                  {items.map((item: any) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  {items.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </optgroup>
               ))}
             </select>
@@ -585,7 +706,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <label style={ls}>📁 Proyecto</label>
             <select value={projectId} onChange={e => setProjectId(e.target.value)} style={fs}>
               <option value="">{traducir('reports.todos_los_proyectos')}</option>
-              {filters?.projects?.map((p: any) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              {filters?.projects?.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </div>
 
@@ -594,7 +715,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <label style={ls}>👤 Persona</label>
             <select value={userId} onChange={e => setUserId(e.target.value)} style={fs}>
               <option value="">{traducir('reports.todas_las_personas')}</option>
-              {filters?.users?.map((u: any) => <option key={u.id} value={u.id}>{u.label}</option>)}
+              {filters?.users?.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
           </div>
 
@@ -603,7 +724,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <label style={ls}>🏢 Departamento</label>
             <select value={department} onChange={e => setDepartment(e.target.value)} style={fs}>
               <option value="">{traducir('reports.todos')}</option>
-              {filters?.departments?.map((d: any) => <option key={d} value={d}>{d}</option>)}
+              {filters?.departments?.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
 
@@ -621,7 +742,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
                 <button key={c} onClick={() => setColor(c)}
                   style={{ width: 24, height: 24, borderRadius: 6, background: c, border: color === c ? `2px solid #fff` : '2px solid transparent', cursor: 'pointer' }} />
               ))}
-              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#4f8ef7'} onChange={e => setColor(e.target.value)} style={{ width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
+              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : COLOR_DATO_POR_DEFECTO} onChange={e => setColor(e.target.value)} style={{ width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
             </div>
           </div>
         </div>
@@ -630,9 +751,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Date range */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <label style={{ ...ls, marginBottom: 0 }}>📅 Desde</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
+            <DateInput value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
             <label style={{ ...ls, marginBottom: 0 }}>Hasta</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
+            <DateInput value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
           </div>
 
           {/* Presets */}
@@ -663,7 +784,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           <div style={{ textAlign: 'center', padding: '40px 0 24px', color: 'var(--text-3)' }}>
             <div style={{ fontSize: "var(--text-42)", marginBottom: 12 }}>📊</div>
             <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6, color: 'var(--text-2)' }}>{traducir('reports.selecciona_una_metrica_para_empezar')}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Elige entre {Object.values(catalogue || {}).flat().length || '...'} {traducir('reports.metricas_disponibles')}</div>
+            <div className="u-text3-sm">Elige entre {Object.values(catalogue || {}).flat().length || '...'} {traducir('reports.metricas_disponibles')}</div>
           </div>
           {/* Métricas populares como acceso rápido */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(180px, 100%), 1fr))', gap: 10 }}>
@@ -693,17 +814,17 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
       ) : result ? (
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div style={{ minWidth: 0 }}>
+            <div className="u-min0">
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                 <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, margin: 0 }}>{result.meta?.label}</h3>
                 <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 700, textTransform: 'uppercase' }}>
                   {result.meta?.category}
                 </span>
-                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{result.total} registros</span>
+                <span className="u-text3-xs">{result.total} registros</span>
               </div>
               <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '4px 0 0' }}>{result.meta?.description}</p>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="u-wrap-8">
               {onSave && (
                 <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
                   <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} style={{ ...fs, width: 200, minWidth: 0, fontSize: "var(--text-sm)" }} />
@@ -712,15 +833,15 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
               )}
               <button onClick={() => {
                 // Revisión 2026-11: cada valor entre comillas (una coma o un salto de línea rompían las columnas).
-                const celda = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
-                const csv = [Object.keys(result.rows[0] || {}).map(celda).join(','), ...result.rows.map((r: any) => Object.values(r).map(celda).join(','))].join('\n')
+                const celda = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+                const csv = [Object.keys(result.rows[0] || {}).map(celda).join(','), ...result.rows.map(r => Object.values(r).map(celda).join(','))].join('\n')
                 const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = `${metric}.csv`; a.click()
               }} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '6px 12px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>⬇ CSV</button>
               <button onClick={() => {
                 const el = document.querySelector('.recharts-wrapper') || document.querySelector('[data-chart]')
                 if (!el) { toast.info('Selecciona un tipo de gráfico visual primero'); return }
-                import('html2canvas').then(({ default: html2canvas }: any) => {
-                  html2canvas(el as HTMLElement).then((canvas: any) => {
+                import('html2canvas').then(({ default: html2canvas }) => {
+                  html2canvas(el as HTMLElement).then(canvas => {
                     const a = document.createElement('a'); a.href = canvas.toDataURL(); a.download = `${metric}.png`; a.click()
                   })
                 }).catch(() => toast.error('Error al exportar imagen'))
@@ -751,17 +872,17 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 }
 
 // ── Dashboard mode: multiple panels ──────────────────────────────────────────
-function ReportsDashboard({ saved, onRemove, onOpen }: { saved: any[]; onRemove?: any; onOpen?: any }) {
+function ReportsDashboard({ saved, onRemove, onOpen }: { saved: SavedReport[]; onRemove?: (id: string) => void; onOpen?: (report: SavedReport) => void }) {
   const _today = new Date().toISOString().split('T')[0]
   const _d90 = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(480px, 100%), 1fr))', gap: 20 }}>
-      {saved.map((r: any) => (
+      {saved.map(r => (
         <Card key={r.id} style={{ padding: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{r.name}</div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="u-md-700">{r.name}</div>
+            <div className="u-row-6">
               <button onClick={() => onOpen(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️ Editar</button>
               <button onClick={() => onRemove(r.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
             </div>
@@ -773,8 +894,8 @@ function ReportsDashboard({ saved, onRemove, onOpen }: { saved: any[]; onRemove?
   )
 }
 
-function MiniPanel({ config }: { config: any }) {
-  const { data: result, isLoading } = useQuery({
+function MiniPanel({ config }: { config: SavedReport }) {
+  const { data: result, isLoading } = useQuery<MetricResult | null>({
     queryKey: ['analytics-mini', config.metric, config.dateFrom, config.dateTo, config.projectId, config.userId],
     queryFn: () => analyticsApi.query(config.metric, { date_from: config.dateFrom, date_to: config.dateTo, project_id: config.projectId || undefined, user_id: config.userId || undefined, top_n: 10 }).then(r => r.data).catch(() => null),
     enabled: !!config.metric,
@@ -809,14 +930,14 @@ function ScheduledReportsTab() {
     frequency: 'weekly', include_pdf: true,
   })
 
-  const { data: scheduled = [], isLoading } = useQuery({
+  const { data: scheduled = [], isLoading } = useQuery<ScheduledReport[]>({
     queryKey: ['scheduled-reps'],
     queryFn: () => scheduledReportsApi.list().then(r => r.data).catch(() => []),
     refetchInterval: 30000,
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: (d: any) => scheduledReportsApi.create(d),
+    mutationFn: (d: ScheduledReportCreate) => scheduledReportsApi.create(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       setShowCreate(false)
@@ -827,15 +948,15 @@ function ScheduledReportsTab() {
   })
 
   const { mutate: remove } = useMutation({
-    mutationFn: (id: any) => scheduledReportsApi.delete(id),
+    mutationFn: (id: string) => scheduledReportsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['scheduled-reps'] }); toast.success('Informe eliminado') },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: runNow, isPending: running } = useMutation({
-    mutationFn: (id: any) => scheduledReportsApi.run(id).then(r => r.data),
-    onSuccess: (data: any) => {
+    mutationFn: (id: string): Promise<ScheduledReportRun> => scheduledReportsApi.run(id).then(r => r.data),
+    onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       const to = data.recipients?.join(', ') || '—'
       toast.success(`Informe enviado a: ${to}`)
@@ -844,7 +965,7 @@ function ScheduledReportsTab() {
   })
 
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, val }: { id: any; val: any }) => scheduledReportsApi.toggle(id, { is_active: val }),
+    mutationFn: ({ id, val }: { id: string; val: boolean }) => scheduledReportsApi.toggle(id, { is_active: val }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduled-reps'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
@@ -883,7 +1004,7 @@ function ScheduledReportsTab() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>Informes programados</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+          <div className="u-text2-sm">
             {traducir('reports.envio_automatico_por_email_los_informes_se')}
           </div>
         </div>
@@ -939,7 +1060,7 @@ function ScheduledReportsTab() {
               style={{ accentColor: 'var(--accent)' }} />
             {traducir('reports.adjuntar_pdf_del_informe_al_email')}
           </label>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowCreate(false)}
               style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
                 padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
@@ -960,16 +1081,16 @@ function ScheduledReportsTab() {
         <div style={{ ...ps, textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
           <div style={{ fontSize: "var(--text-4xl)", marginBottom: 10 }}>📅</div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>{traducir('reports.sin_informes_programados')}</div>
-          <div style={{ fontSize: "var(--text-sm)" }}>{traducir('reports.crea_informes_para_recibir_datos_automaticamente_por')}</div>
+          <div className="u-sm">{traducir('reports.crea_informes_para_recibir_datos_automaticamente_por')}</div>
         </div>
       ) : (
-        scheduled.map((rep: any) => (
+        scheduled.map(rep => (
           <div key={rep.id} style={{ ...ps, opacity: rep.is_active ? 1 : 0.55 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="u-flex1-min0">
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
                   <span style={{ fontSize: "var(--text-lg)" }}>{FREQ_ICONS[rep.frequency]}</span>
-                  <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{rep.name}</span>
+                  <span className="u-md-700">{rep.name}</span>
                   {!rep.is_active && (
                     <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4,
                       background: 'var(--danger-bg)', color: 'var(--danger)' }}>Pausado</span>
@@ -983,7 +1104,7 @@ function ScheduledReportsTab() {
                   {FREQ_LABELS[rep.frequency]} ·{' '}
                   {METRICS.find(m => m.id === rep.metric)?.label || rep.metric}
                 </div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                <div className="u-text3-xs">
                   📧 {(rep.recipients || []).join(', ')}
                 </div>
                 {(rep.last_run_at || rep.next_run_at) && (
@@ -1010,7 +1131,8 @@ function ScheduledReportsTab() {
                     opacity: !rep.is_active ? 0.4 : 1 }}>
                   ▶ Enviar ahora
                 </button>
-                <a href={`/api/v1/billing-reports/scheduled-reports/${rep.id}/preview-pdf`} target="_blank"
+                {/* Enlace y no el cliente: el navegador abre el PDF en otra pestaña con la cookie de sesión. */}
+                <a href={apiUrl(`/billing-reports/scheduled-reports/${rep.id}/preview-pdf`)} target="_blank"
                   rel="noopener noreferrer"
                   style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)',
                     borderRadius: 7, padding: '5px 10px', color: 'var(--purple)',
@@ -1035,19 +1157,19 @@ function ScheduledReportsTab() {
 
 
 // ── PresetsTab ─────────────────────────────────────────────────────────────────
-function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; supportedMetrics?: any; onOpen?: any }) {
-  const [filterCat, setFilterCat] = useState<any>('all')
+function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly Preset[]; supportedMetrics?: Set<string> | null; onOpen?: (preset: Preset) => void }) {
+  const [filterCat, setFilterCat] = useState<string>('all')
   const [searchQ, setSearchQ] = useState('')
   // When supportedMetrics is null the analytics catalogue is unavailable (e.g. 503).
   // In that case show all presets so the user can still browse and attempt to run them.
   const enabledPresets = supportedMetrics !== null
-    ? presets.filter((p: any) => supportedMetrics.has(p.metric))
+    ? presets.filter(p => supportedMetrics.has(p.metric))
     : presets
-  const cats = ['all', ...new Set(enabledPresets.map((p: any) => p.cat).filter(Boolean))]
-  const byCat = filterCat === 'all' ? enabledPresets : enabledPresets.filter((p: any) => p.cat === filterCat)
+  const cats = ['all', ...new Set(enabledPresets.map(p => p.cat).filter(Boolean))]
+  const byCat = filterCat === 'all' ? enabledPresets : enabledPresets.filter(p => p.cat === filterCat)
   const filtered = searchQ.trim().length < 2
     ? byCat
-    : byCat.filter((p: any) => p.label.toLowerCase().includes(searchQ.toLowerCase()) || p.cat?.toLowerCase().includes(searchQ.toLowerCase()))
+    : byCat.filter(p => p.label.toLowerCase().includes(searchQ.toLowerCase()) || p.cat?.toLowerCase().includes(searchQ.toLowerCase()))
   const catIcons: Record<string, string> = { Horas:'⏱️', Costes:'💸', Rentabilidad:'💰', Capacidad:'📅',
     Proyectos:'⬡', Negocio:'💼', RRHH:'👥', 'Service Desk':'🎫', Agilidad:'🏃', ALM:'🔑', IA:'🧠' }
   const chartLabels: Record<string, string> = { bar:'Barras', bar_grouped:'Agrupadas', bar_stacked:'Apiladas',
@@ -1071,7 +1193,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; sup
         />
       </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {cats.map((c: any) => (
+        {cats.map(c => (
           <button key={c} onClick={() => setFilterCat(c)}
             style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filterCat === c ? 'var(--accent)' : 'var(--surface-4)'}`,
               background: filterCat === c ? 'var(--accent-muted)' : 'transparent',
@@ -1087,7 +1209,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; sup
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: 12 }}>
-        {filtered.map((p: any) => (
+        {filtered.map(p => (
           <button key={p.id} type="button" onClick={() => onOpen(p)}
             style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(p.color, '25')}`, borderRadius: 12,
               padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s', width:'100%', textAlign:'left', fontFamily:'inherit' }}
@@ -1108,46 +1230,46 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: any[]; sup
 export default function ReportsPage() {
   const traducir = useAppT()
   const t = useAppT()
-  const { _user, hasRole } = useAuth() as any
+  const { hasRole } = useAuth()
   // Los programados son de responsables (la API solo los sirve a ellos).
   const veProgramados = hasRole('admin', 'pm', 'team_lead', 'hr')
-  const [mode, setMode] = useState<any>('explorer') // explorer | dashboard | presets
-  const [editingReport, setEditingReport] = useState<any>(null)
+  const [mode, setMode] = useState<string>('explorer') // explorer | dashboard | presets
+  const [editingReport, setEditingReport] = useState<ReportConfig | null>(null)
   // Revisión 2026-11: los guardados viven en las preferencias del usuario en el
   // servidor (`extra.informes_guardados`); antes, en una variable que se perdía
   // al recargar la página.
   const qc = useQueryClient()
   const toast = useToast()
-  const { data: prefs } = useQuery<any>({
+  const { data: prefs } = useQuery<UserPreferences>({
     queryKey: ['user-preferences'],
-    queryFn: () => api.get('/users/me/preferences').then((r: any) => r.data),
+    queryFn: () => api.get('/users/me/preferences').then(r => r.data),
     staleTime: 5 * 60 * 1000,
   })
-  const saved: any[] = Array.isArray(prefs?.extra?.informes_guardados) ? prefs.extra.informes_guardados : []
+  const saved: SavedReport[] = Array.isArray(prefs?.extra?.informes_guardados) ? prefs.extra.informes_guardados : []
   const guardar = useMutation({
-    mutationFn: (lista: any[]) => api.patch('/users/me/preferences', { extra: { informes_guardados: lista } }),
-    onMutate: (lista: any[]) => qc.setQueryData(['user-preferences'], (old: any) => ({ ...(old || {}), extra: { ...(old?.extra || {}), informes_guardados: lista } })),
+    mutationFn: (lista: SavedReport[]) => api.patch('/users/me/preferences', { extra: { informes_guardados: lista } }),
+    onMutate: (lista: SavedReport[]) => qc.setQueryData<UserPreferences>(['user-preferences'], old => ({ ...(old || {}), extra: { ...(old?.extra || {}), informes_guardados: lista } })),
     onSettled: () => qc.invalidateQueries({ queryKey: ['user-preferences'] }),
     onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo guardar el informe')),
   })
 
-  const saveReport = (config: any) => {
-    const existing = saved.find((r: any) => r.name === config.name)
-    const report = { ...config, id: existing?.id || Date.now().toString(), savedAt: new Date().toISOString() }
-    guardar.mutate(existing ? saved.map((r: any) => r.id === report.id ? report : r) : [...saved, report])
+  const saveReport = (config: ReportConfig) => {
+    const existing = saved.find(r => r.name === config.name)
+    const report: SavedReport = { ...config, id: existing?.id || Date.now().toString(), savedAt: new Date().toISOString() }
+    guardar.mutate(existing ? saved.map(r => r.id === report.id ? report : r) : [...saved, report])
   }
 
-  const removeReport = (id: any) => guardar.mutate(saved.filter((r: any) => r.id !== id))
+  const removeReport = (id: string) => guardar.mutate(saved.filter(r => r.id !== id))
 
-  const openReport = (r: any) => { setEditingReport(r); setMode('explorer') }
+  const openReport = (r: SavedReport) => { setEditingReport(r); setMode('explorer') }
 
-  const { data: catalogue } = useQuery({ queryKey: ['analytics-catalogue'], queryFn: () => analyticsApi.catalogue().then(r => r.data).catch(() => ({})) })
+  const { data: catalogue } = useQuery<Catalogue>({ queryKey: ['analytics-catalogue'], queryFn: () => analyticsApi.catalogue().then(r => r.data).catch(() => ({})) })
   const catalogueLoaded = catalogue !== undefined
   const catalogueHasData = catalogueLoaded && Object.keys(catalogue || {}).length > 0
   const totalMetrics = Object.values(catalogue || {}).flat().length
   // null means catalogue not yet loaded or unavailable — PresetsTab will show all presets
   const supportedMetrics = catalogueHasData
-    ? new Set((Object.values(catalogue).flat() as any[]).map((m: any) => m.id))
+    ? new Set(Object.values(catalogue).flat().map(m => m.id))
     : null
 
   const [_schedTab, _setSchedTab] = useState('main')
@@ -1178,7 +1300,7 @@ export default function ReportsPage() {
     >
 
       {/* Plantillas */}
-      {mode === 'presets' && <PresetsTab presets={PRESETS} supportedMetrics={supportedMetrics} onOpen={(p: any) => { setEditingReport({ metric: p.metric, chartType: p.chart, color: p.color }); setMode('explorer') }} />}
+      {mode === 'presets' && <PresetsTab presets={PRESETS} supportedMetrics={supportedMetrics} onOpen={p => { setEditingReport({ metric: p.metric, chartType: p.chart, color: p.color }); setMode('explorer') }} />}
 
       {/* Overview — todas las métricas organizadas por categoría */}
       {mode === 'overview' && (
@@ -1186,14 +1308,14 @@ export default function ReportsPage() {
           <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 24, lineHeight: 1.6 }}>
             {totalMetrics} {traducir('reports.metricas_disponibles_en')} {Object.keys(catalogue || {}).length} {traducir('reports.categorias_haz_clic_en_cualquier_metrica_para')}
           </p>
-          {catalogue && Object.entries(catalogue).map(([cat, items]: [string, any]) => (
+          {catalogue && Object.entries(catalogue).map(([cat, items]) => (
             <div key={cat} style={{ marginBottom: 28 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>{CAT_ICONS[cat] || '📊'}</span> {cat}
                 <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontWeight: 400 }}>({items.length})</span>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {items.map((item: any) => (
+              <div className="u-wrap-8">
+                {items.map(item => (
                   <button key={item.id} onClick={() => { setEditingReport({ metric: item.id, chartType: item.default_chart }); setMode('explorer') }}
                     style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.12s' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-muted)' }}

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { jiraApi } from '../services/api'
 import { useToast } from '../context/ToastContext'
-import { Card, Button, Spinner, EmptyState } from '../components/ui'
+import { Card, Button, Spinner, EmptyState, Table } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { extractErr, localeActivo } from '../utils/helpers'
@@ -210,7 +210,7 @@ export default function JiraIntegrationPage(): JSX.Element {
             {loadingConfig ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
             ) : (
-              <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <form onSubmit={handleSave} className="u-stack-12">
                 <div>
                   <label style={_ls}>{t('jira_integration.url_label')}</label>
                   <input
@@ -283,7 +283,7 @@ export default function JiraIntegrationPage(): JSX.Element {
           {/* Sync actions */}
           <Card>
             <SectionTitle>{t('jira_integration.sync_actions_section')}</SectionTitle>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="u-stack-10">
               <button
                 onClick={() => syncPull.mutate({})}
                 disabled={syncPull.isPending}
@@ -300,7 +300,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                 }
                 <div>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{t('jira_integration.import_button_title')}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('jira_integration.import_button_subtitle')}</div>
+                  <div className="u-text3-xs">{t('jira_integration.import_button_subtitle')}</div>
                 </div>
               </button>
               <button
@@ -319,7 +319,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                 }
                 <div>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{t('jira_integration.export_button_title')}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('jira_integration.export_button_subtitle')}</div>
+                  <div className="u-text3-xs">{t('jira_integration.export_button_subtitle')}</div>
                 </div>
               </button>
             </div>
@@ -350,35 +350,25 @@ export default function JiraIntegrationPage(): JSX.Element {
             ) : issueList.length === 0 ? (
               <EmptyState icon="tasks" title={t('jira_integration.no_issues_title')} description={t('jira_integration.no_issues_message')} />
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                      {[t('jira_integration.col_key'), t('jira_integration.col_summary'), t('jira_integration.col_status'), t('jira_integration.col_priority')].map(h => (
-                        <th key={h} style={{ textAlign: 'left', padding: '6px 10px 8px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {issueList.map(issue => (
-                      <tr key={issue.key} style={{ borderBottom: '1px solid var(--surface-3)' }}>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)", whiteSpace: 'nowrap' }}>{issue.key}</td>
-                        <td style={{ padding: '8px 10px', color: 'var(--text-1)', maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.summary}</td>
-                        <td style={{ padding: '8px 10px' }}>
-                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
-                            {issue.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 10px' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_COLORS[issue.priority?.toLowerCase() as keyof typeof PRIORITY_COLORS] || 'var(--surface-5)', flexShrink: 0 }} />
-                            {issue.priority}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="u-scroll-x">
+                <Table
+                  data={issueList}
+                  columns={[
+                    { key: 'key', label: t('jira_integration.col_key'), render: (_v, issue) => <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)", whiteSpace: 'nowrap' }}>{issue.key}</span> },
+                    { key: 'summary', label: t('jira_integration.col_summary'), render: (_v, issue) => <span style={{ display: 'block', maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.summary}</span> },
+                    { key: 'status', label: t('jira_integration.col_status'), render: (_v, issue) => (
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
+                        {issue.status}
+                      </span>
+                    ) },
+                    { key: 'priority', label: t('jira_integration.col_priority'), render: (_v, issue) => (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_COLORS[issue.priority?.toLowerCase() as keyof typeof PRIORITY_COLORS] || 'var(--surface-5)', flexShrink: 0 }} />
+                        {issue.priority}
+                      </span>
+                    ) },
+                  ]}
+                />
               </div>
             )}
           </Card>
@@ -391,32 +381,24 @@ export default function JiraIntegrationPage(): JSX.Element {
             ) : linkedList.length === 0 ? (
               <EmptyState icon="tasks" title={t('jira_integration.no_linked_title')} description={t('jira_integration.no_linked_message')} />
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                      {[t('jira_integration.col_task'), t('jira_integration.col_jira_key'), t('jira_integration.col_status'), t('jira_integration.col_synced')].map(h => (
-                        <th key={h} style={{ textAlign: 'left', padding: '6px 10px 8px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {linkedList.map((row) => (
-                      <tr key={row.id} style={{ borderBottom: '1px solid var(--surface-3)' }}>
-                        <td style={{ padding: '8px 10px', color: 'var(--text-1)' }}>{row.title}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{row.jira_issue_key}</td>
-                        <td style={{ padding: '8px 10px' }}>
-                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
-                            {row.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 10px', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-                          {row.jira_synced_at ? new Date(row.jira_synced_at).toLocaleString(localeActivo()) : '\u2014'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="u-scroll-x">
+                <Table
+                  data={linkedList}
+                  columns={[
+                    { key: 'title', label: t('jira_integration.col_task') },
+                    { key: 'jira_issue_key', label: t('jira_integration.col_jira_key'), render: (_v, row) => <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{row.jira_issue_key}</span> },
+                    { key: 'status', label: t('jira_integration.col_status'), render: (_v, row) => (
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
+                        {row.status}
+                      </span>
+                    ) },
+                    { key: 'jira_synced_at', label: t('jira_integration.col_synced'), render: (_v, row) => (
+                      <span className="u-text3-sm">
+                        {row.jira_synced_at ? new Date(row.jira_synced_at).toLocaleString(localeActivo()) : '—'}
+                      </span>
+                    ) },
+                  ]}
+                />
               </div>
             )}
           </Card>

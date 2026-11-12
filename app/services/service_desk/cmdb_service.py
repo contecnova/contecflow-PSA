@@ -1,7 +1,6 @@
 import json
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,6 +14,7 @@ from app.services.service_desk.cmdb_relation_service import get_ci_impact_payloa
 from app.services.service_desk.scoping import scope_ci_query as _scope_ci_query
 from app.services.sla_service import next_ci_number as _next_ci_number
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -108,13 +108,13 @@ def enforce_ci_org_constraints(db: Session, current_user: User, payload: CIIn, *
         ).first()
         if not project:
             if is_update:
-                raise HTTPException(403, "No puedes mover CIs fuera de tu organización")
-            raise HTTPException(403, "No puedes crear CIs para proyectos fuera de tu organización")
+                raise ErrorDeDominio(403, "No puedes mover CIs fuera de tu organización")
+            raise ErrorDeDominio(403, "No puedes crear CIs para proyectos fuera de tu organización")
 
     if payload.owner_user_id:
         owner = db.query(User).filter(User.id == payload.owner_user_id).first()
         if not owner or owner.organization_id != current_user.organization_id:
-            raise HTTPException(403, "No puedes asignar owner fuera de tu organización")
+            raise ErrorDeDominio(403, "No puedes asignar owner fuera de tu organización")
 
 
 def _columnas(payload: CIIn) -> dict:
@@ -148,7 +148,7 @@ def get_scoped_ci_or_404(
 ) -> ConfigurationItem:
     ci = get_scoped_ci_by_id(db, current_user, ci_id)
     if not ci:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return ci
 
 

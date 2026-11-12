@@ -105,7 +105,7 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
         </select></label>
       {entrada({ k: 'descripcion', label: t('pres.descripcion'), tipo: 'text', ancho: true })}
       <label style={{ gridColumn: '1 / -1' }}><span style={etiqueta}>{t('pres.como_se_calcula_la_partida')}</span>
-        <div role="radiogroup" aria-label={t('pres.como_se_calcula_la_partida')} style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div role="radiogroup" aria-label={t('pres.como_se_calcula_la_partida')} className="u-wrap-6">
           {modos.map(m => (
             <button key={m} type="button" role="radio" aria-checked={f.modo === m} onClick={() => setF(v => ({ ...v, modo: m }))}
               style={{ padding: '5px 10px', borderRadius: 99, fontSize: 'var(--text-xs)', fontFamily: 'inherit', cursor: 'pointer',

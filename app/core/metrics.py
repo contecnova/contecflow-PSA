@@ -239,15 +239,23 @@ def _install_metrics_route(app: FastAPI, env_auth_token: Optional[str]) -> None:
             finally:
                 db.close()
         except Exception:
+            logger.debug("_current_token: excepcion ignorada", exc_info=True)
             return env_auth_token
 
     @app.get("/metrics", include_in_schema=False)
     def metrics_endpoint(request: Request) -> Response:
+        import hmac
+        from app.core.config import settings as _s
+
         active_token = _current_token()
         if active_token:
             header = request.headers.get("Authorization", "")
-            if not header.startswith("Bearer ") or header[7:] != active_token:
+            if not header.startswith("Bearer ") or not hmac.compare_digest(header[7:], active_token):
                 raise HTTPException(status_code=401, detail="Unauthorized")
+        elif _s.ENVIRONMENT not in ("development", "test", "testing"):
+            # Auditoria 2026-11: sin token, /metrics quedaba abierto en produccion
+            # (rutas, volumen y errores de cada endpoint). Sin token, cerrado.
+            raise HTTPException(status_code=401, detail="METRICS_AUTH_TOKEN no configurado")
 
         if multiproc_dir:
             registry = CollectorRegistry()

@@ -15,6 +15,7 @@ from app.services.custom_fields_service import delete_workflow_state, delete_tra
 from app.services.deliverable_service import delete_deliverable, get_deliverable, list_project_deliverables
 from app.services.imputation_service import delete_imputation_record, get_imputation_by_id
 from datetime import date
+from app.core.errores import ErrorDeDominio
 
 
 @pytest.fixture
@@ -121,7 +122,7 @@ class TestWorkflowSoftDelete:
         from fastapi import HTTPException
         from app.schemas.custom_fields import WorkflowStateIn
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises((HTTPException, ErrorDeDominio)) as exc_info:
             payload = WorkflowStateIn(name="State 2", value="state")
             from app.services.custom_fields_service import create_workflow_state
             create_workflow_state(test_project.id, payload, db)

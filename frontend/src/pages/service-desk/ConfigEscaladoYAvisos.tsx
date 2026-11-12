@@ -120,7 +120,7 @@ export function EscalationConfig() {
       {isLoading ? <Spinner /> : reglas.length === 0 ? (
         <EmptyState icon="⬆️" title={t('sd_cfg.esc_empty')} description={t('sd_cfg.esc_empty_desc')} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           {reglas.map(r => (
             <div key={r.id} className="ds-card" style={{ ...TARJETA, opacity: r.is_active ? 1 : 0.6, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 320px', minWidth: 0 }}>
@@ -128,14 +128,14 @@ export function EscalationConfig() {
                   {r.name}
                   {!r.is_active && <span style={{ marginLeft: 8, fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{t('sd_cfg.esc_inactive')}</span>}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+                <div className="u-text2-sm">
                   <strong>{t('sd_cfg.esc_when')}</strong> {resumenDisparo(r)}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+                <div className="u-text2-sm">
                   <strong>{t('sd_cfg.esc_then')}</strong> {resumenAccion(r)}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="u-row-8">
                 <Button variant="secondary" onClick={() => setEditando(r)}>{t('common.edit')}</Button>
                 <Button variant="secondary" onClick={() => openConfirmGlobal({
                   message: t('sd_cfg.esc_delete_confirm'), onConfirm: () => borrar(r.id), danger: true,
@@ -149,7 +149,7 @@ export function EscalationConfig() {
       <div>
         <div style={{ ...LS, marginBottom: 10 }}>{t('sd_cfg.esc_log')}</div>
         {disparos.length === 0 ? (
-          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('sd_cfg.esc_log_empty')}</div>
+          <div className="u-text3-sm">{t('sd_cfg.esc_log_empty')}</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
             <tbody>
@@ -207,7 +207,7 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       <div><label style={LS} htmlFor="esc-name">{t('sd_cfg.esc_name')} *</label>
         <input id="esc-name" aria-label={t('sd_cfg.esc_name')} value={f.name} onChange={e => set('name', e.target.value)} style={IS} /></div>
 
@@ -221,7 +221,7 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
             <input id="esc-idle" aria-label={t('sd_cfg.esc_idle_hours')} type="number" min={1} value={f.idle} onChange={e => set('idle', e.target.value)} style={{ ...IS, maxWidth: 160 }} /></div>
         )}
         <div><span style={LS}>{t('sd_cfg.esc_priorities')}</span>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="u-wrap-6">
             {PRIORIDADES.map(p => <Chip key={p} activo={f.prioridades.includes(p)} onClick={() => alternar('prioridades', p)}>{PRIORITY_LABEL_MAP[p]}</Chip>)}
           </div></div>
         <div><label style={LS} htmlFor="esc-group">{t('sd_cfg.esc_group')}</label>
@@ -308,7 +308,7 @@ export function NotificationsConfig() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 640 }}>{t('sd_cfg.ntf_intro')}</div>
-        <div role="group" aria-label={t('sd_cfg.ntf_language')} style={{ display: 'flex', gap: 6 }}>
+        <div role="group" aria-label={t('sd_cfg.ntf_language')} className="u-row-6">
           {idiomas.map(i => <Chip key={i} activo={idioma === i} onClick={() => setIdioma(i)}>{i.toUpperCase()}</Chip>)}
         </div>
       </div>
@@ -395,15 +395,15 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-stack-12">
         <div><label style={LS} htmlFor="ntf-subject">{t('sd_cfg.ntf_subject')}</label>
           <input id="ntf-subject" aria-label={t('sd_cfg.ntf_subject')} value={subject} onChange={e => setSubject(e.target.value)} style={IS} />
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>{t('sd_cfg.ntf_subject_hint')}</div></div>
+          <div className="u-hint">{t('sd_cfg.ntf_subject_hint')}</div></div>
         <div><label style={LS} htmlFor="ntf-body">{t('sd_cfg.ntf_body')}</label>
           <textarea id="ntf-body" aria-label={t('sd_cfg.ntf_body')} ref={cuerpoRef} value={body} onChange={e => setBody(e.target.value)} rows={10}
             style={{ ...IS, resize: 'vertical', fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-sm)' }} /></div>
         <div><span style={LS}>{t('sd_cfg.ntf_variables')}</span>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="u-wrap-6">
             {VARIABLES.map(v => <Chip key={v} activo={false} onClick={() => insertar(v)}>{v}</Chip>)}
           </div></div>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', color: 'var(--text-1)' }}>
@@ -418,7 +418,7 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
           {/* El HTML lo escribe un administrador: se pinta en un iframe con
               `sandbox` vacío, donde no corre ningún script. */}
           <iframe title={t('sd_cfg.ntf_preview')} sandbox="" srcDoc={vista?.body_html ?? ''}
-            style={{ width: '100%', minHeight: 260, border: 'none', background: '#fff', borderRadius: 8 }} />
+            style={{ width: '100%', minHeight: 260, border: 'none', background: 'var(--on-accent-light)', borderRadius: 8 }} />
         </div>
       </div>
       <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>

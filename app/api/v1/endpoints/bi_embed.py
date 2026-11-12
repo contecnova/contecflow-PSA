@@ -129,7 +129,7 @@ def get_embed_config(
     current_user: User = Depends(get_current_user),
 ):
     org_id = str(current_user.organization_id or "global")
-    return svc.get_embed_config(db, org_id)
+    return svc.public_embed_config(svc.get_embed_config(db, org_id))
 
 
 @router.put("/config", summary="Actualizar configuración embed")
@@ -141,5 +141,4 @@ def save_embed_config(
 ):
     org_id = str(current_user.organization_id or "global")
     result = svc.save_embed_config(db, org_id, payload)
-    db.commit()
-    return result
+    return svc.public_embed_config(result)

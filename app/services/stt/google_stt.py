@@ -77,6 +77,8 @@ class GoogleSTTProvider(STTProvider):
         if not self.is_available():
             raise STTError(self.name, "GOOGLE_STT_API_KEY no configurado")
 
+        from app.services.formato_regional import a_bcp47
+        language = a_bcp47(language, self._default_language)
         body = {
             "config": {
                 "encoding": _encoding_for(content_type or ""),

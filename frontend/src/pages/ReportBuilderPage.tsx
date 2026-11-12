@@ -14,6 +14,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { Table } from '../components/ui'
 import { useToast } from '../context/ToastContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 
@@ -248,7 +249,7 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: 
           style={{ ...fs, flex: 1, fontSize: "var(--text-xs)" }}
         />
       ) : (
-        <div style={{ flex: 1 }} />
+        <div className="u-flex1" />
       )}
       <button onClick={() => onRemove(index)}
         style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-md)", flexShrink: 0 }}>✕</button>
@@ -267,33 +268,24 @@ function PreviewTable({ rows, columns, entityDef }: { rows?: Record<string, unkn
       </div>
     )
   }
-  const cellBase: CSSProperties = { padding: '7px 10px', fontSize: "var(--text-sm)", borderBottom: '1px solid var(--surface-4)', color: 'var(--text-1)', whiteSpace: 'nowrap' }
-  const thStyle: CSSProperties  = { ...cellBase, fontWeight: 700, fontSize: "var(--text-2xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
+  const cellBase: CSSProperties = { fontSize: "var(--text-sm)", color: 'var(--text-1)', whiteSpace: 'nowrap' }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            {columns.map(c => <th key={c} style={thStyle}>{colDef[c]?.label || c}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
-              onMouseLeave={e => e.currentTarget.style.background = ''}>
-              {columns.map(c => (
-                <td key={c} style={cellBase}>
-                  {row[c] === null || row[c] === undefined ? <span style={{ color: 'var(--surface-5)' }}>—</span> :
-                   typeof row[c] === 'boolean' ? (row[c] ? '✔' : '✘') :
-                   String(row[c])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="u-scroll-x">
+      <Table
+        data={rows}
+        columns={columns.map(c => ({
+          key: c,
+          label: colDef[c]?.label || c,
+          render: (_v: never, row: Record<string, unknown>) => (
+            <span style={cellBase}>
+              {row[c] === null || row[c] === undefined ? <span style={{ color: 'var(--surface-5)' }}>—</span> :
+               typeof row[c] === 'boolean' ? (row[c] ? '✔' : '✘') :
+               String(row[c])}
+            </span>
+          ),
+        }))}
+      />
     </div>
   )
 }
@@ -333,7 +325,7 @@ function BiPresetsTab() {
     <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <span style={{ fontWeight: 700, fontSize: '1rem' }}>Presets BI</span>
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{items.length} presets disponibles</span>
+        <span className="u-text3-xs">{items.length} presets disponibles</span>
       </div>
       <div style={{ padding: '18px 20px' }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -357,12 +349,12 @@ function BiPresetsTab() {
             Vista previa
           </button>
           <button onClick={exportJson}
-            style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--success)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--success)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
             Exportar JSON
           </button>
         </div>
         {previewData && (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="u-scroll-x">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
               <thead>
                 <tr style={{ background: 'var(--surface-3)' }}>
@@ -538,14 +530,14 @@ export default function ReportBuilderPage() {
       {activeTab === 'presets' ? (
         <BiPresetsTab />
       ) : activeTab === 'templates' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           {templates.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
               {traducir('reportbuilder.no_hay_plantillas_guardadas_crea_un_informe')}
             </div>
           ) : templates.map(t => (
             <div key={t.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="u-flex1-min0">
                 <div style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', fontWeight: 600 }}>{t.name}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
                   {entities[t.query?.entity || '']?.label || t.query?.entity}
@@ -616,7 +608,7 @@ export default function ReportBuilderPage() {
                 {/* Sort */}
                 <div>
                   <label style={ls}>{traducir('reportbuilder.ordenar_por')}</label>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="u-row-6">
                     <select
                       value={sort.column}
                       onChange={e => setSort(s => ({ ...s, column: e.target.value }))}

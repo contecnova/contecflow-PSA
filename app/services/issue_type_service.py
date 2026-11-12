@@ -19,6 +19,7 @@ from app.models.issue_types import (
     FTSEntry,
 )
 from app.models.epics import WikiSpace, WikiPage
+from app.core.errores import ErrorDeDominio
 
 
 SYSTEM_ISSUE_TYPES = [
@@ -48,8 +49,7 @@ def validar_tipo(project_id: str, valor: Optional[str], db: Session) -> None:
         return
     validos = tipos_validos(project_id, db)
     if valor not in validos:
-        from fastapi import HTTPException
-        raise HTTPException(422, f"Tipo de incidencia «{valor}» no existe en el proyecto. "
+        raise ErrorDeDominio(422, f"Tipo de incidencia «{valor}» no existe en el proyecto. "
                                  f"Válidos: {', '.join(sorted(validos))}")
 
 

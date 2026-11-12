@@ -30,7 +30,7 @@ export default function PortalKbArticulo({ id, onVolver, migas }: { id: string; 
   })
   const volver = <PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={onVolver}>{t('portalkb.volver')}</PortalButton>
   if (isLoading) return <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>…</div>
-  if (isError || !data) return <div>{volver}<p style={{ color: 'var(--text-2)' }}>{t('portalkb.no_disponible')}</p></div>
+  if (isError || !data) return <div>{volver}<p className="u-text2">{t('portalkb.no_disponible')}</p></div>
   return (
     <div>
       <PortalPageHeader title={data.title} icon={BookOpen}

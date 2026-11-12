@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.user_cost import CountryEmployerCost, UserCostProfile
-from . import register_metric
+from ._registro import register_metric
 
 
 def _profiles_active_on(db: Session, on_date: date) -> list[UserCostProfile]:

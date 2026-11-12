@@ -413,6 +413,27 @@ def docusign_configured(db: Optional[Session] = None) -> bool:
     return bool(cfg["integration_key"] and cfg["account_id"])
 
 
+def adobe_agreement_status(db: Session, agreement_id: str) -> Optional[str]:
+    """Estado real del acuerdo segun la API de Adobe Sign, o None si no se pudo leer.
+
+    Auditoria 2026-11: el webhook de Adobe solo trae `X-AdobeSign-ClientId`, que
+    no es un secreto (Adobe no firma sus webhooks). Quien lo conozca podia marcar
+    un sobre como firmado. El estado ya no se toma del cuerpo: se pregunta a
+    Adobe con nuestras credenciales.
+    """
+    from app.services.esign_providers import adobe_sign_get_agreement_status
+
+    cfg = _get_adobe_config(db)
+    token = _ensure_adobe_token(db, cfg)
+    if not token:
+        return None
+    result = adobe_sign_get_agreement_status(token, cfg["base_url"], agreement_id)
+    if not result["ok"]:
+        _log.warning("[eSign] No se pudo leer el acuerdo %s de Adobe Sign: %s", agreement_id, result.get("error"))
+        return None
+    return result["status"]
+
+
 def adobe_configured(db: Optional[Session] = None) -> bool:
     cfg = _get_adobe_config(db)
     return bool(cfg["client_id"])
@@ -611,7 +632,7 @@ def ajuste_de_firma(db: Session, sujeto, clave: str):
 def guardar_ajuste_de_firma(db: Session, sujeto, clave: str, valor: str) -> None:
     """Guarda un ajuste de e-firma en la organizacion del sujeto.
 
-    No confirma: la frontera de transaccion se queda en el endpoint.
+    No confirma: la frontera de transaccion es `guardar_ajustes_de_firma`.
 
     Si el sujeto no tiene organizacion escribe el global, que es el unico sitio
     donde puede escribir y coincide con lo que hacia antes para todos.
@@ -637,3 +658,14 @@ def guardar_ajuste_de_firma(db: Session, sujeto, clave: str, valor: str) -> None
         organization_id=org_id,
         description=f"E-firma config: {clave}",
     ))
+
+
+def guardar_ajustes_de_firma(db: Session, sujeto, ajustes: dict) -> None:
+    """Guarda varios ajustes de e-firma en una sola transaccion, y confirma.
+
+    Un solo `commit` al final, no uno por clave: un fallo a mitad no deja unas
+    credenciales guardadas y otras no.
+    """
+    for clave, valor in ajustes.items():
+        guardar_ajuste_de_firma(db, sujeto, clave, valor)
+    db.commit()

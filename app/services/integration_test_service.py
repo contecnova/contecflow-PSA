@@ -39,24 +39,21 @@ def _err(exc: Exception, hint: str = "") -> dict:
 
 
 def _test_smtp(cfg: dict, db: Session) -> dict:
-    import smtplib
+    # Auditoria 2026-11 (hallazgo 20): la conexion la abre el emisor comun, con
+    # la misma negociacion de TLS que el envio real; asi la prueba dice la verdad.
+    from app.services.notification_service import ServidorSmtp, comprobar_smtp
     host, port = cfg.get("host"), cfg.get("port") or 587
-    user, password = cfg.get("user"), cfg.get("password")
     if not host:
         return {"ok": False, "detail": "SMTP host no configurado"}
     try:
-        with smtplib.SMTP(host, int(port), timeout=outbound_http_timeout(db, default=10.0)) as server:
-            server.ehlo()
-            try:
-                server.starttls()
-                server.ehlo()
-            except Exception:
-                logger.debug("_test_smtp: fallo best-effort ignorado", exc_info=True)
-            if user and password:
-                server.login(user, password)
-            server.noop()
+        comprobar_smtp(ServidorSmtp(
+            host=host, port=int(port), user=cfg.get("user") or None,
+            password=cfg.get("password") or None,
+            timeout=outbound_http_timeout(db, default=10.0),
+        ))
         return {"ok": True, "detail": f"Conexión SMTP OK ({host}:{port})"}
     except Exception as exc:
+        logger.warning("_test_smtp: excepcion ignorada", exc_info=True)
         return _err(exc, "SMTP")
 
 
@@ -75,6 +72,7 @@ def _test_aws_s3(cfg: dict, db: Session) -> dict:
         client.head_bucket(Bucket=bucket)
         return {"ok": True, "detail": f"head_bucket OK ({bucket})"}
     except Exception as exc:
+        logger.warning("_test_aws_s3: excepcion ignorada", exc_info=True)
         return _err(exc, "AWS S3")
 
 
@@ -98,6 +96,7 @@ def _test_ms_graph(cfg: dict, db: Session) -> dict:
             return {"ok": True, "detail": "Token Azure AD obtenido correctamente"}
         return {"ok": False, "detail": f"Azure AD respondió HTTP {r.status_code}: {r.text[:200]}"}
     except Exception as exc:
+        logger.warning("_test_ms_graph: excepcion ignorada", exc_info=True)
         return _err(exc, "MS Graph")
 
 
@@ -115,6 +114,7 @@ def _test_slack(cfg: dict, db: Session) -> dict:
             return {"ok": True, "detail": f"Slack webhook responde HTTP {r.status_code}"}
         return {"ok": False, "detail": f"Slack respondió HTTP {r.status_code}"}
     except Exception as exc:
+        logger.warning("_test_slack: excepcion ignorada", exc_info=True)
         return _err(exc, "Slack")
 
 
@@ -128,6 +128,7 @@ def _test_twilio(cfg: dict, db: Session) -> dict:
         acct = client.api.v2010.accounts(sid).fetch()
         return {"ok": True, "detail": f"Twilio cuenta '{acct.friendly_name}' status={acct.status}"}
     except Exception as exc:
+        logger.debug("_test_twilio: excepcion ignorada", exc_info=True)
         return _err(exc, "Twilio")
 
 
@@ -144,6 +145,7 @@ def _test_stripe(cfg: dict, db: Session) -> dict:
             return {"ok": True, "detail": f"Stripe balance OK — {len(data.get('available', []))} currencies"}
         return {"ok": False, "detail": f"Stripe HTTP {r.status_code}: {r.text[:200]}"}
     except Exception as exc:
+        logger.warning("_test_stripe: excepcion ignorada", exc_info=True)
         return _err(exc, "Stripe")
 
 
@@ -167,6 +169,7 @@ def _test_adobe_sign(cfg: dict, db: Session) -> dict:
             return {"ok": True, "detail": f"Adobe Sign endpoint alcanzable (HTTP {r.status_code}). Test real requiere OAuth."}
         return {"ok": False, "detail": f"Adobe Sign HTTP {r.status_code}"}
     except Exception as exc:
+        logger.warning("_test_adobe_sign: excepcion ignorada", exc_info=True)
         return _err(exc, "Adobe Sign")
 
 
@@ -191,6 +194,7 @@ def _test_ai_providers(cfg: dict, db: Session) -> dict:
                 return {"ok": True, "detail": "Anthropic API key válida"}
             return {"ok": False, "detail": f"Anthropic HTTP {r.status_code}: {r.text[:200]}"}
         except Exception as exc:
+            logger.warning("_test_ai_providers: excepcion ignorada", exc_info=True)
             return _err(exc, "Anthropic")
     if oai_key:
         try:
@@ -200,6 +204,7 @@ def _test_ai_providers(cfg: dict, db: Session) -> dict:
                 return {"ok": True, "detail": "OpenAI API key válida"}
             return {"ok": False, "detail": f"OpenAI HTTP {r.status_code}: {r.text[:200]}"}
         except Exception as exc:
+            logger.warning("_test_ai_providers: excepcion ignorada", exc_info=True)
             return _err(exc, "OpenAI")
     return {"ok": False, "detail": "Ni Anthropic ni OpenAI key configurada"}
 
@@ -217,6 +222,7 @@ def _test_open_exchange_rates(cfg: dict, db: Session) -> dict:
             return {"ok": True, "detail": f"OER OK — base={j.get('base')} rates={list(j.get('rates', {}).keys())}"}
         return {"ok": False, "detail": f"OER HTTP {r.status_code}: {r.text[:200]}"}
     except Exception as exc:
+        logger.warning("_test_open_exchange_rates: excepcion ignorada", exc_info=True)
         return _err(exc, "OpenExchangeRates")
 
 

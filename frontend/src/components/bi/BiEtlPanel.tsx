@@ -86,7 +86,7 @@ function Configurar({ conector, onClose }: { conector: Conector; onClose: () => 
           </label>
         )}
         <Campos ficha={conector} valores={valores} puestos={conector.secretos_puestos} onChange={(k, v) => setValores(x => ({ ...x, [k]: v }))} />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button loading={guardando} onClick={guardar}>{t('common.save')}</Button>
         </div>
@@ -119,7 +119,7 @@ function NuevaFuente({ ficha, onClose }: { ficha: Ficha; onClose: () => void }) 
           <input style={campo} value={nombre} onChange={e => setNombre(e.target.value)} />
         </label>
         <Campos ficha={ficha} valores={valores} puestos={[]} onChange={(k, v) => setValores(x => ({ ...x, [k]: v }))} />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button loading={guardando} disabled={!nombre.trim() || !valores.endpoint_url} onClick={crear}>{t('etl.crear')}</Button>
         </div>
@@ -166,7 +166,7 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
     <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px', display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Icono size={16} style={{ color: COLOR[c.status], flexShrink: 0 }} />
-        <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="u-flex1-min0">
           <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{c.nombre}</div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{c.connector_id} · {c.entity}</div>
         </div>
@@ -175,10 +175,10 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
       {c.falta && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>{t('etl.falta_paquete')} <code style={{ fontFamily: 'var(--font-mono)' }}>{c.falta}</code></div>}
       {c.last_error && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', overflowWrap: 'anywhere' }}>{c.last_error}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-        <span>{t('etl.ultimo_sync')}: <span style={{ color: 'var(--text-2)' }}>{c.last_sync_at ? new Date(c.last_sync_at).toLocaleString(localeActivo()) : t('etl.nunca')}</span></span>
+        <span>{t('etl.ultimo_sync')}: <span className="u-text2">{c.last_sync_at ? new Date(c.last_sync_at).toLocaleString(localeActivo()) : t('etl.nunca')}</span></span>
         <span>{t('etl.registros')}: <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{(c.last_records ?? 0).toLocaleString(localeActivo())}</span></span>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div className="u-wrap-6">
         <Button size="xs" variant={c.enabled ? 'secondary' : 'primary'} loading={ocupado === 'toggle'} disabled={!c.enabled && !!c.falta} onClick={() => accion('toggle')}>{t(c.enabled ? 'etl.desactivar' : 'etl.activar')}</Button>
         <Button size="xs" variant="secondary" icon={<Settings2 size={12} />} onClick={onConfigurar}>{t('etl.configurar')}</Button>
         <Button size="xs" variant="secondary" icon={<FlaskConical size={12} />} loading={ocupado === 'test'} onClick={() => accion('test')}>{t('etl.probar')}</Button>
@@ -225,7 +225,7 @@ export default function BiEtlPanel() {
   return (
     <Card style={{ padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <Database size={18} style={{ color: 'var(--accent)' }} />
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>{t('etl.titulo')}</h2>
         </div>

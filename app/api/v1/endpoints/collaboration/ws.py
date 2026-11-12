@@ -269,6 +269,7 @@ class _ConexionColab:
             try:
                 await self.websocket.send_text(json.dumps(event, default=str))
             except Exception:
+                log.debug("producer: excepcion ignorada", exc_info=True)
                 return
 
     async def usuario_sigue_activo(self) -> bool:
@@ -303,6 +304,7 @@ class _ConexionColab:
         try:
             await self.enviar({"type": "rate_limited"})
         except Exception:
+            log.debug("controlar_caudal: excepcion ignorada", exc_info=True)
             return _CAUDAL_CERRAR, incumplimientos
         if incumplimientos > _MAX_INCUMPLIMIENTOS:
             log.warning(
@@ -328,6 +330,7 @@ class _ConexionColab:
             try:
                 payload = json.loads(raw)
             except Exception:  # noqa: S112 — un mensaje mal formado no cierra la conexión
+                log.debug("consumer: excepcion ignorada", exc_info=True)
                 continue
 
             desde_revalidacion += 1

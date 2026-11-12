@@ -138,7 +138,7 @@ export function PortalSurveys() {
 
         <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
           <PortalSection title={t('portalsurveys.puntua_cada_aspecto')} hint="De 1 (muy mala) a 5 (excelente)" action={undefined}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="u-stack-16">
               {SCORES.map(s => (
                 <RatingRow key={s.key}
                   label={s.label} hint={s.hint}
@@ -201,7 +201,7 @@ export function PortalSurveys() {
           <PortalBanner tone="warning" icon={undefined} title={error} body={undefined} action={undefined} />
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <PortalButton variant="secondary" disabled={false} loading={false} icon={undefined} onClick={() => { setActive(null); resetForm() }}>Cancelar</PortalButton>
           <PortalButton icon={<Send size={13} />} disabled={false} loading={isPending} onClick={submit}>
             Enviar respuesta
@@ -248,7 +248,7 @@ export function PortalSurveys() {
               <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                 Pendientes
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="u-stack-10">
                 {pending.map(s => (
                   <PortalCard key={s.id} accent onClick={() => setActive(s)}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -257,9 +257,9 @@ export function PortalSurveys() {
                         background: 'var(--accent-muted)', color: 'var(--accent)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}><Sparkles size={18} /></div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{s.title}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                        <div className="u-text3-xs">
                           {t('portalsurveys.enviada_el')} {s.sent_at}
                         </div>
                       </div>
@@ -276,7 +276,7 @@ export function PortalSurveys() {
               <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                 Respondidas
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="u-stack-10">
                 {completed.map(s => (
                   <PortalCard key={s.id} accent={false} onClick={undefined}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
@@ -285,9 +285,9 @@ export function PortalSurveys() {
                         background: 'var(--success-bg, rgba(16,185,129,0.12))', color: 'var(--success)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}><CheckCircle2 size={18} /></div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{s.title}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                        <div className="u-text3-xs">
                           {t('portalsurveys.respondida_el')} {s.completed_at}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
@@ -337,10 +337,10 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
           {hint && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{hint}</div>}
         </div>
         {value > 0 && (
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{RATING_LABELS[value - 1]}</span>
+          <span className="u-text3-xs">{RATING_LABELS[value - 1]}</span>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div className="u-row-6">
         {[1, 2, 3, 4, 5].map(n => {
           const filled = value >= n
           return (
@@ -404,7 +404,7 @@ function Pill({ icon, label, value, color }: { icon: ReactNode; label: string; v
       fontSize: 'var(--text-xs)', color: 'var(--text-2)',
     }}>
       <span style={{ color: color || 'var(--text-3)', display: 'inline-flex' }}>{icon}</span>
-      <span style={{ color: 'var(--text-3)' }}>{label}:</span>
+      <span className="u-text3">{label}:</span>
       <span style={{ fontWeight: 700, color: color || 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{value}</span>
     </span>
   )

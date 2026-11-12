@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Float, Date, DateTime, Enum, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import BigInteger, Column, String, Boolean, Float, Date, DateTime, Enum, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -104,6 +104,7 @@ class User(Base):
     sso_subject  = Column(String(255), nullable=True)  # sub claim del token OIDC
     mfa_enabled  = Column(Boolean, default=False)
     mfa_secret   = Column(String(512), nullable=True)  # Fernet-encrypted TOTP secret
+    mfa_last_timestep = Column(BigInteger, nullable=True)  # ultimo paso TOTP aceptado: impide reusar el codigo (rev. 157)
     scim_external_id = Column(String(255), nullable=True, index=True)
     scim_last_synced_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

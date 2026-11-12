@@ -30,7 +30,6 @@ import logging
 from datetime import timedelta
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -46,6 +45,7 @@ from app.services.collaboration._integrations import (
     encrypt,
 )
 from app.services.collaboration._permissions import _org
+from app.core.errores import ErrorDeDominio
 
 _log = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ def guardar_suscripcion_push(db: Session, user, payload: dict) -> dict:
     p256dh = claves.get("p256dh")
     auth = claves.get("auth")
     if not (endpoint and p256dh and auth):
-        raise HTTPException(
+        raise ErrorDeDominio(
             400, "subscription.endpoint + keys.p256dh + keys.auth requeridos")
 
     org = _org(user)
@@ -242,12 +242,12 @@ def url_de_oauth(db: Session, user, integration_id: str) -> str:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Integración no encontrada")
+        raise ErrorDeDominio(404, "Integración no encontrada")
     if fila.kind not in PROVIDERS:
-        raise HTTPException(400, "Proveedor sin OAuth")
+        raise ErrorDeDominio(400, "Proveedor sin OAuth")
     url = auth_url_for(fila.kind, fila.id)
     if not url:
-        raise HTTPException(503, f"Faltan credenciales OAuth para {fila.kind}")
+        raise ErrorDeDominio(503, f"Faltan credenciales OAuth para {fila.kind}")
     return url
 
 

@@ -28,6 +28,7 @@ from app.models.jira_integration import (
 )
 from app.models.service_desk import Ticket, TicketComment, TicketPriority, TicketStatus
 from app.core.metrics import track_external_call
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -64,15 +65,33 @@ _JIRA_TO_TICKET_STATUS: dict[str, str] = {
 # ── HTTP client helpers ────────────────────────────────────────────────────────
 
 
+def jira_token_en_claro(config) -> str:
+    """El token de la API de Jira descifrado.
+
+    Auditoria 2026-11: se guardaba en claro en `jira_api_token_enc`. Ahora se
+    cifra al guardar; lo que quede de antes (no descifra) se usa tal cual.
+    """
+    from app.core.encryption import decrypt_value
+
+    guardado = config.jira_api_token_enc or ""
+    return decrypt_value(guardado) or guardado
+
+
+def jira_base_url_segura(config) -> str:
+    """La URL de Jira validada contra SSRF (esquema, hosts locales y redes privadas)."""
+    from app.core.outbound_url import cliente_httpx, validate_outbound_url
+
+    return validate_outbound_url((config.jira_base_url or "").rstrip("/"), field="jira_base_url")
+
+
 def _jira_client(config: JiraConfig, db=None) -> httpx.Client:
     """Build an authenticated httpx client for Jira Cloud REST API."""
     import base64
     from app.services.settings_service import outbound_http_timeout
-    token_b64 = config.jira_api_token_enc  # service layer handles decrypt externally
     # Basic auth: email:token base64-encoded
-    creds = base64.b64encode(f"{config.jira_email}:{token_b64}".encode()).decode()
-    return httpx.Client(
-        base_url=config.jira_base_url.rstrip("/"),
+    creds = base64.b64encode(f"{config.jira_email}:{jira_token_en_claro(config)}".encode()).decode()
+    return cliente_httpx(
+        base_url=jira_base_url_segura(config),
         headers={
             "Authorization": f"Basic {creds}",
             "Accept": "application/json",
@@ -244,6 +263,17 @@ def push_ticket_to_jira(db: Session, config: JiraConfig, ticket: Ticket) -> Jira
         )
         db.flush()
         raise
+
+
+def empujar_ticket_confirmado(db: Session, config: JiraConfig, ticket: Ticket) -> JiraSyncMap:
+    """Empuje manual: `push_ticket_to_jira` y confirma. Cualquier fallo deshace y es un 502."""
+    try:
+        sync_map = push_ticket_to_jira(db, config, ticket)
+        db.commit()
+        return sync_map
+    except Exception as exc:
+        db.rollback()
+        raise ErrorDeDominio(502, f"Jira push failed: {exc}") from exc
 
 
 def push_comment_to_jira(
@@ -428,7 +458,6 @@ def run_incremental_sync(db: Session, config_id: str) -> dict:
 #     el `count()` sin acotar habria dado un total de otras organizaciones si el
 #     filtro no actuara.
 
-from fastapi import HTTPException  # noqa: E402
 
 from app.models.jira_integration import JiraConfig as _JiraConfig  # noqa: E402
 from app.models.jira_integration import JiraSyncLog as _JiraSyncLog  # noqa: E402
@@ -469,7 +498,7 @@ def configuracion_propia(db: Session, user, config_id: str) -> _JiraConfig:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Jira config not found")
+        raise ErrorDeDominio(404, "Jira config not found")
     return fila
 
 
@@ -489,7 +518,7 @@ def configuracion_activa_propia(db: Session, user, config_id: str) -> _JiraConfi
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Active Jira config not found")
+        raise ErrorDeDominio(404, "Active Jira config not found")
     return fila
 
 
@@ -504,7 +533,7 @@ def ticket_propio(db: Session, user, ticket_id: str) -> _Ticket:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Ticket not found")
+        raise ErrorDeDominio(404, "Ticket not found")
     return fila
 
 
@@ -528,6 +557,13 @@ def registro_de_sincronizacion(db: Session, config: _JiraConfig, *,
 
 def crear_configuracion(db: Session, user, datos: dict) -> _JiraConfig:
     """Guarda una configuracion de Jira nueva para la organizacion del usuario."""
+    from app.core.encryption import encrypt_value
+    from app.core.outbound_url import validate_outbound_url
+
+    datos = dict(datos)
+    validate_outbound_url(datos.get("jira_base_url") or "", field="jira_base_url")
+    if datos.get("jira_api_token_enc"):
+        datos["jira_api_token_enc"] = encrypt_value(datos["jira_api_token_enc"])
     fila = _JiraConfig(
         created_by_user_id=user.id,
         organization_id=_org_de(user),
@@ -553,14 +589,20 @@ def aplicar_cambios_de_configuracion(db: Session, config: _JiraConfig, cambios: 
     """
     import json as _json
 
+    from app.core.asignacion import es_asignable
+    from app.core.encryption import encrypt_value
+    from app.core.outbound_url import validate_outbound_url
+
     for clave, valor in cambios.items():
         if clave == "jira_api_token":
-            config.jira_api_token_enc = valor
+            config.jira_api_token_enc = encrypt_value(valor) if valor else valor
         elif clave == "status_map":
             config.status_map_json = _json.dumps(valor)
         elif clave == "priority_map":
             config.priority_map_json = _json.dumps(valor)
-        else:
+        elif es_asignable(config, clave, ("created_by_user_id", "jira_api_token_enc")):
+            if clave == "jira_base_url":
+                validate_outbound_url(valor or "", field="jira_base_url")
             setattr(config, clave, valor)
     db.commit()
     db.refresh(config)

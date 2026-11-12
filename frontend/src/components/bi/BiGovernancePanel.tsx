@@ -69,7 +69,7 @@ function OverviewSection({ icon: Icon, iconColor, title, children, badge }: Over
       padding: '14px 16px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <Icon size={14} style={{ color: iconColor }} />
           <span style={{
             fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--text-3)',
@@ -96,7 +96,7 @@ function MetricRow({ label, value, mono }: MetricRowProps) {
       gap: 12, padding: '6px 0', borderTop: '1px solid var(--surface-4)',
       fontSize: 'var(--text-sm)',
     }}>
-      <span style={{ color: 'var(--text-3)' }}>{label}</span>
+      <span className="u-text3">{label}</span>
       <span style={{
         color: 'var(--text-1)', fontWeight: 600,
         fontFamily: mono ? 'var(--font-mono)' : 'inherit',
@@ -142,7 +142,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
   const collabColor = unresolved > 10 ? 'var(--warning)' : unresolved > 0 ? 'var(--accent)' : 'var(--success)'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-stack-12">
       {/* Snapshot timestamp */}
       {ts && (
         <div style={{
@@ -150,7 +150,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <Clock size={12} />
-          Snapshot generado: <span style={{ color: 'var(--text-2)' }}>{ts.toLocaleString(localeActivo())}</span>
+          Snapshot generado: <span className="u-text2">{ts.toLocaleString(localeActivo())}</span>
         </div>
       )}
 
@@ -277,7 +277,7 @@ export default function BiGovernancePanel() {
   return (
     <Card style={{ padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <Shield size={18} style={{ color: 'var(--warning)' }} />
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
             {t('bi.governance.title', 'Gobernanza BI')}

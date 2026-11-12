@@ -180,7 +180,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       <div style={{ padding:'14px 16px', borderBottom:'.5px solid var(--surface-4)',
         background:'var(--surface-2)', display:'flex', alignItems:'center', gap:10 }}>
         <span aria-hidden style={{ fontSize: "var(--text-xl-em)", flexShrink:0 }}>🤖</span>
-        <div style={{ flex:1, minWidth:0 }}>
+        <div className="u-flex1-min0">
           <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>NexusAssist</div>
           <div title={pageLabel || undefined} style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {t('nexusassist.asistente_ia')}{pageLabel ? <span style={{ color:'var(--accent)' }}> · {pageLabel}</span> : null}
@@ -330,7 +330,7 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
       </div>
       {abierto && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, border: '.5px solid var(--surface-4)', borderRadius: 8, background: 'var(--surface-2)' }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('nexusassist.corregir_ayuda')}</div>
+          <div className="u-text3-xs">{t('nexusassist.corregir_ayuda')}</div>
           <textarea aria-label={t('nexusassist.corregir')} value={respuesta} onChange={e => setRespuesta(e.target.value)} rows={4}
             style={{ background: 'var(--surface-1)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 8, fontSize: 'var(--text-sm)', fontFamily: 'inherit', resize: 'vertical' }} />
           <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>

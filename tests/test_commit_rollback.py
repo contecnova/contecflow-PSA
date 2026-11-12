@@ -233,7 +233,7 @@ class TestGuardiaDeAutoResolucion:
         trabajo: tiene que devolver `already_running`. Solapar dos pasadas de
         resolución automática puede resolver el mismo ticket dos veces.
         """
-        from app.api.v1.endpoints.service_desk import ai_auto_resolution as mod
+        from app.services.service_desk import auto_resolucion_operaciones as mod
 
         llamado = []
 
@@ -266,7 +266,7 @@ class TestGuardiaDeAutoResolucion:
         asierta sobre eso y no sobre la excepcion, que es lo que de verdad ve
         quien llama.
         """
-        from app.api.v1.endpoints.service_desk import ai_auto_resolution as mod
+        from app.services.service_desk import auto_resolucion_operaciones as mod
 
         def revienta(*a, **k):
             raise RuntimeError("fallo del trabajo")
@@ -293,7 +293,7 @@ class TestGuardiaDeAutoResolucion:
         necesita quien mira el panel, porque la respuesta HTTP es un 500 generico
         con `request_id` y no dice la causa.
         """
-        from app.api.v1.endpoints.service_desk import ai_auto_resolution as mod
+        from app.services.service_desk import auto_resolucion_operaciones as mod
 
         def revienta(*a, **k):
             raise RuntimeError("EL-ERROR-DE-VERDAD")
@@ -311,7 +311,7 @@ class TestGuardiaDeAutoResolucion:
             self, client, admin_token, db, monkeypatch):
         """`running: True` pegado no bloquea reejecuciones —el guardia es el
         lock, no el flag— pero miente en el panel indefinidamente."""
-        from app.api.v1.endpoints.service_desk import ai_auto_resolution as mod
+        from app.services.service_desk import auto_resolucion_operaciones as mod
 
         def revienta(*a, **k):
             raise RuntimeError("x")
@@ -331,7 +331,7 @@ class TestGuardiaDeAutoResolucion:
     def test_el_camino_feliz_sigue_devolviendo_las_estadisticas(
             self, client, admin_token, db, monkeypatch):
         """El envoltorio del lock no puede cambiar lo que devuelve el endpoint."""
-        from app.api.v1.endpoints.service_desk import ai_auto_resolution as mod
+        from app.services.service_desk import auto_resolucion_operaciones as mod
 
         monkeypatch.setattr(
             mod, "run_daily_auto_resolution_job",

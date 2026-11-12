@@ -854,7 +854,6 @@ def save_portal_translations(
 ):
     guardar_traducciones_del_portal(
         db, current_user, _org_key(current_user), data)
-    db.commit()
     return APIResponse.ok(data={"ok": True})
 
 

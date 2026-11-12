@@ -103,7 +103,7 @@ def _fetch_portfolio_data(org_id: Optional[str]) -> list:
         return []
 
 
-def _fetch_narrative(org_id: Optional[str], lang: str = "es") -> str:
+def _fetch_narrative(org_id: Optional[str], lang: Optional[str] = None) -> str:
     try:
         from app.services.bi_storytelling import generate_narrative
         result = generate_narrative(org_id=org_id, lang=lang)
@@ -178,7 +178,10 @@ def _header_block(title: str, subtitle: str, styles: dict) -> list:
     ]
 
 
-def _kpi_table(kpis: dict, styles: dict) -> list:
+def _kpi_table(kpis: dict, styles: dict, simbolo: Optional[str] = None) -> list:
+    from app.services.formato_regional import formatear_importe, simbolo_de_moneda
+    simbolo = simbolo or simbolo_de_moneda()
+
     def _fmt(v, suffix=""):
         if v is None:
             return "—"
@@ -190,11 +193,11 @@ def _kpi_table(kpis: dict, styles: dict) -> list:
         ["KPI", "Valor"],
         ["Proyectos activos", _fmt(kpis.get("active_projects"))],
         ["Horas imputadas (mes)", _fmt(kpis.get("hours_mtd"), "h")],
-        ["Coste mes", f"€{kpis.get('cost_mtd', 0):,.0f}"],
+        ["Coste mes", formatear_importe(kpis.get('cost_mtd') or 0, simbolo)],
         ["Facturabilidad", _fmt(kpis.get("billability_pct"), "%")],
-        ["Pipeline ponderado", f"€{kpis.get('pipeline_weighted', 0):,.0f}"],
+        ["Pipeline ponderado", formatear_importe(kpis.get('pipeline_weighted') or 0, simbolo)],
         ["Oportunidades abiertas", _fmt(kpis.get("open_opps"))],
-        ["Revenue ganado (YTD)", f"€{kpis.get('won_revenue', 0):,.0f}"],
+        ["Revenue ganado (YTD)", formatear_importe(kpis.get('won_revenue') or 0, simbolo)],
         ["Margen medio (%)", _fmt(kpis.get("avg_margin_pct"), "%")],
         ["Proyectos riesgo alto", _fmt(kpis.get("high_risk_projects"))],
     ]
@@ -246,7 +249,9 @@ def _utilization_table(rows_data: list, styles: dict) -> list:
     return [Paragraph("Utilización por usuario", styles["section"]), tbl]
 
 
-def _pipeline_table(rows_data: list, styles: dict) -> list:
+def _pipeline_table(rows_data: list, styles: dict, simbolo: Optional[str] = None) -> list:
+    from app.services.formato_regional import formatear_importe, simbolo_de_moneda
+    simbolo = simbolo or simbolo_de_moneda()
     if not rows_data:
         return [Paragraph("Sin datos de pipeline en OLAP.", styles["body"])]
 
@@ -256,8 +261,8 @@ def _pipeline_table(rows_data: list, styles: dict) -> list:
         rows.append([
             r.get("stage", "—").capitalize(),
             str(r.get("count", 0)),
-            f"€{r.get('total_revenue', 0):,.0f}",
-            f"€{r.get('weighted_revenue', 0):,.0f}",
+            formatear_importe(r.get('total_revenue') or 0, simbolo),
+            formatear_importe(r.get('weighted_revenue') or 0, simbolo),
             f"{r.get('avg_probability', 0):.1f}%",
             str(r.get("avg_days") or "—"),
         ])
@@ -387,6 +392,8 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     buffer = io.BytesIO()
     doc = _make_doc(buffer)
     styles = _make_styles(marca.paleta)
+    from app.services.formato_regional import simbolo_de_moneda
+    simbolo = simbolo_de_moneda(db, org_id)
     story = []
 
     # ── Header ────────────────────────────────────────────────────────────────
@@ -409,10 +416,10 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     # ── Content by type ───────────────────────────────────────────────────────
     if report_type == "executive_summary":
         kpis = _fetch_executive_data(org_id)
-        story += _kpi_table(kpis, styles)
+        story += _kpi_table(kpis, styles, simbolo)
         story.append(Spacer(1, 12))
         pipeline_data = _fetch_pipeline_data(org_id)
-        story += _pipeline_table(pipeline_data, styles)
+        story += _pipeline_table(pipeline_data, styles, simbolo)
 
     elif report_type == "utilization":
         util_data = _fetch_utilization_data(org_id)
@@ -420,7 +427,7 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
 
     elif report_type == "pipeline":
         pipeline_data = _fetch_pipeline_data(org_id)
-        story += _pipeline_table(pipeline_data, styles)
+        story += _pipeline_table(pipeline_data, styles, simbolo)
 
     elif report_type == "portfolio":
         portfolio_data = _fetch_portfolio_data(org_id)

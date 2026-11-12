@@ -1,5 +1,4 @@
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.client_portal import ClientUser
@@ -18,6 +17,7 @@ from app.services.sla_service import (
     norm_enum as _norm_enum,
 )
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,7 @@ def _semantic_assignee_if_enabled(db: Session, ticket: Ticket, candidate_user_id
         if suggested and suggested in set(candidate_user_ids):
             return suggested
     except Exception:
+        logger.warning("_semantic_assignee_if_enabled: excepcion ignorada", exc_info=True)
         return None
     return None
 
@@ -326,7 +327,7 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
     resp_due, res_due = _vencimientos(db, priority, sla_policy, service_item)
 
     if payload.project_id and payload.project_id != client.project_id:
-        raise HTTPException(403, "No puedes crear tickets para proyectos a los que no perteneces")
+        raise ErrorDeDominio(403, "No puedes crear tickets para proyectos a los que no perteneces")
 
     ticket = Ticket(
         number=_next_ticket_number(payload.ticket_type, db),

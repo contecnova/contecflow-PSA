@@ -224,7 +224,7 @@ export default function ClientsPage(): JSX.Element {
         title={_t('clients.title')}
         subtitle={_t('clients.subtitle')}
         actions={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="u-row-center-8">
             <ViewToggle view={clientView} onChange={setClientView} />
             <Button data-tour="btn-new-client" onClick={() => setShowCreate(true)}>+ {_t('clients.new_client')}</Button>
           </div>
@@ -286,7 +286,7 @@ export default function ClientsPage(): JSX.Element {
                   style={{ display: 'grid', width: '100%', textAlign: 'left', fontFamily: 'inherit', color: 'inherit', border: 'none', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
-                  <div style={{ minWidth: 0 }}>
+                  <div className="u-min0">
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
                     <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 10, background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
                       {STATUS_LABEL[c.status || ""] || c.status}
@@ -313,17 +313,17 @@ export default function ClientsPage(): JSX.Element {
         ) : (
           <div>
             {/* Header del cliente */}
-            <div style={{ marginBottom: 20 }}>
+            <div className="u-mb-20">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800 }}>{detail?.name || selected.name}</div>
-                  <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
+                  <div className="u-text2-base">
                     {detail?.industry && `${detail.industry} · `}
                     {detail?.city && `${detail.city}, `}{detail?.country}
                     {detail?.account_manager_name && ` · Account: ${detail.account_manager_name}`}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div className="u-row-center-8">
                   <button onClick={openEditClient}
                     style={{ fontSize: "var(--text-sm)", padding: '5px 14px', borderRadius: 8, border: '1px solid var(--surface-4)',
                       background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit',
@@ -341,7 +341,7 @@ export default function ClientsPage(): JSX.Element {
                 </div>
               </div>
               {/* Chips de recursos vinculados */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="u-wrap-8">
                 {(detail?.projects?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>⬡ {detail?.projects?.length} proyectos</span>}
                 {(detail?.contracts?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--success-bg)', color: 'var(--success)' }}>📄 {detail?.contracts?.length} contratos</span>}
                 {(detail?.licenses?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--purple-bg)', color: 'var(--purple)' }}>🔑 {detail?.licenses?.length} licencias</span>}
@@ -373,12 +373,12 @@ export default function ClientsPage(): JSX.Element {
                   : detail?.tickets?.map(t => (
                     <div key={t.id} style={{ ...panel, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{t.title}</div>
-                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                        <div className="u-base-600">{t.title}</div>
+                        <div className="u-text2-xs">
                           {t.linked_resource_type && `${t.linked_resource_type} · `}{t.created_at?.slice(0, 10)}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div className="u-row-6">
                         <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>{t.priority}</span>
                         <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{t.status}</span>
                       </div>
@@ -472,13 +472,13 @@ export default function ClientsPage(): JSX.Element {
                 style={inp} placeholder="https://cliente.com" aria-label="Sitio web" />
             </div>
           </div>
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <label style={lbl}>Notas</label>
             <textarea value={editClientForm.notes}
               onChange={e => setEditClientForm(f => ({ ...f, notes: e.target.value }))}
               style={{ ...inp, minHeight: 70, resize: 'vertical' }} />
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowEdit(false)}
               style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
                 padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
@@ -507,7 +507,7 @@ export default function ClientsPage(): JSX.Element {
           create(newForm)
         }
         const errField = (key: string) => createValidation.errors[key] && (
-          <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)', marginTop: 4 }}>{createValidation.errors[key]}</div>
+          <div className="u-field-error">{createValidation.errors[key]}</div>
         )
         return (
         <Modal open title={traducir('clients.new_client')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
@@ -529,8 +529,8 @@ export default function ClientsPage(): JSX.Element {
               </select>
             </div>
           </div>
-          <div style={{ marginBottom: 16 }}><label style={lbl}>Notas</label><textarea value={newForm.notes} onChange={setCreateField('notes')} style={{ ...createValidation.inputStyle(inp, 'notes'), minHeight: 70, resize: 'vertical' }} />{errField('notes')}</div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-mb-16"><label style={lbl}>Notas</label><textarea value={newForm.notes} onChange={setCreateField('notes')} style={{ ...createValidation.inputStyle(inp, 'notes'), minHeight: 70, resize: 'vertical' }} />{errField('notes')}</div>
+          <div className="u-actions-8">
             <button onClick={() => { setShowCreate(false); createValidation.setErrors({}) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={submitCreate} disabled={creating}>
               {creating ? '⟳ Creando...' : '✓ Crear cliente'}

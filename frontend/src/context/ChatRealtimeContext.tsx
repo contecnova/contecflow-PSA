@@ -19,8 +19,7 @@ import { useAuth } from './AuthContext'
 import { useToast } from './ToastContext'
 // TODO type: services/collaborationApi still JS — types inferred at the call site
 import { collabApi } from '../services/collaborationApi'
-import { API_BASE } from '../constants/api'
-import { resolveWsBase } from '../utils/wsUtils'
+import { wsApi, apiWsUrl } from '../services/api'
 
 // ── Public domain types ─────────────────────────────────────────────────
 
@@ -160,17 +159,17 @@ export default function ChatRealtimeProvider({ children }: ChatRealtimeProviderP
       if (cancelled || stoppedByLogout || attempt >= 8) return
       attempt += 1
       try {
-        // #45: kept as fetch() — side-effects/realtime/optimistic
-        const r = await fetch(`${API_BASE}/ws/ticket`, { credentials: 'include' })
-        if (!r.ok) {
-          // Token might have just expired — give up quietly; useEffect will
-          // remount when user changes.
+        // Por el cliente API: si la sesión caducó, refresca y reintenta.
+        let ticket: string | undefined
+        try {
+          ticket = ((await wsApi.ticket()).data as { ticket?: string })?.ticket
+        } catch {
+          // Sin sesión — se abandona en silencio; el efecto se vuelve a montar
+          // cuando cambia el usuario.
           return
         }
-        const { ticket } = (await r.json()) as { ticket?: string }
         if (!ticket || cancelled) return
-        const wsBase = resolveWsBase()
-        ws = new WebSocket(`${wsBase}/api/v1/collaboration/ws?ticket=${encodeURIComponent(ticket)}`)
+        ws = new WebSocket(apiWsUrl(`/collaboration/ws?ticket=${encodeURIComponent(ticket)}`))
         wsRef.current = ws
         ws.onopen = () => { attempt = 0 }
         ws.onmessage = (event: MessageEvent) => {

@@ -16,25 +16,76 @@ import {
   Bot, FileText, AlertCircle, MoreVertical, Trash2, Pencil, X,
   Headphones, ListChecks, FileSignature, BellOff, Link as LinkIcon,
   UserPlus, LogOut, ChevronLeft,
+  type LucideIcon,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
+import { confirmar } from '../context/ConfirmContext'
 import { useAuth } from '../context/AuthContext'
 import { useChatRealtime } from '../context/ChatRealtimeContext'
 import { collabApi } from '../services/collaborationApi'
+import { apiUrl, type ApiError } from '../services/api'
 import { registerCollabPush } from '../utils/collabPush'
 import { useAppLang } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { useDialogo } from '../components/ui'
 
-// ── Loose row/entity types ──────────────────────────────────────────────────
-// The collaboration API client returns `any`/`unknown[]`, so we describe the
-// shapes the UI reads with permissive index-signature types. These are type
-// annotations only — no runtime effect.
-type AnyRec = { [k: string]: any }
-type Conv = AnyRec
-type Msg = AnyRec
-type UserLike = AnyRec
+// ── Entity types ────────────────────────────────────────────────────────────
+// The collaboration API client returns untyped data (`r.data` / `unknown[]`),
+// so each query states the shape it reads. Fields come from the backend
+// serializers in app/services/collaboration/** where they exist; the rest are
+// what this page reads, optional. Type annotations only — no runtime effect.
+
+/** Conversación (canal, directo o grupo). */
+interface Conv { id: string; kind?: string; title?: string | null; peer_user_id?: string | null; channel_type?: string | null }
+/** Usuario o grupo (`@menciones`, miembros elegidos, usuario de la sesión). */
+interface UserLike { id: string; full_name?: string | null; username?: string | null; email?: string | null; is_group?: boolean }
+interface MentionSuggestions { users?: UserLike[]; groups?: UserLike[] }
+interface Reaction { emoji: string; user_id: string | null; client_user_id: string | null }
+interface Attachment {
+  id: string; name: string; mime_type: string | null; size_bytes: number
+  av_status?: string | null; dlp_status?: string | null; is_quarantined?: boolean
+  // `getAttachment` los añade al pedir el detalle.
+  download_url?: string | null; preview_url?: string | null
+}
+interface PollOption { label: string; votes?: number }
+/** `metadata_json` de un mensaje de bot: la tarjeta que pinta y sus datos. */
+interface BotMeta {
+  card?: string; task_id?: string; ticket?: { number?: string | number | null; id?: string; assignee?: string }
+  hours?: number; project_id?: string; title?: string; text?: string; room?: string; actions?: unknown[]
+  source?: string; question?: string; options?: PollOption[]
+}
+/** `_serialize_message` (app/services/collaboration/messages.py). */
+interface Msg {
+  id: string; conversation_id: string; thread_id: string | null; parent_message_id: string | null
+  user_id: string | null; client_user_id: string | null; bot_id: string | null
+  author_name: string | null; author_avatar: string | null
+  type: string; status: string; body: string | null; body_html: string | null
+  metadata_json: BotMeta; has_attachments: boolean; attachments: Attachment[]; reactions: Reaction[]
+  is_pinned: boolean; is_redacted: boolean; linked_task_id: string | null; linked_ticket_id: string | null
+  // El modelo los tiene, pero `_serialize_message` no los envía.
+  linked_deliverable_id?: string | null; linked_risk_id?: string | null
+  edited_at: string | null; deleted_at: string | null; sent_at: string
+}
+interface Team { id: string; name: string }
+interface Channel { id: string; team_id: string; name: string; conversation_id: string }
+interface Presence { user_id: string; status: string; user_name?: string | null; is_in_call?: boolean }
+interface CollabNotification { id: string; is_read: boolean; title: string; body: string | null }
+interface ChatBot { id: string; name?: string }
+interface Member { id?: string; user_id: string; user_name?: string | null; role?: string | null; is_admin?: boolean }
+interface NotificationRule { scope: string; target_id: string | null; notify_messages: string }
+interface SearchHit { id: string; conversation_id: string; snippet: string; sent_at: string | null }
+interface LinkCandidate { id: string; label: string }
+interface SlashCommand { name: string; desc: string }
+/** Fila con vista previa: fijados, menciones y guardados. */
+interface PreviewRow { id: string; preview: string }
+interface CallRow { id: string; kind: string; duration_seconds: number; status: string; has_summary?: boolean }
+interface CalendarEvent { id: string; link?: string | null; title: string; source: string; start: string | null }
+interface CalendarData { events?: CalendarEvent[]; providers_connected?: string[] }
+interface Decision { id: string; text: string | null }
+type LinkPicker = { messageId: string; kind: string }
+type TypingDetail = { conversation_id?: string; payload?: { user_id?: string; active?: boolean } }
 
 // ── Shared style constants (extracted from repeated inline styles) ──────────
 // Keep these read-only objects: never mutate, never assign per-render. They
@@ -71,7 +122,7 @@ const styles: Record<string, CSSProperties> = {
   avatar22: {
     width: 22, height: 22, borderRadius: '50%',
     background: 'linear-gradient(135deg, var(--accent), var(--purple))',
-    color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    color: 'var(--on-accent-light)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     fontSize: 10, fontWeight: 800,
   },
   presenceDot: {
@@ -120,31 +171,31 @@ export default function ChatPage(): JSX.Element {
 
   const { data: teams = [] } = useQuery({
     queryKey: ['collab-teams'],
-    queryFn:  () => collabApi.listTeams() as Promise<AnyRec[]>,
+    queryFn:  () => collabApi.listTeams() as Promise<Team[]>,
     staleTime: 60_000,
   })
 
   const { data: channels = [] } = useQuery({
     queryKey: ['collab-channels'],
-    queryFn:  () => collabApi.listChannels(undefined) as Promise<AnyRec[]>,
+    queryFn:  () => collabApi.listChannels(undefined) as Promise<Channel[]>,
     staleTime: 60_000,
   })
 
   const { data: presence = [] } = useQuery({
     queryKey: ['collab-presence'],
-    queryFn:  () => collabApi.listPresence() as Promise<AnyRec[]>,
+    queryFn:  () => collabApi.listPresence() as Promise<Presence[]>,
     refetchInterval: 60_000,
   })
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['collab-notifications'],
-    queryFn:  () => collabApi.listNotifications(false) as Promise<AnyRec[]>,
+    queryFn:  () => collabApi.listNotifications(false) as Promise<CollabNotification[]>,
     refetchInterval: 30_000,
   })
 
   const { data: bots = [] } = useQuery({
     queryKey: ['collab-bots'],
-    queryFn:  () => collabApi.listBots() as Promise<AnyRec[]>,
+    queryFn:  () => collabApi.listBots() as Promise<ChatBot[]>,
     staleTime: 5 * 60_000,
   })
 
@@ -191,7 +242,8 @@ export default function ChatPage(): JSX.Element {
     const onVis = () => setStatus(document.visibilityState === 'visible' ? 'online' : 'away')
     const onBeforeUnload = () => {
       try {
-        navigator.sendBeacon('/api/v1/collaboration/presence/me', new Blob([JSON.stringify({ status: 'offline' })], { type: 'application/json' }))
+        // sendBeacon y no el cliente: es lo único que sobrevive al cierre de la pestaña.
+        navigator.sendBeacon(apiUrl('/collaboration/presence/me'), new Blob([JSON.stringify({ status: 'offline' })], { type: 'application/json' }))
       } catch { /* noop */ }
     }
     // Listener para "logout" — cuando se dispara este evento dejamos de
@@ -325,11 +377,11 @@ function NavRail({ activeTab, onTab, unreadNotifs }: { activeTab: string; onTab:
               transition: 'color 0.15s',
             }}>
             <Icon size={20} />
-            <span style={{ fontSize: 'var(--text-xs)' }}>{it.label}</span>
+            <span className="u-xs">{it.label}</span>
             {(it.badge ?? 0) > 0 && (
               <span style={{
                 position: 'absolute', top: 6, right: 8,
-                background: 'var(--danger)', color: '#fff',
+                background: 'var(--danger)', color: 'var(--on-accent-light)',
                 fontSize: 9, fontWeight: 800, padding: '1px 5px',
                 borderRadius: 999, minWidth: 14, textAlign: 'center',
               }}>{(it.badge ?? 0) > 99 ? '99+' : it.badge}</span>
@@ -343,8 +395,8 @@ function NavRail({ activeTab, onTab, unreadNotifs }: { activeTab: string; onTab:
 
 // ── Conversations sidebar (middle column) ────────────────────────────────────
 function ConversationsList({ narrow = false, activeTab, conversations, teams, channels, presence, loading, activeConv, onSelect }: {
-  narrow?: boolean; activeTab: string; conversations: Conv[]; teams: AnyRec[]; channels: AnyRec[];
-  presence: AnyRec[]; loading: boolean; activeConv: Conv | null; onSelect: (c: Conv) => void
+  narrow?: boolean; activeTab: string; conversations: Conv[]; teams: Team[]; channels: Channel[];
+  presence: Presence[]; loading: boolean; activeConv: Conv | null; onSelect: (c: Conv) => void
 }) {
   const [filter, setFilter] = useState('')
   const [openTeams, setOpenTeams] = useState(true)
@@ -356,7 +408,7 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
     return m
   })()
   const channelsByTeam = (() => {
-    const map: Record<string, AnyRec[]> = {}
+    const map: Record<string, Channel[]> = {}
     for (const ch of channels) {
       map[ch.team_id] = map[ch.team_id] || []
       map[ch.team_id].push(ch)
@@ -496,7 +548,7 @@ function ConvRow({ c, active, onClick, presence, indent }: {
           <span style={{
             width: 22, height: 22, borderRadius: '50%',
             background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
-            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--on-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 10, fontWeight: 800,
           }}>{(c.title || '?').charAt(0).toUpperCase()}</span>
           {presence && presence !== 'offline' && (
@@ -563,11 +615,11 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
 
   const { data: suggestions = { users: [], groups: [] } } = useQuery({
     queryKey: ['mention-suggestions-modal', search],
-    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 12 }) as Promise<AnyRec>,
+    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 12 }) as Promise<MentionSuggestions>,
   })
   const { data: teams = [] } = useQuery({
     queryKey: ['collab-teams'],
-    queryFn: () => collabApi.listTeams() as Promise<AnyRec[]>,
+    queryFn: () => collabApi.listTeams() as Promise<Team[]>,
   })
 
   useEffect(() => {
@@ -613,17 +665,18 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
       onCreated?.({ id: data.conversation_id || data.id, kind: tab === 'channel' ? 'channel' : tab })
       toast.success(tab === 'direct' ? 'Chat abierto' : tab === 'group' ? 'Grupo creado' : 'Canal creado')
     },
-    onError: (e: any) => toast.error(e.message || e?.response?.data?.detail || 'Error'),
+    onError: (e: ApiError) => toast.error(e.message || e?.response?.data?.detail || 'Error'),
   })
 
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
   return (
     <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
-      <div role="dialog" aria-modal="true" tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
         style={styles.modalDialog}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>{traducir('chat.nueva_conversacion')}</div>
+          <div className="u-md-700">{traducir('chat.nueva_conversacion')}</div>
           <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
         </div>
         <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-4)' }}>
@@ -718,12 +771,12 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
                   <span style={{
                     width: 28, height: 28, borderRadius: '50%',
                     background: 'linear-gradient(135deg, var(--accent), var(--purple))',
-                    color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--on-accent-light)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, fontWeight: 800,
                   }}>{(u.full_name || u.username || '?').charAt(0).toUpperCase()}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 600 }}>{u.full_name}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{u.email}</div>
+                    <div className="u-text3-xs">{u.email}</div>
                   </div>
                   {sel && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>✓</span>}
                 </button>
@@ -769,13 +822,13 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
 
   const { data: suggestions = { users: [] } } = useQuery({
     queryKey: ['mention-suggestions-add-members', search],
-    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 16 }) as Promise<AnyRec>,
+    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 16 }) as Promise<MentionSuggestions>,
   })
   // Si no nos pasan existingUserIds, los obtenemos del servidor para evitar
   // que el listado proponga gente ya dentro del grupo.
   const { data: serverMembers = [] } = useQuery({
     queryKey: ['collab-members-for-add', conv?.id],
-    queryFn: () => collabApi.listConversationMembers(conv.id) as Promise<AnyRec[]>,
+    queryFn: () => collabApi.listConversationMembers(conv.id) as Promise<Member[]>,
     enabled: !existingUserIds && !!conv?.id,
   })
   const dedupeIds: string[] = existingUserIds && existingUserIds.length
@@ -786,16 +839,17 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
   const submit = useMutation({
     mutationFn: () => collabApi.addConversationMembers(conv.id, { user_ids: picked.map(u => u.id) }),
     onSuccess: () => onAdded?.(),
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'No se pudieron añadir'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No se pudieron añadir'),
   })
 
   const togglePick = (u: UserLike) => {
     setPicked(prev => prev.find(x => x.id === u.id) ? prev.filter(x => x.id !== u.id) : [...prev, u])
   }
 
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
   return (
     <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
-      <div role="dialog" aria-modal="true" tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
         style={{
@@ -804,8 +858,8 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
           maxHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 12,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>{traducir('chat.anadir_miembros_a')} {conv.title || 'grupo'}</div>
+        <div className="u-row-between">
+          <div className="u-md-700">{traducir('chat.anadir_miembros_a')} {conv.title || 'grupo'}</div>
           <button onClick={onClose} style={styles.iconCloseBtn}>
             <X size={16} />
           </button>
@@ -818,7 +872,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
           style={inputStyle}
         />
         {picked.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <div className="u-wrap-6">
             {picked.map(u => (
               <span key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 12, padding: '3px 8px', fontSize: 'var(--text-xs)' }}>
                 {u.full_name || u.username}
@@ -844,16 +898,16 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
                   border: 'none', borderBottom: '1px solid var(--surface-4)',
                   cursor: 'pointer', textAlign: 'left', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
                 }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 800 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--on-accent-light)', fontWeight: 800 }}>
                   {(u.full_name || u.username || '?').charAt(0).toUpperCase()}
                 </div>
-                <span style={{ flex: 1 }}>{u.full_name || u.username}</span>
+                <span className="u-flex1">{u.full_name || u.username}</span>
                 {isPicked && <span style={{ color: 'var(--accent)', fontSize: 'var(--text-xs)' }}>✓</span>}
               </button>
             )
           })}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-actions-8">
           <button onClick={onClose} style={{
             background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
             color: 'var(--text-2)', padding: '8px 14px', cursor: 'pointer', fontSize: 'var(--text-sm)',
@@ -863,7 +917,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
             onClick={() => submit.mutate()}
             style={{
               background: picked.length ? 'var(--accent)' : 'var(--surface-4)',
-              color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px',
+              color: 'var(--on-accent-light)', border: 'none', borderRadius: 8, padding: '8px 14px',
               cursor: picked.length ? 'pointer' : 'not-allowed', fontSize: 'var(--text-sm)', fontWeight: 600,
             }}>
             {submit.isPending ? 'Añadiendo…' : `Añadir ${picked.length || ''}`.trim()}
@@ -897,7 +951,7 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
   // Reglas existentes para esta conv → permite alternar silencio
   const { data: rules = [] } = useQuery({
     queryKey: ['collab-rules'],
-    queryFn: () => collabApi.listRules() as Promise<AnyRec[]>,
+    queryFn: () => collabApi.listRules() as Promise<NotificationRule[]>,
   })
   const convRule = rules.find(r => r.scope === 'conversation' && r.target_id === conv.id)
   const muted = convRule?.notify_messages === 'none'
@@ -929,7 +983,7 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
       toast.success('Has salido del grupo')
       onClose()
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error'),
   })
 
   const item = (icon: ReactNode, label: string, onClick: () => void, danger = false) => (
@@ -943,7 +997,7 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
       {icon}
-      <span style={{ flex: 1 }}>{label}</span>
+      <span className="u-flex1">{label}</span>
     </button>
   )
 
@@ -964,8 +1018,8 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
         <>
           <div style={{ height: 1, background: 'var(--surface-4)', margin: '4px 0' }} />
           {item(<UserPlus size={14} />, 'Añadir miembros…', onAddMembers)}
-          {item(<LogOut size={14} />, 'Salir del grupo', () => {
-            if (confirm('¿Salir del grupo? Dejarás de recibir mensajes.')) leaveGroup.mutate()
+          {item(<LogOut size={14} />, 'Salir del grupo', async () => {
+            if (await confirmar({ message: '¿Salir del grupo? Dejarás de recibir mensajes.', danger: true, confirmLabel: 'Salir' })) leaveGroup.mutate()
           }, true)}
         </>
       )}
@@ -975,7 +1029,7 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
 
 // ── Conversation pane ────────────────────────────────────────────────────────
 function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }: {
-  onBack?: () => void; conv: Conv | null; currentUser: UserLike | null; _bots: AnyRec[]; draft: string;
+  onBack?: () => void; conv: Conv | null; currentUser: UserLike | null; _bots: ChatBot[]; draft: string;
   setDraft: Dispatch<SetStateAction<string>>; showSlashMenu: boolean;
   setShowSlashMenu: (v: boolean) => void
 }) {
@@ -986,8 +1040,8 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
   const fileRef = useRef<HTMLInputElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [editing, setEditing] = useState<AnyRec | null>(null) // { id, body }
-  const [mentionState, setMentionState] = useState<AnyRec | null>(null) // { query, anchor, items }
+  const [editing, setEditing] = useState<{ id: string; body: string } | null>(null)
+  const [mentionState, setMentionState] = useState<{ query: string; items: UserLike[] } | null>(null)
   const [activeThreadRoot, setActiveThreadRoot] = useState<string | null>(null)
   const [typingUsers, setTypingUsers] = useState<Record<string, number>>({})  // { user_id: ts }
   const [isDragging, setIsDragging] = useState(false)
@@ -995,7 +1049,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
   // panelUi agrupa flags de UI puramente locales del pane (popovers/modales
   // disparados desde el header o desde una acción de mensaje). No interactúan
   // con el WebSocket; agruparlos reduce ruido sin tocar la lógica realtime.
-  type PanelUi = { headerMenuOpen: boolean; showAddMembers: boolean; linkPicker: AnyRec | null }
+  type PanelUi = { headerMenuOpen: boolean; showAddMembers: boolean; linkPicker: LinkPicker | null }
   const [panelUi, setPanelUi] = useReducer(
     (s: PanelUi, patch: Partial<PanelUi>) => ({ ...s, ...patch }),
     { headerMenuOpen: false, showAddMembers: false, linkPicker: null } as PanelUi,
@@ -1043,13 +1097,13 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
       qc.invalidateQueries({ queryKey: ['collab-messages', conv!.id] })
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al enviar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al enviar'),
   })
 
   const editMsg = useMutation({
     mutationFn: ({ id, body }: { id: string; body: string }) => collabApi.editMessage(id, { body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-messages', conv?.id] }),
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al editar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al editar'),
   })
 
   const delMsg = useMutation({
@@ -1129,8 +1183,8 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
 
   // Listen to typing events from bus (delegated through window CustomEvent)
   useEffect(() => {
-    const handler = (e: any) => {
-      const { conversation_id, payload } = e.detail || {}
+    const handler = (e: Event) => {
+      const { conversation_id, payload }: TypingDetail = (e as CustomEvent<TypingDetail>).detail || {}
       if (conversation_id !== conv?.id) return
       const uid = payload?.user_id
       const active = !!payload?.active
@@ -1159,7 +1213,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
     return () => clearInterval(id)
   }, [])
 
-  const insertMention = (item: AnyRec) => {
+  const insertMention = (item: UserLike) => {
     const insert = item.is_group ? `@${item.username} ` : `@[${item.full_name}|${item.id}] `
     const replaced = draft.replace(/(^|[\s])@([\w.-]{0,40})$/, (_m: string, p1: string) => `${p1}${insert}`)
     setDraft(replaced)
@@ -1210,8 +1264,8 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
       }
       // Reset input value para permitir subir el mismo nombre dos veces
       if (fileRef.current) fileRef.current.value = ''
-    } catch (e: any) {
-      const detail = e?.response?.data?.detail
+    } catch (e) {
+      const detail = (e as ApiError)?.response?.data?.detail
       toast.error(typeof detail === 'string' ? detail : `Error al subir ${file.name}`)
       if (fileRef.current) fileRef.current.value = ''
     }
@@ -1302,9 +1356,9 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
           {conv.kind === 'channel' && <Hash size={18} />}
           {conv.kind === 'direct' && <MessageSquare size={18} />}
           {conv.kind === 'group' && <Users size={18} />}
-          <div style={{ minWidth: 0 }}>
+          <div className="u-min0">
             <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conv.title}</div>
-            {conv.channel_type && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Canal {conv.channel_type}</div>}
+            {conv.channel_type && <div className="u-text3-xs">Canal {conv.channel_type}</div>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, position: 'relative', flexShrink: 0 }}>
@@ -1346,7 +1400,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
               isMine={m.user_id === currentUser?.id}
               onReact={(emoji) => react.mutate({ id: m.id, emoji })}
               onEdit={() => { setEditing({ id: m.id, body: m.body || '' }); setDraft(m.body || ''); composerRef.current?.focus() }}
-              onDelete={() => { if (confirm('¿Borrar mensaje?')) delMsg.mutate(m.id) }}
+              onDelete={async () => { if (await confirmar({ message: '¿Borrar mensaje?', danger: true, confirmLabel: 'Borrar' })) delMsg.mutate(m.id) }}
               onPin={() => collabApi.pinMessage(conv.id, m.id).then(() => qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] }))}
               onSave={() => collabApi.saveMessage(m.id, undefined).then(() => toast.success('Guardado'))}
               onReplyThread={() => setActiveThreadRoot(m.id)}
@@ -1520,23 +1574,23 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
             ? 'linear-gradient(135deg, #7c3aed, #4f8ef7)'
             : 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 'var(--text-sm)', fontWeight: 800, color: '#fff',
+          fontSize: 'var(--text-sm)', fontWeight: 800, color: 'var(--on-accent-light)',
         }}>
           {msg.bot_id ? <Bot size={16} /> : (author?.charAt(0)?.toUpperCase() || '?')}
         </div>
       ) : (
         <div style={{ width: 36, flexShrink: 0 }} />
       )}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="u-flex1-min0">
         {!compact && (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
             <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{author}</span>
             {msg.bot_id && <span style={{ fontSize: 'var(--text-xs)', padding: '1px 6px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4, fontWeight: 700 }}>BOT</span>}
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            <span className="u-text3-xs">
               {new Date(msg.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
             </span>
             {msg.is_pinned && <Pin size={11} style={{ color: 'var(--warning)' }} />}
-            {msg.edited_at && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>(editado)</span>}
+            {msg.edited_at && <span className="u-text3-xs">(editado)</span>}
           </div>
         )}
         <div style={{
@@ -1552,7 +1606,7 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
         )}
         {msg.attachments?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-            {msg.attachments.map((a: AnyRec) => <AttachmentChip key={a.id} att={a} />)}
+            {msg.attachments.map(a => <AttachmentChip key={a.id} att={a} />)}
           </div>
         )}
         {msg.reactions?.length > 0 && (
@@ -1592,8 +1646,8 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
   )
 }
 
-function groupReactions(rs: AnyRec[]) {
-  const out: Record<string, any[]> = {}
+function groupReactions(rs: Reaction[]) {
+  const out: Record<string, string[]> = {}
   for (const r of rs) {
     out[r.emoji] = out[r.emoji] || []
     out[r.emoji].push(r.user_id || r.client_user_id)
@@ -1602,7 +1656,7 @@ function groupReactions(rs: AnyRec[]) {
 }
 
 // ── Bot card renderers ───────────────────────────────────────────────────────
-function BotCard({ meta }: { meta: AnyRec }) {
+function BotCard({ meta }: { meta: BotMeta }) {
   const { t: traducir } = useAppLang()
   if (!meta?.card) return null
   if (meta.card === 'task') return <Card icon={ListChecks} accent="var(--success)" title="Tarea creada" body={`#${meta.task_id?.slice(0, 8) || ''}`} />
@@ -1619,7 +1673,7 @@ function BotCard({ meta }: { meta: AnyRec }) {
 }
 
 function Card({ icon: Icon, accent, title, body }: {
-  icon: any; accent: string; title: ReactNode; body: ReactNode
+  icon: LucideIcon; accent: string; title: ReactNode; body: ReactNode
 }) {
   return (
     <div style={{
@@ -1633,34 +1687,34 @@ function Card({ icon: Icon, accent, title, body }: {
         background: alpha(accent, '25'), color: accent,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}><Icon size={15} /></div>
-      <div style={{ minWidth: 0 }}>
+      <div className="u-min0">
         <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
-        {body && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{body}</div>}
+        {body && <div className="u-text2-sm">{body}</div>}
       </div>
     </div>
   )
 }
 
-function PollCard({ meta }: { meta: AnyRec }) {
+function PollCard({ meta }: { meta: BotMeta }) {
   return (
     <div style={{ marginTop: 6, padding: '12px 14px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, maxWidth: 460 }}>
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 8 }}>📊 {meta.question}</div>
-      {((meta.options || []) as AnyRec[]).map((o: AnyRec, i: number) => (
+      {(meta.options || []).map((o, i) => (
         <button key={i} style={{
           display: 'block', width: '100%', textAlign: 'left',
           padding: '6px 10px', marginBottom: 4,
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 6,
           fontFamily: 'inherit', cursor: 'pointer',
           fontSize: 'var(--text-sm)', color: 'var(--text-1)',
-        }}>{o.label} <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>({o.votes || 0})</span></button>
+        }}>{o.label} <span className="u-text3-xs">({o.votes || 0})</span></button>
       ))}
     </div>
   )
 }
 
 // ── Attachment chip ────────────────────────────────────────────────────────
-function AttachmentChip({ att }: { att: AnyRec }) {
-  const [meta, setMeta] = useState<AnyRec>(att)
+function AttachmentChip({ att }: { att: Attachment }) {
+  const [meta, setMeta] = useState<Attachment>(att)
   // Si ya tenemos download_url usamos eso; si no, pedimos detalle al backend
   useEffect(() => {
     if (att.download_url || att.is_quarantined) return
@@ -1705,9 +1759,9 @@ function AttachmentChip({ att }: { att: AnyRec }) {
         maxWidth: 360,
       }}>
       <FileText size={15} style={{ color: 'var(--accent)' }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="u-flex1-min0">
         <div style={{ fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
-        <div style={{ color: 'var(--text-3)' }}>
+        <div className="u-text3">
           {att.size_bytes >= 1024 * 1024
             ? `${(att.size_bytes / (1024 * 1024)).toFixed(1)} MB`
             : `${Math.round(att.size_bytes / 1024)} KB`}
@@ -1724,16 +1778,17 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
   const [q, setQ] = useState('')
   const { data: result, isFetching } = useQuery({
     queryKey: ['collab-search', q],
-    queryFn: () => collabApi.search({ q, limit: 30 }) as Promise<AnyRec>,
+    queryFn: () => collabApi.search({ q, limit: 30 }) as Promise<{ hits?: SearchHit[] }>,
     enabled: q.trim().length >= 2,
   })
-  const hits: AnyRec[] = result?.hits || []
+  const hits: SearchHit[] = result?.hits || []
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
   return (
     <div role="presentation" onClick={onClose} style={{
       ...styles.modalOverlay,
       alignItems: 'flex-start', padding: '8vh 16px',
     }}>
-      <div role="dialog" aria-modal="true" tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
         style={{
@@ -1773,7 +1828,7 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
               onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginBottom: 4 }}>{h.snippet}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+              <div className="u-text3-xs">
                 {h.sent_at ? new Date(h.sent_at).toLocaleString(localeActivo()) : ''}
               </div>
             </button>
@@ -1786,7 +1841,7 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
 
 // ── Linked entity chips ────────────────────────────────────────────────────
 function LinkedEntityChips({ msg }: { msg: Msg }) {
-  const chips: AnyRec[] = []
+  const chips: Array<{ icon: LucideIcon; label: string; href: string; color: string }> = []
   if (msg.linked_task_id) chips.push({ icon: ListChecks, label: 'Tarea', href: `/tasks?id=${msg.linked_task_id}`, color: 'var(--success)' })
   if (msg.linked_ticket_id) chips.push({ icon: Headphones, label: 'Ticket', href: `/service-desk?id=${msg.linked_ticket_id}`, color: 'var(--warning)' })
   if (msg.linked_deliverable_id) chips.push({ icon: FileText, label: 'Entregable', href: `/deliverables?id=${msg.linked_deliverable_id}`, color: 'var(--accent)' })
@@ -1818,15 +1873,16 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
   const [q, setQ] = useState('')
   const { data: items = [] } = useQuery({
     queryKey: ['link-candidates', messageId, kind, q],
-    queryFn: () => collabApi.linkCandidates(messageId, { kind, q }) as Promise<AnyRec[]>,
+    queryFn: () => collabApi.linkCandidates(messageId, { kind, q }) as Promise<LinkCandidate[]>,
   })
   const link = useMutation({
     mutationFn: (id: string) => collabApi.linkMessage(messageId, { kind, id }),
     onSuccess: onPicked,
   })
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
   return (
     <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
-      <div role="dialog" aria-modal="true" tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
         style={{
@@ -1834,7 +1890,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
         borderRadius: 12, padding: 18, width: 480, maxWidth: '92%',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>
+          <div className="u-md-700">
             Anclar a {kind === 'task' ? 'tarea' : kind === 'ticket' ? 'ticket' : kind}
           </div>
           <button onClick={onClose} style={styles.iconCloseBtn}>
@@ -1869,7 +1925,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
 }
 
 // ── Mention menu ────────────────────────────────────────────────────────────
-function MentionMenu({ items, onPick }: { items: AnyRec[]; onPick: (it: AnyRec) => void }) {
+function MentionMenu({ items, onPick }: { items: UserLike[]; onPick: (it: UserLike) => void }) {
   return (
     <div style={styles.popoverMenu}>
       {items.map((it, i) => (
@@ -1879,13 +1935,13 @@ function MentionMenu({ items, onPick }: { items: AnyRec[]; onPick: (it: AnyRec) 
           <span style={{
             width: 26, height: 26, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
-            color: '#fff', fontSize: 11, fontWeight: 800,
+            color: 'var(--on-accent-light)', fontSize: 11, fontWeight: 800,
           }}>{(it.full_name || it.username || '?').charAt(0).toUpperCase()}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="u-flex1-min0">
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
               {it.full_name}{it.is_group ? '' : ` (@${it.username || ''})`}
             </div>
-            {it.email && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{it.email}</div>}
+            {it.email && <div className="u-text3-xs">{it.email}</div>}
           </div>
         </button>
       ))}
@@ -1923,10 +1979,10 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
         <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
-        {thread.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('chat.sin_respuestas_todavia')}</div>}
+        {thread.length === 0 && <div className="u-text3-xs">{traducir('chat.sin_respuestas_todavia')}</div>}
         {thread.map(m => (
           <div key={m.id} style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{m.author_name || 'Usuario'} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="u-text3-xs">{m.author_name || 'Usuario'} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}</div>
             <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>{m.body}</div>
           </div>
         ))}
@@ -1948,13 +2004,13 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
 
 // ── Slash menu ──────────────────────────────────────────────────────────────
 function SlashMenu({ draft, onPick }: { draft: string; onPick: (cmd: string) => void }) {
-  const { data: help = { commands: [] } } = useQuery<{ commands: AnyRec[] }>({
+  const { data: help = { commands: [] } } = useQuery<{ commands: SlashCommand[] }>({
     queryKey: ['collab-slash-help'],
-    queryFn:  () => collabApi.slashHelp() as Promise<{ commands: AnyRec[] }>,
+    queryFn:  () => collabApi.slashHelp() as Promise<{ commands: SlashCommand[] }>,
     staleTime: 60 * 60_000,
   })
   const term = draft.replace('/', '').toLowerCase()
-  const cmds = help.commands.filter((c: AnyRec) => c.name.replace('/', '').toLowerCase().startsWith(term))
+  const cmds = help.commands.filter(c => c.name.replace('/', '').toLowerCase().startsWith(term))
   if (!cmds.length) return null
   return (
     <div style={styles.popoverMenu}>
@@ -1964,7 +2020,7 @@ function SlashMenu({ draft, onPick }: { draft: string; onPick: (cmd: string) => 
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--accent)' }}>{c.name}</span>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{c.desc}</span>
+          <span className="u-text3-xs">{c.desc}</span>
         </button>
       ))}
     </div>
@@ -1980,20 +2036,20 @@ function ContextPanel({ conv }: { conv: Conv }) {
   const [showAddMember, setShowAddMember] = useState(false)
   const { data: pins = [] } = useQuery({
     queryKey: ['collab-pins', conv.id],
-    queryFn: () => collabApi.listPins(conv.id) as Promise<AnyRec[]>,
+    queryFn: () => collabApi.listPins(conv.id) as Promise<PreviewRow[]>,
     enabled: !!conv?.id,
   })
   const { data: members = [] } = useQuery({
     queryKey: ['collab-members', conv?.id, conv?.kind],
-    queryFn: async (): Promise<AnyRec[]> => {
+    queryFn: async (): Promise<Member[]> => {
       if (conv?.kind === 'channel') {
         const all = await collabApi.listChannels(undefined)
-        const ch = (all as AnyRec[]).find(x => x.conversation_id === conv.id)
-        if (ch) return collabApi.listChannelMembers(ch.id) as Promise<AnyRec[]>
+        const ch = (all as Channel[]).find(x => x.conversation_id === conv.id)
+        if (ch) return collabApi.listChannelMembers(ch.id) as Promise<Member[]>
         return []
       }
       if (conv?.kind === 'group') {
-        return collabApi.listConversationMembers(conv.id) as Promise<AnyRec[]>
+        return collabApi.listConversationMembers(conv.id) as Promise<Member[]>
       }
       return []
     },
@@ -2006,25 +2062,25 @@ function ContextPanel({ conv }: { conv: Conv }) {
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
       toast.success('Miembro eliminado')
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'No se pudo eliminar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No se pudo eliminar'),
   })
   const { data: calls = [] } = useQuery({
     queryKey: ['collab-calls', conv.id],
-    queryFn: () => collabApi.listCalls(conv.id) as Promise<AnyRec[]>,
+    queryFn: () => collabApi.listCalls(conv.id) as Promise<CallRow[]>,
     enabled: !!conv?.id,
   })
-  const { data: calendar } = useQuery<AnyRec>({
+  const { data: calendar } = useQuery<CalendarData>({
     queryKey: ['collab-calendar'],
-    queryFn: () => collabApi.calendarEvents(7) as Promise<AnyRec>,
+    queryFn: () => collabApi.calendarEvents(7) as Promise<CalendarData>,
     refetchInterval: 5 * 60_000,
   })
   const { data: decisions = [] } = useQuery({
     queryKey: ['collab-decisions-context'],
-    queryFn: () => collabApi.listDecisions(5) as Promise<AnyRec[]>,
+    queryFn: () => collabApi.listDecisions(5) as Promise<Decision[]>,
   })
   const { data: presenceList = [] } = useQuery({
     queryKey: ['collab-presence'],
-    queryFn: () => collabApi.listPresence() as Promise<AnyRec[]>,
+    queryFn: () => collabApi.listPresence() as Promise<Presence[]>,
     refetchInterval: 30_000,
   })
   const onlineUsers = presenceList.filter(p => p.user_id && p.status && p.status !== 'offline')
@@ -2037,7 +2093,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
       overflowY: 'auto', padding: '14px 14px 24px',
     }}>
       <Section title={traducir('chat.informacion')}>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{conv.kind === 'channel' ? 'Canal' : conv.kind === 'group' ? 'Grupo' : 'Chat directo'}</div>
+        <div className="u-text2-sm">{conv.kind === 'channel' ? 'Canal' : conv.kind === 'group' ? 'Grupo' : 'Chat directo'}</div>
       </Section>
       <Section title={`Conectados (${onlineUsers.length})`}>
         {onlineUsers.length === 0 ? <Empty>Nadie online ahora</Empty> : onlineUsers.slice(0, 12).map(p => {
@@ -2075,7 +2131,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
             const canRemove = conv.kind === 'group' && (isMe || members.find(mm => mm.user_id === me?.id)?.is_admin)
             return (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 'var(--text-sm)' }}>
-                <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 800 }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--on-accent-light)', fontWeight: 800 }}>
                   {(m.user_name || '?').charAt(0).toUpperCase()}
                 </div>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -2085,7 +2141,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
                 {m.is_admin && <span style={{ fontSize: 10, color: 'var(--accent)' }}>admin</span>}
                 {canRemove && (
                   <button
-                    onClick={() => { if (confirm(isMe ? '¿Salir del grupo?' : `¿Quitar a ${m.user_name}?`)) removeMember.mutate(m.user_id) }}
+                    onClick={async () => { if (await confirmar({ message: isMe ? '¿Salir del grupo?' : `¿Quitar a ${m.user_name}?`, danger: true, confirmLabel: isMe ? 'Salir' : 'Quitar' })) removeMember.mutate(m.user_id) }}
                     title={isMe ? 'Salir del grupo' : 'Quitar del grupo'}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 2 }}
                   >
@@ -2128,11 +2184,11 @@ function ContextPanel({ conv }: { conv: Conv }) {
       <Section title={traducir('chat.proximos_eventos_7d')}>
         {!calendar?.events?.length ? (
           <Empty>{calendar?.providers_connected?.length ? 'Sin eventos próximos' : 'Conecta Google/M365 para ver tu calendario'}</Empty>
-        ) : calendar.events.slice(0, 6).map((ev: AnyRec) => (
+        ) : calendar.events.slice(0, 6).map(ev => (
           <a key={ev.id} href={ev.link || '#'} target="_blank" rel="noopener noreferrer"
             style={{ display: 'block', padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)', textDecoration: 'none' }}>
             <div style={{ color: 'var(--text-1)', fontWeight: 600 }}>{ev.title}</div>
-            <div style={{ color: 'var(--text-3)' }}>
+            <div className="u-text3">
               {ev.source === 'google' ? '🅖' : '🅜'} {ev.start ? new Date(ev.start).toLocaleString(localeActivo(), { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
             </div>
           </a>
@@ -2173,16 +2229,16 @@ function Loader() {
 // ── Activity tab ────────────────────────────────────────────────────────────
 function ActivityList({ narrow = false }: { narrow?: boolean }) {
   const { t: traducir } = useAppLang()
-  const { data: notifs = [] } = useQuery({ queryKey: ['collab-notifications'], queryFn: () => collabApi.listNotifications(false) as Promise<AnyRec[]> })
-  const { data: mentions = [] } = useQuery({ queryKey: ['collab-mentions'], queryFn: () => collabApi.listMyMentions() as Promise<AnyRec[]> })
-  const { data: saved = [] } = useQuery({ queryKey: ['collab-saved'], queryFn: () => collabApi.listSaved() as Promise<AnyRec[]> })
+  const { data: notifs = [] } = useQuery({ queryKey: ['collab-notifications'], queryFn: () => collabApi.listNotifications(false) as Promise<CollabNotification[]> })
+  const { data: mentions = [] } = useQuery({ queryKey: ['collab-mentions'], queryFn: () => collabApi.listMyMentions() as Promise<PreviewRow[]> })
+  const { data: saved = [] } = useQuery({ queryKey: ['collab-saved'], queryFn: () => collabApi.listSaved() as Promise<PreviewRow[]> })
   return (
     <div style={{ ...(narrow ? { flex: 1, minWidth: 0 } : { width: 360 }), background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', overflowY: 'auto', padding: 16 }}>
       <Section title={`Notificaciones (${notifs.length})`}>
         {notifs.length === 0 ? <Empty>{traducir('chat.sin_notificaciones')}</Empty> : notifs.slice(0, 30).map(n => (
           <div key={n.id} style={{ padding: '8px 10px', borderRadius: 6, background: n.is_read ? 'transparent' : 'var(--accent-muted)', marginBottom: 4 }}>
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{n.title}</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{(n.body || '').slice(0, 80)}</div>
+            <div className="u-text3-xs">{(n.body || '').slice(0, 80)}</div>
           </div>
         ))}
       </Section>

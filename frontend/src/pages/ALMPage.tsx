@@ -1,10 +1,12 @@
 import { useId, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
+import type { ZodSchema } from 'zod'
 import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from '../services/api'
+import type { UserListItem } from '../services/api'
 import { Button, Spinner, EmptyState, Modal, Tabs, Page } from '../components/ui'
 import {
   Layers, Building2, FileText, Key, Monitor, Briefcase,
@@ -15,9 +17,14 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { alpha } from '../constants/theme'
+import DsBadge from '../components/ui/StatusBadge'
+import DateInput from '../components/ui/DateInput'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
-const VENDOR_CATS = {
+type CatalogoIcono = { label: string; icon: string }
+type CatalogoColor = { label: string; color: string }
+
+const VENDOR_CATS: Record<string, CatalogoIcono & { color: string }> = {
   software:   { label: 'Software',    icon: '💻', color: 'var(--accent)' },
   hardware:   { label: 'Hardware',    icon: '🖥️', color: 'var(--purple)' },
   saas:       { label: 'SaaS',        icon: '☁️', color: 'var(--success)' },
@@ -27,7 +34,7 @@ const VENDOR_CATS = {
   other:      { label: 'Otro',        icon: '📦', color: 'var(--text-2)' },
 }
 
-const CONTRACT_TYPES = {
+const CONTRACT_TYPES: Record<string, CatalogoIcono> = {
   purchase:     { label: 'Compra',         icon: '🛒' },
   subscription: { label: 'Suscripción',    icon: '🔄' },
   maintenance:  { label: 'Mantenimiento',  icon: '🔧' },
@@ -36,7 +43,7 @@ const CONTRACT_TYPES = {
   enterprise:   { label: 'Enterprise',     icon: '🏛️' },
 }
 
-const CONTRACT_STATUS = {
+const CONTRACT_STATUS: Record<string, CatalogoColor> = {
   active:    { label: 'Activo',    color: 'var(--success)' },
   expired:   { label: 'Expirado', color: 'var(--danger)' },
   cancelled: { label: 'Cancelado',color: 'var(--text-2)' },
@@ -44,7 +51,7 @@ const CONTRACT_STATUS = {
   draft:     { label: 'Borrador', color: 'var(--text-3)' },
 }
 
-const LICENSE_TYPES = {
+const LICENSE_TYPES: Record<string, CatalogoIcono> = {
   perpetual:    { label: 'Perpetua',      icon: '♾️' },
   subscription: { label: 'Suscripción',   icon: '🔄' },
   concurrent:   { label: 'Concurrente',   icon: '👥' },
@@ -56,7 +63,7 @@ const LICENSE_TYPES = {
   volume:       { label: 'Volumen',       icon: '📦' },
 }
 
-const LICENSE_STATUS_CFG = {
+const LICENSE_STATUS_CFG: Record<string, CatalogoColor> = {
   active:        { label: 'Activa',          color: 'var(--success)' },
   expired:       { label: 'Expirada',        color: 'var(--danger)' },
   unassigned:    { label: 'Sin asignar',     color: 'var(--text-2)' },
@@ -64,7 +71,7 @@ const LICENSE_STATUS_CFG = {
   cancelled:     { label: 'Cancelada',       color: 'var(--text-3)' },
 }
 
-const ASSET_TYPES = {
+const ASSET_TYPES: Record<string, CatalogoIcono> = {
   laptop:     { label: 'Portátil',     icon: '💻' },
   desktop:    { label: 'Escritorio',   icon: '🖥️' },
   server:     { label: 'Servidor',     icon: '🗄️' },
@@ -78,7 +85,7 @@ const ASSET_TYPES = {
   other:      { label: 'Otro',         icon: '📦' },
 }
 
-const ASSET_STATUS_CFG = {
+const ASSET_STATUS_CFG: Record<string, CatalogoColor> = {
   in_use:    { label: 'En uso',         color: 'var(--accent)' },
   available: { label: 'Disponible',     color: 'var(--success)' },
   in_repair: { label: 'En reparación',  color: 'var(--warning)' },
@@ -87,22 +94,153 @@ const ASSET_STATUS_CFG = {
   stolen:    { label: 'Robado',         color: 'var(--danger)' },
 }
 
+// ── Entidades (lo que devuelven los endpoints /alm/*) ─────────────────────────
+type Referencia = { id: string; name: string }
+type Vendor = {
+  id: string
+  name: string
+  category?: string
+  website?: string | null
+  support_email?: string | null
+  support_phone?: string | null
+  account_manager?: string | null
+  account_number?: string | null
+  tax_id?: string | null
+  country?: string | null
+  notes?: string | null
+  contracts_count?: number
+}
+type AlmContract = {
+  id: string
+  title: string
+  vendor_id?: string | null
+  vendor_name?: string | null
+  type?: string
+  status?: string
+  start_date?: string | null
+  end_date?: string | null
+  renewal_date?: string | null
+  auto_renew?: boolean
+  notice_days?: number | null
+  resolution_hours?: number | null
+  response_hours?: number | null
+  total_value?: number | null
+  annual_value?: number | null
+  billing_cycle?: string | null
+  currency?: string | null
+  payment_method?: string | null
+  po_number?: string | null
+  cost_center_id?: string | null
+  owner_id?: string | null
+  owner_name?: string | null
+  document_url?: string | null
+  notes?: string | null
+  tags?: string | null
+  renewal_urgent?: boolean
+  days_to_renewal?: number | null
+  licenses_count?: number
+  linked_clients?: Referencia[]
+}
+type License = {
+  id: string
+  name: string
+  product_name?: string | null
+  version?: string | null
+  edition?: string | null
+  type?: string
+  platform?: string | null
+  status?: string
+  vendor_id?: string | null
+  vendor_name?: string | null
+  contract_id?: string | null
+  total_seats?: number | null
+  used_seats?: number | null
+  purchase_date?: string | null
+  expiry_date?: string | null
+  days_to_expiry?: number | null
+  purchase_price?: number | null
+  annual_cost?: number | null
+  cost_center_id?: string | null
+  environment?: string | null
+  is_compliance_req?: boolean
+  notes?: string | null
+  linked_clients?: Referencia[]
+}
+type Asset = {
+  id: string
+  name: string
+  type?: string
+  brand?: string | null
+  model?: string | null
+  serial_number?: string | null
+  asset_tag?: string | null
+  status?: string
+  condition?: string | null
+  assigned_to_id?: string | null
+  assigned_to_name?: string | null
+  location?: string | null
+  vendor_id?: string | null
+  purchase_date?: string | null
+  purchase_price?: number | null
+  book_value?: number | null
+  warranty_expiry?: string | null
+  warranty_expired?: boolean
+  depreciation_years?: number | null
+  ip_address?: string | null
+  hostname?: string | null
+  os?: string | null
+  cpu?: string | null
+  ram_gb?: number | null
+  storage_gb?: number | null
+  notes?: string | null
+  installed_licenses?: number
+  ci_id?: string | null
+  ci_code?: string | null
+  ci_name?: string | null
+  eol_date?: string | null
+  lease_expiry?: string | null
+  next_maintenance_date?: string | null
+  maintenance_contract?: string | null
+}
+type CostCenter = { id: string; code: string; name: string; description?: string | null; budget_annual?: number | null; currency?: string | null }
+type CostCenterForm = { code: string; name: string; description: string; budget_annual: string | number; currency: string }
+type AlmKpis = {
+  total_contracts?: number
+  expiring_soon?: number
+  total_licenses?: number
+  expired_licenses?: number
+  total_assets?: number
+  assets_in_use?: number
+  total_vendors?: number
+  annual_license_cost?: number
+  total_annual_cost?: number
+}
+type Renovacion = { id: string; title: string; vendor_name?: string | null; days_to_renewal: number; renewal_date?: string | null }
+type AlmDashboardData = { kpis?: AlmKpis; upcoming_renewals?: Renovacion[] }
+type CmdbItem = { id: string; code?: string; name: string }
+type AssetHistoryRow = { id: string; field: string; old_value?: string | null; new_value?: string | null; changed_at?: string | null; user_name?: string | null; note?: string | null }
+type ExpiringRow = { asset_id: string; name: string; expiry_type: string; expiry_date: string; days_remaining: number; refresh_ticket_id?: string | null }
+type RefreshTicketResult = { created: boolean; number: string }
+type ComplianceIssue = { name: string; detail?: string; issue: string; severity: string }
+type ComplianceReport = { issues?: ComplianceIssue[]; critical?: number }
+/** Cambio de un campo de texto, select, textarea o DateInput. */
+type CambioDeCampo = { target: { value: string } }
+/** Lo que `useFormValidation(esquema)` entrega como datos válidos. */
+type DatosValidos<S> = S extends ZodSchema<infer T> ? T : never
+
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const card: CSSProperties  = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const fs: CSSProperties    = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
 const ls: CSSProperties    = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }
 
-const StatusBadge = ({ status, cfg }: { status: any; cfg: any }) => {
+const StatusBadge = ({ status, cfg }: { status: string; cfg: Record<string, CatalogoColor> }) => {
   const c = cfg[status] || { label: status, color: 'var(--text-2)' }
   return (
-    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20,
-      background: alpha(c.color, '20'), color: c.color, border: `1px solid ${alpha(c.color, '40')}` }}>
-      {c.label}
-    </span>
+    <DsBadge color={c.color} caps={false}>{c.label}</DsBadge>
   )
 }
 
-const KPI = ({ icon, label, value, sub, color = 'var(--accent)', alert }: { icon: any; label: any; value: any; sub?: any; color?: string; alert?: any }) => (
+const KPI = ({ icon, label, value, sub, color = 'var(--accent)', alert }: { icon: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; color?: string; alert?: boolean }) => (
   <div style={{ ...card, padding: '20px 22px', display: 'flex', gap: 14, alignItems: 'center',
     ...(alert ? { borderColor: 'var(--danger-border)', background: 'var(--danger-bg)' } : {}) }}>
     <div style={{ fontSize: "var(--text-3xl)", flexShrink: 0 }}>{icon}</div>
@@ -114,7 +252,7 @@ const KPI = ({ icon, label, value, sub, color = 'var(--accent)', alert }: { icon
   </div>
 )
 
-const SectionTitle = ({ children, action }: { children: any; action?: any }) => (
+const SectionTitle = ({ children, action }: { children: ReactNode; action?: ReactNode }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
     <h3 style={{ fontSize: "var(--text-md-em)", fontWeight: 700, margin: 0 }}>{children}</h3>
     {action}
@@ -123,14 +261,14 @@ const SectionTitle = ({ children, action }: { children: any; action?: any }) => 
 
 
 // ── Dashboard ALM ─────────────────────────────────────────────────────────────
-function ALMDashboard({ onNavigate }: { onNavigate: any }) {
+function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const t = useAppT()
-  const { data: dash = {} as any, isLoading } = useQuery({
+  const { data: dash = {}, isLoading } = useQuery<AlmDashboardData>({
     queryKey: ['alm-dashboard'],
     queryFn: () => almExtApi.dashboard().then(r => r.data),
     refetchInterval: 60000,
   })
-  const kpis = dash.kpis || {}
+  const kpis: AlmKpis = dash.kpis || {}
   const renewals = dash.upcoming_renewals || []
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center' }}><Spinner size={32} /></div>
@@ -164,17 +302,17 @@ function ALMDashboard({ onNavigate }: { onNavigate: any }) {
                 {`✅ ${t('alm.dashboard_no_urgent_renewals')}`}
               </div>
             ) : (
-              renewals.map((c: any) => (
+              renewals.map(c => (
                 <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{c.title}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{c.vendor_name}</div>
+                    <div className="u-base-600">{c.title}</div>
+                    <div className="u-text2-xs">{c.vendor_name}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: c.days_to_renewal <= 14 ? 'var(--danger)' : c.days_to_renewal <= 30 ? 'var(--warning)' : 'var(--success)' }}>
                         {c.days_to_renewal === 0 ? t('alm.dashboard_today') : `${c.days_to_renewal}${t('alm.dashboard_days_short')}`}
                     </div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(c.renewal_date)}</div>
+                    <div className="u-text2-xs">{fmtDate(c.renewal_date)}</div>
                   </div>
                 </div>
               ))
@@ -209,7 +347,7 @@ function ALMDashboard({ onNavigate }: { onNavigate: any }) {
 }
 
 // ── Vendors ────────────────────────────────────────────────────────────────────
-function VendorModal({ vendor, onClose }: { vendor: any; onClose: any }) {
+function VendorModal({ vendor, onClose }: { vendor: Partial<Vendor> | null; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
@@ -222,16 +360,16 @@ function VendorModal({ vendor, onClose }: { vendor: any; onClose: any }) {
     account_number: vendor?.account_number || '', tax_id: vendor?.tax_id || '',
     country: vendor?.country || 'ES', notes: vendor?.notes || '',
   })
-  const s = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const s = (k: keyof typeof form) => (e: CambioDeCampo) => setForm(f => ({ ...f, [k]: e.target.value }))
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => isEdit ? vendorsApi.update(vendor.id, d) : vendorsApi.create(d),
+    mutationFn: (d: typeof form) => isEdit ? vendorsApi.update(vendor.id, d) : vendorsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['alm-vendors'] }); qc.invalidateQueries({ queryKey: ['alm-dashboard'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   return (
     <Modal open onClose={onClose} title={isEdit ? t('alm.vendor_modal_edit') : t('alm.vendor_modal_new')} width={640}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-name`} style={ls}>{t('alm.vendor_label_name')} *</label><input id={`${idPrefix}-name`} value={form.name} onChange={s('name')} style={fs} placeholder={t('alm.vendor_placeholder_name')} /></div>
+        <div className="u-col-full"><label htmlFor={`${idPrefix}-name`} style={ls}>{t('alm.vendor_label_name')} *</label><input id={`${idPrefix}-name`} value={form.name} onChange={s('name')} style={fs} placeholder={t('alm.vendor_placeholder_name')} /></div>
         <div>
           <label htmlFor={`${idPrefix}-category`} style={ls}>{t('alm.vendor_label_category')}</label>
           <select id={`${idPrefix}-category`} value={form.category} onChange={s('category')} style={fs}>
@@ -245,7 +383,7 @@ function VendorModal({ vendor, onClose }: { vendor: any; onClose: any }) {
         <div><label htmlFor={`${idPrefix}-account-manager`} style={ls}>{t('alm.vendor_label_account_manager')}</label><input id={`${idPrefix}-account-manager`} value={form.account_manager} onChange={s('account_manager')} style={fs} /></div>
         <div><label htmlFor={`${idPrefix}-account-number`} style={ls}>{t('alm.vendor_label_account_number')}</label><input id={`${idPrefix}-account-number`} value={form.account_number} onChange={s('account_number')} style={fs} /></div>
         <div><label htmlFor={`${idPrefix}-tax-id`} style={ls}>{t('alm.vendor_label_tax_id')}</label><input id={`${idPrefix}-tax-id`} value={form.tax_id} onChange={s('tax_id')} style={fs} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-notes`} style={ls}>{t('alm.vendor_label_notes')}</label><textarea id={`${idPrefix}-notes`} value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div className="u-col-full"><label htmlFor={`${idPrefix}-notes`} style={ls}>{t('alm.vendor_label_notes')}</label><textarea id={`${idPrefix}-notes`} value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -261,21 +399,21 @@ function VendorsTab() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [modal, setModal] = useState<any>(null)
+  const [modal, setModal] = useState<Partial<Vendor> | null>(null)
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')
 
-  const { data: vendors = [], isLoading } = useQuery({
+  const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
     queryKey: ['alm-vendors'],
     queryFn: () => vendorsApi.list(undefined).then(r => r.data),
   })
   const { mutate: del } = useMutation({
-    mutationFn: (id: any) => vendorsApi.delete(id),
+    mutationFn: (id: string) => vendorsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-vendors'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const filtered = vendors.filter((v: any) =>
+  const filtered = vendors.filter(v =>
     (!search || v.name.toLowerCase().includes(search.toLowerCase())) &&
     (!catFilter || v.category === catFilter)
   )
@@ -296,14 +434,14 @@ function VendorsTab() {
         <EmptyState svgIcon={<Building2 size={36} />} title={t('alm.vendors_empty_title')} description={t('alm.vendors_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
-          {filtered.map((v: any) => {
-            const cat = (VENDOR_CATS as Record<string, any>)[v.category] || VENDOR_CATS.other
+          {filtered.map(v => {
+            const cat = VENDOR_CATS[v.category] || VENDOR_CATS.other
             return (
               <div key={v.id} style={{ ...card, padding: '18px 20px', transition: 'border-color 0.15s' }}
                 onPointerEnter={e => e.currentTarget.style.borderColor = alpha(cat.color, '50')}
                 onPointerLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="u-row-center-10">
                     <div style={{ width: 36, height: 36, borderRadius: 9, background: alpha(cat.color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg-em)" }}>
                       {cat.icon}
                     </div>
@@ -312,7 +450,7 @@ function VendorsTab() {
                       <div style={{ fontSize: "var(--text-xs)", color: cat.color, fontWeight: 600 }}>{cat.label}</div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="u-row-6">
                     <button aria-label={`Editar proveedor ${v.name}`} onClick={() => setModal(v)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
                     <button aria-label={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
                       style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
@@ -441,7 +579,7 @@ const almAssetSchema = z.object({
   }
 })
 
-function ContractModal({ contract, vendors, users, costCenters, onClose }: { contract: any; vendors: any; users: any; costCenters: any; onClose: any }) {
+function ContractModal({ contract, vendors, users, costCenters, onClose }: { contract: Partial<AlmContract> | null; vendors: Vendor[]; users: UserListItem[]; costCenters: CostCenter[]; onClose: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -473,12 +611,12 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
     tags: contract?.tags || '',
   })
   const validation = useFormValidation(almContractSchema)
-  const s = (k: string) => (e: any) => {
-    setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const s = (k: keyof typeof form) => (e: CambioDeCampo) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => isEdit ? almExtApi.updateContract(contract.id, d) : almExtApi.createContract(d),
+    mutationFn: (d: DatosValidos<typeof almContractSchema>) => isEdit ? almExtApi.updateContract(contract.id, d) : almExtApi.createContract(d),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-contracts'] }); qc.invalidateQueries({ queryKey: ['alm-dashboard'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -491,16 +629,16 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
   return (
     <Modal open onClose={onClose} title={isEdit ? t('alm.contracts_modal_edit') : t('alm.contracts_modal_new')} width={720}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('alm.contracts_label_title')} *</label>
           <input value={form.title} onChange={s('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('alm.contracts_placeholder_title')} />
-          {validation.errors.title && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.title}</p>}
+          {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_vendor')}</label>
           <select value={form.vendor_id} onChange={s('vendor_id')} style={fs}>
             <option value="">{t('alm.contracts_none_vendor')}</option>
-            {vendors.map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
         </div>
         <div>
@@ -521,16 +659,16 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
             {[['one_time',t('alm.contracts_cycle_one_time')],['monthly',t('alm.contracts_cycle_monthly')],['quarterly',t('alm.contracts_cycle_quarterly')],['annual',t('alm.contracts_cycle_annual')],['biennial',t('alm.contracts_cycle_biennial')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         </div>
-        <div><label style={ls}>{t('alm.contracts_label_start_date')}</label><input type="date" value={form.start_date} onChange={s('start_date')} style={validation.inputStyle(fs, 'start_date')} /></div>
+        <div><label style={ls}>{t('alm.contracts_label_start_date')}</label><DateInput value={form.start_date} onChange={s('start_date')} style={validation.inputStyle(fs, 'start_date')} /></div>
         <div>
           <label style={ls}>{t('alm.contracts_label_end_date')}</label>
-          <input type="date" value={form.end_date} onChange={s('end_date')} style={validation.inputStyle(fs, 'end_date')} />
-          {validation.errors.end_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.end_date}</p>}
+          <DateInput value={form.end_date} onChange={s('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+          {validation.errors.end_date && <p className="u-field-error">{validation.errors.end_date}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_renewal_date')}</label>
-          <input type="date" value={form.renewal_date} onChange={s('renewal_date')} style={validation.inputStyle(fs, 'renewal_date')} />
-          {validation.errors.renewal_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.renewal_date}</p>}
+          <DateInput value={form.renewal_date} onChange={s('renewal_date')} style={validation.inputStyle(fs, 'renewal_date')} />
+          {validation.errors.renewal_date && <p className="u-field-error">{validation.errors.renewal_date}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_auto_renew')}</label>
@@ -546,48 +684,48 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
         <div>
           <label style={ls}>{t('alm.contracts_label_notice_days')}</label>
           <input type="number" value={form.notice_days} onChange={s('notice_days')} style={validation.inputStyle(fs, 'notice_days')} />
-          {validation.errors.notice_days && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.notice_days}</p>}
+          {validation.errors.notice_days && <p className="u-field-error">{validation.errors.notice_days}</p>}
         </div>
         <div>
           <label style={ls} htmlFor="contract-uc">{t('alm.contracts_label_uc_hours')}</label>
           <input id="contract-uc" type="number" min={0} step="0.5" value={form.resolution_hours} onChange={s('resolution_hours')} style={validation.inputStyle(fs, 'resolution_hours')} />
           {validation.errors.resolution_hours
-            ? <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.resolution_hours}</p>
+            ? <p className="u-field-error">{validation.errors.resolution_hours}</p>
             : <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('alm.contracts_uc_hint')}</p>}
         </div>
         <div>
           <label style={ls} htmlFor="contract-uc-resp">{t('alm.contracts_label_uc_response')}</label>
           <input id="contract-uc-resp" type="number" min={0} step="0.5" value={form.response_hours} onChange={s('response_hours')} style={validation.inputStyle(fs, 'response_hours')} />
-          {validation.errors.response_hours && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.response_hours}</p>}
+          {validation.errors.response_hours && <p className="u-field-error">{validation.errors.response_hours}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_total_value')}</label>
           <input type="number" value={form.total_value} onChange={s('total_value')} style={validation.inputStyle(fs, 'total_value')} />
-          {validation.errors.total_value && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.total_value}</p>}
+          {validation.errors.total_value && <p className="u-field-error">{validation.errors.total_value}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_annual_cost')}</label>
           <input type="number" value={form.annual_value} onChange={s('annual_value')} style={validation.inputStyle(fs, 'annual_value')} />
-          {validation.errors.annual_value && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.annual_value}</p>}
+          {validation.errors.annual_value && <p className="u-field-error">{validation.errors.annual_value}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_owner')}</label>
           <select value={form.owner_id} onChange={s('owner_id')} style={fs}>
             <option value="">{t('alm.contracts_none_owner')}</option>
-            {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_cost_center')}</label>
           <select value={form.cost_center_id} onChange={s('cost_center_id')} style={fs}>
             <option value="">{t('alm.contracts_none_cost_center')}</option>
-            {costCenters.map((c: any) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+            {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
           </select>
         </div>
         <div><label style={ls}>{t('alm.contracts_label_po')}</label><input value={form.po_number} onChange={s('po_number')} style={fs} /></div>
         <div><label style={ls}>{t('alm.contracts_label_payment_method')}</label><input value={form.payment_method} onChange={s('payment_method')} style={fs} placeholder={t('alm.contracts_placeholder_payment_method')} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.contracts_label_document_url')}</label><input value={form.document_url} onChange={s('document_url')} style={fs} placeholder={t('alm.contracts_placeholder_document_url')} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.contracts_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div className="u-col-full"><label style={ls}>{t('alm.contracts_label_document_url')}</label><input value={form.document_url} onChange={s('document_url')} style={fs} placeholder={t('alm.contracts_placeholder_document_url')} /></div>
+        <div className="u-col-full"><label style={ls}>{t('alm.contracts_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -603,29 +741,29 @@ function ContractsTab() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [modal, setModal] = useState<any>(null)
+  const [modal, setModal] = useState<Partial<AlmContract> | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('active')
   const [urgentOnly, setUrgentOnly] = useState(false)
 
-  const { data: contracts = [], isLoading } = useQuery({ queryKey: ['alm-contracts'], queryFn: () => almExtApi.contracts().then(r => r.data) })
-  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list(undefined).then(r => r.data) })
+  const { data: contracts = [], isLoading } = useQuery<AlmContract[]>({ queryKey: ['alm-contracts'], queryFn: () => almExtApi.contracts().then(r => r.data) })
+  const { data: vendors = [] } = useQuery<Vendor[]>({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list(undefined).then(r => r.data) })
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-  const { data: costCenters = [] } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
+  const { data: costCenters = [] } = useQuery<CostCenter[]>({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
 
   const { mutate: del } = useMutation({
-    mutationFn: (id: any) => almExtApi.deleteContract(id),
+    mutationFn: (id: string) => almExtApi.deleteContract(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['alm-contracts'] }); qc.invalidateQueries({ queryKey: ['alm-dashboard'] }) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const filtered = contracts.filter((c: any) =>
+  const filtered = contracts.filter(c =>
     (!search || c.title.toLowerCase().includes(search.toLowerCase()) || c.vendor_name?.toLowerCase().includes(search.toLowerCase())) &&
     (!statusFilter || c.status === statusFilter) &&
     (!urgentOnly || c.renewal_urgent)
   )
 
-  const totalAnnual = filtered.reduce((s: number, c: any) => s + (c.annual_value || 0), 0)
+  const totalAnnual = filtered.reduce((s: number, c) => s + (c.annual_value || 0), 0)
 
   return (
     <div>
@@ -645,23 +783,23 @@ function ContractsTab() {
 
       {filtered.length > 0 && (
         <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-          {filtered.length} contrato(s) · Coste anual total: <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(totalAnnual)}</strong>
+          {filtered.length} contrato(s) · Coste anual total: <strong className="u-warning">{fmtCurrency(totalAnnual)}</strong>
         </div>
       )}
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
         <EmptyState svgIcon={<FileText size={36} />} title={t('alm.no_contracts')} description={t('alm.contracts_empty_desc')} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filtered.map((c: any) => {
-            const _st = (CONTRACT_STATUS as Record<string, any>)[c.status] || { label: c.status, color: 'var(--text-2)' }
-            const ct = (CONTRACT_TYPES as Record<string, any>)[c.type] || { label: c.type, icon: '📄' }
+        <div className="u-stack-10">
+          {filtered.map(c => {
+            const _st = CONTRACT_STATUS[c.status] || { label: c.status, color: 'var(--text-2)' }
+            const ct = CONTRACT_TYPES[c.type] || { label: c.type, icon: '📄' }
             return (
               <div key={c.id} style={{ ...card, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ fontSize: "var(--text-2xl)", flexShrink: 0 }}>{ct.icon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.title}</span>
+                    <span className="u-md-700">{c.title}</span>
                     <StatusBadge status={c.status} cfg={CONTRACT_STATUS} />
                     {c.renewal_urgent && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>⚠️ RENUEVA EN {c.days_to_renewal}d</span>}
                   </div>
@@ -670,7 +808,7 @@ function ContractsTab() {
                     {c.annual_value && <span>💰 {fmtCurrency(c.annual_value)}{t('alm.ano')}</span>}
                     {c.renewal_date && <span>🔄 Renovar: {fmtDate(c.renewal_date)}</span>}
                     {c.owner_name && <span>👤 {c.owner_name}</span>}
-                    {c.linked_clients?.map((cl: any) => (
+                    {c.linked_clients?.map(cl => (
                       <span key={cl.id} style={{ color: 'var(--accent)', background: 'var(--accent-muted)', padding: '1px 6px', borderRadius: 4 }}>👤 {cl.name}</span>
                     ))}
                     <span>{ct.label}</span>
@@ -693,21 +831,21 @@ function ContractsTab() {
 }
 
 // ── Licenses ───────────────────────────────────────────────────────────────────
-function LicenseAssignModal({ license, onClose }: { license: any; onClose: any }) {
+function LicenseAssignModal({ license, onClose }: { license: License; onClose: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-  const { data: assets = [] } = useQuery({ queryKey: ['alm-assets'], queryFn: () => assetsApi.list(undefined).then(r => r.data) })
+  const { data: assets = [] } = useQuery<Asset[]>({ queryKey: ['alm-assets'], queryFn: () => assetsApi.list(undefined).then(r => r.data) })
   const [form, setForm] = useState({ user_id: '', asset_id: '', project_id: '', expires_at: '', notes: '' })
   const validation = useFormValidation(almLicenseAssignSchema)
-  const s = (k: string) => (e: any) => {
-    setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const s = (k: keyof typeof form) => (e: CambioDeCampo) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
   const availSeats = license.total_seats ? license.total_seats - (license.used_seats || 0) : null
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => licensesApi.assign(license.id, d),
+    mutationFn: (d: DatosValidos<typeof almLicenseAssignSchema>) => licensesApi.assign(license.id, d),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-licenses'] }); qc.invalidateQueries({ queryKey: ['alm-license', license.id] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -725,23 +863,23 @@ function LicenseAssignModal({ license, onClose }: { license: any; onClose: any }
           {availSeats > 0 ? `✅ ${availSeats} ${t('alm.licenses_seats_available')} ${license.total_seats}` : `❌ ${t('alm.licenses_no_seats_available')} (${license.used_seats}/${license.total_seats})`}
         </div>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div>
           <label style={ls}>{t('alm.licenses_assign_user')}</label>
           <select value={form.user_id} onChange={s('user_id')} style={validation.inputStyle(fs, 'user_id')}>
             <option value="">{t('alm.licenses_none_user')}</option>
-            {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
+            {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
           </select>
-          {validation.errors.user_id && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.user_id}</p>}
+          {validation.errors.user_id && <p className="u-field-error">{validation.errors.user_id}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_assign_device')}</label>
           <select value={form.asset_id} onChange={s('asset_id')} style={validation.inputStyle(fs, 'asset_id')}>
             <option value="">{t('alm.licenses_none_device')}</option>
-            {assets.map((a: any) => <option key={a.id} value={a.id}>{(ASSET_TYPES as Record<string, any>)[a.type]?.icon} {a.name} {a.serial_number ? `(${a.serial_number})` : ''}</option>)}
+            {assets.map(a => <option key={a.id} value={a.id}>{ASSET_TYPES[a.type]?.icon} {a.name} {a.serial_number ? `(${a.serial_number})` : ''}</option>)}
           </select>
         </div>
-        <div><label style={ls}>{t('alm.licenses_assignment_expiry')}</label><input type="date" value={form.expires_at} onChange={s('expires_at')} style={validation.inputStyle(fs, 'expires_at')} /></div>
+        <div><label style={ls}>{t('alm.licenses_assignment_expiry')}</label><DateInput value={form.expires_at} onChange={s('expires_at')} style={validation.inputStyle(fs, 'expires_at')} /></div>
         <div><label style={ls}>{t('alm.contracts_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
@@ -754,7 +892,7 @@ function LicenseAssignModal({ license, onClose }: { license: any; onClose: any }
   )
 }
 
-function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { license: any; vendors: any; contracts: any; costCenters: any; onClose: any }) {
+function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { license: Partial<License> | null; vendors: Vendor[]; contracts: AlmContract[]; costCenters: CostCenter[]; onClose: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -771,12 +909,12 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
     is_compliance_req: license?.is_compliance_req ?? false, notes: license?.notes || '',
   })
   const validation = useFormValidation(almLicenseSchema)
-  const s = (k: string) => (e: any) => {
-    setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const s = (k: keyof typeof form) => (e: CambioDeCampo) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => isEdit ? licensesApi.update(license.id, d) : licensesApi.create(d),
+    mutationFn: (d: DatosValidos<typeof almLicenseSchema>) => isEdit ? licensesApi.update(license.id, d) : licensesApi.create(d),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-licenses'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -790,10 +928,10 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
   return (
     <Modal open onClose={onClose} title={isEdit ? t('alm.licenses_modal_edit') : t('alm.licenses_modal_new')} width={720}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('alm.licenses_label_name')} *</label>
           <input value={form.name} onChange={s('name')} style={validation.inputStyle(fs, 'name')} placeholder={t('alm.licenses_placeholder_name')} />
-          {validation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.name}</p>}
+          {validation.errors.name && <p className="u-field-error">{validation.errors.name}</p>}
         </div>
         <div><label style={ls}>{t('alm.licenses_label_product')}</label><input value={form.product_name} onChange={s('product_name')} style={fs} placeholder={t('alm.licenses_placeholder_product')} /></div>
         <div><label style={ls}>{t('alm.licenses_label_edition')}</label><input value={form.edition} onChange={s('edition')} style={fs} placeholder={t('alm.licenses_placeholder_edition')} /></div>
@@ -814,43 +952,43 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
           <label style={ls}>{t('alm.licenses_label_vendor')}</label>
           <select value={form.vendor_id} onChange={s('vendor_id')} style={fs}>
             <option value="">{t('alm.licenses_none_vendor')}</option>
-            {vendors.map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_label_contract')}</label>
           <select value={form.contract_id} onChange={s('contract_id')} style={fs}>
             <option value="">{t('alm.licenses_none_contract')}</option>
-            {contracts.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
+            {contracts.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_label_total_seats')}</label>
           <input type="number" value={form.total_seats} onChange={s('total_seats')} style={validation.inputStyle(fs, 'total_seats')} placeholder="Ej: 50" />
-          {validation.errors.total_seats && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.total_seats}</p>}
+          {validation.errors.total_seats && <p className="u-field-error">{validation.errors.total_seats}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_annual_cost')}</label>
           <input type="number" value={form.annual_cost} onChange={s('annual_cost')} style={validation.inputStyle(fs, 'annual_cost')} />
-          {validation.errors.annual_cost && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.annual_cost}</p>}
+          {validation.errors.annual_cost && <p className="u-field-error">{validation.errors.annual_cost}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.assets_label_purchase_price')}</label>
           <input type="number" value={form.purchase_price} onChange={s('purchase_price')} style={validation.inputStyle(fs, 'purchase_price')} />
-          {validation.errors.purchase_price && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.purchase_price}</p>}
+          {validation.errors.purchase_price && <p className="u-field-error">{validation.errors.purchase_price}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_label_cost_center')}</label>
           <select value={form.cost_center_id} onChange={s('cost_center_id')} style={fs}>
             <option value="">{t('alm.licenses_none_cost_center')}</option>
-            {costCenters.map((c: any) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+            {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
           </select>
         </div>
-        <div><label style={ls}>{t('alm.licenses_label_purchase_date')}</label><input type="date" value={form.purchase_date} onChange={s('purchase_date')} style={validation.inputStyle(fs, 'purchase_date')} /></div>
+        <div><label style={ls}>{t('alm.licenses_label_purchase_date')}</label><DateInput value={form.purchase_date} onChange={s('purchase_date')} style={validation.inputStyle(fs, 'purchase_date')} /></div>
         <div>
           <label style={ls}>{t('alm.licenses_label_expiry_date')}</label>
-          <input type="date" value={form.expiry_date} onChange={s('expiry_date')} style={validation.inputStyle(fs, 'expiry_date')} />
-          {validation.errors.expiry_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.expiry_date}</p>}
+          <DateInput value={form.expiry_date} onChange={s('expiry_date')} style={validation.inputStyle(fs, 'expiry_date')} />
+          {validation.errors.expiry_date && <p className="u-field-error">{validation.errors.expiry_date}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_label_environment')}</label>
@@ -862,8 +1000,8 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
           <input type="checkbox" id="compliance" checked={form.is_compliance_req} onChange={e => setForm(f => ({ ...f, is_compliance_req: e.target.checked }))} />
           <label htmlFor="compliance" style={{ fontSize: "var(--text-base)", cursor: 'pointer' }}>{t('alm.licenses_requires_compliance')}</label>
         </div>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.licenses_label_key')}</label><input value={form.license_key} onChange={s('license_key')} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder={t('alm.licenses_placeholder_key')} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.contracts_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div className="u-col-full"><label style={ls}>{t('alm.licenses_label_key')}</label><input value={form.license_key} onChange={s('license_key')} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder={t('alm.licenses_placeholder_key')} /></div>
+        <div className="u-col-full"><label style={ls}>{t('alm.contracts_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -879,32 +1017,32 @@ function LicensesTab() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [modal, setModal] = useState<any>(null)
-  const [assignModal, setAssignModal] = useState<any>(null)
+  const [modal, setModal] = useState<Partial<License> | null>(null)
+  const [assignModal, setAssignModal] = useState<License | null>(null)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  const { data: licenses = [], isLoading } = useQuery({ queryKey: ['alm-licenses'], queryFn: () => licensesApi.list(undefined).then(r => r.data) })
-  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list(undefined).then(r => r.data) })
-  const { data: contracts = [] } = useQuery({ queryKey: ['alm-contracts'], queryFn: () => almExtApi.contracts().then(r => r.data) })
-  const { data: costCenters = [] } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
+  const { data: licenses = [], isLoading } = useQuery<License[]>({ queryKey: ['alm-licenses'], queryFn: () => licensesApi.list(undefined).then(r => r.data) })
+  const { data: vendors = [] } = useQuery<Vendor[]>({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list(undefined).then(r => r.data) })
+  const { data: contracts = [] } = useQuery<AlmContract[]>({ queryKey: ['alm-contracts'], queryFn: () => almExtApi.contracts().then(r => r.data) })
+  const { data: costCenters = [] } = useQuery<CostCenter[]>({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
 
   const { mutate: del } = useMutation({
-    mutationFn: (id: any) => licensesApi.delete(id),
+    mutationFn: (id: string) => licensesApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-licenses'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const filtered = licenses.filter((l: any) =>
+  const filtered = licenses.filter(l =>
     (!search || l.name.toLowerCase().includes(search.toLowerCase()) || l.vendor_name?.toLowerCase().includes(search.toLowerCase())) &&
     (!typeFilter || l.type === typeFilter) &&
     (!statusFilter || l.status === statusFilter)
   )
 
-  const totalAnnual = filtered.reduce((s: number, l: any) => s + (l.annual_cost || 0), 0)
-  const totalSeats  = filtered.reduce((s: number, l: any) => s + (l.total_seats || 0), 0)
-  const usedSeats   = filtered.reduce((s: number, l: any) => s + (l.used_seats || 0), 0)
+  const totalAnnual = filtered.reduce((s: number, l) => s + (l.annual_cost || 0), 0)
+  const totalSeats  = filtered.reduce((s: number, l) => s + (l.total_seats || 0), 0)
+  const usedSeats   = filtered.reduce((s: number, l) => s + (l.used_seats || 0), 0)
 
   return (
     <div>
@@ -925,7 +1063,7 @@ function LicensesTab() {
       {filtered.length > 0 && (
         <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-base)", color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <span>{filtered.length} licencia(s)</span>
-          {totalAnnual > 0 && <span>💰 <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(totalAnnual)}</strong>{t('alm.ano')}</span>}
+          {totalAnnual > 0 && <span>💰 <strong className="u-warning">{fmtCurrency(totalAnnual)}</strong>{t('alm.ano')}</span>}
           {totalSeats > 0 && <span>🔑 {usedSeats}/{totalSeats} seats usados</span>}
         </div>
       )}
@@ -933,19 +1071,19 @@ function LicensesTab() {
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
         <EmptyState svgIcon={<Key size={36} />} title={t('alm.no_licenses')} description={t('alm.licenses_empty_desc')} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filtered.map((lic: any) => {
-            const _st = (LICENSE_STATUS_CFG as Record<string, any>)[lic.status] || { label: lic.status, color: 'var(--text-2)' }
-            const lt = (LICENSE_TYPES as Record<string, any>)[lic.type] || { label: lic.type, icon: '🔑' }
+        <div className="u-stack-10">
+          {filtered.map(lic => {
+            const _st = LICENSE_STATUS_CFG[lic.status] || { label: lic.status, color: 'var(--text-2)' }
+            const lt = LICENSE_TYPES[lic.type] || { label: lic.type, icon: '🔑' }
             const pctUsed = lic.total_seats ? (lic.used_seats / lic.total_seats) * 100 : null
             const daysLeft = lic.days_to_expiry
             return (
               <div key={lic.id} style={{ ...card, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ fontSize: "var(--text-xl-em)", flexShrink: 0, marginTop: 2 }}>{lt.icon}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                      <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{lic.name}</span>
+                      <span className="u-md-700">{lic.name}</span>
                       <StatusBadge status={lic.status} cfg={LICENSE_STATUS_CFG} />
                       {lic.is_compliance_req && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--warning)', border: '1px solid var(--warning-border)', borderRadius: 4, padding: '1px 5px' }}>COMPLIANCE</span>}
                       {daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 && (
@@ -957,7 +1095,7 @@ function LicensesTab() {
                       {lic.annual_cost && <span>💰 {fmtCurrency(lic.annual_cost)}{t('alm.ano')}</span>}
                       {lic.expiry_date && <span>📅 Expira: {fmtDate(lic.expiry_date)}</span>}
                       <span>{lt.label}</span>
-                      {lic.linked_clients?.map((cl: any) => (
+                      {lic.linked_clients?.map(cl => (
                         <span key={cl.id} style={{ color: 'var(--accent)', background: 'var(--accent-muted)', padding: '1px 6px', borderRadius: 4 }}>👤 {cl.name}</span>
                       ))}
                       {lic.environment !== 'all' && <span>🌍 {lic.environment}</span>}
@@ -998,7 +1136,7 @@ function LicensesTab() {
 }
 
 // ── Assets ─────────────────────────────────────────────────────────────────────
-function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: any; users: any; onClose: any }) {
+function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> | null; vendors: Vendor[]; users: UserListItem[]; onClose: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1019,15 +1157,15 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
     next_maintenance_date: asset?.next_maintenance_date || '', maintenance_contract: asset?.maintenance_contract || '',
   })
   // Los CIs de la CMDB: el activo físico y el elemento que sostiene.
-  const { data: cis = [] } = useQuery({ queryKey: ['cmdb-items', 'todos'], queryFn: () => cmdbApi.sdList({ page_size: 500 }).then(r => r.data ?? []) })
+  const { data: cis = [] } = useQuery<CmdbItem[]>({ queryKey: ['cmdb-items', 'todos'], queryFn: () => cmdbApi.sdList({ page_size: 500 }).then(r => r.data ?? []) })
   const validation = useFormValidation(almAssetSchema)
-  const s = (k: string) => (e: any) => {
-    setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const s = (k: keyof typeof form) => (e: CambioDeCampo) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
   const showNetwork = ['server','vm','network','desktop'].includes(form.type)
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => isEdit ? assetsApi.update(asset.id, d) : assetsApi.create(d),
+    mutationFn: (d: DatosValidos<typeof almAssetSchema>) => isEdit ? assetsApi.update(asset.id, d) : assetsApi.create(d),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-assets'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -1041,10 +1179,10 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
   return (
     <Modal open onClose={onClose} title={isEdit ? t('alm.assets_modal_edit') : t('alm.assets_modal_new')} width={720}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('alm.assets_label_name')} *</label>
           <input value={form.name} onChange={s('name')} style={validation.inputStyle(fs, 'name')} placeholder={t('alm.assets_placeholder_name')} />
-          {validation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.name}</p>}
+          {validation.errors.name && <p className="u-field-error">{validation.errors.name}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.assets_label_type')}</label>
@@ -1066,7 +1204,7 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
           <label style={ls}>{t('alm.assets_label_assigned_to')}</label>
           <select value={form.assigned_to_id} onChange={s('assigned_to_id')} style={fs}>
             <option value="">{t('alm.assets_none_assigned')}</option>
-            {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
         <div><label style={ls}>{t('alm.assets_label_location')}</label><input value={form.location} onChange={s('location')} style={fs} placeholder={t('alm.assets_placeholder_location')} /></div>
@@ -1074,7 +1212,7 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
           <label style={ls}>{t('alm.assets_label_vendor')}</label>
           <select value={form.vendor_id} onChange={s('vendor_id')} style={fs}>
             <option value="">{t('alm.assets_none_vendor')}</option>
-            {vendors.map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
         </div>
         <div>
@@ -1083,21 +1221,21 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
             {[['new',t('alm.assets_condition_new')],['good',t('alm.assets_condition_good')],['fair',t('alm.assets_condition_fair')],['poor',t('alm.assets_condition_poor')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         </div>
-        <div><label style={ls}>{t('alm.assets_label_purchase_date')}</label><input type="date" value={form.purchase_date} onChange={s('purchase_date')} style={validation.inputStyle(fs, 'purchase_date')} /></div>
+        <div><label style={ls}>{t('alm.assets_label_purchase_date')}</label><DateInput value={form.purchase_date} onChange={s('purchase_date')} style={validation.inputStyle(fs, 'purchase_date')} /></div>
         <div>
           <label style={ls}>{t('alm.assets_label_purchase_price')}</label>
           <input type="number" value={form.purchase_price} onChange={s('purchase_price')} style={validation.inputStyle(fs, 'purchase_price')} />
-          {validation.errors.purchase_price && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.purchase_price}</p>}
+          {validation.errors.purchase_price && <p className="u-field-error">{validation.errors.purchase_price}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.assets_label_warranty_end')}</label>
-          <input type="date" value={form.warranty_expiry} onChange={s('warranty_expiry')} style={validation.inputStyle(fs, 'warranty_expiry')} />
-          {validation.errors.warranty_expiry && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.warranty_expiry}</p>}
+          <DateInput value={form.warranty_expiry} onChange={s('warranty_expiry')} style={validation.inputStyle(fs, 'warranty_expiry')} />
+          {validation.errors.warranty_expiry && <p className="u-field-error">{validation.errors.warranty_expiry}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.assets_label_depreciation_years')}</label>
           <input type="number" value={form.depreciation_years} onChange={s('depreciation_years')} style={validation.inputStyle(fs, 'depreciation_years')} />
-          {validation.errors.depreciation_years && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.depreciation_years}</p>}
+          {validation.errors.depreciation_years && <p className="u-field-error">{validation.errors.depreciation_years}</p>}
         </div>
         {showNetwork && <>
           <div><label style={ls}>{t('alm.assets_label_ip')}</label><input value={form.ip_address} onChange={s('ip_address')} style={fs} placeholder="Ej: 192.168.1.1" /></div>
@@ -1107,30 +1245,30 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: any; vendors: a
           <div>
             <label style={ls}>{t('alm.assets_label_ram')}</label>
             <input type="number" value={form.ram_gb} onChange={s('ram_gb')} style={validation.inputStyle(fs, 'ram_gb')} />
-            {validation.errors.ram_gb && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.ram_gb}</p>}
+            {validation.errors.ram_gb && <p className="u-field-error">{validation.errors.ram_gb}</p>}
           </div>
           <div>
             <label style={ls}>{t('alm.assets_label_storage')}</label>
             <input type="number" value={form.storage_gb} onChange={s('storage_gb')} style={validation.inputStyle(fs, 'storage_gb')} />
-            {validation.errors.storage_gb && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.storage_gb}</p>}
+            {validation.errors.storage_gb && <p className="u-field-error">{validation.errors.storage_gb}</p>}
           </div>
         </>}
         <div style={{ gridColumn: '1/-1', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
           {t('alm.assets_lifecycle')}
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls} htmlFor="asset-ci">{t('alm.assets_label_ci')}</label>
           <select id="asset-ci" value={form.ci_id} onChange={s('ci_id')} style={fs}>
             <option value="">{t('alm.assets_none_ci')}</option>
-            {cis.map((c: any) => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
+            {cis.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
           </select>
           <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('alm.assets_ci_hint')}</p>
         </div>
-        <div><label style={ls} htmlFor="asset-eol">{t('alm.assets_label_eol')}</label><input id="asset-eol" type="date" value={form.eol_date} onChange={s('eol_date')} style={fs} /></div>
-        <div><label style={ls} htmlFor="asset-lease">{t('alm.assets_label_lease')}</label><input id="asset-lease" type="date" value={form.lease_expiry} onChange={s('lease_expiry')} style={fs} /></div>
-        <div><label style={ls} htmlFor="asset-maint">{t('alm.assets_label_maintenance')}</label><input id="asset-maint" type="date" value={form.next_maintenance_date} onChange={s('next_maintenance_date')} style={fs} /></div>
+        <div><label style={ls} htmlFor="asset-eol">{t('alm.assets_label_eol')}</label><DateInput id="asset-eol" value={form.eol_date} onChange={s('eol_date')} style={fs} /></div>
+        <div><label style={ls} htmlFor="asset-lease">{t('alm.assets_label_lease')}</label><DateInput id="asset-lease" value={form.lease_expiry} onChange={s('lease_expiry')} style={fs} /></div>
+        <div><label style={ls} htmlFor="asset-maint">{t('alm.assets_label_maintenance')}</label><DateInput id="asset-maint" value={form.next_maintenance_date} onChange={s('next_maintenance_date')} style={fs} /></div>
         <div><label style={ls} htmlFor="asset-maint-c">{t('alm.assets_label_maintenance_contract')}</label><input id="asset-maint-c" value={form.maintenance_contract} onChange={s('maintenance_contract')} style={fs} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.assets_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div className="u-col-full"><label style={ls}>{t('alm.assets_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -1147,9 +1285,9 @@ const VENCIMIENTO_KEY: Record<string, string> = {
   lease_expiry: 'alm.expiry_lease', next_maintenance_date: 'alm.expiry_maintenance',
 }
 
-function AssetHistoryModal({ asset, onClose }: { asset: any; onClose: () => void }) {
+function AssetHistoryModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
   const t = useAppT()
-  const { data: filas = [], isLoading } = useQuery({
+  const { data: filas = [], isLoading } = useQuery<AssetHistoryRow[]>({
     queryKey: ['alm-asset-history', asset.id],
     queryFn: () => assetsApi.history(asset.id).then(r => r.data ?? []),
   })
@@ -1159,9 +1297,9 @@ function AssetHistoryModal({ asset, onClose }: { asset: any; onClose: () => void
         <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 24 }}>{t('alm.assets_history_empty')}</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 460, overflowY: 'auto' }}>
-          {filas.map((h: any) => (
+          {filas.map(h => (
             <div key={h.id} style={{ padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
-              <div style={{ color: 'var(--text-2)', fontSize: "var(--text-xs)" }}>
+              <div className="u-text2-xs">
                 {h.changed_at ? new Date(h.changed_at).toLocaleString(localeActivo()) : ''}{h.user_name ? ` · ${h.user_name}` : ''}{h.note ? ` · ${h.note}` : ''}
               </div>
               <div style={{ wordBreak: 'break-word' }}>
@@ -1177,10 +1315,10 @@ function AssetHistoryModal({ asset, onClose }: { asset: any; onClose: () => void
 }
 
 /** Lo que vence pronto: garantía, fin de vida, leasing o mantenimiento. */
-function ExpiringPanel({ assets, onRenew }: { assets: any[]; onRenew: (a: any) => void }) {
+function ExpiringPanel({ assets, onRenew }: { assets: Asset[]; onRenew: (a: Pick<Asset, 'id' | 'name'>) => void }) {
   const t = useAppT()
   const [dias, setDias] = useState(90)
-  const { data: filas = [] } = useQuery({
+  const { data: filas = [] } = useQuery<ExpiringRow[]>({
     queryKey: ['alm-expiring', dias],
     queryFn: () => assetsApi.expiring(dias).then(r => r.data ?? []),
   })
@@ -1194,14 +1332,14 @@ function ExpiringPanel({ assets, onRenew }: { assets: any[]; onRenew: (a: any) =
       </div>
       {filas.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {filas.map((f: any) => (
+          {filas.map(f => (
             <div key={`${f.asset_id}-${f.expiry_type}`} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: "var(--text-sm)", flexWrap: 'wrap' }}>
               <span style={{ minWidth: 70, fontWeight: 700, color: f.days_remaining <= 7 ? 'var(--danger)' : f.days_remaining <= 30 ? 'var(--warning)' : 'var(--text-2)' }}>
                 {t('alm.expiring_in', { n: f.days_remaining })}
               </span>
               <span style={{ flex: 1, minWidth: 160 }}>{f.name} · {t(VENCIMIENTO_KEY[f.expiry_type] ?? f.expiry_type)} {fmtDate(f.expiry_date)}</span>
               {f.refresh_ticket_id
-                ? <span style={{ color: 'var(--text-2)', fontSize: "var(--text-xs)" }}>{t('alm.renewal_open')}</span>
+                ? <span className="u-text2-xs">{t('alm.renewal_open')}</span>
                 : <Button size="sm" variant="secondary" onClick={() => onRenew(assets.find(a => a.id === f.asset_id) ?? { id: f.asset_id, name: f.name })}>{t('alm.renewal_open_ticket')}</Button>}
             </div>
           ))}
@@ -1215,38 +1353,38 @@ function AssetsTab() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [modal, setModal] = useState<any>(null)
+  const [modal, setModal] = useState<Partial<Asset> | null>(null)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  const { data: assets = [], isLoading } = useQuery({ queryKey: ['alm-assets'], queryFn: () => assetsApi.list(undefined).then(r => r.data) })
-  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list(undefined).then(r => r.data) })
+  const { data: assets = [], isLoading } = useQuery<Asset[]>({ queryKey: ['alm-assets'], queryFn: () => assetsApi.list(undefined).then(r => r.data) })
+  const { data: vendors = [] } = useQuery<Vendor[]>({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list(undefined).then(r => r.data) })
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
 
   const { mutate: del } = useMutation({
-    mutationFn: (id: any) => assetsApi.delete(id),
+    mutationFn: (id: string) => assetsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-assets'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
-  const [historyOf, setHistoryOf] = useState<any>(null)
+  const [historyOf, setHistoryOf] = useState<Asset | null>(null)
   const { mutate: renovar } = useMutation({
-    mutationFn: (a: any) => assetsApi.refreshTicket(a.id).then(r => r.data),
-    onSuccess: (d: any) => {
+    mutationFn: (a: Pick<Asset, 'id' | 'name'>) => assetsApi.refreshTicket(a.id).then((r): RefreshTicketResult => r.data),
+    onSuccess: d => {
       toast.success(t(d.created ? 'alm.renewal_created' : 'alm.renewal_exists', { number: d.number }))
       qc.invalidateQueries({ queryKey: ['alm-assets'] }); qc.invalidateQueries({ queryKey: ['alm-expiring'] })
     },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const filtered = assets.filter((a: any) =>
+  const filtered = assets.filter(a =>
     (!search || a.name.toLowerCase().includes(search.toLowerCase()) || a.serial_number?.toLowerCase().includes(search.toLowerCase()) || a.asset_tag?.toLowerCase().includes(search.toLowerCase())) &&
     (!typeFilter || a.type === typeFilter) &&
     (!statusFilter || a.status === statusFilter)
   )
 
-  const totalValue     = filtered.reduce((s: number, a: any) => s + (a.purchase_price || 0), 0)
-  const totalBookValue = filtered.reduce((s: number, a: any) => s + (a.book_value || 0), 0)
+  const totalValue     = filtered.reduce((s: number, a) => s + (a.purchase_price || 0), 0)
+  const totalBookValue = filtered.reduce((s: number, a) => s + (a.book_value || 0), 0)
 
   return (
     <div>
@@ -1278,17 +1416,17 @@ function AssetsTab() {
         <EmptyState svgIcon={<Monitor size={36} />} title={t('alm.no_assets')} description={t('alm.assets_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
-          {filtered.map((a: any) => {
-            const at = (ASSET_TYPES as Record<string, any>)[a.type] || ASSET_TYPES.other
-            const _st = (ASSET_STATUS_CFG as Record<string, any>)[a.status] || { label: a.status, color: 'var(--text-2)' }
+          {filtered.map(a => {
+            const at = ASSET_TYPES[a.type] || ASSET_TYPES.other
+            const _st = ASSET_STATUS_CFG[a.status] || { label: a.status, color: 'var(--text-2)' }
             return (
               <div key={a.id} style={{ ...card, padding: '16px 18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="u-row-center-10">
                     <span style={{ fontSize: "var(--text-xl-em)" }}>{at.icon}</span>
                     <div>
-                      <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{a.name}</div>
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{a.brand} {a.model}</div>
+                      <div className="u-md-700">{a.name}</div>
+                      <div className="u-text2-xs">{a.brand} {a.model}</div>
                     </div>
                   </div>
                   <StatusBadge status={a.status} cfg={ASSET_STATUS_CFG} />
@@ -1331,24 +1469,24 @@ function CostCentersTab() {
   const qc = useQueryClient()
   const { currency: defaultCurrency } = useOrgSettings()
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
-  const [form, setForm] = useState({ code: '', name: '', description: '', budget_annual: '', currency: defaultCurrency })
-  const s = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const [editing, setEditing] = useState<CostCenter | null>(null)
+  const [form, setForm] = useState<CostCenterForm>({ code: '', name: '', description: '', budget_annual: '', currency: defaultCurrency })
+  const s = (k: keyof CostCenterForm) => (e: CambioDeCampo) => setForm(f => ({ ...f, [k]: e.target.value }))
 
-  const { data: centers = [], isLoading } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
+  const { data: centers = [], isLoading } = useQuery<CostCenter[]>({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: (d: any) => editing ? almExtApi.updateCostCenter(editing.id, d) : almExtApi.createCostCenter(d),
+    mutationFn: (d: CostCenterForm) => editing ? almExtApi.updateCostCenter(editing.id, d) : almExtApi.createCostCenter(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['alm-cost-centers'] }); setShowForm(false); setEditing(null); setForm({ code: '', name: '', description: '', budget_annual: '', currency: defaultCurrency }) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: del } = useMutation({
-    mutationFn: (id: any) => almExtApi.deleteCostCenter(id),
+    mutationFn: (id: string) => almExtApi.deleteCostCenter(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-cost-centers'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const openEdit = (c: any) => { setEditing(c); setForm({ code: c.code, name: c.name, description: c.description || '', budget_annual: c.budget_annual || '', currency: c.currency || defaultCurrency }); setShowForm(true) }
+  const openEdit = (c: CostCenter) => { setEditing(c); setForm({ code: c.code, name: c.name, description: c.description || '', budget_annual: c.budget_annual || '', currency: c.currency || defaultCurrency }); setShowForm(true) }
 
   return (
     <div>
@@ -1363,7 +1501,7 @@ function CostCentersTab() {
             <div><label style={ls}>{t('alm.cost_centers_label_name')} *</label><input value={form.name} onChange={s('name')} style={fs} placeholder={t('alm.cost_centers_placeholder_name')} /></div>
             <div><label style={ls}>{t('alm.cost_centers_label_budget')}</label><input type="number" value={form.budget_annual} onChange={s('budget_annual')} style={fs} /></div>
             <div><label style={ls}>{t('alm.cost_centers_label_currency')}</label><input value={form.currency} onChange={s('currency')} style={fs} /></div>
-            <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.cost_centers_label_description')}</label><input value={form.description} onChange={s('description')} style={fs} /></div>
+            <div className="u-col-full"><label style={ls}>{t('alm.cost_centers_label_description')}</label><input value={form.description} onChange={s('description')} style={fs} /></div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14, justifyContent: 'flex-end' }}>
             <Button variant="secondary" onClick={() => { setShowForm(false); setEditing(null) }}>{t('common.cancel')}</Button>
@@ -1375,14 +1513,14 @@ function CostCentersTab() {
         <EmptyState svgIcon={<Briefcase size={36} />} title={t('alm.no_cost_centers')} description={t('alm.cost_centers_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-          {centers.map((c: any) => (
+          {centers.map(c => (
             <div key={c.id} style={{ ...card, padding: '16px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div>
                   <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{c.code}</span>
                   <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginTop: 2 }}>{c.name}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className="u-row-6">
                   <button aria-label={`Editar centro de coste ${c.name}`} onClick={() => openEdit(c)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
                   <button aria-label={`Eliminar centro de coste ${c.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el centro de coste "${c.name}"?`, onConfirm: () => del(c.id), danger: true }) }}
                     style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
@@ -1401,7 +1539,7 @@ function CostCentersTab() {
 // ── Compliance ─────────────────────────────────────────────────────────────────
 function ComplianceTab() {
   const t = useAppT()
-  const { data: report = {} as any, isLoading, refetch } = useQuery({
+  const { data: report = {}, isLoading, refetch } = useQuery<ComplianceReport>({
     queryKey: ['alm-compliance'],
     queryFn: () => almExtApi.compliance().then(r => r.data),
   })
@@ -1424,12 +1562,12 @@ function ComplianceTab() {
             <div style={{ ...card, padding: '18px 20px', borderColor: issues.length === 0 ? 'var(--success-border)' : 'var(--danger-border)' }}>
               <div style={{ fontSize: "var(--text-3xl)", marginBottom: 8 }}>{issues.length === 0 ? '✅' : '❌'}</div>
               <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: issues.length === 0 ? 'var(--success)' : 'var(--danger)' }}>{issues.length}</div>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{t('alm.compliance_issues')}</div>
+              <div className="u-base-600">{t('alm.compliance_issues')}</div>
             </div>
             <div style={{ ...card, padding: '18px 20px' }}>
               <div style={{ fontSize: "var(--text-3xl)", marginBottom: 8 }}>🔴</div>
               <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>{report.critical || 0}</div>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{t('alm.compliance_critical')}</div>
+              <div className="u-base-600">{t('alm.compliance_critical')}</div>
             </div>
           </div>
 
@@ -1437,18 +1575,18 @@ function ComplianceTab() {
             <div style={{ ...card, padding: '40px 20px', textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>✅</div>
               <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--success)', marginBottom: 8 }}>{t('alm.compliance_ok')}</div>
-              <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{t('alm.compliance_ok_desc')}</div>
+              <div className="u-text2-base">{t('alm.compliance_ok_desc')}</div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {issues.map((iss: any, idx: number) => (
+            <div className="u-stack-10">
+              {issues.map((iss, idx) => (
                 <div key={idx} style={{ ...card, padding: '14px 18px', borderColor: iss.severity === 'critical' ? 'var(--danger-border)' : 'rgba(245,158,11,0.31)', background: iss.severity === 'critical' ? 'var(--danger-bg)' : 'rgba(245,158,11,0.04)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="u-row-between">
                     <div>
                       <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{iss.name}</div>
-                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{iss.detail}</div>
+                      <div className="u-text2-sm">{iss.detail}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div className="u-row-center-8">
                       <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
                         {iss.issue}
                       </span>

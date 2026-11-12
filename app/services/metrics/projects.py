@@ -2,6 +2,7 @@
 Projects & Tasks metrics: tasks_by_status, tasks_by_project, projects_by_status,
 deliverables_status, tasks_lead_time, tasks_blocked_by_project, tasks_overdue, risks_by_level.
 """
+import logging
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.project import Project
 from app.models.task import Task
 from app.models.resources import Deliverable
-from . import register_metric
+from ._registro import register_metric
 from app.core import timeutil
 
 
@@ -246,6 +247,7 @@ def metric_tasks_lead_time(
                 try:
                     lead_times.append((t.completed_at - t.created_at).days)
                 except Exception:  # noqa: S112
+                    logging.getLogger(__name__).debug("metric_tasks_lead_time: excepcion ignorada", exc_info=True)
                     continue
 
             if lead_times:

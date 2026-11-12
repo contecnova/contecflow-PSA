@@ -12,6 +12,8 @@ Resolution order:
 """
 from __future__ import annotations
 
+import json
+import os
 from datetime import date as Date
 from typing import Iterable, Optional
 
@@ -20,50 +22,31 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.user_cost import CountryEmployerCost, UserCostProfile
+from app.core.asignacion import es_asignable
+from app.core.errores import ErrorDeDominio
 
 
 # ── Default presets seeded on first run ──────────────────────────────────────
-DEFAULT_COUNTRY_PRESETS: list[dict] = [
-    # employer_cost_pct = SS empresa + bonuses + benefits prorated.
-    # productive_hours_year = annual hours minus vacation/holidays/sick/training.
-    # Source: rough industry standard; admin can override per organisation.
-    {"country_code": "ES", "country_name": "España",         "currency": "EUR", "employer_cost_pct": 0.32, "productive_hours_year": 1700,
-     "notes": "SS empresa ~30%, vacaciones 22d + festivos ~12d"},
-    {"country_code": "PT", "country_name": "Portugal",       "currency": "EUR", "employer_cost_pct": 0.2375, "productive_hours_year": 1720,
-     "notes": "TSU 23.75%, vacaciones 22d + festivos"},
-    {"country_code": "FR", "country_name": "France",         "currency": "EUR", "employer_cost_pct": 0.42, "productive_hours_year": 1607,
-     "notes": "Charges patronales ~42%, 35h/semaine, 5 sem CP"},
-    {"country_code": "DE", "country_name": "Deutschland",    "currency": "EUR", "employer_cost_pct": 0.21, "productive_hours_year": 1700,
-     "notes": "Sozialabgaben Arbeitgeber ~21%"},
-    {"country_code": "IT", "country_name": "Italia",         "currency": "EUR", "employer_cost_pct": 0.30, "productive_hours_year": 1720,
-     "notes": "Contributi datore ~30%, ferie 26d + festività"},
-    {"country_code": "GB", "country_name": "United Kingdom", "currency": "GBP", "employer_cost_pct": 0.155, "productive_hours_year": 1750,
-     "notes": "NI employer 13.8% + pension auto-enrol ~3%"},
-    {"country_code": "IE", "country_name": "Ireland",        "currency": "EUR", "employer_cost_pct": 0.115, "productive_hours_year": 1750,
-     "notes": "PRSI employer 11.05% + pension"},
-    {"country_code": "NL", "country_name": "Nederland",      "currency": "EUR", "employer_cost_pct": 0.20, "productive_hours_year": 1720,
-     "notes": "Werkgeverslasten ~20%"},
-    {"country_code": "PL", "country_name": "Polska",         "currency": "PLN", "employer_cost_pct": 0.205, "productive_hours_year": 1750,
-     "notes": "ZUS pracodawcy ~20.5%"},
-    {"country_code": "US", "country_name": "United States",  "currency": "USD", "employer_cost_pct": 0.25, "productive_hours_year": 1880,
-     "notes": "FICA 7.65% + benefits + 401k + healthcare ~25%"},
-    {"country_code": "MX", "country_name": "México",         "currency": "MXN", "employer_cost_pct": 0.30, "productive_hours_year": 1900,
-     "notes": "IMSS + INFONAVIT + aguinaldo + prima ~30%"},
-    {"country_code": "BR", "country_name": "Brasil",         "currency": "BRL", "employer_cost_pct": 0.70, "productive_hours_year": 1900,
-     "notes": "Encargos sociais (INSS, FGTS, 13º, férias) ~70%"},
-    {"country_code": "AR", "country_name": "Argentina",      "currency": "ARS", "employer_cost_pct": 0.27, "productive_hours_year": 1880,
-     "notes": "Cargas sociales empleador ~27%"},
-    {"country_code": "CO", "country_name": "Colombia",       "currency": "COP", "employer_cost_pct": 0.45, "productive_hours_year": 1880,
-     "notes": "Aportes parafiscales + prestaciones ~45%"},
-    {"country_code": "CH", "country_name": "Schweiz",        "currency": "CHF", "employer_cost_pct": 0.135, "productive_hours_year": 1850,
-     "notes": "AHV/IV/EO ~6.4% + LPP/UVG"},
-    {"country_code": "BE", "country_name": "Belgique",       "currency": "EUR", "employer_cost_pct": 0.25, "productive_hours_year": 1700,
-     "notes": "ONSS employeur ~25%"},
-    {"country_code": "SE", "country_name": "Sverige",        "currency": "SEK", "employer_cost_pct": 0.3142, "productive_hours_year": 1700,
-     "notes": "Arbetsgivaravgift 31.42%"},
-    {"country_code": "AT", "country_name": "Österreich",     "currency": "EUR", "employer_cost_pct": 0.22, "productive_hours_year": 1700,
-     "notes": "Lohnnebenkosten ~22%"},
-]
+# employer_cost_pct = SS empresa + bonuses + benefits prorated.
+# productive_hours_year = annual hours minus vacation/holidays/sick/training.
+# Source: rough industry standard; admin can override per organisation.
+#
+# Auditoria 2026-11 (hallazgo 30): las 18 filas estaban escritas aqui; ahora
+# salen de `app/core/country_employer_costs.json` (mismos valores), y una
+# instalacion puede usar el suyo con el ajuste `COUNTRY_EMPLOYER_COSTS_PATH`.
+_PRESETS_POR_DEFECTO = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                    "core", "country_employer_costs.json")
+
+
+def cargar_presets_de_pais() -> list[dict]:
+    """Las tarifas de coste de empresa por pais (del JSON por defecto o del configurado)."""
+    from app.core.config import settings
+    ruta = settings.COUNTRY_EMPLOYER_COSTS_PATH or _PRESETS_POR_DEFECTO
+    with open(ruta, encoding="utf-8") as fichero:
+        return json.load(fichero)
+
+
+DEFAULT_COUNTRY_PRESETS: list[dict] = cargar_presets_de_pais()
 
 
 # ── Cost computation ─────────────────────────────────────────────────────────
@@ -163,11 +146,14 @@ def list_country_presets(db: Session, organization_id: Optional[str] = None) -> 
 def create_profile(db: Session, *, user_id: str, valid_from: Date,
                    gross_annual_salary: float, employer_cost_pct: float,
                    extra_annual_costs: float = 0.0, productive_hours_year: float = 1700,
-                   country_code: Optional[str] = None, currency: str = "EUR",
+                   country_code: Optional[str] = None, currency: Optional[str] = None,
                    notes: Optional[str] = None,
                    organization_id: Optional[str] = None,
                    created_by_user_id: Optional[str] = None) -> UserCostProfile:
     """Create a new cost profile and close any open profile that overlaps."""
+    if not currency:
+        from app.core.config import settings
+        currency = settings.DEFAULT_CURRENCY
     total, per_hour = derive_cost(gross_annual_salary, employer_cost_pct,
                                   extra_annual_costs, productive_hours_year)
 
@@ -204,7 +190,7 @@ def update_profile(db: Session, profile_id: str, **fields) -> Optional[UserCostP
     for k, v in fields.items():
         if v is None:
             continue
-        if hasattr(p, k):
+        if es_asignable(p, k, ("user_id",)):
             setattr(p, k, v)
     # Recompute derived values
     p.total_annual_cost, p.cost_per_hour = derive_cost(
@@ -271,7 +257,8 @@ def seed_country_presets(db: Session, *, force: bool = False) -> dict:
     created = 0
     updated = 0
     skipped = 0
-    for entry in DEFAULT_COUNTRY_PRESETS:
+    presets = cargar_presets_de_pais()  # se relee: el ajuste puede cambiar sin reiniciar
+    for entry in presets:
         existing = (db.query(CountryEmployerCost)
                       .filter(CountryEmployerCost.country_code == entry["country_code"],
                               CountryEmployerCost.organization_id.is_(None))
@@ -287,7 +274,7 @@ def seed_country_presets(db: Session, *, force: bool = False) -> dict:
         else:
             skipped += 1
     db.commit()
-    return {"created": created, "updated": updated, "skipped": skipped, "total": len(DEFAULT_COUNTRY_PRESETS)}
+    return {"created": created, "updated": updated, "skipped": skipped, "total": len(presets)}
 
 
 # ── Serializers ─────────────────────────────────────────────────────────────
@@ -340,7 +327,6 @@ def serialize_profile(p: UserCostProfile) -> dict:
 #
 # Lo unico que lo impedia era el filtro implicito de `TenantSession`.
 
-from fastapi import HTTPException  # noqa: E402
 
 
 def _org_de(user) -> Optional[str]:
@@ -359,7 +345,7 @@ def usuario_propio(db: Session, actor, user_id: str) -> User:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "User not found")
+        raise ErrorDeDominio(404, "User not found")
     return fila
 
 
@@ -374,7 +360,7 @@ def perfil_propio(db: Session, actor, profile_id: str) -> UserCostProfile:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Profile not found")
+        raise ErrorDeDominio(404, "Profile not found")
     return fila
 
 
@@ -397,7 +383,7 @@ def preset_propio_o_global(db: Session, actor, preset_id: str) -> CountryEmploye
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Preset not found")
+        raise ErrorDeDominio(404, "Preset not found")
     return fila
 
 
@@ -440,7 +426,7 @@ def borrar_preset_de_pais(db: Session, actor, preset_id: str) -> None:
     """Borra un preset propio. Los globales no se borran: se sobrescriben."""
     fila = preset_propio_o_global(db, actor, preset_id)
     if fila.organization_id is None:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400, "Global presets cannot be deleted; override per-org instead.")
     db.delete(fila)
     db.commit()

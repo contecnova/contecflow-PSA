@@ -490,7 +490,7 @@ function ShortcutsModal({ onClose, text }: { onClose: () => void; text: Record<s
         <div className="shortcuts-grid">
           {SHORTCUTS.map((s, i) => (
             <div key={i} className="shortcut-row">
-              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{text[s.labelKey]}</span>
+              <span className="u-text2-sm">{text[s.labelKey]}</span>
               <div style={{ display: 'flex', gap: 4 }}>
                 {s.keys.map((k, j) => <span key={j} className="kbd">{k}</span>)}
               </div>
@@ -703,7 +703,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
         onMouseLeave={e => { e.currentTarget.style.color = isAnyChildActive ? 'var(--accent)' : 'var(--text-3)' }}
       >
         <span style={{ opacity: 0.75, display: 'flex', alignItems: 'center' }}>{group.icon}</span>
-        <span style={{ flex: 1 }}>{groupLabel}</span>
+        <span className="u-flex1">{groupLabel}</span>
         {!open && realVisible.length > 0 && (
           <span style={{ fontSize: "var(--text-3xs)", background: 'var(--surface-4)', color: 'var(--text-4)',
             borderRadius: 8, padding: '1px 5px', fontWeight: 600, flexShrink: 0 }}>{realVisible.length}</span>
@@ -862,7 +862,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
   })
 
   const topbarProjectLabel = activeTimer?.project_name || timerProject?.name || (activeTimer?.project_id ? `Proyecto #${activeTimer.project_id}` : null)
-  const topbarTaskLabel = activeTimer?.task_name || timerTask?.title || (timerTask as any)?.name || (activeTimer?.task_id ? `Tarea #${activeTimer.task_id}` : null)
+  const topbarTaskLabel = activeTimer?.task_name || timerTask?.title || (activeTimer?.task_id ? `Tarea #${activeTimer.task_id}` : null)
   const topbarTimerSubtitle = topbarTaskLabel ? `${topbarProjectLabel} · ${topbarTaskLabel}` : topbarProjectLabel
 
   const breadcrumbs = useMemo(() => {
@@ -918,7 +918,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
 
   return (
     <div className="app-topbar" role="banner">
-      <Breadcrumbs items={breadcrumbs as any} />
+      <Breadcrumbs items={breadcrumbs} />
       <div className="app-topbar-center">
         <button onClick={onSearchOpen} title={text.global_search_title}
           aria-label={text.open_global_search}
@@ -930,7 +930,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           }}
         >
           <Search size={12} />
-          <span className="app-topbar-texto" style={{ flex: 1 }}>{text.search_placeholder}</span>
+          <span className="app-topbar-texto u-flex1">{text.search_placeholder}</span>
           <span className="app-topbar-texto" style={{ fontSize: "var(--text-2xs)", background: 'var(--surface-4)', borderRadius: 4,
             padding: '1px 4px', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>⌘K</span>
         </button>
@@ -943,7 +943,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 30, height: 30,
             background: 'var(--accent)', border: 'none',
-            borderRadius: 8, color: '#fff', cursor: 'pointer',
+            borderRadius: 8, color: 'var(--on-accent-light)', cursor: 'pointer',
             fontWeight: 700, fontSize: "var(--text-lg-em)", lineHeight: 1,
           }}
           onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
@@ -1000,7 +1000,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
             <span style={{
               position: 'absolute', top: -5, right: -5,
               minWidth: 16, height: 16, borderRadius: 999,
-              background: 'var(--danger)', color: '#fff',
+              background: 'var(--danger)', color: 'var(--on-accent-light)',
               fontSize: "var(--text-3xs)", fontWeight: 800,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               padding: '0 4px',
@@ -1358,10 +1358,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       {suplantadoPor && (
         <div role="alert" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 2000,
           display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '6px 12px',
-          background: 'var(--warning)', color: '#111', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+          background: 'var(--warning)', color: 'var(--on-accent-dark)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
           <span>Estás dentro como {user?.full_name ?? user?.email} (soporte: {suplantadoPor}). Todo queda auditado.</span>
           <button type="button" onClick={() => { void salirDeSuplantacion() }}
-            style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ background: 'var(--on-accent-dark)', color: 'var(--on-accent-light)', border: 'none', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
             Salir
           </button>
         </div>

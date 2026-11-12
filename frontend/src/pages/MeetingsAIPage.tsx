@@ -114,7 +114,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal open title={t('meetings_ai.process_title')} onClose={onClose} width={700}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('meetings_ai.title_label')}</label>
           <input value={form.title} onChange={s('title')} style={fs} placeholder={t('meetings_ai.title_placeholder')} />
         </div>
@@ -131,12 +131,12 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
           <input type="number" value={form.duration_minutes} onChange={s('duration_minutes')} style={fs} placeholder={t('meetings_ai.duration_placeholder')} />
         </div>
 
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('meetings_ai.participants_label')}</label>
           <input value={form.participants} onChange={s('participants')} style={fs} placeholder={t('meetings_ai.participants_placeholder')} />
         </div>
 
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
             <label style={{ ...ls, marginBottom: 0 }}>{t('meetings_ai.transcript_label')}</label>
             <button onClick={() => setForm(f => ({ ...f, transcript: DEMO_TRANSCRIPT, title: f.title || t('meetings_ai.demo_title'), participants: t('meetings_ai.demo_participants') }))}
@@ -208,7 +208,7 @@ export default function MeetingsAIPage() {
               <span style={{ fontSize: "var(--text-2xl)" }}>{k.icon}</span>
               <div>
                 <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{k.label}</div>
+                <div className="u-text2-xs">{k.label}</div>
               </div>
             </div>
           ))}
@@ -217,7 +217,7 @@ export default function MeetingsAIPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)', gap: 20 }}>
         {/* List */}
-        <div style={{ minWidth: 0 }}>
+        <div className="u-min0">
           {isLoading ? <Spinner /> : meetings.length === 0 ? (
             <div style={{ ...card, padding: 32, textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>🎙</div>
@@ -232,16 +232,16 @@ export default function MeetingsAIPage() {
                 style={{ ...card, padding: '14px 16px', marginBottom: 10, cursor: 'pointer', borderColor: selected === m.id ? 'var(--accent)' : 'var(--surface-4)', background: selected === m.id ? 'var(--accent-muted)' : 'var(--surface-2)', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
                   <span style={{ fontSize: "var(--text-lg-em)" }}>{plat.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{m.meeting_date?.slice(0, 10) || m.created_at?.slice(0, 10)}</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div className="u-wrap-8">
                   <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 12, background: m.status === 'done' ? 'var(--success-bg)' : 'var(--warning-bg)', color: m.status === 'done' ? 'var(--success)' : 'var(--warning)', fontWeight: 600 }}>
                     {m.status === 'done' ? _t('meetings_ai.status_done') : _t('meetings_ai.status_processing')}
                   </span>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{(m.actions_count || 0)} {_t('meetings_ai.actions_label')}</span>
+                  <span className="u-text2-xs">{(m.actions_count || 0)} {_t('meetings_ai.actions_label')}</span>
                   {(m.created_actions || 0) > 0 && (
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>{m.created_actions} {_t('meetings_ai.created_label')}</span>
                   )}
@@ -252,12 +252,12 @@ export default function MeetingsAIPage() {
         </div>
 
         {/* Detail */}
-        <div style={{ minWidth: 0 }}>
+        <div className="u-min0">
           {!selected ? (
             <div style={{ ...card, padding: 48, textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🎙</div>
               <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.select_title')}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{_t('meetings_ai.select_desc')}</div>
+              <div className="u-text2-sm">{_t('meetings_ai.select_desc')}</div>
             </div>
           ) : !detail ? <Spinner /> : (
             <div>
@@ -309,9 +309,9 @@ export default function MeetingsAIPage() {
                   </div>
                   {(detail.actions ?? []).map(a => (
                     <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'flex-start', gap: 12 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{a.description}</div>
-                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                        <div className="u-text2-xs">
                           {a.assignee_name && `👤 ${a.assignee_name}`}
                           {a.due_date_text && ` · 📅 ${a.due_date_text}`}
                           {a.priority && ` · ${a.priority}`}

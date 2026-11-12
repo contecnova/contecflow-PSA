@@ -10,7 +10,7 @@ import secrets
 import urllib.parse
 import urllib.request
 
-from app.core.outbound_url import validate_outbound_url
+from app.core.outbound_url import abrir, validate_outbound_url
 from app.core.ratelimit import limiter
 import json as _json
 import hmac as _hmac
@@ -31,6 +31,7 @@ from app.services.auth_service import (
     validate_https_discovery_url as _validate_https_discovery_url,
     set_auth_cookies as _set_auth_cookies,
 )
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -53,7 +54,7 @@ def _descubrimiento(config) -> dict:
         raise HTTPException(400, "Falta oidc_discovery_url")
     url = _validate_https_discovery_url(config.oidc_discovery_url)
     try:
-        with urllib.request.urlopen(url, timeout=_timeout()) as resp:  # noqa: S310
+        with abrir(url, timeout=_timeout()) as resp:  # noqa: S310
             return _json.loads(resp.read())
     except _json.JSONDecodeError as exc:
         logger.warning("SSO: discovery JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
@@ -195,7 +196,7 @@ def sso_authorize(
         }
         url = auth_url + "?" + urllib.parse.urlencode(params)
         return {"authorization_url": url, "state": state, "provider": config.provider}
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception as e:
         logger.error("SSO authorize error: %s", e, exc_info=True)
@@ -312,7 +313,7 @@ def _intercambiar_codigo_por_tokens(config, code: str, redirect_uri: str, code_v
     req = urllib.request.Request(validate_outbound_url(token_url, field="token_url"), data=token_data,  # noqa: S310
                                  headers={"Content-Type": "application/x-www-form-urlencoded"})
     try:
-        with urllib.request.urlopen(req, timeout=_timeout()) as resp:  # noqa: S310
+        with abrir(req, timeout=_timeout()) as resp:  # noqa: S310
             tokens = _json.loads(resp.read())
     except _json.JSONDecodeError as exc:
         logger.warning("SSO callback: token response JSON inválido url=%r: %s", _safe_url(token_url), exc)
@@ -399,7 +400,7 @@ def _validar_id_token_y_extraer_identidad(
             options={"verify_exp": True, "verify_iss": verificar_iss, "require": ["exp", "iat"]},
         )
     # intentional: chained re-raise preserves context
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception as jwt_err:
         logger.warning("SSO callback id_token verification failed for config=%s", config_id, exc_info=True)
@@ -497,7 +498,7 @@ def sso_callback(
             },
         }
 
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception as e:
         logger.error("SSO callback error: %s", e, exc_info=True)

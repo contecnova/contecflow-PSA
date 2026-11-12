@@ -1,12 +1,12 @@
 import { PROVIDER_META } from '../constants/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo } from '../utils/helpers'
-import { Fragment, useId, useState } from 'react'
+import { Fragment, useId, useState, type ChangeEvent } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { predictiveObservabilityApi, aiProvidersApi } from '../services/api'
+import { predictiveObservabilityApi, aiProvidersApi, aiGovernanceApi, apiUrl } from '../services/api'
 import { PROVIDER_DOCS } from '../constants/api'
-import { Button, Spinner, Modal, Tabs, Page } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, Page, Drawer } from '../components/ui'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { Cpu, X, Search, Plus, Activity } from 'lucide-react'
 import { alpha } from '../constants/theme'
@@ -21,19 +21,83 @@ const getStatusCfg = (t: (k: string) => string): Record<string, { label: string;
   error:    { label: t('ai.provider_status_error'), color: 'var(--danger)' },
 })
 
+/** Proveedor tal como lo devuelve `_out` (app/api/v1/endpoints/ai_providers.py); `source: 'env'` es el del `.env`. */
+interface AiProvider {
+  id: string
+  source?: 'env'
+  name: string
+  provider: string
+  status: string
+  is_default: boolean
+  default_model?: string | null
+  available_models: string[]
+  api_base_url?: string | null
+  has_api_key: boolean
+  max_tokens?: number | null
+  temperature?: number | null
+  priority?: number | null
+  total_requests: number
+  total_cost_usd: number
+  last_error?: string | null
+}
+
+interface CatalogModel { id: string; name: string; cost_in: number; cost_out: number }
+interface CatalogEntry { name?: string; models?: CatalogModel[]; base_url?: string; key_hint?: string; docs_url?: string }
+type ProviderCatalog = Record<string, CatalogEntry>
+
+interface ProviderForm {
+  name: string
+  provider: string
+  api_key: string
+  api_base_url: string
+  default_model: string
+  max_tokens: number
+  temperature: number
+  is_default: boolean
+  priority: number
+}
+
+interface ModuleUsage { module: string; calls?: number; tokens?: number; cost?: number }
+interface AiStats { providers?: unknown[]; total_requests?: number; total_cost?: number; by_module?: ModuleUsage[] }
+
+interface DiagProvider {
+  id: string
+  name: string
+  provider_type?: string
+  status: string
+  latency_ms?: number | null
+  models_found?: number
+  error?: string | null
+}
+interface Diagnostics { healthy?: number; total?: number; error?: number; warning?: number; providers?: DiagProvider[] }
+
+interface AiPolicy { id: string; name: string; is_active?: boolean; scope?: string; action?: string; applies_to_roles?: string[] }
+interface AiAuditEntry {
+  id: string
+  evaluated_at?: string | null
+  module?: string | null
+  scope?: string
+  was_blocked?: boolean
+  action_taken?: string | null
+  pii_types_found?: string[]
+}
+
+/** Detalle de error de FastAPI cuando es una lista de validación. */
+interface ValidationDetail { msg?: string }
+
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
 const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
-function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog: any; onClose: () => void }) {
+function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiProvider> | null; catalog: ProviderCatalog; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!provider?.id
   const [providerType, setProviderType] = useState(provider?.provider || 'anthropic')
-  const [liveModels, setLiveModels] = useState<any[]>(provider?.available_models || [])
-  const [form, setForm] = useState({
+  const [liveModels, setLiveModels] = useState<string[]>(provider?.available_models || [])
+  const [form, setForm] = useState<ProviderForm>({
     name: provider?.name || '',
     provider: provider?.provider || 'anthropic',
     api_key: '',
@@ -65,19 +129,20 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
     } catch (e) { toast.error(extractErr(e, 'No se pudieron obtener los modelos')) }
     finally { setDescubriendo(false) }
   }
-  const s = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
+  // Los campos numéricos guardan el texto del input, como siempre: el backend lo convierte.
+  const s = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
 
-  const catEntry = catalog[providerType] || {}
+  const catEntry: CatalogEntry = catalog[providerType] || {}
   const catalogModels = catEntry.models || []
-  const models = liveModels.length > 0
-    ? liveModels.map((id: any) => {
-      const known = catalogModels.find((m: any) => m.id === id)
+  const models: CatalogModel[] = liveModels.length > 0
+    ? liveModels.map(id => {
+      const known = catalogModels.find(m => m.id === id)
       return known || { id, name: id, cost_in: 0, cost_out: 0 }
     })
     : catalogModels
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: any) => isEdit ? aiProvidersApi.update(provider.id, d) : aiProvidersApi.create(d),
+    mutationFn: (d: ProviderForm) => isEdit ? aiProvidersApi.update(provider.id, d) : aiProvidersApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-providers'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.save_error'))),
   })
@@ -96,10 +161,10 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
     onError: e => toast.error(extractErr(e, 'No se pudieron sincronizar modelos del proveedor')),
   })
 
-  const handleProviderChange = (type: any) => {
+  const handleProviderChange = (type: string) => {
     setProviderType(type)
     setLiveModels([])
-    const cat = catalog[type] || {}
+    const cat: CatalogEntry = catalog[type] || {}
     setForm(f => ({
       ...f,
       provider: type,
@@ -112,15 +177,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
   const title = isEdit ? `${t('ai.edit_provider')} — ${provider.name}` : t('ai.add_provider')
 
   return (
-    <>
-      <div role="presentation" onMouseDown={onClose}
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)' }} />
-      <div role="dialog" aria-modal="true" aria-label={title}
-        style={{ position: 'fixed', top: 12, right: 12, width: 640, maxWidth: 'calc(100vw - 24px)',
-          maxHeight: 'calc(100vh - 24px)',
-          background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12,
-          zIndex: 201, display: 'flex', flexDirection: 'column',
-          boxShadow: '-8px 0 32px rgba(0,0,0,0.4)' }}>
+    <Drawer onClose={onClose} ariaLabel={title} width={640} zIndex={200}>
         {/* Drawer header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 20px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
@@ -135,7 +192,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
       <form onSubmit={e => { e.preventDefault(); mutate(form) }}>
       {/* Selector de proveedor */}
       {!isEdit && (
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           <label style={ls}>{t('ai.provider')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {Object.entries(PMETA).map(([key, meta]) => (
@@ -150,13 +207,13 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-name`} style={ls}>{t('ai.config_name')} *</label>
           <input id={`${idPrefix}-name`} value={form.name} onChange={s('name')} style={fs} placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} />
         </div>
 
         {providerType !== 'ollama' && (
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="u-col-full">
             <label htmlFor={`${idPrefix}-api-key`} style={ls}>
               API Key {catEntry.key_hint && <span style={{ color: 'var(--text-3)', fontWeight: 400, textTransform: 'none' }}>({catEntry.key_hint})</span>}
             </label>
@@ -172,7 +229,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
         )}
 
         {(providerType === 'ollama' || providerType === 'azure') && (
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="u-col-full">
             <label htmlFor={`${idPrefix}-api-base-url`} style={ls}>{t('ai.base_url')} {providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</label>
             <input id={`${idPrefix}-api-base-url`} value={form.api_base_url} onChange={s('api_base_url')} style={fs}
               placeholder={catEntry.base_url || 'https://...'} />
@@ -185,7 +242,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
             <>
               <select
                 id={`${idPrefix}-default-model`}
-                value={models.some((m: any) => m.id === form.default_model) ? form.default_model : '__custom__'}
+                value={models.some(m => m.id === form.default_model) ? form.default_model : '__custom__'}
                 onChange={e => {
                   if (e.target.value === '__custom__') {
                     setForm(f => ({ ...f, default_model: '' }))
@@ -196,14 +253,14 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
                 style={fs}
               >
                 <option value="">{t('ai.select_option')}</option>
-                {models.map((m: any) => (
+                {models.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.name} {m.cost_in > 0 ? `· $${m.cost_in}/M in` : '· Gratis'}
                   </option>
                 ))}
                 <option value="__custom__">✏️ {t('ai.custom_model')}</option>
               </select>
-              {!models.some((m: any) => m.id === form.default_model) && (
+              {!models.some(m => m.id === form.default_model) && (
                 <input
                   aria-label={t('ai.custom_model_id')}
                   value={form.default_model}
@@ -268,9 +325,9 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
         <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--text-1)' }}>{t('ai.available_models')}:</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
-            {models.map((m: any) => (
+            {models.map(m => (
               <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-2)' }}>{m.name}</span>
+                <span className="u-text2">{m.name}</span>
                 <span style={{ color: m.cost_in === 0 ? 'var(--success)' : 'var(--warning)' }}>
                   {m.cost_in === 0 ? t('ai.free') : `$${m.cost_in}/${m.cost_out}`}
                 </span>
@@ -294,12 +351,11 @@ function ProviderModal({ provider, catalog, onClose }: { provider: any; catalog:
             {isPending ? t('common.saving') : isEdit ? t('ai.save_changes') : t('ai.add_provider_action')}
           </Button>
         </div>
-      </div>
-    </>
+    </Drawer>
   )
 }
 
-function TestModal({ provider, onClose }: { provider: any; onClose: () => void }) {
+function TestModal({ provider, onClose }: { provider: AiProvider; onClose: () => void }) {
   const t = useAppT()
   const [result, setResult] = useState<{ ok?: boolean; error?: string; response?: string; latency_ms?: number; model?: string } | null>(null)
   const [testing, setTesting] = useState(false)
@@ -313,7 +369,7 @@ function TestModal({ provider, onClose }: { provider: any; onClose: () => void }
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: unknown } }; message?: string }
       const raw = err?.response?.data?.detail
-      setResult({ ok: false, error: Array.isArray(raw) ? raw.map((d: any) => d.msg).join(', ') : ((raw as string) || err.message) })
+      setResult({ ok: false, error: Array.isArray(raw) ? raw.map((d: ValidationDetail) => d.msg).join(', ') : ((raw as string) || err.message) })
     } finally {
       setTesting(false)
     }
@@ -333,7 +389,7 @@ function TestModal({ provider, onClose }: { provider: any; onClose: () => void }
           {result.ok ? (
             <>
               <div style={{ color: 'var(--success)', fontWeight: 700, marginBottom: 8 }}>✅ {t('ai.test_success')}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('ai.test_response')}: &quot;{result.response}&quot;</div>
+              <div className="u-text2-sm">{t('ai.test_response')}: &quot;{result.response}&quot;</div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{t('ai.test_latency_model')}: {result.latency_ms}ms · {result.model}</div>
             </>
           ) : (
@@ -356,27 +412,22 @@ function GovernanceTab() {
   const traducir = useAppT()
   // Read-only viewer del audit log + stats. El CRUD de policies se gestiona
   // vía API directa hasta que se complete la UI dedicada (decisión ARCH).
-  // #45: converted fetch() → useQuery (read-only GETs, no side-effects).
+  // Por el cliente API (refresco de sesión y desenvoltorio {data,meta}/{items,meta}).
+  // Si falla se pinta vacío, como antes.
   // TODO: añadir queryKeys.aiGovernance.* en constants/queryKeys.js
-  const { data: policiesRaw = [], isLoading: loadingPolicies } = useQuery({
+  const { data: policiesRaw = [], isLoading: loadingPolicies } = useQuery<AiPolicy[] | { items?: AiPolicy[] }>({
     queryKey: ['ai-governance', 'policies'],
-    queryFn: () => fetch('/api/v1/ai-governance/policies', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : []),
+    queryFn: () => aiGovernanceApi.policies().then(r => r.data).catch(() => []),
     staleTime: 60_000,
   })
-  const { data: auditLogRaw = [], isLoading: loadingAudit } = useQuery({
+  const { data: auditLogRaw = [], isLoading: loadingAudit } = useQuery<AiAuditEntry[] | { items?: AiAuditEntry[] }>({
     queryKey: ['ai-governance', 'audit-log', { limit: 50 }],
-    queryFn: () => fetch('/api/v1/ai-governance/audit-log?limit=50', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : []),
+    queryFn: () => aiGovernanceApi.auditLog({ limit: 50 }).then(r => r.data).catch(() => []),
     staleTime: 30_000,
   })
   const { data: stats = null, isLoading: loadingStats } = useQuery({
     queryKey: ['ai-governance', 'audit-log-stats'],
-    queryFn: () => fetch('/api/v1/ai-governance/audit-log/stats', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      // Envelope canónico: estos bare-fetch no pasan por el interceptor de axios,
-      // así que desenvolvemos {data,meta} → data aquí.
-      .then(j => (j && typeof j === 'object' && 'data' in j && 'meta' in j) ? j.data : j),
+    queryFn: () => aiGovernanceApi.auditLogStats().then(r => r.data).catch(() => null),
     staleTime: 60_000,
   })
 
@@ -401,7 +452,7 @@ function GovernanceTab() {
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px' }}>
               <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: k.color }}>{k.value}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{k.label}</div>
+              <div className="u-text2-xs">{k.label}</div>
             </div>
           ))}
         </div>
@@ -411,8 +462,8 @@ function GovernanceTab() {
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontWeight: 700 }}>{traducir('aihub.politicas_configuradas')}{policies.length})</div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-            CRUD via <code>POST /api/v1/ai-governance/policies</code> · UI completa pendiente
+          <div className="u-text3-xs">
+            CRUD via <code>POST {apiUrl('/ai-governance/policies')}</code> · UI completa pendiente
           </div>
         </div>
         {policies.length === 0 ? (
@@ -421,7 +472,7 @@ function GovernanceTab() {
           </div>
         ) : (
           <div style={{ maxHeight: 240, overflowY: 'auto' }}>
-            {policies.map((p: any) => (
+            {policies.map(p => (
               <div key={p.id} style={{ padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 600 }}>{p.name}</span>
@@ -447,7 +498,7 @@ function GovernanceTab() {
           <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>{traducir('aihub.sin_actividad_reciente')}</div>
         ) : (
           <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-            {auditLog.map((l: any) => (
+            {auditLog.map(l => (
               <div key={l.id} style={{ padding: '8px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-xs)', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
                 <span style={{ minWidth: 100, color: 'var(--text-3)' }}>{(l.evaluated_at || '').slice(0, 16)}</span>
                 <span style={{ minWidth: 80, fontWeight: 600 }}>{l.module || '—'}</span>
@@ -456,7 +507,7 @@ function GovernanceTab() {
                   {l.action_taken || 'none'}
                 </span>
                 {(l.pii_types_found || []).length > 0 && (
-                  <span style={{ color: 'var(--warning)' }}>PII: {l.pii_types_found.join(',')}</span>
+                  <span className="u-warning">PII: {l.pii_types_found.join(',')}</span>
                 )}
               </div>
             ))}
@@ -475,27 +526,28 @@ export default function AIHubPage(): JSX.Element {
   const statusCfg = getStatusCfg(t)
   const toast = useToast()
   const qc = useQueryClient()
-  const [modal, setModal] = useState<any>(null)
-  const [testModal, setTestModal] = useState<any>(null)
+  // `{}` abre el alta; un proveedor abre la edición.
+  const [modal, setModal] = useState<Partial<AiProvider> | null>(null)
+  const [testModal, setTestModal] = useState<AiProvider | null>(null)
   const [tab, setTab] = useState('providers')
-  const [diagResults, setDiagResults] = useState<any>(null)
+  const [diagResults, setDiagResults] = useState<Diagnostics | null>(null)
 
   const { mutate: importarEntorno } = useMutation({
     mutationFn: () => aiProvidersApi.importEnv(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-providers'] }); toast.success('Importado: ya se puede editar') },
     onError: e => toast.error(extractErr(e, 'No se pudo importar')),
   })
-  const { data: providers = [], isLoading } = useQuery({
+  const { data: providers = [], isLoading } = useQuery<AiProvider[]>({
     queryKey: ['ai-providers'],
     queryFn: () => aiProvidersApi.list().then(r => r.data),
     select: d => (Array.isArray(d) ? d : []),
   })
-  const { data: catalog = {} } = useQuery({
+  const { data: catalog = {} } = useQuery<ProviderCatalog>({
     queryKey: ['ai-providers-catalog'],
     queryFn: () => aiProvidersApi.catalog().then(r => r.data),
     staleTime: Infinity,
   })
-  const { data: stats = {} } = useQuery({
+  const { data: stats = {} } = useQuery<AiStats>({
     queryKey: ['ai-stats'],
     queryFn: () => aiProvidersApi.stats().then(r => r.data),
     enabled: tab === 'stats',
@@ -513,19 +565,19 @@ export default function AIHubPage(): JSX.Element {
   })
 
   const { mutate: setDefault } = useMutation({
-    mutationFn: (id: any) => aiProvidersApi.setDefault(id),
+    mutationFn: (id: string) => aiProvidersApi.setDefault(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-providers'] }),
     onError: e => toast.error(extractErr(e, t('ai.reset_error'))),
   })
   const { mutate: del } = useMutation({
-    mutationFn: (id: any) => aiProvidersApi.delete(id),
+    mutationFn: (id: string) => aiProvidersApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-providers'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const { mutate: diagnoseAll, isPending: diagnosing } = useMutation({
     mutationFn: () => aiProvidersApi.diagnostics().then(r => r.data),
-    onSuccess: (data) => {
+    onSuccess: (data: Diagnostics) => {
       setDiagResults(data)
       const healthy = Number(data?.healthy || 0)
       const total = Number(data?.total || 0)
@@ -553,7 +605,7 @@ export default function AIHubPage(): JSX.Element {
     onError: e => toast.error(extractErr(e, 'No se pudieron sincronizar los modelos de los proveedores')),
   })
 
-  const defaultProvider = providers.find((p: any) => p.is_default)
+  const defaultProvider = providers.find(p => p.is_default)
   const byModule = stats.by_module || []
   const moneyFmt = new Intl.NumberFormat(localeActivo(lang), { style: 'currency', currency: 'USD', minimumFractionDigits: 4, maximumFractionDigits: 4 })
   const intFmt = new Intl.NumberFormat(localeActivo(lang))
@@ -615,18 +667,18 @@ export default function AIHubPage(): JSX.Element {
           {diagResults && (
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: diagResults.error > 0 ? 'var(--danger)' : diagResults.warning > 0 ? 'var(--warning)' : 'var(--success)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>
+                <div className="u-md-700">
                   {traducir('aihub.diagnostico')} {diagResults.healthy}/{diagResults.total} operativos
                 </div>
                 <button onClick={() => setDiagResults(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: "var(--text-lg)" }}>✕</button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(diagResults.providers || []).map((pr: any) => {
+              <div className="u-stack-8">
+                {(diagResults.providers || []).map(pr => {
                   const dotKind = pr.status === 'ok' ? 'success' : pr.status === 'warning' ? 'warning' : 'danger'
                   return (
                     <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: "var(--text-base)" }}>
                       <span className={`ds-status-dot ds-status-dot--${dotKind}`} style={{ marginTop: 7, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <span style={{ fontWeight: 600 }}>{pr.name}</span>
                         <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.provider_type}</span>
                         {pr.latency_ms != null && (
@@ -651,10 +703,10 @@ export default function AIHubPage(): JSX.Element {
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: alpha(PMETA[defaultProvider.provider]?.color, '50') || 'var(--surface-4)', background: alpha(PMETA[defaultProvider.provider]?.color, '08') || 'var(--surface-2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: "var(--text-3xl)" }}>{PMETA[defaultProvider.provider]?.icon}</span>
-                <div style={{ minWidth: 0 }}>
+                <div className="u-min0">
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('ai.provider_active_default')}</div>
                   <div style={{ fontSize: "var(--text-lg)", fontWeight: 800 }}>{defaultProvider.name}</div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('ai.model_label')}: {defaultProvider.default_model} · {intFmt.format(defaultProvider.total_requests || 0)} {t('ai.requests').toLowerCase()} · {moneyFmt.format(defaultProvider.total_cost_usd || 0)} {t('ai.spent')}</div>
+                  <div className="u-text2-sm">{t('ai.model_label')}: {defaultProvider.default_model} · {intFmt.format(defaultProvider.total_requests || 0)} {t('ai.requests').toLowerCase()} · {moneyFmt.format(defaultProvider.total_cost_usd || 0)} {t('ai.spent')}</div>
                 </div>
               </div>
             </div>
@@ -671,7 +723,7 @@ export default function AIHubPage(): JSX.Element {
             </div>
           ) : (
             <div data-export-table="ai-providers-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
-              {providers.map((p: any) => {
+              {providers.map(p => {
                 const meta: { name?: string; icon: string; color: string } = PMETA[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
                 const st   = statusCfg[p.status] || statusCfg.inactive
                 return (
@@ -682,8 +734,8 @@ export default function AIHubPage(): JSX.Element {
                           {meta.icon}
                         </div>
                         <div>
-                          <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.name}</div>
-                          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{meta.name} · {p.default_model || t('ai.model_none')}</div>
+                          <div className="u-md-700">{p.name}</div>
+                          <div className="u-text2-xs">{meta.name} · {p.default_model || t('ai.model_none')}</div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -699,11 +751,11 @@ export default function AIHubPage(): JSX.Element {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
-                      <div><span style={{ color: 'var(--text-2)' }}>{t('ai.requests')}:</span> <strong>{p.total_requests}</strong></div>
-                      <div><span style={{ color: 'var(--text-2)' }}>{t('ai.total_cost')}:</span> <strong style={{ color: 'var(--warning)' }}>${Number(p.total_cost_usd || 0).toFixed(4)}</strong></div>
+                      <div><span className="u-text2">{t('ai.requests')}:</span> <strong>{p.total_requests}</strong></div>
+                      <div><span className="u-text2">{t('ai.total_cost')}:</span> <strong className="u-warning">${Number(p.total_cost_usd || 0).toFixed(4)}</strong></div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <div className="u-wrap-6">
                       <button aria-label={`${t('ai.provider_test_aria')} ${p.name}`} onClick={() => setTestModal(p)}
                         style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         🔌 {t('ai.provider_test_action')}
@@ -752,7 +804,7 @@ export default function AIHubPage(): JSX.Element {
               <div key={k.label} style={{ ...card, padding: '18px 20px' }}>
                 <div style={{ fontSize: "var(--text-2xl)", marginBottom: 8 }}>{k.icon}</div>
                 <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{k.label}</div>
+                <div className="u-text2-sm">{k.label}</div>
               </div>
             ))}
           </div>
@@ -760,13 +812,13 @@ export default function AIHubPage(): JSX.Element {
           {byModule.length > 0 && (
             <div style={card}>
               <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: "var(--text-md)" }}>{t('ai.module_usage')}</div>
-              {byModule.map((r: any) => (
+              {byModule.map(r => (
                 <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, fontSize: "var(--text-base)" }}>
                   <span style={{ fontWeight: 600 }}>{r.module}</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, color: 'var(--text-2)' }}>
                     <span>{r.calls} {t('ai.calls')}</span>
                     <span>{intFmt.format(r.tokens || 0)} {t('ai.tokens_label')}</span>
-                    <span style={{ color: 'var(--warning)' }}>{moneyFmt.format(r.cost || 0)}</span>
+                    <span className="u-warning">{moneyFmt.format(r.cost || 0)}</span>
                   </div>
                 </div>
               ))}
@@ -777,9 +829,9 @@ export default function AIHubPage(): JSX.Element {
 
       {/* OBSERVABILITY TAB */}
       {tab === 'observability' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="u-stack-16">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{traducir('aihub.estado_de_salud_de_los_modelos_predictivos')}</div>
+            <div className="u-text2-base">{traducir('aihub.estado_de_salud_de_los_modelos_predictivos')}</div>
             <Button onClick={() => triggerRetrain()} disabled={retraining}>
               {retraining ? '⏳ Reentrenando...' : '▶ Forzar reentrenamiento'}
             </Button>
@@ -808,7 +860,7 @@ export default function AIHubPage(): JSX.Element {
                     {data.score != null && (
                       <div style={{ marginBottom: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: "var(--text-sm)" }}>
-                          <span style={{ color: 'var(--text-2)' }}>{traducir('aihub.score_de_salud')}</span>
+                          <span className="u-text2">{traducir('aihub.score_de_salud')}</span>
                           <span style={{ fontWeight: 700, color: statusColor }}>{(data.score * 100).toFixed(0)}%</span>
                         </div>
                         <div style={{ height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
@@ -821,31 +873,31 @@ export default function AIHubPage(): JSX.Element {
                           existen; la API da samples, severity_accuracy y mae_minutes. */}
                       {(data.samples ?? data.total_predictions) != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-3)' }}>Predicciones</span>
+                          <span className="u-text3">Predicciones</span>
                           <span>{data.samples ?? data.total_predictions}</span>
                         </div>
                       )}
                       {(data.severity_accuracy ?? data.accuracy) != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-3)' }}>{traducir('aihub.precision')}</span>
+                          <span className="u-text3">{traducir('aihub.precision')}</span>
                           <span>{((data.severity_accuracy ?? data.accuracy) * 100).toFixed(1)}%</span>
                         </div>
                       )}
                       {data.mae_minutes != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-3)' }}>MAE</span>
+                          <span className="u-text3">MAE</span>
                           <span>{data.mae_minutes} min</span>
                         </div>
                       )}
                       {data.status && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-3)' }}>Estado</span>
+                          <span className="u-text3">Estado</span>
                           <span>{data.status}</span>
                         </div>
                       )}
                       {data.drift_detected != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-3)' }}>Drift detectado</span>
+                          <span className="u-text3">Drift detectado</span>
                           <span style={{ color: data.drift_detected ? 'var(--warning)' : 'var(--success)' }}>
                             {data.drift_detected ? '⚠ Sí' : '✓ No'}
                           </span>
@@ -869,7 +921,7 @@ export default function AIHubPage(): JSX.Element {
                 {obsHealth.overall_status === 'healthy' ? '✅' : obsHealth.overall_status === 'attention' ? '⚠️' : '❓'}
               </div>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Estado global: {obsHealth.overall_status}</div>
+                <div className="u-base-600">Estado global: {obsHealth.overall_status}</div>
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
                   Score combinado: {obsHealth.overall_score != null ? `${(obsHealth.overall_score * 100).toFixed(0)}%` : '—'}
                 </div>
@@ -896,7 +948,7 @@ export default function AIHubPage(): JSX.Element {
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                 <span style={{ fontSize: "var(--text-2xl)" }}>{p.icon}</span>
                 <div>
-                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.title}</div>
+                  <div className="u-md-700">{p.title}</div>
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4, lineHeight: 1.5 }}>{p.desc}</div>
                 </div>
               </div>
@@ -923,7 +975,7 @@ export default function AIHubPage(): JSX.Element {
 
 
 /** Proveedor y modelo por función (revisión 2026-11, de contecmind). Vacío = el proveedor por defecto. */
-function RoutingTab({ providers }: { providers: any[] }) {
+function RoutingTab({ providers }: { providers: AiProvider[] }) {
   const isNarrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
   const toast = useToast()
@@ -946,14 +998,14 @@ function RoutingTab({ providers }: { providers: any[] }) {
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr) minmax(0, 1fr)' : 'minmax(220px, 1.4fr) 1fr 1fr', gap: 8, alignItems: 'center' }}>
         {(data?.modules || []).map((m: { key: string; label: string }) => {
           const ruta = actuales[m.key] || {}
-          const prov = providers.find((p: any) => p.id === ruta.provider_id)
+          const prov = providers.find(p => p.id === ruta.provider_id)
           const lista = `modelos-${m.key}`
           return (
             <Fragment key={m.key}>
               <label htmlFor={`ruta-${m.key}`} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', ...(isNarrow ? { gridColumn: '1 / -1', marginTop: 6 } : {}) }}>{m.label}</label>
               <select id={`ruta-${m.key}`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} style={fs}>
                 <option value="">Por defecto</option>
-                {providers.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <input aria-label={`Modelo para ${m.label}`} list={lista} value={ruta.model || ''}
                 placeholder={prov?.default_model || 'Modelo por defecto'} onChange={e => cambiar(m.key, 'model', e.target.value)} style={fs} />
@@ -977,7 +1029,7 @@ function GastoDeHoy() {
   const t = useAppT()
   const { data } = useQuery<{ spent_usd: number; budget_usd: number; warn_pct: number; used_pct: number | null; blocked: boolean }>({
     queryKey: ['ai-spend-today'],
-    queryFn: () => aiProvidersApi.spendToday().then((r: any) => r.data),
+    queryFn: () => aiProvidersApi.spendToday().then(r => r.data),
     refetchInterval: 60000,
   })
   if (!data) return null

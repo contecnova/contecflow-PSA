@@ -17,11 +17,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import HTTPException
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ def create_embed_token(
         {"token": str, "expires_at": iso8601, "dashboard_id": str}
     """
     if ttl_minutes < 1 or ttl_minutes > 10080:  # max 1 week
-        raise HTTPException(400, "ttl_minutes debe estar entre 1 y 10080")
+        raise ErrorDeDominio(400, "ttl_minutes debe estar entre 1 y 10080")
 
     now = datetime.now(tz=timezone.utc)
     exp = now + timedelta(minutes=ttl_minutes)
@@ -114,10 +114,10 @@ def validate_embed_token(db: Session, org_id: str, token: str) -> dict:
         claims = jwt.decode(token, _embed_secret(org_id), algorithms=[_EMBED_ALGO])
     # intentional: chained re-raise preserves context
     except JWTError as exc:
-        raise HTTPException(401, f"Token de embed inválido: {exc}") from exc
+        raise ErrorDeDominio(401, f"Token de embed inválido: {exc}") from exc
 
     if claims.get("type") != "embed":
-        raise HTTPException(401, "Token no es de tipo embed")
+        raise ErrorDeDominio(401, "Token no es de tipo embed")
 
     # Check revocation list
     meta_key = f"bi.embed.tokens.{org_id}"
@@ -125,7 +125,7 @@ def validate_embed_token(db: Session, org_id: str, token: str) -> dict:
     jti = claims.get("jti")
     for t in meta.get("tokens", []):
         if t["jti"] == jti and t.get("revoked"):
-            raise HTTPException(401, "Token de embed revocado")
+            raise ErrorDeDominio(401, "Token de embed revocado")
 
     return claims
 
@@ -161,14 +161,51 @@ def get_embed_config(db: Session, org_id: str) -> dict:
     return {**_DEFAULT_EMBED_CONFIG, **cfg}
 
 
+_SECRETO_OCULTO = "********"
+
+
+def public_embed_config(cfg: dict) -> dict:
+    """La config sin los secretos de los emisores SSO, para devolverla por la API.
+
+    Auditoria 2026-11: GET /bi/embed/config la devolvia entera a cualquier
+    usuario autenticado, con `sso_trusted_issuers[].secret` incluido: con ese
+    secreto se firman tokens SSO externos que se canjean por tokens de embed.
+    """
+    emisores = [
+        {**e, "secret": _SECRETO_OCULTO} if isinstance(e, dict) and e.get("secret") else e
+        for e in cfg.get("sso_trusted_issuers") or []
+    ]
+    return {**cfg, "sso_trusted_issuers": emisores}
+
+
+def _conservar_secretos(nuevos: list, existentes: list) -> list:
+    """Un emisor que llega sin secreto o con el oculto conserva el que ya tenia.
+
+    Se empareja por `issuer` y, si no lo hay, por posicion: asi un cliente que
+    reenvia la config leida (con secretos ocultos) no los machaca.
+    """
+    por_emisor = {e.get("issuer"): e for e in existentes if isinstance(e, dict) and e.get("issuer")}
+    salida = []
+    for i, e in enumerate(nuevos):
+        if isinstance(e, dict) and e.get("secret") in (None, "", _SECRETO_OCULTO):
+            previo = por_emisor.get(e.get("issuer")) or (existentes[i] if i < len(existentes) else None)
+            e = {**e, "secret": (previo or {}).get("secret")}
+        salida.append(e)
+    return salida
+
+
 def save_embed_config(db: Session, org_id: str, config: dict) -> dict:
     allowed_keys = set(_DEFAULT_EMBED_CONFIG.keys())
     unknown = set(config.keys()) - allowed_keys
     if unknown:
-        raise HTTPException(422, f"Campos no permitidos en embed config: {unknown}")
+        raise ErrorDeDominio(422, f"Campos no permitidos en embed config: {unknown}")
     existing = get_embed_config(db, org_id)
+    if "sso_trusted_issuers" in config:
+        config = {**config, "sso_trusted_issuers": _conservar_secretos(
+            config.get("sso_trusted_issuers") or [], existing.get("sso_trusted_issuers") or [])}
     merged = {**existing, **config}
     _set_json(db, f"bi.embed.config.{org_id}", merged)
+    db.commit()
     return merged
 
 
@@ -189,11 +226,11 @@ def sso_exchange_token(
     """
     cfg = get_embed_config(db, org_id)
     if not cfg.get("sso_enabled"):
-        raise HTTPException(403, "SSO embed no está habilitado para esta organización")
+        raise ErrorDeDominio(403, "SSO embed no está habilitado para esta organización")
 
     trusted_issuers: list[dict] = cfg.get("sso_trusted_issuers", [])
     if not trusted_issuers:
-        raise HTTPException(403, "No hay emisores SSO configurados")
+        raise ErrorDeDominio(403, "No hay emisores SSO configurados")
 
     # Try each trusted issuer
     external_claims: dict | None = None
@@ -209,7 +246,7 @@ def sso_exchange_token(
             continue
 
     if external_claims is None:
-        raise HTTPException(401, "Token SSO externo inválido o expirado")
+        raise ErrorDeDominio(401, "Token SSO externo inválido o expirado")
 
     user_id = external_claims.get("sub") or external_claims.get("email")
     return create_embed_token(
@@ -281,7 +318,7 @@ def pagina(db: Session, org_id: str, dashboard_id: str, token: str) -> str:
     from app.services.settings_service import get_runtime_str
     claims = validate_embed_token(db, org_id, token)
     if claims.get("org") != org_id or claims.get("dash") != dashboard_id:
-        raise HTTPException(401, "El token no es de este panel")
+        raise ErrorDeDominio(401, "El token no es de este panel")
     # Petición sin usuario: la sesión se acota a la empresa del token.
     db.info.update(organization_id=org_id, is_superadmin=False)
     foto = get_dashboard_snapshot(db, organization_id=org_id, dashboard_id=dashboard_id)

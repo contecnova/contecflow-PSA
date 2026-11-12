@@ -32,6 +32,7 @@ import json
 
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-mkt-mia"
 OTRA = "org-mkt-ajena"
@@ -94,7 +95,7 @@ def test_EL_HALLAZGO_el_service_desk_ya_no_acepta_cualquier_cadena(db, campo, va
 
     conector = svc.catalogo_para_service_desk(db, _Usuario(ORG))[0]
     datos = {"connector_id": conector["id"], "name": "X", campo: valor}
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.instalar_por_id(db, _Usuario(ORG), datos)
     assert exc.value.status_code == 422
     assert campo in str(exc.value.detail)
@@ -111,11 +112,11 @@ def test_las_dos_puertas_usan_la_misma_lista_blanca(db):
 
     # Y las dos entradas la aplican: la de `slug` y la de `id`.
     conector = svc.catalogo_para_service_desk(db, _Usuario(ORG))[0]
-    with pytest.raises(HTTPException) as por_id:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as por_id:
         svc.instalar_por_id(db, _Usuario(ORG), {
             "connector_id": conector["id"], "name": "X",
             "sync_direction": "no-vale"})
-    with pytest.raises(HTTPException) as por_slug:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as por_slug:
         svc.install_integration_connector(
             connector_slug=conector["slug"], name="X", config={},
             sync_direction="no-vale", sync_frequency="hourly",
@@ -173,7 +174,7 @@ def test_un_conector_privado_de_otra_organizacion_no_se_ve_ni_se_instala(db):
     assert "privado-ajeno" not in slugs, (
         "se está listando el conector privado de otro cliente")
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.instalar_por_id(db, _Usuario(ORG), {
             "connector_id": ajeno.id, "name": "X"})
     assert exc.value.status_code == 404

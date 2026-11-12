@@ -129,7 +129,7 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
 
   return (
     <Modal open title={`Feedback auto-resolución — ${ticketId}`} onClose={onClose} width={460}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div>
           <div style={fieldLabel}>{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -164,7 +164,7 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
         }}>
           {t('autoresolution.tu_feedback_alimenta_el_bucket_category_priority')}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutate()} loading={isPending}>Enviar feedback</Button>
         </div>
@@ -177,7 +177,7 @@ function FeedbackLookup({ onOpen }: { onOpen: (id: string) => void }) {
   const { t } = useAppLang()
   const [id, setId] = useState<string>('')
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div className="u-row-center-8">
       <input
         value={id}
         onChange={e => setId(e.target.value)}
@@ -312,7 +312,7 @@ export default function AutoResolutionPanel() {
         : 'var(--text-3)'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       {/* Config */}
       <Card style={card}>
         <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>
@@ -332,7 +332,7 @@ export default function AutoResolutionPanel() {
                   onChange={e => setCfgDraft(prev => ({ ...prev, threshold_auto: Number(e.target.value) }))}
                   style={{ width: '100%' }}
                 />
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{Math.round((cfgDraft.threshold_auto ?? 0.85) * 100)}%</div>
+                <div className="u-text2-xs">{Math.round((cfgDraft.threshold_auto ?? 0.85) * 100)}%</div>
               </div>
 
               <div>
@@ -346,7 +346,7 @@ export default function AutoResolutionPanel() {
                   onChange={e => setCfgDraft(prev => ({ ...prev, threshold_suggest: Number(e.target.value) }))}
                   style={{ width: '100%' }}
                 />
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{Math.round((cfgDraft.threshold_suggest ?? 0.65) * 100)}%</div>
+                <div className="u-text2-xs">{Math.round((cfgDraft.threshold_suggest ?? 0.65) * 100)}%</div>
               </div>
 
               <div>
@@ -431,7 +431,7 @@ export default function AutoResolutionPanel() {
             {topBuckets.length > 0 && (
               <div style={{ marginTop: 18 }}>
                 <div style={fieldLabel}>{t('autoresolution.top_buckets_categoria_prioridad')}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="u-stack-6">
                   {topBuckets.map((b) => {
                     const rate = b.success_rate
                     const color = rate == null ? 'var(--text-3)'
@@ -447,7 +447,7 @@ export default function AutoResolutionPanel() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 'var(--text-sm)' }}>
                           <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{b.bucket}</span>
                           <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                            <span className="u-text3-xs">
                               {b.success}/{b.total}
                             </span>
                             <span style={{
@@ -515,7 +515,7 @@ export default function AutoResolutionPanel() {
           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 }}>
             {t('autoresolution.historial_de_ejecuciones')}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="u-stack-6">
             {jobHistory.map((run, idx) => {
               const runColor = run.status === 'completed' ? 'var(--success)'
                 : run.status === 'failed' ? 'var(--danger)' : 'var(--text-3)'

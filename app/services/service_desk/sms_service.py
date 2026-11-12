@@ -35,6 +35,7 @@ def _get_twilio_config() -> tuple[Optional[str], Optional[str], Optional[str]]:
         from_num = getattr(settings, "TWILIO_FROM_NUMBER", None)
         return sid, token, from_num
     except Exception:
+        logger.debug("_get_twilio_config: excepcion ignorada", exc_info=True)
         return None, None, None
 
 

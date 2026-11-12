@@ -21,11 +21,11 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.expenses import Expense, ExpenseAllocation, ExpenseAttachment, ExpensePolicy, ExpenseStatus
+from app.core.errores import ErrorDeDominio
 ACCIONES = ("bloquear", "avisar")
 
 
@@ -43,12 +43,12 @@ def _gasto(db: Session, usuario, expense_id: str, *, editar: bool = False) -> Ex
     """El gasto, si es de quien llama o quien llama lo gestiona. Para cambiarlo, el dueño sólo en borrador."""
     e = db.query(Expense).filter(Expense.id == expense_id).first()
     if e is None:
-        raise HTTPException(404, "Gasto no encontrado")
+        raise ErrorDeDominio(404, "Gasto no encontrado")
     gestor = es_gestor(db, usuario)
     if e.user_id != usuario.id and not gestor:
-        raise HTTPException(404, "Gasto no encontrado")
+        raise ErrorDeDominio(404, "Gasto no encontrado")
     if editar and not gestor and e.status != ExpenseStatus.draft:
-        raise HTTPException(409, "Sólo se cambia un gasto en borrador")
+        raise ErrorDeDominio(409, "Sólo se cambia un gasto en borrador")
     return e
 
 
@@ -58,7 +58,7 @@ def aplicar_kilometraje(db: Session, expense: Expense) -> None:
     if expense.km is None:
         return
     if expense.km <= 0:
-        raise HTTPException(400, "Los kilómetros tienen que ser positivos")
+        raise ErrorDeDominio(400, "Los kilómetros tienen que ser positivos")
     tarifa = float(_aj(db, "EXPENSE_MILEAGE_RATE", expense.organization_id))
     expense.amount = round(float(expense.km) * tarifa, 2)
 
@@ -82,9 +82,9 @@ def subir_adjunto(db: Session, usuario, expense_id: str, contenido: bytes, nombr
     e = _gasto(db, usuario, expense_id, editar=True)
     maximo = int(_aj(db, "EXPENSE_ATTACHMENT_MAX_MB", e.organization_id, "int")) * 1024 * 1024
     if not contenido:
-        raise HTTPException(400, "El fichero está vacío")
+        raise ErrorDeDominio(400, "El fichero está vacío")
     if len(contenido) > maximo:
-        raise HTTPException(413, f"El fichero pasa del máximo ({maximo // (1024 * 1024)} MB)")
+        raise ErrorDeDominio(413, f"El fichero pasa del máximo ({maximo // (1024 * 1024)} MB)")
     clave, tamano = file_storage.upload_file(contenido, nombre, f"expense-{e.id}", 1, tipo or "application/octet-stream")
     a = ExpenseAttachment(organization_id=e.organization_id, expense_id=e.id, filename=nombre[:255],
                           content_type=tipo, size_bytes=tamano, storage_key=clave, uploaded_by=usuario.id)
@@ -100,7 +100,7 @@ def url_de_adjunto(db: Session, usuario, attachment_id: str) -> str:
     from app.services.s3_service import file_storage
     a = db.query(ExpenseAttachment).filter(ExpenseAttachment.id == attachment_id).first()
     if a is None:
-        raise HTTPException(404, "Justificante no encontrado")
+        raise ErrorDeDominio(404, "Justificante no encontrado")
     _gasto(db, usuario, a.expense_id)
     return file_storage.generate_presigned_url(a.storage_key)
 
@@ -110,7 +110,7 @@ def borrar_adjunto(db: Session, usuario, attachment_id: str) -> None:
     from app.services.s3_service import file_storage
     a = db.query(ExpenseAttachment).filter(ExpenseAttachment.id == attachment_id).first()
     if a is None:
-        raise HTTPException(404, "Justificante no encontrado")
+        raise ErrorDeDominio(404, "Justificante no encontrado")
     e = _gasto(db, usuario, a.expense_id, editar=True)
     audit_log(db, usuario, "DELETE", "expense_attachments", e.id, e.code, old_values={"fichero": a.filename})
     db.delete(a)
@@ -141,15 +141,15 @@ def repartir(db: Session, usuario, expense_id: str, partes: list[dict]) -> list[
     if partes:
         ids = [p["project_id"] for p in partes]
         if len(set(ids)) != len(ids):
-            raise HTTPException(400, "Un proyecto aparece dos veces en el reparto")
+            raise ErrorDeDominio(400, "Un proyecto aparece dos veces en el reparto")
         if any(float(p["percentage"]) <= 0 for p in partes):
-            raise HTTPException(400, "Cada parte tiene que ser mayor que cero")
+            raise ErrorDeDominio(400, "Cada parte tiene que ser mayor que cero")
         total = sum(float(p["percentage"]) for p in partes)
         if abs(total - 100) > 0.01:
-            raise HTTPException(400, f"El reparto suma {round(total, 2)} %, tiene que sumar 100 %")
+            raise ErrorDeDominio(400, f"El reparto suma {round(total, 2)} %, tiene que sumar 100 %")
         existentes = {pid for (pid,) in db.query(Project.id).filter(Project.id.in_(ids)).all()}
         if set(ids) - existentes:
-            raise HTTPException(404, "Proyecto no encontrado")
+            raise ErrorDeDominio(404, "Proyecto no encontrado")
     db.query(ExpenseAllocation).filter(ExpenseAllocation.expense_id == e.id).delete(synchronize_session=False)
     for p in partes:
         db.add(ExpenseAllocation(organization_id=e.organization_id, expense_id=e.id, project_id=p["project_id"],
@@ -271,10 +271,10 @@ def politicas(db: Session) -> list[dict]:
 
 def _validar_politica(datos: dict) -> None:
     if "accion" in datos and datos["accion"] not in ACCIONES:
-        raise HTTPException(400, f"Acción no válida: {datos['accion']}")
+        raise ErrorDeDominio(400, f"Acción no válida: {datos['accion']}")
     for k in ("limite_por_gasto", "limite_diario", "justificante_desde", "justificacion_desde"):
         if datos.get(k) is not None and float(datos[k]) < 0:
-            raise HTTPException(400, f"«{k}» no puede ser negativo")
+            raise ErrorDeDominio(400, f"«{k}» no puede ser negativo")
 
 
 def crear_politica(db: Session, usuario, datos: dict) -> dict:
@@ -282,7 +282,7 @@ def crear_politica(db: Session, usuario, datos: dict) -> dict:
     _validar_politica(datos)
     reglas = [datos.get(k) for k in ("limite_por_gasto", "limite_diario", "justificante_desde", "justificacion_desde")]
     if all(r is None for r in reglas):
-        raise HTTPException(400, "Una política necesita al menos una regla")
+        raise ErrorDeDominio(400, "Una política necesita al menos una regla")
     p = ExpensePolicy(organization_id=usuario.organization_id, created_by=usuario.id,
                       **{k: datos.get(k) for k in _CAMPOS if datos.get(k) is not None})
     db.add(p)
@@ -296,7 +296,7 @@ def editar_politica(db: Session, usuario, politica_id: str, datos: dict) -> dict
     from app.services.audit import audit_log
     p = db.query(ExpensePolicy).filter(ExpensePolicy.id == politica_id).first()
     if p is None:
-        raise HTTPException(404, "Política no encontrada")
+        raise ErrorDeDominio(404, "Política no encontrada")
     _validar_politica(datos)
     antes = _politica_dict(p)
     for k in _CAMPOS:
@@ -311,7 +311,7 @@ def borrar_politica(db: Session, usuario, politica_id: str) -> None:
     from app.services.audit import audit_log
     p = db.query(ExpensePolicy).filter(ExpensePolicy.id == politica_id).first()
     if p is None:
-        raise HTTPException(404, "Política no encontrada")
+        raise ErrorDeDominio(404, "Política no encontrada")
     audit_log(db, usuario, "DELETE", "expense_policies", p.id, p.nombre, old_values=_politica_dict(p))
     db.delete(p)
     db.commit()
@@ -364,7 +364,7 @@ def antes_de_enviar(db: Session, e: Expense) -> dict:
     v = evaluar(db, e)
     bloqueos = [x["mensaje"] for x in v if x["accion"] == "bloquear"]
     if bloqueos:
-        raise HTTPException(422, "No se puede enviar: " + "; ".join(bloqueos))
+        raise ErrorDeDominio(422, "No se puede enviar: " + "; ".join(bloqueos))
     avisos = [x for x in v if x["accion"] == "avisar"]
     e.policy_flags = json.dumps(avisos, ensure_ascii=False) if avisos else None
     return {"policy_exceeded": bool(avisos)}

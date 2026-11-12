@@ -62,17 +62,17 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
   return (
     <Modal open onClose={onClose} size="xl" title={p ? `${p.name} · v${p.version}${p.escenario !== 'base' ? ` · ${p.escenario}` : ''}` : '…'}
       subtitle={p ? `${t(`pres.ambito_${p.ambito}`)}${ambitoTexto ? ` · ${ambitoTexto}` : ''} · ${p.periodo_desde.slice(0, 7)} → ${p.periodo_hasta.slice(0, 7)}${p.responsable_name ? ` · ${t('pres.responsable')}: ${p.responsable_name}` : ''}` : undefined}>
-      {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div> : p && (
+      {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div> : p && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ color: colorDeEstado(p.estado), border: '1px solid currentColor', borderRadius: 99, padding: '1px 10px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>{t(`pres.estado_${p.estado}`)}</span>
-            <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.gasto')}: <strong>{dinero(p.total_plan)}</strong></span>
+            <span className="u-sm">{t('pres.gasto')}: <strong>{dinero(p.total_plan)}</strong></span>
             {p.total_ingreso > 0 && <>
-              <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.ingreso')}: <strong>{dinero(p.total_ingreso)}</strong></span>
+              <span className="u-sm">{t('pres.ingreso')}: <strong>{dinero(p.total_ingreso)}</strong></span>
               <span style={{ fontSize: 'var(--text-sm)', color: p.informe.margen_plan < 0 ? 'var(--danger)' : 'var(--success)' }}>{t('pres.margen')}: <strong>{dinero(p.informe.margen_plan)}</strong></span>
             </>}
-            <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.real')}: <strong>{dinero(p.informe.total_real)}</strong></span>
-            <span style={{ fontSize: 'var(--text-sm)' }}>{t('pres.prevision')}: <strong>{dinero(p.informe.prevision_cierre)}</strong></span>
+            <span className="u-sm">{t('pres.real')}: <strong>{dinero(p.informe.total_real)}</strong></span>
+            <span className="u-sm">{t('pres.prevision')}: <strong>{dinero(p.informe.prevision_cierre)}</strong></span>
             <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {p.puedo_editar && <Button size="sm" loading={ocupado === 'enviar'} onClick={() => accion('enviar', () => presupuestosApi.enviar(p.id))}>{t('pres.enviar')}</Button>}
               {p.estado !== 'borrador' && p.estado !== 'enviado' && <Button size="sm" variant="secondary" loading={ocupado === 'version'} onClick={() => accion('version', () => presupuestosApi.nuevaVersion(p.id))}>{t('pres.nueva_version')}</Button>}
@@ -97,7 +97,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
           )}
           {p.ambito === 'proyecto_previsto' && !p.project_id && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 'var(--text-sm)' }}>
-              <span style={{ color: 'var(--text-2)' }}>{t('pres.previsto_sin_real')}</span>
+              <span className="u-text2">{t('pres.previsto_sin_real')}</span>
               <select aria-label={t('pres.vincular')} value={vincular} onChange={e => setVincular(e.target.value)} style={{ ...campo, width: 'min(260px, 100%)' }}>
                 <option value="">{t('pres.elige_proyecto')}</option>
                 {(proyectos.data ?? []).map(pr => <option key={pr.id} value={pr.id}>{pr.code ? `${pr.code} — ` : ''}{pr.name}</option>)}
@@ -160,7 +160,7 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
   ].filter(g => g.lineas.length)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
-      {p.lineas.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.sin_partidas')}</div>}
+      {p.lineas.length === 0 && <div className="u-text3-sm">{t('pres.sin_partidas')}</div>}
       {grupos.map(g => (
         // Tres columnas (concepto con su cálculo debajo, importe, acciones): caben
         // a 390 px sin esconder el importe tras un desplazamiento lateral.
@@ -176,7 +176,7 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
                 <td style={{ ...td, overflowWrap: 'anywhere' }}>
                   <div>{l.descripcion}{l.justificacion && <span title={l.justificacion} aria-label={t('pres.justificacion')} style={{ marginLeft: 6, color: 'var(--text-3)' }}><MessageSquareText size={12} /></span>}
                     {l.naturaleza === 'capex' && <span title={`${t('pres.vida_meses')}: ${l.vida_meses}`} style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--accent)', border: '1px solid currentColor', borderRadius: 4, padding: '0 4px' }}>CAPEX</span>}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                  <div className="u-text3-xs">
                     {t(`pres.tipo_${l.tipo}`, l.tipo)} · {resumenDelCalculo(l, t, dinero)} · {Object.keys(l.meses).length} {t('pres.meses').toLowerCase()}{l.mes_desde || l.mes_hasta ? ` (${l.mes_desde ?? ''}→${l.mes_hasta ?? ''})` : ''}
                   </div>
                 </td>
@@ -207,7 +207,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
           [t('pres.opex'), inf.opex_plan], [t('pres.capex'), inf.capex_plan], [t('pres.amortizacion'), inf.amortizacion_total],
           ...(conIngresos ? [[t('pres.margen_plan'), inf.margen_plan], [t('pres.margen_real'), inf.margen_real]] : []),
         ].map(([k, v]) => (
-          <div key={k as string} style={caja}><div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{k}</div><div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{dinero(v as number)}</div></div>
+          <div key={k as string} style={caja}><div className="u-text3-xs">{k}</div><div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{dinero(v as number)}</div></div>
         ))}
       </div>
       <div style={{ height: 240 }} role="img" aria-label={t('pres.plan_contra_real')}>
@@ -252,7 +252,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
           </table>
         </div>
       </div>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.como_se_calcula')}</div>
+      <div className="u-text3-xs">{t('pres.como_se_calcula')}</div>
     </div>
   )
 }
@@ -262,12 +262,12 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
   const te = p.techo_estado
   const uso = te && te.techo > 0 ? Math.min(100, Math.round((te.consumido_por_hijos / te.techo) * 100)) : 0
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="u-stack-14">
       <div style={caja}>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.padre')}</div>
+        <div className="u-text3-xs">{t('pres.padre')}</div>
         {p.padre_ficha_id
           ? <button type="button" onClick={() => onAbrir(p.padre_ficha_id!)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>{p.padre_name} · {t(`pres.ambito_${p.padre_ambito}`)}</button>
-          : <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('pres.sin_padre')}</div>}
+          : <div className="u-text2-sm">{t('pres.sin_padre')}</div>}
       </div>
       {te && (
         <div style={caja}>
@@ -289,13 +289,13 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
           <tbody>{p.hijos.map(h => (
             <tr key={h.id} onClick={() => onAbrir(h.id)} style={{ cursor: 'pointer' }}>
               <td style={td}>{h.name} · v{h.version}
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`pres.ambito_${h.ambito}`)} · <span style={{ color: colorDeEstado(h.estado) }}>{t(`pres.estado_${h.estado}`)}</span></div></td>
+                <div className="u-text3-xs">{t(`pres.ambito_${h.ambito}`)} · <span style={{ color: colorDeEstado(h.estado) }}>{t(`pres.estado_${h.estado}`)}</span></div></td>
               <td style={num}>{dinero(h.total_plan)}</td>
             </tr>))}</tbody>
           {p.consolidado_plan != null && <tfoot><tr><td style={{ ...td, fontWeight: 700 }}>{t('pres.consolidado')}</td><td style={{ ...num, fontWeight: 700 }}>{dinero(p.consolidado_plan)}</td></tr></tfoot>}
         </table>
-      ) : <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.sin_hijos')}</div>}
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.estructura_ayuda')}</div>
+      ) : <div className="u-text3-sm">{t('pres.sin_hijos')}</div>}
+      <div className="u-text3-xs">{t('pres.estructura_ayuda')}</div>
     </div>
   )
 }
@@ -318,7 +318,7 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
   }
   const tipos = cmp ? Array.from(new Set(cmp.presupuestos.flatMap(x => Object.keys(x.por_tipo)))) : []
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="u-stack-14">
       <div style={tablaConScroll}>
         <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr><th style={th}>{t('pres.version')}</th><th style={th}>{t('pres.estado')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.gasto')}</th></tr></thead>
@@ -329,15 +329,15 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
         </table>
       </div>
       <div style={{ ...caja, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
-        <label style={{ flex: '1 1 160px' }}><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.escenario_nuevo')}</span>
+        <label style={{ flex: '1 1 160px' }}><span className="u-text3-xs">{t('pres.escenario_nuevo')}</span>
           <input aria-label={t('pres.escenario_nuevo')} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t('pres.escenario_ejemplo')} style={campo} /></label>
-        <label style={{ flex: '0 1 140px' }}><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.inflacion')}</span>
+        <label style={{ flex: '0 1 140px' }}><span className="u-text3-xs">{t('pres.inflacion')}</span>
           <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} onChange={e => setInflacion(e.target.value)} placeholder={String(p.supuestos.inflacion_pct ?? 0)} style={campo} /></label>
         <Button size="sm" disabled={!nombre.trim()} loading={ocupado === 'escenario'}
           onClick={() => accion('escenario', () => presupuestosApi.escenario(p.id, nombre.trim(), inflacion === '' ? undefined : { ...p.supuestos, inflacion_pct: Number(inflacion) }))}>{t('pres.crear_escenario')}</Button>
       </div>
       <div style={{ ...caja, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
-        <label style={{ flex: '1 1 220px' }}><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.comparar_con')}</span>
+        <label style={{ flex: '1 1 220px' }}><span className="u-text3-xs">{t('pres.comparar_con')}</span>
           <select aria-label={t('pres.comparar_con')} value={otro} onChange={e => setOtro(e.target.value)} style={campo}>
             <option value="">—</option>{candidatos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select></label>
@@ -364,11 +364,11 @@ function SupuestosDelPresupuesto({ p, accion, ocupado }: { p: FichaPresupuesto; 
   const [notas, setNotas] = useState(String(p.supuestos.notas ?? ''))
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 560 }}>
-      <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.inflacion')}</span>
+      <label><span className="u-text3-xs">{t('pres.inflacion')}</span>
         <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} disabled={!p.puedo_editar} onChange={e => setInflacion(e.target.value)} style={campo} /></label>
-      <label><span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.supuestos_notas')}</span>
+      <label><span className="u-text3-xs">{t('pres.supuestos_notas')}</span>
         <textarea aria-label={t('pres.supuestos_notas')} rows={4} value={notas} disabled={!p.puedo_editar} onChange={e => setNotas(e.target.value)} style={{ ...campo, resize: 'vertical' }} /></label>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.supuestos_ayuda')}</div>
+      <div className="u-text3-xs">{t('pres.supuestos_ayuda')}</div>
       {p.puedo_editar && <div><Button size="sm" loading={ocupado === 'supuestos'}
         onClick={() => accion('supuestos', () => presupuestosApi.editar(p.id, { supuestos: { ...p.supuestos, inflacion_pct: inflacion === '' ? 0 : Number(inflacion), notas } }))}>{t('pres.guardar')}</Button></div>}
     </div>

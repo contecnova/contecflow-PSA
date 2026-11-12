@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import OnCallEntry, OnCallSchedule
 from app.schemas.service_desk import OnCallEntryIn, OnCallScheduleIn
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def create_oncall_schedule_record(db, payload: OnCallScheduleIn) -> OnCallSchedu
 def get_oncall_schedule_by_id(db: Session, schedule_id: str) -> OnCallSchedule:
     schedule = db.query(OnCallSchedule).filter(OnCallSchedule.id == schedule_id).first()
     if not schedule:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return schedule
 
 
@@ -89,7 +89,7 @@ def delete_oncall_schedule(db: Session, schedule_id: str) -> None:
 
 def validate_oncall_entry_dates(payload: OnCallEntryIn) -> None:
     if payload.start_dt >= payload.end_dt:
-        raise HTTPException(400, "start_dt must be before end_dt")
+        raise ErrorDeDominio(400, "start_dt must be before end_dt")
 
 
 def build_oncall_entry(schedule_id: str, payload: OnCallEntryIn) -> OnCallEntry:
@@ -107,7 +107,7 @@ def create_oncall_entry_record(db: Session, schedule_id: str, payload: OnCallEnt
 def get_oncall_entry_by_id(db: Session, entry_id: str) -> OnCallEntry:
     entry = db.query(OnCallEntry).filter(OnCallEntry.id == entry_id).first()
     if not entry:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return entry
 
 

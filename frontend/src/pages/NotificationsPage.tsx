@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { alertsApi } from '../services/api'
+import api, { alertsApi, apiWsUrl } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -107,7 +107,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
           display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
           {cfg.icon}
         </div>
-        <div style={{ flex:1, minWidth:0 }}>
+        <div className="u-flex1-min0">
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight:700,
               color:'var(--text-1)', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis' }}>
@@ -141,7 +141,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
         {cfg.icon}
       </div>
       {/* Contenido */}
-      <div style={{ flex:1, minWidth:0 }}>
+      <div className="u-flex1-min0">
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: isUnread ? 700 : 400,
             color:'var(--text-1)' }}>{notif.title}</div>
@@ -186,12 +186,12 @@ function GroupedNotifList({ notifications, onMarkRead }: { notifications: Notifi
           : (TYPE_CFG_NOTIF[baseKey] || { icon: '🔔', color: 'var(--text-2)', label: 'Notificación' })
         const unread = notifs.filter(n => !n.is_read).length
         return (
-          <div key={type} style={{ marginBottom: 20 }}>
+          <div key={type} className="u-mb-20">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '0 4px' }}>
               <span style={{ fontSize: "var(--text-md)" }}>{cfg.icon}</span>
               <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cfg.label}</span>
               {unread > 0 && (
-                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, background: cfg.color, color: '#fff', borderRadius: 10, padding: '1px 7px', marginLeft: 2 }}>{unread}</span>
+                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, background: cfg.color, color: 'var(--on-accent-light)', borderRadius: 10, padding: '1px 7px', marginLeft: 2 }}>{unread}</span>
               )}
               <div style={{ flex: 1, height: 1, background: 'var(--surface-4)', marginLeft: 4 }} />
             </div>
@@ -282,19 +282,7 @@ export default function NotificationsPage() {
       if (cancelled) return
       const ticket = r.data?.ticket
       if (!ticket) return
-      let wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      let wsHost = window.location.host
-      const apiBaseUrl = import.meta.env.VITE_API_URL
-      if (apiBaseUrl) {
-        try {
-          const apiUrl = new URL(String(apiBaseUrl), window.location.origin)
-          wsProto = apiUrl.protocol === 'https:' ? 'wss' : 'ws'
-          wsHost = apiUrl.host
-        } catch {
-          // Keep same-origin websocket fallback if VITE_API_URL is malformed.
-        }
-      }
-      const wsUrl = `${wsProto}://${wsHost}/api/v1/ws/notifications?ticket=${ticket}`
+      const wsUrl = apiWsUrl(`/ws/notifications?ticket=${ticket}`)
       const socket = new WebSocket(wsUrl)
       ws = socket
       wsRef.current = socket
@@ -367,7 +355,7 @@ export default function NotificationsPage() {
         title={t('notifications.title')}
         subtitle={t('notifications.subtitle')}
         actions={
-          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <div className="u-row-center-8">
             <div style={{ display:'flex', alignItems:'center', gap:5, fontSize: "var(--text-xs)",
               color: wsConnected ? 'var(--success)' : 'var(--text-3)' }}>
               <div style={{ width:6, height:6, borderRadius:'50%',

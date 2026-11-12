@@ -16,6 +16,7 @@ import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import MarkdownText from '../../components/ui/MarkdownText'
 import { COLOR, alpha } from '../../constants/theme'
 import { etiquetaSd, SBadge } from './sdUtils'
+import StatusBadge from '../../components/ui/StatusBadge'
 
 type Priority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low' | string
 type ProblemStatus = 'open' | 'investigating' | 'known_error' | 'resolved' | 'closed' | string
@@ -75,9 +76,7 @@ const PRIORITY_LABEL: Record<string, string> = {
 function PBadge({ v }: { v?: Priority }) {
   const color = PRIORITY_COLOR[v ?? ''] || COLOR.text2
   return (
-    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color, padding: '2px 7px', borderRadius: 4, border: `1px solid ${alpha(color, '30')}`, background: alpha(color, '12'), whiteSpace: 'nowrap' }}>
-      {PRIORITY_LABEL[v ?? ''] || v}
-    </span>
+    <StatusBadge color={color} caps={false}>{PRIORITY_LABEL[v ?? ''] || v}</StatusBadge>
   )
 }
 
@@ -97,7 +96,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
   return (
     <div style={{ marginTop: 10, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
       <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>Tickets vinculados</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="u-stack-6">
         {tickets.map((tk) => (
           <div key={tk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
             <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)' }}>#{tk.id}</span>
@@ -135,22 +134,22 @@ function KnownErrors() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+        <div className="u-text3-sm">
           {t('itsmknowledge.base_de_errores_conocidos_problemas_con_causa')}
         </div>
         <Button onClick={() => { setEditing(null); setShowNew(true) }}>{t('itsmknowledge.nuevo_error_conocido')}</Button>
       </div>
       {isLoading ? <Spinner /> :
        kedb.length === 0 ? <EmptyState icon="📚" title={t('itsmknowledge.sin_errores_conocidos')} description="Crea el primer error conocido para documentar workaround y causa raíz." /> :
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-stack-12">
         {kedb.map((ke) => (
           <div key={ke.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-              <div style={{ flex: 1 }}>
+              <div className="u-flex1">
                 <span style={{ fontSize: "var(--text-xs)", color: COLOR.warning, fontWeight: 700, marginRight: 10 }}>{ke.number}</span>
                 <span style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)' }}>{ke.title}</span>
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div className="u-row-center-8">
                 <button
                   onClick={() => setExpandedKE(expandedKE === ke.id ? null : ke.id)}
                   style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', background: 'var(--surface-4)', padding: '2px 8px', borderRadius: 4, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
@@ -164,7 +163,7 @@ function KnownErrors() {
             {ke.root_cause && (
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 4 }}>CAUSA RAIZ</div>
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{ke.root_cause}</div>
+                <div className="u-text2-base">{ke.root_cause}</div>
               </div>
             )}
             {ke.workaround ? (
@@ -238,17 +237,17 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }: KEDBModalProps) {
 
   return (
     <Modal open title={isEdit ? 'Editar error conocido' : 'Nuevo error conocido (KEDB)'} onClose={onClose} size="lg">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div><label htmlFor={`${idPrefix}-title`} style={LS}>Titulo *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder={t('itsmknowledge.titulo_del_error_conocido')} /></div>
         <div><label htmlFor={`${idPrefix}-description`} style={LS}>Descripcion</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.describe_el_error_conocido')} /></div>
         <div><label htmlFor={`${idPrefix}-root-cause`} style={LS}>Causa raiz</label><textarea id={`${idPrefix}-root-cause`} value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.causa_raiz_identificada')} /></div>
         <div><label htmlFor={`${idPrefix}-workaround`} style={LS}>{t('itsmknowledge.workaround_solucion_temporal')}</label><textarea id={`${idPrefix}-workaround`} value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.solucion_temporal_disponible')} /></div>
         <div><label htmlFor={`${idPrefix}-fix-description`} style={LS}>{t('itsmknowledge.solucion_definitiva_2')}</label><textarea id={`${idPrefix}-fix-description`} value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.solucion_definitiva_aplicada')} /></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <div><label htmlFor={`${idPrefix}-priority`} style={LS}>Prioridad</label><select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')} style={IS}>{['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</select></div>
           <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => onSaved(form)} disabled={!form.title.trim()}>{isEdit ? 'Guardar cambios' : 'Crear error conocido'}</Button>
         </div>
@@ -309,7 +308,7 @@ function Problems() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+        <div className="u-text3-sm">
           {t('itsmknowledge.registro_de_problemas_causas_raiz_de_incidentes')}
         </div>
         <Button onClick={() => { setEditing(null); setShowModal(true) }}>{t('itsmknowledge.nuevo_problema')}</Button>
@@ -318,13 +317,13 @@ function Problems() {
       {isLoading ? <Spinner /> :
        problems.length === 0
         ? <EmptyState icon="🔍" title={t('itsmknowledge.sin_problemas_registrados')} description="Crea el primer problema para investigar incidentes recurrentes." />
-        : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        : <div className="u-stack-10">
             {problems.map((p) => {
               const sc = statusColors[p.status ?? ''] || COLOR.text2
               return (
                 <div key={p.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div style={{ flex: 1 }}>
+                    <div className="u-flex1">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                         <span style={{ fontSize: "var(--text-xs)", color: COLOR.warning, fontWeight: 700 }}>{p.number}</span>
                         <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: alpha(sc, '15'), padding: '2px 8px', borderRadius: 4 }}>
@@ -332,7 +331,7 @@ function Problems() {
                         </span>
                         <PBadge v={p.priority} />
                         {(p.related_tickets ?? []).length > 0 && (
-                          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                          <span className="u-text3-xs">
                             {(p.related_tickets ?? []).length} ticket{(p.related_tickets ?? []).length !== 1 ? 's' : ''}
                           </span>
                         )}
@@ -357,7 +356,7 @@ function Problems() {
                   {p.root_cause && (
                     <div style={{ marginBottom: 8 }}>
                       <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginRight: 8 }}>Causa raiz</span>
-                      <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{p.root_cause}</span>
+                      <span className="u-text2-sm">{p.root_cause}</span>
                     </div>
                   )}
                   {p.workaround && (
@@ -421,17 +420,17 @@ function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }: ProblemModa
     setForm(f => ({ ...f, [k]: e.target.value }))
   return (
     <Modal open title={isEdit ? `Editar - ${item.number}` : 'Nuevo problema'} onClose={onClose} size="lg">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div><label htmlFor={`${idPrefix}-title`} style={LS}>Titulo *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder={t('itsmknowledge.titulo_del_problema')} /></div>
         <div><label htmlFor={`${idPrefix}-description`} style={LS}>Descripcion</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.describe_el_problema')} /></div>
         <div><label htmlFor={`${idPrefix}-root-cause`} style={LS}>Causa raiz</label><textarea id={`${idPrefix}-root-cause`} value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.causa_raiz_identificada')} /></div>
         <div><label htmlFor={`${idPrefix}-workaround`} style={LS}>Workaround (solucion temporal)</label><textarea id={`${idPrefix}-workaround`} value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.solucion_temporal')} /></div>
         <div><label htmlFor={`${idPrefix}-fix-description`} style={LS}>Solucion definitiva (opcional)</label><textarea id={`${idPrefix}-fix-description`} value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.solucion_definitiva_2')} /></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <div><label htmlFor={`${idPrefix}-priority`} style={LS}>Prioridad</label><select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')} style={IS}>{[['p1_critical', 'P1 Critico'], ['p2_high', 'P2 Alto'], ['p3_medium', 'P3 Medio'], ['p4_low', 'P4 Bajo']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
           <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto'], ['closed', 'Cerrado']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => onSaved(form)} disabled={isPending || !form.title.trim()} loading={isPending}>{isEdit ? 'Guardar cambios' : 'Crear problema'}</Button>
         </div>
@@ -513,7 +512,7 @@ function KB() {
               {(a.deflection_count ?? 0) > 0 && <span>{ts('sd_cfg.kb_deflections', { n: a.deflection_count ?? 0 })}</span>}
               {a.tags && <span>🏷 {a.tags.split(',').slice(0, 2).join(', ')}</span>}
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="u-row-6">
               <button onClick={() => setLeyendo(a.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>📖 {ts('itsmknowledge.leer')}</button>
               <button onClick={() => { setEditing(a); setShowNew(true) }} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
               {a.status === 'in_review' ? <>
@@ -531,9 +530,9 @@ function KB() {
 
       {devolviendo && (
         <Modal open title={`${ts('sd_cfg.kb_return')} · ${devolviendo.title}`} onClose={() => setDevolviendo(null)}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             <textarea aria-label={ts('sd_cfg.kb_return_note')} placeholder={ts('sd_cfg.kb_return_note')} rows={4} value={nota} onChange={e => setNota(e.target.value)} style={{ ...IS, resize: 'vertical' }} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <div className="u-actions-8">
               <Button variant="secondary" onClick={() => setDevolviendo(null)}>{ts('common.cancel')}</Button>
               <Button disabled={!nota.trim()} onClick={() => revisar({ id: devolviendo.id, publish: false, comment: nota.trim() })}>{ts('sd_cfg.kb_return')}</Button>
             </div>
@@ -579,16 +578,16 @@ function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalPr
 
   return (
     <Modal open title={isEdit ? 'Editar articulo KB' : 'Nuevo articulo KB'} onClose={onClose} size="lg">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} /></div>
         <div><label htmlFor={`${idPrefix}-summary`} style={LS}>Resumen</label><input id={`${idPrefix}-summary`} value={form.summary} onChange={set('summary')} style={IS} placeholder={t('itsmknowledge.resumen_del_articulo')} /></div>
         <div><label htmlFor={`${idPrefix}-body`} style={LS}>Contenido *</label><textarea id={`${idPrefix}-body`} value={form.body} onChange={set('body')} rows={8} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.contenido_del_articulo')} /></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <div><label htmlFor={`${idPrefix}-tags`} style={LS}>{t('itsmknowledge.etiquetas_separadas_por_coma')}</label><input id={`${idPrefix}-tags`} value={form.tags} onChange={set('tags')} style={IS} placeholder="etiqueta1, etiqueta2" /></div>
           <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
         </div>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}><input type="checkbox" checked={form.is_public} onChange={set('is_public')} />{t('itsmknowledge.visible_en_el_portal_cliente')}</label>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.body} loading={isPending}>{isEdit ? 'Guardar cambios' : 'Crear articulo'}</Button>
         </div>
@@ -654,26 +653,26 @@ function CalidadKB() {
   const tarjeta: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }
   const boton: CSSProperties = { padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
   const titulo: CSSProperties = { fontSize: 'var(--text-md)', fontWeight: 700, margin: '18px 0 8px' }
-  const vacio = (texto: string) => <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{texto}</div>
+  const vacio = (texto: string) => <div className="u-text3-sm">{texto}</div>
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('itsmknowledge.calidad_intro')}</div>
+      <div className="u-row-between">
+        <div className="u-text2-sm">{t('itsmknowledge.calidad_intro')}</div>
         {esAdmin && <button type="button" style={boton} disabled={pasando} onClick={() => pasar()}>{pasando ? '…' : t('itsmknowledge.revisar_ahora')}</button>}
       </div>
 
       <div style={titulo}>❓ {t('itsmknowledge.sin_respuesta')} ({data.gaps.length})</div>
       {data.gaps.length === 0 ? vacio(t('itsmknowledge.sin_respuesta_vacio')) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-stack-8">
           {data.gaps.map(h => (
             <div key={h.id} style={tarjeta}>
-              <div style={{ flex: 1 }}>
+              <div className="u-flex1">
                 <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)' }}>{h.question}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                <div className="u-hint">
                   {t('itsmknowledge.veces', { n: h.times_asked })} · {t('itsmknowledge.origen_' + h.source)}{h.last_asked_at ? ` · ${fmtDateTime(h.last_asked_at)}` : ''}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="u-row-6">
                 <button type="button" style={{ ...boton, color: 'var(--accent)' }} onClick={() => { setRespondiendo(h); setRespuesta('') }}>{t('itsmknowledge.responder')}</button>
                 <button type="button" style={boton} onClick={() => setArticuloDe(h)}>{t('itsmknowledge.crear_articulo')}</button>
                 <button type="button" style={boton} onClick={() => estado({ tipo: 'gap', id: h.id, status: 'dismissed' })}>{t('itsmknowledge.descartar')}</button>
@@ -685,16 +684,16 @@ function CalidadKB() {
 
       <div style={titulo}>⚠ {t('itsmknowledge.avisos')} ({data.findings.length})</div>
       {data.findings.length === 0 ? vacio(t('itsmknowledge.avisos_vacio')) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-stack-8">
           {data.findings.map(f => (
             <div key={f.id} style={tarjeta}>
-              <div style={{ flex: 1 }}>
+              <div className="u-flex1">
                 <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)' }}>
                   {f.kind === 'stale' ? `🕰 ${t('itsmknowledge.caducado', { kb: f.article_number ?? '' })}` : `⇄ ${t('itsmknowledge.contradiccion', { a: f.article_number ?? '', b: f.other_article_number ?? '' })}`}
                 </div>
                 {f.detail && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginTop: 4 }}>{f.detail}</div>}
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="u-row-6">
                 <button type="button" style={{ ...boton, color: COLOR.success }} onClick={() => estado({ tipo: 'finding', id: f.id, status: 'resolved' })}>{t('itsmknowledge.resuelto')}</button>
                 <button type="button" style={boton} onClick={() => estado({ tipo: 'finding', id: f.id, status: 'dismissed' })}>{t('itsmknowledge.descartar')}</button>
               </div>
@@ -705,13 +704,13 @@ function CalidadKB() {
 
       <div style={titulo}>✓ {t('itsmknowledge.correcciones')} ({data.corrections.length})</div>
       {data.corrections.length === 0 ? vacio(t('itsmknowledge.correcciones_vacio')) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-stack-8">
           {data.corrections.map(c => (
             <div key={c.id} style={tarjeta}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{c.question}</div>
+              <div className="u-flex1">
+                <div className="u-text3-sm">{c.question}</div>
                 <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{c.answer}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                <div className="u-hint">
                   {c.is_public ? t('itsmknowledge.tambien_clientes') : t('itsmknowledge.solo_interna')} · {t('itsmknowledge.usada', { n: c.usage_count })}
                 </div>
               </div>
@@ -723,15 +722,15 @@ function CalidadKB() {
 
       {respondiendo && (
         <Modal open title={t('itsmknowledge.responder')} onClose={() => setRespondiendo(null)}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{respondiendo.question}</div>
+          <div className="u-stack-10">
+            <div className="u-text2-sm">{respondiendo.question}</div>
             <textarea aria-label={t('itsmknowledge.respuesta')} placeholder={t('itsmknowledge.respuesta')} rows={6} value={respuesta} onChange={e => setRespuesta(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontFamily: 'inherit', resize: 'vertical' }} />
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
               <input type="checkbox" checked={publica} onChange={e => setPublica(e.target.checked)} />{t('itsmknowledge.tambien_clientes')}
             </label>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('itsmknowledge.responder_ayuda')}</div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <div className="u-text3-xs">{t('itsmknowledge.responder_ayuda')}</div>
+            <div className="u-actions-8">
               <Button variant="secondary" onClick={() => setRespondiendo(null)}>{t('common.cancel')}</Button>
               <Button disabled={isPending || !respuesta.trim()} onClick={() => responder(respondiendo)}>{t('itsmknowledge.guardar_respuesta')}</Button>
             </div>

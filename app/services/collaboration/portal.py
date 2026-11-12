@@ -35,7 +35,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -56,6 +55,7 @@ from app.models.collaboration import (
 from app.services.collaboration._permissions import is_client_conversation_participant
 from app.services.collaboration.workspaces import MAX_NOTIFICACIONES
 from app.services.traffic_control_service import consume_quota
+from app.core.errores import ErrorDeDominio
 
 #: Ventana del tope de mensajes del portal, en segundos.
 VENTANA_DE_CUOTA_SEGUNDOS = 60
@@ -158,7 +158,7 @@ def list_messages(
 ) -> list[CollaborationMessage]:
     """Los mensajes de una conversación del cliente, del más antiguo al último."""
     if not is_client_conversation_participant(db, client, conversation_id):
-        raise HTTPException(403, "No tienes acceso a esta conversación")
+        raise ErrorDeDominio(403, "No tienes acceso a esta conversación")
 
     q = db.query(CollaborationMessage).filter(
         CollaborationMessage.conversation_id == conversation_id,
@@ -190,7 +190,7 @@ def send_message(db: Session, client: ClientUser, payload) -> CollaborationMessa
 
     conversation_id = payload.conversation_id
     if not conversation_id:
-        raise HTTPException(400, "conversation_id requerido")
+        raise ErrorDeDominio(400, "conversation_id requerido")
 
     cuota = consume_quota(
         db,
@@ -201,7 +201,7 @@ def send_message(db: Session, client: ClientUser, payload) -> CollaborationMessa
         window_seconds=VENTANA_DE_CUOTA_SEGUNDOS,
     )
     if not cuota["allowed"]:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=429,
             detail=f"Portal message rate limit exceeded. Retry in {cuota['retry_after']}s",
         )
@@ -225,9 +225,9 @@ def toggle_reaction(db: Session, client: ClientUser, message_id: str, emoji: str
         .first()
     )
     if not msg:
-        raise HTTPException(404, "Mensaje no encontrado")
+        raise ErrorDeDominio(404, "Mensaje no encontrado")
     if not is_client_conversation_participant(db, client, msg.conversation_id):
-        raise HTTPException(403, "No tienes acceso")
+        raise ErrorDeDominio(403, "No tienes acceso")
 
     existente = (
         db.query(CollaborationReaction)
@@ -253,7 +253,7 @@ def mark_read(
     db: Session, client: ClientUser, conversation_id: str, last_message_id,
 ) -> None:
     if not is_client_conversation_participant(db, client, conversation_id):
-        raise HTTPException(403, "No tienes acceso")
+        raise ErrorDeDominio(403, "No tienes acceso")
 
     fila = (
         db.query(CollaborationRead)

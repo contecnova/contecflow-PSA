@@ -19,6 +19,7 @@ from app.models.mfa import (
     Organization,
 )
 from app.services.audit import audit_log
+from app.core.errores import ErrorDeDominio
 
 
 def serialize_organization(org: Organization, db: Session) -> dict:
@@ -231,7 +232,6 @@ def exigir_cupo(db: Session, org_id, recurso: str) -> None:
     """
     if not org_id:
         return
-    from fastapi import HTTPException
     from app.db.session import sin_filtro_de_tenant
     with sin_filtro_de_tenant(db):
         org = db.get(Organization, org_id)
@@ -244,7 +244,7 @@ def exigir_cupo(db: Session, org_id, recurso: str) -> None:
             limite = org.max_projects
     if limite is not None and usados >= limite:
         nombre = "usuarios" if recurso == "users" else "proyectos"
-        raise HTTPException(409, f"La empresa ha llegado al límite de {limite} {nombre} de su plan")
+        raise ErrorDeDominio(409, f"La empresa ha llegado al límite de {limite} {nombre} de su plan")
 
 
 def crear_primer_admin(db: Session, org: Organization, email: str, nombre: str) -> str:

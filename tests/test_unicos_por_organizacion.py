@@ -20,6 +20,10 @@ _IDENTIDAD = "identidad o credencial: tiene que ser única en toda la plataforma
 _DEL_PADRE = "única dentro de su entidad padre, que ya es de una sola organización"
 
 GLOBALES_A_PROPOSITO = {
+    # `origen_id` es el UUID de la cadena de versiones de un presupuesto, que ya
+    # pertenece a una sola organizacion: (origen_id, mes) no puede chocar entre empresas.
+    ("budget_closes", ("origen_id", "mes")): "origen_id es un UUID de presupuesto, ya es de una sola organizacion",
+    ("budget_variance_notes", ("origen_id", "mes", "tipo")): "origen_id es un UUID de presupuesto, ya es de una sola organizacion",
     ("users", ("email",)): "el correo identifica al usuario en el login, sea de la empresa que sea",
     ("users", ("username",)): _IDENTIDAD,
     ("client_users", ("email",)): "el correo identifica al cliente en el login del portal",
@@ -45,7 +49,6 @@ GLOBALES_A_PROPOSITO = {
     ("collaboration_presence_states", ("client_user_id",)): _DEL_PADRE,
     ("client_portal_configs", ("client_id",)): _DEL_PADRE,
     ("kanban_configs", ("project_id",)): _DEL_PADRE,
-    ("revenue_recognition_rules", ("project_id",)): _DEL_PADRE,
     ("sprint_retro_notes", ("sprint_id",)): _DEL_PADRE,
     ("rev_entries", ("rev_contract_id", "period_year", "period_month")): _DEL_PADRE,
     ("sd_incident_to_problem", ("problem_id", "ticket_id")): _DEL_PADRE,

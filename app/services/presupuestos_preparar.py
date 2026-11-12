@@ -41,11 +41,11 @@ import json
 from datetime import date
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.models.mfa import Budget, BudgetCampaign, BudgetLine, BudgetTemplate
+from app.core.errores import ErrorDeDominio
 
 NIVEL = {"area": 0, "departamento": 1, "proyecto": 2, "proyecto_previsto": 2}
 RECURRENCIAS = ("unica", "mensual", "trimestral", "anual")
@@ -120,13 +120,13 @@ def cargas_del_pais(db: Session, org, pais: Optional[str]) -> float:
 
     from app.models.user_cost import CountryEmployerCost
     if not pais:
-        raise HTTPException(400, "Una vacante necesita el país (para sus cargas sociales)")
+        raise ErrorDeDominio(400, "Una vacante necesita el país (para sus cargas sociales)")
     fila = (db.query(CountryEmployerCost)
             .filter(CountryEmployerCost.country_code == pais.upper(), CountryEmployerCost.is_active.isnot(False),
                     or_(CountryEmployerCost.organization_id == org, CountryEmployerCost.organization_id.is_(None)))
             .order_by(CountryEmployerCost.organization_id.is_(None)).first())
     if fila is None:
-        raise HTTPException(400, f"No hay cargas sociales para {pais.upper()}: dalas de alta en Estructura de costes")
+        raise ErrorDeDominio(400, f"No hay cargas sociales para {pais.upper()}: dalas de alta en Estructura de costes")
     return float(fila.employer_cost_pct)
 
 
@@ -136,12 +136,12 @@ def calcular(db: Session, b: Budget, l: BudgetLine, meses_tecleados: Optional[di
     """Rellena `l.meses` e `l.importe` según el modo de la partida (ver cabecera)."""
     rango = rango_de_la_partida(b, l)
     if not rango:
-        raise HTTPException(400, "La partida no tiene ningún mes dentro del periodo")
+        raise ErrorDeDominio(400, "La partida no tiene ningún mes dentro del periodo")
     if l.recurrencia and l.recurrencia not in RECURRENCIAS:
-        raise HTTPException(400, f"Recurrencia no válida: {l.recurrencia}")
+        raise ErrorDeDominio(400, f"Recurrencia no válida: {l.recurrencia}")
     ded = (float(l.dedicacion_pct) / 100) if l.dedicacion_pct is not None else 1.0
     if l.dedicacion_pct is not None and not 0 < float(l.dedicacion_pct) <= 100:
-        raise HTTPException(400, "La dedicación va de 1 a 100 %")
+        raise ErrorDeDominio(400, "La dedicación va de 1 a 100 %")
     meses: dict[str, float] = {}
 
     if l.unidades is not None and l.precio_unitario is not None:
@@ -153,7 +153,7 @@ def calcular(db: Session, b: Budget, l: BudgetLine, meses_tecleados: Optional[di
         for m in rango:
             coste = coste_mensual_de_persona(db, l.user_id, m)
             if coste is None:
-                raise HTTPException(400, f"La persona no tiene estructura de coste vigente en {m}")
+                raise ErrorDeDominio(400, f"La persona no tiene estructura de coste vigente en {m}")
             meses[m] = round(coste * ded, 2)
     elif l.salario_anual is not None:
         cargas = cargas_del_pais(db, b.organization_id, l.pais)
@@ -164,17 +164,17 @@ def calcular(db: Session, b: Budget, l: BudgetLine, meses_tecleados: Optional[di
                 meses[m] = round(mensual * _factor_inflacion(b, m), 2)
     elif l.horas is not None:
         if l.coste_hora is None:
-            raise HTTPException(400, "Con horas hace falta el coste o la tarifa por hora (o una persona con su coste)")
+            raise ErrorDeDominio(400, "Con horas hace falta el coste o la tarifa por hora (o una persona con su coste)")
         base = _repartir(round(float(l.horas) * float(l.coste_hora), 2), rango)
         meses = {m: round(v * _factor_inflacion(b, m), 2) for m, v in base.items()}
     elif meses_tecleados:
         fuera = set(meses_tecleados) - set(rango)
         if fuera:
-            raise HTTPException(400, f"Meses fuera del periodo de la partida: {', '.join(sorted(fuera))}")
+            raise ErrorDeDominio(400, f"Meses fuera del periodo de la partida: {', '.join(sorted(fuera))}")
         meses = {k: round(float(v), 2) for k, v in meses_tecleados.items() if float(v)}
     else:
         if l.importe is None or float(l.importe) < 0:
-            raise HTTPException(400, "El importe tiene que ser cero o positivo")
+            raise ErrorDeDominio(400, "El importe tiene que ser cero o positivo")
         base = _repartir(float(l.importe), rango)
         meses = {m: round(v * _factor_inflacion(b, m), 2) for m, v in base.items()}
 
@@ -278,9 +278,9 @@ def validar_padre(db: Session, ambito: str, padre_id: Optional[str]) -> None:
         return
     padre = _ultima(db, padre_id)
     if padre is None:
-        raise HTTPException(400, "El presupuesto padre no existe")
+        raise ErrorDeDominio(400, "El presupuesto padre no existe")
     if NIVEL[padre.ambito] >= NIVEL[ambito]:
-        raise HTTPException(400, "El padre tiene que ser de un nivel superior (área > departamento > proyecto)")
+        raise ErrorDeDominio(400, "El padre tiene que ser de un nivel superior (área > departamento > proyecto)")
 
 
 def comprobar_techo_del_padre(db: Session, b: Budget) -> Optional[str]:
@@ -294,7 +294,7 @@ def comprobar_techo_del_padre(db: Session, b: Budget) -> Optional[str]:
     texto = (f"Con este presupuesto, los de «{padre.name}» suman {estado['consumido_por_hijos']} "
              f"y su techo es {estado['techo']}")
     if _aj(db, "BUDGET_CEILING_POLICY", b.organization_id).strip().lower() == "bloquear":
-        raise HTTPException(409, texto)
+        raise ErrorDeDominio(409, texto)
     return texto
 
 
@@ -306,7 +306,7 @@ def exigir_justificaciones(db: Session, b: Budget) -> None:
         return
     faltan = [l.descripcion for l in b.lines if l.importe >= minimo and not (l.justificacion or "").strip()]
     if faltan:
-        raise HTTPException(400, f"Las partidas de {minimo:g} o más necesitan justificación: {', '.join(faltan[:5])}")
+        raise ErrorDeDominio(400, f"Las partidas de {minimo:g} o más necesitan justificación: {', '.join(faltan[:5])}")
 
 
 # ── Copiar, plantillas y escenarios ───────────────────────────────────────────
@@ -376,7 +376,7 @@ def copiar_de_otro(db: Session, destino: Budget, origen: Budget, base: str, ajus
                 nueva_partida(db, destino, {"tipo": t, "descripcion": f"{t} (real de {origen.year})",
                                             "importe": round(sum(meses.values()), 2)}, meses)
     else:
-        raise HTTPException(400, "base es «plan» o «real»")
+        raise ErrorDeDominio(400, "base es «plan» o «real»")
 
 
 def aplicar_plantilla(db: Session, b: Budget, plantilla: BudgetTemplate) -> None:
@@ -390,7 +390,7 @@ def comparar(db: Session, ids: list[str]) -> dict:
     for bid in ids:
         b = db.query(Budget).filter(Budget.id == bid).first()
         if b is None:
-            raise HTTPException(404, f"Presupuesto {bid} no encontrado")
+            raise ErrorDeDominio(404, f"Presupuesto {bid} no encontrado")
         por_tipo: dict[str, float] = {}
         por_mes: dict[str, float] = {}
         for l in b.lines:

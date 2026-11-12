@@ -43,7 +43,6 @@ export const leccionesApi = {
   crear: (body: Record<string, unknown>) => D<Leccion>(api.post('/lessons', body)),
   editar: (id: string, body: Record<string, unknown>) => D<Leccion>(api.patch(`/lessons/${id}`, body)),
   estado: (id: string, estado: string) => D<Leccion>(api.post(`/lessons/${id}/estado`, { estado })),
-  borrar: (id: string) => api.delete(`/lessons/${id}`),
   pendientes: () => D<{ items: Pendiente[] }>(api.get('/lessons/pendientes')),
   indicadores: () => D<{
     por_estado: Record<string, number>; por_categoria: Record<string, number>; por_tipo: Record<string, number>

@@ -47,6 +47,7 @@ import pytest
 
 from app.core.timeutil import utcnow
 from app.services.collaboration import compliance as svc
+from app.core.errores import ErrorDeDominio
 
 
 @pytest.fixture()
@@ -302,7 +303,7 @@ def test_no_se_puede_crear_una_politica_por_encima_del_tope(db):
     usuario = db.query(User).filter(User.username == "admin").first()
     svc.set_retention_settings(db, usuario.organization_id,
                                {"default_months": 12, "max_months": 24})
-    with pytest.raises(HTTPException) as e:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as e:
         svc.create_policy(db, usuario, {
             "name": "demasiado", "scope": "workspace", "target_id": None,
             "retention_months": 99, "apply_to": "messages",

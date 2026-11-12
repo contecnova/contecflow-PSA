@@ -7,7 +7,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
-import { COLOR, alpha } from '../../constants/theme'
+import { COLOR, COLOR_DATO_POR_DEFECTO, alpha } from '../../constants/theme'
 import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi, clientsApi, contractsApi } from '../../services/api'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
 import ConfigCorreoEntrante from './ConfigCorreoEntrante'
@@ -15,6 +15,7 @@ import { GuardiasConfig, MonitorizacionConfig } from './ConfigGuardiasYMonitor'
 import ConfigPaginaDeEstado from './ConfigPaginaDeEstado'
 import { PRIORITY_LABEL, PBadge, etiquetaSd } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
+import DateInput from '../../components/ui/DateInput'
 
 // ── Local types ─────────────────────────────────────────────────────────────
 type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; approval_user_id?: string | null; is_visible_to_clients?: boolean; fulfillment_tasks?: { title: string; group_id: string }[] }
@@ -87,8 +88,8 @@ function CatalogConfig() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('service_desk.catalog_empty_desc')}</div>
-        <div style={{ display:'flex', gap:8 }}>
+        <div className="u-text3-sm">{t('service_desk.catalog_empty_desc')}</div>
+        <div className="u-row-8">
           <Button variant="secondary" onClick={() => setShowNewSvc(true)} disabled={catalog.length===0}>+ {t('service_desk.svc_new_title')}</Button>
           <Button onClick={() => setShowNewCat(true)}>+ {t('service_desk.cat_new_title')}</Button>
         </div>
@@ -96,14 +97,14 @@ function CatalogConfig() {
 
       {isLoading ? <Spinner /> :
        catalog.length === 0 ? <EmptyState icon="📋" title={t('service_desk.catalog_empty')} description={t('service_desk.catalog_empty_desc')} /> :
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="u-stack-12">
         {catalog.map((cat: Cat) => (
           <div key={cat.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
             <div style={{ padding:'14px 18px', background:'var(--surface-1)', borderBottom:'1px solid var(--surface-4)',
               display:'flex', alignItems:'center', gap:10 }}>
               <span style={{ fontSize: "var(--text-lg-em)" }}>{cat.icon || '📁'}</span>
               <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{cat.name}</span>
-              {cat.description && <span style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>— {cat.description}</span>}
+              {cat.description && <span className="u-text3-sm">— {cat.description}</span>}
               <span style={{ marginLeft:'auto', fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{cat.services?.length || 0} servicios</span>
               <div style={{ display:'flex', gap:6, marginLeft:8 }}>
                 <button onClick={() => setEditingCat(cat)}
@@ -123,7 +124,7 @@ function CatalogConfig() {
                       <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>R:{svc.sla_response_hours}h / Res:{svc.sla_resolution_hours}h</td>
                       <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{svc.requires_approval ? '🔐' : ''}</td>
                       <td style={{ padding:'6px 12px' }}>
-                        <div style={{ display:'flex', gap:6 }}>
+                        <div className="u-row-6">
                           <button onClick={() => setEditingSvc({...svc, category_id: cat.id})}
                             style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏</button>
                           <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar servicio?', onConfirm: () => deleteSvc(svc.id), danger: true }) }}
@@ -174,13 +175,13 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <Modal open title={initial ? t('service_desk.cat_edit_title') : t('service_desk.cat_new_title')} onClose={onClose}>
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div className="u-stack-14">
         <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:10 }}>
           <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
           <div><label style={LS}>Icon</label><input value={form.icon} onChange={set('icon')} style={{...IS, width:60, textAlign:'center'}} /></div>
-          <div><label style={LS}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#4f8ef7'} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
+          <div><label style={LS}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
         </div>
-        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('common.new')}</Button>
         </div>
@@ -216,7 +217,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
   return (
     <Modal open title={initial ? t('service_desk.svc_edit_title') : t('service_desk.svc_new_title')} onClose={onClose}>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-        <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
+        <div className="u-col-full"><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
         <div>
           <label style={LS}>{t('service_desk.tab_catalog')}</label>
           <select value={form.category_id} onChange={set('category_id')} style={IS}>
@@ -239,16 +240,16 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
           <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} style={IS} /></div>
           <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} style={IS} /></div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div className="u-row-center-10">
           <input type="checkbox" id="svc_visible" aria-label={t('sd_cfg.svc_visible')} checked={form.is_visible_to_clients} onChange={set('is_visible_to_clients')} />
           <label htmlFor="svc_visible" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('sd_cfg.svc_visible')}</label>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div className="u-row-center-10">
           <input type="checkbox" id="req_appr" checked={form.requires_approval} onChange={set('requires_approval')} />
           <label htmlFor="req_appr" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.svc_requires_approval')}</label>
         </div>
         {form.requires_approval && (
-          <div style={{ gridColumn:'1/-1' }}>
+          <div className="u-col-full">
             <label style={LS} htmlFor="svc_approver">{t('sd_cfg.svc_approver')} *</label>
             <select id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')} style={IS}>
               <option value="">—</option>
@@ -258,9 +259,9 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
         )}
         <div style={{ gridColumn:'1/-1', display:'flex', flexDirection:'column', gap:8 }}>
           <span style={LS}>{t('sd_cfg.ff_tasks')}</span>
-          <span style={{ fontSize:'var(--text-xs)', color:'var(--text-3)' }}>{t('sd_cfg.ff_help')}</span>
+          <span className="u-text3-xs">{t('sd_cfg.ff_help')}</span>
           {tareas.map((tarea, i) => (
-            <div key={i} style={{ display:'flex', gap:8 }}>
+            <div key={i} className="u-row-8">
               <input aria-label={t('sd_cfg.ff_title')} placeholder={t('sd_cfg.ff_title')} value={tarea.title} style={{ ...IS, flex:2 }}
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
               <select aria-label={t('sd_cfg.oc_queue')} value={tarea.group_id} style={{ ...IS, flex:1 }}
@@ -325,13 +326,13 @@ function SLAConfig() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('service_desk.sla_empty_desc')}</div>
+        <div className="u-text3-sm">{t('service_desk.sla_empty_desc')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.sla_new_title')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
        policies.length === 0 ? <EmptyState icon="⏱" title={t('service_desk.sla_empty')} description={t('service_desk.sla_empty_desc')} /> :
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="u-stack-12">
         {policies.map((p: Policy) => (
           <div key={p.id} style={{ background:'var(--surface-2)', border:`1px solid ${p.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius:12, padding:20 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
@@ -357,9 +358,9 @@ function SLAConfig() {
               {[['P1 Crítico', 'p1', COLOR.danger], ['P2 Alto', 'p2', 'var(--orange)'], ['P3 Medio', 'p3', COLOR.warning], ['P4 Bajo', 'p4', COLOR.text2]].map(([label, key, color]) => (
                 <div key={key} style={{ background:'var(--surface-1)', borderRadius:8, padding:12, borderTop:`3px solid ${color}` }}>
                   <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color, marginBottom:8 }}>{label}</div>
-                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
-                    <div>Resp: <strong style={{ color:'var(--text-1)' }}>{p[`${key}_response_hours`] as number}h</strong></div>
-                    <div>Res: <strong style={{ color:'var(--text-1)' }}>{p[`${key}_resolution_hours`] as number}h</strong></div>
+                  <div className="u-text2-sm">
+                    <div>Resp: <strong className="u-text1">{p[`${key}_response_hours`] as number}h</strong></div>
+                    <div>Res: <strong className="u-text1">{p[`${key}_resolution_hours`] as number}h</strong></div>
                   </div>
                 </div>
               ))}
@@ -405,7 +406,7 @@ function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: 
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+    <div className="u-stack-12">
       <div><label style={LS} htmlFor="sla-asig-tipo">{t('sd_cfg.sla_target_type')}</label>
         <select id="sla-asig-tipo" aria-label={t('sd_cfg.sla_target_type')} value={tipo} onChange={e => { setTipo(e.target.value as 'client' | 'contract'); setDestino('') }} style={IS}>
           <option value="client">{t('sd_cfg.sla_target_client')}</option>
@@ -475,7 +476,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
 
   return (
     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-      <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
+      <div className="u-col-full"><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
       {[['P1 Crítico', 'p1'], ['P2 Alto', 'p2'], ['P3 Medio', 'p3'], ['P4 Bajo', 'p4']].map(([label, key]) => (
         <div key={key} style={{ background:'var(--surface-1)', borderRadius:10, padding:14 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
@@ -510,9 +511,9 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
             <div style={{ gridColumn:'span 2' }}><label style={LS} htmlFor="sla-zona">{t('sd_cfg.timezone')}</label>
               <input id="sla-zona" list="sla-zonas" value={form.timezone} placeholder={t('sd_cfg.timezone_org')} onChange={set('timezone')} style={IS} />
               <datalist id="sla-zonas">{ZONAS.map(z => <option key={z} value={z} />)}</datalist></div>
-            <div style={{ gridColumn:'1/-1' }}>
+            <div className="u-col-full">
               <span style={LS}>{t('sd_cfg.workdays')}</span>
-              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              <div className="u-wrap-6">
                 {nombresDias.map((nombre, i) => {
                   const d = i + 1
                   const on = dias.includes(d)
@@ -593,25 +594,25 @@ function GroupsConfig() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('service_desk.groups_empty_desc')}</div>
+        <div className="u-text3-sm">{t('service_desk.groups_empty_desc')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.groups_new_title')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
        groups.length === 0 ? <EmptyState icon="👥" title={t('service_desk.groups_empty')} description={t('service_desk.groups_empty_desc')} /> :
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="u-stack-12">
         {groups.map((g: Group) => {
           const memberIds = new Set((g.members || []).map((m: Member) => m.id))
           const available = (users || []).filter((u: User) => !memberIds.has(u.id))
           return (
             <div key={g.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:20 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div className="u-row-center-8">
                   <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{g.name}</span>
                   <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{g.support_level?.toUpperCase() || 'L1'}</span>
                   {g.ola_hours != null && <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>OLA {g.ola_hours} h</span>}
                 </div>
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <div className="u-row-center-8">
                   {available.length > 0 && (
                     <select defaultValue="" onChange={e => { if(e.target.value) addMember({gid:g.id, uid:e.target.value}); e.target.value='' }}
                       style={{ ...IS, width:'auto', fontSize: "var(--text-sm)" }}>
@@ -626,7 +627,7 @@ function GroupsConfig() {
                 </div>
               </div>
               {g.description && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginBottom:12 }}>{g.description}</div>}
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              <div className="u-wrap-8">
                 {(g.members || []).map((m: Member) => (
                   <div key={m.id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--surface-1)',
                     border:'1px solid var(--surface-4)', borderRadius:20, padding:'4px 12px' }}>
@@ -647,14 +648,14 @@ function GroupsConfig() {
 
       {showNew && (
         <Modal open title={t('service_desk.groups_new_title')} onClose={() => setShowNew(false)}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <NewGroupForm IS={IS} LS={LS} onSave={createGroup} isPending={isPending} onClose={() => setShowNew(false)} />
           </div>
         </Modal>
       )}
       {editing && (
         <Modal open title={t('service_desk.groups_edit_title')} onClose={() => setEditing(null)}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <NewGroupForm IS={IS} LS={LS} initial={editing}
               onSave={d => updateGroup({id: editing.id, ...d})}
               isPending={false} onClose={() => setEditing(null)} />
@@ -689,7 +690,7 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSS
           aria-invalid={!olaValido} aria-describedby="grp-ola-hint" />
         <div id="grp-ola-hint" style={{ fontSize: "var(--text-xs)", color: olaValido ? 'var(--text-3)' : COLOR.danger, marginTop: 4 }}>{t('sd_cfg.ola_hint')}</div>
       </div>
-      <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={() => onSave({ ...form, ola_hours: ola })} disabled={isPending || !form.name || !olaValido} loading={isPending}>{initial ? t('common.save') : t('service_desk.groups_new_title')}</Button>
       </div>
@@ -738,7 +739,7 @@ function TemplatesConfig() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('service_desk.templates_hint')}</div>
+        <div className="u-text3-sm">{t('service_desk.templates_hint')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.templates_new_title')}</Button>
       </div>
 
@@ -755,7 +756,7 @@ function TemplatesConfig() {
                   {etiquetaSd('type', tmpl.ticket_type)}
                 </span>
               </div>
-              <div style={{ display:'flex', gap:6 }}>
+              <div className="u-row-6">
                 <button onClick={() => toggle({id:tmpl.id, is_active:!tmpl.is_active})}
                   style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px',
                     fontSize: "var(--text-xs)", color: tmpl.is_active ? COLOR.success : 'var(--text-3)', cursor:'pointer', fontFamily:'inherit' }}>
@@ -806,7 +807,7 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: 
   })
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+    <div className="u-stack-14">
       <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
         <div>
@@ -829,7 +830,7 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: 
         <textarea value={form.description_template} onChange={set('description_template')} rows={4}
           style={{...IS, resize:'vertical'}} placeholder={t('config.texto_de_la_plantilla_de_descripcion')} />
       </div>
-      <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.templates_new_title')}</Button>
       </div>
@@ -894,7 +895,7 @@ function CannedResponsesManager() {
         <div style={{marginBottom:10}}><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
                 <textarea value={editForm.body||''} onChange={e=>setEditForm(f=>({...f,body:e.target.value}))} rows={4}
                   style={{...IS, resize:'vertical'}} /></div>
-              <div style={{display:'flex',gap:8}}>
+              <div className="u-row-8">
                 <button onClick={() => update({ id:r.id, data:editForm })} disabled={!editForm.title||!editForm.body}
                   style={{background:'var(--accent)',border:'none',borderRadius:7,padding:'7px 16px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>
                   ✓ Guardar</button>
@@ -906,7 +907,7 @@ function CannedResponsesManager() {
           ) : (
             <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px',
               background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:10 }}>
-              <div style={{ flex:1, minWidth:0 }}>
+              <div className="u-flex1-min0">
                 <div style={{ fontSize: "var(--text-base)", fontWeight:700 }}>{r.title}
                   {r.shortcut && <span style={{ fontSize: "var(--text-2xs)", color:'var(--accent)', marginLeft:8,
                     fontFamily:'var(--font-mono)', background:'var(--accent-muted)', padding:'1px 6px', borderRadius:4 }}>{r.shortcut}</span>}
@@ -985,11 +986,11 @@ export function AnnouncementsConfig() {
         : anns.length === 0
           ? <EmptyState icon="📢" title={t('service_desk.ann_empty')} description={t('service_desk.ann_empty_desc')} />
           : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <div className="u-stack-10">
               {anns.map((a: Ann) => (
                 <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${alpha((TYPE_COLOR[a.type||'']||'var(--accent)'), '30')}`, borderRadius:10, alignItems:'flex-start' }}>
                   <div style={{ width:4, alignSelf:'stretch', borderRadius:4, background:TYPE_COLOR[a.type||'']||'var(--accent)', flexShrink:0 }} />
-                  <div style={{ flex:1 }}>
+                  <div className="u-flex1">
                     <div style={{ fontSize: "var(--text-base)", fontWeight:700, marginBottom:4 }}>{a.title}
                       <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', marginLeft:8, borderRadius:20, background:alpha((TYPE_COLOR[a.type||'']||'var(--accent)'), '20'), color:TYPE_COLOR[a.type||'']||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
                       {a.show_to_clients && <span style={{ fontSize: "var(--text-2xs)", marginLeft:6, color:'var(--text-3)' }}>👁 {t('service_desk.ann_visible_clients')}</span>}
@@ -1012,7 +1013,7 @@ export function AnnouncementsConfig() {
       {showCreate && (
         <Modal open title={t('config.nuevo_comunicado')} onClose={() => setShowCreate(false)} width={500}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('service_desk.ticket_title')} *</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
+            <div className="u-col-full"><label style={LS}>{t('service_desk.ticket_title')} *</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
             <div><label style={LS}>{t('common.status')}</label>
               <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={IS}>
                 {['info','warning','outage','maintenance'].map(tp=><option key={tp} value={tp}>{tp}</option>)}
@@ -1022,11 +1023,11 @@ export function AnnouncementsConfig() {
               <input type="checkbox" id="showCl" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
               <label htmlFor="showCl" style={{ fontSize: "var(--text-sm)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.ann_visible_clients')}</label>
             </div>
-            <div><label style={LS}>{t('service_desk.ann_starts')}</label><input type="datetime-local" value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
-            <div><label style={LS}>{t('service_desk.ann_ends')}</label><input type="datetime-local" value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>
-            <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('service_desk.ann_message')} *</label><textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
+            <div><label style={LS}>{t('service_desk.ann_starts')}</label><DateInput withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
+            <div><label style={LS}>{t('service_desk.ann_ends')}</label><DateInput withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>
+            <div className="u-col-full"><label style={LS}>{t('service_desk.ann_message')} *</label><textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
           </div>
-          <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)" }}>{t('common.cancel')}</button>
             <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('service_desk.ann_published')}</Button>
           </div>

@@ -4,6 +4,7 @@ from app.core.responses import APIResponse
 from app.services.customer_health_service import compute_composite_health
 from sqlalchemy.orm import Session
 from app.db.session import get_db
+from app.core.errores import ErrorDeDominio
 
 router = APIRouter()
 
@@ -11,7 +12,7 @@ router = APIRouter()
 def get_health_composite(client_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     try:
         return APIResponse.ok(data=compute_composite_health(client_id, db))
-    except HTTPException as e:
+    except (HTTPException, ErrorDeDominio) as e:
         if e.status_code == 404:
             raise
         # Si es error de validación o datos, devolver 400/422
@@ -28,7 +29,7 @@ def get_health_composite(client_id: str, db: Session = Depends(get_db), user=Dep
 def get_health_composite_clients(client_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     try:
         return APIResponse.ok(data=compute_composite_health(client_id, db))
-    except HTTPException as e:
+    except (HTTPException, ErrorDeDominio) as e:
         if e.status_code == 404:
             raise
         if e.status_code in (400, 422):

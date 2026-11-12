@@ -1,3 +1,4 @@
+import logging
 import json
 from datetime import date
 from app.core.timeutil import utcnow
@@ -52,6 +53,7 @@ def sync_salesforce_opportunities(
     try:
         config = json.loads(decrypt_value(inst.encrypted_config) if inst.encrypted_config else "{}")
     except Exception:
+        logging.getLogger(__name__).debug("sync_salesforce_opportunities: excepcion ignorada", exc_info=True)
         config = {}
 
     sf_base = config.get("instance_url", "")
@@ -82,6 +84,7 @@ def sync_salesforce_opportunities(
                 resp.raise_for_status()
                 sf_opps = resp.json().get("records", [])
         except Exception as exc:
+            logging.getLogger(__name__).warning("sync_salesforce_opportunities: excepcion ignorada", exc_info=True)
             errors.append(f"Salesforce API error: {exc}")
             sf_opps = []
 

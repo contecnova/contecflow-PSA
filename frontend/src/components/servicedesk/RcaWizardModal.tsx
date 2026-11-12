@@ -54,11 +54,11 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
   const { t: traducir } = useAppLang()
   const [tpl, setTpl] = useState<string>('five_whys')
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
+    <div className="u-stack-16">
+      <div className="u-text2-base">
         {traducir('rcawizardmodal.selecciona_la_metodologia_de_analisis_de_causa')}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="u-stack-10">
         {TEMPLATES.map(t => (
           <label key={t.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: tpl === t.value ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '12px 16px', cursor: 'pointer' }}>
             <input type="radio" name="tpl" value={t.value} checked={tpl === t.value} onChange={() => setTpl(t.value)} style={{ marginTop: 3, accentColor: 'var(--accent)', flexShrink: 0 }} />

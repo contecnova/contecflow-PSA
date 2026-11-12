@@ -109,7 +109,7 @@ function ScoreBar({ value, label, _color }: { value: number; label: string; _col
   return (
     <div style={{ marginBottom:10 }}>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize: "var(--text-sm)" }}>
-        <span style={{ color:'var(--text-2)' }}>{label}</span>
+        <span className="u-text2">{label}</span>
         <span style={{ fontWeight:500, color: value >= 75 ? 'var(--danger)' : value >= 50 ? 'var(--warning)' : 'var(--success)' }}>{Math.round(value)}%</span>
       </div>
       <div style={{ height:6, background:'var(--surface-2)', borderRadius:3, overflow:'hidden' }}>
@@ -122,7 +122,7 @@ function ScoreBar({ value, label, _color }: { value: number; label: string; _col
 const ML_RISK_CFG: Record<RiskLevel, RiskCardConfig> = {
   low:      { color: 'var(--success)', label: 'Bajo',     bg: 'var(--success-bg)' },
   medium:   { color: 'var(--warning)', label: 'Moderado', bg: 'rgba(250,199,117,0.15)' },
-  high:     { color: '#F87171',        label: 'Alto',     bg: 'rgba(248,113,113,0.12)' },
+  high:     { color: 'var(--danger)',        label: 'Alto',     bg: 'rgba(248,113,113,0.12)' },
   critical: { color: 'var(--danger)',        label: 'Crítico',  bg: 'rgba(239,68,68,0.15)' },
 }
 
@@ -183,7 +183,7 @@ function MLPredictionsTab() {
           <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{k.icon}</div>
             <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: k.color || 'var(--text-1)' }}>{k.value}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{k.label}</div>
+            <div className="u-text2-xs">{k.label}</div>
           </div>
         ))}
       </div>
@@ -210,15 +210,15 @@ function MLPredictionsTab() {
                 return (
                   <div key={p.project_id} style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 14 }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="u-flex1-min0">
                       <div style={{ fontSize: "var(--text-base)", fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project_name}</div>
                       {p.recommendation && (
                         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>💡 {p.recommendation}</div>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
-                      {p.cpi != null && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>CPI {p.cpi?.toFixed(2)}</span>}
-                      {p.spi != null && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>SPI {p.spi?.toFixed(2)}</span>}
+                      {p.cpi != null && <span className="u-text3-xs">CPI {p.cpi?.toFixed(2)}</span>}
+                      {p.spi != null && <span className="u-text3-xs">SPI {p.spi?.toFixed(2)}</span>}
                       <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color, fontWeight: 500 }}>{cfg.label}</span>
                     </div>
                   </div>
@@ -229,7 +229,7 @@ function MLPredictionsTab() {
         </div>
 
         {/* Right panel: models + training + logs */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="u-stack-12">
           {/* Train */}
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 18px' }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 8 }}>Entrenar modelo</div>
@@ -252,7 +252,7 @@ function MLPredictionsTab() {
                 <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('riskscores.sin_modelos_entrenados')}</div>
               ) : models.map((m, i) => (
                 <div key={m.id || i} style={{ padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="u-row-between">
                     <span style={{ fontWeight: 500 }}>v{m.version || i + 1}</span>
                     {m.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>Activo</span>}
                   </div>
@@ -278,7 +278,7 @@ function MLPredictionsTab() {
                 const cfg = ML_RISK_CFG[level]
                 return (
                   <div key={l.id || i} style={{ padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)" }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="u-row-between">
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150, fontWeight: 500 }}>{l.project_name || l.project_id}</span>
                       <span style={{ color: cfg.color, fontWeight: 500, flexShrink: 0 }}>{cfg.label}</span>
                     </div>
@@ -396,7 +396,7 @@ export default function RiskScoresPage() {
           {isLoading ? <Spinner /> : filtered.length === 0 ? (
             <EmptyState icon="🛡" title={t('riskscores.sin_datos_de_riesgo')} description="Los proyectos con calculos de riesgo apareceran aqui" />
           ) : (
-            <div data-export-table="risk-scores-list" style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div data-export-table="risk-scores-list" className="u-stack-8">
               {filtered.map((p) => {
                 const level = p.level || 'low'
                 const cfg = LEVEL_CFG[level]
@@ -407,16 +407,16 @@ export default function RiskScoresPage() {
                     style={{ background:'var(--surface-1)', border:`.5px solid ${isSelected ? cfg.border : 'var(--surface-4)'}`, borderRadius:10, padding:'14px 18px', cursor:'pointer', transition:'border-color .2s', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                       <span style={{ fontSize: "var(--text-xl)" }}>{cfg.icon}</span>
-                      <div style={{ flex:1 }}>
+                      <div className="u-flex1">
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
                           <div>
                             <span style={{ fontSize: "var(--text-base)", fontWeight:500, marginRight:8 }}>{p.project_name}</span>
                             <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', padding:'1px 6px', borderRadius:4, background:'var(--surface-2)' }}>{p.project_code}</span>
                           </div>
-                          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                          <div className="u-row-center-10">
                             <span style={{ fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:5, background:cfg.bg, color:cfg.color, fontWeight:500 }}>{cfg.label}</span>
                             <span style={{ fontSize: "var(--text-lg-em)", fontWeight:700, color:cfg.color }}>{Math.round(p.overall_score || 0)}</span>
-                            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>/100</span>
+                            <span className="u-text3-xs">/100</span>
                           </div>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:8 }}>
@@ -442,11 +442,11 @@ export default function RiskScoresPage() {
                     </div>
                     {(p.delay_probability_pct ?? 0) > 20 && (
                       <div style={{ marginTop:8, display:'flex', gap:16, paddingTop:8, borderTop:`.5px solid var(--surface-4)`, fontSize: "var(--text-sm)" }}>
-                        <span>Prob. retraso: <strong style={{ color:'var(--danger)' }}>{Math.round(p.delay_probability_pct ?? 0)}%</strong></span>
+                        <span>Prob. retraso: <strong className="u-danger">{Math.round(p.delay_probability_pct ?? 0)}%</strong></span>
                         {p.predicted_delay_weeks && (
-                          <span>Retraso estimado: <strong style={{ color:'var(--warning)' }}>{p.predicted_delay_weeks}sem</strong></span>
+                          <span>Retraso estimado: <strong className="u-warning">{p.predicted_delay_weeks}sem</strong></span>
                         )}
-                        <span style={{ color:'var(--text-3)' }}>Calc: {p.computed_at}</span>
+                        <span className="u-text3">Calc: {p.computed_at}</span>
                       </div>
                     )}
                   </button>
@@ -469,7 +469,7 @@ export default function RiskScoresPage() {
               <RadarChart data={radarData}>
                 <PolarGrid stroke="var(--surface-4)" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: "var(--text-xs)", fill:'var(--text-2)' }} />
-                <Radar name={detail.project_name} dataKey="A" stroke="#3266AD" fill="#3266AD" fillOpacity={0.25} />
+                <Radar name={detail.project_name} dataKey="A" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.25} />
                 <Tooltip formatter={(v: unknown) => [`${Math.round(Number(v) || 0)}%`, 'Riesgo']} />
               </RadarChart>
             </ResponsiveContainer>
@@ -491,7 +491,7 @@ export default function RiskScoresPage() {
                 <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.06em' }}>{t('riskscores.evolucion')}</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
                   {detail.history!.map((h, i) => (
-                    <span key={i} title={h.computed_at}>{i > 0 && '→ '}<strong style={{ color:'var(--text-1)' }}>{Math.round(h.overall_score)}</strong> <span style={{ color:'var(--text-3)' }}>{h.computed_at.slice(5, 10)}</span></span>
+                    <span key={i} title={h.computed_at}>{i > 0 && '→ '}<strong className="u-text1">{Math.round(h.overall_score)}</strong> <span className="u-text3">{h.computed_at.slice(5, 10)}</span></span>
                   ))}
                 </div>
               </div>

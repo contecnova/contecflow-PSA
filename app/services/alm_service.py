@@ -9,7 +9,6 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from app.models.alm import (
@@ -17,6 +16,7 @@ from app.models.alm import (
     ALMAsset, ALMCostCenter, ALMSoftwareInstall,
 )
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -250,7 +250,7 @@ def get_vendor_record(vid: str, db: Session) -> dict:
 
     v = db.query(ALMVendor).filter(ALMVendor.id == vid, ALMVendor.is_active == True).first()
     if not v:
-        raise HTTPException(404, "Proveedor no encontrado")
+        raise ErrorDeDominio(404, "Proveedor no encontrado")
     return serialize_vendor(v)
 
 
@@ -258,7 +258,7 @@ def update_vendor_record(vid: str, data: dict, db: Session) -> dict:
 
     v = db.query(ALMVendor).filter(ALMVendor.id == vid, ALMVendor.is_active == True).first()
     if not v:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     clean = clean_input(data, ALMVendor)
     for k, val in clean.items():
         setattr(v, k, val)
@@ -271,7 +271,7 @@ def delete_vendor_record(vid: str, db: Session) -> dict:
 
     v = db.query(ALMVendor).filter(ALMVendor.id == vid, ALMVendor.is_active == True).first()
     if not v:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     active_contracts = db.query(func.count(ALMContract.id)).filter(
         ALMContract.vendor_id == vid,
         ALMContract.is_active == True,
@@ -285,7 +285,7 @@ def delete_vendor_record(vid: str, db: Session) -> dict:
         ALMAsset.is_active == True,
     ).scalar() or 0
     if active_contracts or active_licenses or active_assets:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400,
             f"No se puede eliminar: contratos={active_contracts}, licencias={active_licenses}, activos={active_assets}",
         )
@@ -333,7 +333,7 @@ def _limpiar_contrato(data: dict) -> dict:
     )
     for campo in ("resolution_hours", "response_hours"):
         if clean.get(campo) is not None and clean[campo] <= 0:
-            raise HTTPException(422, "Los plazos del proveedor (UC) son horas mayores que cero, o vacío")
+            raise ErrorDeDominio(422, "Los plazos del proveedor (UC) son horas mayores que cero, o vacío")
     return clean
 
 
@@ -352,7 +352,7 @@ def get_contract_record(cid: str, db: Session) -> dict:
 
     c = db.query(ALMContract).filter(ALMContract.id == cid, ALMContract.is_active == True).first()
     if not c:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return serialize_contract(c, db)
 
 
@@ -360,7 +360,7 @@ def update_contract_record(cid: str, data: dict, db: Session) -> dict:
 
     c = db.query(ALMContract).filter(ALMContract.id == cid, ALMContract.is_active == True).first()
     if not c:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     for k, v in _limpiar_contrato(data).items():
         setattr(c, k, v)
     db.commit()
@@ -372,13 +372,13 @@ def delete_contract_record(cid: str, db: Session) -> dict:
 
     c = db.query(ALMContract).filter(ALMContract.id == cid, ALMContract.is_active == True).first()
     if not c:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     active_licenses = db.query(func.count(ALMLicense.id)).filter(
         ALMLicense.contract_id == cid,
         ALMLicense.is_active == True,
     ).scalar() or 0
     if active_licenses > 0:
-        raise HTTPException(400, f"No se puede eliminar: {active_licenses} licencia(s) activas asociadas")
+        raise ErrorDeDominio(400, f"No se puede eliminar: {active_licenses} licencia(s) activas asociadas")
     c.is_active = False
     c.status = "cancelled"
     db.commit()
@@ -430,7 +430,7 @@ def get_license_record(lid: str, db: Session) -> dict:
 
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid, ALMLicense.is_active == True).first()
     if not lic:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     out = serialize_license(lic, db)
     out["assignments"] = []
     for a in lic.assignments:
@@ -453,7 +453,7 @@ def update_license_record(lid: str, data: dict, db: Session) -> dict:
 
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid, ALMLicense.is_active == True).first()
     if not lic:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     clean = clean_input(
         data, ALMLicense,
         date_fields=["purchase_date", "expiry_date"],
@@ -471,7 +471,7 @@ def delete_license_record(lid: str, db: Session) -> dict:
 
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid, ALMLicense.is_active == True).first()
     if not lic:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     active_assignments = db.query(func.count(ALMLicenseAssignment.id)).filter(
         ALMLicenseAssignment.license_id == lid,
         ALMLicenseAssignment.is_active == True,
@@ -481,7 +481,7 @@ def delete_license_record(lid: str, db: Session) -> dict:
         ALMSoftwareInstall.is_active == True,
     ).scalar() or 0
     if active_assignments or active_installs:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400,
             f"No se puede eliminar: asignaciones={active_assignments}, instalaciones={active_installs}",
         )
@@ -495,16 +495,16 @@ def assign_license_record(lid: str, data: dict, assigned_by_id: str, db: Session
 
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid, ALMLicense.is_active == True).first()
     if not lic:
-        raise HTTPException(404, "Licencia no encontrada")
+        raise ErrorDeDominio(404, "Licencia no encontrada")
     used = sum(1 for a in lic.assignments if a.is_active)
     if lic.total_seats and used >= lic.total_seats:
-        raise HTTPException(409, f"Sin seats disponibles ({used}/{lic.total_seats} usados)")
+        raise ErrorDeDominio(409, f"Sin seats disponibles ({used}/{lic.total_seats} usados)")
     expires_at = None
     if data.get("expires_at"):
         try:
             expires_at = datetime.fromisoformat(data["expires_at"]).date()
         except ValueError:
-            raise HTTPException(400, "Formato de expires_at inválido, se espera YYYY-MM-DD")
+            raise ErrorDeDominio(400, "Formato de expires_at inválido, se espera YYYY-MM-DD")
 
     def _none(v):
         return v if v else None
@@ -532,7 +532,7 @@ def revoke_assignment_record(lid: str, aid: str, db: Session) -> dict:
         ALMLicenseAssignment.is_active == True,
     ).first()
     if not a:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     a.is_active = False
     db.commit()
     return {"ok": True, "message": "Asignacion revocada correctamente"}
@@ -592,7 +592,7 @@ def get_asset_record(aid: str, db: Session) -> dict:
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not a:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     out = serialize_asset(a)
     out["licenses"] = [
         {"id": i.license_id, "name": i.license.name if i.license else "—", "version": i.version}
@@ -606,7 +606,7 @@ def update_asset_record(aid: str, data: dict, db: Session, current_user=None) ->
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not a:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     clean = clean_input(
         data, ALMAsset,
         date_fields=FECHAS_DE_ACTIVO,
@@ -626,7 +626,7 @@ def delete_asset_record(aid: str, db: Session, current_user=None) -> dict:
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not a:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     active_installs = db.query(func.count(ALMSoftwareInstall.id)).filter(
         ALMSoftwareInstall.asset_id == aid,
         ALMSoftwareInstall.is_active == True,
@@ -636,7 +636,7 @@ def delete_asset_record(aid: str, db: Session, current_user=None) -> dict:
         ALMLicenseAssignment.is_active == True,
     ).scalar() or 0
     if active_installs or active_assignments:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400,
             f"No se puede eliminar: instalaciones={active_installs}, asignaciones={active_assignments}",
         )
@@ -651,7 +651,7 @@ def assign_asset_record(aid: str, data: dict, db: Session, current_user=None) ->
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not a:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     uid = data.get("user_id") or None
     aplicar_con_historial(db, a, {
         "assigned_to_id": uid,
@@ -691,7 +691,7 @@ def update_cost_center_record(cid: str, data: dict, db: Session) -> dict:
 
     c = db.query(ALMCostCenter).filter(ALMCostCenter.id == cid, ALMCostCenter.is_active == True).first()
     if not c:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     clean = clean_input(data, ALMCostCenter, float_fields=["budget_annual"])
     for k, v in clean.items():
         setattr(c, k, v)
@@ -703,7 +703,7 @@ def delete_cost_center_record(cid: str, db: Session) -> dict:
 
     c = db.query(ALMCostCenter).filter(ALMCostCenter.id == cid, ALMCostCenter.is_active == True).first()
     if not c:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     active_contracts = db.query(func.count(ALMContract.id)).filter(
         ALMContract.cost_center_id == cid,
         ALMContract.is_active == True,
@@ -713,7 +713,7 @@ def delete_cost_center_record(cid: str, db: Session) -> dict:
         ALMLicense.is_active == True,
     ).scalar() or 0
     if active_contracts or active_licenses:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400,
             f"No se puede eliminar: contratos={active_contracts}, licencias={active_licenses}",
         )
@@ -728,20 +728,20 @@ def add_install_record(aid: str, data: dict, installed_by_id: str, db: Session) 
 
     license_id = data.get("license_id")
     if not license_id:
-        raise HTTPException(400, "license_id es obligatorio")
+        raise ErrorDeDominio(400, "license_id es obligatorio")
     asset = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not asset:
-        raise HTTPException(404, "Activo no encontrado")
+        raise ErrorDeDominio(404, "Activo no encontrado")
     license_obj = db.query(ALMLicense).filter(ALMLicense.id == license_id, ALMLicense.is_active == True).first()
     if not license_obj:
-        raise HTTPException(404, "Licencia no encontrada")
+        raise ErrorDeDominio(404, "Licencia no encontrada")
     existing = db.query(ALMSoftwareInstall).filter(
         ALMSoftwareInstall.asset_id == aid,
         ALMSoftwareInstall.license_id == license_id,
         ALMSoftwareInstall.is_active == True,
     ).first()
     if existing:
-        raise HTTPException(400, "La instalacion ya existe")
+        raise ErrorDeDominio(400, "La instalacion ya existe")
     inst = ALMSoftwareInstall(
         asset_id     = aid,
         license_id   = license_id,
@@ -762,7 +762,7 @@ def remove_install_record(aid: str, iid: str, db: Session) -> dict:
         ALMSoftwareInstall.is_active == True,
     ).first()
     if not inst:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     inst.is_active = False
     db.commit()
     return {"ok": True, "message": "Instalacion eliminada correctamente"}

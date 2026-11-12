@@ -179,6 +179,7 @@ def sync_milestones_to_calendar(
             result = _graph_post_sync(f"/users/{req.user_upn}/events", payload)
             created.append({"milestone_id": ms.id, "event_id": result.get("id")})
         except Exception as e:
+            logger.warning("sync_milestones_to_calendar: excepcion ignorada", exc_info=True)
             errors.append({"milestone_id": ms.id, "error": str(e)})
 
     return APIResponse.ok(data={"created": len(created), "errors": errors, "details": created})

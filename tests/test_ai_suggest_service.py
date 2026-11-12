@@ -6,6 +6,7 @@ leia por aqui el contenido de un ticket que no puede abrir).
 """
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 
 def test_un_ticket_que_no_existe_o_no_se_ve_es_404(db):
@@ -14,13 +15,13 @@ def test_un_ticket_que_no_existe_o_no_se_ve_es_404(db):
     from app.services.service_desk.ai_suggest_service import build_ai_ticket_suggestion
 
     dev = db.get(User, "dev-test-id")
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         build_ai_ticket_suggestion(db, "nonexistent", None, dev)
     assert exc.value.status_code == 404
     db.add(Ticket(id="ajeno", number="INC-0001", ticket_type="incident", title="Nómina", description="secreto",
                   organization_id="1", requester_user_id="admin-test-id"))
     db.commit()
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         build_ai_ticket_suggestion(db, "ajeno", None, dev)
     assert exc.value.status_code == 404
 

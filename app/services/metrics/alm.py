@@ -5,7 +5,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 from app.core import timeutil
 
 

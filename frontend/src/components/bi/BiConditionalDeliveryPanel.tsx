@@ -129,17 +129,17 @@ export default function BiConditionalDeliveryPanel() {
       {isLoading ? (
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>Cargando…</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-stack-8">
           {(data?.items ?? []).map(rule => (
             <div key={rule.id} style={S.row}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="u-flex1-min0">
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{rule.name}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>
                   {rule.report_id} · {rule.condition_type}
                   {rule.diff_threshold_pct != null && ` (≥${rule.diff_threshold_pct}%)`}
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="u-row-center-10">
                 {evaluateResult[rule.id] && (
                   <span style={{
                     fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 10, fontWeight: 600,

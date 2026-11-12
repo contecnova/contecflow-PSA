@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, SetStateAction, ChangeEvent, FormEvent } from 'react'
 import { z } from 'zod'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, advancedConfigApi } from '../services/settingsApi'
+import { settingsApi, advancedConfigApi, type SettingOut, type DepartmentOut, type CustomRole, type ModuleOption } from '../services/settingsApi'
 import { useAuth } from '../context/AuthContext'
 import { presupuestosApi } from '../services/api'
-import { usersApi, organizationsApi, biSmartAlertsApi, esignApi } from '../services/api'
+import { usersApi, organizationsApi, biSmartAlertsApi, esignApi, apiUrl, type UserListItem, type UserCreatePayload, type UserUpdatePayload } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import { Search, Layers, Sparkles, Building2 } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -18,7 +18,7 @@ import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSectio
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 import { useOrgSettings } from '../hooks/useOrgSettings'
-import { alpha } from '../constants/theme'
+import { COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
@@ -41,6 +41,124 @@ const styles: Record<string, CSSProperties> = {
   pill: { fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 20, padding: '1px 8px', marginLeft: 8 },
   sectionTitleUpper: { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' },
 }
+
+// ── Tipos ─────────────────────────────────────────────────────────────────────
+// Formas de lo que devuelve la API para cada sección (app/schemas/** y los
+// serializadores de app/services/advanced_config_service.py) y del estado local
+// de los formularios. Se declaran con `type` (no `interface`) para que sigan
+// siendo asignables a `Record<string, unknown>`, que es lo que piden los
+// métodos de escritura de settingsApi/advancedConfigApi.
+
+type Organizacion = { id: string; name: string; slug?: string | null; is_active?: boolean }
+
+/** Usuario del listado (`UserPublic`). Auditoría 2026-11 (#25): `GET /users` no manda
+ *  `hourly_rate` (sólo `GET /users/{id}`, `UserWithRate`) ni `timezone` (no está en
+ *  `UserPublic`), así que al editar desde el listado los dos llegan siempre vacíos. Se
+ *  declaran opcionales porque el formulario los lee. */
+type UserRow = UserListItem & {
+  hourly_rate?: number | null
+  timezone?: string | null
+}
+
+type UserFormValues = {
+  username: string
+  email: string
+  full_name: string
+  role: string
+  department: string
+  job_title: string
+  // Los <input type="number"> dejan aquí el texto tal cual.
+  weekly_capacity_hours: number | string
+  hourly_rate: number | string
+  timezone: string
+  organization_ids: string[]
+  organization_id: string
+  custom_role_id: string
+  password: string
+}
+/** Sin superadmin el formulario no envía las empresas. */
+type UserFormPayload = UserFormValues | Omit<UserFormValues, 'organization_ids' | 'organization_id'>
+
+type RoleForm = { name: string; description: string; color: string; module_access: Record<string, unknown> }
+
+type NotifyKey = 'notify_admin' | 'notify_pm' | 'notify_hr' | 'notify_employee' | 'notify_email'
+type AlertConfig = {
+  alert_type: string
+  label: string
+  description?: string | null
+  severity: string
+  is_enabled: boolean
+  threshold_value: number | null
+  threshold_unit?: string | null
+} & Partial<Record<NotifyKey, boolean>>
+
+type AlertRule = { id: string; name: string; metric_key: string; condition: string; threshold?: number | null; severity: string; enabled: boolean }
+type MetricOption = { key: string; label: string; is_custom?: boolean }
+type SupportedMetrics = { metrics?: MetricOption[]; conditions?: unknown[] }
+type RuleForm = { name: string; metric_key: string; condition: string; threshold: string | number; severity: string; cooldown_minutes: string | number }
+
+type RateEntry = { id: string; label: string; cost_rate: number | null; billing_rate: number | null }
+type RateTable = { id: string; name: string; applies_to: string; is_default: boolean; entries?: RateEntry[] }
+type EntryForm = { label: string; cost_rate: string | number; billing_rate: string | number }
+type NewRateTable = { name: string; applies_to: string; is_default: boolean }
+
+type VacationPolicy = { id: string; name: string; days_per_year: number; carries_over: boolean; max_carryover_days: number | null; is_default: boolean }
+type NewVacationPolicy = { name: string; days_per_year: number; carries_over: boolean; max_carryover_days: number; is_default: boolean }
+type VacationBalance = { user_id: string; user_name: string; department?: string | null; days_entitled: number; days_taken: number; days_pending: number; days_remaining: number }
+
+type NumberingSeq = { entity: string; prefix: string; separator: string; padding: number; include_year: boolean; current_value: number; next_preview: string }
+
+type CustomField = { id: string; entity: string; name: string; field_key: string; field_type: string; is_required: boolean; placeholder?: string | null }
+type CustomFieldEdit = { name: string; is_required: boolean; placeholder: string }
+type CustomFieldForm = { entity: string; name: string; field_key: string; field_type: string; is_required: boolean; placeholder: string }
+
+type TemplateTask = { id?: string; title: string; estimated_hours?: number | null }
+type TemplatePhase = { id?: string; name: string; tasks?: TemplateTask[] }
+type ProjectTemplate = {
+  id: string
+  name: string
+  description?: string | null
+  phase_count: number
+  task_count: number
+  risk_count: number
+  deliverable_count: number
+  estimated_weeks?: number | null
+  phases?: TemplatePhase[]
+}
+type DraftTask = { title: string; estimated_hours: number | null; skill_required: string | null }
+type DraftPhase = { name: string; description: string | null; estimated_weeks: number | null; estimated_hours: number | null; tasks: DraftTask[] }
+type DraftRisk = { title: string; category: string | null; probability: string; impact: string; mitigation_plan: string | null }
+type DraftDeliverable = { name: string; format: string | null; week_offset: number | null; billing_pct: number | null; acceptance_criteria: string | null }
+type TemplateForm = {
+  name: string
+  description: string
+  project_type: string
+  estimated_weeks: string
+  estimated_hours: string
+  phases: DraftPhase[]
+  risks: DraftRisk[]
+  deliverables: DraftDeliverable[]
+}
+type TemplatePayload = Omit<TemplateForm, 'estimated_weeks' | 'estimated_hours'> & { estimated_weeks: number | null; estimated_hours: number | null }
+type PhaseInput = { name: string; description: string; estimated_weeks: string; estimated_hours: string; tasks: DraftTask[] }
+type TaskInput = { title: string; estimated_hours: string; skill_required: string }
+type RiskInput = { title: string; category: string; probability: string; impact: string; mitigation_plan: string }
+type DeliverableInput = { name: string; format: string; week_offset: string; billing_pct: string; acceptance_criteria: string }
+
+type Office = { id: string; name: string; country?: string | null; city?: string | null; timezone?: string | null }
+type OfficeForm = { name: string; country: string; city: string; timezone: string }
+
+type TaskType = { id: string; name: string; value: string; icon: string; color: string; is_billable_default: boolean }
+type TaskTypeForm = { name: string; value: string; icon: string; color: string; is_billable_default: boolean }
+type TaskTypeEdit = Omit<TaskTypeForm, 'value'>
+
+type DepartmentForm = { name: string; description: string; area_id: string }
+
+type MetricFormula = { operand_a?: string; operator?: string; operand_b_type?: string; operand_b?: string | number; scale?: string | number }
+type CustomMetric = { key: string; label: string; description?: string | null; formula?: MetricFormula | null }
+type MetricForm = { label: string; description: string; operand_a: string; operator: string; operand_b_type: string; operand_b: string; scale: string | number }
+
+type InputChange = ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
 
 function Section({ icon, title, description, children }: { icon?: React.ReactNode; title?: React.ReactNode; description?: React.ReactNode; children?: React.ReactNode }) {
   return (
@@ -89,15 +207,15 @@ function GeneralSection() {
   const { t } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
-  const { data: settings = [] } = useQuery<any>({ queryKey: ['settings-general'], queryFn: () => settingsApi.getGeneral().then(r => r.data) })
-  const { mutate: update } = useMutation<any, any, any>({ mutationFn: ({ key, value }: any) => settingsApi.updateSetting(key, value), onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-general'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { data: settings = [] } = useQuery({ queryKey: ['settings-general'], queryFn: () => settingsApi.getGeneral().then(r => r.data) })
+  const { mutate: update } = useMutation({ mutationFn: ({ key, value }: { key: string; value: string }) => settingsApi.updateSetting(key, value), onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-general'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
-  const visible = (settings || []).filter((s: any) => isUserFacingSetting(s.key))
+  const visible = (settings || []).filter(s => isUserFacingSetting(s.key))
 
   return (
     <Section icon="⚙️" title={t('settings.configuracion_general')} description="Parámetros globales de la organización">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-        {visible.map((s: any) => <SettingField key={s.key} setting={s} label={LABELS[s.key] || s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
+        {visible.map(s => <SettingField key={s.key} setting={s} label={LABELS[s.key] || s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
       </div>
       {visible.length === 0 && (
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
@@ -108,11 +226,11 @@ function GeneralSection() {
   )
 }
 
-function SettingField({ setting, label, onSave }: { setting: any; label: any; onSave: (v: any) => void }) {
-  const [state, setState] = useState<any>({ editing: false, val: setting.value || '' })
+function SettingField({ setting, label, onSave }: { setting: SettingOut; label: string; onSave: (v: string) => void }) {
+  const [state, setState] = useState<{ editing: boolean; val: string }>({ editing: false, val: setting.value || '' })
   const { editing, val } = state
-  const setEditing = (v: any) => setState((s: any) => ({ ...s, editing: typeof v === 'function' ? v(s.editing) : v }))
-  const setVal = (v: any) => setState((s: any) => ({ ...s, val: typeof v === 'function' ? v(s.val) : v }))
+  const setEditing = (v: SetStateAction<boolean>) => setState(s => ({ ...s, editing: typeof v === 'function' ? v(s.editing) : v }))
+  const setVal = (v: SetStateAction<string>) => setState(s => ({ ...s, val: typeof v === 'function' ? v(s.val) : v }))
   return (
     <div style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -121,7 +239,7 @@ function SettingField({ setting, label, onSave }: { setting: any; label: any; on
     }}>
       <label style={ls}>{label}</label>
       {editing ? (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="u-row-8">
           <input value={val} onChange={e => setVal(e.target.value)} style={{ ...fs, flex: 1, minWidth: 0 }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
           <button onClick={() => { onSave(val); setEditing(false) }} style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '0 12px', color: 'var(--surface-0)', cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>✓</button>
           <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>✕</button>
@@ -146,31 +264,36 @@ function UsersSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
+  type UsersUi = { showCreate: boolean; editUser: UserRow | null; search: string; orgFilter: string }
   const [ui, setUi] = React.useReducer(
-    (s: any, p: any) => {
+    (s: UsersUi, p: Partial<UsersUi> | ((s: UsersUi) => Partial<UsersUi>)): UsersUi => {
       const next = typeof p === 'function' ? p(s) : p
       return { ...s, ...next }
     },
     { showCreate: false, editUser: null, search: '', orgFilter: '' },
   )
   const { showCreate, editUser, search, orgFilter } = ui
-  const setShowCreate = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ showCreate: v(s.showCreate) }) : { showCreate: v })
-  const setEditUser = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ editUser: v(s.editUser) }) : { editUser: v })
-  const setSearch = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ search: v(s.search) }) : { search: v })
-  const setOrgFilter = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ orgFilter: v(s.orgFilter) }) : { orgFilter: v })
-  const { data: users = [], isLoading } = useQuery<any>({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-  const { data: roles = [] } = useQuery<any>({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
-  const { data: departments = [] } = useQuery<any>({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
+  const setShowCreate = (v: SetStateAction<boolean>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ showCreate: v(s.showCreate) }) : { showCreate: v })
+  const setEditUser = (v: SetStateAction<UserRow | null>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ editUser: v(s.editUser) }) : { editUser: v })
+  const setSearch = (v: SetStateAction<string>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ search: v(s.search) }) : { search: v })
+  const setOrgFilter = (v: SetStateAction<string>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ orgFilter: v(s.orgFilter) }) : { orgFilter: v })
+  const { data: users = [], isLoading } = useQuery<UserRow[]>({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
+  const { data: roles = [] } = useQuery({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
+  const { data: departments = [] } = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
   // La lista de empresas y asignar a otras es del superadmin (la API la sirve
   // sólo a él); un admin de empresa da de alta en la suya (revisión 2026-11).
-  const esSuperadmin = !!(useAuth().user as any)?.is_superadmin
-  const { data: organizations = [] } = useQuery<any>({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data), enabled: esSuperadmin })
-  const roleMap = Object.fromEntries(roles.map((r: any) => [r.name, r]))
-  const { mutate: createUser, isPending: creating } = useMutation<any, any, any>({ mutationFn: usersApi.create, onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: updateUser, isPending: updating } = useMutation<any, any, any>({ mutationFn: ({ id, data }: any) => usersApi.update(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setEditUser(null) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: deactivate } = useMutation<any, any, any>({ mutationFn: usersApi.deactivate, onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: deletePermanent } = useMutation<any, any, any>({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['users-settings'] }); qc.invalidateQueries({ queryKey: ['resources'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const filtered = users.filter((u: any) => {
+  const esSuperadmin = !!useAuth().user?.is_superadmin
+  const { data: organizations = [] } = useQuery<Organizacion[]>({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data), enabled: esSuperadmin })
+  const roleMap = Object.fromEntries(roles.map(r => [r.name, r]))
+  // El formulario envía los campos tal como los tiene (la tarifa y las horas como
+  // texto); `UserCreate`/`UserUpdate` los declaran numéricos. Además `UserCreate` no
+  // admite `hourly_rate`, `custom_role_id` ni `timezone`: en el alta se descartan
+  // (auditoría 2026-11, #25).
+  const { mutate: createUser, isPending: creating } = useMutation({ mutationFn: (data: UserFormPayload) => usersApi.create(data as UserCreatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: updateUser, isPending: updating } = useMutation({ mutationFn: ({ id, data }: { id: string; data: UserFormPayload }) => usersApi.update(id, data as UserUpdatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setEditUser(null) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deactivate } = useMutation({ mutationFn: usersApi.deactivate, onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deletePermanent } = useMutation({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['users-settings'] }); qc.invalidateQueries({ queryKey: ['resources'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const filtered = users.filter(u => {
     const bySearch = !search
       || u.full_name?.toLowerCase().includes(search.toLowerCase())
       || u.username?.toLowerCase().includes(search.toLowerCase())
@@ -179,7 +302,7 @@ function UsersSection() {
     if (!orgFilter) return true
 
     const orgs = Array.isArray(u.organizations) ? u.organizations : []
-    const hasInMemberships = orgs.some((o: any) => String(o.id) === String(orgFilter))
+    const hasInMemberships = orgs.some(o => String(o.id) === String(orgFilter))
     const hasPrimary = String(u.organization_id || '') === String(orgFilter)
     return hasInMemberships || hasPrimary
   })
@@ -205,7 +328,7 @@ function UsersSection() {
           style={{ minWidth: 220, maxWidth: 320 }}
         >
           <option value="">{t('settings.todas_las_organizaciones')}</option>
-          {organizations.filter((o: any) => o.is_active !== false).map((o: any) => (
+          {organizations.filter(o => o.is_active !== false).map(o => (
             <option key={o.id} value={o.id}>{o.name}</option>
           ))}
         </select>
@@ -224,7 +347,7 @@ function UsersSection() {
       </div>
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap8}>
-          {filtered.map((u: any) => {
+          {filtered.map(u => {
             const roleColor = roleMap[u.role]?.color || ROLE_COLORS[u.role] || 'var(--text-2)'
             const roleLabel = roleMap[u.role]?.description || ROLE_LABELS[u.role] || u.role
             const orgs = Array.isArray(u.organizations) ? u.organizations : []
@@ -232,16 +355,16 @@ function UsersSection() {
             return (
             <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${u.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 10, opacity: u.is_active ? 1 : 0.6 }}>
               <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${roleColor}, var(--surface-0))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
-                {u.full_name?.split(' ').map((w: any) => w[0]).join('').slice(0, 2).toUpperCase()}
+                {u.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{u.full_name}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{u.username} · {u.email}</div>
+              <div className="u-flex1">
+                <div className="u-base-600">{u.full_name}</div>
+                <div className="u-text2-xs">{u.username} · {u.email}</div>
               </div>
               <span style={{ fontSize: "var(--text-xs)", background: alpha(roleColor, '15'), color: roleColor, border: `1px solid ${alpha(roleColor, '30')}`, borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>{roleLabel}</span>
               {orgs.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  {orgs.slice(0, 3).map((org: any) => {
+                  {orgs.slice(0, 3).map(org => {
                     const isPrimary = String(org.id || '') === String(primaryOrgId)
                     return (
                       <span key={org.id} style={{
@@ -259,7 +382,7 @@ function UsersSection() {
                   })}
                   {orgs.length > 3 && (
                     <span
-                      title={orgs.map((org: any) => `${org.name || org.slug || org.id}${String(org.id || '') === String(primaryOrgId) ? ' (Principal)' : ''}`).join('\n')}
+                      title={orgs.map(org => `${org.name || org.slug || org.id}${String(org.id || '') === String(primaryOrgId) ? ' (Principal)' : ''}`).join('\n')}
                       style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', cursor: 'help' }}
                     >
                       +{orgs.length - 3}
@@ -267,7 +390,7 @@ function UsersSection() {
                   )}
                 </div>
               )}
-              {u.department && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{u.department}</span>}
+              {u.department && <span className="u-text2-xs">{u.department}</span>}
               {!u.is_active && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>Inactivo</span>}
               <button onClick={() => setEditUser(u)} style={styles.btnEdit}>✏️ Editar</button>
               {u.is_active ? <button onClick={() => openConfirmGlobal({ message: `¿Desactivar a "${u.full_name}"?`, onConfirm: () => deactivate(u.id) })} style={{ background: 'none', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>⏸ Desactivar</button>
@@ -278,7 +401,7 @@ function UsersSection() {
         </div>
       )}
       <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
-      {editUser && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} user={editUser} onClose={() => setEditUser(null)} onSave={(data: any) => updateUser({ id: editUser.id, data })} isPending={updating} />}
+      {editUser && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} user={editUser} onClose={() => setEditUser(null)} onSave={data => updateUser({ id: editUser.id, data })} isPending={updating} />}
     </Section>
   )
 }
@@ -319,10 +442,22 @@ const userEditSchema = userFormSchemaBase.extend({
   password: z.union([z.literal(''), z.string().min(6, 'Mínimo 6 caracteres')]).optional(),
 })
 
-function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [], esSuperadmin = false }: any) {
+interface UserFormModalProps {
+  open: boolean
+  onClose: () => void
+  user?: UserRow | null
+  onSave: (data: UserFormPayload) => void
+  isPending?: boolean
+  roles?: CustomRole[]
+  departments?: DepartmentOut[]
+  organizations?: Organizacion[]
+  esSuperadmin?: boolean
+}
+
+function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [], esSuperadmin = false }: UserFormModalProps) {
   const { t } = useAppLang()
   const isEdit = !!user
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<UserFormValues>({
     username: user?.username || '',
     email: user?.email || '',
     full_name: user?.full_name || '',
@@ -340,12 +475,12 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     password: '',
   })
   const validation = useFormValidation(isEdit ? userEditSchema : userCreateSchema)
-  const set = (k: any) => (e: any) => {
+  const set = (k: keyof UserFormValues) => (e: InputChange) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
-  const setOrganizations = (e: any) => {
-    const values = Array.from(e.target.selectedOptions).map((o: any) => o.value)
+  const setOrganizations = (e: ChangeEvent<HTMLSelectElement>) => {
+    const values = Array.from(e.target.selectedOptions).map(o => o.value)
     setForm((f) => {
       const nextPrimary = values.includes(f.organization_id)
         ? f.organization_id
@@ -354,10 +489,10 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     })
     validation.clearFieldError('organization_ids')
   }
-  const errField = (key: any) => validation.errors[key] && (
-    <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)', marginTop: 4 }}>{validation.errors[key]}</div>
+  const errField = (key: string) => validation.errors[key] && (
+    <div className="u-field-error">{validation.errors[key]}</div>
   )
-  const handleSubmit = (e: any) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const result = validation.validateForm(form)
     if (!result.success) return
@@ -370,7 +505,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${user.full_name}` : 'Nuevo Usuario'} width={580}>
       <form onSubmit={handleSubmit}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>Nombre completo *</label><input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />{errField('full_name')}</div>
+        <div className="u-col-full"><label style={ls}>Nombre completo *</label><input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />{errField('full_name')}</div>
         <div><label style={ls}>Usuario *</label><input value={form.username} onChange={set('username')} style={validation.inputStyle(fs, 'username')} />{errField('username')}</div>
         <div><label style={ls}>Email *</label><input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />{errField('email')}</div>
         <div><label style={ls}>Rol</label><select value={form.role} onChange={set('role')} style={validation.inputStyle(fs, 'role')}>
@@ -378,43 +513,43 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         </select>{errField('role')}</div>
         {isEdit && <div><label style={ls}>Rol personalizado (cierra módulos)</label><select value={form.custom_role_id} onChange={set('custom_role_id')} style={fs}>
           <option value="">Ninguno — el de su rol base</option>
-          {roles.filter((r: any) => !r.is_system).map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select></div>}
         <div><label style={ls}>Departamento</label><select value={form.department} onChange={set('department')} style={fs}>
           <option value="">{t('settings.sin_departamento')}</option>
-          {departments.filter((d: any) => d.is_active !== false).map((d: any) => <option key={d.id} value={d.name}>{d.name}</option>)}
+          {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select></div>
         <div><label style={ls}>Cargo</label><input value={form.job_title} onChange={set('job_title')} style={fs} /></div>
         <div><label style={ls}>Horas semanales</label><input type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={validation.inputStyle(fs, 'weekly_capacity_hours')} />{errField('weekly_capacity_hours')}</div>
         <div><label style={ls}>Tarifa €/hora</label><input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} />{errField('hourly_rate')}</div>
         {esSuperadmin && <>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('settings.organizaciones_seleccion_multiple')}</label>
           <select multiple value={form.organization_ids} onChange={setOrganizations} style={{ ...fs, minHeight: 112 }}>
-            {organizations.filter((o: any) => o.is_active !== false).map((o: any) => (
+            {organizations.filter(o => o.is_active !== false).map(o => (
               <option key={o.id} value={o.id}>{o.name} ({o.slug})</option>
             ))}
           </select>
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('settings.organizacion_principal')}</label>
           <select value={form.organization_id} onChange={set('organization_id')} style={fs}>
             <option value="">{t('settings.sin_organizacion_principal')}</option>
-            {form.organization_ids.map((orgId: any) => {
-              const org = organizations.find((o: any) => o.id === orgId)
+            {form.organization_ids.map(orgId => {
+              const org = organizations.find(o => o.id === orgId)
               return <option key={orgId} value={orgId}>{org?.name || orgId}</option>
             })}
           </select>
         </div>
         </>}
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>Zona horaria</label>
           <select value={form.timezone} onChange={set('timezone')} style={fs}>
             <option value="">{t('settings.usa_la_zona_de_la_organizacion')}</option>
             {COMMON_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
-        {!isEdit && <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('settings.contrasena')}</label><input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
+        {!isEdit && <div className="u-col-full"><label style={ls}>{t('settings.contrasena')}</label><input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={isPending}>
@@ -431,23 +566,23 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
 function RolesSection() {
   const toast = useToast()
   const qc = useQueryClient()
-  const [ui, setUi] = useState<any>({ showCreate: false, editRole: null })
+  const [ui, setUi] = useState<{ showCreate: boolean; editRole: CustomRole | null }>({ showCreate: false, editRole: null })
   const { showCreate, editRole } = ui
-  const setShowCreate = (v: any) => setUi((s: any) => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
-  const setEditRole = (v: any) => setUi((s: any) => ({ ...s, editRole: typeof v === 'function' ? v(s.editRole) : v }))
-  const { data: roles = [], isLoading } = useQuery<any>({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
-  const { data: modules = [] } = useQuery<any>({ queryKey: ['modules-list'], queryFn: () => advancedConfigApi.getModules().then(r => r.data) })
-  const { mutate: deleteRole } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-roles'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const setShowCreate = (v: SetStateAction<boolean>) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
+  const setEditRole = (v: SetStateAction<CustomRole | null>) => setUi(s => ({ ...s, editRole: typeof v === 'function' ? v(s.editRole) : v }))
+  const { data: roles = [], isLoading } = useQuery({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
+  const { data: modules = [] } = useQuery({ queryKey: ['modules-list'], queryFn: () => advancedConfigApi.getModules().then(r => r.data) })
+  const { mutate: deleteRole } = useMutation({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-roles'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
     <Section icon="🔐" title="Roles y permisos" description="Cierra módulos por rol. Los roles de sistema se aplican a todos los de ese rol base; un rol personalizado se asigna a una persona en Usuarios y manda sobre el de su rol base. Solo restringe: nunca da más de lo que permite el rol base. Al rol admin no se le cierra nada.">
       <div style={styles.colGap8}>
-        {isLoading ? <Spinner /> : roles.map((r: any) => (
+        {isLoading ? <Spinner /> : roles.map(r => (
           <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(r.color, '30')}`, borderRadius: 10 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
+            <div className="u-flex1">
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{r.name}</div>
-              {r.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{r.description}</div>}
+              {r.description && <div className="u-text2-sm">{r.description}</div>}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                 {Object.entries(r.module_access || {}).filter(([, v]) => v).slice(0, 8).map(([m]) => (
                   <span key={m} style={{ fontSize: "var(--text-3xs)", background: 'var(--surface-3)', color: 'var(--text-2)', borderRadius: 4, padding: '1px 6px' }}>{m}</span>
@@ -464,34 +599,34 @@ function RolesSection() {
       </div>
       {(showCreate || editRole) && (
         <RoleFormModal role={editRole} modules={modules} onClose={() => { setShowCreate(false); setEditRole(null) }}
-          onSave={(data: any) => { const fn = editRole ? () => advancedConfigApi.updateRole(editRole.id, data) : () => advancedConfigApi.createRole(data); fn().then(() => { qc.invalidateQueries({ queryKey: ['custom-roles'] }); setShowCreate(false); setEditRole(null) }) }} />
+          onSave={data => { const fn = editRole ? () => advancedConfigApi.updateRole(editRole.id, data) : () => advancedConfigApi.createRole(data); fn().then(() => { qc.invalidateQueries({ queryKey: ['custom-roles'] }); setShowCreate(false); setEditRole(null) }) }} />
       )}
     </Section>
   )
 }
 
-function RoleFormModal({ role, modules, onClose, onSave }: any) {
+function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | null; modules: ModuleOption[]; onClose: () => void; onSave: (data: RoleForm) => void }) {
   const { t } = useAppLang()
-  const [form, setForm] = useState({ name: role?.name || '', description: role?.description || '', color: /^#[0-9a-fA-F]{6}$/.test(role?.color) ? role.color : '#7a8aaa', module_access: role?.module_access || {} })
-  const toggleModule = (m: any) => setForm(f => ({ ...f, module_access: { ...f.module_access, [m]: !f.module_access[m] } }))
-  const allOn = modules.every((m: any) => form.module_access[m.id])
+  const [form, setForm] = useState<RoleForm>({ name: role?.name || '', description: role?.description || '', color: /^#[0-9a-fA-F]{6}$/.test(role?.color) ? role.color : COLOR_DATO_POR_DEFECTO, module_access: role?.module_access || {} })
+  const toggleModule = (m: string) => setForm(f => ({ ...f, module_access: { ...f.module_access, [m]: !f.module_access[m] } }))
+  const allOn = modules.every(m => form.module_access[m.id])
   return (
     <Modal open title={role ? `Editar rol — ${role.name}` : 'Nuevo rol'} onClose={onClose} width={560}>
       <div style={styles.colGap14}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} disabled={role?.is_system} /></div>
-          <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 8 }}><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
+          <div><label style={ls}>Color</label><div className="u-row-8"><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
         </div>
         <div><label style={ls}>{t('settings.descripcion')}</label><input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} /></div>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
             <label style={ls}>{t('settings.modulos_accesibles')}</label>
-            <button onClick={() => setForm(f => ({ ...f, module_access: modules.reduce((a: any, m: any) => ({ ...a, [m.id]: !allOn }), {}) }))} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+            <button onClick={() => setForm(f => ({ ...f, module_access: modules.reduce<Record<string, unknown>>((a, m) => ({ ...a, [m.id]: !allOn }), {}) }))} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
               {allOn ? 'Desactivar todos' : 'Activar todos'}
             </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {modules.map((m: any) => (
+            {modules.map(m => (
               <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: form.module_access[m.id] ? 'var(--accent-muted)' : 'var(--surface-3)', borderRadius: 6, border: `1px solid ${form.module_access[m.id] ? 'var(--accent)' : 'var(--surface-4)'}`, fontSize: "var(--text-sm)" }}>
                 <input type="checkbox" checked={!!form.module_access[m.id]} onChange={() => toggleModule(m.id)} />
                 {m.label}
@@ -517,6 +652,7 @@ const CONDITION_LABELS: Record<string, string> = {
   anomaly: 'Anomalía detectada',
 }
 const THRESHOLD_CONDITIONS = ['threshold_above', 'threshold_below']
+const NOTIFY_FIELDS: ReadonlyArray<readonly [NotifyKey, string]> = [['notify_admin', 'Admin'], ['notify_pm', 'PM'], ['notify_hr', 'RRHH'], ['notify_employee', 'Empleado'], ['notify_email', '📧 Email']]
 
 function AlertConfigSection() {
   const { t } = useAppLang()
@@ -525,37 +661,37 @@ function AlertConfigSection() {
   const SEV_CFG: Record<string, string> = { info: 'var(--accent)', warning: 'var(--warning)', critical: 'var(--danger)' }
 
   // — system alert configs (fixed 8 types) —
-  const { data: configs = [], isLoading } = useQuery<any>({ queryKey: ['alert-configs'], queryFn: () => advancedConfigApi.getAlertConfigs().then(r => r.data) })
-  const { mutate: update } = useMutation<any, any, any>({ mutationFn: ({ type, data }: any) => advancedConfigApi.updateAlertConfig(type, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['alert-configs'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { data: configs = [], isLoading } = useQuery<AlertConfig[]>({ queryKey: ['alert-configs'], queryFn: () => advancedConfigApi.getAlertConfigs().then(r => r.data) })
+  const { mutate: update } = useMutation({ mutationFn: ({ type, data }: { type: string; data: Partial<AlertConfig> }) => advancedConfigApi.updateAlertConfig(type, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['alert-configs'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
 
   // — BI custom alert rules —
-  const { data: rulesData = { items: [] } } = useQuery<any>({ queryKey: ['bi-alert-rules'], queryFn: () => biSmartAlertsApi.listRules().then(r => r.data) })
-  const { data: metricsData = { metrics: [], conditions: [] } } = useQuery<any>({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
+  const { data: rulesData = { items: [] } } = useQuery<{ items?: AlertRule[] }>({ queryKey: ['bi-alert-rules'], queryFn: () => biSmartAlertsApi.listRules().then(r => r.data) })
+  const { data: metricsData = { metrics: [], conditions: [] } } = useQuery<SupportedMetrics>({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
   const rules = rulesData.items ?? []
   const metrics = metricsData.metrics ?? []
 
-  const { mutate: createRule, isPending: isCreating } = useMutation<any, any, any>({
+  const { mutate: createRule, isPending: isCreating } = useMutation({
     mutationFn: biSmartAlertsApi.createRule,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bi-alert-rules'] }); setShowCreate(false); setRuleForm(EMPTY_RULE) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const { mutate: toggleRule } = useMutation<any, any, any>({
-    mutationFn: ({ id, enabled }: any) => biSmartAlertsApi.updateRule(id, { enabled }),
+  const { mutate: toggleRule } = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => biSmartAlertsApi.updateRule(id, { enabled }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-alert-rules'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const { mutate: deleteRule } = useMutation<any, any, any>({
+  const { mutate: deleteRule } = useMutation({
     mutationFn: biSmartAlertsApi.deleteRule,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-alert-rules'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const EMPTY_RULE = { name: '', metric_key: '', condition: 'threshold_above', threshold: '', severity: 'warning', cooldown_minutes: 60 }
-  const [ui, setUi] = useState<any>({ showCreate: false, ruleForm: EMPTY_RULE })
+  const EMPTY_RULE: RuleForm = { name: '', metric_key: '', condition: 'threshold_above', threshold: '', severity: 'warning', cooldown_minutes: 60 }
+  const [ui, setUi] = useState<{ showCreate: boolean; ruleForm: RuleForm }>({ showCreate: false, ruleForm: EMPTY_RULE })
   const { showCreate, ruleForm } = ui
-  const setShowCreate = (v: any) => setUi((s: any) => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
-  const setRuleForm = (v: any) => setUi((s: any) => ({ ...s, ruleForm: typeof v === 'function' ? v(s.ruleForm) : v }))
-  const setR = (k: any) => (e: any) => setRuleForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const setShowCreate = (v: SetStateAction<boolean>) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
+  const setRuleForm = (v: SetStateAction<RuleForm>) => setUi(s => ({ ...s, ruleForm: typeof v === 'function' ? v(s.ruleForm) : v }))
+  const setR = (k: keyof RuleForm) => (e: InputChange) => setRuleForm(f => ({ ...f, [k]: e.target.value }))
 
   const submitRule = () => {
     if (!ruleForm.name.trim() || !ruleForm.metric_key) { toast.error('Nombre y métrica son obligatorios'); return }
@@ -569,7 +705,7 @@ function AlertConfigSection() {
     <Section icon="🔔" title="Alertas" description="Configura notificaciones, umbrales y reglas personalizadas">
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap10}>
-          {configs.map((cfg: any) => (
+          {configs.map(cfg => (
             <div key={cfg.alert_type} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${cfg.is_enabled ? alpha(SEV_CFG[cfg.severity], '30') : 'var(--surface-4)'}`, borderRadius: 10, opacity: cfg.is_enabled ? 1 : 0.6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                 <div>
@@ -577,25 +713,25 @@ function AlertConfigSection() {
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{cfg.label}</span>
                     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[cfg.severity], background: alpha(SEV_CFG[cfg.severity], '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{cfg.severity}</span>
                   </div>
-                  {cfg.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{cfg.description}</div>}
+                  {cfg.description && <div className="u-text2-sm">{cfg.description}</div>}
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input type="checkbox" checked={cfg.is_enabled} onChange={e => update({ type: cfg.alert_type, data: { is_enabled: e.target.checked } })} />
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{cfg.is_enabled ? 'Activa' : 'Inactiva'}</span>
+                  <span className="u-text2-sm">{cfg.is_enabled ? 'Activa' : 'Inactiva'}</span>
                 </label>
               </div>
               {cfg.is_enabled && (
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                   {cfg.threshold_value !== null && (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Umbral:</label>
+                    <div className="u-row-center-8">
+                      <label className="u-text2-xs">Umbral:</label>
                       <input type="number" defaultValue={cfg.threshold_value} onBlur={e => update({ type: cfg.alert_type, data: { threshold_value: +e.target.value } })}
                         style={{ width: 70, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', textAlign: 'center' }} />
-                      <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{cfg.threshold_unit}</span>
+                      <span className="u-text2-xs">{cfg.threshold_unit}</span>
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {[['notify_admin', 'Admin'], ['notify_pm', 'PM'], ['notify_hr', 'RRHH'], ['notify_employee', 'Empleado'], ['notify_email', '📧 Email']].map(([key, label]) => (
+                    {NOTIFY_FIELDS.map(([key, label]) => (
                       <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: "var(--text-xs)", color: cfg[key] ? 'var(--text-1)' : 'var(--text-2)' }}>
                         <input type="checkbox" checked={!!cfg[key]} onChange={e => update({ type: cfg.alert_type, data: { [key]: e.target.checked } })} />
                         {label}
@@ -614,7 +750,7 @@ function AlertConfigSection() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>Reglas personalizadas</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('settings.alertas_basadas_en_metricas_del_sistema')}</div>
+            <div className="u-text2-sm">{t('settings.alertas_basadas_en_metricas_del_sistema')}</div>
           </div>
           <Button onClick={() => setShowCreate(true)}>{t('settings.nueva_alerta')}</Button>
         </div>
@@ -622,15 +758,15 @@ function AlertConfigSection() {
           <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('settings.no_hay_reglas_personalizadas_crea_la_primera')}</div>
         ) : (
           <div style={styles.colGap8}>
-            {rules.map((rule: any) => (
+            {rules.map(rule => (
               <div key={rule.id} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: `1px solid ${rule.enabled ? alpha(SEV_CFG[rule.severity], '30') : 'var(--surface-4)'}`, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, opacity: rule.enabled ? 1 : 0.6 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
-                    <span style={{ fontWeight: 600, fontSize: "var(--text-base)" }}>{rule.name}</span>
+                    <span className="u-base-600">{rule.name}</span>
                     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[rule.severity], background: alpha(SEV_CFG[rule.severity], '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{rule.severity}</span>
                   </div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                    {metrics.find((m: any) => m.key === rule.metric_key)?.label ?? rule.metric_key} · {CONDITION_LABELS[rule.condition] ?? rule.condition}{rule.threshold != null ? ` · umbral: ${rule.threshold}` : ''}
+                  <div className="u-text2-xs">
+                    {metrics.find(m => m.key === rule.metric_key)?.label ?? rule.metric_key} · {CONDITION_LABELS[rule.condition] ?? rule.condition}{rule.threshold != null ? ` · umbral: ${rule.threshold}` : ''}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
@@ -657,10 +793,10 @@ function AlertConfigSection() {
               <label style={ls}>{t('settings.metrica')}</label>
               <select value={ruleForm.metric_key} onChange={setR('metric_key')} style={fs}>
                 <option value="">{t('settings.selecciona_una_metrica')}</option>
-                {metrics.map((m: any) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                {metrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="u-grid2-12">
               <div>
                 <label style={ls}>{t('settings.condicion')}</label>
                 <select value={ruleForm.condition} onChange={setR('condition')} style={fs}>
@@ -674,7 +810,7 @@ function AlertConfigSection() {
                 </div>
               )}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="u-grid2-12">
               <div>
                 <label style={ls}>Severidad</label>
                 <select value={ruleForm.severity} onChange={setR('severity')} style={fs}>
@@ -704,14 +840,15 @@ function RateTablesSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: tables = [], isLoading } = useQuery<any>({ queryKey: ['rate-tables'], queryFn: () => advancedConfigApi.getRateTables().then(r => r.data) })
-  const { mutate: createTable } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.createRateTable, onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: deleteTable } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.deleteRateTable, onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: addEntry } = useMutation<any, any, any>({ mutationFn: ({ tableId, data }: any) => advancedConfigApi.addRateEntry(tableId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: deleteEntry } = useMutation<any, any, any>({ mutationFn: ({ tableId, entryId }: any) => advancedConfigApi.deleteRateEntry(tableId, entryId), onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: updateEntry } = useMutation<any, any, any>({ mutationFn: ({ tableId, entryId, data }: any) => advancedConfigApi.updateRateEntry(tableId, entryId, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-tables'] }); setEditingEntryId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { data: tables = [], isLoading } = useQuery<RateTable[]>({ queryKey: ['rate-tables'], queryFn: () => advancedConfigApi.getRateTables().then(r => r.data) })
+  const { mutate: createTable } = useMutation({ mutationFn: advancedConfigApi.createRateTable, onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deleteTable } = useMutation({ mutationFn: advancedConfigApi.deleteRateTable, onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: addEntry } = useMutation({ mutationFn: ({ tableId, data }: { tableId: string; data: EntryForm }) => advancedConfigApi.addRateEntry(tableId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deleteEntry } = useMutation({ mutationFn: ({ tableId, entryId }: { tableId: string; entryId: string }) => advancedConfigApi.deleteRateEntry(tableId, entryId), onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: updateEntry } = useMutation({ mutationFn: ({ tableId, entryId, data }: { tableId: string; entryId: string; data: EntryForm }) => advancedConfigApi.updateRateEntry(tableId, entryId, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-tables'] }); setEditingEntryId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  type RatesUi = { editingEntryId: string | null; editEntryForm: EntryForm; newTable: NewRateTable; addingEntry: string | null; entryForm: EntryForm }
   const [ui, setUi] = React.useReducer(
-    (s: any, p: any) => {
+    (s: RatesUi, p: Partial<RatesUi> | ((s: RatesUi) => Partial<RatesUi>)): RatesUi => {
       const next = typeof p === 'function' ? p(s) : p
       return { ...s, ...next }
     },
@@ -724,17 +861,17 @@ function RateTablesSection() {
     },
   )
   const { editingEntryId, editEntryForm, newTable, addingEntry, entryForm } = ui
-  const setEditingEntryId = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ editingEntryId: v(s.editingEntryId) }) : { editingEntryId: v })
-  const setEditEntryForm = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ editEntryForm: v(s.editEntryForm) }) : { editEntryForm: v })
-  const setNewTable = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ newTable: v(s.newTable) }) : { newTable: v })
-  const setAddingEntry = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ addingEntry: v(s.addingEntry) }) : { addingEntry: v })
-  const setEntryForm = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ entryForm: v(s.entryForm) }) : { entryForm: v })
+  const setEditingEntryId = (v: SetStateAction<string | null>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ editingEntryId: v(s.editingEntryId) }) : { editingEntryId: v })
+  const setEditEntryForm = (v: SetStateAction<EntryForm>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ editEntryForm: v(s.editEntryForm) }) : { editEntryForm: v })
+  const setNewTable = (v: SetStateAction<NewRateTable>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ newTable: v(s.newTable) }) : { newTable: v })
+  const setAddingEntry = (v: SetStateAction<string | null>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ addingEntry: v(s.addingEntry) }) : { addingEntry: v })
+  const setEntryForm = (v: SetStateAction<EntryForm>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ entryForm: v(s.entryForm) }) : { entryForm: v })
 
   return (
     <Section icon="💶" title="Tarifas internas" description="Mantiene tablas de coste y facturacion">
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap16}>
-          {tables.map((tabla: any) => (
+          {tables.map(tabla => (
             <div key={tabla.id} style={{ background: 'var(--surface-2)', border: `1px solid ${tabla.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div>
@@ -742,7 +879,7 @@ function RateTablesSection() {
                   {tabla.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>{tabla.applies_to === 'role' ? 'Por rol' : tabla.applies_to === 'department' ? 'Por departamento' : 'Por cliente'}</span>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="u-row-8">
                   <button onClick={() => setAddingEntry(tabla.id)} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>＋ Tarifa</button>
                   <button onClick={() => deleteTable(tabla.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
@@ -752,12 +889,12 @@ function RateTablesSection() {
                 <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Coste €/h</div>
                 <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Factura €/h</div>
                 <div></div>
-                {(tabla.entries || []).map((e: any) => (
+                {(tabla.entries || []).map(e => (
                   editingEntryId === e.id ? (
                     <React.Fragment key={e.id}>
-                      <input value={editEntryForm.label} onChange={ev => setEditEntryForm((f: any)=>({...f,label:ev.target.value}))} style={{...fs,padding:'5px 8px'}} autoFocus />
-                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
-                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm((f: any)=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
+                      <input value={editEntryForm.label} onChange={ev => setEditEntryForm(f=>({...f,label:ev.target.value}))} style={{...fs,padding:'5px 8px'}} autoFocus />
+                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm(f=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
+                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm(f=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                       <div style={{display:'flex',gap:4}}>
                         <button onClick={() => updateEntry({ tableId: tabla.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'4px 8px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✓</button>
                         <button onClick={() => setEditingEntryId(null)} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'4px 7px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
@@ -778,10 +915,10 @@ function RateTablesSection() {
               </div>
               {addingEntry === tabla.id && (
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginTop: 8, padding: '10px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 8 }}>
-                  <input value={entryForm.label} onChange={e => setEntryForm((f: any) => ({ ...f, label: e.target.value }))} style={{ ...fs }} placeholder={t('settings.etiqueta_de_la_tarifa')} aria-label={t('settings.etiqueta_de_la_tarifa')} />
-                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm((f: any) => ({ ...f, cost_rate: e.target.value }))} style={fs} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
-                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm((f: any) => ({ ...f, billing_rate: e.target.value }))} style={fs} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <input value={entryForm.label} onChange={e => setEntryForm(f => ({ ...f, label: e.target.value }))} style={{ ...fs }} placeholder={t('settings.etiqueta_de_la_tarifa')} aria-label={t('settings.etiqueta_de_la_tarifa')} />
+                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm(f => ({ ...f, cost_rate: e.target.value }))} style={fs} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
+                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm(f => ({ ...f, billing_rate: e.target.value }))} style={fs} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
+                  <div className="u-row-6">
                     <Button size="sm" onClick={() => { addEntry({ tableId: tabla.id, data: entryForm }); setEntryForm({ label: '', cost_rate: '', billing_rate: '' }); setAddingEntry(null) }} disabled={!entryForm.label}>{t('settings.anadir')}</Button>
                     <Button size="sm" variant="secondary" onClick={() => setAddingEntry(null)}>×</Button>
                   </div>
@@ -790,8 +927,8 @@ function RateTablesSection() {
             </div>
           ))}
           <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, alignItems: 'flex-end' }}>
-            <div style={{ flex: 2 }}><label style={ls}>Nombre tabla</label><input value={newTable.name} onChange={e => setNewTable((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_tabla')} aria-label={t('settings.nombre_de_la_tabla')} /></div>
-            <div style={{ flex: 1 }}><label style={ls}>Aplica a</label><select value={newTable.applies_to} onChange={e => setNewTable((f: any) => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
+            <div style={{ flex: 2 }}><label style={ls}>Nombre tabla</label><input value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_tabla')} aria-label={t('settings.nombre_de_la_tabla')} /></div>
+            <div className="u-flex1"><label style={ls}>Aplica a</label><select value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
             <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>Crear tabla</Button>
           </div>
         </div>
@@ -811,22 +948,22 @@ function VacationSection() {
     newPolicy: { name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false },
   })
   const { year, newPolicy } = ui
-  const setYear = (v: any) => setUi(s => ({ ...s, year: typeof v === 'function' ? v(s.year) : v }))
-  const setNewPolicy = (v: any) => setUi(s => ({ ...s, newPolicy: typeof v === 'function' ? v(s.newPolicy) : v }))
-  const { data: policies = [] } = useQuery<any>({ queryKey: ['vacation-policies'], queryFn: () => advancedConfigApi.getVacationPolicies().then(r => r.data) })
-  const { data: balances = [] } = useQuery<any>({ queryKey: ['vacation-balances', year], queryFn: () => advancedConfigApi.getVacationBalances(year).then(r => r.data) })
-  const { mutate: createPolicy } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.createVacationPolicy, onSuccess: () => qc.invalidateQueries({ queryKey: ['vacation-policies'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: deletePolicy } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.deleteVacationPolicy, onSuccess: () => qc.invalidateQueries({ queryKey: ['vacation-policies'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: updateBalance } = useMutation<any, any, any>({ mutationFn: ({ userId, days }: any) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries({ queryKey: ['vacation-balances', year] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const setYear = (v: SetStateAction<number>) => setUi(s => ({ ...s, year: typeof v === 'function' ? v(s.year) : v }))
+  const setNewPolicy = (v: SetStateAction<NewVacationPolicy>) => setUi(s => ({ ...s, newPolicy: typeof v === 'function' ? v(s.newPolicy) : v }))
+  const { data: policies = [] } = useQuery<VacationPolicy[]>({ queryKey: ['vacation-policies'], queryFn: () => advancedConfigApi.getVacationPolicies().then(r => r.data) })
+  const { data: balances = [] } = useQuery<VacationBalance[]>({ queryKey: ['vacation-balances', year], queryFn: () => advancedConfigApi.getVacationBalances(year).then(r => r.data) })
+  const { mutate: createPolicy } = useMutation({ mutationFn: advancedConfigApi.createVacationPolicy, onSuccess: () => qc.invalidateQueries({ queryKey: ['vacation-policies'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deletePolicy } = useMutation({ mutationFn: advancedConfigApi.deleteVacationPolicy, onSuccess: () => qc.invalidateQueries({ queryKey: ['vacation-policies'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: updateBalance } = useMutation({ mutationFn: ({ userId, days }: { userId: string; days: number }) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries({ queryKey: ['vacation-balances', year] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
     <Section icon="🏖️" title="Vacaciones y permisos" description="Configura politicas y saldos del equipo">
-      <div style={{ marginBottom: 20 }}>
+      <div className="u-mb-20">
         <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12 }}>{t('settings.politicas_configuradas')}</div>
         <div style={styles.colGap8}>
-          {policies.map((p: any) => (
+          {policies.map(p => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${p.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
-              <div style={{ flex: 1 }}>
+              <div className="u-flex1">
                 <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{p.name}</span>
                 {p.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
@@ -838,10 +975,10 @@ function VacationSection() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 12, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: 2 }}><label style={ls}>Nombre</label><input value={newPolicy.name} onChange={e => setNewPolicy((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_politica')} aria-label={t('settings.nombre_de_la_politica')} /></div>
-          <div style={{ flex: 1 }}><label style={ls}>{t('settings.dias_ano_2')}</label><input type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy((f: any) => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
-          <div style={{ flex: 1 }}><label style={ls}>{t('settings.max_acumulacion')}</label><input type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy((f: any) => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-sm)" }}><input type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy((f: any) => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
+          <div style={{ flex: 2 }}><label style={ls}>Nombre</label><input value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_politica')} aria-label={t('settings.nombre_de_la_politica')} /></div>
+          <div className="u-flex1"><label style={ls}>{t('settings.dias_ano_2')}</label><input type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
+          <div className="u-flex1"><label style={ls}>{t('settings.max_acumulacion')}</label><input type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-sm)" }}><input type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy(f => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
           <Button onClick={() => { createPolicy(newPolicy); setNewPolicy({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false }) }} disabled={!newPolicy.name}>Crear</Button>
         </div>
       </div>
@@ -858,11 +995,11 @@ function VacationSection() {
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             <span>Persona</span><span>Asignados</span><span>Tomados</span><span>Pendientes</span><span>Disponibles</span><span>Editar</span>
           </div>
-          {balances.map((b: any) => (
+          {balances.map(b => (
             <div key={b.user_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 16px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{b.user_name}</div>
-                {b.department && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{b.department}</div>}
+                <div className="u-base-600">{b.user_name}</div>
+                {b.department && <div className="u-text2-xs">{b.department}</div>}
               </div>
               <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)' }}>{b.days_entitled}d</span>
               <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{b.days_taken}d</span>
@@ -883,16 +1020,16 @@ function NumberingSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: seqs = [], isLoading } = useQuery<any>({ queryKey: ['numbering-seqs'], queryFn: () => advancedConfigApi.getNumbering().then(r => r.data) })
-  const { mutate: update } = useMutation<any, any, any>({ mutationFn: ({ entity, data }: any) => advancedConfigApi.updateNumbering(entity, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['numbering-seqs'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: reset } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.resetNumbering, onSuccess: () => qc.invalidateQueries({ queryKey: ['numbering-seqs'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { data: seqs = [], isLoading } = useQuery<NumberingSeq[]>({ queryKey: ['numbering-seqs'], queryFn: () => advancedConfigApi.getNumbering().then(r => r.data) })
+  const { mutate: update } = useMutation({ mutationFn: ({ entity, data }: { entity: string; data: NumberingSeq }) => advancedConfigApi.updateNumbering(entity, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['numbering-seqs'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: reset } = useMutation({ mutationFn: advancedConfigApi.resetNumbering, onSuccess: () => qc.invalidateQueries({ queryKey: ['numbering-seqs'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const ENTITY_LABELS: Record<string, string> = { project: 'Proyecto', task: 'Tarea', contract: 'Contrato', opportunity: 'Oportunidad', change_request: 'Control de cambios', deliverable: 'Entregable', risk: 'Riesgo' }
 
   return (
     <Section icon="🔢" title="Numeracion" description="Prefijos y contadores automaticos">
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap10}>
-          {seqs.map((s: any) => (
+          {seqs.map(s => (
             <div key={s.entity} style={{ display: 'flex', gap: 14, alignItems: 'flex-end', padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
               <div style={{ width: 120, flexShrink: 0 }}>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{ENTITY_LABELS[s.entity] || s.entity}</div>
@@ -924,19 +1061,19 @@ function CustomFieldsSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: fields = [], isLoading } = useQuery<any>({ queryKey: ['custom-fields'], queryFn: () => advancedConfigApi.getCustomFields(undefined).then(r => r.data) })
-  const { mutate: createField } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.createCustomField, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: updateField } = useMutation<any, any, any>({ mutationFn: ({ id, data }: any) => advancedConfigApi.updateCustomField(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['custom-fields'] }); setEditingFieldId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: deleteField } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.deleteCustomField, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [ui, setUi] = useState({
+  const { data: fields = [], isLoading } = useQuery<CustomField[]>({ queryKey: ['custom-fields'], queryFn: () => advancedConfigApi.getCustomFields(undefined).then(r => r.data) })
+  const { mutate: createField } = useMutation({ mutationFn: advancedConfigApi.createCustomField, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: updateField } = useMutation({ mutationFn: ({ id, data }: { id: string; data: CustomFieldEdit }) => advancedConfigApi.updateCustomField(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['custom-fields'] }); setEditingFieldId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: deleteField } = useMutation({ mutationFn: advancedConfigApi.deleteCustomField, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const [ui, setUi] = useState<{ editingFieldId: string | null; editFieldForm: CustomFieldEdit; form: CustomFieldForm }>({
     editingFieldId: null,
     editFieldForm: { name: '', is_required: false, placeholder: '' },
     form: { entity: 'project', name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' },
   })
   const { editingFieldId, editFieldForm, form } = ui
-  const setEditingFieldId = (v: any) => setUi(s => ({ ...s, editingFieldId: typeof v === 'function' ? v(s.editingFieldId) : v }))
-  const setEditFieldForm = (v: any) => setUi(s => ({ ...s, editFieldForm: typeof v === 'function' ? v(s.editFieldForm) : v }))
-  const setForm = (v: any) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
+  const setEditingFieldId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingFieldId: typeof v === 'function' ? v(s.editingFieldId) : v }))
+  const setEditFieldForm = (v: SetStateAction<CustomFieldEdit>) => setUi(s => ({ ...s, editFieldForm: typeof v === 'function' ? v(s.editFieldForm) : v }))
+  const setForm = (v: SetStateAction<CustomFieldForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
   const ENTITIES = [
     { value: 'project',     label: 'Proyecto' },
     { value: 'task',        label: 'Tarea' },
@@ -955,28 +1092,28 @@ function CustomFieldsSection() {
   ]
   const TYPES = [{ value: 'text', label: 'Texto' }, { value: 'number', label: 'Número' }, { value: 'date', label: 'Fecha' }, { value: 'select', label: 'Selector' }, { value: 'boolean', label: 'Sí/No' }, { value: 'url', label: 'URL' }]
   const TYPE_ICONS: Record<string, string> = { text: '📝', number: '🔢', date: '📅', select: '📋', boolean: '☑️', url: '🔗' }
-  const byEntity: Record<string, any[]> = fields.reduce((a: any, f: any) => { if (!a[f.entity]) a[f.entity] = []; a[f.entity].push(f); return a }, {} as Record<string, any[]>)
+  const byEntity = fields.reduce<Record<string, CustomField[]>>((a, f) => { if (!a[f.entity]) a[f.entity] = []; a[f.entity].push(f); return a }, {})
 
   return (
     <Section icon="🧩" title="Campos personalizados" description="Define campos extra para entidades">
       {isLoading ? <Spinner /> : (
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           {Object.entries(byEntity).map(([entity, entityFields]) => (
-            <div key={entity} style={{ marginBottom: 16 }}>
+            <div key={entity} className="u-mb-16">
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                 {ENTITIES.find(e => e.value === entity)?.label || entity}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {entityFields.map((f: any) => (
+              <div className="u-stack-6">
+                {entityFields.map(f => (
                   <React.Fragment key={f.id}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
                       <span style={{ fontSize: "var(--text-lg)" }}>{TYPE_ICONS[f.field_type] || '📝'}</span>
-                      <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{f.name}</span>
+                      <div className="u-flex1">
+                        <span className="u-base-600">{f.name}</span>
                         <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8, fontFamily: 'var(--font-mono)' }}>{f.field_key}</span>
                         {f.is_required && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--danger)', marginLeft: 8 }}>*obligatorio</span>}
                       </div>
-                      <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{TYPES.find(t => t.value === f.field_type)?.label}</span>
+                      <span className="u-text2-xs">{TYPES.find(t => t.value === f.field_type)?.label}</span>
                       <button onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }}
                         style={styles.btnEdit}>✏</button>
                       <button onClick={() => deleteField(f.id)} style={styles.btnDelete}>🗑</button>
@@ -984,13 +1121,13 @@ function CustomFieldsSection() {
                     {editingFieldId === f.id && (
                       <div style={{ display:'flex', gap:8, padding:'10px', background:'var(--accent-muted)',
                         border:'1px solid var(--accent-glow)', borderRadius:8, marginTop:-4, alignItems:'center' }}>
-                        <input value={editFieldForm.name} onChange={e=>setEditFieldForm((f: any)=>({...f,name:e.target.value}))}
+                        <input value={editFieldForm.name} onChange={e=>setEditFieldForm(f=>({...f,name:e.target.value}))}
                           style={{...fs,flex:2}} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} autoFocus />
-                        <input value={editFieldForm.placeholder} onChange={e=>setEditFieldForm((f: any)=>({...f,placeholder:e.target.value}))}
+                        <input value={editFieldForm.placeholder} onChange={e=>setEditFieldForm(f=>({...f,placeholder:e.target.value}))}
                           style={{...fs,flex:2}} placeholder={t('settings.placeholder_del_campo')} aria-label={t('settings.placeholder_del_campo')} />
                         <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",whiteSpace:'nowrap'}}>
                           <input type="checkbox" checked={editFieldForm.is_required}
-                            onChange={e=>setEditFieldForm((f: any)=>({...f,is_required:e.target.checked}))} />Obligatorio
+                            onChange={e=>setEditFieldForm(f=>({...f,is_required:e.target.checked}))} />Obligatorio
                         </label>
                         <button onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name}
                           style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>✓ Guardar</button>
@@ -1009,10 +1146,10 @@ function CustomFieldsSection() {
       <div style={{ padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12 }}>{t('settings.anadir_campo_personalizado')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
-          <div><label style={ls}>Entidad</label><select value={form.entity} onChange={e => setForm((f: any) => ({ ...f, entity: e.target.value }))} style={fs}>{ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></div>
-          <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} /></div>
-          <div><label style={ls}>Clave</label><input value={form.field_key} onChange={e => setForm((f: any) => ({ ...f, field_key: e.target.value }))} style={fs} placeholder="Clave interna" aria-label="Clave interna" /></div>
-          <div><label style={ls}>Tipo</label><select value={form.field_type} onChange={e => setForm((f: any) => ({ ...f, field_type: e.target.value }))} style={fs}>{TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+          <div><label style={ls}>Entidad</label><select value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={fs}>{ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></div>
+          <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} /></div>
+          <div><label style={ls}>Clave</label><input value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} style={fs} placeholder="Clave interna" aria-label="Clave interna" /></div>
+          <div><label style={ls}>Tipo</label><select value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} style={fs}>{TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
           <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>{t('settings.anadir')}</Button>
         </div>
       </div>
@@ -1025,9 +1162,9 @@ function TemplatesSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: templates = [], isLoading } = useQuery<any>({ queryKey: ['project-templates'], queryFn: () => advancedConfigApi.getTemplates().then(r => r.data) })
-  const { mutate: deleteTemplate } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.deleteTemplate, onSuccess: () => qc.invalidateQueries({ queryKey: ['project-templates'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: createTemplate, isPending: creatingTemplate } = useMutation<any, any, any>({
+  const { data: templates = [], isLoading } = useQuery<ProjectTemplate[]>({ queryKey: ['project-templates'], queryFn: () => advancedConfigApi.getTemplates().then(r => r.data) })
+  const { mutate: deleteTemplate } = useMutation({ mutationFn: advancedConfigApi.deleteTemplate, onSuccess: () => qc.invalidateQueries({ queryKey: ['project-templates'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: createTemplate, isPending: creatingTemplate } = useMutation({
     mutationFn: advancedConfigApi.createTemplate,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project-templates'] })
@@ -1036,10 +1173,10 @@ function TemplatesSection() {
     },
     onError: e => toast.error(extractErr(e, 'No se pudo crear la plantilla')),
   })
-  const [ui, setUi] = useState({ showCreate: false, selected: null })
+  const [ui, setUi] = useState<{ showCreate: boolean; selected: ProjectTemplate | null }>({ showCreate: false, selected: null })
   const { showCreate, selected } = ui
-  const setShowCreate = (v: any) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
-  const setSelected = (v: any) => setUi(s => ({ ...s, selected: typeof v === 'function' ? v(s.selected) : v }))
+  const setShowCreate = (v: SetStateAction<boolean>) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
+  const setSelected = (v: SetStateAction<ProjectTemplate | null>) => setUi(s => ({ ...s, selected: typeof v === 'function' ? v(s.selected) : v }))
 
   return (
     <Section icon="📐" title="Plantillas" description="Define plantillas de proyecto y fases">
@@ -1047,7 +1184,7 @@ function TemplatesSection() {
         <EmptyState svgIcon={<Sparkles size={36} />} title={t('settings.empty_templates_title')} description={t('settings.empty_templates_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 16 }}>
-          {templates.map((t: any) => (
+          {templates.map(t => (
               <div key={t.id} role="button" tabIndex={0} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
@@ -1061,8 +1198,8 @@ function TemplatesSection() {
                 ))}
                 {t.estimated_weeks && <span style={{ fontSize: "var(--text-xs)", color: 'var(--accent)' }}>~{t.estimated_weeks}sem</span>}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button size="sm" onClick={(e: any) => { e.stopPropagation(); setSelected(t) }}>Ver detalle</Button>
+              <div className="u-row-8">
+                <Button size="sm" onClick={e => { e.stopPropagation(); setSelected(t) }}>Ver detalle</Button>
                 <button onClick={e => { e.stopPropagation(); deleteTemplate(t.id) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
               </div>
             </div>
@@ -1076,10 +1213,12 @@ function TemplatesSection() {
   )
 }
 
-function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
+type CreateTemplateUi = { form: TemplateForm; phase: PhaseInput; task: TaskInput; risk: RiskInput; deliverable: DeliverableInput }
+
+function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: () => void; onSave: (data: TemplatePayload) => void; isSaving?: boolean }) {
   const { t } = useAppLang()
   const [ui, setUi] = React.useReducer(
-    (s: any, p: any) => {
+    (s: CreateTemplateUi, p: Partial<CreateTemplateUi> | ((s: CreateTemplateUi) => Partial<CreateTemplateUi>)): CreateTemplateUi => {
       const next = typeof p === 'function' ? p(s) : p
       return { ...s, ...next }
     },
@@ -1092,16 +1231,16 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
     },
   )
   const { form, phase, task, risk, deliverable } = ui
-  const setForm = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ form: v(s.form) }) : { form: v })
-  const setPhase = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ phase: v(s.phase) }) : { phase: v })
-  const setTask = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ task: v(s.task) }) : { task: v })
-  const setRisk = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ risk: v(s.risk) }) : { risk: v })
-  const setDeliverable = (v: any) => setUi(typeof v === 'function' ? (s: any) => ({ deliverable: v(s.deliverable) }) : { deliverable: v })
-  const set = (k: any) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const setForm = (v: SetStateAction<TemplateForm>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ form: v(s.form) }) : { form: v })
+  const setPhase = (v: SetStateAction<PhaseInput>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ phase: v(s.phase) }) : { phase: v })
+  const setTask = (v: SetStateAction<TaskInput>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ task: v(s.task) }) : { task: v })
+  const setRisk = (v: SetStateAction<RiskInput>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ risk: v(s.risk) }) : { risk: v })
+  const setDeliverable = (v: SetStateAction<DeliverableInput>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ deliverable: v(s.deliverable) }) : { deliverable: v })
+  const set = (k: keyof TemplateForm) => (e: InputChange) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const addTaskToPhase = () => {
     if (!task.title?.trim()) return
-    setPhase((p: any) => ({
+    setPhase(p => ({
       ...p,
       tasks: [
         ...p.tasks,
@@ -1117,7 +1256,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
 
   const addPhase = () => {
     if (!phase.name?.trim()) return
-    setForm((f: any) => ({
+    setForm(f => ({
       ...f,
       phases: [
         ...f.phases,
@@ -1136,7 +1275,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
 
   const addRisk = () => {
     if (!risk.title?.trim()) return
-    setForm((f: any) => ({
+    setForm(f => ({
       ...f,
       risks: [
         ...f.risks,
@@ -1154,7 +1293,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
 
   const addDeliverable = () => {
     if (!deliverable.name?.trim()) return
-    setForm((f: any) => ({
+    setForm(f => ({
       ...f,
       deliverables: [
         ...f.deliverables,
@@ -1192,32 +1331,32 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
         {/* Phases */}
         <div>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Fases ({form.phases.length})</div>
-          {form.phases.map((p: any, i: any) => (
+          {form.phases.map((p, i) => (
             <div key={i} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, marginBottom: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{p.name}</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.tasks.length} tareas</span>
-                  <button onClick={() => setForm((f: any) => ({ ...f, phases: f.phases.filter((_: any, j: any) => j !== i) }))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>×</button>
+              <div className="u-row-between">
+                <span className="u-base-600">{p.name}</span>
+                <div className="u-row-8">
+                  <span className="u-text2-xs">{p.tasks.length} tareas</span>
+                  <button onClick={() => setForm(f => ({ ...f, phases: f.phases.filter((_, j) => j !== i) }))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>×</button>
                 </div>
               </div>
             </div>
           ))}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8, marginBottom: 8 }}>
-            <input value={phase.name} onChange={e => setPhase((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_fase')} aria-label={t('settings.nombre_de_la_fase')} />
-            <input value={phase.description} onChange={e => setPhase((f: any) => ({ ...f, description: e.target.value }))} style={fs} placeholder={t('settings.descripcion_de_fase')} aria-label={t('settings.descripcion_de_fase')} />
-            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase((f: any) => ({ ...f, estimated_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label="Semanas estimadas" />
-            <input type="number" value={phase.estimated_hours} onChange={e => setPhase((f: any) => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" />
+            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_fase')} aria-label={t('settings.nombre_de_la_fase')} />
+            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} style={fs} placeholder={t('settings.descripcion_de_fase')} aria-label={t('settings.descripcion_de_fase')} />
+            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label="Semanas estimadas" />
+            <input type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={task.title} onChange={e => setTask((f: any) => ({ ...f, title: e.target.value }))} style={fs} placeholder={t('settings.titulo_tarea')} aria-label={t('settings.titulo_tarea')} />
-            <input type="number" value={task.estimated_hours} onChange={e => setTask((f: any) => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas tarea" />
-            <input value={task.skill_required} onChange={e => setTask((f: any) => ({ ...f, skill_required: e.target.value }))} style={fs} placeholder="Skill requerida" aria-label="Skill requerida" />
+            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} style={fs} placeholder={t('settings.titulo_tarea')} aria-label={t('settings.titulo_tarea')} />
+            <input type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas tarea" />
+            <input value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} style={fs} placeholder="Skill requerida" aria-label="Skill requerida" />
             <Button size="sm" onClick={addTaskToPhase} disabled={!task.title}>+ Tarea</Button>
           </div>
           {phase.tasks.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-              {phase.tasks.map((tk: any, i: any) => (
+              {phase.tasks.map((tk, i) => (
                 <span key={`${tk.title}-${i}`} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 16, padding: '2px 8px' }}>{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>
               ))}
             </div>
@@ -1231,26 +1370,26 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
         <div>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Riesgos ({form.risks.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={risk.title} onChange={e => setRisk((f: any) => ({ ...f, title: e.target.value }))} style={fs} placeholder={t('settings.titulo_riesgo')} aria-label={t('settings.titulo_riesgo')} />
-            <input value={risk.category} onChange={e => setRisk((f: any) => ({ ...f, category: e.target.value }))} style={fs} placeholder={t('settings.categoria')} aria-label={t('settings.categoria_riesgo')} />
-            <select value={risk.probability} onChange={e => setRisk((f: any) => ({ ...f, probability: e.target.value }))} style={fs}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
-            <select value={risk.impact} onChange={e => setRisk((f: any) => ({ ...f, impact: e.target.value }))} style={fs}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
+            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} style={fs} placeholder={t('settings.titulo_riesgo')} aria-label={t('settings.titulo_riesgo')} />
+            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} style={fs} placeholder={t('settings.categoria')} aria-label={t('settings.categoria_riesgo')} />
+            <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} style={fs}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
+            <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} style={fs}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
             <Button size="sm" onClick={addRisk} disabled={!risk.title}>+ Riesgo</Button>
           </div>
-          <textarea value={risk.mitigation_plan} onChange={e => setRisk((f: any) => ({ ...f, mitigation_plan: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.plan_de_mitigacion_opcional')} />
+          <textarea value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.plan_de_mitigacion_opcional')} />
         </div>
 
         {/* Deliverables */}
         <div>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Entregables ({form.deliverables.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={deliverable.name} onChange={e => setDeliverable((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre entregable" aria-label="Nombre entregable" />
-            <input value={deliverable.format} onChange={e => setDeliverable((f: any) => ({ ...f, format: e.target.value }))} style={fs} placeholder="Formato" aria-label="Formato entregable" />
-            <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable((f: any) => ({ ...f, week_offset: e.target.value }))} style={fs} placeholder="Semana" aria-label="Semana entregable" />
-            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable((f: any) => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('settings.facturacion')} aria-label={t('settings.porcentaje_facturacion')} />
+            <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre entregable" aria-label="Nombre entregable" />
+            <input value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} style={fs} placeholder="Formato" aria-label="Formato entregable" />
+            <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} style={fs} placeholder="Semana" aria-label="Semana entregable" />
+            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('settings.facturacion')} aria-label={t('settings.porcentaje_facturacion')} />
             <Button size="sm" onClick={addDeliverable} disabled={!deliverable.name}>+ Entregable</Button>
           </div>
-          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable((f: any) => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.criterio_de_aceptacion_opcional')} />
+          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.criterio_de_aceptacion_opcional')} />
         </div>
 
         <div style={styles.rowFlexEnd}>
@@ -1262,15 +1401,15 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: any) {
   )
 }
 
-function TemplateDetailModal({ template, onClose }: any) {
+function TemplateDetailModal({ template, onClose }: { template: ProjectTemplate; onClose: () => void }) {
   return (
     <Modal open title={template.name} onClose={onClose} width={600}>
       {template.description && <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 16 }}>{template.description}</p>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {template.phases?.map((p: any) => (
+      <div className="u-stack-12">
+        {template.phases?.map(p => (
           <div key={p.id} style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '12px 16px' }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 8 }}>📋 {p.name}</div>
-            {p.tasks?.map((t: any) => (
+            {p.tasks?.map(t => (
               <div key={t.id} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', padding: '3px 8px', borderLeft: '2px solid var(--surface-4)', marginBottom: 3 }}>
                 {t.title} {t.estimated_hours ? `(${t.estimated_hours}h)` : ''}
               </div>
@@ -1291,37 +1430,37 @@ function OfficesSection() {
   const toast = useToast()
   const qc = useQueryClient()
   const { timezone: defaultTimezone } = useOrgSettings()
-  const { data: offices = [] } = useQuery<any>({ queryKey: ['offices'], queryFn: () => advancedConfigApi.getOffices().then(r => r.data) })
-  const { mutate: create } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.createOffice, onSuccess: () => qc.invalidateQueries({ queryKey: ['offices'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: update } = useMutation<any, any, any>({ mutationFn: ({ id, data }: any) => advancedConfigApi.updateOffice(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['offices'] }); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: del } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.deleteOffice, onSuccess: () => qc.invalidateQueries({ queryKey: ['offices'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [ui, setUi] = useState({
+  const { data: offices = [] } = useQuery<Office[]>({ queryKey: ['offices'], queryFn: () => advancedConfigApi.getOffices().then(r => r.data) })
+  const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createOffice, onSuccess: () => qc.invalidateQueries({ queryKey: ['offices'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: update } = useMutation({ mutationFn: ({ id, data }: { id: string; data: OfficeForm }) => advancedConfigApi.updateOffice(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['offices'] }); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteOffice, onSuccess: () => qc.invalidateQueries({ queryKey: ['offices'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const [ui, setUi] = useState<{ form: OfficeForm; editingId: string | null; editForm: OfficeForm }>({
     form: { name: '', country: '', city: '', timezone: defaultTimezone },
     editingId: null,
     editForm: { name: '', country: '', city: '', timezone: defaultTimezone },
   })
   const { form, editingId, editForm } = ui
-  const setForm = (v: any) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
-  const setEditingId = (v: any) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
-  const setEditForm = (v: any) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
+  const setForm = (v: SetStateAction<OfficeForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
+  const setEditingId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
+  const setEditForm = (v: SetStateAction<OfficeForm>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
   const TIMEZONES = ['Europe/Madrid', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'Asia/Shanghai']
 
   return (
     <Section icon="🏢" title="Sedes" description="Gestiona oficinas y zonas horarias">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-        {offices.map((o: any) => (
+        {offices.map(o => (
           <div key={o.id}>
             {editingId === o.id ? (
               <div style={{ display: 'flex', gap: 8, padding: '10px 12px', background: 'var(--accent-muted)',
                 border: '1px solid var(--accent-glow)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div style={{ flex: 2, minWidth: 120 }}><label style={ls}>Nombre *</label>
-                  <input value={editForm.name} onChange={e => setEditForm((f: any)=>({...f,name:e.target.value}))} style={fs} autoFocus /></div>
+                  <input value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={fs} autoFocus /></div>
                 <div style={{ flex: 1, minWidth: 90 }}><label style={ls}>{t('settings.pais')}</label>
-                  <input value={editForm.country} onChange={e => setEditForm((f: any)=>({...f,country:e.target.value}))} style={fs} /></div>
+                  <input value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} style={fs} /></div>
                 <div style={{ flex: 1, minWidth: 90 }}><label style={ls}>Ciudad</label>
-                  <input value={editForm.city} onChange={e => setEditForm((f: any)=>({...f,city:e.target.value}))} style={fs} /></div>
+                  <input value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} style={fs} /></div>
                 <div style={{ flex: 1, minWidth: 160 }}><label style={ls}>Zona horaria</label>
-                  <select value={editForm.timezone} onChange={e => setEditForm((f: any)=>({...f,timezone:e.target.value}))} style={fs}>
+                  <select value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} style={fs}>
                     {TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select></div>
                 <div style={{ display: 'flex', gap: 6, paddingBottom: 1 }}>
@@ -1334,9 +1473,9 @@ function OfficesSection() {
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
                 <span style={{ fontSize: "var(--text-xl)" }}>🏢</span>
-                <div style={{ flex: 1 }}>
+                <div className="u-flex1">
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{o.name}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{o.city}{o.country ? `, ${o.country}` : ''} · {o.timezone}</div>
+                  <div className="u-text2-xs">{o.city}{o.country ? `, ${o.country}` : ''} · {o.timezone}</div>
                 </div>
                 <button onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }}
                   style={{ background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)" }}>✏</button>
@@ -1348,10 +1487,10 @@ function OfficesSection() {
         {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title={t('settings.sin_sedes_registradas')} description="Añade la primera sede para tu organización" />}
       </div>
       <div style={styles.addPanel10}>
-        <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_sede')} aria-label={t('settings.nombre_de_la_sede')} /></div>
-        <div style={{ flex: 1 }}><label style={ls}>{t('settings.pais')}</label><input value={form.country} onChange={e => setForm((f: any) => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
-        <div style={{ flex: 1 }}><label style={ls}>Ciudad</label><input value={form.city} onChange={e => setForm((f: any) => ({ ...f, city: e.target.value }))} style={fs} /></div>
-        <div style={{ flex: 1 }}><label style={ls}>Zona horaria</label><select value={form.timezone} onChange={e => setForm((f: any) => ({ ...f, timezone: e.target.value }))} style={fs}>{TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+        <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_sede')} aria-label={t('settings.nombre_de_la_sede')} /></div>
+        <div className="u-flex1"><label style={ls}>{t('settings.pais')}</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
+        <div className="u-flex1"><label style={ls}>Ciudad</label><input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
+        <div className="u-flex1"><label style={ls}>Zona horaria</label><select value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
         <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
     </Section>
@@ -1363,25 +1502,25 @@ function TaskTypesSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: types = [], isLoading } = useQuery<any>({ queryKey: ['task-types-config'], queryFn: () => advancedConfigApi.getTaskTypes().then(r => r.data) })
-  const { mutate: create } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.createTaskType, onSuccess: () => qc.invalidateQueries({ queryKey: ['task-types-config'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: update } = useMutation<any, any, any>({ mutationFn: ({ id, data }: any) => advancedConfigApi.updateTaskType(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['task-types-config'] }); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: del } = useMutation<any, any, any>({ mutationFn: advancedConfigApi.deleteTaskType, onSuccess: () => qc.invalidateQueries({ queryKey: ['task-types-config'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [ui, setUi] = useState({
-    form: { name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true },
+  const { data: types = [], isLoading } = useQuery<TaskType[]>({ queryKey: ['task-types-config'], queryFn: () => advancedConfigApi.getTaskTypes().then(r => r.data) })
+  const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createTaskType, onSuccess: () => qc.invalidateQueries({ queryKey: ['task-types-config'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: update } = useMutation({ mutationFn: ({ id, data }: { id: string; data: TaskTypeEdit }) => advancedConfigApi.updateTaskType(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['task-types-config'] }); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteTaskType, onSuccess: () => qc.invalidateQueries({ queryKey: ['task-types-config'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const [ui, setUi] = useState<{ form: TaskTypeForm; editingId: string | null; editForm: TaskTypeEdit }>({
+    form: { name: '', value: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true },
     editingId: null,
-    editForm: { name: '', icon: '📋', color: '#7a8aaa', is_billable_default: true },
+    editForm: { name: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true },
   })
   const { form, editingId, editForm } = ui
-  const setForm = (v: any) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
-  const setEditingId = (v: any) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
-  const setEditForm = (v: any) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
+  const setForm = (v: SetStateAction<TaskTypeForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
+  const setEditingId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
+  const setEditForm = (v: SetStateAction<TaskTypeEdit>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
 
   return (
     <Section icon="🏷️" title={t('settings.tipos_de_tarea')} description="Gestiona etiquetas y tipos facturables">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-          {types.map((t: any) => (
+          {types.map(t => (
             <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface-2)', border: `1px solid ${alpha(t.color, '40')}`, borderRadius: 10 }}>
               <span style={{ fontSize: "var(--text-lg-em)" }}>{t.icon}</span>
               <div>
@@ -1398,21 +1537,21 @@ function TaskTypesSection() {
       {editingId && (
         <div style={{ display:'flex', gap:8, padding:'10px 14px', background:'var(--accent-muted)',
           border:'1px solid var(--accent-glow)', borderRadius:10, marginBottom:8, flexWrap:'wrap', alignItems:'flex-end' }}>
-          <div><label style={ls}>Nombre *</label><input value={editForm.name} onChange={e => setEditForm((f: any)=>({...f,name:e.target.value}))} style={{...fs,width:130}} autoFocus /></div>
-          <div><label style={ls}>Icono</label><input value={editForm.icon} onChange={e => setEditForm((f: any)=>({...f,icon:e.target.value}))} style={{...fs,width:55}} /></div>
-          <div><label style={ls}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:'#7a8aaa'} onChange={e=>setEditForm((f: any)=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
-          <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",paddingBottom:4}}><input type="checkbox" checked={editForm.is_billable_default} onChange={e=>setEditForm((f: any)=>({...f,is_billable_default:e.target.checked}))} />Facturable</label>
+          <div><label style={ls}>Nombre *</label><input value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={{...fs,width:130}} autoFocus /></div>
+          <div><label style={ls}>Icono</label><input value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} style={{...fs,width:55}} /></div>
+          <div><label style={ls}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:COLOR_DATO_POR_DEFECTO} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
+          <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",paddingBottom:4}}><input type="checkbox" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />Facturable</label>
           <button onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} style={styles.saveBtn}>✓ Guardar</button>
           <button onClick={() => setEditingId(null)} style={styles.cancelBtnSm}>Cancelar</button>
         </div>
       )}
       <div style={styles.addPanel10}>
-        <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder="Nombre" aria-label="Nombre" /></div>
-        <div><label style={ls}>Clave</label><input value={form.value} onChange={e => setForm((f: any) => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder="Clave" aria-label="Clave" /></div>
-        <div><label style={ls}>Icono</label><input value={form.icon} onChange={e => setForm((f: any) => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
-        <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 6 }}><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => setForm((f: any) => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm((f: any) => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", paddingBottom: 4 }}><input type="checkbox" checked={form.is_billable_default} onChange={e => setForm((f: any) => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
-        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: '#7a8aaa', is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
+        <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder="Nombre" aria-label="Nombre" /></div>
+        <div><label style={ls}>Clave</label><input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder="Clave" aria-label="Clave" /></div>
+        <div><label style={ls}>Icono</label><input value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
+        <div><label style={ls}>Color</label><div className="u-row-6"><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", paddingBottom: 4 }}><input type="checkbox" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
+        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
       </div>
     </Section>
   )
@@ -1423,23 +1562,23 @@ function DepartmentsSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data = [], isLoading } = useQuery<any>({ queryKey: ['departments'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
+  const { data = [], isLoading } = useQuery({ queryKey: ['departments'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
   // Revisión 2026-11: un departamento pertenece a un área (base del presupuesto del área).
   const { data: areas = [] } = useQuery({ queryKey: ['areas'], queryFn: () => presupuestosApi.areas() })
   const nombreDeArea = (id?: string | null) => areas.find(a => a.id === id)?.name
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['departments'] }); qc.invalidateQueries({ queryKey: ['areas'] }) }
-  const { mutate: create } = useMutation<any, any, any>({ mutationFn: settingsApi.createDepartment, onSuccess: refrescar, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: update } = useMutation<any, any, any>({ mutationFn: ({ id, data }: any) => settingsApi.updateDepartment(id, data), onSuccess: () => { refrescar(); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: del } = useMutation<any, any, any>({ mutationFn: settingsApi.deleteDepartment, onSuccess: refrescar, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [ui, setUi] = useState({
+  const { mutate: create } = useMutation({ mutationFn: settingsApi.createDepartment, onSuccess: refrescar, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: update } = useMutation({ mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => settingsApi.updateDepartment(id, data), onSuccess: () => { refrescar(); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const { mutate: del } = useMutation({ mutationFn: settingsApi.deleteDepartment, onSuccess: refrescar, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
+  const [ui, setUi] = useState<{ form: DepartmentForm; editingId: string | null; editForm: DepartmentForm }>({
     form: { name: '', description: '', area_id: '' },
     editingId: null,
     editForm: { name: '', description: '', area_id: '' },
   })
   const { form, editingId, editForm } = ui
-  const setForm = (v: any) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
-  const setEditingId = (v: any) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
-  const setEditForm = (v: any) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
+  const setForm = (v: SetStateAction<DepartmentForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
+  const setEditingId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
+  const setEditForm = (v: SetStateAction<DepartmentForm>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
   const selectorDeArea = (valor: string, onChange: (v: string) => void) => (
     <select value={valor} onChange={e => onChange(e.target.value)} aria-label={t('settings.area_del_departamento')} style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }}>
       <option value="">{t('settings.sin_area')}</option>
@@ -1452,19 +1591,19 @@ function DepartmentsSection() {
     <Section icon="🏢" title="Departamentos" description="Estructura interna de la organizacion">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-          {data.map((d: any) => (
+          {data.map(d => (
             <div key={d.id}>
               {editingId === d.id ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', flexWrap: 'wrap',
                   background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10 }}>
-                  <input value={editForm.name} onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))}
+                  <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                     style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} autoFocus />
-                  <input value={editForm.description} onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))}
+                  <input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                     style={{ ...fs, flex: 3, minWidth: 0, padding: '5px 9px' }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
-                  {selectorDeArea(editForm.area_id, v => setEditForm((f: any) => ({ ...f, area_id: v })))}
+                  {selectorDeArea(editForm.area_id, v => setEditForm(f => ({ ...f, area_id: v })))}
                   <button onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name}
                     style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px',
-                      color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
+                      color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
                   <button onClick={() => setEditingId(null)}
                     style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6,
                       padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
@@ -1474,7 +1613,7 @@ function DepartmentsSection() {
                   background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
                   <span style={{ flex: 1, fontSize: "var(--text-base)", fontWeight: 600 }}>{d.name}</span>
                   {nombreDeArea(d.area_id) && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', border: '1px solid currentColor', borderRadius: 99, padding: '0 8px' }}>{nombreDeArea(d.area_id)}</span>}
-                  {d.description && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{d.description}</span>}
+                  {d.description && <span className="u-text2-sm">{d.description}</span>}
                   <button onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }}
                     style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6,
                       padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
@@ -1489,9 +1628,9 @@ function DepartmentsSection() {
         </div>
       )}
       <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
-        <input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} />
-        <input value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
-        {selectorDeArea(form.area_id, v => setForm((f: any) => ({ ...f, area_id: v })))}
+        <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} />
+        <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
+        {selectorDeArea(form.area_id, v => setForm(f => ({ ...f, area_id: v })))}
         <Button onClick={() => { create({ ...form, area_id: form.area_id || null }); setForm({ name: '', description: '', area_id: '' }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
     </Section>
@@ -1520,12 +1659,12 @@ function AreasSection() {
                 <>
                   <input value={editando.name} onChange={e => setEditando({ id: a.id, name: e.target.value })} aria-label={t('settings.nombre_del_area')} style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }} autoFocus />
                   <button onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(() => setEditando(null))} disabled={!editando.name.trim()}
-                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px', color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
+                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px', color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
                   <button onClick={() => setEditando(null)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
                 </>
               ) : (
                 <>
-                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{a.name}</span>
+                  <span className="u-base-600">{a.name}</span>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{a.departamentos.length ? a.departamentos.join(', ') : t('settings.area_sin_departamentos')}</span>
                   <button onClick={() => setEditando({ id: a.id, name: a.name })} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                   <button onClick={() => ejecutar(() => presupuestosApi.borrarArea(a.id))} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
@@ -1548,49 +1687,49 @@ function AreasSection() {
 
 // ── Metrics section ───────────────────────────────────────────────────────────
 const OPERATOR_LABELS: Record<string, string> = { '+': 'Suma', '-': 'Resta', '*': 'Multiplica', '/': 'Divide' }
-const EMPTY_METRIC = { label: '', description: '', operand_a: '', operator: '/', operand_b_type: 'metric', operand_b: '', scale: 1 }
+const EMPTY_METRIC: MetricForm = { label: '', description: '', operand_a: '', operator: '/', operand_b_type: 'metric', operand_b: '', scale: 1 }
 
 function MetricsSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
 
-  const { data: metricsData = { metrics: [] } } = useQuery<any>({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
-  const { data: customData = { items: [] } } = useQuery<any>({ queryKey: ['bi-custom-metrics'], queryFn: () => biSmartAlertsApi.listCustomMetrics().then(r => r.data) })
-  const builtinMetrics = (metricsData.metrics ?? []).filter((m: any) => !m.is_custom)
+  const { data: metricsData = { metrics: [] } } = useQuery<SupportedMetrics>({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
+  const { data: customData = { items: [] } } = useQuery<{ items?: CustomMetric[] }>({ queryKey: ['bi-custom-metrics'], queryFn: () => biSmartAlertsApi.listCustomMetrics().then(r => r.data) })
+  const builtinMetrics = (metricsData.metrics ?? []).filter(m => !m.is_custom)
   const customMetrics = customData.items ?? []
 
-  const { mutate: createMetric, isPending: isCreating } = useMutation<any, any, any>({
+  const { mutate: createMetric, isPending: isCreating } = useMutation({
     mutationFn: biSmartAlertsApi.createCustomMetric,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bi-custom-metrics'] }); qc.invalidateQueries({ queryKey: ['bi-alert-metrics'] }); setShowCreate(false); setForm(EMPTY_METRIC) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const { mutate: deleteMetric } = useMutation<any, any, any>({
+  const { mutate: deleteMetric } = useMutation({
     mutationFn: biSmartAlertsApi.deleteCustomMetric,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bi-custom-metrics'] }); qc.invalidateQueries({ queryKey: ['bi-alert-metrics'] }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [ui, setUi] = useState<any>({ showCreate: false, form: EMPTY_METRIC })
+  const [ui, setUi] = useState<{ showCreate: boolean; form: MetricForm }>({ showCreate: false, form: EMPTY_METRIC })
   const { showCreate, form } = ui
-  const setShowCreate = (v: any) => setUi((s: any) => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
-  const setForm = (v: any) => setUi((s: any) => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
-  const setF = (k: any) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const setShowCreate = (v: SetStateAction<boolean>) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
+  const setForm = (v: SetStateAction<MetricForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
+  const setF = (k: keyof MetricForm) => (e: InputChange) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const preview = (() => {
-    const la = builtinMetrics.find((m: any) => m.key === form.operand_a)?.label ?? form.operand_a
+    const la = builtinMetrics.find(m => m.key === form.operand_a)?.label ?? form.operand_a
     const lb = form.operand_b_type === 'metric'
-      ? (builtinMetrics.find((m: any) => m.key === form.operand_b)?.label ?? form.operand_b)
+      ? (builtinMetrics.find(m => m.key === form.operand_b)?.label ?? form.operand_b)
       : form.operand_b
     if (!form.operand_a) return ''
-    const scaled = parseFloat(form.scale) !== 1 ? ` × ${form.scale}` : ''
+    const scaled = parseFloat(String(form.scale)) !== 1 ? ` × ${form.scale}` : ''
     return `(${la} ${form.operator} ${lb})${scaled}`
   })()
 
   const submit = () => {
     if (!form.label.trim() || !form.operand_a) { toast.error('Nombre y operando A son obligatorios'); return }
     if (form.operand_b_type === 'metric' && !form.operand_b) { toast.error('Selecciona la métrica B'); return }
-    createMetric({ ...form, scale: parseFloat(form.scale) || 1 })
+    createMetric({ ...form, scale: parseFloat(String(form.scale)) || 1 })
   }
 
   return (
@@ -1599,7 +1738,7 @@ function MetricsSection() {
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>{t('settings.metricas_del_sistema')}{builtinMetrics.length})</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
-          {builtinMetrics.map((m: any) => (
+          {builtinMetrics.map(m => (
             <div key={m.key} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{m.label}</div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'monospace', marginTop: 2 }}>{m.key}</div>
@@ -1618,16 +1757,16 @@ function MetricsSection() {
           <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('settings.no_hay_metricas_personalizadas_crea_la_primera')}</div>
         ) : (
           <div style={styles.colGap8}>
-            {customMetrics.map((cm: any) => {
-              const f = cm.formula ?? {}
-              const la = builtinMetrics.find((m: any) => m.key === f.operand_a)?.label ?? f.operand_a
+            {customMetrics.map(cm => {
+              const f: MetricFormula = cm.formula ?? {}
+              const la = builtinMetrics.find(m => m.key === f.operand_a)?.label ?? f.operand_a
               const lb = f.operand_b_type === 'metric'
-                ? (builtinMetrics.find((m: any) => m.key === f.operand_b)?.label ?? f.operand_b)
+                ? (builtinMetrics.find(m => m.key === f.operand_b)?.label ?? f.operand_b)
                 : f.operand_b
-              const scale = parseFloat(f.scale) !== 1 ? ` × ${f.scale}` : ''
+              const scale = parseFloat(String(f.scale)) !== 1 ? ` × ${f.scale}` : ''
               return (
                 <div key={cm.key} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontWeight: 600, fontSize: "var(--text-base)", marginBottom: 2 }}>{cm.label}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'monospace' }}>({la} {f.operator} {lb}){scale}</div>
                     {cm.description && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>{cm.description}</div>}
@@ -1661,7 +1800,7 @@ function MetricsSection() {
                   <label style={ls}>{t('settings.metrica_a')}</label>
                   <select value={form.operand_a} onChange={setF('operand_a')} style={fs}>
                     <option value="">— Selecciona —</option>
-                    {builtinMetrics.map((m: any) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    {builtinMetrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1684,7 +1823,7 @@ function MetricsSection() {
                   {form.operand_b_type === 'metric' ? (
                     <select value={form.operand_b} onChange={setF('operand_b')} style={fs}>
                       <option value="">— Selecciona —</option>
-                      {builtinMetrics.filter((m: any) => m.key !== form.operand_a).map((m: any) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                      {builtinMetrics.filter(m => m.key !== form.operand_a).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                     </select>
                   ) : (
                     <input type="number" value={form.operand_b} onChange={setF('operand_b')} style={fs} placeholder="0" />
@@ -1715,7 +1854,20 @@ function MetricsSection() {
 
 // ── E-firma (Electronic Signature) settings ───────────────────────────────────
 
-const ESIGN_PROVIDERS = [
+type ESignFieldKey =
+  | 'docusign_integration_key' | 'docusign_account_id' | 'docusign_secret_key' | 'docusign_base_url'
+  | 'adobe_sign_client_id' | 'adobe_sign_client_secret' | 'adobe_sign_base_url'
+/** Respuesta de GET /esign/config (app/api/v1/endpoints/esign.py): claves en texto (secretos como '***') y dos indicadores. */
+type ESignConfig = Partial<Record<ESignFieldKey, string>> & { docusign_configured?: boolean; adobe_configured?: boolean }
+type ESignProvider = {
+  id: string
+  label: string
+  icon: string
+  configKey: 'docusign_configured' | 'adobe_configured'
+  fields: Array<{ key: ESignFieldKey; label: string; placeholder: string; secret: boolean }>
+}
+
+const ESIGN_PROVIDERS: ESignProvider[] = [
   {
     id: 'docusign',
     label: 'DocuSign',
@@ -1741,18 +1893,27 @@ const ESIGN_PROVIDERS = [
   },
 ]
 
-function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: any) {
+interface ProviderCardProps {
+  provider: ESignProvider
+  config: ESignConfig | undefined
+  form: ESignConfig
+  onChange: (key: ESignFieldKey, value: string) => void
+  onSave: (provider: ESignProvider) => void
+  isSaving: boolean
+}
+
+function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: ProviderCardProps) {
   const isConfigured = config?.[provider.configKey]
-  const handleSubmit = (e: any) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     onSave(provider)
   }
   return (
     <div style={{ border: `1px solid ${isConfigured ? 'var(--success)' : 'var(--surface-4)'}`, borderRadius: 12, padding: '18px 20px', background: 'var(--surface-2)', marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="u-row-center-8">
           <span style={{ fontSize: 20 }}>{provider.icon}</span>
-          <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{provider.label}</span>
+          <span className="u-md-700">{provider.label}</span>
         </div>
         <span style={{
           fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
@@ -1765,7 +1926,7 @@ function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: an
 
       <form onSubmit={handleSubmit}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-        {provider.fields.map((f: any) => (
+        {provider.fields.map(f => (
           <div key={f.key}>
             <label style={ls}>{f.label}</label>
             <input
@@ -1793,18 +1954,18 @@ function ESignSettingsSection() {
   const toast = useToast()
   const qc = useQueryClient()
 
-  const { data: config, isLoading } = useQuery<any>({
+  const { data: config, isLoading } = useQuery<ESignConfig>({
     queryKey: ['esign-config'],
     queryFn: () => esignApi.getConfig().then(r => r.data),
   })
 
-  const [form, setForm] = useState<any>({})
+  const [form, setForm] = useState<ESignConfig>({})
   React.useEffect(() => {
     if (config) setForm({ ...config })
   }, [config])
 
-  const { mutate: save, isPending: isSaving } = useMutation<any, any, any>({
-    mutationFn: (data: any) => esignApi.saveConfig(data),
+  const { mutate: save, isPending: isSaving } = useMutation({
+    mutationFn: (data: Partial<Record<ESignFieldKey, string>>) => esignApi.saveConfig(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['esign-config'] })
       qc.invalidateQueries({ queryKey: ['esign-stats'] })
@@ -1813,11 +1974,11 @@ function ESignSettingsSection() {
     onError: e => toast.error(extractErr(e, 'Error guardando configuración')),
   })
 
-  const handleChange = (key: any, value: any) => setForm((f: any) => ({ ...f, [key]: value }))
+  const handleChange = (key: ESignFieldKey, value: string) => setForm(f => ({ ...f, [key]: value }))
 
-  const handleSave = (provider: any) => {
-    const payload: any = {}
-    provider.fields.forEach((f: any) => {
+  const handleSave = (provider: ESignProvider) => {
+    const payload: Partial<Record<ESignFieldKey, string>> = {}
+    provider.fields.forEach(f => {
       const val = form[f.key]
       if (val !== undefined) payload[f.key] = val
     })
@@ -1832,17 +1993,17 @@ function ESignSettingsSection() {
         <>
           <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 6 }}>Modo manual siempre disponible</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+            <div className="u-text2-sm">
               {t('settings.sin_credenciales_las_solicitudes_se_gestionan_en')}
             </div>
           </div>
 
-          <div style={{ marginBottom: 20 }}>
+          <div className="u-mb-20">
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>{t('settings.webhooks_de_sincronizacion_de_estado')}</div>
             <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('settings.configura_en_el_panel_de_tu_proveedor')}</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)', marginBottom: 2 }}>DocuSign Connect: <span style={{ color: 'var(--text-1)' }}>/api/v1/esign/webhooks/docusign</span></div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)' }}>Adobe Sign: <span style={{ color: 'var(--text-1)' }}>/api/v1/esign/webhooks/adobe</span></div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)', marginBottom: 2 }}>DocuSign Connect: <span className="u-text1">{apiUrl('/esign/webhooks/docusign')}</span></div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)' }}>Adobe Sign: <span className="u-text1">{apiUrl('/esign/webhooks/adobe')}</span></div>
             </div>
           </div>
 
@@ -1871,17 +2032,17 @@ function SessionSecuritySection() {
   const qc = useQueryClient()
   const toast = useToast()
 
-  const { data: settings = [] } = useQuery<any>({
+  const { data: settings = [] } = useQuery({
     queryKey: ['settings-general'],
     queryFn: () => settingsApi.getGeneral().then(r => r.data),
   })
-  const { mutate: update } = useMutation<any, any, any>({
-    mutationFn: ({ key, value }: any) => settingsApi.updateSetting(key, value),
+  const { mutate: update } = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) => settingsApi.updateSetting(key, value),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-general'] }),
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
 
-  const find = (k: any) => settings.find((s: any) => s.key === k)?.value
+  const find = (k: string) => settings.find(s => s.key === k)?.value
   const idleEnabled = find('idle_timeout_enabled') === 'true'
   const idleMinutes = parseInt(find('idle_timeout_minutes') || '30', 10)
 

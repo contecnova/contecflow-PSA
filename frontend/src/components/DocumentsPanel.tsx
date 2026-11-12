@@ -197,7 +197,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
             {file
               ? <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
-              : <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+              : <span className="u-text3-xs">
                   <Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('documents_panel.click_or_drag')}
                 </span>}
           </button>
@@ -210,7 +210,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           <select value={category} onChange={e => setCategory(e.target.value)} style={fs}>
             {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
           </select>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="u-row-6">
             <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
               style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               {uploadMutation.isPending ? <Loader size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Upload size={12} />}
@@ -242,7 +242,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
               <div key={doc.id}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
                 <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={28} />
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
                   <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
                     <span>{doc.category}</span>

@@ -8,6 +8,7 @@ import { Download } from 'lucide-react'
 import { downloadBlob } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import DateInput from '../components/ui/DateInput'
 
 interface ProjectListItem {
   id: number | string
@@ -133,13 +134,13 @@ export default function ExportsPage(): JSX.Element {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 14, marginBottom: 16 }}>
           <div>
             <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Desde</label>
-            <input type="date" value={imputForm.date_from}
+            <DateInput value={imputForm.date_from}
               onChange={e => setImputForm(f => ({ ...f, date_from: e.target.value }))}
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
           <div>
             <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Hasta</label>
-            <input type="date" value={imputForm.date_to}
+            <DateInput value={imputForm.date_to}
               onChange={e => setImputForm(f => ({ ...f, date_to: e.target.value }))}
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>

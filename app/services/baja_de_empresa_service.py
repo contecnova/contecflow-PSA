@@ -170,7 +170,7 @@ def purgar(db: Session, org_id: str) -> dict:
     niega y la empresa sigue en cuarentena hasta que se levante).
     """
     from app.db.session import sin_filtro_de_tenant
-    from app.services.retencion import bloqueos_activos
+    from app.db.bloqueo_legal import bloqueos_activos
     activos = bloqueos_activos(db, org_id)
     if activos:
         raise BloqueoLegalImpidePurga(", ".join(sorted({b.case_reference for b in activos})))
@@ -265,3 +265,48 @@ def usuario_de(db: Session, user_id: str) -> User:
     if usuario is None:
         raise ValueError("not_found")
     return usuario
+
+
+# ── Lo que hacen los endpoints de superadmin: auditar y confirmar ─────────────
+
+def _obtener_o_404(db: Session, org_id: str) -> Organization:
+    from app.core.errores import ErrorDeDominio
+    try:
+        return obtener(db, org_id)
+    except ValueError:
+        raise ErrorDeDominio(404, "Empresa no encontrada")
+
+
+def pedir_baja_auditada(db: Session, org_id: str, motivo: str, actor) -> Organization:
+    from app.core.errores import ErrorDeDominio
+    from app.services.audit import audit_log
+    org = _obtener_o_404(db, org_id)
+    try:
+        pedir_baja(db, org, motivo, actor)
+    except ValueError:
+        raise ErrorDeDominio(422, "Para dar de baja una empresa hay que indicar el motivo")
+    audit_log(db, actor, "ORG_DELETION_REQUESTED", "organizations", org.id, motivo[:200])
+    db.commit()
+    return org
+
+
+def deshacer_baja_auditada(db: Session, org_id: str, actor) -> Organization:
+    from app.core.errores import ErrorDeDominio
+    from app.services.audit import audit_log
+    org = _obtener_o_404(db, org_id)
+    try:
+        deshacer_baja(db, org)
+    except ValueError:
+        raise ErrorDeDominio(409, "Esta empresa no tiene una baja pedida")
+    audit_log(db, actor, "ORG_DELETION_CANCELLED", "organizations", org.id, org.name)
+    db.commit()
+    return org
+
+
+def exportar_auditado(db: Session, org_id: str, actor) -> tuple[Organization, bytes]:
+    from app.services.audit import audit_log
+    org = _obtener_o_404(db, org_id)
+    contenido = exportar(db, org.id)
+    audit_log(db, actor, "ORG_EXPORTED", "organizations", org.id, org.name)
+    db.commit()
+    return org, contenido

@@ -134,7 +134,7 @@ export default function PortalAIChatWidget() {
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 10px 28px rgba(0,0,0,0.35)',
-          color: '#fff',
+          color: 'var(--on-accent-light)',
         }}
       >
         <MessageCircle size={24} />
@@ -161,9 +161,9 @@ export default function PortalAIChatWidget() {
       <div style={{
         padding: '14px 16px',
         background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
-        color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        color: 'var(--on-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <Sparkles size={18} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 14 }}>Asistente IA</div>
@@ -172,12 +172,12 @@ export default function PortalAIChatWidget() {
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="u-row-6">
           {messages.length > 0 && (
             <button onClick={handleClearSession}
               aria-label={t('portalaichatwidget.nueva_conversacion')} title={t('portalaichatwidget.empezar_de_nuevo')}
               style={{
-                background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none',
+                background: 'rgba(255,255,255,0.15)', color: 'var(--on-accent-light)', border: 'none',
                 borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
                 fontSize: 11, fontWeight: 600,
               }}>
@@ -187,7 +187,7 @@ export default function PortalAIChatWidget() {
           <button onClick={() => setOpen(false)}
             aria-label="Cerrar asistente"
             style={{
-              background: 'transparent', color: '#fff', border: 'none',
+              background: 'transparent', color: 'var(--on-accent-light)', border: 'none',
               cursor: 'pointer', padding: 4, display: 'flex',
             }}>
             <X size={18} />
@@ -209,7 +209,7 @@ export default function PortalAIChatWidget() {
             <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
               Ejemplos
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="u-stack-6">
               {SUGGESTIONS.map(s => (
                 <button key={s} onClick={() => handleSend(s)}
                   style={{
@@ -325,7 +325,7 @@ function Voto({ id }: { id: string }) {
           {util ? '👍' : '👎'}
         </button>
       ))}
-      {voto === false && <span style={{ color: 'var(--text-3)' }}>{t('portalaichatwidget.voto_gracias')}</span>}
+      {voto === false && <span className="u-text3">{t('portalaichatwidget.voto_gracias')}</span>}
     </div>
   )
 }

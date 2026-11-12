@@ -263,7 +263,7 @@ export default function PageHeader({
           en vez de salirse (medido en /cmdb a 390 px: +346 px de desborde). */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="u-row-center-10">
             {icon && (
               <div style={{
                 width: 36, height: 36, borderRadius: 10,
@@ -293,7 +293,7 @@ export default function PageHeader({
                 <div key={i} style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   {m.icon && <span style={{ opacity: 0.7 }}>{m.icon}</span>}
                   <span style={{ color: m.color || 'var(--text-2)' }}>{m.value}</span>
-                  {m.label && <span style={{ color: 'var(--text-3)' }}>{m.label}</span>}
+                  {m.label && <span className="u-text3">{m.label}</span>}
                 </div>
               ))}
             </div>

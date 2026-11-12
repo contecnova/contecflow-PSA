@@ -1,13 +1,13 @@
 from datetime import datetime, timezone as tz
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.services.numbering import next_numbered_code
 
 from app.models.service_desk import MajorIncident, Ticket
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def next_major_incident_number(db: Session) -> str:
 
 def build_major_incident(payload: dict, number: str, fallback_commander_id: str) -> MajorIncident:
     if not payload.get("title"):
-        raise HTTPException(422, "title es obligatorio")
+        raise ErrorDeDominio(422, "title es obligatorio")
 
     return MajorIncident(
         number=number,
@@ -76,7 +76,7 @@ def get_major_incident_by_id(db: Session, mi_id: str):
 def get_major_incident_or_404(db: Session, mi_id: str) -> MajorIncident:
     major_incident = get_major_incident_by_id(db, mi_id)
     if not major_incident:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return major_incident
 
 

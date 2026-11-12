@@ -89,7 +89,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
   }
 
   return (
-    <div style={{overflowX:'auto'}}>
+    <div className="u-scroll-x">
       <div style={{minWidth:700}}>
         {/* Meses */}
         <div style={{display:'flex', marginLeft:180, marginBottom:8}}>
@@ -120,13 +120,13 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
                 <div style={{position:'absolute', left:`${left}%`, width:`${w}%`, height:'100%',
                   background:epic.color, borderRadius:4, opacity:0.85, minWidth:4,
                   display:'flex', alignItems:'center', paddingLeft:8, overflow:'hidden'}}>
-                  {w > 8 && <span style={{fontSize: "var(--text-xs)", fontWeight:600, color:'#fff',
+                  {w > 8 && <span style={{fontSize: "var(--text-xs)", fontWeight:600, color:'var(--on-accent-light)',
                     whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{epic.title}</span>}
                 </div>
                 {/* Progreso overlay */}
                 {prog > 0 && (
                   <div style={{position:'absolute', left:`${left}%`, width:`${w * prog / 100}%`,
-                    height:'100%', background:'#fff', opacity:0.2, borderRadius:4}} />
+                    height:'100%', background:'var(--on-accent-light)', opacity:0.2, borderRadius:4}} />
                 )}
                 {/* Flechas de dependencia (SVG) */}
                 {outDeps.map(dep => {
@@ -184,8 +184,8 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
 
   return (
     <Modal open onClose={onClose} title={t('epicgantt.nueva_dependencia_entre_epicas')}>
-      <div style={{display:'flex', flexDirection:'column', gap:14}}>
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+      <div className="u-stack-14">
+        <div className="u-grid2-12">
           <div>
             <label style={ls}>{t('epicgantt.epica_a')}</label>
             <select style={is} value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
@@ -206,7 +206,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
 
         <div>
           <label style={ls}>{t('epicgantt.tipo_de_dependencia')}</label>
-          <div style={{display:'flex', flexDirection:'column', gap:6}}>
+          <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
                 style={{display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8,
@@ -215,10 +215,10 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
                   cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
                 <span style={{fontSize: "var(--text-sm)", fontWeight:700, padding:'2px 6px', borderRadius:4,
                   background:alpha(dt.color, '30'), color:dt.color, minWidth:28, textAlign:'center'}}>{dt.symbol}</span>
-                <div style={{flex:1}}>
+                <div className="u-flex1">
                   <div style={{fontSize: "var(--text-base)", fontWeight:form.dep_type===dt.value?600:400,
                     color:form.dep_type===dt.value ? dt.color : 'var(--text-1)'}}>{dt.label}</div>
-                  <div style={{fontSize: "var(--text-xs)", color:'var(--text-2)'}}>{dt.desc}</div>
+                  <div className="u-text2-xs">{dt.desc}</div>
                 </div>
               </button>
             ))}
@@ -327,7 +327,7 @@ export default function EpicGanttPage(): JSX.Element {
                 {t('epicgantt.sin_dependencias_entre_epicas_las_dependencias_aparecen')}
               </div>
             ) : (
-              <div style={{display:'flex', flexDirection:'column', gap:8}}>
+              <div className="u-stack-8">
                 {epicDeps.map(dep => {
                   const dt = DEP_TYPES.find(d => d.value === dep.dep_type)
                   return (
@@ -337,7 +337,7 @@ export default function EpicGanttPage(): JSX.Element {
                         background:alpha(dt?.color, '30'), color:dt?.color, minWidth:28, textAlign:'center'}}>
                         {dt?.symbol}
                       </span>
-                      <div style={{flex:1}}>
+                      <div className="u-flex1">
                         <span style={{fontWeight:500}}>{dep.epic_title}</span>
                         <span style={{color:'var(--text-3)', margin:'0 8px'}}>→</span>
                         <span style={{fontWeight:500, color:'var(--accent)'}}>{dep.depends_on_title}</span>
@@ -359,7 +359,7 @@ export default function EpicGanttPage(): JSX.Element {
                 <div key={dt.value} style={{display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)"}}>
                   <span style={{fontWeight:700, padding:'1px 5px', borderRadius:3,
                     background:alpha(dt.color, '30'), color:dt.color}}>{dt.symbol}</span>
-                  <span style={{color:'var(--text-2)'}}>{dt.label}</span>
+                  <span className="u-text2">{dt.label}</span>
                 </div>
               ))}
             </div>

@@ -45,6 +45,7 @@ def get_multichannel_config(db: Session, org_id: Optional[str]) -> dict:
     try:
         return json.loads(row.value)
     except Exception:
+        logger.debug("get_multichannel_config: excepcion ignorada", exc_info=True)
         return _default_config()
 
 
@@ -141,6 +142,24 @@ def process_inbound_sms(db: Session, from_phone: str, body: str, to_phone: Optio
         "source": "sms",
         "from_phone": from_phone,
     }
+
+
+# ── Lo que confirman los webhooks de entrada ─────────────────────────────────
+
+def procesar_sms_entrante(db: Session, from_phone: str, body: str, to_phone: Optional[str] = None) -> dict:
+    """`process_inbound_sms` y confirma (webhook de Twilio)."""
+    result = process_inbound_sms(db, from_phone=from_phone, body=body, to_phone=to_phone)
+    db.commit()
+    return result
+
+
+def procesar_correo_entrante(db: Session, payload: dict, provided_secret: Optional[str]):
+    """`process_inbound_email` y confirma (webhook de correo entrante)."""
+    from app.services.service_desk.inbound_email_service import process_inbound_email
+
+    r = process_inbound_email(db, payload, provided_secret=provided_secret)
+    db.commit()
+    return r
 
 
 # ── Outbound notification routing ────────────────────────────────────────────

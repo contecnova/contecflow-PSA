@@ -12,6 +12,7 @@ import PageShell from '../components/layout/PageShell'
 import { CalendarClock } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import DateInput from '../components/ui/DateInput'
 
 interface SlaCalendar {
   id: string | number
@@ -81,7 +82,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
 
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar calendario SLA' : 'Nuevo calendario SLA'}>
-      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+      <div className="u-stack-14">
         <div>
           <label style={ls}>Nombre</label>
           <input style={is} value={form.name} onChange={e => set('name')(e.target.value)}
@@ -93,7 +94,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
             {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div className="u-grid2-12">
           <div>
             <label style={ls}>Inicio jornada</label>
             <input type="time" style={is} value={form.work_start}
@@ -107,7 +108,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
         </div>
         <div>
           <label style={ls}>{t('slacalendars.dias_laborables')}</label>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <div className="u-wrap-8">
             {Object.entries(DAYS_MAP).map(([d,name]) => {
               const active = form.work_days.has(+d)
               return (
@@ -178,12 +179,12 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
 
   return (
     <Modal open onClose={onClose} title={`Festivos — ${cal.name}`}>
-      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+      <div className="u-stack-14">
         {/* Añadir festivo */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:8,alignItems:'flex-end'}}>
           <div>
             <label style={ls}>Fecha</label>
-            <input type="date" style={is} value={date} onChange={e => setDate(e.target.value)} />
+            <DateInput style={is} value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div>
             <label style={ls}>Nombre (opcional)</label>
@@ -202,7 +203,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
             <div key={h.id} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
               {editingId === h.id ? (
                 <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px'}}>
-                  <input type="date" value={editForm.holiday_date}
+                  <DateInput value={editForm.holiday_date}
                     onChange={e => setEditForm(f => ({...f, holiday_date: e.target.value}))}
                     style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:5,
                       padding:'3px 7px',color:'var(--text-1)',fontSize: "var(--text-sm)",fontFamily:'inherit'}} />
@@ -213,7 +214,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
                       padding:'3px 7px',color:'var(--text-1)',fontSize: "var(--text-sm)",fontFamily:'inherit'}} />
                   <button onClick={() => updateH(h.id)}
                     style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'3px 10px',
-                      color:'#fff',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>✓</button>
+                      color:'var(--on-accent-light)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>✓</button>
                   <button onClick={() => setEditingId(null)}
                     style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'3px 8px',
                       color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✕</button>
@@ -235,8 +236,8 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
         {/* Verificar fecha */}
         <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:14}}>
           <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-2)',marginBottom:10}}>VERIFICAR FECHA</div>
-          <div style={{display:'flex',gap:8}}>
-            <input type="date" style={is} value={checkDate} onChange={e => setCheckDate(e.target.value)} />
+          <div className="u-row-8">
+            <DateInput style={is} value={checkDate} onChange={e => setCheckDate(e.target.value)} />
             <Button variant="secondary" onClick={checkBusinessDay} disabled={!checkDate}>Verificar</Button>
           </div>
           {checkResult && (
@@ -246,7 +247,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
                 {checkResult.date} ({checkResult.day_of_week}) —
                 {checkResult.is_business_day ? ' ✅ Día laborable' : ' ❌ No laborable'}
               </strong>
-              {checkResult.is_weekend && <div style={{color:'var(--text-2)',fontSize: "var(--text-sm)"}}>{t('slacalendars.fin_de_semana')}</div>}
+              {checkResult.is_weekend && <div className="u-text2-sm">{t('slacalendars.fin_de_semana')}</div>}
               {checkResult.is_holiday  && <div style={{color:'var(--warning)',fontSize: "var(--text-sm)"}}>Festivo: {checkResult.holiday_name||'(sin nombre)'}</div>}
             </div>
           )}
@@ -297,11 +298,11 @@ export default function SLACalendarsPage() {
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Crear primer calendario</Button>
         </div>
       ) : (
-        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div className="u-stack-12">
           {calendars.map(cal => (
             <div key={cal.id} style={{...ps,padding:'16px 20px'}}>
               <div style={{display:'flex',alignItems:'center',gap:14}}>
-                <div style={{flex:1}}>
+                <div className="u-flex1">
                   <div style={{fontWeight:600,fontSize: "var(--text-md)",marginBottom:4}}>{cal.name}</div>
                   <div style={{display:'flex',gap:16,fontSize: "var(--text-sm)",color:'var(--text-2)',flexWrap:'wrap'}}>
                     <span>🌍 {cal.timezone}</span>
@@ -310,7 +311,7 @@ export default function SLACalendarsPage() {
                     <span>🎌 {cal.holiday_count} festivos</span>
                   </div>
                 </div>
-                <div style={{display:'flex',gap:8}}>
+                <div className="u-row-8">
                   <button onClick={() => setHolidaysCal(cal)}
                     style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--surface-4)',background:'transparent',
                       color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>

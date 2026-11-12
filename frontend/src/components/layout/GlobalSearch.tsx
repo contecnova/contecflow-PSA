@@ -134,7 +134,7 @@ export default function GlobalSearch({ onClose }: Props) {
             style={{ flex:1, background:'transparent', border:'none', outline:'none', fontSize: "var(--text-md-em)", color:'var(--text-1)', fontFamily:'inherit' }}
             onKeyDown={handleKeyDown}
           />
-          {isLoading && <span style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('common.searching')}</span>}
+          {isLoading && <span className="u-text3-sm">{t('common.searching')}</span>}
           <button onClick={onClose} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>Esc</button>
         </div>
 
@@ -202,7 +202,7 @@ export default function GlobalSearch({ onClose }: Props) {
                       type="button"
                     >
                       <span style={{ fontSize: "var(--text-lg)", flexShrink:0 }}>{(item.type && ICON_MAP[item.type]) || '•'}</span>
-                      <div style={{ flex:1, minWidth:0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: "var(--text-base)", fontWeight: isSelected ? 600 : 500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{item.title}</div>
                         {item.subtitle && <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:1 }}>{item.subtitle}</div>}
                       </div>

@@ -23,13 +23,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.mfa import Organization
 from app.models.user import UserOrganizationMembership
+from app.core.errores import ErrorDeDominio
 
 MODOS = ("email_selector", "subdomain", "org_field")
 _MENSAJE_CREDENCIALES = "Credenciales incorrectas"
@@ -112,8 +112,8 @@ def decidir(db: Session, user, request, *, codigo: Optional[str] = None,
     ids = {o.id for o in activas}
     if not activas:
         if _de_ficha(user) and not pertenece_a_activa(db, _de_ficha(user)):
-            raise HTTPException(403, "La organización está desactivada")
-        raise HTTPException(403, "No perteneces a ninguna organización activa")
+            raise ErrorDeDominio(403, "La organización está desactivada")
+        raise ErrorDeDominio(403, "No perteneces a ninguna organización activa")
 
     fijada = None
     if modo() == "subdomain":
@@ -122,16 +122,16 @@ def decidir(db: Session, user, request, *, codigo: Optional[str] = None,
     elif modo() == "org_field":
         org = organizacion_por_codigo(db, codigo)
         if org is None:
-            raise HTTPException(401, _MENSAJE_CREDENCIALES)
+            raise ErrorDeDominio(401, _MENSAJE_CREDENCIALES)
         fijada = org.id
     if fijada is not None:
         if fijada not in ids:
-            raise HTTPException(401, _MENSAJE_CREDENCIALES)
+            raise ErrorDeDominio(401, _MENSAJE_CREDENCIALES)
         return fijada
 
     if elegida:
         if elegida not in ids:
-            raise HTTPException(401, _MENSAJE_CREDENCIALES)
+            raise ErrorDeDominio(401, _MENSAJE_CREDENCIALES)
         return elegida
     if len(activas) == 1:
         return activas[0].id
@@ -164,7 +164,7 @@ def leer_token_de_eleccion(token: str) -> str:
     from app.core.security import decode_token
     datos = decode_token(token or "")
     if not datos or datos.get("type") != "org_selection" or not datos.get("sub"):
-        raise HTTPException(401, "La elección de organización ha caducado: vuelve a entrar")
+        raise ErrorDeDominio(401, "La elección de organización ha caducado: vuelve a entrar")
     return datos["sub"]
 
 
@@ -187,7 +187,7 @@ def organizacion_de_la_peticion(db: Session, user, payload: dict, request) -> Op
     if modo() == "subdomain":
         del_host = organizacion_por_host(db, request)
         if del_host is not None and del_host.id != org:
-            raise HTTPException(403, "Esta sesión es de otra organización")
+            raise ErrorDeDominio(403, "Esta sesión es de otra organización")
     if org != user.organization_id:
         from sqlalchemy.orm.attributes import set_committed_value
         user._organizacion_de_ficha = user.organization_id
@@ -209,11 +209,11 @@ def confirmar(db: Session, user, request, org: Optional[str]) -> Optional[str]:
     if getattr(user, "is_superadmin", False) or not org:
         return None if getattr(user, "is_superadmin", False) else decidir(db, user, request)
     if not pertenece(db, user, org) or not pertenece_a_activa(db, org):
-        raise HTTPException(403, "La organización está desactivada o ya no perteneces a ella")
+        raise ErrorDeDominio(403, "La organización está desactivada o ya no perteneces a ella")
     if modo() == "subdomain":
         del_host = organizacion_por_host(db, request)
         if del_host is not None and del_host.id != org:
-            raise HTTPException(403, "Esta sesión es de otra organización")
+            raise ErrorDeDominio(403, "Esta sesión es de otra organización")
     return org
 
 
@@ -235,13 +235,13 @@ def entrar_como(db: Session, superadmin, org: Organization, usuario, motivo: str
     from app.services.audit import audit_log
     from app.services.settings_service import get_runtime_bool, get_runtime_int
     if not get_runtime_bool(db, "IMPERSONATION_ENABLED"):
-        raise HTTPException(403, "«Entrar como» está desactivado en este despliegue")
+        raise ErrorDeDominio(403, "«Entrar como» está desactivado en este despliegue")
     if not (motivo or "").strip():
-        raise HTTPException(422, "Indica el motivo")
+        raise ErrorDeDominio(422, "Indica el motivo")
     if getattr(usuario, "is_superadmin", False) or not usuario.is_active:
-        raise HTTPException(400, "No se puede entrar como ese usuario")
+        raise ErrorDeDominio(400, "No se puede entrar como ese usuario")
     if not pertenece(db, usuario, org.id) or not org.is_active:
-        raise HTTPException(400, "El usuario no pertenece a esa empresa activa")
+        raise ErrorDeDominio(400, "El usuario no pertenece a esa empresa activa")
     minutos = int(get_runtime_int(db, "IMPERSONATION_MAX_MINUTES") or settings.IMPERSONATION_MAX_MINUTES)
     token = create_access_token(
         subject=usuario.id,
@@ -263,6 +263,6 @@ def comprobar_suplantacion(payload: dict, request) -> Optional[str]:
         return None
     ruta = request.url.path
     if any(ruta.startswith(r) for r in RUTAS_VEDADAS_AL_SUPLANTAR):
-        raise HTTPException(403, "No disponible mientras se entra como otro usuario")
+        raise ErrorDeDominio(403, "No disponible mientras se entra como otro usuario")
     request.state.suplantado_por = actor
     return actor

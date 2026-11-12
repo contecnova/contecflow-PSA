@@ -222,7 +222,7 @@ export default function ProjectsDashboardPage() {
                       border: `1px solid ${alpha(color, '30')}`,
                     }}>
                       <RiskIcon size={16} style={{ color, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {p.project_code && <span className="ds-muted" style={{ marginRight: 6, fontSize: "var(--text-xs)" }}>{p.project_code}</span>}
                           {p.project_name}

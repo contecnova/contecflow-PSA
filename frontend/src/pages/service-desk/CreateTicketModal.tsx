@@ -240,12 +240,12 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: CreateTicketPayload) => ticketsApi.create(data),
-    onSuccess: (res: { data?: unknown; number?: string }) => {
+    onSuccess: (res: { data?: { number?: string }; number?: string }) => {
       validation.setErrors({})
       qc.invalidateQueries({ queryKey: ['sd-tickets'] })
-      const number = (res as any)?.data?.number || (res as any)?.number || ''
+      const number = res?.data?.number || res?.number || ''
       toast.success(`${t('service_desk.ticket_created_success')} ${number}`)
-      onCreated?.((res as any)?.data)
+      onCreated?.(res?.data)
       onClose()
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -320,7 +320,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               ['change', t('service_desk.type_change')], ['problem', t('service_desk.type_problem')], ['question', t('service_desk.type_question')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.ticket_type && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.ticket_type}</div>}
+          {validation.errors.ticket_type && <div className="u-field-error">{validation.errors.ticket_type}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-service-item`} style={LS}>{t('service_desk.svc_ticket_type')}</label>
@@ -331,13 +331,13 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             )) || [])}
           </select>
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.ticket_title')} *</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')}
             style={validation.inputStyle(IS, 'title')} placeholder={t('service_desk.ticket_title')} />
-          {validation.errors.title && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.title}</div>}
+          {validation.errors.title && <div className="u-field-error">{validation.errors.title}</div>}
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label htmlFor={`${idPrefix}-description`} style={LS}>{t('common.description')} *</label>
           <AIInlineEditor
             inputId={`${idPrefix}-description`}
@@ -349,7 +349,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             rows={4}
             style={{ ...validation.inputStyle(IS, 'description'), resize: 'vertical' }}
           />
-          {validation.errors.description && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.description}</div>}
+          {validation.errors.description && <div className="u-field-error">{validation.errors.description}</div>}
         </div>
 
         <div>
@@ -359,7 +359,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               ['medium', t('service_desk.urgency_medium')], ['low', t('service_desk.urgency_low')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.urgency && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.urgency}</div>}
+          {validation.errors.urgency && <div className="u-field-error">{validation.errors.urgency}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} style={LS}>{t('service_desk.edit_impact')}</label>
@@ -368,11 +368,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               ['user', t('service_desk.impact_user')], ['minimal', t('service_desk.impact_minimal')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.impact && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.impact}</div>}
+          {validation.errors.impact && <div className="u-field-error">{validation.errors.impact}</div>}
         </div>
 
         <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-1)', borderRadius: 8, padding: '10px 14px' }}>
-          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('service_desk.ticket_auto_routing')}:</span>
+          <span className="u-text3-sm">{t('service_desk.ticket_auto_routing')}:</span>
           <PBadge v={suggestedPrio} />
           <button onClick={() => setForm(f => ({ ...f, priority: suggestedPrio }))}
             style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -486,7 +486,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
       <Modal open={wizardOpen} onClose={() => setWizardOpen(false)} title={traducir('createticketmodal.wizard_de_campos_dinamicos')} size="lg">
         {wizardStep === 1 && (
           <div style={{ display: 'grid', gap: 12 }}>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+            <div className="u-text2-sm">
               {traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')}
             </div>
             <textarea
@@ -496,13 +496,13 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               style={{ ...IS, minHeight: 140, resize: 'vertical' }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('createticketmodal.tambien_puedes_restaurar_snapshots_previos')}</div>
+              <div className="u-text3-xs">{traducir('createticketmodal.tambien_puedes_restaurar_snapshots_previos')}</div>
               <Button onClick={() => previewImport.mutate()} disabled={!csvText.trim()} loading={previewImport.isPending}>Previsualizar</Button>
             </div>
             <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'grid', gap: 8 }}>
               {(dynamicHistory.items || []).slice(0, 5).map((h) => (
                 <div key={h.snapshot_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+                  <div className="u-text2-xs">
                     {h.created_at} · {h.reason || 'update'}
                   </div>
                   <Button variant="secondary" onClick={() => rollbackConfig.mutate(h.snapshot_id)} loading={rollbackConfig.isPending}>Restaurar</Button>
@@ -514,7 +514,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
         {wizardStep === 2 && (
           <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{traducir('createticketmodal.previsualizacion_de_campos_detectados')}</div>
+            <div className="u-text2-sm">{traducir('createticketmodal.previsualizacion_de_campos_detectados')}</div>
             <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
               {generatedFields.map((f, idx) => (
                 <div key={`${f.id}-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 8, padding: '8px 10px', borderBottom: '1px solid var(--surface-4)' }}>

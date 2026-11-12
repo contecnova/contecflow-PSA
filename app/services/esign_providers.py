@@ -19,7 +19,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from app.core.outbound_url import validate_outbound_url
+from app.core.outbound_url import abrir, validate_outbound_url
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def _http(method: str, url: str, headers: dict, body=None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers=headers)  # noqa: S310
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310
+        with abrir(req, timeout=20) as resp:  # noqa: S310
             raw = resp.read()
             ct = resp.headers.get("Content-Type", "")
             if "json" in ct:
@@ -111,7 +111,7 @@ def docusign_exchange_code(
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=15) as resp:  # noqa: S310
             data = json.loads(resp.read())
         return {
             "ok": True,
@@ -154,7 +154,7 @@ def docusign_refresh_token(
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=15) as resp:  # noqa: S310
             data = json.loads(resp.read())
         return {
             "ok": True,
@@ -337,7 +337,7 @@ def adobe_sign_exchange_code(
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=15) as resp:  # noqa: S310
             data = json.loads(resp.read())
         return {
             "ok": True,
@@ -378,7 +378,7 @@ def adobe_sign_refresh_token(
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=15) as resp:  # noqa: S310
             data = json.loads(resp.read())
         return {
             "ok": True,
@@ -429,7 +429,7 @@ def adobe_sign_upload_document(
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+        with abrir(req, timeout=30) as resp:  # noqa: S310
             data = json.loads(resp.read())
         tdoc_id = data.get("transientDocumentId")
         if not tdoc_id:
@@ -441,6 +441,25 @@ def adobe_sign_upload_document(
     except Exception as exc:
         logger.warning("Fallo subiendo documento a Adobe Sign: %s", exc)
         return {"ok": False, "error": str(exc)}
+
+
+def adobe_sign_get_agreement_status(access_token: str, base_url: str, agreement_id: str) -> dict:
+    """Estado actual de un acuerdo, leido de la API de Adobe Sign.
+
+    Returns {"ok": True, "status": str} o {"ok": False, "error": ...}.
+    """
+    from urllib.parse import quote
+
+    result = _http("GET", f"{base_url.rstrip('/')}/agreements/{quote(agreement_id, safe='')}", {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+    })
+    if not result["ok"]:
+        return result
+    data = result["data"]
+    if not isinstance(data, dict) or not data.get("status"):
+        return {"ok": False, "error": "Respuesta de Adobe Sign sin estado"}
+    return {"ok": True, "status": str(data["status"])}
 
 
 def adobe_sign_create_agreement(

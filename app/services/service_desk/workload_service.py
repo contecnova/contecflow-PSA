@@ -1,4 +1,3 @@
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -6,6 +5,7 @@ from app.models.service_desk import AgentGroup, AgentGroupMember, Ticket, Ticket
 from app.models.user import User
 from app.services.sla_service import log_history
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ def get_group_with_members_or_404(db: Session, group_id: str) -> AgentGroup:
         joinedload(AgentGroup.members).joinedload(AgentGroupMember.user)
     ).filter(AgentGroup.id == group_id).first()
     if not group:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return group
 
 
@@ -66,16 +66,16 @@ def get_group_workload_payload(db: Session, group_id: str) -> dict:
 def get_ticket_for_auto_assign_or_404(db: Session, ticket_id: str) -> Ticket:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if not ticket.assigned_group_id:
-        raise HTTPException(400, "El ticket no tiene grupo asignado. Asigna un grupo primero.")
+        raise ErrorDeDominio(400, "El ticket no tiene grupo asignado. Asigna un grupo primero.")
     return ticket
 
 
 def get_group_members_or_400(db: Session, group_id: str):
     members = db.query(AgentGroupMember).filter(AgentGroupMember.group_id == group_id).all()
     if not members:
-        raise HTTPException(400, "El grupo no tiene agentes")
+        raise ErrorDeDominio(400, "El grupo no tiene agentes")
     return members
 
 
@@ -136,6 +136,7 @@ def _agent_csat_score(db: Session, user_id: str) -> float:
         )
         return float(avg) if avg is not None else 3.0
     except Exception:
+        logger.warning("_agent_csat_score: excepcion ignorada", exc_info=True)
         return 3.0
 
 
@@ -168,6 +169,7 @@ def _agent_skills_match(db: Session, user_id: str, ticket_category: str | None) 
                 return 0.7
         return 0.3
     except Exception:
+        logger.warning("_agent_skills_match: excepcion ignorada", exc_info=True)
         return 0.5
 
 
@@ -243,7 +245,7 @@ def auto_assign_ticket_ml_command(db: Session, ticket_id: str, current_user_id: 
     best_agent_id = predict_best_agent(db, ticket, members)
 
     if not best_agent_id:
-        raise HTTPException(400, "No hay agentes disponibles para este ticket")
+        raise ErrorDeDominio(400, "No hay agentes disponibles para este ticket")
 
     old_assignee = apply_auto_assignment(ticket, best_agent_id)
     log_history(db, ticket.id, "assigned_to_user_id", old_assignee, best_agent_id, current_user_id)

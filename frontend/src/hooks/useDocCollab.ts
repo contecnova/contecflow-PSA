@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as Y from 'yjs'
 // TODO type: services/api still JS.
-import api from '../services/api'
+import api, { apiWsUrl } from '../services/api'
 
 type Block = unknown
 
@@ -25,9 +25,6 @@ export interface UseDocCollabResult {
   sendUpdate: (blocks: Block[]) => void
 }
 
-// TODO type: vite import.meta.env not declared globally yet.
-const VITE_WS_URL = (import.meta as unknown as { env?: { VITE_WS_URL?: string } }).env?.VITE_WS_URL
-const WS_BASE: string = VITE_WS_URL || window.location.origin.replace(/^http/, 'ws')
 const BACKOFF_CAP_MS = 30_000
 
 function uint8ToBase64(uint8: Uint8Array): string {
@@ -114,7 +111,7 @@ export function useDocCollab(docId: string | undefined, onRemoteUpdate?: (blocks
         const token = (data as { token: string }).token
         if (cancelledRef.current) return
 
-        const url = `${WS_BASE}/api/v1/ws/doc/${encodeURIComponent(docId!)}?token=${encodeURIComponent(token)}`
+        const url = apiWsUrl(`/ws/doc/${encodeURIComponent(docId!)}?token=${encodeURIComponent(token)}`)
         const ws = new WebSocket(url)
         wsRef.current = ws
 

@@ -20,13 +20,13 @@ export default function PuestaEnMarchaSection() {
     queryKey: ['setup-checklist'],
     queryFn: () => settingsApi.setupChecklist().then(r => r.data as Lista),
   })
-  if (isLoading || !data) return <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>…</div>
+  if (isLoading || !data) return <div className="u-text3-sm">…</div>
   const fila = (p: Punto) => (
     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: '1px solid var(--surface-4)' }}>
       <span aria-hidden style={{ fontSize: 'var(--text-lg)', color: p.done ? 'var(--success)' : p.required ? 'var(--warning)' : 'var(--text-3)' }}>{p.done ? '✓' : '○'}</span>
-      <div style={{ flex: 1 }}>
+      <div className="u-flex1">
         <div style={{ fontWeight: 600 }}>{t('puesta.' + p.id)}</div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('puesta.' + p.id + '_ayuda')}</div>
+        <div className="u-text3-xs">{t('puesta.' + p.id + '_ayuda')}</div>
       </div>
       <span style={{ fontSize: 'var(--text-xs)', color: p.done ? 'var(--success)' : 'var(--text-3)' }}>{t(p.done ? 'puesta.hecho' : 'puesta.pendiente')}</span>
       {!p.done && p.link && (
@@ -40,7 +40,7 @@ export default function PuestaEnMarchaSection() {
   const caja = { border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', marginBottom: 18 } as const
   return (
     <div>
-      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('puesta.intro')}</p>
+      <p className="u-text2-sm">{t('puesta.intro')}</p>
       <h3 style={{ fontSize: 'var(--text-md)' }}>{t('puesta.necesarios', { hechos: data.required_done, total: data.required_total })}</h3>
       <div style={caja}>{data.items.filter(p => p.required).map(fila)}</div>
       <h3 style={{ fontSize: 'var(--text-md)' }}>{t('puesta.recomendados', { hechos: data.recommended_done, total: data.recommended_total })}</h3>

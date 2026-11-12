@@ -10,6 +10,7 @@ import { projectsApi } from '../services/api';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign, Target, BarChart2, ChevronRight } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import PageShell from '../components/layout/PageShell'
+import { useDialogo } from '../components/ui';
 import { useAppT } from '../i18n/AppLangContext';
 import { localeActivo } from '../utils/helpers';
 
@@ -109,6 +110,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
     enabled: !!projectId,
   });
   const data = (dataRaw ?? null) as EvmData | null
+  const dialogRef = useDialogo<HTMLDivElement>(Boolean(projectId), onClose);
 
   if (!projectId) return null;
 
@@ -117,13 +119,13 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }} onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="evm-dialog-title" style={{
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="evm-dialog-title" style={{
         background: 'var(--surface-1)', borderRadius: 16, padding: 32,
         width: 700, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto',
         boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
       }} onMouseDown={e => e.stopPropagation()}>
-        {isLoading && <div style={{ color: 'var(--text-3)' }}>{t('evm.calculando_metricas_evm')}</div>}
-        {isError  && <div style={{ color: 'var(--danger)' }}>{t('evm.error_al_cargar_metricas')}</div>}
+        {isLoading && <div className="u-text3">{t('evm.calculando_metricas_evm')}</div>}
+        {isError  && <div className="u-danger">{t('evm.error_al_cargar_metricas')}</div>}
         {data && <>
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -148,7 +150,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           </div>
 
           {/* Core values */}
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Valores base</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <IndexBadge label="BAC" value={data.bac} format={fmtEur} />
@@ -159,7 +161,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           </div>
 
           {/* Indices */}
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{t('evm.indices_de_rendimiento')}</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <IndexBadge label="CPI" value={data.cpi} status={data.cpi_status} />
@@ -169,7 +171,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           </div>
 
           {/* Variances */}
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Varianzas</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <VarianceBadge label="CV" value={data.cv} />
@@ -248,11 +250,11 @@ export default function EVMPage(): JSX.Element {
             ].map(({ label, value, sub, color, Icon }) => (
               <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{label}</div>
+                  <div className="u-text3-sm">{label}</div>
                   <Icon size={16} color="var(--accent)" />
                 </div>
                 <div style={{ fontSize: "var(--text-2xl)", fontWeight: 700, color, margin: '6px 0 2px' }}>{value}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{sub}</div>
+                <div className="u-text3-xs">{sub}</div>
               </div>
             ))}
           </div>
@@ -291,11 +293,11 @@ export default function EVMPage(): JSX.Element {
                     </td>
                     <td style={{ padding: '12px 14px', fontWeight: 600 }}>{p.project_name}</td>
                     <td style={{ padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div className="u-row-center-8">
                         <div style={{ width: 60, background: 'var(--surface-4)', borderRadius: 3, height: 6 }}>
                           <div style={{ width: `${p.pct_complete ?? 0}%`, background: hc, height: '100%', borderRadius: 3 }} />
                         </div>
-                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.pct_complete ?? 0}%</span>
+                        <span className="u-text2-xs">{p.pct_complete ?? 0}%</span>
                       </div>
                     </td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.bac)}</td>

@@ -12,6 +12,7 @@ Supported methods:
   - prophet_stub   : Prophet when available, fallback otherwise
 """
 from __future__ import annotations
+import logging
 
 import math
 from typing import Any, Optional
@@ -75,6 +76,7 @@ def _arima_forecast(values: list[float], horizon: int) -> list[float]:
         fc = result.forecast(steps=horizon)
         return [float(v) for v in fc]
     except Exception:
+        logging.getLogger(__name__).debug("_arima_forecast: excepcion ignorada", exc_info=True)
         return _holt_double_exp(values, horizon)
 
 
@@ -96,6 +98,7 @@ def _prophet_forecast(
         forecast = m.predict(future)
         return list(forecast["yhat"].tail(horizon))
     except Exception:
+        logging.getLogger(__name__).debug("_prophet_forecast: excepcion ignorada", exc_info=True)
         return _holt_double_exp(values, horizon)
 
 

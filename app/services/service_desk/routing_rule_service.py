@@ -2,11 +2,11 @@ import json
 from typing import Optional
 from datetime import datetime, timezone, time as dt_time
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import RoutingRule, Ticket
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def serialize_routing_rule(rule: RoutingRule) -> dict:
 
 def build_routing_rule(db, payload: dict) -> RoutingRule:
     if not payload.get("name"):
-        raise HTTPException(422, "name es obligatorio")
+        raise ErrorDeDominio(422, "name es obligatorio")
     rule = RoutingRule(
         name=payload["name"],
         is_active=payload.get("is_active", True),
@@ -47,7 +47,7 @@ def build_routing_rule(db, payload: dict) -> RoutingRule:
 def get_routing_rule_or_404(db: Session, rule_id: str) -> RoutingRule:
     rule = db.query(RoutingRule).filter(RoutingRule.id == rule_id).first()
     if not rule:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return rule
 
 

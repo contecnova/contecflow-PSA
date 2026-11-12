@@ -1,11 +1,11 @@
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import SDSLAHoliday
 from app.schemas.service_desk import HolidayIn
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def create_holiday_record(db, payload: HolidayIn) -> SDSLAHoliday:
 def get_holiday_by_id(db: Session, holiday_id: str) -> SDSLAHoliday:
     holiday = db.query(SDSLAHoliday).filter(SDSLAHoliday.id == holiday_id).first()
     if not holiday:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return holiday
 
 

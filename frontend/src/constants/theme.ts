@@ -89,6 +89,14 @@ export function alpha(color: string | null | undefined, hexAlpha: string): strin
 
 export type ColorToken = keyof typeof COLOR
 
+/**
+ * Color inicial de los selectores de color de datos (tipos de incidencia,
+ * flujos, roles, tipos de tiempo). Es un DATO que se guarda en la API, no un
+ * estilo: `<input type="color">` sólo acepta `#rrggbb` y la API valida ese
+ * formato, así que aquí un `var(--x)` no sirve. Hex a propósito.
+ */
+export const COLOR_DATO_POR_DEFECTO = '#7a8aaa'
+
 // ── Paleta secuencial para gráficos ───────────────────────────────────────────
 // Usar en Recharts, Chart.js, D3, SVG donde CSS vars no aplican
 // ── Paleta extendida para gráficos con más series ────────────────────────────

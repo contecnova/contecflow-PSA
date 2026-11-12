@@ -1,11 +1,12 @@
 """OKR and NPS metrics: okr_progress_by_objective, okr_kr_completion_rate,
 nps_by_client, nps_trend, nps_distribution, client_health_score."""
+import logging
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 from ._monthly import agrupar_por_mes
 
 
@@ -44,6 +45,7 @@ def metric_okr_progress_by_objective(
                 "period": f"{obj.period} {obj.year}" if obj.year else obj.period,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_okr_progress_by_objective: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Progreso (%)"}
@@ -84,6 +86,7 @@ def metric_okr_kr_completion_rate(
             })
         rows.sort(key=lambda x: x["value"], reverse=True)
     except Exception:
+        logging.getLogger(__name__).warning("metric_okr_kr_completion_rate: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Tasa consecución KR (%)"}
@@ -125,6 +128,7 @@ def metric_nps_by_client(
                 "responses": r.responses,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_nps_by_client: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "NPS medio"}
@@ -170,6 +174,7 @@ def metric_nps_trend(
                 "responses": respuestas,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_nps_trend: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {}
@@ -206,6 +211,7 @@ def metric_nps_distribution(
             {"label": "Detractores (0-6)", "value": detractors,"pct": round(detractors / total * 100, 1) if total else 0},
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_nps_distribution: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {}
@@ -253,6 +259,7 @@ def metric_client_health_score(
                 "risk_level": snap.risk_level if hasattr(snap, "risk_level") else None,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_client_health_score: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Health Score (0-100)"}

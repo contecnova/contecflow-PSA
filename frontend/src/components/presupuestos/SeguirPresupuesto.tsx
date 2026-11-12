@@ -22,6 +22,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { campo } from './FormularioDePartida'
+import DateInput from '../ui/DateInput'
 
 type Dinero = (n?: number | null) => string
 type Accion = (clave: string, f: () => Promise<FichaPresupuesto>) => Promise<void>
@@ -34,7 +35,7 @@ const lista: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 
 
 function Cifra({ k, v, color }: { k: string; v: string; color?: string }) {
   return <span style={{ display: 'inline-flex', flexDirection: 'column', minWidth: 0 }}>
-    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{k}</span>
+    <span className="u-text3-2xs">{k}</span>
     <span style={{ ...cifra, fontSize: 'var(--text-sm)', color }}>{v}</span>
   </span>
 }
@@ -61,7 +62,7 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: 10 }}>
         {([['plan', s.plan], ['real', s.real], ['comprometido', s.comprometido], ['disponible', s.disponible], ['prevision', s.prevision]] as const).map(([k, v]) => (
           <div key={k} style={caja}>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`pres.${k}`)}</div>
+            <div className="u-text3-xs">{t(`pres.${k}`)}</div>
             <div style={{ ...cifra, color: (k === 'disponible' && v < 0) || (k === 'prevision' && v > s.plan) ? 'var(--danger)' : undefined }}>{dinero(v)}</div>
           </div>
         ))}
@@ -73,7 +74,7 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
           return (
             <div key={x.tipo} style={caja}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                <strong style={{ fontSize: 'var(--text-sm)' }}>{t(`pres.tipo_${x.tipo}`, x.tipo)}</strong>
+                <strong className="u-sm">{t(`pres.tipo_${x.tipo}`, x.tipo)}</strong>
                 <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.metodo_prevision')}
                   <select aria-label={`${t('pres.metodo_prevision')} · ${x.tipo}`} value={manual?.tipo === x.tipo ? 'manual' : x.metodo} disabled={!p.puedo_gestionar || ocupado === `prev-${x.tipo}`}
                     onChange={e => elegir(x.tipo, e.target.value as MetodoPrevision)} style={{ ...campo, width: 'auto', padding: '4px 8px' }}>
@@ -99,7 +100,7 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
                       <input aria-label={`${x.tipo} ${m}`} type="number" min={0} step="any" value={manual.meses[m] ?? ''} style={campo}
                         onChange={e => setManual(v => v && ({ ...v, meses: { ...v.meses, [m]: e.target.value } }))} /></label>
                   ))}
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="u-row-6">
                     <Button size="sm" loading={ocupado === `prev-${x.tipo}`} onClick={() => accion(`prev-${x.tipo}`, () => presupuestosApi.prevision(p.id, x.tipo, 'manual',
                       Object.fromEntries(Object.entries(manual.meses).map(([k, v]) => [k, Number(v || 0)])))).then(() => setManual(null))}>{t('pres.guardar')}</Button>
                     <Button size="sm" variant="ghost" onClick={() => setManual(null)}>{t('pres.cancelar')}</Button>
@@ -110,7 +111,7 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
           )
         })}
       </div>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.control_ayuda')}</div>
+      <div className="u-text3-xs">{t('pres.control_ayuda')}</div>
     </div>
   )
 }
@@ -140,8 +141,8 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
       <div style={caja}>
         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 8 }}>{t('pres.cierre_mensual')}</div>
-        {s.meses_por_cerrar.length === 0 && s.meses_cerrados.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.nada_que_cerrar')}</div>}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {s.meses_por_cerrar.length === 0 && s.meses_cerrados.length === 0 && <div className="u-text3-sm">{t('pres.nada_que_cerrar')}</div>}
+        <div className="u-wrap-8">
           {s.meses_cerrados.map(m => (
             <span key={m} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-xs)', border: '1px solid var(--success)', color: 'var(--success)', borderRadius: 99, padding: '2px 4px 2px 10px' }}>
               {m} · {t('pres.cerrado')}
@@ -187,8 +188,8 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
           </select>
           <Button size="sm" variant="secondary" icon={<Download size={13} />} onClick={exportar}>CSV</Button>
         </div>
-        {detalle.isLoading ? <Spinner /> : detalle.isError ? <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(detalle.error, GENERIC_ERROR_FALLBACK)}</div>
-          : (detalle.data ?? []).length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.sin_apuntes')}</div>
+        {detalle.isLoading ? <Spinner /> : detalle.isError ? <div role="alert" className="u-danger">{extractErr(detalle.error, GENERIC_ERROR_FALLBACK)}</div>
+          : (detalle.data ?? []).length === 0 ? <div className="u-text3-sm">{t('pres.sin_apuntes')}</div>
           : (
             // Dos columnas (qué y quién debajo; importe a la derecha): caben a 390 px.
             <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -197,7 +198,7 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
                 <tr key={`${a.origen}-${a.id}`}>
                   <td style={{ padding: '6px 4px', borderBottom: '1px solid var(--surface-2)', overflowWrap: 'anywhere', fontSize: 'var(--text-sm)' }}>
                     {a.concepto || '—'}
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{a.fecha} · {t(`pres.origen_${a.origen}`)} · {t(`pres.tipo_${a.tipo}`, a.tipo)}{a.quien ? ` · ${a.quien}` : ''}{a.horas ? ` · ${a.horas} h` : ''}</div>
+                    <div className="u-text3-xs">{a.fecha} · {t(`pres.origen_${a.origen}`)} · {t(`pres.tipo_${a.tipo}`, a.tipo)}{a.quien ? ` · ${a.quien}` : ''}{a.horas ? ` · ${a.horas} h` : ''}</div>
                   </td>
                   <td style={{ padding: '6px 4px', borderBottom: '1px solid var(--surface-2)', textAlign: 'right', ...cifra, fontWeight: 400, fontSize: 'var(--text-sm)' }}>{dinero(a.importe)}</td>
                 </tr>))}</tbody>
@@ -259,12 +260,12 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
           </div>
         )}
         <div style={{ ...lista, marginTop: 10 }}>
-          {p.pedidos.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.sin_pedidos')}</div>}
+          {p.pedidos.length === 0 && <div className="u-text3-sm">{t('pres.sin_pedidos')}</div>}
           {p.pedidos.map(x => (
             <div key={x.id} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--surface-3)', paddingTop: 8 }}>
               <div style={{ flex: '1 1 200px', minWidth: 0, fontSize: 'var(--text-sm)', overflowWrap: 'anywhere' }}>
                 {x.descripcion}
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{x.mes} · {t(`pres.tipo_${x.tipo}`, x.tipo)}{x.proveedor ? ` · ${x.proveedor}` : ''}{x.referencia ? ` · ${x.referencia}` : ''}
+                <div className="u-text3-xs">{x.mes} · {t(`pres.tipo_${x.tipo}`, x.tipo)}{x.proveedor ? ` · ${x.proveedor}` : ''}{x.referencia ? ` · ${x.referencia}` : ''}
                   {' · '}<span style={{ color: colorPedido(x.estado) }}>{t(`pres.pedido_${x.estado}`)}{x.fecha_factura ? ` ${x.fecha_factura}` : ''}</span></div>
               </div>
               <span style={{ ...cifra, fontWeight: 400, fontSize: 'var(--text-sm)' }}>{dinero(x.estado === 'facturado' ? x.importe_facturado ?? x.importe : x.importe)}</span>
@@ -275,10 +276,10 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
               {factura?.id === x.id && (
                 <div style={{ ...rejilla, flexBasis: '100%' }}>
                   <label><span style={lbl}>{t('pres.fecha_factura')}</span>
-                    <input aria-label={t('pres.fecha_factura')} type="date" value={factura.fecha} onChange={e => setFactura(v => v && ({ ...v, fecha: e.target.value }))} style={campo} /></label>
+                    <DateInput aria-label={t('pres.fecha_factura')} value={factura.fecha} onChange={e => setFactura(v => v && ({ ...v, fecha: e.target.value }))} style={campo} /></label>
                   <label><span style={lbl}>{t('pres.importe_facturado')}</span>
                     <input aria-label={t('pres.importe_facturado')} type="number" min={0} step="any" value={factura.importe} onChange={e => setFactura(v => v && ({ ...v, importe: e.target.value }))} style={campo} /></label>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="u-row-6">
                     <Button size="sm" disabled={!factura.fecha} loading={ocupado === `fact-${x.id}`}
                       onClick={() => hacer(`fact-${x.id}`, () => presupuestosApi.estadoDePedido(x.id, { estado: 'facturado', fecha_factura: factura.fecha, importe_facturado: Number(factura.importe || 0) }), () => setFactura(null))}>{t('pres.guardar')}</Button>
                     <Button size="sm" variant="ghost" onClick={() => setFactura(null)}>{t('pres.cancelar')}</Button>
@@ -316,12 +317,12 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
           </div>
         )}
         <div style={{ ...lista, marginTop: 10 }}>
-          {p.traspasos.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.sin_traspasos')}</div>}
+          {p.traspasos.length === 0 && <div className="u-text3-sm">{t('pres.sin_traspasos')}</div>}
           {p.traspasos.map(x => (
             <div key={x.id} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--surface-3)', paddingTop: 8 }}>
               <div style={{ flex: '1 1 200px', minWidth: 0, fontSize: 'var(--text-sm)', overflowWrap: 'anywhere' }}>
                 {x.desde_linea_id ? linea(x.desde_linea_id) : t('pres.ampliacion')} → {x.hacia_linea_id ? linea(x.hacia_linea_id) : `${t('pres.partida_nueva')} (${t(`pres.tipo_${x.hacia_tipo}`, x.hacia_tipo ?? '')})`}
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{x.motivo} · <span style={{ color: colorTraspaso(x.estado) }}>{t(`pres.traspaso_${x.estado}`)}</span>{x.motivo_rechazo ? ` · ${x.motivo_rechazo}` : ''}</div>
+                <div className="u-text3-xs">{x.motivo} · <span style={{ color: colorTraspaso(x.estado) }}>{t(`pres.traspaso_${x.estado}`)}</span>{x.motivo_rechazo ? ` · ${x.motivo_rechazo}` : ''}</div>
               </div>
               <span style={{ ...cifra, fontWeight: 400, fontSize: 'var(--text-sm)' }}>{dinero(x.importe)}</span>
               {p.puedo_decidir_traspasos && x.estado === 'pendiente' && <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -347,7 +348,7 @@ export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id:
   // Cada renglón en su moneda.
   const dinero = (n: number, moneda: string) => n.toLocaleString(localeActivo(), { style: 'currency', currency: moneda || 'EUR', maximumFractionDigits: 0 })
   if (q.isLoading) return <Spinner />
-  if (q.isError) return <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
+  if (q.isError) return <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
   const filas = q.data ?? []
   const cuenta = (s: keyof typeof SEMAFORO) => filas.filter(f => f.semaforo === s).length
   return (
@@ -359,13 +360,13 @@ export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id:
           </span>
         ))}
       </div>
-      {filas.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('pres.cuadro_vacio')}</div>}
+      {filas.length === 0 && <div className="u-text3-sm">{t('pres.cuadro_vacio')}</div>}
       {filas.map(f => (
         <button key={f.id} type="button" onClick={() => onAbrir(f.id)} style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', textAlign: 'left',
           cursor: 'pointer', background: 'transparent', color: 'var(--text-1)', fontFamily: 'inherit', borderLeft: `4px solid ${SEMAFORO[f.semaforo]}` }}>
           <span style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
             <strong style={{ flex: '1 1 180px', minWidth: 0, overflowWrap: 'anywhere' }}>{f.name}</strong>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`pres.ambito_${f.ambito}`)} · v{f.version} · <span style={{ color: SEMAFORO[f.semaforo] }}>{t(`pres.semaforo_${f.semaforo}`)}</span></span>
+            <span className="u-text3-xs">{t(`pres.ambito_${f.ambito}`)} · v{f.version} · <span style={{ color: SEMAFORO[f.semaforo] }}>{t(`pres.semaforo_${f.semaforo}`)}</span></span>
           </span>
           {f.estado === 'aprobado' ? <>
             <span role="progressbar" aria-label={t('pres.consumo')} aria-valuenow={Math.round(f.consumo_pct ?? 0)} aria-valuemin={0} aria-valuemax={100}
@@ -387,10 +388,10 @@ export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id:
                   f.desviaciones_sin_explicar && t('pres.n_desviaciones', { n: f.desviaciones_sin_explicar }),
                   f.traspasos_pendientes && t('pres.n_traspasos', { n: f.traspasos_pendientes })].filter(Boolean).join(' · ')}
               </span>)}
-          </> : <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`pres.estado_${f.estado}`)} · {t('pres.sin_seguimiento')} · {t('pres.plan')} {dinero(f.plan, f.currency)}</span>}
+          </> : <span className="u-text3-xs">{t(`pres.estado_${f.estado}`)} · {t('pres.sin_seguimiento')} · {t('pres.plan')} {dinero(f.plan, f.currency)}</span>}
         </button>
       ))}
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.cuadro_ayuda')}</div>
+      <div className="u-text3-xs">{t('pres.cuadro_ayuda')}</div>
     </div>
   )
 }

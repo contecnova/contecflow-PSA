@@ -114,7 +114,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar caso UAT' : 'Nuevo caso UAT'} width={640}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div>
           <label htmlFor={`${idPrefix}-title`} style={ls}>{traducir('uat.titulo')}</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={s('title')} style={fs} placeholder={traducir('uat.titulo_del_caso_uat')} />
@@ -296,7 +296,7 @@ export default function UATPage() {
         icon={<ClipboardCheck size={18} />}
         actions={
           selectedProject ? (
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <Button variant="secondary" onClick={handleExport}>{traducir('uat.exportar_para_cliente')}</Button>
               <Button onClick={() => setShowCreate(true)}>{traducir('uat.nuevo_caso')}</Button>
             </div>
@@ -368,7 +368,7 @@ export default function UATPage() {
           action={<Button onClick={() => setShowCreate(true)} style={{ marginTop: 12 }}>＋ Crear primer caso UAT</Button>}
         />
       ) : (
-        <div data-export-table="uat-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div data-export-table="uat-list" className="u-stack-8">
           {cases.map(c => {
             const st = STATUS_META[c.status] || STATUS_META.pending
             const pr = PRIORITY_META[c.priority] || PRIORITY_META.medium
@@ -378,7 +378,7 @@ export default function UATPage() {
                 borderRadius: 10, padding: '14px 18px',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ flex: 1 }}>
+                  <div className="u-flex1">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: "var(--text-lg)" }}>{st.icon}</span>
                       <span style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{c.title}</span>
@@ -394,12 +394,12 @@ export default function UATPage() {
                     </div>
                     {c.expected_result && (
                       <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4, paddingLeft: 24 }}>
-                        <span style={{ color: 'var(--text-3)' }}>Esperado: </span>{c.expected_result}
+                        <span className="u-text3">Esperado: </span>{c.expected_result}
                       </div>
                     )}
                     {c.actual_result && (
                       <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2, paddingLeft: 24 }}>
-                        <span style={{ color: 'var(--text-3)' }}>Resultado: </span>{c.actual_result}
+                        <span className="u-text3">Resultado: </span>{c.actual_result}
                       </div>
                     )}
                   </div>
@@ -455,9 +455,9 @@ export default function UATPage() {
       {deleteTarget && (
         <Modal open onClose={() => setDeleteTarget(null)} title="Eliminar caso UAT" width={420}>
           <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
-            {traducir('uat.eliminar_el_caso')} <strong style={{ color: 'var(--text-1)' }}>&quot;{deleteTarget.title}&quot;</strong>{traducir('uat.esta_accion_no_se_puede_deshacer')}
+            {traducir('uat.eliminar_el_caso')} <strong className="u-text1">&quot;{deleteTarget.title}&quot;</strong>{traducir('uat.esta_accion_no_se_puede_deshacer')}
           </p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <div className="u-actions-10">
             <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
             <Button
               variant="danger"

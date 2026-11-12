@@ -5,41 +5,114 @@ import type { AxiosResponse } from 'axios'
 import api from './_core'
 import { todasLasPaginas } from './todasLasPaginas'
 
-export interface UserListItem {
+/** `UserStatus` (app/schemas/common_enums.py). */
+export type UserStatus = 'active' | 'inactive' | 'vacation' | 'leave'
+
+/** `UserOrganizationOut` (app/schemas/users.py). */
+export interface UserOrganization {
   id: string
-  email: string
-  full_name: string
-  role: string
-  is_active: boolean
-  organization_id: string | null
-  hourly_rate?: number | null
-  picture_url?: string | null
-  department?: string | null
+  name: string | null
+  slug: string | null
 }
 
+/** `UserPublic` (app/schemas/users.py). Es lo que devuelven `GET /users`, el alta y la edición,
+ *  y lo que el servidor anida en tareas, comentarios y proyectos. No lleva `hourly_rate`. */
+export interface UserPublic {
+  id: string
+  username: string
+  email: string
+  full_name: string
+  first_name: string | null
+  last_name: string | null
+  department: string | null
+  job_title: string | null
+  role: string
+  status: UserStatus
+  weekly_capacity_hours: number
+  organization_id: string | null
+  organization_ids: string[] | null
+  is_active: boolean
+  avatar_url: string | null
+  last_login: string | null
+  created_at: string
+  manager_id: string | null
+  manager_name: string | null
+  phone: string | null
+  organizations: UserOrganization[] | null
+  custom_role_id: string | null
+  sso_provider: string | null
+  blocked_routes: string[]
+  impersonated_by: string | null
+}
+
+/** Elemento de `GET /users` (`APIListResponse[UserPublic]`). */
+export type UserListItem = UserPublic
+
+/** `UserWithRate` (app/schemas/users.py): `GET /users/{id}`. */
+export interface UserWithRate extends UserPublic {
+  hourly_rate: number | null
+  ldap_dn: string | null
+}
+
+/** Filtros de `GET /users` (list_users en app/api/v1/endpoints/users.py). */
 export interface UserListParams {
-  active?: boolean
+  department?: string
   role?: string
-  organization_id?: string
-  q?: string
+  status?: UserStatus
+  search?: string
   page?: number
   page_size?: number
 }
 
+/** `UserCreate` (app/schemas/users.py). No admite `hourly_rate`, `manager_id`,
+ *  `custom_role_id` ni `timezone`: si se mandan, pydantic los descarta. */
 export interface UserCreatePayload {
+  username: string
   email: string
   full_name: string
-  role: string
-  password?: string
-  hourly_rate?: number
-  manager_id?: string | null
+  first_name?: string | null
+  last_name?: string | null
   department?: string | null
+  job_title?: string | null
+  role?: string
+  status?: UserStatus
+  weekly_capacity_hours?: number
+  organization_id?: string | null
+  organization_ids?: string[] | null
+  password?: string | null
 }
 
-export type UserUpdatePayload = Partial<UserCreatePayload> & {
-  is_active?: boolean
-  language?: string | null
-  picture_url?: string | null
+/** `UserUpdate` (app/schemas/users.py). */
+export interface UserUpdatePayload {
+  email?: string | null
+  full_name?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  department?: string | null
+  job_title?: string | null
+  role?: string | null
+  status?: UserStatus | null
+  weekly_capacity_hours?: number | null
+  hourly_rate?: number | null
+  phone?: string | null
+  avatar_url?: string | null
+  manager_id?: string | null
+  timezone?: string | null
+  organization_id?: string | null
+  organization_ids?: string[] | null
+  custom_role_id?: string | null
+}
+
+/** `UserSelfUpdate` (app/schemas/users.py): lo que cada cual puede cambiar de su perfil. */
+export interface UserSelfUpdatePayload {
+  email?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  full_name?: string | null
+  phone?: string | null
+  job_title?: string | null
+  avatar_url?: string | null
+  timezone?: string | null
 }
 
 export interface UserProductivityParams {
@@ -67,13 +140,10 @@ export const usersApi = {
     // Auditoría 2026-11: sin `page`, todas las páginas (antes, solo las 50 primeras).
     todasLasPaginas('/users', params as Record<string, unknown> | undefined),
 
-  withRates: (): Promise<AxiosResponse<UserListItem[]>> =>
-    api.get('/users/with-rates'),
-
   load: (params?: Record<string, unknown>): Promise<AxiosResponse<unknown>> =>
     api.get('/users/load', { params }),
 
-  get: (id: string): Promise<AxiosResponse<UserListItem>> =>
+  get: (id: string): Promise<AxiosResponse<UserWithRate>> =>
     api.get(`/users/${id}`),
 
   create: (data: UserCreatePayload): Promise<AxiosResponse<UserListItem>> =>
@@ -88,16 +158,13 @@ export const usersApi = {
   deletePermanent: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.delete(`/users/${id}/permanent`),
 
-  productivity: (id: string, params?: UserProductivityParams): Promise<AxiosResponse<unknown>> =>
-    api.get(`/users/${id}/productivity`, { params }),
-
   orgChart: (): Promise<AxiosResponse<unknown>> =>
     api.get('/users/org-chart'),
 
   updateManager: (id: string, data: UserManagerUpdate): Promise<AxiosResponse<UserListItem>> =>
     api.patch(`/users/${id}/manager`, data),
 
-  updateMe: (data: UserUpdatePayload): Promise<AxiosResponse<UserListItem>> =>
+  updateMe: (data: UserSelfUpdatePayload): Promise<AxiosResponse<UserPublic>> =>
     api.patch('/users/me', data),
 
   approvalChain: (userId: string): Promise<AxiosResponse<ApprovalChainNode[]>> =>

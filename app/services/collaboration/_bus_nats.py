@@ -50,6 +50,7 @@ class NatsBus(EventBus):
                     try:
                         event = json.loads(msg.data)
                     except Exception:
+                        logger.debug("cb: excepcion ignorada", exc_info=True)
                         return
                     queues = list(self._subs.get(_channel, ()))
                     for q in queues:

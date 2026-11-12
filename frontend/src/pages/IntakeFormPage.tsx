@@ -8,9 +8,10 @@ import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 import { useAppT } from '../i18n/AppLangContext'
+import { apiUrl } from '../services/api/urls'
 
-const API_URL = import.meta.env.VITE_API_URL
-const BASE_URL = (typeof API_URL === 'string' ? API_URL : '').replace(/\/api\/v1\/?$/, '')
+// axios directo y no el cliente de la app: formulario público, sin sesión que
+// refrescar ni redirección a login si responde 401.
 
 interface PublicFormResponse {
   name?: string
@@ -46,7 +47,7 @@ export default function IntakeFormPage(): JSX.Element {
 
   const { data: form, isLoading, error } = useQuery<PublicFormResponse>({
     queryKey: ['public-form', token],
-    queryFn: () => axios.get(`${BASE_URL}/api/v1/forms/public/${token}`).then(r => r.data),
+    queryFn: () => axios.get(apiUrl(`/forms/public/${token}`)).then(r => r.data),
     retry: false,
   })
 
@@ -58,7 +59,7 @@ export default function IntakeFormPage(): JSX.Element {
     setFields((p) => ({ ...p, [k]: e.target.value }))
 
   const { mutate, isPending, isError, error: submitError } = useMutation({
-    mutationFn: (data: IntakeFields) => axios.post(`${BASE_URL}/api/v1/forms/public/${token}/submit`, data).then(r => r.data),
+    mutationFn: (data: IntakeFields) => axios.post(apiUrl(`/forms/public/${token}/submit`), data).then(r => r.data),
     onSuccess: () => setSubmitted(true),
   })
 
@@ -74,7 +75,7 @@ export default function IntakeFormPage(): JSX.Element {
     <div style={pageStyle}>
       <div style={cardStyle}>
         <h2 style={{ color: 'var(--danger)', fontSize: "var(--text-xl)", marginBottom: 8 }}>{t('intake_form.error_not_found_title')}</h2>
-        <p style={{ color: 'var(--text-3)' }}>{t('intake_form.error_not_found_message')}</p>
+        <p className="u-text3">{t('intake_form.error_not_found_message')}</p>
       </div>
     </div>
   )
@@ -101,7 +102,7 @@ export default function IntakeFormPage(): JSX.Element {
           {form.description && <p style={{ color: 'var(--text-3)', fontSize: "var(--text-md)", lineHeight: 1.5 }}>{form.description}</p>}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="u-stack-16">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label style={LS}>{t('intake_form.name_label')}</label>
@@ -145,7 +146,7 @@ export default function IntakeFormPage(): JSX.Element {
             disabled={isPending || !fields.subject}
             style={{
               background: isPending ? 'var(--text-3)' : 'var(--accent)',
-              color: '#fff', border: 'none', borderRadius: 10,
+              color: 'var(--on-accent-light)', border: 'none', borderRadius: 10,
               padding: '12px 24px', fontSize: "var(--text-md)", fontWeight: 700,
               cursor: isPending || !fields.subject ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit', transition: 'background 0.2s',

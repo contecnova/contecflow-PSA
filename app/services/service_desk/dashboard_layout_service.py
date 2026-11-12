@@ -54,6 +54,7 @@ def get_layout(db: Session, organization_id: Optional[str], role: str) -> dict:
     try:
         return json.loads(setting.value)
     except Exception:
+        logger.debug("get_layout: excepcion ignorada", exc_info=True)
         return _DEFAULT_LAYOUTS.get(role, _DEFAULT_LAYOUTS["operation"])
 
 

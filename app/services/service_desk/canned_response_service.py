@@ -1,13 +1,13 @@
 import uuid
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import CannedResponse
 from app.schemas.service_desk import CannedResponseIn
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ def get_canned_response_by_id(db: Session, canned_id: str) -> CannedResponse:
         CannedResponse.is_active == True,
     ).first()
     if not canned:
-        raise HTTPException(404, "Respuesta rápida no encontrada")
+        raise ErrorDeDominio(404, "Respuesta rápida no encontrada")
     return canned
 
 

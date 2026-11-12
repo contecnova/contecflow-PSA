@@ -28,6 +28,7 @@ from app.models.git_integration import (
     DeployStatus, GitDeployment, GitProvider, GitPullRequest, PRStatus,
 )
 from app.models.task import Task
+from app.core.errores import ErrorDeDominio
 
 _logger = logging.getLogger(__name__)
 
@@ -158,7 +159,7 @@ def handle_github_pr(db: Session, payload: dict) -> None:
                 linked_task.status = TaskStatus.done
                 apply_status_side_effects(linked_task, TaskStatus.done)
                 _logger.info("[Git] Auto-closed task %s on merged PR #%s", effective_task_id, pr_number)
-            except HTTPException:
+            except (HTTPException, ErrorDeDominio):
                 _logger.info("[Git] PR #%s fusionado: la tarea %s sigue en %s (no puede pasar a done)",
                              pr_number, effective_task_id, linked_task.status)
 
@@ -258,6 +259,7 @@ def handle_gitlab_deployment(db: Session, payload: dict) -> None:
         try:
             deployed_at = datetime.fromisoformat(finished.replace("Z", "+00:00"))
         except Exception:
+            _logger.debug("handle_gitlab_deployment: excepcion ignorada", exc_info=True)
             deployed_at = utcnow()
 
     db.add(GitDeployment(

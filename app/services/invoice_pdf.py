@@ -337,3 +337,54 @@ def generate_invoice_pdf(
 
     doc.build(elements)
     return buffer.getvalue()
+
+
+def pdf_de_factura(db, inv, lineas=None, *, org_id=None, company_name: str = "Contecflow PSA",
+                   paleta=None, generated_by: str = "Contecflow") -> bytes:
+    """El PDF de una `Invoice` guardada: la unica traduccion fila → `generate_invoice_pdf`.
+
+    Auditoria 2026-11 (hallazgo 23). La misma traduccion (lineas, moneda y su
+    simbolo, datos fiscales) estaba copiada en `GET /invoices/{id}/pdf` y en
+    `GET /billing-reports/invoices/{id}/pdf`, y `POST /pdf/export` con
+    `export_type=invoice` tenia ademas su propio dibujo de factura, sin NIF ni
+    direccion y con `€` fijo. Los tres pasan ahora por aqui.
+    """
+    from app.services.formato_regional import simbolo_de_moneda
+
+    if lineas is None:
+        lineas = sorted(inv.lines or [], key=lambda x: (x.order or 0))
+    moneda = (getattr(inv, "currency", None) or settings.DEFAULT_CURRENCY).upper()
+    org = org_id if org_id is not None else getattr(inv, "organization_id", None)
+    return generate_invoice_pdf(
+        simbolo=simbolo_de_moneda(db, org, moneda=moneda),
+        invoice_number=inv.number,
+        issue_date=inv.issue_date,
+        due_date=inv.due_date,
+        client_name=inv.client_name or "",
+        client_address=inv.client_address,
+        client_vat=inv.client_vat,
+        client_email=inv.client_email,
+        lines=[
+            {
+                "description": ln.description,
+                "unit": ln.unit,
+                "quantity": ln.quantity,
+                "unit_price": ln.unit_price,
+                "amount": ln.amount,
+                "discount_pct": ln.discount_pct,
+            }
+            for ln in lineas
+        ],
+        subtotal=inv.subtotal or 0,
+        tax_rate=inv.tax_rate or 0,
+        tax_amount=inv.tax_amount or 0,
+        total=inv.total or 0,
+        currency=inv.currency or settings.DEFAULT_CURRENCY,
+        notes=inv.notes,
+        po_reference=inv.po_reference,
+        period_from=inv.period_from,
+        period_to=inv.period_to,
+        company_name=company_name,
+        paleta=paleta,
+        generated_by=generated_by,
+    )

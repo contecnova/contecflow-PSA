@@ -20,6 +20,7 @@ de auditoría (`cadena_auditoria`): el auditor comprueba la firma con la clave
 pública, y la cabeza de la cadena va dentro.
 """
 from __future__ import annotations
+import logging
 
 import base64
 from datetime import datetime, timedelta, timezone
@@ -55,7 +56,8 @@ def generar(db, org: str) -> dict:
     from app.models.enterprise import SSOConfig
     from app.models.mfa import MFAConfig, Organization, WebAuthnCredential
     from app.models.user import User, UserRole
-    from app.services import ai_provider_service, cadena_auditoria
+    from app.db import cadena_auditoria
+    from app.services import ai_provider_service
     from app.services.settings_service import get_runtime_bool, get_runtime_int
 
     ahora = datetime.now(timezone.utc)
@@ -125,6 +127,7 @@ def generar(db, org: str) -> dict:
             from app.db import rls
             aislamiento = rls.estado(db.connection())
         except Exception as e:   # se informa, no se inventa
+            logging.getLogger(__name__).debug("generar: excepcion ignorada", exc_info=True)
             aislamiento = {"armed": False, "reason": f"no se pudo medir: {type(e).__name__}"}
         controles.append(_control("db_isolation", "pass" if aislamiento.get("armed") else "attention",
                                   {"armed": bool(aislamiento.get("armed")), "reason": aislamiento.get("reason")},
@@ -159,8 +162,18 @@ def generar(db, org: str) -> dict:
 
 def firmar(doc: dict) -> dict:
     """Añade la clave pública y la firma Ed25519 (la misma que la cadena de auditoría)."""
-    from app.services import cadena_auditoria
+    from app.db import cadena_auditoria
     doc = {**doc, "public_key_pem": cadena_auditoria.clave_publica_pem(),
            "signature_alg": "Ed25519 over the canonical JSON of this document without «signature»"}
     doc["signature"] = base64.b64encode(cadena_auditoria._clave_de_firma().sign(cadena_auditoria._canon(doc))).decode()
+    return doc
+
+
+def firmar_y_registrar(db, usuario, informe: dict) -> dict:
+    """Firma el informe, deja traza de la exportacion y confirma."""
+    from app.services.audit import audit_log
+    doc = firmar(informe)
+    audit_log(db, usuario, "EXPORT", "compliance_report", resource_name="signed report",
+              metadata={"summary": doc["summary"]})
+    db.commit()
     return doc

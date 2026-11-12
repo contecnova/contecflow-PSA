@@ -11,10 +11,10 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import CIClassField, CIType
+from app.core.errores import ErrorDeDominio
 
 TIPOS_DE_CAMPO = ("text", "number", "date")
 CLAVE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
@@ -56,19 +56,19 @@ def campos(db: Session, org_id: Optional[str]) -> dict:
 
 def _validar(ci_type: str, lista: list[dict]) -> list[dict]:
     if ci_type not in {t.value for t in CIType}:
-        raise HTTPException(422, f"Clase de CI desconocida: {ci_type}")
+        raise ErrorDeDominio(422, f"Clase de CI desconocida: {ci_type}")
     vistas, limpias = set(), []
     for c in lista:
         clave = str(c.get("key") or "").strip()
         if not CLAVE.match(clave):
-            raise HTTPException(422, f"Clave no válida: «{clave}» (minúsculas, números y _; empieza por letra)")
+            raise ErrorDeDominio(422, f"Clave no válida: «{clave}» (minúsculas, números y _; empieza por letra)")
         if clave in vistas:
-            raise HTTPException(422, f"Clave repetida: {clave}")
+            raise ErrorDeDominio(422, f"Clave repetida: {clave}")
         if clave in ("hostname", "ip_address", "version"):
-            raise HTTPException(422, f"«{clave}» ya es un dato común a todas las clases")
+            raise ErrorDeDominio(422, f"«{clave}» ya es un dato común a todas las clases")
         tipo = c.get("field_type") or "text"
         if tipo not in TIPOS_DE_CAMPO:
-            raise HTTPException(422, f"Tipo de campo no válido: {tipo}")
+            raise ErrorDeDominio(422, f"Tipo de campo no válido: {tipo}")
         etiqueta = (c.get("label") or "").strip()[:100] or None
         vistas.add(clave)
         limpias.append({"key": clave, "label": etiqueta, "field_type": tipo})

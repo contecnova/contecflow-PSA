@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { openConfirmGlobal } from '../context/ConfirmContext'
+import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, deliverablesApi } from '../services/api'
@@ -13,6 +13,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 interface ProjectItem {
   id: string | number
@@ -132,7 +133,7 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
   return (
     <Modal open title={isEdit ? `Editar entregable` : 'Nuevo Entregable'} onClose={onClose} width={560}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={fs} placeholder={t('deliverables.nombre_del_entregable')} aria-label={t('deliverables.nombre_del_entregable')} />
         </div>
@@ -142,7 +143,7 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
         </div>
         <div>
           <label style={ls}>Fecha planificada</label>
-          <input type="date" value={form.planned_date} onChange={set('planned_date')} style={fs} />
+          <DateInput value={form.planned_date} onChange={set('planned_date')} style={fs} />
         </div>
         <div>
           <label style={ls}>Responsable</label>
@@ -155,11 +156,11 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
           <label style={ls}>Contacto cliente</label>
           <input value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder={t('deliverables.contacto_del_cliente')} aria-label={t('deliverables.contacto_del_cliente')} />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('deliverables.descripcion')}</label>
           <textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('deliverables.criterios_de_aceptacion')}</label>
           <textarea value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('deliverables.criterios_de_aceptacion')} aria-label={t('deliverables.criterios_de_aceptacion')} />
         </div>
@@ -274,16 +275,16 @@ export default function DeliverablesPage(): JSX.Element {
           ) : isLoading ? <Spinner /> : deliverables.length === 0 ? (
             <EmptyState icon="📦" title={t('deliverables.no_deliverables')} description="Este proyecto todavia no tiene entregables definidos" />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="u-stack-10">
               {deliverables.map(d => {
                 const cfg = STATUS_CFG[d.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
                 return (
                   <div key={d.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${d.overdue ? 'var(--danger-border)' : alpha(cfg.color, '25')}`, borderRadius: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                      <div style={{ flex: 1 }}>
+                      <div className="u-flex1">
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{d.code}</span>
-                          <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{d.name}</span>
+                          <span className="u-md-700">{d.name}</span>
                           {d.format && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 20, padding: '1px 8px' }}>{d.format}</span>}
                           {d.overdue && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>⚠ En retraso</span>}
                         </div>
@@ -292,19 +293,19 @@ export default function DeliverablesPage(): JSX.Element {
                           {d.planned_date && <span style={{ color: d.overdue ? 'var(--danger)' : 'var(--text-2)' }}>📅 Planif: {fmtDate(d.planned_date)}</span>}
                           {d.delivered_date && <span style={{ color: 'var(--purple)' }}>📤 Entregado: {fmtDate(d.delivered_date)}</span>}
                           {d.accepted_date && <span style={{ color: 'var(--success)' }}>✅ Aceptado: {fmtDate(d.accepted_date)}</span>}
-                          {d.owner_name && <span style={{ color: 'var(--text-2)' }}>👤 {d.owner_name}</span>}
-                          {d.client_contact && <span style={{ color: 'var(--text-2)' }}>🏢 {d.client_contact}</span>}
+                          {d.owner_name && <span className="u-text2">👤 {d.owner_name}</span>}
+                          {d.client_contact && <span className="u-text2">🏢 {d.client_contact}</span>}
                         </div>
                         {d.rejection_reason && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 6, padding: '4px 10px' }}>💬 {d.rejection_reason}</div>}
                         {d.acceptance_criteria && <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>✓ {d.acceptance_criteria}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                         <StatusDropdown del={d} onUpdate={(status) => updateStatus({ id: d.id, status })} />
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div className="u-row-6">
                           {d.status === 'delivered' && hasRole('admin', 'pm') && (
                             <>
                               <Button size="sm" onClick={() => accept(d.id)}>✓ Aceptar</Button>
-                              <Button size="sm" variant="danger" onClick={() => { const r = prompt('Motivo del rechazo:'); if (r) reject({ id: d.id, reason: r }) }}>✕ Rechazar</Button>
+                              <Button size="sm" variant="danger" onClick={async () => { const r = await pedirTexto({ title: 'Rechazar entregable', message: 'Indica el motivo del rechazo.', label: 'Motivo del rechazo', required: true, multiline: true, danger: true, confirmLabel: 'Rechazar' }); if (r) reject({ id: d.id, reason: r }) }}>✕ Rechazar</Button>
                             </>
                           )}
                           {hasRole('admin', 'pm') && <button onClick={() => setEditing(d)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>}
@@ -338,11 +339,11 @@ export default function DeliverablesPage(): JSX.Element {
               return (
                 <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{d.name}</div>
+                    <div className="u-base-600">{d.name}</div>
                     {d.overdue && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--danger)' }}>⚠ En retraso</span>}
                   </div>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{d.project_code}</span>
-                  <span style={{ fontSize: "var(--text-sm)" }}>{d.owner_name || '—'}</span>
+                  <span className="u-text2-sm">{d.project_code}</span>
+                  <span className="u-sm">{d.owner_name || '—'}</span>
                   <span style={{ fontSize: "var(--text-sm)", color: d.overdue ? 'var(--danger)' : 'var(--text-2)' }}>{d.planned_date ? fmtDate(d.planned_date) : '—'}</span>
                   <span style={{ fontSize: "var(--text-sm)", color: 'var(--purple)' }}>{d.delivered_date ? fmtDate(d.delivered_date) : '—'}</span>
                   <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: cfg.color }}>{cfg.icon} {cfg.label}</span>

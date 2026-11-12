@@ -5,6 +5,7 @@ Some local SQLite databases can be behind migrations and miss newer columns
 This module reads only columns that actually exist in the table.
 """
 from __future__ import annotations
+import logging
 
 from collections import defaultdict
 from typing import Any
@@ -39,6 +40,7 @@ def _columnas_de_tabla(db: Session, tabla: str) -> set[str]:
         ), {"tabla": tabla}).fetchall()
         return {fila[0] for fila in filas}
     except Exception:
+        logging.getLogger(__name__).warning("_columnas_de_tabla: excepcion ignorada", exc_info=True)
         db.rollback()
         return set()
 

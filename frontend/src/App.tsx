@@ -12,7 +12,6 @@ import TopProgressBar from './components/layout/TopProgressBar'
 import { useAppT } from './hooks/useAppT'
 import useOfflineSync from './hooks/useOfflineSync'
 import OfflineIndicator from './components/OfflineIndicator'
-import OfflineConflictResolver from './components/OfflineConflictResolver'
 import {
   SkeletonDashboard, SkeletonTable, SkeletonProjects,
   SkeletonGantt, SkeletonServiceDesk,
@@ -655,7 +654,6 @@ export default function App() {
       <AppShell>
         <OfflineBanner />
         <OfflineIndicator />
-        <OfflineConflictResolver />
         <AppRoutes />
       </AppShell>
     </ErrorBoundary>
@@ -677,7 +675,7 @@ function OfflineBanner() {
         right: 0,
         zIndex: 'var(--z-banner)',
         background: 'var(--warning)',
-        color: '#000',
+        color: 'var(--on-accent-dark)',
         textAlign: 'center',
         padding: '6px 12px',
         fontSize: "var(--text-base)",

@@ -1,5 +1,10 @@
 /**
- * CMDBTopologyGraph — 2D SVG radial + 3D Plotly scatter3d topology viewer.
+ * CMDBTopologyGraph — 2D SVG radial + 3D SVG (proyección en perspectiva) topology viewer.
+ *
+ * La vista 3D era un scatter3d de plotly (auditoría 2026-11, #31): la única
+ * gráfica de plotly de la app, que arrastraba el paquete y su WebGL. Ahora es
+ * SVG: mismas posiciones (esfera de Fibonacci por capa BFS), colores, tamaños,
+ * rombo para el centro, etiquetas, tooltip y clic; se gira arrastrando.
  *
  * Props (acepta ambas formas de payload):
  *  - nodes: [{id, name, ci_type, is_root|is_center, criticality|status, depth?, hostname?}]
@@ -7,14 +12,11 @@
  *  - onNodeClick: (node) => void
  *  - centerName: string
  */
-import { useMemo, useState, useCallback } from 'react'
-import type { CSSProperties } from 'react'
-// react-plotly.js ships no type declarations of its own; resolved via ambient/module types
-import Plot from '../../charts/PlotlyCustom'
-import type { Data } from 'plotly.js'
+import { useMemo, useState, useCallback, useRef } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { useAppLang } from '../../i18n/AppLangContext'
 
-interface RawNode {
+export interface RawNode {
   [key: string]: unknown
   id: string
   name?: string
@@ -30,7 +32,7 @@ interface GraphNode extends RawNode {
   is_center: boolean
   status: string
 }
-interface RawEdge {
+export interface RawEdge {
   [key: string]: unknown
   source: string
   target: string
@@ -52,18 +54,18 @@ const CI_ICONS: Record<string, string> = {
 
 // Estados de `CIStatus` (una sola CMDB desde 2026-11).
 const STATUS_COLORS: Record<string, string> = {
-  operational: '#34d399',
-  degraded: '#fb923c',
-  maintenance: '#f59e0b',
-  retired: '#f87171',
+  operational: 'var(--success)',
+  degraded: 'var(--orange)',
+  maintenance: 'var(--warning)',
+  retired: 'var(--danger)',
 }
 
 // Color por criticidad (cuando el payload viene del endpoint SD CMDB)
 const CRITICALITY_COLORS: Record<string, string> = {
-  low:      '#34d399',
-  medium:   '#f59e0b',
-  high:     '#fb923c',
-  critical: '#f87171',
+  low:      'var(--success)',
+  medium:   'var(--warning)',
+  high:     'var(--orange)',
+  critical: 'var(--danger)',
 }
 
 function normalizeNode(n: RawNode): GraphNode {
@@ -88,21 +90,23 @@ function pickNodeColor(n: GraphNode): string {
 }
 
 const REL_COLORS: Record<string, string> = {
-  depends_on: '#4f8ef7',
-  runs_on: '#60a5fa',
-  connects_to: '#a78bfa',
-  hosts: '#34d399',
-  monitors: '#f59e0b',
-  backs_up: '#64748b',
+  depends_on: 'var(--accent)',
+  runs_on: 'var(--info)',
+  connects_to: 'var(--purple)',
+  hosts: 'var(--success)',
+  monitors: 'var(--warning)',
+  backs_up: 'var(--text-3)',
 }
 
 // Impact coloring by BFS hop distance from selected source node
 const IMPACT_COLORS: Record<number, string> = {
-  0: '#a78bfa', // source — violet
-  1: '#f87171', // hop 1 — red (direct impact)
-  2: '#fb923c', // hop 2 — orange
-  3: '#f59e0b', // hop 3 — yellow
+  0: 'var(--purple)',  // source — violet
+  1: 'var(--danger)',  // hop 1 — red (direct impact)
+  2: 'var(--orange)',  // hop 2 — orange
+  3: 'var(--warning)', // hop 3 — yellow
 }
+/** Nodo fuera del radio de impacto (atenuado). */
+const OUT_OF_RADIUS = 'var(--text-4)'
 const IMPACT_LABELS: Record<number, string> = {
   0: 'Origen del impacto',
   1: 'Impacto directo (hop 1)',
@@ -202,7 +206,7 @@ const tbBtn = (active: boolean): CSSProperties => ({
   padding: '4px 12px', borderRadius: 6, fontSize: "var(--text-sm)", cursor: 'pointer',
   border: '1px solid var(--surface-4)', fontFamily: 'inherit',
   background: active ? 'var(--accent)' : 'var(--surface-3)',
-  color: active ? '#fff' : 'var(--text-2)', transition: 'background .15s, color .15s',
+  color: active ? 'var(--on-accent-light)' : 'var(--text-2)', transition: 'background .15s, color .15s',
 })
 
 // ─── 2D SVG COMPONENT ────────────────────────────────────────────────────────
@@ -229,7 +233,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
   const getColor = useCallback((node: GraphNode) => {
     if (impactDist) {
       const d = impactDist[node.id]
-      if (d === undefined || d > impactRadius) return '#334155'
+      if (d === undefined || d > impactRadius) return OUT_OF_RADIUS
       return IMPACT_COLORS[Math.min(d, 3)]
     }
     return pickNodeColor(node)
@@ -261,7 +265,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
       {edges.map((e, i) => {
         const sp = positions[e.source], tp = positions[e.target]
         if (!sp || !tp) return null
-        const color = REL_COLORS[e.rel_type] || '#64748b'
+        const color = REL_COLORS[e.rel_type] || REL_COLORS.backs_up
         const isHov = hovered === e.source || hovered === e.target
         const opacity = getEdgeOpacity(e)
         return (
@@ -347,7 +351,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
                   }}
                 >
                   <div style={{ fontWeight: 700, marginBottom: 3 }}>{n.name}</div>
-                  <div style={{ color: 'var(--text-2)' }}>{n.ci_type} · {n.status}</div>
+                  <div className="u-text2">{n.ci_type} · {n.status}</div>
                   {n.hostname && <div style={{ color: 'var(--text-2)', marginTop: 2 }}>{n.hostname}</div>}
                   {impactDist && impactDist[n.id] !== undefined && impactDist[n.id] <= impactRadius && (
                     <div style={{ marginTop: 3, color: IMPACT_COLORS[Math.min(impactDist[n.id], 3)], fontWeight: 600 }}>
@@ -367,114 +371,117 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
   )
 }
 
-// ─── 3D PLOTLY COMPONENT ─────────────────────────────────────────────────────
+// ─── 3D SVG COMPONENT ────────────────────────────────────────────────────────
+
+const W3 = 700
+const H3 = 500
 
 function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange }: GraphViewProps) {
   const positions = useMemo(() => layout3D(nodes, edges), [nodes, edges])
+  // Rotación de la cámara (radianes): se gira arrastrando, como la órbita de plotly.
+  const [rot, setRot] = useState({ yaw: 0.6, pitch: -0.35 })
+  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null)
 
   const getNodeColor = useCallback((n: GraphNode) => {
     if (impactDist) {
       const d = impactDist[n.id]
-      if (d === undefined || d > impactRadius) return '#334155'
+      if (d === undefined || d > impactRadius) return OUT_OF_RADIUS
       return IMPACT_COLORS[Math.min(d, 3)]
     }
     return pickNodeColor(n)
   }, [impactDist, impactRadius])
 
-  const edgeX: Array<number | null> = [], edgeY: Array<number | null> = [], edgeZ: Array<number | null> = []
-  edges.forEach(e => {
-    const sp = positions[e.source], tp = positions[e.target]
-    if (!sp || !tp) return
-    edgeX.push(sp.x, tp.x, null)
-    edgeY.push(sp.y, tp.y, null)
-    edgeZ.push(sp.z, tp.z, null)
-  })
+  // Proyección en perspectiva: giro en Y (yaw) y luego en X (pitch).
+  const projected = useMemo(() => {
+    const radio = Math.max(1, ...Object.values(positions).map(p => Math.hypot(p.x, p.y, p.z)))
+    const escala = (Math.min(W3, H3) * 0.42) / radio
+    const dist = radio * 3.5
+    const cy = Math.cos(rot.yaw), sy = Math.sin(rot.yaw)
+    const cp = Math.cos(rot.pitch), sp = Math.sin(rot.pitch)
+    const out: Record<string, { x: number; y: number; z: number; k: number }> = {}
+    for (const [id, p] of Object.entries(positions)) {
+      const x1 = p.x * cy + p.z * sy
+      const z1 = -p.x * sy + p.z * cy
+      const y2 = p.y * cp - z1 * sp
+      const z2 = p.y * sp + z1 * cp
+      const k = dist / (dist - z2)
+      out[id] = { x: W3 / 2 + x1 * escala * k, y: H3 / 2 - y2 * escala * k, z: z2, k }
+    }
+    return out
+  }, [positions, rot])
 
-  const nodeTrace: Data = {
-    type: 'scatter3d',
-    mode: 'text+markers', // mismo modo; es el orden que declaran los tipos oficiales
-    x: nodes.map(n => positions[n.id]?.x ?? 0),
-    y: nodes.map(n => positions[n.id]?.y ?? 0),
-    z: nodes.map(n => positions[n.id]?.z ?? 0),
-    text: nodes.map(n => n.name && n.name.length > 13 ? n.name.slice(0, 12) + '…' : (n.name || n.id)),
-    textposition: 'top center',
-    textfont: { size: 9, color: '#cbd5e1' },
-    customdata: nodes.map(n => n.id),
-    marker: {
-      size: nodes.map(n => n.is_center ? 14 : 9),
-      color: nodes.map(n => getNodeColor(n)),
-      opacity: nodes.map(n => {
-        if (impactDist) {
-          const d = impactDist[n.id]
-          return (d === undefined || d > impactRadius) ? 0.2 : 1
-        }
-        return 0.9
-      }),
-      line: { color: '#1e293b', width: 1 },
-      symbol: nodes.map(n => n.is_center ? 'diamond' : 'circle'),
-    },
-    hovertemplate: nodes.map(n => {
-      const d = impactDist ? impactDist[n.id] : undefined
-      const impactLine = (d !== undefined && d <= impactRadius)
-        ? `<br><b>${IMPACT_LABELS[Math.min(d, 3)]}</b>`
-        : ''
-      return `<b>${n.name}</b><br>${n.ci_type} · ${n.status}${n.hostname ? '<br>' + n.hostname : ''}${impactLine}<extra></extra>`
-    }),
-    showlegend: false,
+  // Del fondo al frente, para que los nodos cercanos tapen a los lejanos.
+  const ordered = useMemo(
+    () => nodes.filter(n => projected[n.id]).sort((a, b) => projected[a.id].z - projected[b.id].z),
+    [nodes, projected],
+  )
+
+  const onPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
+    drag.current = { x: e.clientX, y: e.clientY, moved: false }
   }
-
-  const edgeTrace: Data = {
-    type: 'scatter3d',
-    mode: 'lines',
-    x: edgeX, y: edgeY, z: edgeZ,
-    line: { color: '#475569', width: 1.5 },
-    hoverinfo: 'none',
-    showlegend: false,
-    opacity: 0.45,
+  const onPointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+    const d = drag.current
+    if (!d) return
+    const dx = e.clientX - d.x, dy = e.clientY - d.y
+    if (Math.abs(dx) + Math.abs(dy) > 2) d.moved = true
+    d.x = e.clientX
+    d.y = e.clientY
+    setRot(r => ({ yaw: r.yaw + dx * 0.01, pitch: Math.max(-1.5, Math.min(1.5, r.pitch + dy * 0.01)) }))
   }
+  // El clic llega después del pointerup: se suelta en el siguiente tick para
+  // que `pulsar` sepa si fue un giro.
+  const onPointerUp = () => { setTimeout(() => { drag.current = null }, 0) }
 
-  const layout = {
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: 'transparent',
-    margin: { l: 0, r: 0, t: 0, b: 0 },
-    scene: {
-      bgcolor: '#0f172a',
-      xaxis: { showgrid: false, zeroline: false, showticklabels: false, showspikes: false },
-      yaxis: { showgrid: false, zeroline: false, showticklabels: false, showspikes: false },
-      zaxis: { showgrid: false, zeroline: false, showticklabels: false, showspikes: false },
-    },
-    uirevision: 'topology3d',
+  const pulsar = (n: GraphNode) => {
+    if (drag.current?.moved) return // fue un giro, no un clic
+    onImpactSourceChange(n.id)
+    onNodeClick && onNodeClick(n)
   }
 
   return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
-      <Plot
-        data={[edgeTrace, nodeTrace]}
-        layout={layout}
-        config={{ displayModeBar: false, responsive: true }}
-        style={{ width: '100%', height: 500 }}
-        // Se usa el tipo del paquete oficial y se estrecha DENTRO (auditoría
-        // 2026-08, P1-10): anotar el parámetro con una forma más estrecha que la
-        // del contrato no es asignable bajo strictFunctionTypes, y con razón —
-        // Plotly puede invocarlo con eventos que no encajen en esa forma.
-        onClick={(event) => {
-          if (!event.points?.length) return
-          const pt = event.points[0]
-          // curveNumber 1 = nodeTrace (edgeTrace is 0)
-          if (pt.curveNumber === 1) {
-            // `customdata` es un Datum (unión amplia de Plotly). Se estrecha a
-            // texto antes de usarlo como id, en vez de asumir el tipo.
-            const nodeId = typeof pt.customdata === 'string' ? pt.customdata : String(pt.customdata ?? '')
-            if (!nodeId) return
-            const node = nodes.find(n => n.id === nodeId)
-            if (node) {
-              onImpactSourceChange(nodeId)
-              onNodeClick && onNodeClick(node)
-            }
-          }
-        }}
-      />
-    </div>
+    <svg
+      viewBox={`0 0 ${W3} ${H3}`}
+      style={{ width: '100%', maxHeight: 500, borderRadius: 12, background: 'var(--surface-0)', border: '1px solid var(--surface-4)', cursor: 'grab', touchAction: 'none' }}
+      aria-label="CMDB topology graph 3D"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerUp}
+    >
+      {edges.map((e, i) => {
+        const s = projected[e.source], t = projected[e.target]
+        if (!s || !t) return null
+        return <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y} stroke="var(--text-4)" strokeWidth={1.5} strokeOpacity={0.45} />
+      })}
+      {ordered.map(n => {
+        const p = projected[n.id]
+        const d = impactDist ? impactDist[n.id] : undefined
+        const fuera = impactDist ? (d === undefined || d > impactRadius) : false
+        const r = (n.is_center ? 7 : 4.5) * p.k
+        const color = getNodeColor(n)
+        const etiqueta = n.name && n.name.length > 13 ? n.name.slice(0, 12) + '…' : (n.name || n.id)
+        const titulo = `${n.name}\n${n.ci_type} · ${n.status}${n.hostname ? '\n' + n.hostname : ''}${d !== undefined && d <= impactRadius ? '\n' + IMPACT_LABELS[Math.min(d, 3)] : ''}`
+        return (
+          <g
+            key={n.id}
+            transform={`translate(${p.x},${p.y})`}
+            opacity={fuera ? 0.2 : impactDist ? 1 : 0.9}
+            style={{ cursor: 'pointer' }}
+            onClick={() => pulsar(n)}
+            role="button"
+            aria-label={`CI ${n.name}`}
+          >
+            <title>{titulo}</title>
+            {n.is_center
+              ? <rect x={-r} y={-r} width={2 * r} height={2 * r} transform="rotate(45)" fill={color} stroke="var(--surface-2)" strokeWidth={1} />
+              : <circle r={r} fill={color} stroke="var(--surface-2)" strokeWidth={1} />}
+            <text y={-r - 4} textAnchor="middle" fontSize={9} fill="var(--text-2)" fontFamily="inherit" style={{ userSelect: 'none' }}>
+              {etiqueta}
+            </text>
+          </g>
+        )
+      })}
+    </svg>
   )
 }
 
@@ -495,12 +502,12 @@ function ImpactLegend({ impactRadius, sourceName }: { impactRadius: number; sour
       {Array.from({ length: impactRadius + 1 }, (_, d) => (
         <span key={d} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <span style={{ width: 10, height: 10, borderRadius: '50%', background: IMPACT_COLORS[d], display: 'inline-block', flexShrink: 0 }} />
-          <span style={{ color: 'var(--text-2)' }}>{IMPACT_LABELS[d]}</span>
+          <span className="u-text2">{IMPACT_LABELS[d]}</span>
         </span>
       ))}
       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#334155', display: 'inline-block', flexShrink: 0 }} />
-        <span style={{ color: 'var(--text-3)' }}>{t('cmdbtopologygraph.sin_impacto_fuera_del_radio')}</span>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: OUT_OF_RADIUS, display: 'inline-block', flexShrink: 0 }} />
+        <span className="u-text3">{t('cmdbtopologygraph.sin_impacto_fuera_del_radio')}</span>
       </span>
     </div>
   )
@@ -549,7 +556,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', padding: '6px 0' }}>
         {/* 2D / 3D toggle */}
         <div style={{ display: 'flex', gap: 2, background: 'var(--surface-4)', padding: 2, borderRadius: 8 }}>
-          {[['2d', '2D SVG'], ['3d', '3D Plotly']].map(([mode, label]) => (
+          {[['2d', '2D SVG'], ['3d', '3D']].map(([mode, label]) => (
             <button key={mode} onClick={() => setViewMode(mode)} style={tbBtn(viewMode === mode)}>{label}</button>
           ))}
         </div>

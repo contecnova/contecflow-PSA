@@ -5,7 +5,7 @@
  * realmente importan al cliente: salud del proyecto, progreso, presupuesto,
  * calidad (UAT), service desk + SLA, factura­ción y acciones pendientes.
  */
-import { useState, useEffect, type FC } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Activity, Clock, CheckCircle2, AlertTriangle,
@@ -14,48 +14,150 @@ import {
   ShieldCheck, TimerReset, ThumbsUp, FolderOpen, Pin,
 } from 'lucide-react'
 import {
-  CLIENT_API, useLang, useClientAuth,
+  CLIENT_API, useLang, useClientAuth, type SesionDeCliente,
 } from './portalClientContext'
 import {
-  PortalPageHeader as PortalPageHeaderRaw,
-  PortalCard as PortalCardRaw,
-  PortalKpi as PortalKpiRaw,
-  PortalSection as PortalSectionRaw,
-  PortalEmpty as PortalEmptyRaw,
-  PortalProgress as PortalProgressRaw,
-  PortalBadge as PortalBadgeRaw,
-  PortalButton as PortalButtonRaw,
-  PortalBanner as PortalBannerRaw,
-  PortalDonut as PortalDonutRaw,
-  PortalSpark as PortalSparkRaw,
-  PortalBars as PortalBarsRaw,
+  PortalPageHeader,
+  PortalCard,
+  PortalKpi,
+  PortalSection,
+  PortalEmpty,
+  PortalProgress,
+  PortalBadge,
+  PortalButton,
+  PortalBanner,
+  PortalDonut,
+  PortalSpark,
+  PortalBars,
   formatDuration, formatMoney,
+  type PortalIcon, metaItems,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
+import type { ApiError } from '../../services/api'
 
-// PortalUI components have loosely-typed (`any`) props; re-alias as permissive
-// components so callers don't need to pass every inferred-required prop.
-type AnyFC = FC<any>
-const PortalPageHeader = PortalPageHeaderRaw as AnyFC
-const PortalCard = PortalCardRaw as AnyFC
-const PortalKpi = PortalKpiRaw as AnyFC
-const PortalSection = PortalSectionRaw as AnyFC
-const PortalEmpty = PortalEmptyRaw as AnyFC
-const PortalProgress = PortalProgressRaw as AnyFC
-const PortalBadge = PortalBadgeRaw as AnyFC
-const PortalButton = PortalButtonRaw as AnyFC
-const PortalBanner = PortalBannerRaw as AnyFC
-const PortalDonut = PortalDonutRaw as AnyFC
-const PortalSpark = PortalSparkRaw as AnyFC
-const PortalBars = PortalBarsRaw as AnyFC
+// ── Lo que devuelven los endpoints del portal que usa la pizarra ─────────────
+interface DashProject {
+  id: string
+  code?: string
+  name: string
+  status?: string
+  start_date?: string | null
+  end_date_planned?: string | null
+}
+
+interface DashKpis {
+  budget_total?: number
+  budget_spent?: number
+  milestones_done?: number
+  milestones_total?: number
+  deliverables_total?: number
+  uat_total?: number
+}
+
+interface DashServiceDesk {
+  sla_compliance_pct?: number | null
+  csat_avg?: number | null
+  response_breached_open?: number
+  resolution_breached_open?: number
+  avg_first_response_minutes?: number | null
+  avg_resolution_minutes?: number | null
+}
+
+interface DashActivity {
+  type?: string
+  description?: string
+  date?: string | null
+}
+
+/** `GET /portal/dashboard`. */
+interface PortalDashboardData {
+  needs_project_selection?: boolean
+  projects?: DashProject[]
+  project?: DashProject | null
+  message?: string
+  kpis?: DashKpis
+  service_desk?: DashServiceDesk
+  recent_activity?: DashActivity[]
+}
+
+interface DashMilestone {
+  id: string
+  name: string
+  due_date?: string | null
+  is_completed?: boolean
+  billing_pct?: number | null
+}
+
+interface DashDeliverable {
+  id: string
+  status: string
+}
+
+/** `GET /portal/project` (solo lo que usa la pizarra). */
+interface PortalProjectFull {
+  milestones?: DashMilestone[]
+  deliverables?: DashDeliverable[]
+}
+
+interface DashInvoice {
+  status: string
+  client_approval_status?: string | null
+  total?: number | string | null
+  currency?: string
+}
+
+interface DashTicket {
+  status: string
+  priority?: string
+  ticket_type?: string
+  created_at?: string | null
+  csat_requested_at?: string | null
+  csat_score?: number | null
+}
+
+interface DashUat {
+  status: string
+  overdue?: boolean
+  issues?: Array<{ status: string }>
+}
+
+interface DashFeatureRequest {
+  status: string
+  client_approved?: boolean | null
+}
+
+interface DashDocument {
+  requires_signature?: boolean
+  signed_by_client?: boolean
+}
+
+interface DashAnnouncement {
+  id: string
+  title: string
+  body?: string
+  type?: string
+  show_to_clients?: boolean
+}
+
+interface DashSurvey {
+  status: string
+}
+
+interface ActionItem {
+  count: number
+  label: string
+  icon: PortalIcon
+  target: string
+  tone: string
+}
 
 const SECTION_GAP = 24
 
 export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string) => void }) {
   const { t: traducir } = useAppLang()
   const _t = useLang()
-  const { client, isReady } = (useClientAuth() ?? {}) as { client?: any; isReady?: boolean }
+  const { client, isReady }: Partial<SesionDeCliente> = useClientAuth() ?? {}
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     () => localStorage.getItem('portal_selected_project') || null
   )
@@ -74,15 +176,15 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 
   const params = effectiveProjectId ? { project_id: effectiveProjectId } : {}
 
-  const { data: dash, isLoading } = useQuery<any>({
+  const { data: dash, isLoading } = useQuery<PortalDashboardData, ApiError>({
     queryKey: ['portal-dashboard', effectiveProjectId],
     enabled: isReady,
     queryFn: async () => {
       try {
         const r = await CLIENT_API.get('/portal/dashboard', { params })
         return r.data
-      } catch (e: any) {
-        if (e?.response?.status === 403 && effectiveProjectId) {
+      } catch (e) {
+        if ((e as ApiError)?.response?.status === 403 && effectiveProjectId) {
           localStorage.removeItem('portal_selected_project')
           setSelectedProjectId(null)
           const fb = await CLIENT_API.get('/portal/dashboard')
@@ -91,48 +193,48 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         throw e
       }
     },
-    retry: (n, e: any) => e?.response?.status !== 403 && n < 2,
+    retry: (n, e) => e?.response?.status !== 403 && n < 2,
     refetchOnWindowFocus: false,
   })
 
   // Datos auxiliares (sólo si tenemos proyecto)
   const projReady = !!dash?.project?.id
-  const { data: projectFull } = useQuery<any>({
+  const { data: projectFull } = useQuery<PortalProjectFull>({
     queryKey: ['portal-dashboard-project'],
     queryFn: () => CLIENT_API.get('/portal/project').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: invoices = [] } = useQuery<any[]>({
+  const { data: invoices = [] } = useQuery<DashInvoice[]>({
     queryKey: ['portal-dashboard-invoices'],
     queryFn: () => CLIENT_API.get('/portal/invoices').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: tickets = [] } = useQuery<any[]>({
+  const { data: tickets = [] } = useQuery<DashTicket[]>({
     queryKey: ['portal-dashboard-tickets'],
     queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: uats = [] } = useQuery<any[]>({
+  const { data: uats = [] } = useQuery<DashUat[]>({
     queryKey: ['portal-dashboard-uat'],
     queryFn: () => CLIENT_API.get('/portal/uat').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: frs = [] } = useQuery<any[]>({
+  const { data: frs = [] } = useQuery<DashFeatureRequest[]>({
     queryKey: ['portal-dashboard-frs'],
     queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: docs = [] } = useQuery<any[]>({
+  const { data: docs = [] } = useQuery<DashDocument[]>({
     queryKey: ['portal-dashboard-docs'],
     queryFn: () => CLIENT_API.get('/portal/documents').then(r => r.data),
     enabled: projReady, staleTime: 30000,
   })
-  const { data: announcements = [] } = useQuery<any[]>({
+  const { data: announcements = [] } = useQuery<DashAnnouncement[]>({
     queryKey: ['portal-dashboard-anns'],
     queryFn: () => CLIENT_API.get('/sd/announcements').then(r => r.data),
     enabled: projReady, staleTime: 60000,
   })
-  const { data: surveys = [] } = useQuery<any[]>({
+  const { data: surveys = [] } = useQuery<DashSurvey[]>({
     queryKey: ['portal-dashboard-surveys'],
     queryFn: () => CLIENT_API.get('/portal/surveys').then(r => r.data),
     enabled: projReady, staleTime: 60000,
@@ -163,7 +265,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
           icon={FolderOpen}
         />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-          {(dash.projects || []).map((p: any) => (
+          {(dash.projects || []).map(p => (
             <PortalCard key={p.id} onClick={() => { setSelectedProjectId(p.id); localStorage.setItem('portal_selected_project', p.id) }}>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--font-mono)' }}>{p.code}</div>
               <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 8 }}>{p.name}</div>
@@ -190,10 +292,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 
   // ── Derived metrics ────────────────────────────────────────────────────────
   const project = dash.project
-  const kpis = dash.kpis || {}
-  const sd = dash.service_desk || {}
-  const milestones: any[] = projectFull?.milestones || []
-  const deliverables: any[] = projectFull?.deliverables || []
+  const kpis: DashKpis = dash.kpis || {}
+  const sd: DashServiceDesk = dash.service_desk || {}
+  const milestones: DashMilestone[] = projectFull?.milestones || []
+  const deliverables: DashDeliverable[] = projectFull?.deliverables || []
 
   const today = new Date()
   const startDate = project.start_date ? new Date(project.start_date) : null
@@ -219,7 +321,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   // Próximos hitos en 30 días
   const upcomingMilestones = milestones
     .filter(m => !m.is_completed && m.due_date)
-    .map((m: any) => ({ ...m, days: Math.round((+new Date(m.due_date) - +today) / 86400000) }))
+    .map(m => ({ ...m, days: Math.round((+new Date(m.due_date) - +today) / 86400000) }))
     .filter(m => m.days <= 60)
     .sort((a, b) => a.days - b.days)
     .slice(0, 4)
@@ -238,7 +340,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   const uatPending = uats.filter(u => ['pending', 'in_progress'].includes(u.status)).length
   const uatPassPct = uatTotal ? Math.round((uatPassed / uatTotal) * 100) : 0
   const uatOverdue = uats.filter(u => u.overdue).length
-  const uatIssues = uats.reduce((s: number, u: any) => s + (u.issues?.filter((i: any) => i.status === 'open')?.length || 0), 0)
+  const uatIssues = uats.reduce((s, u) => s + (u.issues?.filter(i => i.status === 'open')?.length || 0), 0)
 
   // Tickets distribution & SLA
   const ticketsOpen = tickets.filter(t => !['closed', 'cancelled', 'resolved'].includes(t.status)).length
@@ -263,7 +365,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
     const buckets = Array(12).fill(0)
     const cutoff = new Date(today)
     cutoff.setDate(cutoff.getDate() - 7 * 12)
-    tickets.forEach((tk: any) => {
+    tickets.forEach(tk => {
       const d = tk.created_at ? new Date(tk.created_at) : null
       if (!d || d < cutoff) return
       const weekIdx = 11 - Math.floor((+today - +d) / (7 * 86400000))
@@ -292,7 +394,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   const pendingSurveys = surveys.filter(s => s.status === 'pending').length
   const invoicesToReview = invoicesAwaiting.length
 
-  const actionItems = ([
+  const candidatos: Array<ActionItem | 0 | false> = [
     docsToSign.length          && { count: docsToSign.length, label: 'documento(s) por firmar', icon: FileSignature, target: 'documents', tone: 'warning' },
     frsAwaitDecision.length    && { count: frsAwaitDecision.length, label: 'solicitud(es) con presupuesto que aprobar', icon: Lightbulb, target: 'requests', tone: 'warning' },
     invoicesToReview           && { count: invoicesToReview, label: 'factura(s) pendiente(s) de aprobación', icon: Receipt, target: 'invoices', tone: 'warning' },
@@ -300,7 +402,8 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
     ticketsPendingClient       && { count: ticketsPendingClient, label: 'ticket(s) esperan tu respuesta', icon: Headphones, target: 'support', tone: 'warning' },
     ticketsCSATPending         && { count: ticketsCSATPending, label: 'ticket(s) con encuesta pendiente', icon: ThumbsUp, target: 'support', tone: 'accent' },
     pendingSurveys             && { count: pendingSurveys, label: 'encuesta(s) de satisfacción', icon: Sparkles, target: 'surveys', tone: 'accent' },
-  ].filter(Boolean)) as Array<{ count: number; label: string; icon: any; target: string; tone: string }>
+  ]
+  const actionItems = candidatos.filter((it): it is ActionItem => Boolean(it))
 
   const totalActions = actionItems.reduce((s: number, a) => s + a.count, 0)
 
@@ -311,7 +414,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   const go = (s: string) => onNavigate?.(s)
 
   // Active outage banners
-  const outages = announcements.filter((a: any) => a.show_to_clients && a.type === 'outage')
+  const outages = announcements.filter(a => a.show_to_clients && a.type === 'outage')
 
   // Multi-project switcher
   const showProjectSwitcher = (client?.projects?.length > 1 || client?.project_ids?.length > 1)
@@ -322,12 +425,12 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         title={`Hola, ${client?.full_name?.split(' ')[0] || ''}`}
         subtitle={`Resumen del proyecto ${project.name}.`}
         icon={LayoutDashboard}
-        meta={[
+        meta={metaItems([
           project.code && { icon: <Pin size={12} />, value: project.code, color: 'var(--accent)' },
           { icon: <CalendarDays size={12} />, value: today.toLocaleDateString(localeActivo(), { weekday: 'long', day: 'numeric', month: 'long' }) },
           remainingDays != null && remainingDays >= 0 && { icon: <Clock size={12} />, value: `${remainingDays} días restantes`, color: remainingDays < 14 ? 'var(--warning)' : 'var(--text-2)' },
           remainingDays != null && remainingDays < 0 && { icon: <AlertTriangle size={12} />, value: `${Math.abs(remainingDays)} días vencido`, color: 'var(--danger)' },
-        ].filter(Boolean)}
+        ])}
         actions={
           showProjectSwitcher ? (
             <PortalButton variant="secondary" size="sm" icon={<FolderOpen size={13} />}
@@ -357,7 +460,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 800, color: 'var(--text-1)' }}>
                   Tienes {totalActions} {traducir('portaldashboard.accion_es_pendiente_s')}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+                <div className="u-text2-sm">
                   {traducir('portaldashboard.estos_son_los_puntos_donde_el_proyecto')}
                 </div>
               </div>
@@ -382,7 +485,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                     color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}><Icon size={15} /></div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
                       <span style={{ fontFamily: 'var(--font-mono)', color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}>{it.count}</span> {it.label}
                     </div>
@@ -494,7 +597,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
             {upcomingMilestones.length === 0 ? (
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.no_hay_hitos_previstos_a_corto_plazo')}</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="u-stack-10">
                 {upcomingMilestones.map(m => {
                   const tone = m.days < 0 ? 'danger' : m.days < 7 ? 'warning' : 'accent'
                   return (
@@ -508,9 +611,9 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)',
                         fontWeight: 800, fontSize: 'var(--text-sm)',
                       }}>{m.days < 0 ? '!' : m.days}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                        <div className="u-text3-xs">
                           {m.due_date} · {m.days < 0 ? `vencido hace ${Math.abs(m.days)}d` : m.days === 0 ? 'hoy' : `en ${m.days}d`}
                           {m.billing_pct ? ` · facturación ${m.billing_pct}%` : ''}
                         </div>
@@ -577,7 +680,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <PortalBars items={[
                 { label: 'P1 Crítico', value: ticketsByPriority.p1_critical, color: 'var(--danger)' },
-                { label: 'P2 Alto',    value: ticketsByPriority.p2_high,     color: '#f97316' },
+                { label: 'P2 Alto',    value: ticketsByPriority.p2_high,     color: 'var(--orange)' },
                 { label: 'P3 Medio',   value: ticketsByPriority.p3_medium,   color: 'var(--warning)' },
                 { label: 'P4 Bajo',    value: ticketsByPriority.p4_low,      color: 'var(--success)' },
               ]} />
@@ -610,7 +713,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.tendencia_de_tickets')} hint="Últimas 12 semanas">
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, marginTop: 6 }}>
-              <div style={{ flex: 1 }}>
+              <div className="u-flex1">
                 <PortalSpark values={ticketTrend} width={280} height={56} color="var(--accent)" />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
                   <span>hace 12 sem</span>
@@ -687,18 +790,18 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
             {milestones.filter(m => m.billing_pct).slice(0, 5).length === 0 ? (
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.no_hay_facturacion_por_hito_configurada_en')}</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="u-stack-10">
                 {milestones.filter(m => m.billing_pct).slice(0, 5).map(m => (
-                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div key={m.id} className="u-row-center-10">
                     <div style={{
                       width: 26, height: 26, borderRadius: 999, flexShrink: 0,
                       background: m.is_completed ? 'var(--success-bg, rgba(16,185,129,0.12))' : 'var(--surface-3)',
                       color: m.is_completed ? 'var(--success)' : 'var(--text-2)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>{m.is_completed ? <CheckCircle2 size={14} /> : <Pin size={13} />}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="u-flex1-min0">
                       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{m.name}</div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{m.due_date || '—'}</div>
+                      <div className="u-text3-xs">{m.due_date || '—'}</div>
                     </div>
                     <PortalBadge tone={m.is_completed ? 'success' : 'warning'}>{m.billing_pct}% factura</PortalBadge>
                   </div>
@@ -717,8 +820,8 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.sin_actividad_reciente')}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {activity.map((it: any, i: number) => {
-                  const ICONS: Record<string, any> = { deliverable: CheckCircle2, message: Headphones, uat: FlaskConical, fr: Lightbulb }
+                {activity.map((it, i) => {
+                  const ICONS: Record<string, PortalIcon> = { deliverable: CheckCircle2, message: Headphones, uat: FlaskConical, fr: Lightbulb }
                   const Icon = ICONS[it.type] || Activity
                   return (
                     <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: i < activity.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
@@ -727,7 +830,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                         background: 'var(--accent-muted)', color: 'var(--accent)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}><Icon size={14} /></div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{it.description}</div>
                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{it.date?.slice(0, 16)?.replace('T', ' ')}</div>
                       </div>
@@ -757,7 +860,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 }
 
 // ── Helpers locales ──────────────────────────────────────────────────────────
-function DataRow({ label, value, tone = 'default', hint }: { label: any; value: any; tone?: string; hint?: any }) {
+function DataRow({ label, value, tone = 'default', hint }: { label: ReactNode; value: ReactNode; tone?: string; hint?: ReactNode }) {
   const color = tone === 'success' ? 'var(--success)'
     : tone === 'warning' ? 'var(--warning)'
     : tone === 'danger'  ? 'var(--danger)'
@@ -766,15 +869,15 @@ function DataRow({ label, value, tone = 'default', hint }: { label: any; value: 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '5px 0', borderBottom: '1px dashed var(--surface-4)' }}>
       <div>
-        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{label}</span>
-        {hint && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{hint}</div>}
+        <span className="u-text2-sm">{label}</span>
+        {hint && <div className="u-text3-xs">{hint}</div>}
       </div>
       <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{value}</span>
     </div>
   )
 }
 
-function MetricBlock({ icon: Icon, label, value, tone }: { icon: any; label: any; value: any; tone?: string }) {
+function MetricBlock({ icon: Icon, label, value, tone }: { icon: PortalIcon; label: ReactNode; value: ReactNode; tone?: string }) {
   const color = tone === 'success' ? 'var(--success)' : tone === 'accent' ? 'var(--accent)' : 'var(--text-1)'
   return (
     <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 12px' }}>
@@ -786,7 +889,7 @@ function MetricBlock({ icon: Icon, label, value, tone }: { icon: any; label: any
   )
 }
 
-function QuickLink({ icon: Icon, label, hint, onClick }: { icon: any; label: any; hint?: any; onClick?: () => void }) {
+function QuickLink({ icon: Icon, label, hint, onClick }: { icon: PortalIcon; label: ReactNode; hint?: ReactNode; onClick?: () => void }) {
   return (
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 12,
@@ -802,9 +905,9 @@ function QuickLink({ icon: Icon, label, hint, onClick }: { icon: any; label: any
         background: 'var(--accent-muted)', color: 'var(--accent)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}><Icon size={16} /></div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="u-flex1-min0">
         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{label}</div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{hint}</div>
+        <div className="u-text3-xs">{hint}</div>
       </div>
       <ArrowRight size={14} style={{ color: 'var(--text-3)' }} aria-hidden="true" />
     </button>

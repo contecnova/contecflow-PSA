@@ -2,12 +2,13 @@
 automation_success_rate, automation_run_stats, cmdb_items_by_status,
 cmdb_items_by_environment, cmdb_items_by_type, clients_by_industry,
 opportunity_by_owner."""
+import logging
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 
 
 @register_metric("automation_success_rate")
@@ -40,6 +41,7 @@ def metric_automation_success_rate(
                 "value": r.cnt,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_automation_success_rate: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -77,6 +79,7 @@ def metric_automation_run_stats(
                 "success_rate": rate,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_automation_run_stats: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Ejecuciones totales"}
 
@@ -104,6 +107,7 @@ def metric_cmdb_items_by_status(
 
         rows = [{"label": getattr(r.status, "value", r.status) or "Sin estado", "value": r.cnt} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_cmdb_items_by_status: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -129,6 +133,7 @@ def metric_cmdb_items_by_environment(
 
         rows = [{"label": r.environment, "value": r.cnt} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_cmdb_items_by_environment: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -156,6 +161,7 @@ def metric_cmdb_items_by_type(
 
         rows = [{"label": getattr(r.ci_type, "value", r.ci_type) or "Sin tipo", "value": r.cnt} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_cmdb_items_by_type: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -181,6 +187,7 @@ def metric_clients_by_industry(
 
         rows = [{"label": r.industry or "Sin sector", "value": r.cnt} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_clients_by_industry: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -223,5 +230,6 @@ def metric_opportunity_by_owner(
                 "total_revenue": round(float(r.revenue or 0), 0),
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_opportunity_by_owner: excepcion ignorada", exc_info=True)
         rows = []
-    return rows, {"y_label": "Pipeline ponderado (€)"}
+    return rows, {"y_label": "Pipeline ponderado (¤)"}

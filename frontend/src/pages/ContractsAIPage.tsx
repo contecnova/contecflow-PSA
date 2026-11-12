@@ -15,7 +15,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contractsAIApi, projectsApi } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import PageHeader from '../components/layout/PageHeader'
-import { Button, Card, Spinner, EmptyState } from '../components/ui'
+import { Button, Card, Spinner, EmptyState, useDialogo } from '../components/ui'
 import { FileText, Upload } from 'lucide-react'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -111,13 +111,14 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
     }
     return out
   }, [data])
+  const dialogRef = useDialogo<HTMLDivElement>(Boolean(contractId), onClose)
 
   if (!contractId) return null
 
   return (
     <div role="presentation" onClick={onClose}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-      <div role="dialog" aria-modal="true" tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Escape') onClose() }}
         style={{
@@ -192,7 +193,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
                     borderWidth: cl.is_at_risk ? 2 : 1,
                   }}>
                     <div style={{ fontWeight: 700, fontSize: 'var(--text-base)', marginBottom: 4 }}>
-                      {cl.is_at_risk && <span style={{ color: 'var(--danger)' }}>⚠ </span>}
+                      {cl.is_at_risk && <span className="u-danger">⚠ </span>}
                       {cl.title}
                     </div>
                     {cl.description && (
@@ -337,7 +338,7 @@ export default function ContractsAIPage(): JSX.Element {
 
         {/* Common fields */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-          <div style={{ flex: 1 }}>
+          <div className="u-flex1">
             <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
               Proyecto (opcional)
             </label>
@@ -353,7 +354,7 @@ export default function ContractsAIPage(): JSX.Element {
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
           </div>
-          <div style={{ flex: 1 }}>
+          <div className="u-flex1">
             <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
               Cliente (opcional)
             </label>
@@ -430,16 +431,16 @@ export default function ContractsAIPage(): JSX.Element {
       ) : contracts.length === 0 ? (
         <EmptyState icon="📄" title={t('contractsai.aun_no_hay_contratos_analizados')} description="Pega texto o sube un PDF arriba para empezar." />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-stack-8">
           {contracts.map((c) => (
             <Card key={c.id}
               onClick={() => setOpenContractId(c.id)}
               style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
             >
               <div style={{ fontSize: 22 }}>📄</div>
-              <div style={{ flex: 1 }}>
+              <div className="u-flex1">
                 <div style={{ fontWeight: 700 }}>{c.filename || 'Sin nombre'}</div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+                <div className="u-text3-sm">
                   {c.client_name || '—'} · {c.created_at}
                   {' · '}{c.clauses_count} {t('contractsai.clausulas')}
                   {(c.at_risk_clauses ?? 0) > 0 && (

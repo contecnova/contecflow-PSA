@@ -252,6 +252,9 @@ def _oracle_budget_overrun(db: Session, projects: list) -> list:
             AIPrediction.is_acknowledged == False,
         ).first()
         if not existing:
+            from app.services.formato_regional import simbolo_de_moneda
+            simbolo = simbolo_de_moneda(db, getattr(p, "organization_id", None),
+                                        moneda=getattr(p, "currency", None))
             margin_note = ""
             if margin_eroded:
                 margin_note = (
@@ -266,9 +269,9 @@ def _oracle_budget_overrun(db: Session, projects: list) -> list:
                 title=f"Desviación presupuestaria — {p.name}",
                 explanation=(
                     f"Consumo facturable: {round(revenue_ratio*100)}% "
-                    f"({round(revenue_spent/1000,1)}k€ de {round(p.budget_amount/1000,1)}k€). "
+                    f"({round(revenue_spent/1000,1)}k{simbolo} de {round(p.budget_amount/1000,1)}k{simbolo}). "
                     f"Coste interno: {round(cost_ratio*100)}% "
-                    f"({round(cost_spent/1000,1)}k€, método={cost_info['method']}, "
+                    f"({round(cost_spent/1000,1)}k{simbolo}, método={cost_info['method']}, "
                     f"cobertura datos reales={cost_info['coverage_pct']}%)."
                     f"{margin_note}"
                 ),

@@ -12,8 +12,8 @@
 //                      them AFTER `_core.ts` so the typed version wins via the
 //                      explicit named re-export shadowing the `export *`.
 //   • `index.ts`     — this file: the public surface. Both
-//                      `from '@/services/api'` (folder) and
-//                      `from '@/services/api/_core'` (file) keep working.
+//                      `from '.../services/api'` (folder) and
+//                      `from '.../services/api/_core'` (file) keep working.
 //
 // To migrate a slice: extract it from `_core.ts` into `services/api/<slice>.ts`,
 // add a named re-export below, and (optionally) delete the original block from
@@ -36,7 +36,9 @@ export type {
   ChangePasswordPayload,
 } from './auth'
 
-export { conectoresApi, mensajeDeConector, codigoDeConector } from './conectores'
+export { conectoresApi, mensajeDeConector } from './conectores'
+export { aiGovernanceApi } from './aiGovernance'
+export { API_BASE_URL, apiUrl, apiUrlAbsoluta, apiWsUrl, wsBase } from './urls'
 export { leccionesApi } from './lecciones'
 export { gastosApi } from './gastos'
 export { presupuestosApi } from './presupuestos'
@@ -53,6 +55,11 @@ export type {
   UserProductivityParams,
   UserManagerUpdate,
   ApprovalChainNode,
+  UserPublic,
+  UserWithRate,
+  UserStatus,
+  UserOrganization,
+  UserSelfUpdatePayload,
 } from './users'
 
 export { projectsApi } from './projects'
@@ -65,6 +72,12 @@ export type {
   MemberAddPayload,
   ChangelogEntry,
   RaciEntry,
+  ProjectDetail,
+  ProjectPhase,
+  ProjectStatus,
+  ProjectType,
+  ProjectRisk,
+  ProjectPhaseCreatePayload,
 } from './projects'
 
 export { tasksApi } from './tasks'
@@ -78,17 +91,25 @@ export type {
   TaskBulkUpdatePayload,
   KanbanResponse,
   MovementLogEntry,
+  TaskPriority,
+  TaskComment,
+  TaskBulkUpdateResult,
 } from './tasks'
 
 export { settingsApi } from './settings'
 export type {
-  GeneralSettings,
+  GeneralSetting,
   LogLevel,
   LogLevelResponse,
+  LogLevelPayload,
+  LogLevelChange,
+  RuntimeSetting,
   RuntimeFlagsResponse,
   IntegrationProvider,
   IntegrationStatus,
   IntegrationProviderConfig,
+  IntegrationField,
+  IntegrationFieldUpdate,
   IntegrationTestResult,
   AuditLogParams,
   AuditLogEntry,

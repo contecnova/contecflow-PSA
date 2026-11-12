@@ -20,8 +20,8 @@ from app.core.deps import get_current_user, require_admin_or_pm, require_interna
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.advanced_config_service import (
-    agregar_documento_a_plantilla,
-    agregar_rol_a_plantilla,
+    anadir_documento_a_plantilla,
+    anadir_rol_a_plantilla,
     export_project_as_template,
     get_full_template,
 )
@@ -37,9 +37,7 @@ def add_document(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: plantillas de proyecto
 ):
-    doc = agregar_documento_a_plantilla(db, current_user, template_id, payload)
-    db.commit()
-    db.refresh(doc)
+    doc = anadir_documento_a_plantilla(db, current_user, template_id, payload)
     return APIResponse.ok(data={
         "created": True,
         "template_id": template_id,
@@ -64,9 +62,7 @@ def add_role(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: plantillas de proyecto
 ):
-    role = agregar_rol_a_plantilla(db, current_user, template_id, payload)
-    db.commit()
-    db.refresh(role)
+    role = anadir_rol_a_plantilla(db, current_user, template_id, payload)
     return APIResponse.ok(data={
         "created": True,
         "template_id": template_id,

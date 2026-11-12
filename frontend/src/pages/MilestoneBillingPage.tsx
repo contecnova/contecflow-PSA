@@ -11,6 +11,8 @@ import { Flag } from 'lucide-react'
 import { Button, Modal, EmptyState, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import DsBadge from '../components/ui/StatusBadge'
+import DateInput from '../components/ui/DateInput'
 
 type BillingStatus = 'pending' | 'completed' | 'pending_approval' | 'approved' | 'rejected' | 'invoiced'
 
@@ -53,9 +55,7 @@ const STATUS: Record<BillingStatus, { label: string; color: string; bg: string; 
 function StatusBadge({ status }: { status?: BillingStatus }) {
   const s = status ? (STATUS[status] || STATUS.pending) : STATUS.pending
   return (
-    <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color, fontWeight: 700, whiteSpace: 'nowrap' }}>
-      {s.icon} {s.label}
-    </span>
+    <DsBadge color={s.color} caps={false}>{s.icon} {s.label}</DsBadge>
   )
 }
 
@@ -76,19 +76,19 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
           fontSize: 'var(--text-sm)',
           color: 'var(--text-2)',
         }}>
-          Milestone: <strong style={{ color: 'var(--text-1)' }}>{milestoneLabel}</strong>
+          Milestone: <strong className="u-text1">{milestoneLabel}</strong>
           {milestone?.amount != null && (
             <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· {milestone.amount} {milestone.currency || ''}</span>
           )}
         </div>
       )}
-      <div style={{ marginBottom: 16 }}>
+      <div className="u-mb-16">
         <label style={lbl}>{t('milestonebilling.motivo_del_rechazo')}</label>
         <textarea value={reason} onChange={e => setReason(e.target.value)}
           style={{ ...inp, minHeight: 80, resize: 'vertical' }}
           placeholder={t('milestonebilling.describe_el_motivo_del_rechazo')} aria-label={t('milestonebilling.motivo_del_rechazo_2')} />
       </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <div className="u-actions-8">
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
         <Button variant="danger" onClick={() => onReject(reason)} disabled={!reason.trim()}>✗ Confirmar rechazo</Button>
       </div>
@@ -133,15 +133,15 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
       borderRadius: 12, padding: '16px 20px', marginBottom: 10,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="u-flex1-min0">
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
             <StatusBadge status={m.billing_status} />
             {m.due_date && (
-              <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>📅 {m.due_date}</span>
+              <span className="u-text2-xs">📅 {m.due_date}</span>
             )}
           </div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{m.name}</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+          <div className="u-text2-sm">
             📁 {projectName}
             {m.billing_amount && (
               <span style={{ marginLeft: 10, color: 'var(--accent)', fontWeight: 600 }}>
@@ -242,9 +242,9 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
         </div>
         <div>
           <label style={lbl}>{t('milestonebilling.fecha_limite')}</label>
-          <input type="date" value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={inp} />
+          <DateInput value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={inp} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <div>
             <label style={lbl}>Importe a facturar (€)</label>
             <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} style={inp} placeholder="Importe a facturar" aria-label="Importe a facturar" />
@@ -259,7 +259,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
           <textarea value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <div className="u-actions-8">
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
         <Button onClick={() => mutate()} loading={isPending} disabled={!form.name || isPending}>Crear milestone</Button>
       </div>

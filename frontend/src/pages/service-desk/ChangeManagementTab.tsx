@@ -13,6 +13,7 @@ import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useTabListKeys } from '../../components/ui/Tabs'
 import { etiquetaSd } from './sdUtils'
+import DateInput from '../../components/ui/DateInput'
 
 type ChangeId = string | number
 type ChangeRisk = 'low' | 'medium' | 'high' | 'critical' | string
@@ -125,7 +126,7 @@ function ChangeDetailPanel({
   const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? 'var(--orange)' : c.risk === 'medium' ? COLOR.warning : COLOR.success
 
   const Section = ({ title, content: text }: { title: string; content?: string }) => text ? (
-    <div style={{ marginBottom: 16 }}>
+    <div className="u-mb-16">
       <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{title}</div>
       <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.6, whiteSpace: 'pre-wrap', background: 'var(--surface-1)', borderRadius: 8, padding: '10px 14px' }}>{text}</div>
     </div>
@@ -146,7 +147,7 @@ function ChangeDetailPanel({
               <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 700 }}>{c.number}</span>
               <span style={{ fontSize: "var(--text-xs)", background: alpha(sc, '15'), color: sc, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{etiquetaSd('chg_st', c.status)}</span>
               <span style={{ fontSize: "var(--text-xs)", color: rc, fontWeight: 600 }}>⚠ {c.risk}</span>
-              <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{etiquetaSd('chg_type', c.change_type)}</span>
+              <span className="u-text3-xs">{etiquetaSd('chg_type', c.change_type)}</span>
             </div>
             <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.3 }}>{c.title}</div>
           </div>
@@ -241,26 +242,26 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
   return (
     <Modal open title={`Editar ${change.number}`} onClose={onClose} size="lg">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxHeight: '70vh', overflowY: 'auto', paddingRight: 4 }}>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-title`} style={LS}>{t('changemanagement.titulo')}</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} /></div>
+        <div className="u-col-full"><label htmlFor={`${idPrefix}-title`} style={LS}>{t('changemanagement.titulo')}</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} /></div>
         <div><label htmlFor={`${idPrefix}-change-type`} style={LS}>{t('changemanagement.tipo_de_cambio')}</label><select id={`${idPrefix}-change-type`} value={form.change_type} onChange={set('change_type')} style={IS}><option value="standard">Standard — pre-aprobado</option><option value="normal">Normal — requiere CAB</option><option value="emergency">Emergency — ECAB</option></select></div>
         <div><label htmlFor={`${idPrefix}-risk`} style={LS}>Riesgo</label><select id={`${idPrefix}-risk`} value={form.risk} onChange={set('risk')} style={IS}>{[['low', 'Bajo'], ['medium', 'Medio'], ['high', 'Alto'], ['critical', 'Crítico']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
-        <div><label htmlFor={`${idPrefix}-planned-start`} style={LS}>Inicio planificado</label><input id={`${idPrefix}-planned-start`} type="datetime-local" value={form.planned_start} onChange={set('planned_start')} style={IS} /></div>
-        <div><label htmlFor={`${idPrefix}-planned-end`} style={LS}>Fin planificado</label><input id={`${idPrefix}-planned-end`} type="datetime-local" value={form.planned_end} onChange={set('planned_end')} style={IS} /></div>
+        <div><label htmlFor={`${idPrefix}-planned-start`} style={LS}>Inicio planificado</label><DateInput id={`${idPrefix}-planned-start`} withTime value={form.planned_start} onChange={set('planned_start')} style={IS} /></div>
+        <div><label htmlFor={`${idPrefix}-planned-end`} style={LS}>Fin planificado</label><DateInput id={`${idPrefix}-planned-end`} withTime value={form.planned_end} onChange={set('planned_end')} style={IS} /></div>
         <div><label htmlFor={`${idPrefix}-downtime`} style={LS}>Downtime estimado (min)</label><input id={`${idPrefix}-downtime`} type="number" value={form.downtime_minutes} onChange={set('downtime_minutes')} style={IS} min="0" /></div>
         <div><label htmlFor={`${idPrefix}-release`} style={LS}>{ts('sd_cfg.chg_release')}</label>
           <select id={`${idPrefix}-release`} value={form.release_id ?? ''} onChange={e => setForm(f => ({ ...f, release_id: e.target.value || null }))} style={IS}>
             <option value="">{ts('sd_cfg.chg_none')}</option>
             {versiones.filter(v => v.status !== 'released' && v.status !== 'cancelled').map(v => <option key={v.id} value={v.id}>{v.name}{v.version ? ` ${v.version}` : ''}</option>)}
           </select></div>
-        <div style={{ gridColumn: '1/-1' }}><span style={LS}>{ts('sd_cfg.chg_affected_cis')}</span>
+        <div className="u-col-full"><span style={LS}>{ts('sd_cfg.chg_affected_cis')}</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 140, overflowY: 'auto' }}>
             {cis.map(ci => {
               const on = (form.affected_cis ?? []).includes(ci.id)
               return <button key={ci.id} type="button" aria-pressed={on} onClick={() => alternarCi(ci.id)} style={{ padding: '4px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)', border: `1px solid ${on ? 'var(--accent)' : 'var(--surface-4)'}`, background: on ? 'var(--accent-muted)' : 'transparent', color: on ? 'var(--accent)' : 'var(--text-2)' }}>{ci.code ? `${ci.code} · ` : ''}{ci.name}</button>
             })}
           </div></div>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-description`} style={LS}>{t('changemanagement.descripcion_2')}</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-business-justification`} style={LS}>{t('changemanagement.justificacion_de_negocio')}</label><textarea id={`${idPrefix}-business-justification`} value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div className="u-col-full"><label htmlFor={`${idPrefix}-description`} style={LS}>{t('changemanagement.descripcion_2')}</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div className="u-col-full"><label htmlFor={`${idPrefix}-business-justification`} style={LS}>{t('changemanagement.justificacion_de_negocio')}</label><textarea id={`${idPrefix}-business-justification`} value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
         <div><label htmlFor={`${idPrefix}-implementation-plan`} style={LS}>{t('changemanagement.plan_de_implementacion')}</label><textarea id={`${idPrefix}-implementation-plan`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={4} style={{ ...IS, resize: 'vertical' }} /></div>
         <div><label htmlFor={`${idPrefix}-rollback-plan`} style={LS}>{t('changemanagement.plan_de_rollback')}</label><textarea id={`${idPrefix}-rollback-plan`} value={form.rollback_plan} onChange={set('rollback_plan')} rows={4} style={{ ...IS, resize: 'vertical' }} /></div>
         <div><label htmlFor={`${idPrefix}-test-plan`} style={LS}>{t('changemanagement.plan_de_pruebas')}</label><textarea id={`${idPrefix}-test-plan`} value={form.test_plan} onChange={set('test_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
@@ -294,13 +295,13 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   return (
     <Modal open title={t('changemanagement.nuevo_change_request')} onClose={onClose} size="lg">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-title`} style={LS}>{t('changemanagement.titulo')}</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder={t('changemanagement.titulo_del_cambio')} /></div>
+        <div className="u-col-full"><label htmlFor={`${idPrefix}-title`} style={LS}>{t('changemanagement.titulo')}</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder={t('changemanagement.titulo_del_cambio')} /></div>
         <div><label style={LS}>{t('changemanagement.tipo_de_cambio')}</label><select value={form.change_type} onChange={set('change_type')} style={IS}><option value="standard">Standard — pre-aprobado</option><option value="normal">Normal — requiere CAB</option><option value="emergency">Emergency — ECAB</option></select></div>
         <div><label style={LS}>Riesgo</label><select value={form.risk} onChange={set('risk')} style={IS}><option value="low">Bajo</option><option value="medium">Medio</option><option value="high">Alto</option><option value="critical">{t('changemanagement.critico')}</option></select></div>
-        <div><label style={LS}>Inicio planificado</label><input type="datetime-local" value={form.planned_start} onChange={set('planned_start')} style={IS} /></div>
-        <div><label style={LS}>Fin planificado</label><input type="datetime-local" value={form.planned_end} onChange={set('planned_end')} style={IS} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={LS}>{t('changemanagement.descripcion_2')}</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={LS}>{t('changemanagement.justificacion_de_negocio')}</label><textarea value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div><label style={LS}>Inicio planificado</label><DateInput withTime value={form.planned_start} onChange={set('planned_start')} style={IS} /></div>
+        <div><label style={LS}>Fin planificado</label><DateInput withTime value={form.planned_end} onChange={set('planned_end')} style={IS} /></div>
+        <div className="u-col-full"><label style={LS}>{t('changemanagement.descripcion_2')}</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
+        <div className="u-col-full"><label style={LS}>{t('changemanagement.justificacion_de_negocio')}</label><textarea value={form.business_justification} onChange={set('business_justification')} rows={2} style={{ ...IS, resize: 'vertical' }} /></div>
         <div><label style={LS}>{t('changemanagement.plan_de_implementacion')}</label><textarea value={form.implementation_plan} onChange={set('implementation_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
         <div><label style={LS}>{t('changemanagement.plan_de_rollback')}</label><textarea value={form.rollback_plan} onChange={set('rollback_plan')} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}><Button variant="secondary" onClick={onClose}>Cancelar</Button><Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.description} loading={isPending}>Crear Change Request</Button></div>
@@ -381,7 +382,7 @@ export default function ChangeManagementTab() {
       </div>
 
       {isLoading ? <Spinner /> : changes.length === 0 ? <EmptyState icon="🔄" title={t('changemanagement.sin_cambios_registrados')} description="Crea el primer change request para iniciar el flujo de gestión de cambios." /> :
-        <div style={{ overflowX: 'auto' }}>
+        <div className="u-scroll-x">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr style={{ borderBottom: '2px solid var(--surface-4)' }}><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>Nº</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.titulo_2')}</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>Tipo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>Riesgo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>Estado</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>Inicio planif.</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>Owner</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Acciones</th></tr></thead>
             <tbody>

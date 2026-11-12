@@ -22,7 +22,6 @@ import logging
 import re
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -35,6 +34,7 @@ from app.models.collaboration import (
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.collaboration._storage import scan_dlp, scan_with_av, storage
+from app.core.errores import ErrorDeDominio
 
 _log = logging.getLogger(__name__)
 
@@ -281,7 +281,7 @@ def _adjunto_accesible(db: Session, user, attachment_id: str) -> CollaborationAt
         .first()
     )
     if not att:
-        raise HTTPException(404, "Adjunto no encontrado")
+        raise ErrorDeDominio(404, "Adjunto no encontrado")
     assert_conversation_access(db, user, att.conversation_id)
     return att
 

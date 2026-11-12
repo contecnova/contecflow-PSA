@@ -4,7 +4,6 @@ from datetime import date, datetime, timedelta, timezone
 import json
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -18,6 +17,7 @@ from app.models.user import User, UserRole
 from app.services.notifications import notify_user
 import logging
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +28,16 @@ def _assert_can_review_imputation(db: Session, imp: Imputation, current_user: Us
     if current_user.role in [UserRole.admin, UserRole.hr]:
         return
     if not imp.project_id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para revisar esta imputacion")
+        raise ErrorDeDominio(status_code=403, detail="No tienes permiso para revisar esta imputacion")
     project = db.query(Project).filter(Project.id == imp.project_id).first()
     if not project or project.pm_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para revisar esta imputacion")
+        raise ErrorDeDominio(status_code=403, detail="No tienes permiso para revisar esta imputacion")
 
 
 def approve_imputation_flow(db: Session, imputation_id: str, current_user: User) -> Imputation:
     imp = db.query(Imputation).filter(Imputation.id == imputation_id).first()
     if not imp:
-        raise HTTPException(status_code=404, detail="Imputacion no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Imputacion no encontrada")
 
     _assert_can_review_imputation(db, imp, current_user)
 
@@ -53,7 +53,7 @@ def approve_imputation_flow(db: Session, imputation_id: str, current_user: User)
 def reject_imputation_flow(db: Session, imputation_id: str, current_user: User) -> Imputation:
     imp = db.query(Imputation).filter(Imputation.id == imputation_id).first()
     if not imp:
-        raise HTTPException(status_code=404, detail="Imputacion no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Imputacion no encontrada")
 
     _assert_can_review_imputation(db, imp, current_user)
 
@@ -88,9 +88,9 @@ def review_timesheet_flow(
 ) -> Timesheet:
     ts = db.query(Timesheet).filter(Timesheet.id == timesheet_id).first()
     if not ts:
-        raise HTTPException(status_code=404, detail="Timesheet no encontrado")
+        raise ErrorDeDominio(status_code=404, detail="Timesheet no encontrado")
     if ts.status != TimesheetStatus.submitted:
-        raise HTTPException(status_code=400, detail="Solo se pueden revisar timesheets enviados")
+        raise ErrorDeDominio(status_code=400, detail="Solo se pueden revisar timesheets enviados")
 
     ts.status = TimesheetStatus.approved if approved else TimesheetStatus.rejected
     from app.services.approval_engine import fuentes
@@ -187,9 +187,9 @@ def sync_timesheet_from_imputations_flow(db: Session, user_id: str, week_start: 
 def submit_timesheet_flow(db: Session, user_id: str, week_start: date) -> Timesheet:
     ts = sync_timesheet_from_imputations_flow(db, user_id, week_start)
     if ts.status not in [TimesheetStatus.draft, TimesheetStatus.rejected]:
-        raise HTTPException(status_code=400, detail="Solo se pueden enviar timesheets en borrador o rechazados")
+        raise ErrorDeDominio(status_code=400, detail="Solo se pueden enviar timesheets en borrador o rechazados")
     if ts.total_hours == 0:
-        raise HTTPException(status_code=400, detail="No puedes enviar un timesheet vacío")
+        raise ErrorDeDominio(status_code=400, detail="No puedes enviar un timesheet vacío")
 
     ts.status = TimesheetStatus.submitted
     ts.submitted_at = datetime.now(timezone.utc)
@@ -204,9 +204,9 @@ def submit_timesheet_flow(db: Session, user_id: str, week_start: date) -> Timesh
 def send_back_timesheet_flow(db: Session, timesheet_id: str, current_user: User, notes: str = "") -> Timesheet:
     ts = db.query(Timesheet).filter(Timesheet.id == timesheet_id).first()
     if not ts:
-        raise HTTPException(status_code=404, detail="Timesheet no encontrado")
+        raise ErrorDeDominio(status_code=404, detail="Timesheet no encontrado")
     if ts.status != TimesheetStatus.submitted:
-        raise HTTPException(status_code=400, detail="Solo se pueden devolver timesheets en estado enviado")
+        raise ErrorDeDominio(status_code=400, detail="Solo se pueden devolver timesheets en estado enviado")
 
     ts.status = TimesheetStatus.rejected
     from app.services.approval_engine import fuentes
@@ -230,7 +230,7 @@ def build_invoice_preview_from_timesheets_flow(
 ) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
 
     imps_q = db.query(Imputation).options(joinedload(Imputation.user)).filter(
         Imputation.project_id == project_id,
@@ -311,10 +311,10 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
         .first()
     )
     if not sprint:
-        raise HTTPException(status_code=404, detail="Sprint no encontrado")
+        raise ErrorDeDominio(status_code=404, detail="Sprint no encontrado")
     # Revisión 2026-11: sólo se cierra el que está en marcha.
     if sprint.status != SprintStatus.active:
-        raise HTTPException(status_code=400, detail=f"Sólo se cierra un sprint activo; este está «{sprint.status.value}»")
+        raise ErrorDeDominio(status_code=400, detail=f"Sólo se cierra un sprint activo; este está «{sprint.status.value}»")
 
     sprint.status = SprintStatus.completed
     sprint.closed_at = datetime.now(timezone.utc)
@@ -369,7 +369,7 @@ def comprobar_plan_de_capacidad(db: Session, user_id: str, week_start: date, new
     user_obj = db.query(User).filter(User.id == user_id).first()
     weekly_capacity = getattr(user_obj, "weekly_capacity_hours", None) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
     if existing_hours + new_hours > weekly_capacity:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400,
             detail=(
                 f"Sobreasignacion: el usuario ya tiene {existing_hours}h planificadas esta semana "
@@ -385,7 +385,7 @@ def comprobar_plan_de_capacidad(db: Session, user_id: str, week_start: date, new
         Absence.end_date >= week_start,
     ).first()
     if conflict:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=409,
             detail=(
                 "Conflicto de ausencia: el usuario tiene una ausencia aprobada del "

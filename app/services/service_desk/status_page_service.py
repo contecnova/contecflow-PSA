@@ -2,7 +2,6 @@ import json
 from typing import Optional
 from datetime import datetime, timezone
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import (
@@ -12,6 +11,7 @@ from app.models.service_desk import (
 )
 from app.schemas.service_desk import StatusComponentIn, StatusIncidentIn, StatusIncidentUpdateIn
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -23,18 +23,17 @@ def organizacion_de_la_pagina(db: Session, slug: Optional[str]) -> Optional[str]
     organizaciones (es anonima: no hay filtro de tenant). Ahora va por
     organizacion: `?org=<slug>`. Sin slug solo se sirve si hay una sola.
     """
-    from fastapi import HTTPException
     from app.models.mfa import Organization
 
     if slug:
         org = db.query(Organization).filter(Organization.slug == slug, Organization.is_active == True).first()  # noqa: E712
         if org is None:
-            raise HTTPException(404, "Página de estado no encontrada")
+            raise ErrorDeDominio(404, "Página de estado no encontrada")
         return org.id
     ids = [r[0] for r in db.query(Organization.id).limit(2).all()]
     if len(ids) == 1:
         return ids[0]
-    raise HTTPException(422, "Indica la organización: ?org=<slug>")
+    raise ErrorDeDominio(422, "Indica la organización: ?org=<slug>")
 
 
 from app.services.service_desk.pagina_de_estado_publica import idioma_de  # noqa: E402
@@ -137,7 +136,7 @@ def validate_component_status(status: str) -> None:
     try:
         StatusPageComponentStatus(status)
     except ValueError:
-        raise HTTPException(400, f"Invalid status: {status}")
+        raise ErrorDeDominio(400, f"Invalid status: {status}")
 
 
 def build_status_component(payload: StatusComponentIn) -> StatusPageComponent:
@@ -154,7 +153,7 @@ def create_status_component_record(db, payload: StatusComponentIn) -> StatusPage
 def get_status_component_or_404(db: Session, component_id: str) -> StatusPageComponent:
     component = db.query(StatusPageComponent).filter(StatusPageComponent.id == component_id).first()
     if not component:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return component
 
 
@@ -208,7 +207,7 @@ def create_status_incident_record(db: Session, component_id: str, payload: Statu
 def get_status_incident_or_404(db: Session, incident_id: str) -> StatusPageIncident:
     incident = db.query(StatusPageIncident).filter(StatusPageIncident.id == incident_id).first()
     if not incident:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return incident
 
 

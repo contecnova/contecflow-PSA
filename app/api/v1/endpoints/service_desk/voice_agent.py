@@ -172,6 +172,21 @@ def create_ticket(
 
 # ── Twilio Webhook (no auth — validated by Twilio signature) ──────────────────
 
+def _rechazo_si_no_es_twilio(request: Request, form: dict):
+    """Respuesta 403 en TwiML si la peticion no trae una firma de Twilio valida."""
+    from fastapi import Response
+
+    from app.services.service_desk.sms_service import validate_twilio_signature
+
+    if validate_twilio_signature(str(request.url), form, request.headers.get("X-Twilio-Signature")):
+        return None
+    return Response(
+        content='<?xml version="1.0"?><Response><Reject /></Response>',
+        media_type="application/xml",
+        status_code=403,
+    )
+
+
 @router.post(
     "/webhook/twilio",
     summary="Twilio IVR webhook — recibe llamadas y responde con TwiML",
@@ -192,30 +207,16 @@ async def twilio_ivr_webhook(
       2. Set TWILIO_AUTH_TOKEN env var for signature validation.
       3. Optionally set TWILIO_ACCOUNT_SID for outbound calls.
     """
-    import os
-    import hmac
-    import hashlib
-    import base64
-
     from app.services.service_desk.voice_agent_service import get_config
 
     # ── Twilio signature validation ───────────────────────────────────────────
-    auth_token = os.getenv("TWILIO_AUTH_TOKEN", "")
-    if auth_token:
-        signature = request.headers.get("X-Twilio-Signature", "")
-        form_body = await request.form()
-        url = str(request.url)
-        sorted_params = "".join(f"{k}{v}" for k, v in sorted(form_body.items()))
-        computed = base64.b64encode(
-            hmac.new(auth_token.encode(), (url + sorted_params).encode(), hashlib.sha1).digest()
-        ).decode()
-        if not hmac.compare_digest(computed, signature):
-            from fastapi import Response
-            return Response(
-                content='<?xml version="1.0"?><Response><Reject /></Response>',
-                media_type="application/xml",
-                status_code=403,
-            )
+    # Auditoria 2026-11: solo se comprobaba si habia TWILIO_AUTH_TOKEN en el
+    # entorno (fallaba abierta). Ahora usa el validador comun, que rechaza sin
+    # token o sin firma.
+    form_body = await request.form()
+    rechazo = _rechazo_si_no_es_twilio(request, dict(form_body))
+    if rechazo is not None:
+        return rechazo
 
     # Audit #C7: async is needed for await request.form(); DB ops are
     # offloaded to the threadpool via run_db so the sync ORM never blocks
@@ -223,7 +224,7 @@ async def twilio_ivr_webhook(
     from app.core.async_db import run_db
 
     # ── Parse Twilio form data ────────────────────────────────────────────────
-    form_data = dict(await request.form()) if not auth_token else dict(form_body)
+    form_data = dict(form_body)
     caller_id = form_data.get("From", "unknown")
     call_sid  = form_data.get("CallSid", "")
     org_id    = None  # Single-tenant: override with org resolution logic if multi-tenant
@@ -276,6 +277,11 @@ async def twilio_gather_webhook(
     from app.core.async_db import run_db
 
     form_data = dict(await request.form())
+    # Auditoria 2026-11: este callback no tenia ninguna autenticacion y escribia
+    # en la transcripcion de cualquier `session_id`.
+    rechazo = _rechazo_si_no_es_twilio(request, form_data)
+    if rechazo is not None:
+        return rechazo
     digit     = form_data.get("Digits", "")
     org_id    = None
 

@@ -82,7 +82,7 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
 
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar permiso' : 'Añadir acceso al proyecto'}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         {!isEdit && (
           <div>
             <label style={labelStyle}>Usuario</label>
@@ -97,21 +97,21 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
             <Avatar name={perm.user?.full_name} size={36} url={undefined} />
             <div>
               <div style={{ fontWeight: 500 }}>{perm.user?.full_name}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{perm.user?.job_title || perm.user?.role}</div>
+              <div className="u-text2-sm">{perm.user?.job_title || perm.user?.role}</div>
             </div>
           </div>
         )}
 
         <div>
           <label style={labelStyle}>{t('projectpermissions.nivel_de_acceso')}</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="u-stack-6">
             {LEVELS.map(l => (
               <button key={l.value} onClick={() => set('level')(l.value)}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, border: `1px solid ${form.level === l.value ? alpha(l.color, '50') : 'var(--surface-4)'}`, background: form.level === l.value ? alpha(l.color, '15') : 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
+                <div className="u-flex1">
                   <div style={{ fontSize: "var(--text-base)", fontWeight: form.level === l.value ? 600 : 400, color: form.level === l.value ? l.color : 'var(--text-1)' }}>{l.label}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.desc}</div>
+                  <div className="u-text2-xs">{l.desc}</div>
                 </div>
                 {form.level === l.value && <span style={{ color: l.color }}>✓</span>}
               </button>
@@ -122,7 +122,7 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
         {['member','manager','owner'].includes(form.level) && (
           <div style={{ padding: '14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Permisos adicionales</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="u-stack-8">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form.can_see_financials} onChange={e => set('can_see_financials')(e.target.checked)} />
                 <span>{t('projectpermissions.ver_datos_financieros_costes_presupuesto_facturacion')}</span>
@@ -265,11 +265,11 @@ export default function ProjectPermissionsPage() {
                   return (
                     <tr key={perm.id} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
                       <td style={{ padding: '10px 12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="u-row-center-10">
                           <Avatar name={perm.user?.full_name} size={30} url={undefined} />
                           <div>
                             <div style={{ fontWeight: 500 }}>{perm.user?.full_name || perm.user_id}</div>
-                            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{perm.user?.job_title || perm.user?.role}</div>
+                            <div className="u-text2-xs">{perm.user?.job_title || perm.user?.role}</div>
                           </div>
                         </div>
                       </td>
@@ -284,7 +284,7 @@ export default function ProjectPermissionsPage() {
                         </td>
                       ))}
                       <td style={{ padding: '10px 12px' }}>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div className="u-row-8">
                           <button onClick={() => { setEditingPerm(perm); setShowForm(true) }}
                             style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                             Editar

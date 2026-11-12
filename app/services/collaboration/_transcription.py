@@ -16,7 +16,8 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm", db=None, org_id=None) -> str:
+def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm", db=None, org_id=None,
+                           user_id=None) -> str:
     """Devuelve el texto transcrito o "".
 
     Item #51: ahora delegamos primero al factory STT (que respeta
@@ -24,11 +25,16 @@ def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm", db=None, o
     disponibles, mantenemos el comportamiento legacy de este módulo
     (OpenAI directo / whisper local) como red de seguridad para chunks
     pequeños del módulo de colaboración.
+
+    Auditoría 2026-11 (hallazgo 30): el idioma era `"es"` fijo; ahora es el del
+    usuario (o el de su organización), con `"es"` solo como último respaldo.
     """
+    from app.services.formato_regional import idioma
+    lang = idioma(db, user_id=user_id, org_id=org_id)
     try:
         from app.services.stt import transcribe_audio as _factory_transcribe, STTError as _STTError
         # Revisión 2026-11: con la empresa, usa SU configuración de STT y su tope.
-        result = _factory_transcribe(data, filename, "audio/webm", language="es", db=db, org_id=org_id)
+        result = _factory_transcribe(data, filename, "audio/webm", language=lang, db=db, org_id=org_id)
         return (result.text or "").strip()
     except _STTError as exc:
         logger.warning("Factory STT failed for chunk: %s", exc)
@@ -39,13 +45,13 @@ def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm", db=None, o
     # env-driven feature toggle: legacy fallback path bypasses the STT factory and
     # is intentionally controlled via raw env to keep the failsafe independent of Settings.
     if os.environ.get("OPENAI_API_KEY"):
-        return _via_openai(data, filename) or ""
+        return _via_openai(data, filename, lang) or ""
     if os.environ.get("WHISPER_LOCAL") == "1":
-        return _via_whisper_local(data, filename) or ""
+        return _via_whisper_local(data, filename, lang) or ""
     return ""
 
 
-def _via_openai(data: bytes, filename: str) -> Optional[str]:
+def _via_openai(data: bytes, filename: str, lang: str) -> Optional[str]:
     try:
         import httpx
         files = {"file": (filename, data, "audio/webm")}
@@ -54,7 +60,7 @@ def _via_openai(data: bytes, filename: str) -> Optional[str]:
             headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
             data={
                 "model": os.environ.get("OPENAI_STT_MODEL") or "gpt-4o-mini-transcribe",
-                "language": "es",
+                "language": lang,
             },
             files=files,
             timeout=30,
@@ -67,7 +73,7 @@ def _via_openai(data: bytes, filename: str) -> Optional[str]:
         return None
 
 
-def _via_whisper_local(data: bytes, filename: str) -> Optional[str]:
+def _via_whisper_local(data: bytes, filename: str, lang: str) -> Optional[str]:
     binary = os.environ.get("WHISPER_BIN", "whisper")
     model = os.environ.get("WHISPER_MODEL", "base")
     with tempfile.TemporaryDirectory() as td:
@@ -76,7 +82,7 @@ def _via_whisper_local(data: bytes, filename: str) -> Optional[str]:
             f.write(data)
         try:
             subprocess.run(
-                [binary, in_path, "--model", model, "--language", "es", "--output_format", "txt", "--output_dir", td],
+                [binary, in_path, "--model", model, "--language", lang, "--output_format", "txt", "--output_dir", td],
                 check=True, capture_output=True, timeout=120,
             )
             txt_path = in_path.rsplit(".", 1)[0] + ".txt"

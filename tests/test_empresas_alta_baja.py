@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from app.models.mfa import Organization
 from tests.conftest import auth
+from app.core.errores import ErrorDeDominio
 
 
 def _alta(client, token, **extra):
@@ -73,7 +74,7 @@ def test_el_limite_de_usuarios_tambien_por_scim(client, superadmin_token, db):
     from app.services.scim_service import create_scim_user, process_bulk_operation
     datos = _alta(client, superadmin_token, admin_email="jefa@cliente-nuevo.com", max_users=1)  # el admin ya ocupa 1
     org = datos["id"]
-    with pytest.raises(HTTPException) as e:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as e:
         create_scim_user(org, {"userName": "scim1", "emails": [{"value": "scim1@cliente-nuevo.com"}]}, db)
     assert e.value.status_code == 409
     with pytest.raises(ValueError, match="límite"):

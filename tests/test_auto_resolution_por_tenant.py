@@ -174,7 +174,7 @@ def test_EL_HALLAZGO_el_endpoint_acota_el_trabajo_a_su_organizacion(
     """
     from tests.conftest import auth
     from app.models.user import User
-    import app.api.v1.endpoints.service_desk.ai_auto_resolution as ep
+    import app.services.service_desk.auto_resolucion_operaciones as ep
 
     recibido: dict = {}
 

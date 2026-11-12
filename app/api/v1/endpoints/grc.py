@@ -211,14 +211,10 @@ def compliance_report(signed: bool = Query(False), db: Session = Depends(get_db)
     from datetime import datetime, timezone
     from fastapi.responses import Response
     from app.services import informe_de_cumplimiento
-    from app.services.audit import audit_log
     informe = informe_de_cumplimiento.generar(db, current_user.organization_id)
     if not signed:
         return APIResponse.ok(data=informe)
-    doc = informe_de_cumplimiento.firmar(informe)
-    audit_log(db, current_user, "EXPORT", "compliance_report", resource_name="signed report",
-              metadata={"summary": doc["summary"]})
-    db.commit()
+    doc = informe_de_cumplimiento.firmar_y_registrar(db, current_user, informe)
     nombre = f"compliance-report-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}.json"
     return Response(_json.dumps(doc, ensure_ascii=False, indent=1), media_type="application/json",
                     headers={"Content-Disposition": f'attachment; filename="{nombre}"'})

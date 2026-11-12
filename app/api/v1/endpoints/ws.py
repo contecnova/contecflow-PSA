@@ -91,6 +91,7 @@ async def _issue_ws_ticket(user_id: str) -> str:
             await r.setex(f"{_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, user_id)
             return ticket
         except Exception as exc:
+            log.debug("_issue_ws_ticket: excepcion ignorada", exc_info=True)
             _warn_redis_fallback_once(
                 "ws_issue",
                 "Redis unreachable, falling back to in-memory WS ticket store: %s",
@@ -119,6 +120,7 @@ async def _consume_ws_ticket(ticket: str) -> Optional[str]:
             # Redis reachable but ticket not found — fall through to in-memory
             # in case it was issued during a prior Redis outage.
         except Exception as exc:
+            log.debug("_consume_ws_ticket: excepcion ignorada", exc_info=True)
             _warn_redis_fallback_once(
                 "ws_consume",
                 "Redis unreachable during WS ticket consume, falling back to in-memory: %s",
@@ -136,6 +138,7 @@ async def _issue_portal_ws_ticket(client_id: str) -> str:
             await r.setex(f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, client_id)
             return ticket
         except Exception as exc:
+            log.debug("_issue_portal_ws_ticket: excepcion ignorada", exc_info=True)
             _warn_redis_fallback_once(
                 "portal_issue",
                 "Redis unreachable, falling back to in-memory portal WS ticket store: %s",

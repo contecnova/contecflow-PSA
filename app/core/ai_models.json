@@ -1,0 +1,347 @@
+{
+  "anthropic": [
+    {
+      "id": "claude-opus-4-5",
+      "name": "Claude Opus 4.5",
+      "context": 200000,
+      "cost_in": 15.0,
+      "cost_out": 75.0
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5",
+      "context": 200000,
+      "cost_in": 3.0,
+      "cost_out": 15.0
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "name": "Claude Haiku 4.5",
+      "context": 200000,
+      "cost_in": 0.8,
+      "cost_out": 4.0
+    },
+    {
+      "id": "claude-3-7-sonnet-20250219",
+      "name": "Claude 3.7 Sonnet",
+      "context": 200000,
+      "cost_in": 3.0,
+      "cost_out": 15.0
+    },
+    {
+      "id": "claude-3-5-sonnet-20241022",
+      "name": "Claude 3.5 Sonnet",
+      "context": 200000,
+      "cost_in": 3.0,
+      "cost_out": 15.0
+    },
+    {
+      "id": "claude-3-5-haiku-20241022",
+      "name": "Claude 3.5 Haiku",
+      "context": 200000,
+      "cost_in": 0.8,
+      "cost_out": 4.0
+    }
+  ],
+  "openai": [
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "context": 128000,
+      "cost_in": 2.5,
+      "cost_out": 10.0
+    },
+    {
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o Mini",
+      "context": 128000,
+      "cost_in": 0.15,
+      "cost_out": 0.6
+    },
+    {
+      "id": "o3",
+      "name": "o3 (razonamiento)",
+      "context": 200000,
+      "cost_in": 10.0,
+      "cost_out": 40.0
+    },
+    {
+      "id": "o3-mini",
+      "name": "o3-mini",
+      "context": 200000,
+      "cost_in": 1.1,
+      "cost_out": 4.4
+    },
+    {
+      "id": "o4-mini",
+      "name": "o4-mini",
+      "context": 200000,
+      "cost_in": 1.1,
+      "cost_out": 4.4
+    },
+    {
+      "id": "o1",
+      "name": "o1",
+      "context": 200000,
+      "cost_in": 15.0,
+      "cost_out": 60.0
+    },
+    {
+      "id": "o1-mini",
+      "name": "o1-mini",
+      "context": 128000,
+      "cost_in": 3.0,
+      "cost_out": 12.0
+    }
+  ],
+  "gemini": [
+    {
+      "id": "gemini-2.5-pro",
+      "name": "Gemini 2.5 Pro",
+      "context": 1000000,
+      "cost_in": 1.25,
+      "cost_out": 10.0
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "name": "Gemini 2.5 Flash",
+      "context": 1000000,
+      "cost_in": 0.15,
+      "cost_out": 0.6
+    },
+    {
+      "id": "gemini-2.0-flash",
+      "name": "Gemini 2.0 Flash",
+      "context": 1000000,
+      "cost_in": 0.1,
+      "cost_out": 0.4
+    },
+    {
+      "id": "gemini-2.0-flash-lite",
+      "name": "Gemini 2.0 Flash Lite",
+      "context": 1000000,
+      "cost_in": 0.075,
+      "cost_out": 0.3
+    }
+  ],
+  "deepseek": [
+    {
+      "id": "deepseek-chat",
+      "name": "DeepSeek-V3",
+      "context": 64000,
+      "cost_in": 0.27,
+      "cost_out": 1.1
+    },
+    {
+      "id": "deepseek-reasoner",
+      "name": "DeepSeek-R1",
+      "context": 64000,
+      "cost_in": 0.55,
+      "cost_out": 2.19
+    }
+  ],
+  "groq": [
+    {
+      "id": "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "name": "Llama 4 Maverick 17B",
+      "context": 131072,
+      "cost_in": 0.2,
+      "cost_out": 0.6
+    },
+    {
+      "id": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "name": "Llama 4 Scout 17B",
+      "context": 131072,
+      "cost_in": 0.11,
+      "cost_out": 0.34
+    },
+    {
+      "id": "llama-3.3-70b-versatile",
+      "name": "Llama 3.3 70B",
+      "context": 128000,
+      "cost_in": 0.59,
+      "cost_out": 0.79
+    },
+    {
+      "id": "llama-3.1-8b-instant",
+      "name": "Llama 3.1 8B",
+      "context": 128000,
+      "cost_in": 0.05,
+      "cost_out": 0.08
+    },
+    {
+      "id": "qwen-qwq-32b",
+      "name": "QwQ 32B (razonamiento)",
+      "context": 131072,
+      "cost_in": 0.29,
+      "cost_out": 0.39
+    },
+    {
+      "id": "gemma2-9b-it",
+      "name": "Gemma 2 9B",
+      "context": 8192,
+      "cost_in": 0.2,
+      "cost_out": 0.2
+    }
+  ],
+  "mistral": [
+    {
+      "id": "mistral-large-latest",
+      "name": "Mistral Large",
+      "context": 131000,
+      "cost_in": 2.0,
+      "cost_out": 6.0
+    },
+    {
+      "id": "mistral-small-latest",
+      "name": "Mistral Small 3",
+      "context": 32000,
+      "cost_in": 0.1,
+      "cost_out": 0.3
+    },
+    {
+      "id": "codestral-latest",
+      "name": "Codestral",
+      "context": 256000,
+      "cost_in": 0.3,
+      "cost_out": 0.9
+    },
+    {
+      "id": "ministral-8b-latest",
+      "name": "Ministral 8B",
+      "context": 131000,
+      "cost_in": 0.1,
+      "cost_out": 0.1
+    },
+    {
+      "id": "mistral-saba-latest",
+      "name": "Mistral Saba",
+      "context": 32000,
+      "cost_in": 0.2,
+      "cost_out": 0.6
+    },
+    {
+      "id": "open-mistral-nemo",
+      "name": "Mistral Nemo 12B",
+      "context": 128000,
+      "cost_in": 0.15,
+      "cost_out": 0.15
+    }
+  ],
+  "ollama": [
+    {
+      "id": "llama3.3",
+      "name": "Llama 3.3 70B",
+      "context": 128000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "llama3.2",
+      "name": "Llama 3.2 3B",
+      "context": 128000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "llama3.1:70b",
+      "name": "Llama 3.1 70B",
+      "context": 128000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "gemma3",
+      "name": "Gemma 3 4B",
+      "context": 128000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "gemma3:27b",
+      "name": "Gemma 3 27B",
+      "context": 128000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "phi4",
+      "name": "Phi-4 14B",
+      "context": 16000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "qwen2.5",
+      "name": "Qwen 2.5 7B",
+      "context": 128000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "qwen2.5-coder",
+      "name": "Qwen 2.5 Coder 7B",
+      "context": 128000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "deepseek-r1",
+      "name": "DeepSeek-R1 8B",
+      "context": 64000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral 7B",
+      "context": 32000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "mistral-nemo",
+      "name": "Mistral Nemo 12B",
+      "context": 128000,
+      "cost_in": 0,
+      "cost_out": 0
+    },
+    {
+      "id": "codellama",
+      "name": "CodeLlama",
+      "context": 16000,
+      "cost_in": 0,
+      "cost_out": 0
+    }
+  ],
+  "azure": [
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "context": 128000,
+      "cost_in": 2.5,
+      "cost_out": 10.0
+    },
+    {
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o Mini",
+      "context": 128000,
+      "cost_in": 0.15,
+      "cost_out": 0.6
+    },
+    {
+      "id": "o3-mini",
+      "name": "o3-mini",
+      "context": 200000,
+      "cost_in": 1.1,
+      "cost_out": 4.4
+    },
+    {
+      "id": "o4-mini",
+      "name": "o4-mini",
+      "context": 200000,
+      "cost_in": 1.1,
+      "cost_out": 4.4
+    }
+  ]
+}

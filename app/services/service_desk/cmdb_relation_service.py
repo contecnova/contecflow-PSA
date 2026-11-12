@@ -1,6 +1,5 @@
 from collections import deque
 
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -8,6 +7,7 @@ from app.models.service_desk import CIRelation, CIRelationType, ConfigurationIte
 from app.models.user import User
 from app.services.service_desk.scoping import scope_ci_query as _scope_ci_query
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ def _get_scoped_ci_or_404(db: Session, current_user: User, ci_id: str, detail: s
         ConfigurationItem.id == ci_id
     ).first()
     if not ci:
-        raise HTTPException(404, detail)
+        raise ErrorDeDominio(404, detail)
     return ci
 
 
@@ -60,15 +60,15 @@ def build_ci_relation(db: Session, current_user: User, payload: dict) -> CIRelat
     src_id = payload.get("source_ci_id")
     tgt_id = payload.get("target_ci_id")
     if not src_id or not tgt_id:
-        raise HTTPException(422, "source_ci_id y target_ci_id son obligatorios")
+        raise ErrorDeDominio(422, "source_ci_id y target_ci_id son obligatorios")
 
     origen = _get_scoped_ci_or_404(db, current_user, src_id, "CI origen no encontrado")
     _get_scoped_ci_or_404(db, current_user, tgt_id, "CI destino no encontrado")
     if src_id == tgt_id:
-        raise HTTPException(422, "Un CI no se relaciona consigo mismo")
+        raise ErrorDeDominio(422, "Un CI no se relaciona consigo mismo")
     tipo = payload.get("relation_type", "depends_on")
     if tipo not in {t.value for t in CIRelationType}:
-        raise HTTPException(422, f"Tipo de relación desconocido: {tipo}")
+        raise ErrorDeDominio(422, f"Tipo de relación desconocido: {tipo}")
 
     rel = CIRelation(
         organization_id=origen.organization_id,
@@ -85,7 +85,7 @@ def delete_ci_relation(db: Session, current_user: User, relation_id: str) -> Non
     """Quita una relacion; hay que ver los dos extremos."""
     rel = db.get(CIRelation, relation_id)
     if rel is None:
-        raise HTTPException(404, "Relación no encontrada")
+        raise ErrorDeDominio(404, "Relación no encontrada")
     _get_scoped_ci_or_404(db, current_user, rel.source_ci_id, "Relación no encontrada")
     _get_scoped_ci_or_404(db, current_user, rel.target_ci_id, "Relación no encontrada")
     db.delete(rel)

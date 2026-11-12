@@ -12,13 +12,49 @@
 import { useState, useRef, useCallback, useMemo, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
-import api, { projectsApi, unwrapList } from '../services/api'
+import api, { projectsApi, unwrapList, type ApiError, type ProjectListItem } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { CalendarDays } from 'lucide-react'
-import { Spinner, EmptyState } from '../components/ui'
+import { Spinner, EmptyState, useDialogo } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+
+// ── Tipos ────────────────────────────────────────────────────────────────────
+
+/** Reserva de `/bookings`; sin `id` mientras se está creando. */
+interface Booking {
+  id?: string
+  user_id: string
+  project_id: string | null
+  start_date: string
+  end_date: string
+  hours_per_day?: number
+  booking_type?: string
+  /** Lo añade la página a partir de la lista de proyectos. */
+  project_name?: string | null
+}
+
+/** Lo que edita el panel de una reserva. */
+interface BookingChanges {
+  project_id: string | null
+  hours_per_day: number
+  booking_type: string
+}
+
+interface ForecastWeek { week: string; load_pct?: number; available_hours?: number }
+
+/** Persona de `/resource-forecast/weeks`. */
+interface ForecastUser {
+  user_id: string
+  user_name: string
+  department?: string | null
+  capacity_hours?: number
+  avg_load_pct?: number
+  weeks?: ForecastWeek[]
+}
+
+interface ForecastData { users?: ForecastUser[] }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -62,10 +98,10 @@ function weekLabel(d: Date) {
 
 // ── Project color map ─────────────────────────────────────────────────────────
 
-function useProjectColorMap(projects: any[]) {
+function useProjectColorMap(projects: Array<{ id: string }>) {
   return useMemo(() => {
     const m: Record<string, string> = {}
-    projects.forEach((p: any, i: number) => { m[p.id] = PROJECT_PALETTE[i % PROJECT_PALETTE.length] })
+    projects.forEach((p, i) => { m[p.id] = PROJECT_PALETTE[i % PROJECT_PALETTE.length] })
     return m
   }, [projects])
 }
@@ -73,7 +109,7 @@ function useProjectColorMap(projects: any[]) {
 // ── Booking bar ──────────────────────────────────────────────────────────────
 
 interface BookingBarProps {
-  booking: any
+  booking: Booking
   weekStart: Date
   weekCount: number
   color: string
@@ -117,7 +153,7 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
         transition: 'box-shadow 0.1s',
       }}
     >
-      <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--on-accent-light)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {booking.project_name || booking.project_id || '—'} · {booking.hours_per_day || 8}h
       </span>
     </div>
@@ -127,10 +163,10 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
 // ── Booking panel (create/edit) ───────────────────────────────────────────────
 
 interface BookingPanelProps {
-  booking: any
+  booking: Booking
   position: { x: number; y: number }
-  projects: any[]
-  onSave: (data: any) => void
+  projects: ProjectListItem[]
+  onSave: (data: BookingChanges) => void
   onDelete: () => void
   onClose: () => void
   projectColorMap?: Record<string, string>
@@ -142,9 +178,10 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
   const [hoursPerDay, setHours]   = useState(booking.hours_per_day || 8)
   const [bookingType, setType]    = useState(booking.booking_type || 'soft')
   const isNew = !booking.id
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <div style={{
+    <div ref={dialogRef} role="dialog" aria-modal="true" style={{
       position: 'fixed', zIndex: 200,
       left: Math.min(position.x + 8, window.innerWidth - 260),
       top:  Math.min(position.y + 8, window.innerHeight - 280),
@@ -165,7 +202,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
         fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', marginBottom: 10,
       }}>
         <option value="">{t('resource_scheduler.no_project')}</option>
-        {projects.map((p: any) => (
+        {projects.map(p => (
           <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
         ))}
       </select>
@@ -191,17 +228,17 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div className="u-row-6">
         <button onClick={() => onSave({ project_id: projectId || null, hours_per_day: hoursPerDay, booking_type: bookingType })} style={{
           flex: 1, padding: '7px 0', background: 'var(--accent)', border: 'none',
-          borderRadius: 7, color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600,
+          borderRadius: 7, color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600,
         }}>
           {isNew ? t('resource_scheduler.create') : t('resource_scheduler.save')}
         </button>
         {!isNew && (
           <button onClick={onDelete} style={{
             padding: '7px 10px', background: 'var(--danger)', border: 'none',
-            borderRadius: 7, color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
+            borderRadius: 7, color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
           }}>🗑</button>
         )}
         <button onClick={onClose} style={{
@@ -224,25 +261,25 @@ export default function ResourceSchedulerPage() {
   const [department, setDepartment]   = useState('')
   const [viewMode, setViewMode]       = useState('scheduler')  // 'scheduler' | 'assign'
   const narrow = useMediaQuery('(max-width: 900px)')
-  const [selectedBooking, setSelected] = useState<any>(null)
-  const [panel, setPanel]             = useState<{ booking: any; position: { x: number; y: number }; isNew: boolean } | null>(null)  // { booking, position, userId, startDate, endDate }
+  const [selectedBooking, setSelected] = useState<Booking | null>(null)
+  const [panel, setPanel]             = useState<{ booking: Booking; position: { x: number; y: number }; isNew: boolean } | null>(null)  // { booking, position, userId, startDate, endDate }
   const [dragState, setDragState]     = useState<{ userId: string; startCol: number; endCol: number } | null>(null)  // { userId, startCol }
 
   const gridRef       = useRef<HTMLDivElement | null>(null)
   // assign-mode drag refs
-  const assignDragUser    = useRef<any>(null)
+  const assignDragUser    = useRef<ForecastUser | null>(null)
   const assignGhostRef    = useRef<HTMLDivElement | null>(null)
   const assignDropProject = useRef<string | null>(null)
   const today   = monday(new Date())
   const weekDates = useMemo(() => Array.from({ length: weeks }, (_, i) => addWeeks(today, i)), [today, weeks])
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const { data: projects = [] } = useQuery<any[]>({
+  const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
     queryFn:  () => projectsApi.list().then(r => r.data),
   })
 
-  const { data: forecastData, isLoading } = useQuery<any>({
+  const { data: forecastData, isLoading } = useQuery<ForecastData>({
     queryKey: ['resource-forecast', weeks, department],
     queryFn:  () => {
       const params = { weeks, ...(department ? { department } : {}) }
@@ -251,28 +288,28 @@ export default function ResourceSchedulerPage() {
     staleTime: 30000,
   })
 
-  const { data: bookingsData = [] } = useQuery<any[]>({
+  const { data: bookingsData = [] } = useQuery<Booking[]>({
     queryKey: ['bookings'],
-    queryFn:  () => api.get('/bookings', { params: { page_size: 500 } }).then(unwrapList),
+    queryFn:  () => api.get('/bookings', { params: { page_size: 500 } }).then(r => unwrapList(r) as Booking[]),
     staleTime: 15000,
   })
 
   const { mutate: createBooking } = useMutation({
-    mutationFn: (b: any) => api.post('/bookings', b),
+    mutationFn: (b: Booking) => api.post('/bookings', b),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_created')) },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || t('resource_scheduler.create_error')),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('resource_scheduler.create_error')),
   })
 
   const { mutate: updateBooking } = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; [k: string]: any }) => api.patch(`/bookings/${id}`, data),
+    mutationFn: ({ id, ...data }: { id: string } & Partial<Omit<Booking, 'id'>>) => api.patch(`/bookings/${id}`, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_updated')) },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || t('resource_scheduler.update_error')),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('resource_scheduler.update_error')),
   })
 
   const { mutate: deleteBooking } = useMutation({
     mutationFn: (id: string) => api.delete(`/bookings/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_deleted')) },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || t('resource_scheduler.delete_error')),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('resource_scheduler.delete_error')),
   })
 
   const projectColorMap = useProjectColorMap(projects)
@@ -280,12 +317,12 @@ export default function ResourceSchedulerPage() {
   // Build project name map
   const projNameMap = useMemo(() => {
     const m: Record<string, string> = {}
-    projects.forEach((p: any) => { m[p.id] = p.name })
+    projects.forEach(p => { m[p.id] = p.name })
     return m
   }, [projects])
 
   // Enrich bookings with project names
-  const bookings = useMemo(() => bookingsData.map((b: any) => ({
+  const bookings = useMemo(() => bookingsData.map((b): Booking => ({
     ...b,
     project_name: projNameMap[b.project_id] || null,
   })), [bookingsData, projNameMap])
@@ -293,7 +330,7 @@ export default function ResourceSchedulerPage() {
   // Build department list
   const departments = useMemo(() => {
     const s = new Set<string>()
-    ;(forecastData?.users || []).forEach((u: any) => { if (u.department) s.add(u.department) })
+    ;(forecastData?.users || []).forEach(u => { if (u.department) s.add(u.department) })
     return [...s]
   }, [forecastData])
 
@@ -353,7 +390,7 @@ export default function ResourceSchedulerPage() {
   }, [panel, weekDates, weeks])
 
   // ── Drag to move booking ──────────────────────────────────────────────────
-  const handleBookingMouseDown = useCallback((e: ReactMouseEvent, booking: any) => {
+  const handleBookingMouseDown = useCallback((e: ReactMouseEvent, booking: Booking) => {
     e.preventDefault()
     const origStart  = new Date(booking.start_date + 'T00:00:00')
     const origEnd    = new Date(booking.end_date   + 'T00:00:00')
@@ -401,7 +438,7 @@ export default function ResourceSchedulerPage() {
   }, [updateBooking])
 
   // ── Assign-mode: drag person chip onto project row ────────────────────────
-  const handlePersonDragStart = useCallback((e: ReactMouseEvent, user: any) => {
+  const handlePersonDragStart = useCallback((e: ReactMouseEvent, user: ForecastUser) => {
     if (e.button !== 0) return
     const startX = e.clientX
     const startY = e.clientY
@@ -460,7 +497,7 @@ export default function ResourceSchedulerPage() {
     document.addEventListener('mouseup', onUp)
   }, [])
 
-  const users = forecastData?.users || []
+  const users: ForecastUser[] = forecastData?.users || []
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)' }}>
@@ -536,7 +573,7 @@ export default function ResourceSchedulerPage() {
             <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
               {t('resource_scheduler.people')}
             </div>
-            {users.map((u: any) => (
+            {users.map(u => (
               <div
                 key={u.user_id}
                 onMouseDown={e => handlePersonDragStart(e, u)}
@@ -686,8 +723,8 @@ export default function ResourceSchedulerPage() {
             </div>
 
             {/* User rows */}
-            {users.map((user: any) => {
-              const userBookings = bookings.filter((b: any) => b.user_id === user.user_id)
+            {users.map(user => {
+              const userBookings = bookings.filter(b => b.user_id === user.user_id)
 
               return (
                 <div key={user.user_id} style={{ display: 'contents' }}>

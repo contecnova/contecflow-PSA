@@ -1,7 +1,7 @@
 """
 billing_reports — thin router delegating to app.services.billing_reports_service
 """
-import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Response
 from sqlalchemy.orm import Session
 from typing import Any, Dict, Optional
@@ -37,6 +37,7 @@ def _company_display_name(db) -> str:
         from app.services.settings_service import get_runtime_str
         return get_runtime_str(db, "PROJECT_NAME") or settings.PROJECT_NAME
     except Exception:
+        logging.getLogger(__name__).debug("_company_display_name: excepcion ignorada", exc_info=True)
         return settings.PROJECT_NAME
 
 
@@ -127,8 +128,8 @@ def report_catalog(
 
 
 @router.get("/report-catalog/data-sources", response_model=APIResponse[Dict[str, Any]], summary="Fuentes de datos disponibles")
-def report_data_sources(current_user: User = Depends(require_any_manager)):
-    return APIResponse.ok(data=get_data_sources())
+def report_data_sources(current_user: User = Depends(require_any_manager), db: Session = Depends(get_db)):
+    return APIResponse.ok(data=get_data_sources(db, current_user.organization_id))
 
 
 @router.post("/report-catalog/run", response_model=APIResponse[Dict[str, Any]], summary="Ejecutar un informe con filtros")
@@ -340,42 +341,9 @@ def download_invoice_pdf(
     inv, lines = _svc.get_invoice_for_pdf(invoice_id, db)
     marca = _marca_del_documento(db, current_user, base=PALETA_DE_FACTURA)
 
-    line_dicts = [
-        {
-            "description": l.description,
-            "unit": l.unit,
-            "quantity": l.quantity,
-            "unit_price": l.unit_price,
-            "amount": l.amount,
-            "discount_pct": l.discount_pct,
-        }
-        for l in lines
-    ]
-
-    from app.services.settings_service import simbolos_de_moneda
-    _moneda = (getattr(inv, "currency", None) or settings.DEFAULT_CURRENCY).upper()
-    pdf_bytes = _invoice_pdf.generate_invoice_pdf(
-        simbolo=simbolos_de_moneda(db, current_user.organization_id).get(_moneda, _moneda),
-        invoice_number=inv.number,
-        issue_date=inv.issue_date,
-        due_date=inv.due_date,
-        client_name=inv.client_name or "",
-        client_address=inv.client_address,
-        client_vat=inv.client_vat,
-        client_email=inv.client_email,
-        lines=line_dicts,
-        subtotal=inv.subtotal or 0,
-        tax_rate=inv.tax_rate or 0,
-        tax_amount=inv.tax_amount or 0,
-        total=inv.total or 0,
-        currency=inv.currency or settings.DEFAULT_CURRENCY,
-        notes=inv.notes,
-        po_reference=inv.po_reference,
-        period_from=inv.period_from,
-        period_to=inv.period_to,
-        company_name=marca.nombre,
-        paleta=marca.paleta,
-        generated_by="Contecflow PSA",
+    pdf_bytes = _invoice_pdf.pdf_de_factura(
+        db, inv, lines, org_id=current_user.organization_id,
+        company_name=marca.nombre, paleta=marca.paleta, generated_by="Contecflow PSA",
     )
 
     filename = f"factura_{inv.number.replace('/', '-')}.pdf"
@@ -500,33 +468,8 @@ def update_workflow_step_retries(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    max_retries = int(payload.get("max_retries", 0))
-    delay_seconds = int(payload.get("delay_seconds", 0))
-    backoff = str(payload.get("backoff", "none") or "none").lower()
-    if max_retries < 0 or max_retries > 10:
-        raise HTTPException(400, "max_retries must be between 0 and 10")
-    if delay_seconds < 0 or delay_seconds > 120:
-        raise HTTPException(400, "delay_seconds must be between 0 and 120")
-    if backoff not in {"none", "linear", "exponential"}:
-        raise HTTPException(400, "backoff must be one of: none, linear, exponential")
-
-    step = _bookings_svc.paso_de_workflow_propio(
-        db, current_user, wf_id, step_id)
-
-    cfg = json.loads(step.config) if step.config else {}
-    cfg["retry"] = {
-        "max_retries": max_retries,
-        "delay_seconds": delay_seconds,
-        "backoff": backoff,
-    }
-    step.config = json.dumps(cfg)
-    db.commit()
-    return APIResponse.ok(data={
-        "ok": True,
-        "workflow_id": wf_id,
-        "step_id": step_id,
-        "retry": cfg["retry"],
-    })
+    return APIResponse.ok(data=_bookings_svc.configurar_reintentos_de_paso(
+        db, current_user, wf_id, step_id, payload))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

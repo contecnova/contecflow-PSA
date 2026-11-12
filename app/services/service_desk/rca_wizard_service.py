@@ -24,11 +24,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import HTTPException
 from app.core.config import settings
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Problem, ProblemRcaTemplate
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +196,7 @@ def _load_state(problem: Problem) -> dict[str, Any] | None:
     try:
         return _json.loads(problem.rca_wizard_state)
     except Exception:
+        logger.debug("_load_state: excepcion ignorada", exc_info=True)
         return None
 
 
@@ -314,6 +315,7 @@ def start_wizard(db: Session, problem: Problem, template: str) -> dict[str, Any]
         try:
             steps_def = _j.loads(db_tpl.steps_json)
         except Exception:
+            logger.debug("start_wizard: excepcion ignorada", exc_info=True)
             steps_def = None
         # Canonical key stored in state: slug if system template, else UUID
         canonical = _SYSTEM_ID_TO_SLUG.get(db_tpl.id, db_tpl.id)
@@ -324,7 +326,7 @@ def start_wizard(db: Session, problem: Problem, template: str) -> dict[str, Any]
 
     # Fall back to hard-coded built-in templates (offline / DB not yet seeded)
     if template not in _VALID_TEMPLATES:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400,
             detail=(
                 f"Unknown template '{template}'. "
@@ -353,22 +355,22 @@ def submit_wizard_step(
     """
     state = _load_state(problem)
     if state is None:
-        raise HTTPException(status_code=400, detail="RCA wizard not started for this problem")
+        raise ErrorDeDominio(status_code=400, detail="RCA wizard not started for this problem")
     if state.get("completed"):
-        raise HTTPException(status_code=400, detail="RCA wizard already completed")
+        raise ErrorDeDominio(status_code=400, detail="RCA wizard already completed")
 
     steps = state["steps"]
     total = state["total_steps"]
 
     if step_num < 1 or step_num > total:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400,
             detail=f"step_num must be between 1 and {total}",
         )
 
     answer = (answer or "").strip()
     if not answer:
-        raise HTTPException(status_code=400, detail="answer cannot be empty")
+        raise ErrorDeDominio(status_code=400, detail="answer cannot be empty")
 
     # Record answer
     for s in steps:
@@ -398,19 +400,19 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
 
     state = _load_state(problem)
     if state is None:
-        raise HTTPException(status_code=400, detail="RCA wizard not started for this problem")
+        raise ErrorDeDominio(status_code=400, detail="RCA wizard not started for this problem")
 
     steps = state["steps"]
     total = state["total_steps"]
 
     if step_num < 1 or step_num > total:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400, detail=f"step_num must be between 1 and {total}"
         )
 
     target_step = next((s for s in steps if s["step"] == step_num), None)
     if target_step is None:
-        raise HTTPException(status_code=400, detail=f"Step {step_num} not found")
+        raise ErrorDeDominio(status_code=400, detail=f"Step {step_num} not found")
 
     # Build context from previous answers
     prev_answers = [
@@ -477,14 +479,14 @@ def complete_wizard(db: Session, problem: Problem) -> dict[str, Any]:
     """
     state = _load_state(problem)
     if state is None:
-        raise HTTPException(status_code=400, detail="RCA wizard not started for this problem")
+        raise ErrorDeDominio(status_code=400, detail="RCA wizard not started for this problem")
     if state.get("completed"):
-        raise HTTPException(status_code=400, detail="RCA wizard already completed")
+        raise ErrorDeDominio(status_code=400, detail="RCA wizard already completed")
 
     steps = state["steps"]
     unanswered = [s["step"] for s in steps if not s.get("answer")]
     if unanswered:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400,
             detail=f"Steps not yet answered: {unanswered}. Complete all steps before finishing.",
         )
@@ -592,6 +594,7 @@ def list_available_templates(db: Session | None = None) -> list[dict[str, Any]]:
                     try:
                         steps = _j.loads(row.steps_json)
                     except Exception:
+                        logger.debug("list_available_templates: excepcion ignorada", exc_info=True)
                         steps = []
                     # Use slug as public id for system templates for backwards compat
                     public_id = _SYSTEM_ID_TO_SLUG.get(row.id, row.id)

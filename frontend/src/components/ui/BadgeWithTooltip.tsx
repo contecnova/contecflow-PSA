@@ -42,7 +42,7 @@ export function BadgeWithTooltip({
         onClick={onClick}
         style={{ ...commonStyle, fontFamily: 'inherit' }}
       >
-        {icon && <span style={{ fontSize: 'var(--text-sm)' }}>{icon}</span>}
+        {icon && <span className="u-sm">{icon}</span>}
         {label}
         <span style={{ marginLeft: 4, color: color, opacity: 0.7 }}>ⓘ</span>
       </button>
@@ -51,7 +51,7 @@ export function BadgeWithTooltip({
 
   return (
     <span title={tooltip} style={commonStyle}>
-      {icon && <span style={{ fontSize: 'var(--text-sm)' }}>{icon}</span>}
+      {icon && <span className="u-sm">{icon}</span>}
       {label}
       <span style={{ marginLeft: 4, color: color, opacity: 0.7 }}>ⓘ</span>
     </span>

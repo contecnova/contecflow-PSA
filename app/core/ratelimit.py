@@ -45,6 +45,7 @@ def _rate_limit_key(request):
         try:
             datos = decode_token(token)
         except Exception:  # un token malo no da identidad: cuenta por IP
+            _logger.debug("_rate_limit_key: excepcion ignorada", exc_info=True)
             datos = None
         if datos and datos.get("sub"):
             return f"u:{datos['sub']}"

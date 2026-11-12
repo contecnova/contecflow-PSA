@@ -175,7 +175,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
           {t('portalusers.1_crea_un_usuario_con_email_y')}<br/>
           {t('portalusers.2_comparte_las_credenciales_con_el_cliente')}<br/>
-          {t('portalusers.3_el_cliente_accede_en')} <strong style={{ color: 'var(--text-1)' }}>{portalUrl}</strong><br/>
+          {t('portalusers.3_el_cliente_accede_en')} <strong className="u-text1">{portalUrl}</strong><br/>
           {t('portalusers.4_desde_el_portal_puede_ver_proyectos')}
         </div>
         <button onClick={() => navigator.clipboard.writeText(portalUrl)}
@@ -185,7 +185,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{users.length} {t('portalusers.usuario_s_de_portal_activos')}</div>
+        <div className="u-text2-base">{users.length} {t('portalusers.usuario_s_de_portal_activos')}</div>
         <Button onClick={() => setShowAdd(true)} size="sm">{t('portalusers.crear_usuario_de_portal')}</Button>
       </div>
 
@@ -202,15 +202,15 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   {u.full_name?.charAt(0)?.toUpperCase() || '?'}
                 </div>
                 <div>
-                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{u.full_name}
+                  <div className="u-md-700">{u.full_name}
                     {!u.is_active && <span style={{ marginLeft: 6, fontSize: "var(--text-2xs)", color: 'var(--danger)', background: 'var(--danger-bg)', padding: '1px 6px', borderRadius: 4 }}>Inactivo</span>}
                   </div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                  <div className="u-text2-sm">
                     📧 {u.email}{u.job_title && ` · ${u.job_title}`}
                   </div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>
                     {assignedProjects.length > 0 ? `📁 Proyectos: ${assignedProjects.join(' · ')}` : '🔓 Sin proyecto — acceso general al Service Desk'}
-                    {u.last_login && <span style={{ marginLeft: 10 }}>{t('portalusers.ultimo_acceso')} <strong style={{ color: 'var(--text-2)' }}>{u.last_login.slice(0, 10)}</strong></span>}
+                    {u.last_login && <span style={{ marginLeft: 10 }}>{t('portalusers.ultimo_acceso')} <strong className="u-text2">{u.last_login.slice(0, 10)}</strong></span>}
                     {!u.last_login && <span style={{ marginLeft: 10, color: 'rgba(248,113,113,0.50)' }}>· Nunca ha accedido</span>}
                   </div>
                 </div>
@@ -251,23 +251,23 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
         <Modal open title="Credenciales creadas" onClose={() => setCreatedCreds(null)} width={480}>
           <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '18px 20px', marginBottom: 16 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12, color: 'var(--success)' }}>{t('portalusers.credenciales_de_acceso_al_portal')}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('portalusers.url_del_portal')}</span>
+            <div className="u-stack-8">
+              <div className="u-row-between">
+                <span className="u-text2-sm">{t('portalusers.url_del_portal')}</span>
                 <strong style={{ fontSize: "var(--text-base)", color: 'var(--accent)' }}>{portalUrl}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Email:</span>
+              <div className="u-row-between">
+                <span className="u-text2-sm">Email:</span>
                 <strong style={{ fontSize: "var(--text-base)" }}>{createdCreds.email}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('portalusers.contrasena')}</span>
+              <div className="u-row-between">
+                <span className="u-text2-sm">{t('portalusers.contrasena')}</span>
                 <strong style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '3px 10px', borderRadius: 6 }}>{createdCreds.password}</strong>
               </div>
             </div>
           </div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>{t('portalusers.guarda_estas_credenciales_la_contrasena_no_se')}</div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => {
               navigator.clipboard.writeText(`Portal: ${portalUrl}\nEmail: ${createdCreds.email}\nContraseña: ${createdCreds.password}`)
               toast.success('Copiado al portapapeles')
@@ -280,13 +280,13 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       {showReset && (
         <Modal open title="Cambiar contrasena" onClose={() => { setShowReset(null); setNewPassword('') }} width={420}>
           <form onSubmit={e => { e.preventDefault(); resetPwd({ id: showReset.id, password: newPassword }) }}>
-            <div style={{ marginBottom: 6, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Usuario: <strong style={{ color: 'var(--text-1)' }}>{showReset.email}</strong></div>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 6, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Usuario: <strong className="u-text1">{showReset.email}</strong></div>
+            <div className="u-mb-16">
               <label style={lbl}>{t('portalusers.nueva_contrasena')}</label>
               <input type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
                 style={inp} placeholder={t('portalusers.nueva_contrasena')} aria-label={t('portalusers.nueva_contrasena')} />
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div className="u-actions-8">
               <button type="button" onClick={() => { setShowReset(null); setNewPassword('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
               <Button type="submit" disabled={newPassword.length < 6 || resetting}>
                 {resetting ? '⟳ Guardando...' : '✓ Cambiar contraseña'}
@@ -326,7 +326,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                 ))}
               </select>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{t('portalusers.puedes_asignar_acceso_a_varios_proyectos_al')}</div>
+              <div className="u-hint">{t('portalusers.puedes_asignar_acceso_a_varios_proyectos_al')}</div>
             </div>
           </div>
 
@@ -353,14 +353,14 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   <div>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600,
                       color: editForm[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{p.label}</div>
-                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{p.desc}</div>
+                    <div className="u-text3-2xs">{p.desc}</div>
                   </div>
                 </label>
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setEditUser(null)}
               style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
                 padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
@@ -392,7 +392,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
         <Modal open title={t('portalusers.nuevo_usuario_de_portal')} onClose={() => setShowAdd(false)} width={560}>
           <form onSubmit={e => { e.preventDefault(); add({ ...form, client_org_id: cid, project_ids: form.project_ids ?? [] }) }}>
           <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-            {t('portalusers.crea_las_credenciales_que_el_cliente_usara')} <strong style={{ color: 'var(--text-1)' }}>{portalUrl}</strong>
+            {t('portalusers.crea_las_credenciales_que_el_cliente_usara')} <strong className="u-text1">{portalUrl}</strong>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div><label style={lbl}>Nombre completo *</label><input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
@@ -421,7 +421,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                     style={{ accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: form[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{p.label}</div>
-                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{p.desc}</div>
+                    <div className="u-text3-2xs">{p.desc}</div>
                   </div>
                 </label>
               ))}
@@ -432,7 +432,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               {t('portalusers.las_contrasenas_no_coinciden')}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button type="submit"
               disabled={!form.full_name || !form.email || !form.password || form.password !== form.confirm_password || isPending}>

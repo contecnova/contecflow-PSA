@@ -14,7 +14,8 @@ from app.models.cab import GDPRRequest, GDPRRequestType
 from app.models.enterprise import AuditLog
 from app.models.mfa import MFAConfig, Organization
 from app.models.user import User
-from app.services import cadena_auditoria, informe_de_cumplimiento as informe
+from app.db import cadena_auditoria
+from app.services import informe_de_cumplimiento as informe
 from app.services import settings_service
 from tests.conftest import auth
 

@@ -153,7 +153,7 @@ function ImportTab() {
           <div style={{...card,padding:'20px 24px',marginBottom:20}}>
             <div style={{fontSize: "var(--text-md)",fontWeight:700,marginBottom:16}}>{t('import_data.title_panel')}</div>
 
-            <div style={{marginBottom:16}}>
+            <div className="u-mb-16">
               <label style={ls}>{t('import_data.type_label')}</label>
               <select value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }} style={fs}>
                 {Object.entries(ENTITY_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
@@ -193,7 +193,7 @@ function ImportTab() {
                   <span>
                     {validating ? t('import_data.validating') : importing ? t('import_data.importing') : opStage === 'failed' ? t('import_data.failed') : t('import_data.completed')}
                   </span>
-                  {(validating || importing) && <span style={{ color: 'var(--text-3)' }}>{opElapsed}s</span>}
+                  {(validating || importing) && <span className="u-text3">{opElapsed}s</span>}
                 </div>
               )}
               <Button onClick={() => { if(fileRef.current?.files![0]) validateFile(fileRef.current.files![0]) }} disabled={validating}>
@@ -219,7 +219,7 @@ function ImportTab() {
               {(validation.preview ?? []).length > 0 && (
                 <div style={{marginTop:12,fontSize: "var(--text-xs)",color:'var(--text-2)'}}>
                   <div style={{fontWeight:700,marginBottom:6}}>{t('import_data.preview')}</div>
-                  <div style={{overflowX:'auto'}}>
+                  <div className="u-scroll-x">
                     <table style={{borderCollapse:'collapse',fontSize: "var(--text-xs)"}}>
                       <thead><tr>{Object.keys((validation.preview ?? [])[0] || {}).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
                       <tbody>
@@ -246,7 +246,7 @@ function ImportTab() {
                 ].map((item) => (
                   <div key={item.label} style={{textAlign:'center',background:'var(--surface-3)',borderRadius:8,padding:'12px'}}>
                     <div style={{fontSize: "var(--text-2xl)",fontWeight:800,color:item.color}}>{item.value}</div>
-                    <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{item.label}</div>
+                    <div className="u-text2-xs">{item.label}</div>
                   </div>
                 ))}
               </div>
@@ -266,7 +266,7 @@ function ImportTab() {
                 </span>
                 <div>
                   <div style={{fontSize: "var(--text-sm)",fontWeight:600}}>{ENTITY_LABELS[j.entity_type as keyof typeof ENTITY_LABELS]||j.entity_type}</div>
-                  <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{j.filename} · {j.started_at}</div>
+                  <div className="u-text3-xs">{j.filename} · {j.started_at}</div>
                 </div>
                 <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)',textAlign:'right'}}>{j.succeeded}/{j.total_rows}</span>
                 <span style={{fontSize: "var(--text-xs)",color:'var(--danger)'}}>{(j.failed_rows ?? 0)>0?`${j.failed_rows} ${t('import_data.err')}`:''}</span>

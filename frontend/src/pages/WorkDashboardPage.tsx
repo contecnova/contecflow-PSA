@@ -3,7 +3,6 @@ import { CSSProperties, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, analyticsApi, approvalsApi, expensesApi, absencesApi } from '../services/api'
-import type { TaskListParams } from '../services/api/tasks'
 import {
   Clock, Plus, Timer, Ticket, CheckCircle2, AlertTriangle, Calendar,
   Bell, Wallet, Plane, ArrowUpRight, ArrowDownRight, Minus, ArrowRight,
@@ -98,7 +97,7 @@ function Hero({ navigate, userName, t }: HeroProps) {
   return (
     <div className="ds-card" style={heroCardStyle}>
       <div className="ds-row-between" style={{ alignItems: 'flex-end', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <div className="ds-stack-sm" style={{ minWidth: 0 }}>
+        <div className="ds-stack-sm u-min0">
           <div className="ds-eyebrow" style={{ textTransform: 'capitalize', letterSpacing: '0.06em' }}>
             {day} · {date}
           </div>
@@ -164,9 +163,9 @@ export default function WorkDashboardPage(): JSX.Element {
     queryKey: ['work-dash-task-stats', userId],
     queryFn: async () => {
       const [openRes, overdueRes, doneRes] = await Promise.all([
-        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review', page_size: 500 } as unknown as TaskListParams),
-        tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: 500 } as TaskListParams),
-        tasksApi.list({ assigned_to_me: true, status: 'done', page_size: 1 } as TaskListParams),
+        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review', page_size: 500 }),
+        tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: 500 }),
+        tasksApi.list({ assigned_to_me: true, status: 'done', page_size: 1 }),
       ])
       const openItems = openRes?.data ?? []
       const overdueItems = overdueRes?.data ?? []

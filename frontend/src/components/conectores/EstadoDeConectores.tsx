@@ -28,7 +28,7 @@ export default function EstadoDeConectores() {
   if (estado.isError) return <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{mensajeDeConector(estado.error, t('conectores.error'))}</div>
   const d = estado.data!
   return (
-    <section aria-label={t('conectores.titulo')} style={{ marginBottom: 20 }}>
+    <section aria-label={t('conectores.titulo')} className="u-mb-20">
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 'var(--text-base)', color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: 6 }}><PlugZap size={16} />{t('conectores.titulo')}</h3>
         <span style={sub}>{t('conectores.ventana', { horas: d.ventana_horas })}</span>
@@ -47,9 +47,9 @@ function Producto({ p }: { p: EstadoProducto }) {
   const color = !p.configurado ? 'var(--text-3)' : p.fallos > 0 ? 'var(--warning)' : 'var(--success)'
   return (
     <div style={tarjeta}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="u-row-center-8">
         <span aria-hidden style={{ width: 9, height: 9, borderRadius: 99, background: color }} />
-        <strong style={{ color: 'var(--text-1)' }}>{p.producto}</strong>
+        <strong className="u-text1">{p.producto}</strong>
         <span style={sub}>{p.configurado ? t('conectores.estado_configurado') : t('conectores.sin_configurar')}</span>
         <Button size="xs" variant="secondary" style={{ marginLeft: 'auto' }} loading={probar.isPending} disabled={!p.configurado}
           onClick={() => probar.mutate()}>{t('conectores.probar')}</Button>
@@ -65,7 +65,7 @@ function Producto({ p }: { p: EstadoProducto }) {
           {[{ k: 'aplicacion', r: probar.data.aplicacion }, { k: 'empresa', r: probar.data.empresa }].filter(x => x.r).map(({ k, r }) => (
             <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', color: r!.ok ? 'var(--success)' : 'var(--danger)' }}>
               {r!.ok ? <CheckCircle2 size={14} style={{ marginTop: 2 }} /> : <XCircle size={14} style={{ marginTop: 2 }} />}
-              <span style={{ color: 'var(--text-2)' }}><strong>{t(`conectores.prueba_${k}`)}:</strong> {r!.detail}</span>
+              <span className="u-text2"><strong>{t(`conectores.prueba_${k}`)}:</strong> {r!.detail}</span>
             </div>
           ))}
         </div>

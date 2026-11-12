@@ -117,6 +117,7 @@ def _subscriber_loop() -> None:
     try:
         import redis  # type: ignore
     except Exception:  # pragma: no cover
+        logger.debug("_subscriber_loop: excepcion ignorada", exc_info=True)
         return
 
     espera = 1.0

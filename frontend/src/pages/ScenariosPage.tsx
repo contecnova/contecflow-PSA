@@ -16,6 +16,7 @@ import { GitBranch } from 'lucide-react'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+import DateInput from '../components/ui/DateInput'
 
 interface ScenarioProject {
   id?: string | number
@@ -119,9 +120,9 @@ export default function ScenariosPage() {
               style={{ ...card, padding:'14px 18px', marginBottom:10, cursor:'pointer', border: selected===s.id ? '.5px solid rgba(0,212,255,0.25)' : '.5px solid var(--surface-4)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:4 }}>{s.name}</div>
               <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:6 }}>{s.project_count} proyectos · {s.horizon_weeks} semanas</div>
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <div className="u-row-center-8">
                 <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background: s.status==='computed'?'var(--success-bg)':'var(--surface-2)', color: s.status==='computed'?'var(--success)':'var(--text-2)' }}>{s.status}</span>
-                <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{s.created_at}</span>
+                <span className="u-text3-xs">{s.created_at}</span>
               </div>
             </button>
           ))}
@@ -132,16 +133,16 @@ export default function ScenariosPage() {
             <div style={{ ...card, padding: narrow ? '32px 16px' : '48px', textAlign:'center', color:'var(--text-3)' }}>
               <div style={{ fontSize: "var(--text-5xl)", marginBottom:12 }}>🔮</div>
               <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:6 }}>{t('scenarios.selecciona_un_escenario')}</div>
-              <div style={{ fontSize: "var(--text-sm)" }}>{t('scenarios.o_crea_uno_nuevo_para_simular_el')}</div>
+              <div className="u-sm">{t('scenarios.o_crea_uno_nuevo_para_simular_el')}</div>
             </div>
           ) : !detail ? <Spinner /> : (
             <div>
               <div style={{ ...card, padding:'16px 20px', marginBottom:16, display:'flex', flexWrap:'wrap', gap:12, justifyContent:'space-between', alignItems:'center' }}>
-                <div style={{ minWidth:0 }}>
+                <div className="u-min0">
                   <div style={{ fontSize: "var(--text-md-em)", fontWeight:500 }}>{detail.name}</div>
-                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{detail.description || '—'} · horizonte {detail.horizon_weeks} semanas</div>
+                  <div className="u-text2-sm">{detail.description || '—'} · horizonte {detail.horizon_weeks} semanas</div>
                 </div>
-                <div style={{ display:'flex', gap:8 }}>
+                <div className="u-row-8">
                   <Button onClick={()=>compute(selected)} disabled={computing}>{computing?'Calculando...':'▶ Calcular'}</Button>
                   <button onClick={()=>{ openConfirmGlobal({ message: '¿Eliminar este escenario?', onConfirm: () => del(selected), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:8, padding:'7px 12px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Eliminar</button>
                 </div>
@@ -159,7 +160,7 @@ export default function ScenariosPage() {
                     ].map((k,i) => (
                       <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'14px 16px' }}>
                         <div style={{ fontSize: "var(--text-sm)", color: k.c || 'var(--text-1)', fontWeight:500, marginBottom:2 }}>{k.v}</div>
-                        <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{k.l}</div>
+                        <div className="u-text2-xs">{k.l}</div>
                       </div>
                     ))}
                   </div>
@@ -200,7 +201,7 @@ export default function ScenariosPage() {
                         <span style={{ fontWeight:500, marginRight:8 }}>{p.name}</span>
                         {p.is_existing && <span style={{ fontSize: "var(--text-2xs)", padding:'1px 5px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>Existente</span>}
                       </div>
-                      <span style={{ color:'var(--text-2)' }}>{p.total_hours}h · {p.start_date} → {p.end_date}</span>
+                      <span className="u-text2">{p.total_hours}h · {p.start_date} → {p.end_date}</span>
                     </div>
                   ))}
                 </div>
@@ -212,7 +213,7 @@ export default function ScenariosPage() {
 
       {showCreate && (
         <Modal open title={t('scenarios.nuevo_escenario_2')} onClose={()=>setShowCreate(false)} width={560}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <div><label style={ls}>Nombre</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>{t('scenarios.descripcion')}</label><input value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>{t('scenarios.horizonte_de_simulacion_semanas')}</label><input type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} style={fs} /></div>
@@ -222,8 +223,8 @@ export default function ScenariosPage() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
                 <input placeholder={t('scenarios.nombre_del_proyecto')} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} style={fs} />
                 <input type="number" placeholder="Total horas" value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} style={fs} />
-                <div><label style={ls}>Inicio</label><input type="date" value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} style={fs} /></div>
-                <div><label style={ls}>Fin</label><input type="date" value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} style={fs} /></div>
+                <div><label style={ls}>Inicio</label><DateInput value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} style={fs} /></div>
+                <div><label style={ls}>Fin</label><DateInput value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} style={fs} /></div>
               </div>
               <button onClick={()=>{ if(newProject.name){ setForm(f=>({...f,projects:[...f.projects,{...newProject}]})); setNewProject({name:'',start_date:'',end_date:'',total_hours:0}) }}}
                 style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding:'6px 14px', color:'var(--text-1)', cursor:'pointer', fontSize: "var(--text-base)", fontFamily:'inherit' }}>
@@ -234,14 +235,14 @@ export default function ScenariosPage() {
                   {form.projects.map((p,i) => (
                     <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize: "var(--text-sm)", padding:'4px 0' }}>
                       <span>{p.name}</span>
-                      <span style={{ color:'var(--text-2)' }}>{p.total_hours}h</span>
+                      <span className="u-text2">{p.total_hours}h</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={()=>setShowCreate(false)}>Cancelar</Button>
               <Button onClick={()=>create(form)} disabled={creating||!form.name}>{creating?'Creando...':'Crear escenario'}</Button>
             </div>

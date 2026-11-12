@@ -53,9 +53,9 @@ class ReportTemplate(BaseModel):
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/schema", summary="Obtener esquema de entidades disponibles")
-def get_schema(_: User = Depends(require_admin_or_pm)):
+def get_schema(_: User = Depends(require_admin_or_pm), db: Session = Depends(get_db)):
     return APIResponse.ok(data={
-        "entities":  _svc.ENTITIES,
+        "entities":  _svc.entidades(db, _.organization_id),
         "operators": _svc.OPERATORS,
         "groups":    _svc.GROUPS,
     })

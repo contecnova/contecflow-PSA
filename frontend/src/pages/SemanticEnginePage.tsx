@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import type { AxiosError } from 'axios'
 import { useState, useEffect } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -41,7 +42,71 @@ const _COMPLEXITY_CFG = {
   complex: { label: 'Compleja', color: 'var(--danger)', bg: 'var(--danger-bg)' },
 }
 
-function ProfileModal({ user, onClose }: { user: any; onClose: () => void }) {
+/** `list_profiles_with_users` (app/services/semantic_engine_service.py). */
+interface SemProfile {
+  id: string
+  user_id: string
+  user_name: string | null
+  profile_text: string
+  has_embedding: boolean
+  open_tickets: number
+  open_tasks: number
+  max_load: number
+  is_available: boolean
+}
+
+/** Fila de la tabla de perfiles: cada usuario, tenga perfil o no. */
+type ProfileRow = Partial<SemProfile> & { user_id: string; user_name: string; has_profile: boolean }
+
+/** `serialize_config` (app/services/semantic_engine_service.py). */
+interface SemConfig {
+  engine_mode: string
+  threshold_ticket: number
+  threshold_task: number
+  threshold_expert_cache: number
+  load_balance_weight: number
+  threshold_critical: number
+  threshold_high: number
+  threshold_medium: number
+  threshold_low: number
+  history_decay_days: number
+  auto_assign_tickets: boolean
+  auto_assign_tasks: boolean
+  embeddings_backend: string
+  local_model_name: string | null
+  effective_model_name: string
+  backend_en_uso: string | null
+}
+
+/** `get_stats` (app/services/semantic_engine_service.py). */
+interface SemStats {
+  total_suggestions: number
+  accepted: number
+  rejected: number
+  pending: number
+  accuracy_pct: number | null
+  profiles: number
+  cache_size: number
+  expert_feedback: number
+  by_mode: Record<string, number>
+}
+
+/** Sugerencia (`_result` de semantic_classifier + `enrich_result`), o el error al pedirla. */
+interface TestResult {
+  suggested_user_id?: string | null
+  suggested_user_name?: string | null
+  confidence?: number
+  engine_mode?: string
+  needs_review?: boolean
+  reasoning?: string | null
+  top_candidates?: Record<string, { score: number; name: string }>
+  error?: string
+}
+
+/** FastAPI devuelve `detail` como texto o, en un 422, como lista de errores. */
+type ErrorDeValidacion = AxiosError<{ detail?: string | Array<{ msg?: string }> }>
+
+function ProfileModal({ user, onClose }: { user: ProfileRow; onClose: () => void }) {
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -65,12 +130,12 @@ function ProfileModal({ user, onClose }: { user: any; onClose: () => void }) {
           style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }}
           placeholder={traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area_2')} />
       </div>
-      <div style={{ marginBottom: 20 }}>
+      <div className="u-mb-20">
         <label style={ls}>{traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')}</label>
         <input type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))}
           style={{ ...fs, width: 100 }} min={1} max={50} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button onClick={() => mutate({ user_id: user.user_id, profile_text: text, max_load: maxLoad })}
           disabled={isPending || !text.trim()} loading={isPending}>
@@ -86,7 +151,7 @@ function TestPanel() {
   const [type, setType] = useState('ticket')
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<TestResult | null>(null)
   const [testing, setTesting] = useState(false)
 
   const runTest = async () => {
@@ -98,8 +163,8 @@ function TestPanel() {
       const res = await fn({ title, description: desc })
       setResult(res.data)
     } catch (e) {
-      const raw = (e as any)?.response?.data?.detail
-      setResult({ error: Array.isArray(raw) ? raw.map((d: any) => d.msg).join(', ') : (raw || 'Error') })
+      const raw = (e as ErrorDeValidacion)?.response?.data?.detail
+      setResult({ error: Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'Error') })
     } finally { setTesting(false) }
   }
 
@@ -133,7 +198,7 @@ function TestPanel() {
       {result && (
         <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--surface-1)', borderRadius: 10 }}>
           {result.error ? (
-            <div style={{ color: 'var(--danger)' }}>❌ {result.error}</div>
+            <div className="u-danger">❌ {result.error}</div>
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
@@ -151,8 +216,8 @@ function TestPanel() {
                 </div>
               </div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>
-                <span style={{ marginRight: 12 }}>Motor: <strong style={{ color: 'var(--text-1)' }}>{result.engine_mode}</strong></span>
-                {result.needs_review && <span style={{ color: 'var(--warning)' }}>⚠ Revisar manualmente</span>}
+                <span style={{ marginRight: 12 }}>Motor: <strong className="u-text1">{result.engine_mode}</strong></span>
+                {result.needs_review && <span className="u-warning">⚠ Revisar manualmente</span>}
               </div>
               {result.reasoning && (
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10, fontStyle: 'italic' }}>
@@ -162,7 +227,7 @@ function TestPanel() {
               {result.top_candidates && Object.keys(result.top_candidates).length > 0 && (
                 <div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Top candidatos</div>
-                  {Object.entries(result.top_candidates).map(([uid, info]: [string, any]) => (
+                  {Object.entries(result.top_candidates).map(([uid, info]) => (
                     <div key={uid} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: "var(--text-sm)" }}>
                       <span>{info.name}</span>
                       <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{Math.round(info.score * 100)}%</span>
@@ -185,7 +250,7 @@ export default function SemanticEnginePage() {
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState('overview')
-  const [editProfile, setEditProfile] = useState<any>(null)
+  const [editProfile, setEditProfile] = useState<ProfileRow | null>(null)
   const [opStatus, setOpStatus] = useState<{ type: string; startedAt: number | null }>({ type: 'idle', startedAt: null })
   const [opElapsed, setOpElapsed] = useState(0)
   const [hfModelDraft, setHfModelDraft] = useState('')
@@ -205,38 +270,38 @@ export default function SemanticEnginePage() {
     return () => clearInterval(id)
   }, [opStatus.startedAt])
 
-  const { data: config = {}, isLoading: _loadingCfg } = useQuery<Record<string, any>>({
+  const { data: config = {}, isLoading: _loadingCfg } = useQuery<Partial<SemConfig>>({
     queryKey: ['sem-config'],
-    queryFn: () => semanticApi.config().then((r: { data: Record<string, any> }) => r.data),
+    queryFn: () => semanticApi.config().then((r: { data: SemConfig }) => r.data),
   })
 
   useEffect(() => {
     setHfModelDraft(config.local_model_name && config.local_model_name !== 'tfidf' ? config.local_model_name : 'all-MiniLM-L6-v2')
   }, [config.local_model_name])
-  const { data: profiles = [], isLoading: _loadingProfiles } = useQuery<any[]>({
+  const { data: profiles = [], isLoading: _loadingProfiles } = useQuery<SemProfile[]>({
     queryKey: ['sem-profiles'],
-    queryFn: () => semanticApi.profiles().then((r: { data: any[] }) => r.data),
+    queryFn: () => semanticApi.profiles().then((r: { data: SemProfile[] }) => r.data),
     enabled: tab === 'profiles' || tab === 'overview',
   })
-  const { data: stats = {} } = useQuery<Record<string, any>>({
+  const { data: stats = {} } = useQuery<Partial<SemStats>>({
     queryKey: ['sem-stats'],
-    queryFn: () => semanticApi.stats().then((r: { data: Record<string, any> }) => r.data),
+    queryFn: () => semanticApi.stats().then((r: { data: SemStats }) => r.data),
   })
-  const { data: users = [] } = useQuery<any[]>({
+  const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then((r: { data: any[] }) => r.data),
+    queryFn: () => usersApi.list().then(r => r.data),
     enabled: tab === 'profiles',
   })
 
   const { mutate: saveConfig, isPending: savingConfig } = useMutation({
-    mutationFn: (d: Record<string, unknown>) => semanticApi.updateConfig(d).then((r: { data: unknown }) => r.data),
+    mutationFn: (d: Record<string, unknown>) => semanticApi.updateConfig(d).then((r: { data: { config?: SemConfig } }) => r.data),
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: ['sem-config'] })
       const previous = qc.getQueryData(['sem-config'])
-      qc.setQueryData(['sem-config'], (current: any) => ({ ...(current || {}), ...patch }))
+      qc.setQueryData(['sem-config'], (current: Partial<SemConfig> | undefined) => ({ ...(current || {}), ...patch }))
       return { previous }
     },
-    onSuccess: (data: any) => {
+    onSuccess: data => {
       if (data?.config) qc.setQueryData(['sem-config'], data.config)
       toast.success('Configuración del motor actualizada')
     },
@@ -318,7 +383,7 @@ export default function SemanticEnginePage() {
           <div key={k.label} style={{ ...card, padding: '14px 18px' }}>
             <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 4 }}>{k.icon}</div>
             <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: k.color }}>{k.value}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{k.label}</div>
+            <div className="u-text2-xs">{k.label}</div>
           </div>
         ))}
       </div>
@@ -338,11 +403,11 @@ export default function SemanticEnginePage() {
         <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 20 }}>
           <div style={{ ...card, padding: '20px 24px' }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{traducir('semanticengine.modo_del_motor')}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="u-stack-10">
               {Object.entries(ENGINE_MODES).map(([key, meta]) => (
                 <button key={key} onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig || !puedeEditar}
                   style={{ padding: '12px 16px', borderRadius: 8, border: `2px solid ${config.engine_mode === key ? 'var(--accent)' : 'var(--surface-4)'}`, background: config.engine_mode === key ? 'var(--accent-muted)' : 'transparent', cursor: savingConfig ? 'wait' : 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s', opacity: savingConfig ? 0.7 : 1 }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div className="u-row-center-10">
                     <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
                     <div>
                       <div style={{ fontSize: "var(--text-xs)", color: config.engine_mode === key ? 'var(--accent)' : 'var(--text-1)' }}>{meta.label}</div>
@@ -355,7 +420,7 @@ export default function SemanticEnginePage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="u-stack-16">
             <div style={{ ...card, padding: '20px 24px' }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Embeddings y modelo</div>
 
@@ -392,7 +457,7 @@ export default function SemanticEnginePage() {
 
               <div style={{ marginBottom: 10 }}>
                 <label style={ls}>Modelo Hugging Face</label>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="u-row-8">
                   <input
                     value={hfModelDraft}
                     onChange={e => setHfModelDraft(e.target.value)}
@@ -411,8 +476,8 @@ export default function SemanticEnginePage() {
               </div>
 
               <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                <div>Backend activo: <strong style={{ color: 'var(--text-1)' }}>{config.embeddings_backend || 'tfidf'}</strong></div>
-                <div>Modelo efectivo: <strong style={{ color: 'var(--text-1)' }}>{config.effective_model_name || (config.local_model_name || 'all-MiniLM-L6-v2')}</strong></div>
+                <div>Backend activo: <strong className="u-text1">{config.embeddings_backend || 'tfidf'}</strong></div>
+                <div>Modelo efectivo: <strong className="u-text1">{config.effective_model_name || (config.local_model_name || 'all-MiniLM-L6-v2')}</strong></div>
               </div>
             </div>
 
@@ -463,7 +528,7 @@ export default function SemanticEnginePage() {
       {tab === 'profiles' && (
         <div>
           <div style={{ ...card, overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="u-scroll-x">
             <div style={{ minWidth: 900 }}>
             <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
               <span>Usuario</span><span>Perfil</span><span>Tickets</span><span>Tareas</span><span>Estado</span><span>{traducir('semanticengine.accion')}</span>
@@ -474,13 +539,13 @@ export default function SemanticEnginePage() {
               </div>
             ) : profilesWithUsers.map(u => (
               <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: "var(--text-base)" }}>
-                <div style={{ minWidth: 0 }}>
+                <div className="u-min0">
                   <div style={{ fontWeight: 600 }}>{u.user_name}</div>
                   {u.profile_text && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.profile_text}</div>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: u.has_embedding ? 'var(--success)' : u.has_profile ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }} />
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                  <span className="u-text2-xs">
                     {u.has_embedding ? 'Embedding OK' : u.has_profile ? 'Sin embedding' : 'Sin perfil'}
                   </span>
                 </div>
@@ -506,7 +571,7 @@ export default function SemanticEnginePage() {
 
       {/* STATS TAB */}
       {tab === 'stats' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="u-stack-16">
 
           {/* Top row: acceptance gauge + pipeline bar */}
           <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 2fr', gap: 16 }}>
@@ -534,18 +599,18 @@ export default function SemanticEnginePage() {
                       <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 900, color: 'var(--text-1)' }}>
                         {pct != null ? `${pct}%` : '—'}
                       </div>
-                      <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{tot} evaluadas</div>
+                      <div className="u-text3-2xs">{tot} evaluadas</div>
                     </div>
                   </div>
                 )
               })()}
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 12, fontSize: "var(--text-xs)" }}>
-                {[['✅', stats.accepted || 0, 'var(--success)', 'Aceptadas'],
+                {([['✅', stats.accepted || 0, 'var(--success)', 'Aceptadas'],
                   ['❌', stats.rejected || 0, 'var(--danger)', 'Rechazadas'],
-                  ['⏳', stats.pending || 0, 'var(--text-3)', 'Pendientes']].map(([_ic, v, c, l]) => (
+                  ['⏳', stats.pending || 0, 'var(--text-3)', 'Pendientes']] as const).map(([_ic, v, c, l]) => (
                   <div key={l} style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: c }}>{v}</div>
-                    <div style={{ color: 'var(--text-3)' }}>{l}</div>
+                    <div className="u-text3">{l}</div>
                   </div>
                 ))}
               </div>
@@ -556,14 +621,14 @@ export default function SemanticEnginePage() {
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.distribucion_de_sugerencias')}</div>
               {(() => {
                 const tot = (stats.accepted||0) + (stats.rejected||0) + (stats.pending||0)
-                if (tot === 0) return <div style={{ color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{traducir('semanticengine.sin_datos_todavia_procesa_algunas_tareas_o')}</div>
+                if (tot === 0) return <div className="u-text2-base">{traducir('semanticengine.sin_datos_todavia_procesa_algunas_tareas_o')}</div>
                 const bars = [
                   { label: 'Aceptadas', val: stats.accepted||0, color: 'var(--success)' },
                   { label: 'Rechazadas', val: stats.rejected||0, color: 'var(--danger)' },
                   { label: 'Sin evaluar', val: stats.pending||0, color: 'var(--surface-5)' },
                 ]
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="u-stack-12">
                     {/* Single stacked bar */}
                     <div style={{ display: 'flex', height: 24, borderRadius: 6, overflow: 'hidden', gap: 2 }}>
                       {bars.map(b => b.val > 0 && (
@@ -572,11 +637,11 @@ export default function SemanticEnginePage() {
                     </div>
                     {/* Legend rows */}
                     {bars.map(b => (
-                      <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div key={b.label} className="u-row-center-10">
                         <div style={{ width: 10, height: 10, borderRadius: 3, background: b.color, flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
+                        <div className="u-flex1">
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                            <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{b.label}</span>
+                            <span className="u-text2-sm">{b.label}</span>
                             <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: b.color }}>{b.val} ({tot > 0 ? Math.round(b.val/tot*100) : 0}%)</span>
                           </div>
                           <div style={{ height: 4, borderRadius: 2, background: 'var(--surface-4)', overflow: 'hidden' }}>
@@ -589,8 +654,8 @@ export default function SemanticEnginePage() {
                     {Object.keys(stats.by_mode || {}).length > 0 && (
                       <div style={{ marginTop: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
                         <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>{traducir('semanticengine.pipeline_de_resolucion')}</div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          {Object.entries(stats.by_mode).map(([mode, count]: [string, any]) => (
+                        <div className="u-wrap-8">
+                          {Object.entries(stats.by_mode).map(([mode, count]) => (
                             <div key={mode} style={{ padding: '4px 10px', borderRadius: 20, background: 'var(--surface-3)', fontSize: "var(--text-xs)", color: 'var(--text-1)' }}>
                               {ENGINE_MODES[mode]?.icon} {ENGINE_MODES[mode]?.label || mode}: <strong>{count}</strong>
                             </div>
@@ -618,7 +683,7 @@ export default function SemanticEnginePage() {
                   <div>
                     <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 900, color: s.color }}>{s.value}</div>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{s.label}</div>
-                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{s.hint}</div>
+                    <div className="u-text3-2xs">{s.hint}</div>
                   </div>
                 </div>
               ))}

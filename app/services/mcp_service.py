@@ -26,6 +26,7 @@ import logging
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,7 @@ def _pedir_aprobacion(db: Session, user, nombre: str, argumentos: dict) -> dict:
         req = create_approval_request(
             ApprovalRequestIn(entity_type="mcp_action", entity_id=accion.id, entity_summary=resumen,
                               context={"tool": nombre}), db, user, confirmar=False)
-    except HTTPException as e:
+    except (HTTPException, ErrorDeDominio) as e:
         db.rollback()
         _auditar(db, user, nombre, argumentos, f"sin flujo de aprobación: {e.detail}", "blocked")
         return _fallo_de_herramienta(

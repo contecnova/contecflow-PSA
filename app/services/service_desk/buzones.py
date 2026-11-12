@@ -146,6 +146,7 @@ def _anotar_fallo(db: Session, org_id: Optional[str], m: Mensaje, exc: Exception
         correo = inbound_mail.desde_mime(m.crudo)
         clave, remitente = inbound_mail.clave_del_mensaje(correo), correo.remitente[:255] or None
     except Exception:
+        logger.debug("_anotar_fallo: excepcion ignorada", exc_info=True)
         clave, remitente = f"ilegible:{m.referencia}"[:255], None
     if db.query(InboundMessage.id).filter(InboundMessage.message_id == clave,
                                           InboundMessage.organization_id == org_id).first():

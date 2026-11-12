@@ -1,0 +1,20 @@
+[
+  {"country_code": "ES", "country_name": "España", "currency": "EUR", "employer_cost_pct": 0.32, "productive_hours_year": 1700, "notes": "SS empresa ~30%, vacaciones 22d + festivos ~12d"},
+  {"country_code": "PT", "country_name": "Portugal", "currency": "EUR", "employer_cost_pct": 0.2375, "productive_hours_year": 1720, "notes": "TSU 23.75%, vacaciones 22d + festivos"},
+  {"country_code": "FR", "country_name": "France", "currency": "EUR", "employer_cost_pct": 0.42, "productive_hours_year": 1607, "notes": "Charges patronales ~42%, 35h/semaine, 5 sem CP"},
+  {"country_code": "DE", "country_name": "Deutschland", "currency": "EUR", "employer_cost_pct": 0.21, "productive_hours_year": 1700, "notes": "Sozialabgaben Arbeitgeber ~21%"},
+  {"country_code": "IT", "country_name": "Italia", "currency": "EUR", "employer_cost_pct": 0.3, "productive_hours_year": 1720, "notes": "Contributi datore ~30%, ferie 26d + festività"},
+  {"country_code": "GB", "country_name": "United Kingdom", "currency": "GBP", "employer_cost_pct": 0.155, "productive_hours_year": 1750, "notes": "NI employer 13.8% + pension auto-enrol ~3%"},
+  {"country_code": "IE", "country_name": "Ireland", "currency": "EUR", "employer_cost_pct": 0.115, "productive_hours_year": 1750, "notes": "PRSI employer 11.05% + pension"},
+  {"country_code": "NL", "country_name": "Nederland", "currency": "EUR", "employer_cost_pct": 0.2, "productive_hours_year": 1720, "notes": "Werkgeverslasten ~20%"},
+  {"country_code": "PL", "country_name": "Polska", "currency": "PLN", "employer_cost_pct": 0.205, "productive_hours_year": 1750, "notes": "ZUS pracodawcy ~20.5%"},
+  {"country_code": "US", "country_name": "United States", "currency": "USD", "employer_cost_pct": 0.25, "productive_hours_year": 1880, "notes": "FICA 7.65% + benefits + 401k + healthcare ~25%"},
+  {"country_code": "MX", "country_name": "México", "currency": "MXN", "employer_cost_pct": 0.3, "productive_hours_year": 1900, "notes": "IMSS + INFONAVIT + aguinaldo + prima ~30%"},
+  {"country_code": "BR", "country_name": "Brasil", "currency": "BRL", "employer_cost_pct": 0.7, "productive_hours_year": 1900, "notes": "Encargos sociais (INSS, FGTS, 13º, férias) ~70%"},
+  {"country_code": "AR", "country_name": "Argentina", "currency": "ARS", "employer_cost_pct": 0.27, "productive_hours_year": 1880, "notes": "Cargas sociales empleador ~27%"},
+  {"country_code": "CO", "country_name": "Colombia", "currency": "COP", "employer_cost_pct": 0.45, "productive_hours_year": 1880, "notes": "Aportes parafiscales + prestaciones ~45%"},
+  {"country_code": "CH", "country_name": "Schweiz", "currency": "CHF", "employer_cost_pct": 0.135, "productive_hours_year": 1850, "notes": "AHV/IV/EO ~6.4% + LPP/UVG"},
+  {"country_code": "BE", "country_name": "Belgique", "currency": "EUR", "employer_cost_pct": 0.25, "productive_hours_year": 1700, "notes": "ONSS employeur ~25%"},
+  {"country_code": "SE", "country_name": "Sverige", "currency": "SEK", "employer_cost_pct": 0.3142, "productive_hours_year": 1700, "notes": "Arbetsgivaravgift 31.42%"},
+  {"country_code": "AT", "country_name": "Österreich", "currency": "EUR", "employer_cost_pct": 0.22, "productive_hours_year": 1700, "notes": "Lohnnebenkosten ~22%"}
+]

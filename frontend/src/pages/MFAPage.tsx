@@ -76,18 +76,18 @@ export default function MFAPage() {
 
       {/* Status card */}
       <div style={{ ...card, padding:'20px 24px', marginBottom:24 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div className="u-row-between">
           <div>
             <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:6 }}>
               <span style={{ fontSize: "var(--text-2xl)" }}>{status?.enabled ? '🔒' : '🔓'}</span>
               <div style={{ fontSize: "var(--text-md-em)", fontWeight:500 }}>{status?.enabled ? t('mfa.enabled') : t('mfa.disabled')}</div>
             </div>
             {status?.enabled ? (
-              <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
+              <div className="u-text2-sm">
                 {t('mfa.enabled_on', { date: status.verified_at || '—', codes: status.backup_codes_remaining })}
               </div>
             ) : (
-              <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
+              <div className="u-text2-sm">
                 {t('mfa.not_protected')}
               </div>
             )}
@@ -167,7 +167,7 @@ export default function MFAPage() {
               <span style={{ fontSize: "var(--text-xl)", flexShrink:0 }}>{icon}</span>
               <div>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:2 }}>{title}</div>
-                <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{desc}</div>
+                <div className="u-text2-xs">{desc}</div>
               </div>
             </div>
           ))}

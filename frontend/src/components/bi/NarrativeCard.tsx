@@ -64,7 +64,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
           }
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="u-row-center-10">
           <span style={{
             background: alpha(COLOR.accent, '18'), borderRadius: 8, padding: '5px 7px',
             display: 'flex', alignItems: 'center',
@@ -76,11 +76,11 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
               Resumen ejecutivo IA
             </div>
             {data?.cached && (
-              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{t('narrativecard.desde_cache_1h_ttl')}</div>
+              <div className="u-text3-2xs">{t('narrativecard.desde_cache_1h_ttl')}</div>
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <button
             onClick={e => { e.stopPropagation(); handleRefresh() }}
             disabled={isFetching}
@@ -101,7 +101,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
       {expanded && (
         <div style={{ padding: '18px 22px' }}>
           {isLoading || isFetching ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="u-stack-10">
               {[80, 100, 65, 90, 55].map((w, i) => (
                 <div key={i} style={{
                   height: 12, width: `${w}%`, borderRadius: 6,
@@ -134,14 +134,14 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
                   </span>
                 )}
                 {data.kpis?.hours_mtd != null && (
-                  <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
+                  <span className="u-text3-2xs">
                     {data.kpis.hours_mtd}{t('narrativecard.h_imputadas_este_mes')}
                   </span>
                 )}
               </div>
             </>
           ) : (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+            <div className="u-text3-sm">
               {t('narrativecard.sin_datos_suficientes_para_generar_narrativa_ejecuta')}
             </div>
           )}

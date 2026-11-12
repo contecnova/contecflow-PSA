@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.common_enums import ProjectRisk, ProjectStatus, ProjectType
 from app.schemas.users import UserPublic
@@ -30,6 +30,20 @@ class ProjectPhaseOut(ProjectPhaseBase):
         from_attributes = True
 
 
+#: Modos de facturacion que ofrece el formulario (frontend/src/constants/constants.json,
+#: BILLING_TYPES). `recurring_retainer` es el que factura app/worker.py cada mes.
+BillingType = Literal["time_material", "fixed_price", "hourly_bag", "recurring_retainer", "retainer", "milestone"]
+
+
+def _retainer_es_facturable(modelo):
+    """Un retainer recurrente se factura por definicion: el worker
+    (generate_retainer_invoices) solo mira proyectos con `is_billable`. Si el
+    cliente no lo dice explicitamente, se marca facturable."""
+    if modelo.billing_type == "recurring_retainer" and "is_billable" not in modelo.model_fields_set:
+        modelo.is_billable = True
+    return modelo
+
+
 class ProjectBase(BaseModel):
     name: str = Field(..., description="Nombre del proyecto")
     code: Optional[str] = Field(default=None, description="Código identificativo del proyecto")
@@ -51,6 +65,16 @@ class ProjectBase(BaseModel):
 class ProjectCreate(ProjectBase):
     pm_id: Optional[str] = Field(default=None, description="ID del project manager asignado")
     phases: Optional[List[ProjectPhaseCreate]] = Field(default=[], description="Lista de fases del proyecto")
+    # Auditoria 2026-11 (#25): el formulario de alta los mandaba y pydantic los descartaba.
+    status: ProjectStatus = Field(default=ProjectStatus.planning, description="Estado inicial del proyecto")
+    risk_level: ProjectRisk = Field(default=ProjectRisk.low, description="Nivel de riesgo inicial")
+    billing_type: BillingType = Field(default="time_material", description="Modo de facturacion")
+    retainer_amount: Optional[float] = Field(default=None, ge=0, description="Importe mensual del retainer recurrente")
+    retainer_day: Optional[int] = Field(default=None, ge=1, le=28, description="Dia del mes en que se factura el retainer (1-28)")
+
+    @model_validator(mode="after")
+    def _retainer_facturable(self):
+        return _retainer_es_facturable(self)
 
 
 class ProjectUpdate(BaseModel):
@@ -71,6 +95,15 @@ class ProjectUpdate(BaseModel):
     end_date_real: Optional[date] = Field(default=None, description="Fecha de fin real")
     tags: Optional[str] = Field(default=None, description="Etiquetas separadas por comas")
     jira_project_key: Optional[str] = Field(default=None, description="Clave del proyecto en Jira")
+    # Auditoria 2026-11 (#25): sin ellos la facturacion recurrente no se podia configurar desde la UI.
+    is_billable: Optional[bool] = Field(default=None, description="Indica si el proyecto es facturable")
+    billing_type: Optional[BillingType] = Field(default=None, description="Modo de facturacion")
+    retainer_amount: Optional[float] = Field(default=None, ge=0, description="Importe mensual del retainer recurrente")
+    retainer_day: Optional[int] = Field(default=None, ge=1, le=28, description="Dia del mes en que se factura el retainer (1-28)")
+
+    @model_validator(mode="after")
+    def _retainer_facturable(self):
+        return _retainer_es_facturable(self)
 
 
 class ProjectOut(ProjectBase):
@@ -81,6 +114,11 @@ class ProjectOut(ProjectBase):
     pm_id: Optional[str] = Field(default=None, description="ID del project manager")
     client_id: Optional[str] = Field(default=None, description="ID del cliente")
     project_manager: Optional[UserPublic] = Field(default=None, description="Datos públicos del project manager")
+    # Auditoria 2026-11 (#25): el detalle lo leia como en el listado (ProjectSummary).
+    pm_name: Optional[str] = Field(default=None, description="Nombre del project manager")
+    billing_type: Optional[str] = Field(default=None, description="Modo de facturacion")
+    retainer_amount: Optional[float] = Field(default=None, description="Importe mensual del retainer recurrente")
+    retainer_day: Optional[int] = Field(default=None, description="Dia del mes en que se factura el retainer")
     phases: List[ProjectPhaseOut] = Field(default=[], description="Lista de fases del proyecto")
     created_at: datetime = Field(..., description="Fecha de creación del proyecto")
     total_hours_spent: Optional[float] = Field(default=None, description="Total de horas imputadas")
@@ -93,6 +131,12 @@ class ProjectOut(ProjectBase):
 
     class Config:
         from_attributes = True
+
+    @model_validator(mode="after")
+    def _nombre_del_pm(self):
+        if self.pm_name is None and self.project_manager is not None:
+            self.pm_name = self.project_manager.full_name
+        return self
 
 
 class ProjectSummary(BaseModel):

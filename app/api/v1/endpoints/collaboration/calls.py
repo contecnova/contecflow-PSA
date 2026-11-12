@@ -99,7 +99,8 @@ async def transcribe_chunk(
 
     from app.services.collaboration._transcription import transcribe_audio_chunk
     texto = transcribe_audio_chunk(datos, audio.filename or "chunk.webm", db=db,
-                                   org_id=getattr(current_user, "organization_id", None))
+                                   org_id=getattr(current_user, "organization_id", None),
+                                   user_id=current_user.id)
     if texto:
         svc.append_transcript_segment(db, current_user, call_id, texto)
     return {"text": texto or ""}

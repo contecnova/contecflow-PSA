@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -26,6 +25,7 @@ from app.models.collaboration import (
 )
 from app.services.collaboration._permissions import _org
 from app.services.traffic_control_service import consume_quota
+from app.core.errores import ErrorDeDominio
 
 #: Ventana del tope del webhook entrante, en segundos.
 VENTANA_DE_CUOTA_SEGUNDOS = 60
@@ -87,7 +87,7 @@ def delete_integration(db: Session, user, integration_id: str) -> None:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Integración no encontrada")
+        raise ErrorDeDominio(404, "Integración no encontrada")
     db.delete(fila)
     db.commit()
 
@@ -147,7 +147,7 @@ def deliver_incoming(db: Session, token: str, payload: dict) -> None:
         .first()
     )
     if not fila or fila.direction != "incoming" or not fila.target_channel_id:
-        raise HTTPException(404, "Webhook inválido")
+        raise ErrorDeDominio(404, "Webhook inválido")
 
     cuota = consume_quota(
         db, scope="collab.webhook.incoming", tenant_id=fila.organization_id,
@@ -156,7 +156,7 @@ def deliver_incoming(db: Session, token: str, payload: dict) -> None:
         window_seconds=VENTANA_DE_CUOTA_SEGUNDOS,
     )
     if not cuota["allowed"]:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=429,
             detail=f"Webhook rate limit exceeded. Retry in {cuota['retry_after']}s",
         )
@@ -167,7 +167,7 @@ def deliver_incoming(db: Session, token: str, payload: dict) -> None:
         .first()
     )
     if not canal:
-        raise HTTPException(404, "Canal del webhook no encontrado")
+        raise ErrorDeDominio(404, "Canal del webhook no encontrado")
 
     bot = (
         db.query(CollaborationBotApp)

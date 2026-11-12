@@ -33,12 +33,12 @@ import json
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.models.mfa import Budget, BudgetClose, BudgetCommitment, BudgetLine, BudgetTransfer, BudgetVarianceNote
 from app.services.audit import audit_log
+from app.core.errores import ErrorDeDominio
 
 METODOS = ("plan", "ritmo", "manual")
 
@@ -242,17 +242,17 @@ def cerrar_mes(db: Session, u, budget_id: str, mes: str) -> None:
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
     if b.estado != "aprobado":
-        raise HTTPException(409, "Se cierran los meses de un presupuesto aprobado")
+        raise ErrorDeDominio(409, "Se cierran los meses de un presupuesto aprobado")
     if mes >= mes_actual():
-        raise HTTPException(400, "Sólo se cierra un mes ya terminado")
+        raise ErrorDeDominio(400, "Sólo se cierra un mes ya terminado")
     meses, plan, real, cerrados = _informe_base(db, b)
     if mes not in meses:
-        raise HTTPException(400, "El mes no es del periodo del presupuesto")
+        raise ErrorDeDominio(400, "El mes no es del periodo del presupuesto")
     if mes in cerrados:
-        raise HTTPException(409, "Ese mes ya está cerrado")
+        raise ErrorDeDominio(409, "Ese mes ya está cerrado")
     faltan = [d for d in desviaciones_a_explicar(db, b, mes, plan, real) if not d["explicacion"]]
     if faltan:
-        raise HTTPException(409, "Explica antes las desviaciones de: " + ", ".join(
+        raise ErrorDeDominio(409, "Explica antes las desviaciones de: " + ", ".join(
             f"{d['tipo']} ({d['desviacion']:+g})" for d in faltan))
     db.add(BudgetClose(organization_id=b.organization_id, origen_id=origen(b), mes=mes,
                        real=json.dumps(real.get(mes, {})), cerrado_por=u.id))
@@ -263,11 +263,11 @@ def cerrar_mes(db: Session, u, budget_id: str, mes: str) -> None:
 def reabrir_mes(db: Session, u, budget_id: str, mes: str) -> None:
     from app.services.budgets_service import puede_aprobar
     if not puede_aprobar(db, u):
-        raise HTTPException(403, "Reabrir un mes cerrado es de los roles de BUDGET_APPROVER_ROLES")
+        raise ErrorDeDominio(403, "Reabrir un mes cerrado es de los roles de BUDGET_APPROVER_ROLES")
     b = _cargar(db, budget_id)
     c = db.query(BudgetClose).filter(BudgetClose.origen_id == origen(b), BudgetClose.mes == mes).first()
     if c is None:
-        raise HTTPException(404, "Ese mes no está cerrado")
+        raise ErrorDeDominio(404, "Ese mes no está cerrado")
     db.delete(c)
     audit_log(db, u, "REOPEN", "budgets", b.id, b.name, new_values={"mes": mes})
     db.commit()
@@ -277,7 +277,7 @@ def explicar(db: Session, u, budget_id: str, mes: str, tipo: str, texto: str) ->
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
     if not (texto or "").strip():
-        raise HTTPException(400, "Escribe la explicación")
+        raise ErrorDeDominio(400, "Escribe la explicación")
     n = db.query(BudgetVarianceNote).filter(BudgetVarianceNote.origen_id == origen(b), BudgetVarianceNote.mes == mes,
                                             BudgetVarianceNote.tipo == tipo).first()
     if n is None:
@@ -292,7 +292,7 @@ def guardar_prevision(db: Session, u, budget_id: str, tipo: str, metodo: str, me
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
     if metodo not in METODOS:
-        raise HTTPException(400, f"Método de previsión no válido: {metodo}")
+        raise ErrorDeDominio(400, f"Método de previsión no válido: {metodo}")
     config = prevision(b)
     config[tipo] = {"metodo": metodo, **({"meses": {k: round(float(v), 2) for k, v in (meses or {}).items()}}
                                          if metodo == "manual" else {})}
@@ -446,7 +446,7 @@ def comprobar_disponible(db: Session, org, *, tipo_por_presupuesto, importe: flo
         if importe > disponible + 0.005:
             avisos.append(f"«{b.name}»: en {tipo} quedan {disponible:g} y esto suma {importe:g}")
     if avisos and politica == "bloquear":
-        raise HTTPException(409, "Sin presupuesto disponible: " + "; ".join(avisos))
+        raise ErrorDeDominio(409, "Sin presupuesto disponible: " + "; ".join(avisos))
     return avisos
 
 
@@ -455,14 +455,14 @@ def crear_pedido(db: Session, u, budget_id: str, datos: dict) -> dict:
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
     if b.estado != "aprobado":
-        raise HTTPException(409, "Los pedidos se comprometen contra un presupuesto aprobado")
+        raise ErrorDeDominio(409, "Los pedidos se comprometen contra un presupuesto aprobado")
     tipo = datos.get("tipo")
     if tipo not in tipos(db, b.organization_id):
-        raise HTTPException(400, f"Tipo no válido: {tipo}")
+        raise ErrorDeDominio(400, f"Tipo no válido: {tipo}")
     importe = float(datos.get("importe") or 0)
     mes = (datos.get("mes") or "")[:7]
     if importe <= 0 or not mes or not (datos.get("descripcion") or "").strip():
-        raise HTTPException(400, "El pedido necesita descripción, importe y mes")
+        raise ErrorDeDominio(400, "El pedido necesita descripción, importe y mes")
     avisos = comprobar_disponible(db, b.organization_id, tipo_por_presupuesto=lambda _x: tipo, importe=importe,
                                   fecha=date(int(mes[:4]), int(mes[5:7]), 1), project_id=b.project_id) \
         if b.project_id else _aviso_propio(db, b, tipo, importe)
@@ -485,7 +485,7 @@ def _aviso_propio(db: Session, b: Budget, tipo: str, importe: float) -> list[str
         return []
     texto = f"«{b.name}»: en {tipo} quedan {disponible:g} y esto suma {importe:g}"
     if politica == "bloquear":
-        raise HTTPException(409, "Sin presupuesto disponible: " + texto)
+        raise ErrorDeDominio(409, "Sin presupuesto disponible: " + texto)
     return [texto]
 
 
@@ -493,7 +493,7 @@ def actualizar_pedido(db: Session, u, pedido_id: str, datos: dict) -> dict:
     _exigir_gestor(db, u)
     c = db.query(BudgetCommitment).filter(BudgetCommitment.id == pedido_id).first()
     if c is None:
-        raise HTTPException(404, "Pedido no encontrado")
+        raise ErrorDeDominio(404, "Pedido no encontrado")
     estado = datos.get("estado")
     if estado == "facturado":
         c.estado = "facturado"
@@ -502,7 +502,7 @@ def actualizar_pedido(db: Session, u, pedido_id: str, datos: dict) -> dict:
     elif estado == "anulado":
         c.estado = "anulado"
     elif estado:
-        raise HTTPException(400, "Un pedido pasa a facturado o anulado")
+        raise ErrorDeDominio(400, "Un pedido pasa a facturado o anulado")
     audit_log(db, u, "UPDATE", "budget_commitments", c.id, c.descripcion, new_values={"estado": c.estado})
     db.commit()
     return pedido_dict(c)
@@ -542,22 +542,22 @@ def solicitar_traspaso(db: Session, u, budget_id: str, datos: dict) -> dict:
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
     if b.estado != "aprobado":
-        raise HTTPException(409, "Los traspasos son de un presupuesto aprobado (si no, edítalo)")
+        raise ErrorDeDominio(409, "Los traspasos son de un presupuesto aprobado (si no, edítalo)")
     importe = float(datos.get("importe") or 0)
     if importe <= 0 or not (datos.get("motivo") or "").strip():
-        raise HTTPException(400, "El traspaso necesita importe y motivo")
+        raise ErrorDeDominio(400, "El traspaso necesita importe y motivo")
     ids = {l.id for l in b.lines}
     if datos.get("desde_linea_id") and datos["desde_linea_id"] not in ids:
-        raise HTTPException(400, "La partida de origen no es de este presupuesto")
+        raise ErrorDeDominio(400, "La partida de origen no es de este presupuesto")
     if datos.get("hacia_linea_id") and datos["hacia_linea_id"] not in ids:
-        raise HTTPException(400, "La partida de destino no es de este presupuesto")
+        raise ErrorDeDominio(400, "La partida de destino no es de este presupuesto")
     if not datos.get("hacia_linea_id") and not datos.get("hacia_tipo"):
-        raise HTTPException(400, "Elige la partida de destino o el tipo de una nueva")
+        raise ErrorDeDominio(400, "Elige la partida de destino o el tipo de una nueva")
     if datos.get("desde_linea_id"):
         origen_l = next(l for l in b.lines if l.id == datos["desde_linea_id"])
         quedan = sum(v for m, v in json.loads(origen_l.meses or "{}").items() if m >= mes_actual())
         if importe > quedan + 0.005:
-            raise HTTPException(400, f"A la partida de origen le quedan {quedan:g} de aquí al final")
+            raise ErrorDeDominio(400, f"A la partida de origen le quedan {quedan:g} de aquí al final")
     t = BudgetTransfer(organization_id=b.organization_id, budget_id=b.id, desde_linea_id=datos.get("desde_linea_id"),
                        hacia_linea_id=datos.get("hacia_linea_id"), hacia_tipo=datos.get("hacia_tipo"),
                        hacia_descripcion=datos.get("hacia_descripcion"), importe=importe, motivo=datos["motivo"],
@@ -577,12 +577,12 @@ def decidir_traspaso(db: Session, u, transfer_id: str, aprobado: bool, motivo: O
     from app.services.budgets_service import puede_aprobar
     t = db.query(BudgetTransfer).filter(BudgetTransfer.id == transfer_id).first()
     if t is None:
-        raise HTTPException(404, "Traspaso no encontrado")
+        raise ErrorDeDominio(404, "Traspaso no encontrado")
     if t.estado != "pendiente":
-        raise HTTPException(409, "Ese traspaso ya está decidido")
+        raise ErrorDeDominio(409, "Ese traspaso ya está decidido")
     if not desde_bandeja:
         if not puede_aprobar(db, u):
-            raise HTTPException(403, "Decidir traspasos es de los roles de BUDGET_APPROVER_ROLES")
+            raise ErrorDeDominio(403, "Decidir traspasos es de los roles de BUDGET_APPROVER_ROLES")
         exigir_que_no_sea_suyo(db, t.solicitante_id, u, "budget", t.id)
     b = _cargar(db, t.budget_id)
     if aprobado:
@@ -590,7 +590,7 @@ def decidir_traspaso(db: Session, u, transfer_id: str, aprobado: bool, motivo: O
         t.estado = "aprobado"
     else:
         if not (motivo or "").strip():
-            raise HTTPException(400, "Indica el motivo del rechazo")
+            raise ErrorDeDominio(400, "Indica el motivo del rechazo")
         t.estado, t.motivo_rechazo = "rechazado", motivo
     t.decisor_id, t.decidido_at = u.id, datetime.now(timezone.utc)
     if not desde_bandeja:
@@ -618,7 +618,7 @@ def _aplicar_traspaso(db: Session, b: Budget, t: BudgetTransfer) -> None:
         base = {m: v for m, v in meses.items() if m in restantes}
         total = sum(base.values())
         if t.importe > total + 0.005:
-            raise HTTPException(409, f"A la partida de origen sólo le quedan {total:g}")
+            raise ErrorDeDominio(409, f"A la partida de origen sólo le quedan {total:g}")
         for m, v in base.items():
             meses[m] = round(v - t.importe * v / total, 2)
         l.meses = json.dumps({k: v for k, v in meses.items() if abs(v) > 0.004})

@@ -3,10 +3,11 @@
  * used across all ServiceDesk sub-modules.
  */
 import { useState, useEffect } from 'react'
-import { COLOR, alpha } from '../../constants/theme'
+import { COLOR } from '../../constants/theme'
 import { formateadorDeFecha } from '../../utils/helpers'
 import { useAppT } from '../../i18n/AppLangContext'
 import { traducirSinHook } from '../../i18n/traducirSinHook'
+import StatusBadge from '../../components/ui/StatusBadge'
 
 // ── Priority / Status maps ─────────────────────────────────────────────────────
 export const PRIORITY_COLOR = {
@@ -74,14 +75,7 @@ export function fmtMinutes(m: number | null | undefined) {
 export function PBadge({ v }: { v?: string }) {
   const color = PRIORITY_COLOR[v as keyof typeof PRIORITY_COLOR] || COLOR.text2
   return (
-    <span style={{
-      fontSize: "var(--text-2xs)", fontWeight: 700, color,
-      padding: '2px 7px', borderRadius: 4,
-      border: `1px solid ${alpha(color, '30')}`, background: alpha(color, '12'),
-      whiteSpace: 'nowrap',
-    }}>
-      {PRIORITY_LABEL[v as keyof typeof PRIORITY_LABEL] || v}
-    </span>
+    <StatusBadge color={color} caps={false}>{PRIORITY_LABEL[v as keyof typeof PRIORITY_LABEL] || v}</StatusBadge>
   )
 }
 /** Estado del ticket → clave de traducción. Auditoría 2026-11: se pintaba el
@@ -103,13 +97,9 @@ export function SBadge({ v }: { v: string }) {
   const t = useAppT()
   const color = STATUS_COLOR[v as keyof typeof STATUS_COLOR] || COLOR.text2
   return (
-    <span style={{
-      fontSize: "var(--text-2xs)", fontWeight: 600, color,
-      padding: '2px 8px', borderRadius: 4,
-      background: alpha(color, '15'), whiteSpace: 'nowrap',
-    }}>
+    <StatusBadge color={color} caps={false}>
       {STATUS_KEY[v] ? t(`service_desk.${STATUS_KEY[v]}`) : v?.replace(/_/g, ' ')}
-    </span>
+    </StatusBadge>
   )
 }
 

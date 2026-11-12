@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.models.governance import ComplianceEvidence, TenantPolicyPack
 from app.models.ai_chat import AIGovernanceConfig, AIActionLog
-from fastapi import HTTPException
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ def get_org_id(user, *, strict: bool = True) -> Optional[str]:
     if user.organization_id:
         return user.organization_id
     if strict:
-        raise HTTPException(400, "El usuario no pertenece a una organización/tenant")
+        raise ErrorDeDominio(400, "El usuario no pertenece a una organización/tenant")
     return None
 
 

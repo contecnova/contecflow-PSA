@@ -54,10 +54,10 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
     <div style={{padding:'14px 16px',background: mention.is_read?'transparent':'var(--accent-muted)',border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}`,borderRadius: 8,marginBottom:8}}>
       <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
         <div style={{fontSize: "var(--text-xl)",flexShrink:0,marginTop:2}}>{icon}</div>
-        <div style={{flex:1}}>
+        <div className="u-flex1">
           <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:6}}>
             <span style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--accent)'}}>{mention.entity_type.replace(/_/g,' ')}</span>
-            <span style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{mention.created_at?timeAgo(mention.created_at):''}</span>
+            <span className="u-text3-xs">{mention.created_at?timeAgo(mention.created_at):''}</span>
             {!mention.is_read&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{t('mentions.new')}</span>}
           </div>
           {mention.context_text&&(
@@ -117,11 +117,11 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
     <div style={{marginLeft:depth*20,marginBottom:8}}>
       <div style={{padding:'12px 14px',background:comment.is_resolved?'rgba(255,255,255,0.03)':'var(--surface-1)',borderRadius:8,border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}`,opacity:comment.is_resolved?0.6:1}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <div className="u-row-center-8">
             <span style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--accent)'}}>{comment.created_by_email || comment.created_by_name || 'Usuario'}</span>
             {comment.is_resolved&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--success-bg)',color:'var(--success)'}}>{t('mentions.resolved')}</span>}
           </div>
-          <div style={{display:'flex',gap:6}}>
+          <div className="u-row-6">
             {!comment.is_resolved&&<button onClick={()=>setReplyTo(comment.id)} style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('mentions.reply')}</button>}
             {!comment.is_resolved&&<button onClick={()=>resolveComment(comment.id)} style={{background:'none',border:'none',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✓ {t('mentions.resolve')}</button>}
             <button onClick={()=>{ openConfirmGlobal({ message: t('mentions.confirm_delete'), onConfirm: () => deleteComment(comment.id), danger: true }) }} style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✕</button>
@@ -133,7 +133,7 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
             <textarea value={replyContent} onChange={e=>setReplyContent(e.target.value)}
               placeholder={t('mentions.reply_placeholder')}
               rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
-            <div style={{display:'flex',gap:6}}>
+            <div className="u-row-6">
               <Button onClick={()=>addComment({content:replyContent,parent_id:comment.id})} disabled={adding||!replyContent.trim()}>
                 {adding?t('mentions.sending') : t('mentions.reply_btn')}
               </Button>
@@ -231,7 +231,7 @@ export default function MentionsPage() {
       {tab==='mentions'&&(
         <div data-export-table="mentions-list">
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <div className="u-row-center-8">
               <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize: "var(--text-base)"}}>
                 <input type="checkbox" checked={onlyUnread} onChange={e=>setOnlyUnread(e.target.checked)}/>
                 {t('mentions.only_unread')}
@@ -279,7 +279,7 @@ export default function MentionsPage() {
             </div>
           ):hasEntityInput?(
             <div style={{...ps,textAlign:'center',padding:'28px 24px'}}>
-              <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
+              <div className="u-text2-sm">
                 {demoType === 'task'
                   ? t('mentions.invalid_entity_id_format_task', 'Introduce un UUID o codigo de tarea valido (ej: TSK-0011).')
                   : t('mentions.invalid_entity_id_format_ticket', 'Introduce un UUID o numero de ticket valido (ej: INC-0001).')}

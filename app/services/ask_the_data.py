@@ -93,13 +93,58 @@ def _comprobar_politica(sql: str) -> None:
         if re.search(rf"\b{palabra}\b", minuscula):
             raise SQLValidationError(f"Forbidden keyword: {palabra}")
 
-    referencias = set(re.findall(r"\bFROM\s+(\w+)|\bJOIN\s+(\w+)", sql, re.IGNORECASE))
-    tablas = {t for par in referencias for t in par if t}
+    # Auditoria 2026-11: las tablas se sacan del arbol del parser de DuckDB, no
+    # con regex. La regex no veia `FROM a, b`, ni subconsultas, ni funciones de
+    # tabla (`read_csv`, `duckdb_databases()`), ni nombres calificados
+    # (`catalogo.main.tabla`).
+    tablas = set()
+    for ref in _referencias_del_arbol(sql):
+        if ref.get("type") != "BASE_TABLE":
+            raise SQLValidationError("Table functions are not allowed")
+        if ref.get("catalog_name") or ref.get("schema_name"):
+            raise SQLValidationError("Qualified table names are not allowed")
+        tablas.add(ref.get("table_name"))
     if not tablas:
         raise SQLValidationError("Query must reference at least one allowed table")
     desconocidas = tablas - ALLOWED_TABLES
     if desconocidas:
         raise SQLValidationError(f"Unauthorized tables: {desconocidas}")
+
+
+def _referencias_del_arbol(sql: str) -> list[dict]:
+    """Cada tabla y funcion de tabla del SQL, segun el parser de DuckDB.
+
+    Exige una unica sentencia: `SELECT 1; INSTALL ...` no pasa.
+    """
+    import json
+
+    import duckdb
+
+    con = duckdb.connect(":memory:")
+    try:
+        arbol = json.loads(con.execute("SELECT json_serialize_sql(?)", [sql]).fetchone()[0])
+    finally:
+        con.close()
+    if arbol.get("error"):
+        raise SQLValidationError(f"Invalid SQL: {arbol.get('error_message', '')[:200]}")
+    sentencias = arbol.get("statements") or []
+    if len(sentencias) != 1:
+        raise SQLValidationError("Exactly one statement is allowed")
+
+    refs: list[dict] = []
+
+    def _recorrer(nodo) -> None:
+        if isinstance(nodo, dict):
+            if nodo.get("type") in ("BASE_TABLE", "TABLE_FUNCTION"):
+                refs.append(nodo)
+            for valor in nodo.values():
+                _recorrer(valor)
+        elif isinstance(nodo, list):
+            for valor in nodo:
+                _recorrer(valor)
+
+    _recorrer(sentencias)
+    return refs
 
 
 def _acotar_limite(sql: str) -> str:
@@ -240,15 +285,63 @@ def _execute_on_olap(sql: str, params: Optional[dict] = None) -> list[dict]:
     ``params`` (if any) are passed as bound parameters to the driver — they are
     NEVER interpolated into the SQL string (defends against tenant-id injection).
     """
-    from app.services.olap.etl import get_duckdb_conn
-
-    conn = get_duckdb_conn()
+    conn = _conexion_acotada((params or {}).get("org_id"))
+    # El filtro inyectado puede no llevar `$org_id` (p. ej. `FROM a, b`); el
+    # aislamiento real lo dan las vistas de `_conexion_acotada`.
+    usados = {k: v for k, v in (params or {}).items() if f"${k}" in sql}
     try:
-        cur = conn.execute(sql, params) if params else conn.execute(sql)
+        cur = conn.execute(sql, usados) if usados else conn.execute(sql)
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]  # noqa: B905
     finally:
         conn.close()
+
+
+def _conexion_acotada(org_id: Optional[str]):
+    """Conexion en memoria donde cada tabla permitida es una vista de la organizacion.
+
+    Auditoria 2026-11: el aislamiento ya no depende de reescribir el SQL con
+    regex (`WHERE org AND x OR 1=1` lo anulaba). El OLAP se adjunta en solo
+    lectura con un alias aleatorio y cada tabla de `ALLOWED_TABLES` se expone
+    como vista temporal filtrada por `organization_id`; el SQL del modelo solo
+    ve esas vistas. Despues se corta el acceso a ficheros y se bloquea la
+    configuracion.
+    """
+    import secrets
+
+    import duckdb
+
+    from app.services.olap.etl import get_duckdb_conn
+
+    # La ruta sale de la conexion de siempre (que ademas crea el esquema).
+    origen = get_duckdb_conn()
+    try:
+        ruta = origen.execute(
+            "SELECT path FROM duckdb_databases() WHERE database_name = current_database()").fetchone()[0]
+    finally:
+        origen.close()
+
+    alias = f"olap_{secrets.token_hex(8)}"
+    conn = duckdb.connect(":memory:")
+    try:
+        ruta = str(ruta).replace("'", "''")
+        conn.execute(f"ATTACH '{ruta}' AS {alias} (READ_ONLY)")
+        existentes = {f[0] for f in conn.execute(
+            "SELECT table_name FROM duckdb_tables() WHERE database_name = ? AND schema_name = 'main'",
+            [alias]).fetchall()}
+        filtro = ""
+        if org_id:
+            org = str(org_id).replace("'", "''")
+            filtro = f" WHERE organization_id = '{org}'"
+        for tabla in sorted(ALLOWED_TABLES & existentes):
+            donde = "" if tabla in _SIN_ORGANIZACION else filtro
+            conn.execute(f"CREATE TEMP VIEW {tabla} AS SELECT * FROM {alias}.main.{tabla}{donde}")  # noqa: S608 — tabla de lista blanca
+        conn.execute("SET enable_external_access = false")
+        conn.execute("SET lock_configuration = true")
+    except Exception:
+        conn.close()
+        raise
+    return conn
 
 
 def _normalize_sql_for_duckdb(sql: str) -> str:

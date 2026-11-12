@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.resources import Absence, AbsenceStatus
 from app.models.user import User
-from . import register_metric
+from ._registro import register_metric
 
 
 def _month_label(d) -> str:

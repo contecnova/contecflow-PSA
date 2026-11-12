@@ -10,6 +10,7 @@ Also supports:
   - Digest mode (batch multiple reports into one delivery)
 """
 from __future__ import annotations
+import logging
 
 import hashlib
 import json
@@ -38,6 +39,7 @@ def _get(db: Session, key: str, org_id: Optional[str], default: Any) -> Any:
     try:
         return json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("_get: excepcion ignorada", exc_info=True)
         return default
 
 

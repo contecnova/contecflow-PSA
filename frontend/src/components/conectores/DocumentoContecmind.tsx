@@ -51,7 +51,7 @@ export default function DocumentoContecmind({ id, puedeEscribir, onClose }: { id
       {doc.isLoading ? <Spinner />
         : doc.isError ? <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{mensajeDeConector(doc.error, t('docs.error_generico'))}</div>
         : d && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="u-stack-16">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
               <div><div style={etiqueta}>{t('docs.tipo')}</div><div style={valor}>{d.mime_type || '—'}</div></div>
               <div><div style={etiqueta}>{t('docs.tamano')}</div><div style={valor}>{tamano(d.size_bytes) || '—'}</div></div>

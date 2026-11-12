@@ -23,9 +23,9 @@ from app.models.project import Project
 from app.models.resources import ResourceUtilizationSnapshot
 from app.models.user import User
 from app.services.metrics import METRICS_REGISTRY as MODULAR_METRICS_REGISTRY
-from fastapi import HTTPException
 from sqlalchemy import func
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -285,7 +285,7 @@ def get_advanced_utilization(weeks_ahead: int, project_id, project_type, client_
         project_id=project_id, project_type=project_type, client_id=client_id,
     )
     if project_id and project_ids == []:
-        raise HTTPException(403, "No tienes acceso a este proyecto")
+        raise ErrorDeDominio(403, "No tienes acceso a este proyecto")
 
     ventana = {"week_start": str(period_start), "week_end": str(period_end),
                "weeks_ahead": weeks_ahead}

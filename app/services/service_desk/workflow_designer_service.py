@@ -9,7 +9,6 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.workflow_designer import (
@@ -18,6 +17,7 @@ from app.models.workflow_designer import (
     WorkflowBlueprintVersion,
     WorkflowRun,
 )
+from app.core.errores import ErrorDeDominio
 
 
 # ── Catálogo de nodos ─────────────────────────────────────────────────────────
@@ -612,7 +612,7 @@ def blueprint_propio(db: Session, user, blueprint_id: str) -> WorkflowBlueprint:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Blueprint not found")
+        raise ErrorDeDominio(404, "Blueprint not found")
     return fila
 
 
@@ -634,7 +634,7 @@ def version_del_blueprint(
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Version not found")
+        raise ErrorDeDominio(404, "Version not found")
     return fila
 
 
@@ -647,7 +647,7 @@ def grafo_de_cabecera(blueprint: WorkflowBlueprint) -> dict:
     if cabecera is None:
         cabecera = blueprint.versions[0] if blueprint.versions else None
     if cabecera is None:
-        raise HTTPException(400, "Blueprint sin versiones para clonar")
+        raise ErrorDeDominio(400, "Blueprint sin versiones para clonar")
     return json.loads(cabecera.graph_json or "{}")
 
 
@@ -685,7 +685,7 @@ def run_propio(db: Session, user, run_id: str) -> WorkflowRun:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Run not found")
+        raise ErrorDeDominio(404, "Run not found")
     return fila
 
 
@@ -696,5 +696,117 @@ def exigir_grafo_valido(graph: dict) -> None:
     """
     validacion = validate_graph(graph)
     if not validacion.get("valid"):
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400, detail={"message": "invalid graph", **validacion})
+
+
+# ── Las escrituras que pide la API, con su transaccion (auditoria 2026-11, #21) ─
+
+def crear_blueprint_confirmado(db: Session, user, *, name: str, process_type: str,
+                               graph: dict, description: Optional[str]):
+    exigir_grafo_valido(graph)
+    bp = create_blueprint(
+        db,
+        name=name,
+        process_type=process_type,
+        graph=graph,
+        created_by_user_id=user.id,
+        description=description,
+        organization_id=user.organization_id,
+    )
+    db.commit()
+    db.refresh(bp)
+    return bp
+
+
+def anadir_version_confirmada(db: Session, user, blueprint_id: str, graph: dict):
+    bp = blueprint_propio(db, user, blueprint_id)
+    exigir_grafo_valido(graph)
+    version = add_blueprint_version(db, bp, graph, user.id)
+    db.commit()
+    db.refresh(version)
+    return version
+
+
+def publicar_version_confirmada(db: Session, user, blueprint_id: str, version: int) -> None:
+    bp = blueprint_propio(db, user, blueprint_id)
+    target = version_del_blueprint(db, bp, version)
+    publish_version(db, bp, target)
+    db.commit()
+
+
+def clonar_blueprint_confirmado(db: Session, user, blueprint_id: str, name: str):
+    src = blueprint_propio(db, user, blueprint_id)
+    graph = grafo_de_cabecera(src)
+    bp = create_blueprint(
+        db,
+        name=name,
+        process_type=src.process_type,
+        graph=graph,
+        created_by_user_id=user.id,
+        description=src.description,
+        organization_id=user.organization_id,
+    )
+    db.commit()
+    db.refresh(bp)
+    return bp
+
+
+def archivar_blueprint_confirmado(db: Session, user, blueprint_id: str) -> None:
+    bp = blueprint_propio(db, user, blueprint_id)
+    archive_blueprint(db, bp)
+    db.commit()
+
+
+def iniciar_ejecucion(db: Session, user, blueprint_id: str, *,
+                      target_entity_type: Optional[str], target_entity_id: Optional[str],
+                      context: dict):
+    """Arranca una ejecucion del blueprint propio y confirma.
+
+    La guarda va ANTES de llamar al motor: el motor busca el blueprint por id
+    sin comprobar organizacion, asi que hasta ahora lo unico que impedia
+    ejecutar el blueprint de otro cliente era el filtro implicito.
+    """
+    from app.services.service_desk import workflow_engine as engine
+
+    bp = blueprint_propio(db, user, blueprint_id)
+    try:
+        run = engine.start_run(
+            db,
+            blueprint_id=bp.id,
+            target_entity_type=target_entity_type,
+            target_entity_id=target_entity_id,
+            context=context,
+            user_id=user.id,
+            organization_id=getattr(user, "organization_id", None),
+        )
+    except ValueError as exc:
+        raise ErrorDeDominio(400, str(exc))
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def reanudar_ejecucion(db: Session, user, run_id: str, *, branch: Optional[str], payload: Optional[dict]):
+    from app.models.workflow_designer import WorkflowRunStatus
+    from app.services.service_desk import workflow_engine as engine
+
+    run = run_propio(db, user, run_id)
+    if run.status != WorkflowRunStatus.waiting:
+        raise ErrorDeDominio(400, f"run no está en waiting (estado actual: {run.status.value if hasattr(run.status,'value') else run.status})")
+    try:
+        engine.resume(db, run, branch=branch, payload=payload, user_id=user.id)
+    except ValueError as exc:
+        raise ErrorDeDominio(400, str(exc))
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def cancelar_ejecucion(db: Session, user, run_id: str, reason: Optional[str]):
+    from app.services.service_desk import workflow_engine as engine
+
+    run = run_propio(db, user, run_id)
+    engine.cancel_run(db, run, reason=reason)
+    db.commit()
+    return run

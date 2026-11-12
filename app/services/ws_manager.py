@@ -1,7 +1,7 @@
 """WebSocket connection manager — extraído de `app/api/v1/endpoints/ws.py`
 para romper la dependencia inversa `services → endpoints`.
 
-Tanto el endpoint `ws.py` como otros servicios (`realtime_notifications.py`)
+Tanto el endpoint `ws.py` como otros servicios (`notifications.py`)
 deben importar la instancia singleton `manager` desde aquí.
 """
 from __future__ import annotations
@@ -17,6 +17,13 @@ from app.core.config import settings
 log = logging.getLogger(__name__)
 
 _REDIS_URL: str = settings.REDIS_URL or ""
+
+
+
+def canal_de_usuario(user_id: str) -> str:
+    """El canal Redis por el que llega a un usuario lo que se le empuja por WS."""
+    return f"contecflow:ws:{user_id}"
+
 
 # ── Redis client (perezoso) ──────────────────────────────────────────────────
 _redis_client = None
@@ -88,8 +95,7 @@ class ConnectionManager:
         if _REDIS_URL:
             try:
                 r = await _get_redis()
-                channel = f"contecflow:ws:{user_id}"
-                await r.publish(channel, json.dumps(message))
+                await r.publish(canal_de_usuario(user_id), json.dumps(message))
                 return
             except Exception as exc:
                 log.warning("Redis publish failed, falling back to local: %s", exc)

@@ -3,8 +3,11 @@ import { useParams } from 'react-router-dom'
 import axios from 'axios'
 // TODO type: i18n/AppLangContext still JS
 import { useAppT } from '../i18n/AppLangContext'
+import { API_BASE_URL } from '../services/api/urls'
 
-const API = axios.create({ baseURL: '/api/v1', timeout: 30000 })
+// Instancia propia y no el cliente de la app: vista pública por enlace, sin
+// cookies de sesión ni refresco.
+const API = axios.create({ baseURL: API_BASE_URL, timeout: 30000 })
 
 // TODO type: backend portal/view response shape — currently consumed as unknown
 interface PortalPublicView {
@@ -37,7 +40,7 @@ export default function PortalPublicViewPage(): JSX.Element {
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--surface-0)', color: 'var(--text-1)', fontFamily: 'var(--font-sans)' }}>
         <div style={{ maxWidth: 520, padding: 24, border: '1px solid var(--surface-4)', borderRadius: 12, background: 'var(--surface-2)' }}>
           <h1 style={{ marginTop: 0 }}>{t('portal_public.invalid_link_title')}</h1>
-          <p style={{ color: 'var(--text-2)' }}>{t('portal_public.invalid_link_message')}</p>
+          <p className="u-text2">{t('portal_public.invalid_link_message')}</p>
         </div>
       </div>
     )
@@ -60,7 +63,7 @@ export default function PortalPublicViewPage(): JSX.Element {
           <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, background: 'var(--surface-2)' }}>
             <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 12 }}>{t('portal_public.milestones')}</div>
             {milestones.length === 0 ? (
-              <div style={{ color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{t('portal_public.no_milestones')}</div>
+              <div className="u-text2-base">{t('portal_public.no_milestones')}</div>
             ) : (
               milestones.map(m => (
                 <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", padding: '8px 0', borderBottom: '1px solid var(--surface-4)' }}>
@@ -74,7 +77,7 @@ export default function PortalPublicViewPage(): JSX.Element {
           <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, background: 'var(--surface-2)' }}>
             <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 12 }}>{t('portal_public.deliverables')}</div>
             {deliverables.length === 0 ? (
-              <div style={{ color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{t('portal_public.no_deliverables')}</div>
+              <div className="u-text2-base">{t('portal_public.no_deliverables')}</div>
             ) : (
               deliverables.map(d => (
                 <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", padding: '8px 0', borderBottom: '1px solid var(--surface-4)' }}>

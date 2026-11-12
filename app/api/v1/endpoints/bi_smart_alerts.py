@@ -61,7 +61,9 @@ def get_supported_metrics(
 ):
     org_id = getattr(current_user, "organization_id", None)
     customs = svc.list_custom_metrics(db, organization_id=org_id)
-    builtin = [{"key": k, "label": v, "is_custom": False} for k, v in svc.SUPPORTED_METRICS.items()]
+    from app.services.formato_regional import con_moneda, simbolo_de_moneda
+    builtin = con_moneda([{"key": k, "label": v, "is_custom": False} for k, v in svc.SUPPORTED_METRICS.items()],
+                         simbolo_de_moneda(db, org_id))
     custom_items = [{"key": c["key"], "label": c["label"], "is_custom": True} for c in customs]
     return APIResponse.ok(data={
         "metrics": builtin + custom_items,

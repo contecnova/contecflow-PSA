@@ -31,7 +31,9 @@ from app.core.deps import require_admin_or_hr
 from app.db.session import get_db
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
+from app.core.config import settings
 import app.services.cost_service as svc
+from app.services.presets_de_pais import actualizar_preset_de_pais
 
 router = APIRouter(tags=["User Costs"])
 
@@ -40,7 +42,7 @@ router = APIRouter(tags=["User Costs"])
 class CountryPresetIn(BaseModel):
     country_code: str
     country_name: str
-    currency: str = "EUR"
+    currency: str = settings.DEFAULT_CURRENCY
     employer_cost_pct: float = 0.32
     productive_hours_year: float = 1700
     notes: Optional[str] = None
@@ -61,7 +63,7 @@ class ProfileIn(BaseModel):
     extra_annual_costs: float = 0.0
     productive_hours_year: float = 1700
     country_code: Optional[str] = None
-    currency: str = "EUR"
+    currency: str = settings.DEFAULT_CURRENCY
     notes: Optional[str] = None
 
 
@@ -123,11 +125,7 @@ def update_country(
     current_user: User = Depends(require_admin_or_hr),
 ):
     enforce_abac(db, current_user, "country_preset", preset_id, action="update")
-    row = svc.preset_propio_o_global(db, current_user, preset_id)
-    for k, v in payload.model_dump(exclude_none=True).items():
-        setattr(row, k, v)
-    db.commit()
-    db.refresh(row)
+    row = actualizar_preset_de_pais(db, current_user, preset_id, payload.model_dump(exclude_none=True))
     return APIResponse.ok(data=svc.serialize_country(row))
 
 

@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr, localeActivo, downloadBlob } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -22,9 +22,10 @@ import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer
 } from 'recharts'
-import { alpha } from '../constants/theme'
 import DetalleDeGasto from '../components/gastos/DetalleDeGasto'
 import PoliticasDeGasto from '../components/gastos/PoliticasDeGasto'
+import DsBadge from '../components/ui/StatusBadge'
+import DateInput from '../components/ui/DateInput'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const CATEGORIES: Record<string, { label: string; icon: string; color: string }> = {
@@ -52,18 +53,14 @@ const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUSES[status] || { label: status, color: 'var(--text-2)' }
   return (
-    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, whiteSpace: 'nowrap' }}>
-      {cfg.label}
-    </span>
+    <DsBadge color={cfg.color} caps={false}>{cfg.label}</DsBadge>
   )
 }
 
 function CatBadge({ cat }: { cat: string }) {
   const cfg = CATEGORIES[cat] || { label: cat, icon: '📦', color: 'var(--text-2)' }
   return (
-    <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 6, background: alpha(cfg.color, '15'), color: cfg.color }}>
-      {cfg.icon} {cfg.label}
-    </span>
+    <DsBadge color={cfg.color} caps={false}>{cfg.icon} {cfg.label}</DsBadge>
   )
 }
 
@@ -129,13 +126,13 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
         {expense.is_billable && <span style={{ fontSize: "var(--text-2xs)", color: 'rgba(52,211,153,0.50)', display: 'block' }}>facturable</span>}
       </span>
       <StatusBadge status={expense.status || ''} />
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+      <div className="u-text3-xs">
         {expense.status === 'submitted' && expense.submitted_at && `Enviado ${expense.submitted_at.slice(0, 10)}`}
         {expense.status === 'approved' && expense.reviewed_by_name && `✓ ${expense.reviewed_by_name}`}
-        {expense.status === 'rejected' && <span style={{ color: 'var(--danger)' }}>{expense.rejection_reason}</span>}
+        {expense.status === 'rejected' && <span className="u-danger">{expense.rejection_reason}</span>}
         {expense.status === 'reimbursed' && expense.reimbursed_at && `💰 ${expense.reimbursed_at}`}
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div className="u-row-6">
         {onAction && onAction(expense)}
       </div>
       {detalle && <DetalleDeGasto gasto={{ ...expense, amount: expense.amount as number }} editable={expense.status === 'draft' || !!isManager} onClose={() => setDetalle(false)} />}
@@ -185,7 +182,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <span style={{ fontSize: "var(--text-xl)" }}>📷</span>
           <div style={{ flex: '1 1 180px', minWidth: 0 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 2 }}>{traducir('expenses.escanear_recibo_con_ia')}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{traducir('expenses.sube_una_foto_o_pdf_y_el')}</div>
+            <div className="u-text2-xs">{traducir('expenses.sube_una_foto_o_pdf_y_el')}</div>
           </div>
           <label style={{ cursor: 'pointer' }}>
             <input type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={async e => {
@@ -219,7 +216,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{traducir('expenses.descripcion')}</label>
           <input value={form.description} onChange={set('description')} style={fs} placeholder={traducir('expenses.descripcion_del_gasto')} aria-label={traducir('expenses.descripcion_del_gasto')} />
         </div>
@@ -253,13 +250,13 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
         <div>
           <label style={ls}>{traducir('expenses.fecha_del_gasto')}</label>
-          <input type="date" value={form.expense_date} onChange={set('expense_date')} style={fs} />
+          <DateInput value={form.expense_date} onChange={set('expense_date')} style={fs} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 24 }}>
           <input type="checkbox" id="billable" checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
           <label htmlFor="billable" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{traducir('expenses.gasto_facturable_al_cliente')}</label>
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>Notas adicionales</label>
           <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Notas adicionales" aria-label="Notas adicionales" />
         </div>
@@ -308,11 +305,11 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
           </a>
         )}
       </div>
-      <div style={{ marginBottom: 16 }}>
+      <div className="u-mb-16">
         <label style={ls}>{traducir('expenses.motivo_de_rechazo_si_aplica')}</label>
         <input value={reason} onChange={e => setReason(e.target.value)} style={fs} placeholder={traducir('expenses.motivo_de_rechazo')} aria-label={traducir('expenses.motivo_de_rechazo')} />
       </div>
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
         <button onClick={() => mutate({ approved: false, rejection_reason: reason })} disabled={isPending || !reason}
           style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
@@ -389,7 +386,7 @@ function MyExpenses() {
           ].map(({ label, value, color }) => (
             <div key={label} style={{ ...card, padding: '10px 16px', minWidth: 120 }}>
               <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color }}>{value}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{label}</div>
+              <div className="u-text2-xs">{label}</div>
             </div>
           ))}
         </div>
@@ -399,9 +396,9 @@ function MyExpenses() {
         <SearchInput value={search} onChange={setSearch} placeholder={traducir('expenses.buscar_codigo_o_descripcion')} style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 320 }} />
         <FilterSelect value={statusFilter} onChange={setStatusFilter} placeholder="Estado" options={Object.entries(STATUSES).map(([v, c]) => ({ value: v, label: c.label }))} />
         <FilterSelect value={catFilter} onChange={setCatFilter} placeholder="Tipo" options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${c.label}` }))} />
-        <input type="date" aria-label="Desde" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dateInput(dateFrom)} />
-        <span style={{ color: 'var(--text-3)' }}>—</span>
-        <input type="date" aria-label="Hasta" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dateInput(dateTo)} />
+        <DateInput aria-label="Desde" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dateInput(dateFrom)} />
+        <span className="u-text3">—</span>
+        <DateInput aria-label="Hasta" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dateInput(dateTo)} />
         {hasFilter && (
           <button onClick={() => { setSearch(''); setStatusFilter(''); setCatFilter(''); setDateFrom(''); setDateTo('') }}
             style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
@@ -500,9 +497,9 @@ function PendingApproval() {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
         <SearchInput value={pendSearch} onChange={setPendSearch} placeholder={traducir('expenses.buscar_codigo_descripcion_o_solicitante')} style={{ minWidth: 240, flex: '1 1 240px', maxWidth: 360 }} />
         <FilterSelect value={pendCat} onChange={setPendCat} placeholder="Tipo" options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${c.label}` }))} />
-        <input type="date" aria-label="Desde" value={pendFrom} onChange={e => setPendFrom(e.target.value)} style={dateInput(pendFrom)} />
-        <span style={{ color: 'var(--text-3)' }}>—</span>
-        <input type="date" aria-label="Hasta" value={pendTo} onChange={e => setPendTo(e.target.value)} style={dateInput(pendTo)} />
+        <DateInput aria-label="Desde" value={pendFrom} onChange={e => setPendFrom(e.target.value)} style={dateInput(pendFrom)} />
+        <span className="u-text3">—</span>
+        <DateInput aria-label="Hasta" value={pendTo} onChange={e => setPendTo(e.target.value)} style={dateInput(pendTo)} />
         {hasFilter && (
           <button onClick={() => { setPendSearch(''); setPendCat(''); setPendFrom(''); setPendTo('') }}
             style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
@@ -680,6 +677,7 @@ export default function ExpensesPage(): JSX.Element {
   const t = useAppT()
   const { hasRole } = useAuth()
   const isManager = hasRole('admin', 'pm', 'hr')
+  const toast = useToast()
   const [tab, setTab] = useState('my')
 
   const TABS = [
@@ -700,9 +698,15 @@ export default function ExpensesPage(): JSX.Element {
         showListExport={false}
         actions={
           <button
-            onClick={() => {
-              const url = new URL('/api/v1/expenses/export', window.location.origin)
-              window.open(url.toString(), '_blank')
+            onClick={async () => {
+              // Por el cliente (refresco de sesión y errores); antes abría la URL en otra pestaña.
+              try {
+                const r = await expensesApi.exportExcel()
+                const nombre = /filename="?([^";]+)"?/.exec(String(r.headers?.['content-disposition'] ?? ''))?.[1] || 'gastos.xlsx'
+                downloadBlob(r.data as Blob, nombre)
+              } catch (e) {
+                toast.error(extractErr(e, 'No se pudo exportar'))
+              }
             }}
             style={{ display: 'flex', alignItems: 'center', gap: 6,
               background: 'var(--surface-2)', border: '1px solid var(--surface-4)',

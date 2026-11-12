@@ -4,6 +4,7 @@ Covers: Wiki page serialisation, epic serialisation, mentions,
         block-to-text conversion, and NQL parsing.
 """
 from __future__ import annotations
+import logging
 
 import json
 import re
@@ -23,11 +24,11 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.service_desk import Ticket
 from datetime import timedelta
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import joinedload as _jl
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 
 # ── Wiki page serialisers ─────────────────────────────────────────────────────
@@ -94,18 +95,18 @@ def save_mentions(entity_type: str, entity_id: str, content: str, by_id: str, db
 def _resolve_threaded_entity_id(entity_type: str, entity_ref: str, db: Session) -> str:
     ref = (entity_ref or "").strip()
     if not ref:
-        raise HTTPException(400, "entity_id requerido")
+        raise ErrorDeDominio(400, "entity_id requerido")
 
     if entity_type == "task":
         task = db.query(Task).filter(or_(Task.id == ref, func.upper(Task.code) == ref.upper())).first()
         if not task:
-            raise HTTPException(404, f"Tarea '{entity_ref}' no encontrada")
+            raise ErrorDeDominio(404, f"Tarea '{entity_ref}' no encontrada")
         return task.id
 
     if entity_type == "ticket":
         ticket = db.query(Ticket).filter(or_(Ticket.id == ref, func.upper(Ticket.number) == ref.upper())).first()
         if not ticket:
-            raise HTTPException(404, f"Ticket '{entity_ref}' no encontrado")
+            raise ErrorDeDominio(404, f"Ticket '{entity_ref}' no encontrado")
         return ticket.id
 
     return ref
@@ -124,6 +125,7 @@ def blocks_to_text(blocks_json: str) -> str:
                 parts.append(str(b["content"]))
         return " ".join(parts)
     except Exception:
+        logging.getLogger(__name__).warning("blocks_to_text: excepcion ignorada", exc_info=True)
         return ""
 
 
@@ -155,7 +157,7 @@ def list_wiki_spaces(project_id, db) -> list:
 
 def create_wiki_space(data: dict, created_by_id, db) -> dict:
     if db.query(WikiSpace).filter(WikiSpace.slug == data["slug"], WikiSpace.is_active == True).first():
-        raise HTTPException(400, f"Ya existe un espacio con slug '{data['slug']}'")
+        raise ErrorDeDominio(400, f"Ya existe un espacio con slug '{data['slug']}'")
     s = WikiSpace(**data, created_by=created_by_id)
     db.add(s); db.commit(); db.refresh(s)
     return {"id": s.id, "name": s.name, "slug": s.slug, "project_id": s.project_id}
@@ -163,7 +165,7 @@ def create_wiki_space(data: dict, created_by_id, db) -> dict:
 
 def update_wiki_space(space_id: str, data: dict, db) -> dict:
     s = db.query(WikiSpace).filter(WikiSpace.id == space_id, WikiSpace.is_active == True).first()
-    if not s: raise HTTPException(404, "Espacio no encontrado")
+    if not s: raise ErrorDeDominio(404, "Espacio no encontrado")
     for k, v in data.items(): setattr(s, k, v)
     db.commit(); db.refresh(s)
     return {"id": s.id, "name": s.name, "slug": s.slug}
@@ -171,13 +173,13 @@ def update_wiki_space(space_id: str, data: dict, db) -> dict:
 
 def delete_wiki_space(space_id: str, db) -> dict:
     s = db.query(WikiSpace).filter(WikiSpace.id == space_id, WikiSpace.is_active == True).first()
-    if not s: raise HTTPException(404, "Espacio no encontrado")
+    if not s: raise ErrorDeDominio(404, "Espacio no encontrado")
     active_pages = db.query(func.count(WikiPage.id)).filter(
         WikiPage.space_id == space_id,
         WikiPage.is_active == True,
     ).scalar() or 0
     if active_pages > 0:
-        raise HTTPException(400, f"No se puede eliminar: el espacio tiene {active_pages} pagina(s) activas")
+        raise ErrorDeDominio(400, f"No se puede eliminar: el espacio tiene {active_pages} pagina(s) activas")
     s.is_active = False
     if s.slug:
         s.slug = f"{s.slug}__deleted__{s.id[:8]}"
@@ -198,7 +200,7 @@ def create_wiki_page(space_id: str, title: str, slug: str, content,
                      parent_id, is_published: bool, sort_order: int,
                      created_by_id, db) -> dict:
     if not db.query(WikiSpace).filter(WikiSpace.id == space_id, WikiSpace.is_active == True).first():
-        raise HTTPException(404, "Espacio no encontrado")
+        raise ErrorDeDominio(404, "Espacio no encontrado")
     content_json = json.dumps(content or [])
     content_text = blocks_to_text(content_json)
     page = WikiPage(
@@ -220,7 +222,7 @@ def create_wiki_page(space_id: str, title: str, slug: str, content,
 
 def get_wiki_page(page_id: str, db) -> dict:
     page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.is_active == True).first()
-    if not page: raise HTTPException(404, "Página no encontrada")
+    if not page: raise ErrorDeDominio(404, "Página no encontrada")
     return serialize_page_full(page)
 
 
@@ -228,7 +230,7 @@ def update_wiki_page(page_id: str, title: str, slug: str, content,
                      parent_id, sort_order: int, is_published: bool,
                      change_note: str, updated_by_id, db) -> dict:
     page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.is_active == True).first()
-    if not page: raise HTTPException(404, "Página no encontrada")
+    if not page: raise ErrorDeDominio(404, "Página no encontrada")
     content_json = json.dumps(content or [])
     content_text = blocks_to_text(content_json)
     last_v = db.query(func.max(WikiVersion.version_num)).filter(
@@ -252,10 +254,10 @@ def update_wiki_page(page_id: str, title: str, slug: str, content,
 
 def delete_wiki_page(page_id: str, db) -> dict:
     page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.is_active == True).first()
-    if not page: raise HTTPException(404, "Página no encontrada")
+    if not page: raise ErrorDeDominio(404, "Página no encontrada")
     kids = db.query(WikiPage).filter(WikiPage.parent_id == page_id, WikiPage.is_active == True).count()
     if kids:
-        raise HTTPException(400, f"Esta página tiene {kids} subpáginas — elimínalas primero")
+        raise ErrorDeDominio(400, f"Esta página tiene {kids} subpáginas — elimínalas primero")
     page.is_active = False
     db.commit()
     return {"ok": True, "message": "Pagina wiki eliminada correctamente"}
@@ -275,9 +277,9 @@ def restore_wiki_version(page_id: str, version_num: int, restored_by_id, db) -> 
     ver = db.query(WikiVersion).filter(
         WikiVersion.page_id == page_id,
         WikiVersion.version_num == version_num).first()
-    if not ver: raise HTTPException(404, "Versión no encontrada")
+    if not ver: raise ErrorDeDominio(404, "Versión no encontrada")
     page = db.query(WikiPage).filter(WikiPage.id == page_id).first()
-    if not page: raise HTTPException(404, "Página no encontrada")
+    if not page: raise ErrorDeDominio(404, "Página no encontrada")
     last_v = db.query(func.max(WikiVersion.version_num)).filter(
         WikiVersion.page_id == page_id).scalar() or 0
     db.add(WikiVersion(
@@ -343,7 +345,7 @@ def add_wiki_page_comment(page_id: str, content: str, parent_id, created_by_id, 
 
 def resolve_wiki_page_comment(comment_id: str, db) -> dict:
     c = db.query(WikiComment).filter(WikiComment.id == comment_id).first()
-    if not c: raise HTTPException(404, "Comentario no encontrado")
+    if not c: raise ErrorDeDominio(404, "Comentario no encontrado")
     c.is_resolved = True; db.commit()
     return {"resolved": True}
 
@@ -360,7 +362,7 @@ def list_epics_records(project_id: str, db) -> list:
 
 def create_epic_record(data: dict, project_id: str, created_by_id, db) -> dict:
     if not db.query(Project).filter(Project.id == project_id).first():
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise ErrorDeDominio(404, "Proyecto no encontrado")
     e = Epic(**data, project_id=project_id, created_by=created_by_id)
     db.add(e); db.commit(); db.refresh(e)
     return serialize_epic(e)
@@ -370,7 +372,7 @@ def get_epic_record(epic_id: str, db) -> dict:
     e = (db.query(Epic)
          .options(_jl(Epic.epic_tasks), _jl(Epic.dependencies))
          .filter(Epic.id == epic_id, Epic.is_active == True).first())
-    if not e: raise HTTPException(404, "Épica no encontrada")
+    if not e: raise ErrorDeDominio(404, "Épica no encontrada")
     d = serialize_epic(e)
     d["tasks"] = []
     for et in (e.epic_tasks or []):
@@ -392,7 +394,7 @@ def get_epic_record(epic_id: str, db) -> dict:
 
 def update_epic_record(epic_id: str, data: dict, db) -> dict:
     e = db.query(Epic).filter(Epic.id == epic_id, Epic.is_active == True).first()
-    if not e: raise HTTPException(404, "Épica no encontrada")
+    if not e: raise ErrorDeDominio(404, "Épica no encontrada")
     for k, v in data.items(): setattr(e, k, v)
     db.commit(); db.refresh(e)
     return serialize_epic(e)
@@ -400,11 +402,11 @@ def update_epic_record(epic_id: str, data: dict, db) -> dict:
 
 def delete_epic_record(epic_id: str, db) -> dict:
     e = db.query(Epic).filter(Epic.id == epic_id, Epic.is_active == True).first()
-    if not e: raise HTTPException(404, "Épica no encontrada")
+    if not e: raise ErrorDeDominio(404, "Épica no encontrada")
     active_tasks = db.query(func.count(EpicTask.id)).filter(EpicTask.epic_id == epic_id, EpicTask.is_active == True).scalar() or 0
     active_deps = db.query(func.count(EpicDependency.id)).filter(EpicDependency.epic_id == epic_id, EpicDependency.is_active == True).scalar() or 0
     if active_tasks or active_deps:
-        raise HTTPException(400, f"No se puede eliminar: tareas={active_tasks}, dependencias={active_deps}")
+        raise ErrorDeDominio(400, f"No se puede eliminar: tareas={active_tasks}, dependencias={active_deps}")
     e.is_active = False
     db.commit()
     return {"ok": True, "message": "Epica eliminada correctamente"}
@@ -412,9 +414,9 @@ def delete_epic_record(epic_id: str, db) -> dict:
 
 def add_task_to_epic_record(epic_id: str, task_id: str, db) -> dict:
     if not db.query(Epic).filter(Epic.id == epic_id, Epic.is_active == True).first():
-        raise HTTPException(404, "Épica no encontrada")
+        raise ErrorDeDominio(404, "Épica no encontrada")
     if not db.query(Task).filter(Task.id == task_id).first():
-        raise HTTPException(404, "Tarea no encontrada")
+        raise ErrorDeDominio(404, "Tarea no encontrada")
     if not db.query(EpicTask).filter(EpicTask.epic_id == epic_id, EpicTask.task_id == task_id, EpicTask.is_active == True).first():
         db.add(EpicTask(epic_id=epic_id, task_id=task_id)); db.commit()
     return {"linked": True}
@@ -434,7 +436,7 @@ def remove_task_from_epic_record(epic_id: str, task_id: str, db) -> dict:
 
 def add_epic_dependency(epic_id: str, depends_on_id: str, db) -> dict:
     if epic_id == depends_on_id:
-        raise HTTPException(400, "Una épica no puede depender de sí misma")
+        raise ErrorDeDominio(400, "Una épica no puede depender de sí misma")
     if not db.query(EpicDependency).filter(
         EpicDependency.epic_id == epic_id,
         EpicDependency.depends_on_id == depends_on_id,
@@ -533,7 +535,7 @@ def execute_nql_search(entity_type: str, query: str, limit: int, db) -> dict:
     """Busca con una consulta NQL sobre una de las entidades declaradas."""
     spec = _ENTIDADES_NQL.get(entity_type)
     if spec is None:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400,
             f"entity_type '{entity_type}' no soportado. "
             f"Usa: {', '.join(sorted(_ENTIDADES_NQL))}",
@@ -582,7 +584,7 @@ def delete_saved_filter(filter_id: str, user_id, db) -> dict:
         SavedFilter.created_by == user_id,
         SavedFilter.is_active == True,
     ).first()
-    if not f: raise HTTPException(404, "Filtro no encontrado")
+    if not f: raise ErrorDeDominio(404, "Filtro no encontrado")
     f.is_active = False
     db.commit()
     return {"ok": True, "message": "Filtro eliminado correctamente"}
@@ -725,14 +727,14 @@ def edit_threaded_comment(comment_id: str, content: str, user_id, db) -> dict:
         ThreadedComment.created_by == user_id,
         ThreadedComment.is_active == True,
     ).first()
-    if not c: raise HTTPException(404, "Comentario no encontrado")
+    if not c: raise ErrorDeDominio(404, "Comentario no encontrado")
     c.content = content; db.commit()
     return {"id": c.id, "content": c.content}
 
 
 def resolve_threaded_comment(comment_id: str, db) -> dict:
     c = db.query(ThreadedComment).filter(ThreadedComment.id == comment_id, ThreadedComment.is_active == True).first()
-    if not c: raise HTTPException(404, "Comentario no encontrado")
+    if not c: raise ErrorDeDominio(404, "Comentario no encontrado")
     c.is_resolved = True; db.commit()
     return {"resolved": True}
 
@@ -743,9 +745,9 @@ def delete_threaded_comment(comment_id: str, user_id, db) -> dict:
         ThreadedComment.created_by == user_id,
         ThreadedComment.is_active == True,
     ).first()
-    if not c: raise HTTPException(404, "Comentario no encontrado")
+    if not c: raise ErrorDeDominio(404, "Comentario no encontrado")
     if [r for r in (c.replies or []) if r.is_active]:
-        raise HTTPException(400, "No se puede eliminar un comentario con respuestas")
+        raise ErrorDeDominio(400, "No se puede eliminar un comentario con respuestas")
     c.is_active = False
     db.commit()
     return {"ok": True, "message": "Comentario eliminado correctamente"}

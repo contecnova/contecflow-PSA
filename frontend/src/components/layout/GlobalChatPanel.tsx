@@ -487,7 +487,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
             height: 18,
             borderRadius: 999,
             background: 'var(--danger)',
-            color: '#fff',
+            color: 'var(--on-accent-light)',
             fontSize: 'var(--text-3xs)',
             fontWeight: 800,
             display: 'inline-flex',
@@ -584,7 +584,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         </div>
 
         <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 8, alignItems: 'center', background: 'var(--surface-2)' }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Notificaciones</label>
+          <label className="u-text3-xs">Notificaciones</label>
           <select
             value={notifyMode}
             onChange={(e) => updateNotifyMode(e.target.value)}
@@ -675,7 +675,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                         height: 16,
                         borderRadius: 999,
                         background: 'var(--danger)',
-                        color: '#fff',
+                        color: 'var(--on-accent-light)',
                         fontSize: 'var(--text-3xs)',
                         fontWeight: 800,
                         display: 'inline-flex',
@@ -716,10 +716,10 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                 )
               })}
               {activeConvId && messages.length === 0 && (
-                <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>{t('globalchat.sin_mensajes_todavia')}</div>
+                <div className="u-text3-xs">{t('globalchat.sin_mensajes_todavia')}</div>
               )}
               {!activeConvId && (
-                <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>{t('globalchat.selecciona_una_conversacion')}</div>
+                <div className="u-text3-xs">{t('globalchat.selecciona_una_conversacion')}</div>
               )}
             </div>
 
@@ -762,7 +762,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                   borderRadius: 8,
                   border: 'none',
                   background: 'var(--accent)',
-                  color: '#fff',
+                  color: 'var(--on-accent-light)',
                   cursor: !activeConvId || !draft.trim() || send.isPending ? 'not-allowed' : 'pointer',
                   opacity: !activeConvId || !draft.trim() || send.isPending ? 0.5 : 1,
                 }}

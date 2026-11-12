@@ -16,7 +16,7 @@ vi.mock('../services/api', () => ({
 }));
 
 vi.mock('../services/offlineQueue', () => ({
-  pendingCount: vi.fn().mockReturnValue(0),
+  pendingCount: vi.fn().mockResolvedValue(0),
   syncPending: vi.fn().mockResolvedValue(undefined),
 }));
 

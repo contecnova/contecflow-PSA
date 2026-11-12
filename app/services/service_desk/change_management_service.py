@@ -17,6 +17,7 @@ from datetime import datetime, timezone, timedelta
 from enum import Enum
 
 from sqlalchemy.orm import Session
+from app.core.segundo_plano import encolar
 from app.services.ai_provider_service import call_ai
 
 _log = logging.getLogger(__name__)
@@ -51,22 +52,16 @@ def _notify_change_stakeholders(
         for uid in recipient_ids:
             user = db.query(User).filter(User.id == uid).first()
             if user and user.email:
-                NotificationService.send_email(to=user.email, subject=subject, html_body=body_html)
+                encolar(NotificationService.send_email, to=user.email, subject=subject, html_body=body_html)
 
         from app.core.config import settings
         if getattr(settings, "SLACK_WEBHOOK_URL", None):
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            loop.run_until_complete(
-                NotificationService.send_slack_message(
-                    channel="#change-management",
-                    message=subject,
-                )
-            )
+            # Auditoria 2026-11 (hallazgo 23): habia un tercer cliente de Slack,
+            # asincrono, en `notification_service`, y este era su unico uso (con
+            # un `run_until_complete` que revienta dentro de un bucle en marcha).
+            # El de `integrations` es sincrono y pasa la guarda SSRF.
+            from app.services.integrations import send_slack_message
+            send_slack_message(settings.SLACK_WEBHOOK_URL, subject)
     except Exception as exc:
         _log.warning("Could not send change notification for %s: %s", change_id, exc)
 
@@ -390,6 +385,7 @@ def _get_rollout_state(db: Session, change_id: str) -> dict | None:
             return None
         return _json.loads(row.value)
     except Exception:
+        _log.warning("_get_rollout_state: excepcion ignorada", exc_info=True)
         return None
 
 

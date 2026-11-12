@@ -1,12 +1,13 @@
 """Revenue and Expenses metrics: revenue_recognized_by_month, revenue_by_contract,
 expenses_by_category, expenses_by_project, expenses_billable_vs_internal,
 expenses_trend, expenses_pending_approval."""
+import logging
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 
 
 @register_metric("revenue_recognized_by_month")
@@ -44,9 +45,10 @@ def metric_revenue_recognized_by_month(
                 "value": round(float(r.total or 0), 2),
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_revenue_recognized_by_month: excepcion ignorada", exc_info=True)
         rows = []
 
-    return rows, {"y_label": "Ingreso reconocido (€)"}
+    return rows, {"y_label": "Ingreso reconocido (¤)"}
 
 
 @register_metric("revenue_by_contract")
@@ -90,9 +92,10 @@ def metric_revenue_by_contract(
                 "value": round(float(r.total or 0), 2),
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_revenue_by_contract: excepcion ignorada", exc_info=True)
         rows = []
 
-    return rows, {"y_label": "Ingreso reconocido (€)"}
+    return rows, {"y_label": "Ingreso reconocido (¤)"}
 
 
 @register_metric("expenses_by_category")
@@ -118,9 +121,10 @@ def metric_expenses_by_category(
         rows = [{"label": k, "value": round(v, 2), "count": n}
                 for k, (v, n) in sorted(grupos.items(), key=lambda x: -x[1][0])[:top_n]]
     except Exception:
+        logging.getLogger(__name__).warning("metric_expenses_by_category: excepcion ignorada", exc_info=True)
         rows = []
 
-    return rows, {"y_label": "Importe (€)"}
+    return rows, {"y_label": "Importe (¤)"}
 
 
 @register_metric("expenses_by_project")
@@ -156,9 +160,10 @@ def metric_expenses_by_project(
         proj_map = {p.id: p.name for p in db.query(Project).filter(Project.id.in_([k for k, _ in orden])).all()} if orden else {}
         rows = [{"label": proj_map.get(pid, str(pid)), "value": round(float(v), 2)} for pid, v in orden]
     except Exception:
+        logging.getLogger(__name__).warning("metric_expenses_by_project: excepcion ignorada", exc_info=True)
         rows = []
 
-    return rows, {"y_label": "Importe (€)"}
+    return rows, {"y_label": "Importe (¤)"}
 
 
 @register_metric("expenses_billable_vs_internal")
@@ -182,6 +187,7 @@ def metric_expenses_billable_vs_internal(
             grupos[bool(g.is_billable)] = (total + importe, n + 1)
         rows = [{"label": "Facturable" if k else "Interno", "value": round(v, 2), "count": n} for k, (v, n) in grupos.items()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_expenses_billable_vs_internal: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {}
@@ -208,9 +214,10 @@ def metric_expenses_trend(
             meses[m] = meses.get(m, 0.0) + importe
         rows = [{"label": m, "value": round(v, 2)} for m, v in sorted(meses.items())]
     except Exception:
+        logging.getLogger(__name__).warning("metric_expenses_trend: excepcion ignorada", exc_info=True)
         rows = []
 
-    return rows, {"y_label": "Gastos aprobados (€)"}
+    return rows, {"y_label": "Gastos aprobados (¤)"}
 
 
 @register_metric("expenses_pending_approval")
@@ -248,6 +255,7 @@ def metric_expenses_pending_approval(
                 "count": r.count,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_expenses_pending_approval: excepcion ignorada", exc_info=True)
         rows = []
 
-    return rows, {"y_label": "Importe pendiente (€)"}
+    return rows, {"y_label": "Importe pendiente (¤)"}

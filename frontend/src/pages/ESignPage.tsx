@@ -14,6 +14,7 @@ import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
+import StatusBadge from '../components/ui/StatusBadge'
 
 type EnvelopeStatus = 'draft' | 'sent' | 'delivered' | 'completed' | 'declined' | 'voided' | 'error'
 
@@ -178,7 +179,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
 
   return (
     <Modal open title={t('esign.create_title')} onClose={onClose} width={560}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div>
           <label style={ls}>{t('esign.document')}</label>
           <select value={form.document_id} onChange={setField('document_id')} style={fs}>
@@ -231,7 +232,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
 
         {error && <div style={{ color: 'var(--danger)', fontSize: "var(--text-sm)" }}>⚠ {error}</div>}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('esign.cancel')}</Button>
           <Button onClick={submit} disabled={saving}>{saving ? t('esign.creating') : t('esign.request_signature')}</Button>
         </div>
@@ -343,12 +344,12 @@ export default function ESignPage(): JSX.Element {
                     </button>
                   </td>
                   <td style={cell}>
-                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                    <span className="u-text2-sm">
                       {env.provider === 'docusign' ? '🖊 DocuSign' : env.provider === 'adobe_sign' ? '📝 Adobe' : '✋ Manual'}
                     </span>
                   </td>
                   <td style={cell}>
-                    <span style={{ fontSize: "var(--text-sm)" }}>
+                    <span className="u-sm">
                       {env.signers?.filter((s: Signer) => s.signed).length || 0}/{env.signers?.length || 0} firmados
                     </span>
                   </td>
@@ -387,10 +388,10 @@ export default function ESignPage(): JSX.Element {
       {/* Detail modal */}
       {detail && (
         <Modal open title={detail.subject || 'Detalles de firma'} onClose={() => setDetail(null)} width={500}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div className="u-stack-14">
+            <div className="u-row-center-10">
               <StatusPill status={detail.status} />
-              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+              <span className="u-text2-sm">
                 {detail.provider === 'docusign' ? '🖊 DocuSign' : detail.provider === 'adobe_sign' ? '📝 Adobe Sign' : '✋ Manual'}
               </span>
             </div>
@@ -404,9 +405,9 @@ export default function ESignPage(): JSX.Element {
                     width: 8, height: 8, borderRadius: '50%',
                     background: s.signed ? 'var(--success)' : 'var(--surface-5)', flexShrink: 0,
                   }} />
-                  <div style={{ flex: 1 }}>
+                  <div className="u-flex1">
                     <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{s.name}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{s.email} · Orden {s.routing_order}</div>
+                    <div className="u-text2-xs">{s.email} · Orden {s.routing_order}</div>
                   </div>
                   {s.signed ? (
                     <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ Firmado {fmtDate(s.signed_at)}</span>
@@ -417,7 +418,7 @@ export default function ESignPage(): JSX.Element {
                       Marcar firmado
                     </button>
                   ) : (
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Pendiente</span>
+                    <span className="u-text2-xs">Pendiente</span>
                   )}
                 </div>
               ))}
@@ -438,15 +439,8 @@ export default function ESignPage(): JSX.Element {
 
 function ProviderBadge({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      background: ok ? 'var(--success-bg)' : 'var(--surface-3)',
-      border: `1px solid ${ok ? 'var(--success-border)' : 'var(--surface-5)'}`,
-      borderRadius: 8, padding: '4px 10px', fontSize: "var(--text-sm)",
-      color: ok ? 'var(--success)' : 'var(--text-3)',
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: ok ? 'var(--success)' : 'var(--surface-5)' }} />
+    <StatusBadge kind={ok ? 'success' : 'neutral'} dot caps={false}>
       {label} {ok ? 'conectado' : 'no configurado'}
-    </span>
+    </StatusBadge>
   )
 }

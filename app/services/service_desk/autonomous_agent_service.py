@@ -42,6 +42,7 @@ from app.models.service_desk import (
 from app.services.service_desk.incident_intelligence_service import (
     score_auto_resolution,
 )
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -394,6 +395,7 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
         aii = score_auto_resolution(db, ticket)
         ai_score = aii.get("score", 0.0)
     except Exception:
+        logger.warning("evaluate_ticket_for_autonomy: excepcion ignorada", exc_info=True)
         ai_score = 0.0
 
     # Try to find a matching playbook (los de la organizacion primero)
@@ -629,6 +631,7 @@ def _safe_json(raw: Optional[str], default):
     try:
         return json.loads(raw)
     except Exception:
+        logger.debug("_safe_json: excepcion ignorada", exc_info=True)
         return default
 
 
@@ -649,22 +652,23 @@ def create_playbook(db: Session, data: dict) -> dict:
     )
     db.add(row)
     db.flush()
-    return {
+    resultado = {
         "id": row.id,
         "name": row.name,
         "playbook_type": row.playbook_type,
         "status": "created",
     }
+    db.commit()
+    return resultado
 
 
 def update_playbook(db: Session, playbook_id: str, data: dict) -> dict:
     """Update an existing custom playbook."""
     from app.models.service_desk import AutonomousPlaybook
-    from fastapi import HTTPException
 
     row = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.id == playbook_id).first()
     if not row:
-        raise HTTPException(404, "Playbook not found")
+        raise ErrorDeDominio(404, "Playbook not found")
 
     if "name" in data:
         row.name = data["name"]
@@ -678,20 +682,22 @@ def update_playbook(db: Session, playbook_id: str, data: dict) -> dict:
         row.is_active = data["is_active"]
 
     db.flush()
-    return {"id": row.id, "name": row.name, "status": "updated"}
+    resultado = {"id": row.id, "name": row.name, "status": "updated"}
+    db.commit()
+    return resultado
 
 
 def deactivate_playbook(db: Session, playbook_id: str) -> dict:
     """Deactivate (soft-delete) a custom playbook."""
     from app.models.service_desk import AutonomousPlaybook
-    from fastapi import HTTPException
 
     row = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.id == playbook_id).first()
     if not row:
-        raise HTTPException(404, "Playbook not found")
+        raise ErrorDeDominio(404, "Playbook not found")
 
     row.is_active = False
     db.flush()
+    db.commit()
     return {"id": playbook_id, "status": "deactivated"}
 
 

@@ -12,6 +12,8 @@ import PageShell from '../components/layout/PageShell'
 import { Database } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
+// Solo tipos: se borran al compilar y no rompen la carga diferida del grafo.
+import type { RawNode, RawEdge } from '../components/cmdb/CMDBTopologyGraph'
 // Auditoría 2026-08 (hallazgo 19). Este import era ESTÁTICO, y
 // CMDBTopologyGraph depende de react-plotly.js → plotly.js. Medido sobre el
 // build: eso ponía un import estático de `vendor-plotly` (4.633 kB, el 38 % de
@@ -29,6 +31,9 @@ import { useAuth } from '../context/AuthContext'
 // avisos **críticos** de `npm audit` por una librería de mapas que aquí no se
 // usa. El `lazy` de arriba sigue mereciendo la pena; simplemente ya no esconde
 // tanto.
+//
+// Actualización 2026-11 (#31): la vista 3D ya no usa plotly (es SVG) y plotly
+// salió del proyecto; el `lazy` se mantiene igual.
 const CMDBTopologyGraph = lazy(() => import('../components/cmdb/CMDBTopologyGraph'))
 // Mismo caso que arriba: sólo se usa en la pestaña 3D y arrastraba
 // `vendor-d3` (130 kB) al chunk de la ruta.
@@ -50,9 +55,9 @@ const srOnly: CSSProperties = { position: 'absolute', width: 1, height: 1, paddi
 const iconBtn: CSSProperties = { background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)" }
 
 type CI = {
-  [k: string]: any; id: string; code?: string; name?: string; ci_type?: string; status?: string
+  id: string; code?: string; name?: string; ci_type?: string; status?: string
   environment?: string; description?: string; hostname?: string; ip_address?: string; version?: string
-  criticality?: string; attributes?: Record<string, any>; is_discovered?: boolean
+  criticality?: string; attributes?: Record<string, unknown>; is_discovered?: boolean
   discovery_provider?: string; drift_detected_at?: string
 }
 
@@ -141,7 +146,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
   const id = (k: string) => `ci-form-${k}`
   return (
     <Modal open onClose={onClose} title={isEdit ? t('cmdb.edit_ci') : t('cmdb.new_ci')}>
-      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+      <div className="u-stack-14">
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>
           <div>
             <label style={ls} htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
@@ -222,8 +227,8 @@ function RelLinea({ r, ciId }: { r: Rel; ciId: string }) {
   return (
     <span style={{ color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
       {sale
-        ? <>{etiqueta('rel_', r.relation_type)} <strong style={{ color: 'var(--text-1)' }}>{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong></>
-        : <><strong style={{ color: 'var(--text-1)' }}>{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong> {etiqueta('rel_', r.relation_type)} {t('cmdb.this_ci')}</>}
+        ? <>{etiqueta('rel_', r.relation_type)} <strong className="u-text1">{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong></>
+        : <><strong className="u-text1">{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong> {etiqueta('rel_', r.relation_type)} {t('cmdb.this_ci')}</>}
     </span>
   )
 }
@@ -259,7 +264,7 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
 
   return (
     <Modal open onClose={onClose} title={t('cmdb.relations_of', { name: item.name ?? '' })}>
-      <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="u-stack-16">
         {isLoading ? <Spinner /> : rels.length === 0 ? (
           <div style={{textAlign:'center',padding:'20px',color:'var(--text-2)',fontSize: "var(--text-base)"}}>{t('cmdb.sin_relaciones_definidas')}</div>
         ) : (
@@ -324,7 +329,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
               <div key={e.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                   <span style={{ ...chip(color), fontWeight: 700 }}>{etiqueta('action_', e.action)}</span>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                  <span className="u-text2-xs">
                     {e.created_at ? new Date(e.created_at).toLocaleString(localeActivo()) : ''}
                     {e.user_name ? ` · ${t('cmdb.por')} ${e.user_name}` : ` · ${t('cmdb.by_discovery')}`}
                   </span>
@@ -333,7 +338,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
                 {e.field && (
                   <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)', wordBreak: 'break-word' }}>
                     <code style={{ background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>{e.field}</code>
-                    {e.old_value && <span> · <span style={{ color: 'var(--danger)' }}>−{e.old_value}</span></span>}
+                    {e.old_value && <span> · <span className="u-danger">−{e.old_value}</span></span>}
                     {e.new_value && <span> → <span style={{ color: 'var(--success)' }}>+{e.new_value}</span></span>}
                   </div>
                 )}
@@ -348,9 +353,12 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
 
 
 // ── Linked assets for a CI (drill-down panel) ────────────────────────────────
+/** Activo de ALM vinculado a un CI. */
+interface LinkedAsset { id: string; name?: string; serial_number?: string | null; status?: string | null }
+
 function CILinkedAssets({ ciId }: { ciId: string }) {
   const t = useAppT()
-  const { data: assets = [], isLoading } = useQuery<CI[]>({
+  const { data: assets = [], isLoading } = useQuery<LinkedAsset[]>({
     queryKey: ['ci-assets', ciId],
     queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data?.assets ?? r.data ?? []),
     staleTime: 30000,
@@ -362,12 +370,12 @@ function CILinkedAssets({ ciId }: { ciId: string }) {
         {t('cmdb.linked_assets', { n: assets.length })}
       </div>
       {assets.length === 0 ? (
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('cmdb.ningun_activo_vinculado_a_este_ci')}</div>
+        <div className="u-text2-sm">{t('cmdb.ningun_activo_vinculado_a_este_ci')}</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="u-stack-6">
           {assets.map(a => (
             <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="u-flex1-min0">
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
                 {a.serial_number ? <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>S/N {String(a.serial_number)}</div> : null}
               </div>
@@ -542,7 +550,7 @@ function ClasesTab() {
           {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
         </select>
       </div>
-      {actuales.length === 0 && <div style={{ color: 'var(--text-2)', fontSize: "var(--text-sm)" }}>{t('cmdb.classes_empty')}</div>}
+      {actuales.length === 0 && <div className="u-text2-sm">{t('cmdb.classes_empty')}</div>}
       {actuales.map((f, i) => (
         <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px,1fr) minmax(160px,1.4fr) 120px auto', gap: 8, alignItems: 'center' }}>
           <input aria-label={t('cmdb.classes_key')} style={{ ...is, fontFamily: 'var(--font-mono)' }} value={f.key}
@@ -643,7 +651,7 @@ export default function CMDBPage(): JSX.Element {
     return sortDir === 'asc' ? cmp : -cmp
   })
 
-  const { data: topoData, isFetching: topoLoading } = useQuery<{ nodes: any[]; edges: any[] }>({
+  const { data: topoData, isFetching: topoLoading } = useQuery<{ nodes: RawNode[]; edges: RawEdge[] }>({
     queryKey: ['cmdb-topology', topoCI?.id, topoRadius],
     queryFn: () => topoCI
       ? cmdbApi.topology(topoCI.id, topoRadius).then(r => r.data)
@@ -717,11 +725,11 @@ export default function CMDBPage(): JSX.Element {
               maxHeight: 660, overflowY: 'auto',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="u-row-center-8">
                   <span style={{ fontSize: "var(--text-xl-em)" }}>{CI_TYPE_ICONS[drillCI.ci_type ?? ''] || '📌'}</span>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "var(--text-md)", color: 'var(--text-1)' }}>{drillCI.name}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{drillCI.code} · {etiqueta('type_', drillCI.ci_type)}</div>
+                    <div className="u-text2-xs">{drillCI.code} · {etiqueta('type_', drillCI.ci_type)}</div>
                   </div>
                 </div>
                 <button
@@ -731,7 +739,7 @@ export default function CMDBPage(): JSX.Element {
                 >✕</button>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="u-wrap-8">
                 {drillCI.status && <span style={chip(STATUS_COLOR[drillCI.status] || 'var(--text-2)')}>{etiqueta('st_', drillCI.status)}</span>}
                 {drillCI.environment && <span style={chip(ENV_COLOR[drillCI.environment] || 'var(--text-2)')}>{etiqueta('env_', drillCI.environment)}</span>}
                 {drillCI.is_discovered && <span style={chip('var(--accent)')}>{t('cmdb.discovered', { provider: drillCI.discovery_provider ?? '' })}</span>}
@@ -856,11 +864,11 @@ export default function CMDBPage(): JSX.Element {
               {sortedItems.map(item => (
                   <tr key={item.id} style={{borderBottom:'1px solid var(--surface-4)'}}>
                     <td style={{padding:'10px 12px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <div className="u-row-center-8">
                         <span style={{fontSize: "var(--text-lg)"}} aria-hidden>{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
-                        <div style={{minWidth:0}}>
+                        <div className="u-min0">
                           <div style={{fontWeight:600}}>{item.name}</div>
-                          <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>
+                          <div className="u-text2-xs">
                             {item.code}{item.is_discovered ? ` · ${t('cmdb.discovered', { provider: item.discovery_provider ?? '' })}` : ''}
                           </div>
                         </div>
@@ -877,7 +885,7 @@ export default function CMDBPage(): JSX.Element {
                     <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}><Red item={item} /></td>
                     <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)',fontFamily:'var(--font-mono)'}}>{item.version||'—'}</td>
                     <td style={{padding:'10px 12px'}}>
-                      <div style={{display:'flex',gap:6}}>
+                      <div className="u-row-6">
                         <button onClick={() => setHistoryItem(item)} style={iconBtn} aria-label={t('cmdb.ver_historial_de_cambios')} title={t('cmdb.ver_historial_de_cambios')}>📋</button>
                         <button onClick={() => setRelItem(item)} style={iconBtn} aria-label={t('cmdb.relationships')} title={t('cmdb.relationships')}>🔗</button>
                         <button onClick={() => { setEditing(item); setShowForm(true) }} style={iconBtn} aria-label={t('cmdb.edit_ci')} title={t('cmdb.edit_ci')}>✏</button>

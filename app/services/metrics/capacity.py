@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.imputation import Imputation
 from app.models.user import User
 from app.core.config import settings
-from . import register_metric
+from ._registro import register_metric
 
 
 @register_metric("load_by_week")

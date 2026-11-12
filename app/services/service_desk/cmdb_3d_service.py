@@ -8,6 +8,7 @@ Provides:
   - Impact path tracing (which assets/services are affected by a CI failure)
 """
 from __future__ import annotations
+import logging
 
 import json
 import math
@@ -43,6 +44,7 @@ def _get(db: Session, key: str, org_id: Optional[str], default: Any) -> Any:
     try:
         return json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("_get: excepcion ignorada", exc_info=True)
         return default
 
 
@@ -113,6 +115,7 @@ def get_3d_graph(
 
     except Exception:
         # Fallback demo data
+        logging.getLogger(__name__).warning("get_3d_graph: excepcion ignorada", exc_info=True)
         nodes = _generate_demo_nodes()
         edges = _generate_demo_edges(nodes)
 

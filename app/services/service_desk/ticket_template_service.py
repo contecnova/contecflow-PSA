@@ -1,10 +1,10 @@
 import json
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import TicketTemplate
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def serialize_ticket_template(template: TicketTemplate) -> dict:
 
 def build_ticket_template(payload: dict) -> TicketTemplate:
     if not payload.get("name") or not payload.get("ticket_type"):
-        raise HTTPException(422, "name y ticket_type son obligatorios")
+        raise ErrorDeDominio(422, "name y ticket_type son obligatorios")
 
     return TicketTemplate(
         name=payload["name"],
@@ -58,7 +58,7 @@ def get_ticket_template_by_id(db: Session, template_id: str):
 def get_ticket_template_or_404(db: Session, template_id: str, detail: str = "Plantilla no encontrada") -> TicketTemplate:
     template = get_ticket_template_by_id(db, template_id)
     if not template:
-        raise HTTPException(404, detail)
+        raise ErrorDeDominio(404, detail)
     return template
 
 

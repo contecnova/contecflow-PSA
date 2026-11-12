@@ -21,12 +21,13 @@ import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconCR } from '../../components/ui/FRCRIcons'
 import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 import { CLIENT_API, useLang, useClientAuth } from './portalClientContext'
+import type { ApiError } from '../../services/api'
 import PortalKbArticulo from './PortalKbArticulo'
 import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
   PortalBadge, PortalButton, PortalModal, PortalField, PortalInput,
   PortalSelect, PortalTextarea, PortalProgress, PortalBanner,
-  formatMoney,
+  formatMoney, metaItems,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
@@ -46,9 +47,179 @@ function StatusBadge({ status }: { status?: string | null }) {
   return <PortalBadge tone={STATUS_TONE[status] || 'default'}>{String(status).replace(/_/g, ' ')}</PortalBadge>
 }
 
-// TODO type: portal/collaboration responses still JS — rows treated as `any`-shaped locally.
-type PortalRow = Record<string, any>
-type ClientAuth = { client: PortalRow | null }
+// ── Respuestas del portal ────────────────────────────────────────────────────
+// Campos según los serializadores de app/services/client_portal_service
+// (serializacion.py, facturas.py, panel.py, wiki_y_encuestas.py).
+
+/** `_uat_test_cases_out`. */
+interface UatTestCase {
+  id: string
+  title: string
+  steps?: string | null
+  expected_result?: string | null
+  actual_result?: string | null
+  status: string
+  notes?: string | null
+  order?: number
+}
+
+/** `_uat_issues_out`. */
+interface UatIssue {
+  id: string
+  title: string
+  description?: string | null
+  severity?: string
+  status: string
+  steps_to_reproduce?: string | null
+}
+
+/** `uat_out`. */
+interface UatSession {
+  id: string
+  code?: string
+  title: string
+  description?: string | null
+  test_environment?: string | null
+  test_credentials?: string | null
+  status: string
+  deadline?: string | null
+  overdue?: boolean | null
+  test_cases?: UatTestCase[]
+  issues?: UatIssue[]
+  stats?: { total: number; passed: number; failed: number; pending: number }
+}
+
+/** `fr_out` (+ `can_edit_by_client` que añade el listado). */
+interface FeatureRequest {
+  id: string
+  code?: string
+  project_id?: string | null
+  project_name?: string
+  title: string
+  description?: string | null
+  business_justification?: string | null
+  affected_area?: string | null
+  priority?: string
+  status: string
+  pm_response?: string | null
+  estimated_hours?: number | null
+  estimated_cost?: number | null
+  estimated_delivery_weeks?: number | null
+  client_approved?: boolean | null
+  client_approved_at?: string | null
+  submitted_at?: string | null
+  can_edit_by_client?: boolean
+  cr_status?: string | null
+  cr_status_label?: string | null
+  cr_status_color?: string | null
+}
+
+/** Formulario de alta/edición de una solicitud. */
+interface FeatureRequestForm {
+  title: string
+  description: string
+  business_justification: string
+  affected_area: string
+  priority: string
+  project_id: string
+}
+
+/** Proyecto tal como viene en la sesión del cliente (`client.projects`). */
+interface ClientProject {
+  id: string
+  name?: string
+  code?: string
+}
+
+/** Conversación de `/portal/collaboration/conversations`. */
+interface CollabConversation {
+  id: string
+  title?: string
+}
+
+/** Mensaje de `/portal/collaboration/conversations/{id}/messages`. */
+interface CollabMessage {
+  id: string
+  body: string
+  author_name?: string | null
+  client_user_id?: string | number | null
+  sent_at: string
+}
+
+/** Factura de `list_client_invoices` (facturas.py). */
+interface ClientInvoice {
+  id: string
+  number?: string | null
+  client_name?: string | null
+  status: string
+  subtotal?: number | null
+  tax_amount?: number | null
+  total?: number | null
+  currency?: string | null
+  issue_date?: string | null
+  due_date?: string | null
+  client_approval_status?: string | null
+}
+
+interface RoadmapMilestone {
+  id: string
+  name: string
+  due_date?: string | null
+  is_completed?: boolean
+  billing_pct?: number | null
+}
+
+interface RoadmapDeliverable {
+  id: string
+  name: string
+  format?: string | null
+  status: string
+  planned_date?: string | null
+}
+
+/** `GET /portal/project` (panel.py), lo que pinta el roadmap. */
+interface ClientProjectDetail {
+  milestones?: RoadmapMilestone[]
+  deliverables?: RoadmapDeliverable[]
+}
+
+/** `doc_out`. */
+interface ClientDocument {
+  id: string
+  title: string
+  description?: string | null
+  category?: string | null
+  file_url?: string | null
+  file_name?: string | null
+  requires_signature?: boolean
+  signed_by_client?: boolean
+  signed_at?: string | null
+  created_at?: string
+}
+
+interface WikiPageSummary {
+  id: string
+  title: string
+  updated_at?: string | null
+}
+
+interface WikiBlock {
+  type?: string
+  content?: string
+}
+
+interface WikiPageDetail extends WikiPageSummary {
+  content?: WikiBlock[]
+}
+
+interface KbArticle {
+  id: string
+  title: string
+  summary?: string | null
+  tags?: string | null
+  view_count?: number
+  helpful_count?: number
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // PortalUAT
@@ -59,14 +230,14 @@ export function PortalUAT() {
   const qc = useQueryClient()
   const toast = useToast()
   const issueIdPrefix = useId()
-  const [selected, setSelected] = useState<PortalRow | null>(null)
+  const [selected, setSelected] = useState<UatSession | null>(null)
   const [testResults, setTestResults] = useState<Record<string, string>>({})
   const [globalNotes, setGlobalNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [reportingIssue, setReportingIssue] = useState(false)
   const [issueForm, setIssueForm] = useState({ title: '', description: '', severity: 'medium', steps_to_reproduce: '' })
 
-  const { data: sessions = [], isLoading } = useQuery<PortalRow[]>({
+  const { data: sessions = [], isLoading } = useQuery<UatSession[]>({
     queryKey: ['portal-uat'],
     queryFn: () => CLIENT_API.get('/portal/uat').then(r => r.data),
   })
@@ -74,7 +245,7 @@ export function PortalUAT() {
   const submitResult = async (sessionId: string, result: string) => {
     setSubmitting(true)
     try {
-      const testCases = selected?.test_cases?.map((tc: PortalRow) => ({
+      const testCases = selected?.test_cases?.map(tc => ({
         id: tc.id, status: testResults[tc.id] || 'pending', actual_result: '', notes: '',
       })) || []
       await CLIENT_API.post(`/portal/uat/${sessionId}/submit-result`, { result, notes: globalNotes, test_cases: testCases })
@@ -146,17 +317,17 @@ export function PortalUAT() {
         )}
 
         {selected.test_cases?.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 10 }}>{traducir('portaladvanced.casos_de_prueba')}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {selected.test_cases.map((tc: PortalRow) => (
+            <div className="u-stack-10">
+              {selected.test_cases.map(tc => (
                 <PortalCard key={tc.id}>
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{tc.title}</div>
                     {tc.steps && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 4 }}>📋 {tc.steps}</div>}
                     {tc.expected_result && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--success)' }}>✓ {tc.expected_result}</div>}
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="u-row-8">
                     {[
                       { val: 'passed', label: 'Pasado', color: 'var(--success)', icon: <CheckCircle2 size={14} /> },
                       { val: 'failed', label: 'Fallado', color: 'var(--danger)',  icon: <XCircle size={14} /> },
@@ -179,10 +350,10 @@ export function PortalUAT() {
         )}
 
         {selected.issues?.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 10 }}>Incidencias</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {selected.issues.map((issue: PortalRow) => (
+            <div className="u-stack-8">
+              {selected.issues.map(issue => (
                 <PortalCard key={issue.id} padding={14}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div>
@@ -199,7 +370,7 @@ export function PortalUAT() {
 
         <PortalCard style={{ marginBottom: 16 }}>
           <PortalField label={traducir('portaladvanced.notas_para_el_equipo')}>
-            <PortalTextarea rows={3} value={globalNotes} onChange={(e: any) => setGlobalNotes(e.target.value)} placeholder={traducir('portaladvanced.comentarios_generales_de_la_sesion')} />
+            <PortalTextarea rows={3} value={globalNotes} onChange={e => setGlobalNotes(e.target.value)} placeholder={traducir('portaladvanced.comentarios_generales_de_la_sesion')} />
           </PortalField>
         </PortalCard>
 
@@ -234,15 +405,15 @@ export function PortalUAT() {
             </>
           }
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="u-stack-14">
             <PortalField label={traducir('portaladvanced.titulo')} required>
-              <PortalInput id={`${issueIdPrefix}-title`} value={issueForm.title} onChange={(e: any) => setIssueForm(f => ({ ...f, title: e.target.value }))} />
+              <PortalInput id={`${issueIdPrefix}-title`} value={issueForm.title} onChange={e => setIssueForm(f => ({ ...f, title: e.target.value }))} />
             </PortalField>
             <PortalField label={traducir('portaladvanced.descripcion')} required>
-              <PortalTextarea rows={3} value={issueForm.description} onChange={(e: any) => setIssueForm(f => ({ ...f, description: e.target.value }))} />
+              <PortalTextarea rows={3} value={issueForm.description} onChange={e => setIssueForm(f => ({ ...f, description: e.target.value }))} />
             </PortalField>
             <PortalField label="Severidad">
-              <PortalSelect value={issueForm.severity} onChange={(e: any) => setIssueForm(f => ({ ...f, severity: e.target.value }))}>
+              <PortalSelect value={issueForm.severity} onChange={e => setIssueForm(f => ({ ...f, severity: e.target.value }))}>
                 <option value="low">Baja</option>
                 <option value="medium">Media</option>
                 <option value="high">Alta</option>
@@ -250,7 +421,7 @@ export function PortalUAT() {
               </PortalSelect>
             </PortalField>
             <PortalField label={traducir('portaladvanced.pasos_para_reproducir')}>
-              <PortalTextarea rows={2} value={issueForm.steps_to_reproduce} onChange={(e: any) => setIssueForm(f => ({ ...f, steps_to_reproduce: e.target.value }))} />
+              <PortalTextarea rows={2} value={issueForm.steps_to_reproduce} onChange={e => setIssueForm(f => ({ ...f, steps_to_reproduce: e.target.value }))} />
             </PortalField>
           </div>
         </PortalModal>
@@ -267,8 +438,8 @@ export function PortalUAT() {
         icon={FlaskConical}
         meta={[
           { value: sessions.length, label: 'sesiones' },
-          { value: sessions.filter((s: PortalRow) => ['pending', 'in_progress'].includes(s.status)).length, label: 'pendientes', color: 'var(--warning)' },
-          { value: sessions.filter((s: PortalRow) => ['passed', 'conditional'].includes(s.status)).length, label: 'aprobadas', color: 'var(--success)' },
+          { value: sessions.filter(s => ['pending', 'in_progress'].includes(s.status)).length, label: 'pendientes', color: 'var(--warning)' },
+          { value: sessions.filter(s => ['passed', 'conditional'].includes(s.status)).length, label: 'aprobadas', color: 'var(--success)' },
         ]}
       />
 
@@ -280,11 +451,11 @@ export function PortalUAT() {
           description="Cuando el equipo prepare una entrega para que la valides, aparecerá aquí."
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {sessions.map((s: PortalRow) => (
+        <div className="u-stack-12">
+          {sessions.map(s => (
             <PortalCard key={s.id} onClick={() => { setSelected(s); setTestResults({}); setGlobalNotes('') }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <FlaskConical size={16} style={{ color: 'var(--accent)' }} />
                     <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{s.title}</div>
@@ -300,7 +471,7 @@ export function PortalUAT() {
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'flex', gap: 12 }}>
                       <span>{s.stats.total} casos</span>
                       <span style={{ color: 'var(--success)' }}>✓ {s.stats.passed}</span>
-                      <span style={{ color: 'var(--danger)' }}>✗ {s.stats.failed}</span>
+                      <span className="u-danger">✗ {s.stats.failed}</span>
                     </div>
                   )}
                 </div>
@@ -323,12 +494,14 @@ export function PortalFeatureRequests() {
   const toast = useToast()
   const qc = useQueryClient()
   const formIdPrefix = useId()
-  const { client } = useClientAuth() as unknown as ClientAuth
+  const { client } = useClientAuth()
+  // `projects` llega sin tipar en la sesión; aquí se usan id, nombre y código.
+  const clientProjects = (client?.projects || []) as ClientProject[]
   const [showNew, setShowNew] = useState(false)
-  const [editingFr, setEditingFr] = useState<PortalRow | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', business_justification: '', affected_area: '', priority: 'medium', project_id: '' })
+  const [editingFr, setEditingFr] = useState<FeatureRequest | null>(null)
+  const [form, setForm] = useState<FeatureRequestForm>({ title: '', description: '', business_justification: '', affected_area: '', priority: 'medium', project_id: '' })
 
-  const { data: frs = [], isLoading } = useQuery<PortalRow[]>({
+  const { data: frs = [], isLoading } = useQuery<FeatureRequest[]>({
     queryKey: ['portal-frs-client'],
     queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data),
   })
@@ -336,12 +509,12 @@ export function PortalFeatureRequests() {
   const resetForm = () => setForm({ title: '', description: '', business_justification: '', affected_area: '', priority: 'medium', project_id: '' })
 
   const { mutate: createFR } = useMutation({
-    mutationFn: (d: PortalRow) => CLIENT_API.post('/portal/feature-requests', d),
+    mutationFn: (d: FeatureRequestForm) => CLIENT_API.post('/portal/feature-requests', d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setShowNew(false); resetForm(); toast.success('Solicitud enviada') },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al enviar')),
   })
   const { mutate: updateFR, isPending: updatingFr } = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: PortalRow }) => CLIENT_API.patch(`/portal/feature-requests/${id}`, data),
+    mutationFn: ({ id, data }: { id: string; data: FeatureRequestForm }) => CLIENT_API.patch(`/portal/feature-requests/${id}`, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setEditingFr(null); setShowNew(false); resetForm(); toast.success('Actualizada') },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar')),
   })
@@ -356,7 +529,7 @@ export function PortalFeatureRequests() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const openEdit = (fr: PortalRow) => {
+  const openEdit = (fr: FeatureRequest) => {
     setEditingFr(fr); setShowNew(true)
     setForm({
       title: fr.title || '', description: fr.description || '',
@@ -377,8 +550,8 @@ export function PortalFeatureRequests() {
         icon={Lightbulb}
         meta={[
           { value: frs.length, label: 'totales' },
-          { value: frs.filter((f: PortalRow) => f.status === 'estimated' && f.client_approved == null).length, label: 'esperan tu decisión', color: 'var(--warning)' },
-          { value: frs.filter((f: PortalRow) => f.status === 'approved').length, label: 'aprobadas', color: 'var(--success)' },
+          { value: frs.filter(f => f.status === 'estimated' && f.client_approved == null).length, label: 'esperan tu decisión', color: 'var(--warning)' },
+          { value: frs.filter(f => f.status === 'approved').length, label: 'aprobadas', color: 'var(--success)' },
         ]}
         actions={
           client?.can_request_changes ? (
@@ -398,11 +571,11 @@ export function PortalFeatureRequests() {
           ) : null}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {frs.map((fr: PortalRow) => (
+        <div className="u-stack-12">
+          {frs.map(fr => (
             <PortalCard key={fr.id}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 8, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
                     <span style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{fr.title}</span>
@@ -425,7 +598,7 @@ export function PortalFeatureRequests() {
                       <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-xs)', flexWrap: 'wrap' }}>
                         {fr.estimated_cost && <span style={{ color: 'var(--warning)', fontWeight: 700 }}>💶 {Number(fr.estimated_cost).toLocaleString(localeActivo())}€</span>}
                         {fr.estimated_hours && <span style={{ color: 'var(--accent)' }}>⏱ {fr.estimated_hours}h</span>}
-                        {fr.estimated_delivery_weeks && <span style={{ color: 'var(--text-2)' }}>📅 ~{fr.estimated_delivery_weeks} semanas</span>}
+                        {fr.estimated_delivery_weeks && <span className="u-text2">📅 ~{fr.estimated_delivery_weeks} semanas</span>}
                       </div>
                     </div>
                   )}
@@ -494,31 +667,31 @@ export function PortalFeatureRequests() {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="u-stack-14">
           {requiresProject && (
             <PortalField label="Proyecto" required>
               <PortalSelect id={`${formIdPrefix}-project`} value={form.project_id}
-                onChange={(e: any) => setForm(f => ({ ...f, project_id: e.target.value }))}>
+                onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}>
                 <option value="">Seleccionar...</option>
-                {(client?.projects || []).map((p: PortalRow) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {clientProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </PortalSelect>
             </PortalField>
           )}
           <PortalField label={traducir('portaladvanced.titulo')} required>
-            <PortalInput value={form.title} onChange={(e: any) => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Resumen breve" />
+            <PortalInput value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Resumen breve" />
           </PortalField>
           <PortalField label={traducir('portaladvanced.descripcion')} required>
-            <PortalTextarea rows={3} value={form.description} onChange={(e: any) => setForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portaladvanced.que_necesitas')} />
+            <PortalTextarea rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portaladvanced.que_necesitas')} />
           </PortalField>
           <PortalField label={traducir('portaladvanced.justificacion_de_negocio')} hint="Por qué es importante para ti">
-            <PortalTextarea rows={2} value={form.business_justification} onChange={(e: any) => setForm(f => ({ ...f, business_justification: e.target.value }))} />
+            <PortalTextarea rows={2} value={form.business_justification} onChange={e => setForm(f => ({ ...f, business_justification: e.target.value }))} />
           </PortalField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="u-grid2-12">
             <PortalField label={traducir('portaladvanced.area_afectada')}>
-              <PortalInput value={form.affected_area} onChange={(e: any) => setForm(f => ({ ...f, affected_area: e.target.value }))} placeholder="Ej. Reporting, Login..." />
+              <PortalInput value={form.affected_area} onChange={e => setForm(f => ({ ...f, affected_area: e.target.value }))} placeholder="Ej. Reporting, Login..." />
             </PortalField>
             <PortalField label="Prioridad">
-              <PortalSelect value={form.priority} onChange={(e: any) => setForm(f => ({ ...f, priority: e.target.value }))}>
+              <PortalSelect value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
                 <option value="low">Baja</option>
                 <option value="medium">Media</option>
                 <option value="high">Alta</option>
@@ -540,19 +713,19 @@ export function PortalFeatureRequests() {
 export function PortalMessages() {
   const { t: traducir } = useAppLang()
   const t = useLang()
-  const { client } = useClientAuth() as unknown as ClientAuth
+  const { client } = useClientAuth()
   const qc = useQueryClient()
   const [tab, setTab] = useState('chat')
   const [activeConvId, setActiveConvId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
 
-  const { data: conversations = [], isLoading } = useQuery<PortalRow[]>({
+  const { data: conversations = [], isLoading } = useQuery<CollabConversation[]>({
     queryKey: ['portal-collab-conversations'],
     queryFn: () => CLIENT_API.get('/portal/collaboration/conversations').then(r => r.data),
     refetchInterval: 30_000,
   })
 
-  const { data: messages = [] } = useQuery<PortalRow[]>({
+  const { data: messages = [] } = useQuery<CollabMessage[]>({
     queryKey: ['portal-collab-messages', activeConvId],
     queryFn: () => CLIENT_API.get(`/portal/collaboration/conversations/${activeConvId}/messages`).then(r => r.data),
     enabled: !!activeConvId,
@@ -573,9 +746,11 @@ export function PortalMessages() {
   }, [conversations, activeConvId])
 
   const projectOptions = Array.isArray(client?.projects)
-    ? client.projects.map((p: PortalRow) => ({ id: p.id, name: p.name || p.code || p.id, code: p.code || '' }))
+    ? (client.projects as ClientProject[]).map(p => ({ id: p.id, name: p.name || p.code || p.id, code: p.code || '' }))
     : []
-  const fallbackProject = client?.project_id ? [{ id: client.project_id, name: client.project_id, code: '' }] : []
+  // La sesión tipa `project_id` como `string | number`; el backend lo da como UUID (texto).
+  const proyectoDeSesion = client?.project_id as string | null | undefined
+  const fallbackProject = proyectoDeSesion ? [{ id: proyectoDeSesion, name: proyectoDeSesion, code: '' }] : []
 
   const tabs = [
     { id: 'chat', label: 'Chat unificado' },
@@ -614,7 +789,7 @@ export function PortalMessages() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 14, height: '60vh', minHeight: 420 }}>
             <PortalCard padding={10} style={{ overflowY: 'auto' }}>
-              {conversations.map((c: PortalRow) => (
+              {conversations.map(c => (
                 <button key={c.id} onClick={() => setActiveConvId(c.id)}
                   style={{
                     display: 'block', width: '100%', textAlign: 'left',
@@ -628,9 +803,9 @@ export function PortalMessages() {
             </PortalCard>
             <PortalCard padding={0} style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px' }}>
-                {messages.map((m: PortalRow) => (
+                {messages.map(m => (
                   <div key={m.id} style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                    <div className="u-text3-xs">
                       {m.author_name || (m.client_user_id === client?.id ? 'Tú' : 'Equipo')} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap' }}>{m.body}</div>
@@ -661,7 +836,7 @@ export function PortalMessages() {
           emptyTitle={t('messages_empty')}
           emptyDescription={t('messages_empty')}
           projectOptions={projectOptions.length ? projectOptions : fallbackProject}
-          initialProjectId={client?.project_id || ''}
+          initialProjectId={proyectoDeSesion || ''}
         />
       )}
     </div>
@@ -679,7 +854,7 @@ export function PortalInvoices() {
   const [reasonByInvoice, setReasonByInvoice] = useState<Record<string, string>>({})
   const defaultCurrency = 'EUR'
 
-  const { data: invoices = [], isLoading } = useQuery<PortalRow[]>({
+  const { data: invoices = [], isLoading } = useQuery<ClientInvoice[]>({
     queryKey: ['portal-invoices'],
     queryFn: () => CLIENT_API.get('/portal/invoices').then(r => r.data),
   })
@@ -694,7 +869,7 @@ export function PortalInvoices() {
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar la factura')),
   })
 
-  const totals = invoices.reduce((acc: { total: number; paid: number; overdue: number; pending: number }, i: PortalRow) => {
+  const totals = invoices.reduce((acc: { total: number; paid: number; overdue: number; pending: number }, i) => {
     const v = Number(i.total || 0)
     acc.total += v
     if (i.status === 'paid') acc.paid += v
@@ -710,12 +885,12 @@ export function PortalInvoices() {
         title="Facturas"
         subtitle="Aprueba o rechaza las facturas pendientes y revisa el histórico."
         icon={Receipt}
-        meta={[
+        meta={metaItems([
           { value: invoices.length, label: 'facturas' },
           { value: formatMoney(totals.paid, currency), label: 'cobrado', color: 'var(--success)' },
           { value: formatMoney(totals.pending, currency), label: 'pendiente', color: 'var(--warning)' },
           totals.overdue > 0 && { value: formatMoney(totals.overdue, currency), label: 'vencido', color: 'var(--danger)' },
-        ].filter(Boolean)}
+        ])}
       />
 
       {isLoading ? (
@@ -723,14 +898,14 @@ export function PortalInvoices() {
       ) : invoices.length === 0 ? (
         <PortalEmpty icon={Receipt} title={traducir('portaladvanced.sin_facturas')} description="Cuando se emitan facturas en este proyecto, las verás aquí." />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {invoices.map((inv: PortalRow) => {
+        <div className="u-stack-12">
+          {invoices.map(inv => {
             const cur = inv.currency || defaultCurrency
             const reason = reasonByInvoice[inv.id] || ''
             return (
               <PortalCard key={inv.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>#{inv.number || inv.id}</div>
                     <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{inv.client_name || 'Factura'}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'flex', gap: 12, marginTop: 4 }}>
@@ -751,7 +926,7 @@ export function PortalInvoices() {
                     <PortalField label="Comentario opcional">
                       <PortalTextarea rows={2}
                         value={reason}
-                        onChange={(e: any) => setReasonByInvoice(prev => ({ ...prev, [inv.id]: e.target.value }))}
+                        onChange={e => setReasonByInvoice(prev => ({ ...prev, [inv.id]: e.target.value }))}
                         placeholder="Motivo si rechazas, observaciones..."
                       />
                     </PortalField>
@@ -778,18 +953,18 @@ export function PortalInvoices() {
 export function PortalRoadmap() {
   const { t: traducir } = useAppLang()
   const _t = useLang()
-  const { data, isLoading, error } = useQuery<PortalRow | null>({
+  const { data, isLoading, error } = useQuery<ClientProjectDetail | null>({
     queryKey: ['portal-project'],
-    queryFn: () => CLIENT_API.get('/portal/project').then(r => r.data).catch((e: any) => {
+    queryFn: () => CLIENT_API.get('/portal/project').then(r => r.data).catch((e: ApiError) => {
       if (e?.response?.status === 404 || e?.response?.status === 403) return null
       throw e
     }),
   })
 
-  const milestones: PortalRow[] = data?.milestones || []
-  const deliverables: PortalRow[] = data?.deliverables || []
-  const completedMs = milestones.filter((m: PortalRow) => m.is_completed).length
-  const completedDel = deliverables.filter((d: PortalRow) => d.status === 'accepted').length
+  const milestones: RoadmapMilestone[] = data?.milestones || []
+  const deliverables: RoadmapDeliverable[] = data?.deliverables || []
+  const completedMs = milestones.filter(m => m.is_completed).length
+  const completedDel = deliverables.filter(d => d.status === 'accepted').length
 
   if (isLoading) return (
     <div>
@@ -824,11 +999,11 @@ export function PortalRoadmap() {
           <PortalCard>
             <PortalSection title="Hitos" hint={`${completedMs} de ${milestones.length} completados`}>
               {milestones.length === 0 ? (
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{traducir('portaladvanced.sin_hitos_planificados')}</div>
+                <div className="u-text3-sm">{traducir('portaladvanced.sin_hitos_planificados')}</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="u-stack-10">
                   <PortalProgress value={milestones.length ? (completedMs / milestones.length) * 100 : 0} color="var(--success)" />
-                  {milestones.map((m: PortalRow, i: number) => (
+                  {milestones.map((m, i) => (
                     <div key={m.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                         <div style={{
@@ -853,7 +1028,7 @@ export function PortalRoadmap() {
                         }}>{m.name}</div>
                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'flex', gap: 10, marginTop: 2 }}>
                           {m.due_date && <span>📅 {m.due_date}</span>}
-                          {m.billing_pct && <span style={{ color: 'var(--warning)' }}>💶 {m.billing_pct}%</span>}
+                          {m.billing_pct && <span className="u-warning">💶 {m.billing_pct}%</span>}
                         </div>
                       </div>
                     </div>
@@ -866,10 +1041,10 @@ export function PortalRoadmap() {
           <PortalCard>
             <PortalSection title="Entregables" hint={`${completedDel} de ${deliverables.length} aceptados`}>
               {deliverables.length === 0 ? (
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{traducir('portaladvanced.sin_entregables_planificados')}</div>
+                <div className="u-text3-sm">{traducir('portaladvanced.sin_entregables_planificados')}</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {deliverables.map((d: PortalRow) => (
+                <div className="u-stack-8">
+                  {deliverables.map(d => (
                     <div key={d.id} style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '10px 12px',
@@ -877,9 +1052,9 @@ export function PortalRoadmap() {
                       borderRadius: 10,
                     }}>
                       <Package size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                        <div className="u-text3-xs">
                           {d.format && `${d.format} · `}{d.planned_date || '—'}
                         </div>
                       </div>
@@ -908,14 +1083,14 @@ export function PortalDocuments() {
   const [signJobTitle, setSignJobTitle] = useState('')
   const [signedPdfB64, setSignedPdfB64] = useState<{ b64: string; title: string } | null>(null)
 
-  const { data: docs = [] } = useQuery<PortalRow[]>({
+  const { data: docs = [] } = useQuery<ClientDocument[]>({
     queryKey: ['portal-docs-client'],
     queryFn: () => CLIENT_API.get('/portal/documents').then(r => r.data),
   })
 
   const { mutate: sign, isPending: signing } = useMutation({
     mutationFn: ({ id, job_title }: { id: string; job_title: string }) => CLIENT_API.post(`/portal/documents/${id}/sign`, { job_title }).then(r => r.data),
-    onSuccess: (data: PortalRow) => {
+    onSuccess: (data: { pdf_b64?: string | null } | null) => {
       qc.invalidateQueries({ queryKey: ['portal-docs-client'] })
       setSignModal(null)
       setSignJobTitle('')
@@ -942,7 +1117,7 @@ export function PortalDocuments() {
     toast.success('Certificado de firma descargado')
   }, [signedPdfB64, toast])
 
-  const pendingSign = docs.filter((d: PortalRow) => d.requires_signature && !d.signed_by_client).length
+  const pendingSign = docs.filter(d => d.requires_signature && !d.signed_by_client).length
 
   return (
     <div>
@@ -959,8 +1134,8 @@ export function PortalDocuments() {
       {docs.length === 0 ? (
         <PortalEmpty icon={FileText} title={traducir('portaladvanced.sin_documentos')} description="Aquí aparecerán contratos, informes y entregables compartidos por el equipo." />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {docs.map((doc: PortalRow) => (
+        <div className="u-stack-10">
+          {docs.map(doc => (
             <PortalCard key={doc.id}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{
@@ -968,10 +1143,10 @@ export function PortalDocuments() {
                   background: 'var(--accent-muted)', color: 'var(--accent)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}><FileText size={18} /></div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{doc.title}</div>
                   {doc.description && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 2 }}>{doc.description}</div>}
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                  <div className="u-hint">
                     {doc.file_name || doc.category} · {doc.created_at}
                   </div>
                 </div>
@@ -1019,9 +1194,9 @@ export function PortalDocuments() {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="u-stack-12">
           <PortalField label={traducir('portaladvanced.cargo_funcion')} hint="Aparecerá en el certificado de firma">
-            <PortalInput value={signJobTitle} onChange={(e: any) => setSignJobTitle(e.target.value)} placeholder={traducir('portaladvanced.ej_director_de_operaciones')} />
+            <PortalInput value={signJobTitle} onChange={e => setSignJobTitle(e.target.value)} placeholder={traducir('portaladvanced.ej_director_de_operaciones')} />
           </PortalField>
           <PortalBanner tone="info" icon={<FileSignature size={16} />} title={traducir('portaladvanced.firma_con_certificado_pdf')} body="Se generará un PDF certificado con tus datos, fecha y hora. Se descargará automáticamente al firmar." />
         </div>
@@ -1042,16 +1217,16 @@ export function PortalWiki() {
   // Revisión 2026-11: el artículo se listaba y no se podía abrir.
   const [articuloAbierto, setArticuloAbierto] = useState<string | null>(null)
 
-  const { data: pages = [], isLoading } = useQuery<PortalRow[]>({
+  const { data: pages = [], isLoading } = useQuery<WikiPageSummary[]>({
     queryKey: ['portal-wiki-pages'],
     queryFn: () => CLIENT_API.get('/portal/wiki/pages').then(r => r.data),
   })
-  const { data: pageDetail } = useQuery<PortalRow | null>({
+  const { data: pageDetail } = useQuery<WikiPageDetail | null>({
     queryKey: ['portal-wiki-page', selected],
     queryFn: () => CLIENT_API.get(`/portal/wiki/pages/${selected}`).then(r => r.data),
     enabled: !!selected,
   })
-  const { data: kbArticles = [], isLoading: loadingKB } = useQuery<PortalRow[]>({
+  const { data: kbArticles = [], isLoading: loadingKB } = useQuery<KbArticle[]>({
     queryKey: ['portal-wiki-kb', searchKB],
     queryFn: () => CLIENT_API.get('/sd/kb', { params: { public_only: true, search: searchKB || undefined } }).then(r => r.data),
     enabled: tab === 'kb',
@@ -1078,7 +1253,7 @@ export function PortalWiki() {
         />
         <PortalCard>
           <div style={{ color: 'var(--text-1)', fontSize: 'var(--text-base)', lineHeight: 1.7 }}>
-            {(pageDetail.content || []).map((block: PortalRow, i: number) => {
+            {(pageDetail.content || []).map((block, i) => {
               if (block.type === 'heading1') return <h1 key={i} style={{ fontSize: 'var(--text-xl-em)', fontWeight: 800, margin: '20px 0 10px' }}>{block.content}</h1>
               if (block.type === 'heading2') return <h2 key={i} style={{ fontSize: 'var(--text-lg-em)', fontWeight: 700, margin: '18px 0 8px', color: 'var(--accent)' }}>{block.content}</h2>
               if (block.type === 'heading3') return <h3 key={i} style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, margin: '14px 0 6px' }}>{block.content}</h3>
@@ -1132,15 +1307,15 @@ export function PortalWiki() {
             <PortalEmpty icon={BookOpen} title={traducir('portaladvanced.sin_paginas')} description="Cuando el equipo publique documentación interna, la verás aquí." />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-              {pages.map((p: PortalRow) => (
+              {pages.map(p => (
                 <PortalCard key={p.id} onClick={() => setSelected(p.id)}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--accent-muted)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <FileText size={16} />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="u-flex1-min0">
                       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{p.title}</div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                      <div className="u-text3-xs">
                         {p.updated_at ? new Date(p.updated_at).toLocaleDateString(localeActivo()) : '—'}
                       </div>
                     </div>
@@ -1156,7 +1331,7 @@ export function PortalWiki() {
         <>
           <div style={{ marginBottom: 16, position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
-            <PortalInput value={searchKB} onChange={(e: any) => setSearchKB(e.target.value)}
+            <PortalInput value={searchKB} onChange={e => setSearchKB(e.target.value)}
               placeholder={traducir('portaladvanced.buscar_en_la_base_de_conocimiento')}
               style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
           </div>
@@ -1165,15 +1340,15 @@ export function PortalWiki() {
           ) : kbArticles.length === 0 ? (
             <PortalEmpty icon={Search} title={searchKB ? `Sin resultados para "${searchKB}"` : 'Base de conocimiento vacía'} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {kbArticles.map((a: PortalRow) => (
-                <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id as string)}>
+            <div className="u-stack-10">
+              {kbArticles.map(a => (
+                <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{a.title}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</div>
+                    <div className="u-text3-xs">👁 {a.view_count} · ✓ {a.helpful_count}</div>
                   </div>
                   {a.summary && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 8px' }}>{a.summary}</p>}
-                  {a.tags && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>🏷 {a.tags}</div>}
+                  {a.tags && <div className="u-text3-xs">🏷 {a.tags}</div>}
                 </PortalCard>
               ))}
             </div>

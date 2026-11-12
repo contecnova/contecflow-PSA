@@ -242,7 +242,7 @@ function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: nu
       <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 14, color: 'var(--accent)' }}>
         📊 {data?.user_name} — Detalle {weeks} semanas
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="u-scroll-x">
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: "var(--text-xs)" }}>
           <thead>
             <tr>
@@ -339,7 +339,7 @@ export default function ResourceForecastPage() {
               <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)', lineHeight: 1.1 }}>
                 {k.value}
               </div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{k.label}</div>
+              <div className="u-hint">{k.label}</div>
             </div>
           ))}
         </div>
@@ -387,7 +387,7 @@ export default function ResourceForecastPage() {
       {/* Vista heatmap */}
       {view === 'heatmap' && (
         <div style={panel}>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="u-scroll-x">
           <div style={{ minWidth: !loadingHeatmap && users.length > 0 ? 'max-content' : undefined }}>
           {/* Cabecera de semanas */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
@@ -464,12 +464,12 @@ export default function ResourceForecastPage() {
               {t('resourceforecast.sin_datos_de_carga_disponibles_configura_usuarios')}
             </div>
           ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="u-stack-6">
             {(summary.week_trend || []).map(w => {
               const pct = w.load_pct ?? 0
               const color = STATUS_COLOR[estadoDeCarga(pct)]
               return (
-                <div key={w.week} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div key={w.week} className="u-row-center-10">
                   <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', width: 70, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                     {w.week}
                   </div>

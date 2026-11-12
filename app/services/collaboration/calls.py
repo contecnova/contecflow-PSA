@@ -20,7 +20,6 @@ partia en dos una operacion que es una.
 """
 from __future__ import annotations
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -34,6 +33,7 @@ from app.models.collaboration import (
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.traffic_control_service import consume_quota
+from app.core.errores import ErrorDeDominio
 
 #: Ventana de los topes de frecuencia, en segundos. Un minuto: es la unidad en
 #: la que estan expresados los dos limites.
@@ -62,7 +62,7 @@ def _exigir_cuota(db: Session, org: str, user_id: str, *, ambito: str,
         limit=limite, window_seconds=VENTANA_DE_CUOTA_SEGUNDOS,
     )
     if not cuota["allowed"]:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=429,
             detail=f"Call {accion} rate limit exceeded. "
                    f"Retry in {cuota['retry_after']}s",
@@ -79,7 +79,7 @@ def _llamada_de_la_org(db: Session, call_id: str, org: str) -> CollaborationCall
         .first()
     )
     if not call:
-        raise HTTPException(404, "Llamada no encontrada")
+        raise ErrorDeDominio(404, "Llamada no encontrada")
     return call
 
 
@@ -269,10 +269,12 @@ def append_transcript_segment(
 ) -> None:
     """Añade un fragmento a la transcripción de la llamada.
 
-    El idioma sale de `DEFAULT_LANGUAGE`, no de un `"es"` fijo: un tenant que
+    El idioma es el del usuario (o el de su organización; ver
+    `formato_regional.idioma`), no un `"es"` fijo: un tenant que
     trabaja en otro idioma recibia sus transcripciones etiquetadas como
     españolas, y la etiqueta es lo que usa después el resumen automático.
     """
+    from app.services.formato_regional import idioma
     org = _org(user)
     call = _llamada_de_la_org(db, call_id, org)
     fragmento = {
@@ -291,7 +293,7 @@ def append_transcript_segment(
     else:
         db.add(CollaborationTranscript(
             organization_id=org, call_id=call_id,
-            language=settings.DEFAULT_LANGUAGE,
+            language=idioma(db, user_id=getattr(user, "id", None), org_id=org),
             text=texto, segments_json=[fragmento],
         ))
         call.has_transcript = True

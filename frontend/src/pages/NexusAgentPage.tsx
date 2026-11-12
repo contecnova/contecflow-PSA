@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { aiProvidersApi, nexusAgentApi } from '../services/api'
+import { aiProvidersApi, nexusAgentApi, apiStream } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import MarkdownText from '../components/ui/MarkdownText'
 import PageHeader from '../components/layout/PageHeader'
@@ -105,7 +105,7 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
       <div style={{ width: 24, height: 24, borderRadius: 6, background: alpha(c, '20'), border: `1px solid ${alpha(c, '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: c, flexShrink: 0 }}>
         {step.step}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="u-flex1-min0">
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: c, marginBottom: 2 }}>{step.tool}</div>
         {step.output && (
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -231,12 +231,9 @@ export default function ContecflowAgentPage() {
     abortRef.current = ctrl
 
     try {
-      // #45: kept as fetch() — side-effects/realtime/optimistic
-      const resp = await fetch('/api/v1/ai/agent/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ instruction: inst, auto_approve: permitirEscritura }),
+      // apiStream: el cliente API en versión flujo (CSRF, cookies, refresco de sesión).
+      const resp = await apiStream('/ai/agent/stream', {
+        body: { instruction: inst, auto_approve: permitirEscritura },
         signal: ctrl.signal,
       })
       if (!resp.ok) {
@@ -313,13 +310,13 @@ export default function ContecflowAgentPage() {
       {defaultProvider && (
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 20, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
-          {traducir('nexusagent.usando')} <strong style={{ color: 'var(--text-1)' }}>{defaultProvider.name}</strong> — {defaultProvider.default_model}
+          {traducir('nexusagent.usando')} <strong className="u-text1">{defaultProvider.name}</strong> — {defaultProvider.default_model}
           <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· {traducir('nexusagent.configura_proveedores')}</span>
         </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 260px', gap: 20 }}>
-        <div style={{ minWidth: 0 }}>
+        <div className="u-min0">
           {/* Input */}
           <div style={{ ...card, padding: 24, marginBottom: 20 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{traducir('nexusagent.instruccion')}</div>
@@ -334,7 +331,7 @@ export default function ContecflowAgentPage() {
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{traducir('nexusagent.enter_para_ejecutar')}</span>
+                <span className="u-text3-xs">{traducir('nexusagent.enter_para_ejecutar')}</span>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   <button type="button" onClick={() => setStreaming(s => !s)}
                     style={{ width: 28, height: 16, minHeight: 16, flexShrink: 0, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', border: 'none', padding: 0 }}>
@@ -361,7 +358,7 @@ export default function ContecflowAgentPage() {
                 <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)' }}>{traducir('nexusagent.en_tiempo_real')}</span>
               </div>
               {liveSteps.length === 0 && !liveText && (
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{traducir('nexusagent.analizando_instruccion')}</div>
+                <div className="u-text2-base">{traducir('nexusagent.analizando_instruccion')}</div>
               )}
               {liveText && (
                 <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>
@@ -383,7 +380,7 @@ export default function ContecflowAgentPage() {
           {result && !isPending && (
             <div style={{ ...card, padding: 24, marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{traducir('nexusagent.resultado')}</div>
+                <div className="u-md-700">{traducir('nexusagent.resultado')}</div>
                 <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 20, background: STATUS_CFG[result.status ?? '']?.bg, color: STATUS_CFG[result.status ?? '']?.color, fontWeight: 600 }}>
                   {result.status && STATUS_CFG[result.status] ? t(`nexusagent.estado_${result.status}`) : result.status}
                 </span>

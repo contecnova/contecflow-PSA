@@ -1,6 +1,5 @@
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
@@ -10,6 +9,7 @@ from app.models.project import Project
 from app.models.service_desk import ConfigurationItem, KBArticle, Problem, SLAPolicy, Ticket
 from app.models.user import User, UserRole
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +135,7 @@ def get_scoped_ticket_or_404(
         .first()
     )
     if not ticket:
-        raise HTTPException(404, "Ticket no encontrado")
+        raise ErrorDeDominio(404, "Ticket no encontrado")
     return ticket
 
 

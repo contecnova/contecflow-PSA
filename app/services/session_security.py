@@ -335,6 +335,7 @@ def register_or_rotate_user_session(
         from app.services.settings_service import get_runtime_int
         _refresh_days = get_runtime_int(db, "REFRESH_TOKEN_EXPIRE_DAYS") or settings.REFRESH_TOKEN_EXPIRE_DAYS
     except Exception:
+        logger.debug("register_or_rotate_user_session: excepcion ignorada", exc_info=True)
         _refresh_days = settings.REFRESH_TOKEN_EXPIRE_DAYS
     existing.expires_at = _now() + timedelta(days=_refresh_days)
     existing.revoked_at = None

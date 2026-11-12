@@ -342,6 +342,7 @@ def _composite_confidence(ai_confidence: float, db: Session, ticket: Ticket) -> 
         kb_sim, _ = _get_top_kb_similarity(db, query_text)
         kb_score = kb_sim * 100.0
     except Exception:
+        _logger.debug("_composite_confidence: excepcion ignorada", exc_info=True)
         kb_score = ai_score  # fallback: use AI score
 
     historical_rate = _get_historical_success_rate(db, ticket)

@@ -25,6 +25,7 @@ from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
             if aprobado and inv and getattr(inv.status, "value", inv.status) == "draft":
                 inv.status = InvoiceStatus.sent
                 db.commit()
-    except HTTPException as exc:
+    except (HTTPException, ErrorDeDominio) as exc:
         # Ya no estaba pendiente (revisada, retirada o cancelada en su pantalla).
         logger.info("aprobacion %s: %s %s no aplicada: %s", req.id, req.entity_type, req.entity_id, exc.detail)
 

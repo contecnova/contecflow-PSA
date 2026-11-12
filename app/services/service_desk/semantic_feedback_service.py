@@ -39,6 +39,7 @@ def enqueue_reassign_feedback(background_tasks: BackgroundTasks, item_id: str, i
                 assignment.was_accepted = False
                 db.commit()
         except Exception:
+            logger.warning("_run: excepcion ignorada", exc_info=True)
             db.rollback()
         finally:
             db.close()
@@ -60,6 +61,7 @@ def enqueue_routing_outcome(background_tasks: BackgroundTasks, ticket_id: str) -
                 record_routing_outcome(db, ticket)
                 db.commit()
         except Exception:
+            logger.warning("_run: excepcion ignorada", exc_info=True)
             db.rollback()
         finally:
             db.close()

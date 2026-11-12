@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { biIntelligenceApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
+import { Table } from '../ui'
 
 // TODO type: biIntelligenceApi.queryBuilderSchema payload — needs shared type
 interface ColumnDef {
@@ -60,36 +61,14 @@ function RowTable({ rows = [], columns = [] }: { rows?: Array<Record<string, unk
   if (!rows.length || !columns.length) return null
   return (
     <div style={{ overflowX: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
-        <thead>
-          <tr style={{ background: 'var(--surface-3)' }}>
-            {columns.map((c) => (
-              <th
-                key={c}
-                style={{
-                  textAlign: 'left',
-                  padding: '8px 10px',
-                  color: 'var(--text-2)',
-                  borderBottom: '1px solid var(--surface-4)',
-                }}
-              >
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-              {columns.map((c) => (
-                <td key={c} style={{ padding: '7px 10px', color: 'var(--text-1)' }}>
-                  {row?.[c] == null ? '—' : String(row[c])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Table
+        data={rows}
+        columns={columns.map((c) => ({
+          key: c,
+          label: c,
+          render: (_v: never, row: Record<string, unknown>) => (row?.[c] == null ? '—' : String(row[c])),
+        }))}
+      />
     </div>
   )
 }
@@ -235,7 +214,7 @@ export default function VisualQueryBuilderWidget() {
     <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' }}>
       <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--surface-4)' }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{t('visual_query_builder.title')}</div>
-        <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{t('visual_query_builder.subtitle')}</div>
+        <div className="u-text3-2xs">{t('visual_query_builder.subtitle')}</div>
       </div>
 
       <div style={{ padding: '14px 20px', display: 'grid', gap: 10 }}>
@@ -317,8 +296,8 @@ export default function VisualQueryBuilderWidget() {
             </div>
 
             <div style={{ display: 'grid', gap: 7 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('visual_query_builder.filters')}</span>
+              <div className="u-row-between">
+                <span className="u-text3-xs">{t('visual_query_builder.filters')}</span>
                 <button
                   type="button"
                   onClick={addFilter}
@@ -383,7 +362,7 @@ export default function VisualQueryBuilderWidget() {
 
         {previewMutation.data && (
           <div style={{ display: 'grid', gap: 8 }}>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+            <div className="u-text3-xs">
               {previewMutation.data.count} {t('visual_query_builder.results')}
               {previewMutation.data.truncated ? ` ${t('visual_query_builder.truncated')}` : ''}
             </div>

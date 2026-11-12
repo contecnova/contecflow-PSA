@@ -6,7 +6,7 @@ import { CSSProperties, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingApi, usersApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Table } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BookOpen } from 'lucide-react'
@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { sanitizeUrl } from '../utils/security'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 type TrainingStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled'
 
@@ -94,7 +95,7 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
   })
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar curso' : 'Nuevo curso'} width={520}>
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="u-stack-12">
         <div><label style={LS}>{t('training.titulo')}</label>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={IS} autoFocus /></div>
         <div><label style={LS}>Proveedor</label>
@@ -109,7 +110,7 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
         </div>
         <div><label style={LS}>URL</label>
           <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://proveedor.com/curso" aria-label={t('training.url_del_curso')} /></div>
-        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>{isEdit ? t('common.save') : 'Crear curso'}</Button>
         </div>
@@ -145,7 +146,7 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
   })
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar certificación' : 'Nueva certificación'} width={500}>
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="u-stack-12">
         {!userId && <div><label style={LS}>Usuario *</label>
           <select value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={IS}>
             <option value="">Seleccionar…</option>
@@ -159,13 +160,13 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
           <div><label style={LS}>ID certificado</label>
             <input value={form.cert_id} onChange={e => setForm(f => ({ ...f, cert_id: e.target.value }))} style={IS} /></div>
           <div><label style={LS}>Obtenida</label>
-            <input type="date" value={form.obtained_at} onChange={e => setForm(f => ({ ...f, obtained_at: e.target.value }))} style={IS} /></div>
+            <DateInput value={form.obtained_at} onChange={e => setForm(f => ({ ...f, obtained_at: e.target.value }))} style={IS} /></div>
           <div><label style={LS}>Caduca</label>
-            <input type="date" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} style={IS} /></div>
+            <DateInput value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} style={IS} /></div>
         </div>
         <div><label style={LS}>{t('training.url_verificacion')}</label>
           <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://verificacion.com/certificado" aria-label={t('training.url_de_verificacion')} /></div>
-        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.user_id} loading={isPending}>{isEdit ? t('common.save') : 'Añadir'}</Button>
         </div>
@@ -227,22 +228,22 @@ export default function TrainingPage() {
         icon={<BookOpen size={18} />}
         title={t('training.title')}
         subtitle={t('training.subtitle')}
-        actions={<div style={{ display:'flex', gap:8 }}>{tab === 'courses' && isAdmin && <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true) }}>+ Curso</Button>}{tab === 'certs' && <Button onClick={() => { setEditingCert(null); setShowCertModal(true) }}>{t('training.certificacion')}</Button>}</div>}
+        actions={<div className="u-row-8">{tab === 'courses' && isAdmin && <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true) }}>+ Curso</Button>}{tab === 'certs' && <Button onClick={() => { setEditingCert(null); setShowCertModal(true) }}>{t('training.certificacion')}</Button>}</div>}
       />
 
       {tab === 'certs' && (expired.length > 0 || expiringSoon.length > 0) && (
-        <div style={{ marginBottom:20 }}>
+        <div className="u-mb-20">
           {expired.map((c) => (
             <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6, background:'var(--danger-bg)', border:'1px solid var(--danger-border)', borderRadius:10, alignItems:'center' }}>
               <span>🔴</span>
-              <div style={{ flex:1 }}><span style={{ fontSize: 'var(--text-base)', fontWeight:700 }}>{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
+              <div className="u-flex1"><span style={{ fontSize: 'var(--text-base)', fontWeight:700 }}>{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
               <span style={{ fontSize: 'var(--text-sm)', color:'var(--danger)', fontWeight:700 }}>Caducada</span>
             </div>
           ))}
           {expiringSoon.map((c) => (
             <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6, background:'var(--orange-bg)', border:'1px solid var(--orange-border)', borderRadius:10, alignItems:'center' }}>
               <span>🟡</span>
-              <div style={{ flex:1 }}><span style={{ fontSize: 'var(--text-base)', fontWeight:700 }}>{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
+              <div className="u-flex1"><span style={{ fontSize: 'var(--text-base)', fontWeight:700 }}>{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
               <span style={{ fontSize: 'var(--text-sm)', color:'var(--warning)', fontWeight:700 }}>Caduca en {c.days_until_expiry}d</span>
             </div>
           ))}
@@ -263,8 +264,8 @@ export default function TrainingPage() {
             {courses.map((c) => (
               <div key={c.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'16px 18px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize: 'var(--text-md)', fontWeight:700 }}>{c.title}</div>
+                  <div className="u-flex1-min0">
+                    <div className="u-md-700">{c.title}</div>
                     {c.provider && <div style={{ fontSize: 'var(--text-xs)', color:'var(--accent)', marginTop:2 }}>{c.provider}</div>}
                   </div>
                   {isAdmin && (
@@ -275,9 +276,9 @@ export default function TrainingPage() {
                   )}
                 </div>
                 {c.description && <div style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginBottom:8, lineHeight:1.4 }}>{c.description.slice(0,100)}{c.description.length>100 ? '…' : ''}</div>}
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <div className="u-wrap-8">
                   {c.category && <span style={{ fontSize: 'var(--text-2xs)', fontWeight:700, padding:'2px 7px', borderRadius:20, background:'var(--accent-muted)', color:'var(--accent)' }}>{c.category}</span>}
-                  {c.duration_h && <span style={{ fontSize: 'var(--text-xs)', color:'var(--text-2)' }}>⏱ {c.duration_h}h</span>}
+                  {c.duration_h && <span className="u-text2-xs">⏱ {c.duration_h}h</span>}
                   {c.cost && c.cost > 0 && <span style={{ fontSize: 'var(--text-xs)', color:'var(--success)' }}>💶 {c.cost}€</span>}
                   {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', color:'var(--accent)' }}>🔗 Ver</a>}
                   <span style={{ fontSize: 'var(--text-2xs)', color:'var(--text-3)', marginLeft:'auto' }}>{c.enrolled || 0} inscritos</span>
@@ -293,28 +294,20 @@ export default function TrainingPage() {
           <EmptyState icon="👤" title={t('training.sin_inscripciones')} description="Todavia no hay empleados inscritos en cursos" />
         ) : (
           <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom:'1px solid var(--surface-4)' }}>
-                  {['Empleado', 'Curso', 'Estado', 'Inicio', 'Fin', 'Nota'].map((h) => <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize: 'var(--text-xs)', fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{h}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {enrollments.map((e) => {
+            <Table
+              data={enrollments}
+              columns={[
+                { key: 'user_name', label: 'Empleado', render: (_v, e) => <span className="u-base-600">{e.user_name}</span> },
+                { key: 'course_title', label: 'Curso', render: (_v, e) => <span style={{ fontSize: 'var(--text-base)' }}>{e.course_title}</span> },
+                { key: 'status', label: 'Estado', render: (_v, e) => {
                   const sc = STATUS_CFG[e.status || 'planned'] || STATUS_CFG.planned
-                  return (
-                    <tr key={e.id} style={{ borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)' }} onMouseEnter={el => el.currentTarget.style.background='var(--surface-3)'} onMouseLeave={el => el.currentTarget.style.background='transparent'}>
-                      <td style={{ padding:'10px 14px', fontSize: 'var(--text-base)', fontWeight:600 }}>{e.user_name}</td>
-                      <td style={{ padding:'10px 14px', fontSize: 'var(--text-base)' }}>{e.course_title}</td>
-                      <td style={{ padding:'10px 14px' }}><span style={{ fontSize: 'var(--text-xs)', fontWeight:700, padding:'2px 8px', borderRadius:20, background:alpha(sc.color, '20'), color:sc.color }}>{sc.icon} {sc.label}</span></td>
-                      <td style={{ padding:'10px 14px', fontSize: 'var(--text-sm)', color:'var(--text-2)' }}>{e.start_date || '—'}</td>
-                      <td style={{ padding:'10px 14px', fontSize: 'var(--text-sm)', color:'var(--text-2)' }}>{e.end_date || '—'}</td>
-                      <td style={{ padding:'10px 14px', fontSize: 'var(--text-sm)', color: e.score && e.score >= 7 ? 'var(--success)' : e.score ? 'var(--warning)' : 'var(--text-3)' }}>{e.score ? `${e.score}/10` : '—'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                  return <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, padding:'2px 8px', borderRadius:20, background:alpha(sc.color, '20'), color:sc.color }}>{sc.icon} {sc.label}</span>
+                } },
+                { key: 'start_date', label: 'Inicio', render: (_v, e) => <span className="u-text2-sm">{e.start_date || '—'}</span> },
+                { key: 'end_date', label: 'Fin', render: (_v, e) => <span className="u-text2-sm">{e.end_date || '—'}</span> },
+                { key: 'score', label: 'Nota', render: (_v, e) => <span style={{ fontSize: 'var(--text-sm)', color: e.score && e.score >= 7 ? 'var(--success)' : e.score ? 'var(--warning)' : 'var(--text-3)' }}>{e.score ? `${e.score}/10` : '—'}</span> },
+              ]}
+            />
           </div>
         )
       )}
@@ -323,16 +316,16 @@ export default function TrainingPage() {
         loadCert ? <Spinner /> : certs.length === 0 ? (
           <EmptyState icon="🏅" title={t('training.sin_certificaciones')} description="Anade la primera certificacion para hacer seguimiento de vigencias" />
         ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <div className="u-stack-8">
             {certs.map((c) => (
               <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', background:'var(--surface-2)', borderRadius:10, border:`1px solid ${c.is_expired ? 'var(--danger-border)' : c.expiring_soon ? 'var(--orange-border)' : 'var(--surface-4)'}` }}>
                 <div style={{ fontSize: 'var(--text-2xl)' }}>🏅</div>
-                <div style={{ flex:1, minWidth:0 }}>
+                <div className="u-flex1-min0">
                   <div style={{ fontSize: 'var(--text-base)', fontWeight:700 }}>{c.name}{c.issuer && <span style={{ fontSize: 'var(--text-xs)', color:'var(--text-2)', marginLeft:8 }}>{c.issuer}</span>}</div>
                   <div style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginTop:2 }}>{c.user_name}{c.cert_id && <span style={{ marginLeft:8, fontFamily:'var(--font-mono)', fontSize: 'var(--text-xs)' }}>#{c.cert_id}</span>}{c.obtained_at && <span style={{ marginLeft:8 }}>· Obtenida: {c.obtained_at}</span>}</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
-                  {c.expires_at ? <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>{c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}</div> : <div style={{ fontSize: 'var(--text-xs)', color:'var(--text-3)' }}>{t('training.no_expiry')}</div>}
+                  {c.expires_at ? <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>{c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}</div> : <div className="u-text3-xs">{t('training.no_expiry')}</div>}
                 </div>
                 {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', color:'var(--accent)', whiteSpace:'nowrap' }}>🔗 Verificar</a>}
                 <button onClick={() => { setEditingCert(c); setShowCertModal(true) }} style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>✏</button>

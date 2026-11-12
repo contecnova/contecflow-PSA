@@ -216,13 +216,14 @@ def avisar_por_correo(form_nombre: str, destinatarios: list, asunto: str, descri
                       remitente: Optional[str], referencia: Optional[str]) -> None:
     """Avisa a `notify_emails` de un envío (revisión 2026-11: se guardaban y no se usaban)."""
     from html import escape
+    from app.core.segundo_plano import encolar
     from app.services.notification_service import send_email_notification
     cuerpo = (f"<p><strong>{escape(form_nombre)}</strong></p><p>{escape(asunto)}</p>"
               f"<p>{escape(descripcion or '')}</p><p>{escape(remitente or '')}</p>"
               + (f"<p>{escape(referencia)}</p>" if referencia else ""))
     for destino in destinatarios or []:
         try:
-            send_email_notification(destino, f"[{form_nombre}] {asunto}", cuerpo)
+            encolar(send_email_notification, destino, f"[{form_nombre}] {asunto}", cuerpo)
         except Exception:
             log.warning("No se pudo avisar a %s del formulario %s", destino, form_nombre, exc_info=True)
 

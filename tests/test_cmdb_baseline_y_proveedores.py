@@ -39,6 +39,7 @@ import json
 
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-cmdb-mia"
 OTRA = "org-cmdb-ajena"
@@ -126,7 +127,7 @@ def test_EL_HALLAZGO_no_se_aprueba_la_linea_base_de_otro_cliente(db, dos_nubes):
     from app.services.cmdb.models import aprobar_linea_base
 
     ajeno = dos_nubes[OTRA]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         aprobar_linea_base(db, _Usuario(ORG), ajeno["proveedor"].id)
     assert exc.value.status_code == 404
 
@@ -183,7 +184,7 @@ def test_un_sujeto_sin_organizacion_no_aprueba_nada(db, dos_nubes):
     """
     from app.services.cmdb.models import aprobar_linea_base
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         aprobar_linea_base(db, _Usuario(None), dos_nubes[ORG]["proveedor"].id)
     assert exc.value.status_code == 404
 
@@ -258,7 +259,7 @@ def test_EL_HALLAZGO_los_jobs_de_un_proveedor_ajeno_dan_404(db, dos_nubes):
     """
     from app.services.cmdb.discovery import jobs_de_un_proveedor
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         jobs_de_un_proveedor(
             db, _Usuario(ORG), dos_nubes[OTRA]["proveedor"].id,
             page=1, page_size=20)

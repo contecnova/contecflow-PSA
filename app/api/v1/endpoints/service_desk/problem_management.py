@@ -15,6 +15,7 @@ from app.core.responses import APIResponse, APIListResponse
 from app.schemas.service_desk import ProblemIn
 from app.services.service_desk import problem_management_service as svc
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -592,7 +593,7 @@ def complete_rca_wizard(
     try:
         result = complete_wizard(db, problem)
     # intentional: chained re-raise preserves context
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception as exc:
         logger.warning('complete_rca_wizard: unexpected error: %s', exc)

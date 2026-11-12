@@ -5,6 +5,7 @@ from app.services.user_service import (
 )
 from app.models.user import User, UserRole, UserStatus
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 @pytest.fixture
 def db_session(db) -> Session:
@@ -43,5 +44,5 @@ def test_create_user_record_duplicate(db_session):
         password = "testpass123"
         def model_dump(self, exclude=None):
             return {"username": self.username, "email": self.email, "password": self.password}
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         create_user_record(Payload(), user, db_session)

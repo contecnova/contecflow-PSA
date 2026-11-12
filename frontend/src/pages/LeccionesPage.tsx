@@ -74,7 +74,7 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
           {(cfg.data?.categorias ?? []).map(c => <option key={c} value={c}>{t(`lec.cat_${c}`, c)}</option>)}
         </select>
       </div>
-      {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
+      {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
         : (q.data?.items ?? []).length === 0 ? <EmptyState svgIcon={<BookOpenCheck size={26} />} title={t('lec.vacio')} description={t('lec.vacio_texto')} />
         : (
           <div style={{ border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
@@ -84,11 +84,11 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
             {q.data!.items.map(l => (
               <button key={l.id} type="button" onClick={() => onAbrir(l.id)} style={{ ...fila, width: '100%', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit' }}>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{l.codigo}</span>
-                <span style={{ minWidth: 0 }}>
+                <span className="u-min0">
                   <span style={{ display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.titulo}</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`lec.tipo_${l.tipo}`)}{l.origen_ref ? ` · ${l.origen_ref}` : ''}</span>
+                  <span className="u-text3-xs">{t(`lec.tipo_${l.tipo}`)}{l.origen_ref ? ` · ${l.origen_ref}` : ''}</span>
                 </span>
-                <span style={{ color: 'var(--text-2)' }}>{t(`lec.cat_${l.categoria}`, l.categoria)}</span>
+                <span className="u-text2">{t(`lec.cat_${l.categoria}`, l.categoria)}</span>
                 <span style={{ color: ColorDeEstado(l.estado), fontWeight: 600 }}>{t(`lec.estado_${l.estado}`)}</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{l.usos.util + l.usos.aplicada} / {l.usos.util + l.usos.aplicada + l.usos.no_aplica}</span>
               </button>
@@ -103,7 +103,7 @@ function Pendientes({ onCapturar }: { onCapturar: (tipo: string, id: string) => 
   const t = useAppT()
   const q = useQuery({ queryKey: ['lecciones', 'pendientes'], queryFn: leccionesApi.pendientes })
   if (q.isLoading) return <Spinner />
-  if (q.isError) return <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
+  if (q.isError) return <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
   const items = q.data?.items ?? []
   if (!items.length) return <EmptyState svgIcon={<Inbox size={26} />} title={t('lec.sin_pendientes')} description={t('lec.sin_pendientes_texto')} />
   return (
@@ -114,7 +114,7 @@ function Pendientes({ onCapturar }: { onCapturar: (tipo: string, id: string) => 
           <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', border: '1px solid var(--surface-4)', borderRadius: 99, padding: '1px 8px', whiteSpace: 'nowrap' }}>{t(`lec.origen_${p.origen_tipo}`)}</span>
           <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.ref}</span>
           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.titulo}</span>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{p.cerrado ? fmtDate(p.cerrado) : '—'}</span>
+          <span className="u-text3-xs">{p.cerrado ? fmtDate(p.cerrado) : '—'}</span>
           <Button size="sm" onClick={() => onCapturar(p.origen_tipo, p.origen_id)}>{t('lec.capturar')}</Button>
         </div>
       ))}
@@ -138,8 +138,8 @@ function Acciones({ onAbrir }: { onAbrir: (id: string) => void }) {
             {q.data!.items.map(a => (
               <button key={a.id} type="button" onClick={() => onAbrir(a.leccion_id)} style={{ display: 'flex', gap: 12, alignItems: 'center', width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{a.leccion_codigo}</span>
-                <span style={{ flex: 1 }}>{a.descripcion}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{t(`lec.accion_${a.estado}`)}</span>
+                <span className="u-flex1">{a.descripcion}</span>
+                <span className="u-text2-xs">{t(`lec.accion_${a.estado}`)}</span>
                 <span style={{ fontSize: 'var(--text-xs)', color: a.vencida ? 'var(--danger)' : 'var(--text-3)', minWidth: 80, textAlign: 'right' }}>{a.fecha_limite ? fmtDate(a.fecha_limite) : '—'}</span>
               </button>
             ))}
@@ -156,7 +156,7 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
   const d = q.data
   if (!d) return null
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         <KpiCard label={t('lec.kpi_validadas')} value={d.por_estado.validada ?? 0} sub={t('lec.kpi_en_revision', { n: d.por_estado.en_revision ?? 0 })} />
         <KpiCard label={t('lec.kpi_efectividad')} value={d.efectividad_pct == null ? '—' : `${d.efectividad_pct.toLocaleString()} %`} sub={t('lec.kpi_valoraciones', { n: d.valoraciones_total })} />
@@ -170,7 +170,7 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
             const max = Math.max(...Object.values(d.por_categoria), 1)
             return (
               <div key={c} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 40px', gap: 8, alignItems: 'center', fontSize: 'var(--text-xs)', marginBottom: 6 }}>
-                <span style={{ color: 'var(--text-2)' }}>{t(`lec.cat_${c}`, c)}</span>
+                <span className="u-text2">{t(`lec.cat_${c}`, c)}</span>
                 <span style={{ height: 8, borderRadius: 4, background: 'var(--surface-3)' }}><span style={{ display: 'block', height: 8, borderRadius: 4, width: `${(n / max) * 100}%`, background: 'var(--accent)' }} /></span>
                 <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{n}</span>
               </div>
@@ -179,10 +179,10 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
         </section>
         <section style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14 }}>
           <h3 style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)' }}>{t('lec.mas_utiles')}</h3>
-          {d.mas_utiles.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('lec.sin_valoraciones')}</div>
+          {d.mas_utiles.length === 0 ? <div className="u-text3-sm">{t('lec.sin_valoraciones')}</div>
             : d.mas_utiles.map(l => (
               <button key={l.id} type="button" onClick={() => onAbrir(l.id)} style={{ display: 'flex', gap: 8, width: '100%', background: 'none', border: 'none', padding: '5px 0', cursor: 'pointer', color: 'var(--text-1)', fontSize: 'var(--text-sm)', textAlign: 'left' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{l.codigo}</span><span style={{ flex: 1 }}>{l.titulo}</span><span style={{ fontFamily: 'var(--font-mono)' }}>{l.valoraciones_utiles}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{l.codigo}</span><span className="u-flex1">{l.titulo}</span><span style={{ fontFamily: 'var(--font-mono)' }}>{l.valoraciones_utiles}</span>
               </button>
             ))}
         </section>

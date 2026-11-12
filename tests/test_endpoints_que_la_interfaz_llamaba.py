@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-h37"
 
@@ -127,7 +128,7 @@ def test_la_oportunidad_de_otro_cliente_da_404(db):
     mia = svc.oportunidad_propia(db, _Usuario(ORG), f"opp-{ORG}")
     assert mia.id == f"opp-{ORG}"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.oportunidad_propia(db, _Usuario(ORG), "opp-org-ajena-h37")
     assert exc.value.status_code == 404
 
@@ -149,7 +150,7 @@ def test_una_oportunidad_borrada_no_se_devuelve(db):
         organization_id=ORG, is_active=False))
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.oportunidad_propia(db, _Usuario(ORG), "opp-borrada")
     assert exc.value.status_code == 404
 
@@ -226,7 +227,7 @@ def test_el_problema_de_otro_cliente_no_se_cierra(db):
         organization_id="org-ajena-h37", owner_user_id="u-otro"))
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.cerrar_problema(db, _Usuario(ORG), "prob-ajeno")
     assert exc.value.status_code == 404
 
@@ -271,7 +272,7 @@ def test_un_cambio_ya_ejecutado_no_se_cancela(db, estado):
         requester_id="u-h37"))
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.cancelar_cambio(db, _Usuario(ORG), f"chg-{estado}")
     assert exc.value.status_code == 409
     assert estado in str(exc.value.detail)
@@ -304,7 +305,7 @@ def test_desactivar_una_integracion_borra_sus_tokens(db):
 def test_desactivar_una_integracion_que_no_existe_da_404(db):
     from app.services import cab_service as svc
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.desactivar_integracion(db, "no-existe")
     assert exc.value.status_code == 404
 
@@ -363,6 +364,6 @@ def test_los_tickets_de_un_error_conocido_ajeno_dan_404(db):
         organization_id="org-ajena-h37", owner_user_id="u-otro"))
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.tickets_de_un_error_conocido(db, _Usuario(ORG), "ke-ajeno")
     assert exc.value.status_code == 404

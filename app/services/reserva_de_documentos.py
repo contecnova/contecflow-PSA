@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from app.core.errores import ErrorDeDominio
 
-from fastapi import HTTPException
 
 
 def _aware(valor: Optional[datetime]) -> Optional[datetime]:
@@ -50,7 +50,7 @@ def exigir_libre(doc, usuario) -> None:
     """423 si otra persona tiene el documento reservado."""
     reserva = vigente(doc)
     if reserva is not None and reserva["user_id"] != usuario.id:
-        raise HTTPException(423, detail={
+        raise ErrorDeDominio(423, detail={
             "message": f"El documento está reservado por {reserva['user_name'] or 'otra persona'} "
                        f"hasta {reserva['expires_at']}",
             "checkout": reserva})
@@ -89,7 +89,7 @@ def liberar(db, doc, usuario, *, forzar: bool = False) -> None:
         return
     if reserva["user_id"] != usuario.id:
         if not forzar:
-            raise HTTPException(409, "La reserva es de otra persona: solo quien administra el documento puede forzarla")
+            raise ErrorDeDominio(409, "La reserva es de otra persona: solo quien administra el documento puede forzarla")
         check_document_access(doc, usuario, DocumentAccessLevel.admin)
     audit_log(db, usuario, "CHECKIN_FORCED" if reserva["user_id"] != usuario.id else "CHECKIN", "documents",
               doc.id, doc.title, metadata={"held_by": reserva["user_id"], "held_since": reserva["at"]})

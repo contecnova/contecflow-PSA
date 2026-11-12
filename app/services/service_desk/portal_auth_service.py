@@ -1,12 +1,13 @@
 from typing import Optional
 
-from fastapi import Cookie, Depends, Header, HTTPException, Request
+from fastapi import Cookie, Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.services.sla_service import get_client_from_token
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ def require_portal_client(
 ):
     client = resolve_portal_client(authorization, portal_access_token, db)
     if not client:
-        raise HTTPException(401, detail)
+        raise ErrorDeDominio(401, detail)
     return client
 
 

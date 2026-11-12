@@ -102,7 +102,7 @@ export default function BudgetsPage() {
           </ResponsiveContainer>
         </div>
       )}
-      {lista.isLoading ? <Spinner /> : lista.isError ? <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(lista.error, GENERIC_ERROR_FALLBACK)}</div>
+      {lista.isLoading ? <Spinner /> : lista.isError ? <div role="alert" className="u-danger">{extractErr(lista.error, GENERIC_ERROR_FALLBACK)}</div>
         : (lista.data ?? []).length === 0 ? <EmptyState svgIcon={<PieChart size={26} />} title={t('pres.vacio')} description={t('pres.vacio_texto')} />
         : (
           <div style={{ border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
@@ -125,9 +125,9 @@ export default function BudgetsPage() {
               </button>
             ) : (
               <button key={b.id} type="button" onClick={() => setAbierto(b.id)} style={{ ...fila, width: '100%', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit' }}>
-                <span style={{ minWidth: 0 }}><strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</strong>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{b.project_name || b.department || b.area_name || b.area || ''}{b.escenario !== 'base' ? ` · ${b.escenario}` : ''} · {b.periodo_desde.slice(0, 7)} → {b.periodo_hasta.slice(0, 7)}</span></span>
-                <span style={{ color: 'var(--text-2)' }}>{t(`pres.ambito_${b.ambito}`)}</span>
+                <span className="u-min0"><strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</strong>
+                  <span className="u-text3-xs">{b.project_name || b.department || b.area_name || b.area || ''}{b.escenario !== 'base' ? ` · ${b.escenario}` : ''} · {b.periodo_desde.slice(0, 7)} → {b.periodo_hasta.slice(0, 7)}</span></span>
+                <span className="u-text2">{t(`pres.ambito_${b.ambito}`)}</span>
                 <span>v{b.version}</span>
                 <span style={{ color: colorDeEstado(b.estado), fontWeight: 600 }}>{t(`pres.estado_${b.estado}`)}</span>
                 <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(b.total_plan)}</span>
@@ -187,7 +187,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
   const rejilla: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 10 }
   return (
     <Modal open onClose={onClose} size="lg" title={t('pres.nuevo')}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-stack-12">
         <label><span style={lbl}>{t('pres.nombre')}</span><input aria-label={t('pres.nombre')} value={f.name} onChange={set('name')} style={campo} /></label>
         <div style={rejilla}>
           <label><span style={lbl}>{t('pres.ambito')}</span>
@@ -219,7 +219,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
             <label><span style={lbl}>{t('pres.tipo_proyecto')}</span><input aria-label={t('pres.tipo_proyecto')} value={f.tipo_proyecto} onChange={set('tipo_proyecto')} style={campo} /></label>
           )}
         </div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`pres.ambito_${f.ambito}_ayuda`)}</div>
+        <div className="u-text3-xs">{t(`pres.ambito_${f.ambito}_ayuda`)}</div>
         {f.ambito === 'area' && (areas.data ?? []).length === 0 && <div role="status" style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>{t('pres.sin_areas')}</div>}
         <div style={rejilla}>
           <label><span style={lbl}>{t('pres.desde')}</span><input aria-label={t('pres.desde')} type="month" value={f.desde} onChange={set('desde')} style={campo} /></label>
@@ -265,7 +265,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
             </div>
           )}
         </fieldset>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('pres.cancelar')}</Button>
           <Button loading={guardando} disabled={!f.name.trim() || !f.desde || !f.hasta || (f.ambito === 'area' && !f.area_id)} onClick={crear}>{t('pres.crear')}</Button>
         </div>

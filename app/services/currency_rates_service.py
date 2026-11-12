@@ -76,6 +76,49 @@ def upsert_exchange_rate(
     return rate_obj, True, None
 
 
+def registrar_tipo_de_cambio(
+    db: Session,
+    current_user,
+    *,
+    from_currency: str,
+    to_currency: str,
+    rate: float,
+    effective_date: date,
+    source: str = "manual",
+) -> tuple:
+    """Alta o actualizacion manual del tipo, con su auditoria, y confirma.
+
+    Devuelve (rate_obj, created).
+    """
+    from app.services.audit import audit_log
+
+    rate_obj, created, previous_snapshot = upsert_exchange_rate(
+        db,
+        from_currency=from_currency,
+        to_currency=to_currency,
+        rate=rate,
+        effective_date=effective_date,
+        source=source,
+    )
+    audit_log(
+        db,
+        current_user,
+        "CREATE" if created else "UPDATE",
+        "exchange_rates",
+        rate_obj.id,
+        f"{rate_obj.from_currency}->{rate_obj.to_currency}@{rate_obj.effective_date}",
+        old_values=previous_snapshot,
+        new_values={
+            "id": rate_obj.id,
+            "rate": rate_obj.rate,
+            "source": rate_obj.source,
+            "effective_date": str(rate_obj.effective_date),
+        },
+    )
+    db.commit()
+    return rate_obj, created
+
+
 def get_rate(
     db: Session,
     from_c: str,
@@ -187,6 +230,12 @@ def log_currency_conversion(
             rate_date=rate_date,
         )
     )
+
+
+def registrar_conversion(db: Session, **datos) -> None:
+    """`log_currency_conversion` y confirma: la traza de una conversion pedida por la API."""
+    log_currency_conversion(db, **datos)
+    db.commit()
 
 
 def get_report_data(

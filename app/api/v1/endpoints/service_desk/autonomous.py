@@ -65,7 +65,6 @@ def post_playbook(
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     result = create_playbook(db, payload.model_dump())
-    db.commit()
     return APIResponse.ok(data=result)
 
 
@@ -78,7 +77,6 @@ def put_playbook(
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     result = update_playbook(db, playbook_id, payload.model_dump(exclude_unset=True))
-    db.commit()
     return APIResponse.ok(data=result)
 
 
@@ -96,7 +94,6 @@ def delete_playbook(
 ):
     enforce_abac(db, current_user, "sd_playbook", playbook_id, action="delete")
     result = deactivate_playbook(db, playbook_id)
-    db.commit()
     return APIResponse.ok(data=result)
 
 

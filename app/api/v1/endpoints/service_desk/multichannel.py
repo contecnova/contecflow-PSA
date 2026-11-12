@@ -2,6 +2,7 @@
 
 Inbound webhooks (email, SMS), outbound notifications, and channel configuration.
 """
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, Request
@@ -12,12 +13,12 @@ from app.core.deps import get_current_user, require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
-from app.services.service_desk.inbound_email_service import process_inbound_email
 from app.services.service_desk.multichannel_service import (
     get_channel_status,
     get_multichannel_config,
     notify_requester,
-    process_inbound_sms,
+    procesar_correo_entrante,
+    procesar_sms_entrante,
     save_multichannel_config,
 )
 from app.services.service_desk.sms_service import validate_twilio_signature
@@ -97,16 +98,12 @@ async def inbound_email(
     try:
         payload = await request.json()
     except Exception:
+        logging.getLogger(__name__).debug("inbound_email: excepcion ignorada", exc_info=True)
         payload = dict(await request.form())
 
     secret = x_inbound_secret or payload.get("token") or payload.get("signature")
 
-    def _process_and_commit():
-        r = process_inbound_email(db, dict(payload), provided_secret=secret)
-        db.commit()
-        return r
-
-    r = await run_db(_process_and_commit)
+    r = await run_db(procesar_correo_entrante, db, dict(payload), secret)
     return {"ticket_id": r.ticket_id, "ticket_number": r.numero, "status": r.accion,
             "reason": r.motivo, "source": "email"}
 
@@ -140,12 +137,7 @@ async def inbound_sms(
         from fastapi import HTTPException
         raise HTTPException(403, "Firma de Twilio ausente o inválida")
 
-    def _process_and_commit():
-        result = process_inbound_sms(db, from_phone=from_phone, body=body, to_phone=to_phone)
-        db.commit()
-        return result
-
-    return await run_db(_process_and_commit)
+    return await run_db(procesar_sms_entrante, db, from_phone, body, to_phone)
 
 
 # ── Outbound notification ─────────────────────────────────────────────────────

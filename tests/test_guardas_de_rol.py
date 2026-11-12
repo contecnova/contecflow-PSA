@@ -120,7 +120,7 @@ EXENCIONES_ESPERADAS = {
     # notas internas viven en los comentarios del ticket) y POST /capacity/plans
     # pasa a exigir gestor.
     "acotada al propio usuario": 93,  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents)
-    "superficie: API key": 7,
+    "superficie: API key": 6,  # 2026-11: fuera POST /bookings/api-keys/verify (oraculo)
     # 20 desde 2026-11-09: fuera la copia de /clients/{cid}/portal-users (POST y
     # PATCH) que no exigía el máximo de usuarios del portal.
     "superficie: portal de cliente": 20,  # +1: valorar una respuesta del chat del portal (2026-11)
@@ -129,7 +129,7 @@ EXENCIONES_ESPERADAS = {
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.
     # 42 desde 2026-11-09: POST /git/webhooks/{github|gitlab}/{slug}, firmados con
     # el secreto de cada empresa.
-    "superficie: sin sujeto autenticado": 42,  # +1 2026-11: elegir empresa tras la contraseña; +1 decidir desde el correo
+    "superficie: sin sujeto autenticado": 43,  # 2026-11: + webhook de Stripe (firma)  # +1 2026-11: elegir empresa tras la contraseña; +1 decidir desde el correo
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

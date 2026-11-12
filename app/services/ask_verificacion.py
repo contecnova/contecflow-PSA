@@ -21,6 +21,7 @@ REGLA DE HONESTIDAD: cada comprobación puede decir `skipped`. Si no se ha podid
 mirar nada, el veredicto es `not_checked`, nunca `verified`.
 """
 from __future__ import annotations
+import logging
 
 import json
 import re
@@ -74,6 +75,7 @@ def _arbol(sql: str) -> dict | None:
         crudo = duckdb.execute("SELECT json_serialize_sql(?)", [sql]).fetchone()[0]
         datos = json.loads(crudo)
     except Exception:
+        logging.getLogger(__name__).warning("_arbol: excepcion ignorada", exc_info=True)
         return None
     if datos.get("error") or not datos.get("statements"):
         return None

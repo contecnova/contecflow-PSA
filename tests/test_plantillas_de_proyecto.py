@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-tpl-mia"
 OTRA = "org-tpl-ajena"
@@ -84,7 +85,7 @@ def plantillas(db):
 def test_EL_HALLAZGO_no_se_anade_un_documento_a_la_plantilla_de_otro(db, plantillas):
     from app.services import advanced_config_service as svc
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.agregar_documento_a_plantilla(
             db, _Usuario(ORG), plantillas[OTRA].id, {"name": "Colado"})
     assert exc.value.status_code == 404
@@ -99,7 +100,7 @@ def test_EL_HALLAZGO_no_se_anade_un_documento_a_la_plantilla_de_otro(db, plantil
 def test_EL_HALLAZGO_no_se_anade_un_rol_a_la_plantilla_de_otro(db, plantillas):
     from app.services import advanced_config_service as svc
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.agregar_rol_a_plantilla(
             db, _Usuario(ORG), plantillas[OTRA].id, {"role_name": "Colado"})
     assert exc.value.status_code == 404
@@ -124,7 +125,7 @@ def test_el_nombre_del_rol_acepta_las_dos_claves(db, plantillas):
 def test_la_plantilla_completa_de_otro_cliente_da_404(db, plantillas):
     from app.services import advanced_config_service as svc
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.get_full_template(plantillas[OTRA].id, db, _Usuario(ORG))
     assert exc.value.status_code == 404
 
@@ -190,7 +191,7 @@ def test_EL_HALLAZGO_no_se_exporta_el_proyecto_de_otro_cliente(
     """Se quedaba con los títulos de sus tareas y sus riesgos."""
     from app.services import advanced_config_service as svc
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.export_project_as_template(
             project_id=proyectos_con_riesgo[OTRA].id, name=None,
             description=None, user_id="u-tpl", db=db,

@@ -244,7 +244,7 @@ function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[
             border: 'none', borderTop: i ? '1px solid var(--surface-4)' : 'none', cursor: 'pointer', fontFamily: 'inherit',
             background: seleccionado === a.ticket_id ? 'var(--accent-muted)' : 'transparent', color: 'var(--text-1)' }}>
           <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 'var(--text-sm)' }}>{a.number}</span>
-          <span style={{ flex: 1, minWidth: 0 }}>
+          <span className="u-flex1-min0">
             <span style={{ display: 'block', fontWeight: 600 }}>{a.title}</span>
             <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
               {[a.requester_name, a.service_item_name].filter(Boolean).join(' · ')}

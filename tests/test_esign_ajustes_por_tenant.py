@@ -168,7 +168,7 @@ def test_guardar_dos_veces_actualiza_y_no_duplica(db):
 
 
 def test_guardar_no_confirma(db):
-    """La frontera de transacción se queda en el endpoint, con las demás."""
+    """No confirma: la frontera de transacción es `guardar_ajustes_de_firma`."""
     from app.models.settings import AppSetting
     from app.services import esign_service as svc
 

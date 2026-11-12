@@ -77,7 +77,6 @@ export default defineConfig(({ mode }) => {
             if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react'
             if (id.includes('lucide-react')) return 'vendor-icons'
             if (id.includes('recharts')) return 'vendor-recharts'
-            if (id.includes('echarts') || id.includes('echarts-for-react')) return 'vendor-echarts'
             if (id.includes('react-grid-layout') || id.includes('react-window')) return 'vendor-layout'
             if (id.includes('yjs') || id.includes('y-websocket')) return 'vendor-realtime'
             if (id.includes('html2canvas')) return 'vendor-html2canvas'
@@ -86,11 +85,11 @@ export default defineConfig(({ mode }) => {
             if (id.includes('axios')) return 'vendor-axios'
             if (id.includes('date-fns')) return 'vendor-date'
             if (id.includes('zod')) return 'vendor-validation'
-            // Auditoría 2026-08 §7.b: estas cinco no tenían regla y caían todas en
+            // Auditoría 2026-08 §7.b: estas no tenían regla (plotly y echarts salieron del
+            // proyecto en 2026-11, #31) y caían todas en
             // vendor-core, que llegó a 6,4 MB (1,95 MB gzip). Son librerías pesadas
             // y de uso puntual (una o dos rutas cada una), así que separarlas evita
             // pagarlas en la carga inicial.
-            if (id.includes('plotly.js') || id.includes('plotly-')) return 'vendor-plotly'
             if (id.includes('bpmn-js') || id.includes('diagram-js') || id.includes('bpmn-moddle')) return 'vendor-bpmn'
             if (id.includes('@xyflow')) return 'vendor-flow'
             if (id.includes('livekit-client')) return 'vendor-livekit'

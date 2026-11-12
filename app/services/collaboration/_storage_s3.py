@@ -88,6 +88,7 @@ class S3FileStorage(FileStorage):
             self._client.head_object(Bucket=self._bucket, Key=self._full(key))
             return True
         except Exception:
+            logger.debug("exists: excepcion ignorada", exc_info=True)
             return False
 
     def delete(self, key: str) -> None:
@@ -102,6 +103,7 @@ class S3FileStorage(FileStorage):
             obj = self._client.head_object(Bucket=self._bucket, Key=self._full(key))
             return int(obj["ContentLength"])
         except Exception:
+            logger.debug("size: excepcion ignorada", exc_info=True)
             return 0
 
     def signed_url(self, key: str, *, ttl_seconds: int = 3600, mode: str = "download") -> str:
@@ -112,4 +114,5 @@ class S3FileStorage(FileStorage):
                 ExpiresIn=ttl_seconds,
             )
         except Exception:
+            logger.debug("signed_url: excepcion ignorada", exc_info=True)
             return super().signed_url(key, ttl_seconds=ttl_seconds, mode=mode)

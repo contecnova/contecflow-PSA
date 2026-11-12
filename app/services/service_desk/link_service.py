@@ -1,9 +1,9 @@
-from fastapi import HTTPException
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket, TicketLink
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def serialize_ticket_link(link: TicketLink, ticket_id: str) -> dict:
 
 def ensure_ticket_exists(db: Session, ticket_id: str, detail: str) -> None:
     if not db.query(Ticket).filter(Ticket.id == ticket_id).first():
-        raise HTTPException(404, detail)
+        raise ErrorDeDominio(404, detail)
 
 
 def ensure_link_can_be_created(db: Session, source_id: str, target_id: str) -> None:
@@ -46,7 +46,7 @@ def ensure_link_can_be_created(db: Session, source_id: str, target_id: str) -> N
     ensure_ticket_exists(db, target_id, "Ticket destino no encontrado")
 
     if source_id == target_id:
-        raise HTTPException(400, "No se puede vincular un ticket consigo mismo")
+        raise ErrorDeDominio(400, "No se puede vincular un ticket consigo mismo")
 
     existing = db.query(TicketLink).filter(
         or_(
@@ -55,7 +55,7 @@ def ensure_link_can_be_created(db: Session, source_id: str, target_id: str) -> N
         )
     ).first()
     if existing:
-        raise HTTPException(409, "Ya existe un vínculo entre estos tickets")
+        raise ErrorDeDominio(409, "Ya existe un vínculo entre estos tickets")
 
 
 def build_ticket_link(source_id: str, target_id: str, link_type: str, created_by: str) -> TicketLink:
@@ -80,7 +80,7 @@ def create_ticket_link_record(db: Session, ticket_id: str, payload: dict, curren
 def get_ticket_link_or_404(db: Session, link_id: str) -> TicketLink:
     link = db.query(TicketLink).filter(TicketLink.id == link_id).first()
     if not link:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return link
 
 

@@ -64,7 +64,7 @@ class InvoiceStatusOut(BaseModel):
 
 class InvoiceSummaryOut(BaseModel):
     by_status: Dict[str, InvoiceStatusOut] = Field(..., description="Agregación de facturas por estado")
-    currency: str = Field("EUR", description="Moneda de los totales: la de la empresa (DEFAULT_CURRENCY)")
+    currency: str = Field(default_factory=lambda: settings.DEFAULT_CURRENCY, description="Moneda de los totales: la de la empresa (DEFAULT_CURRENCY)")
     total_invoiced: float = Field(..., description="Importe total facturado, en `currency`")
     total_paid: float = Field(..., description="Importe total cobrado, en `currency`")
     total_pending: float = Field(..., description="Importe pendiente de cobro, en `currency`")

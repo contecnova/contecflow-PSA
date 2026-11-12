@@ -10,11 +10,12 @@ import type { ProjectListItem } from '../services/api/projects'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
-import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
+import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle, Tabs, Table } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { STALE_5_MIN_MS } from '../constants/timings'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -141,7 +142,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
   return (
     <Modal open title={isEdit ? `${t('subcontractors.edit_person', { name: worker?.name })}` : t('subcontractors.new_person')} onClose={onClose} width={560}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={lbl}>{t('subcontractors.placeholder_name')} *</label>
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_name')} />
         </div>
@@ -163,13 +164,13 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
         </div>
         <div>
           <label style={lbl}>{t('subcontractors.available_from')}</label>
-          <input type="date" value={form.available_from} onChange={e => setForm(f => ({ ...f, available_from: e.target.value }))} style={inp} />
+          <DateInput value={form.available_from} onChange={e => setForm(f => ({ ...f, available_from: e.target.value }))} style={inp} />
         </div>
         <div>
           <label style={lbl}>{t('subcontractors.available_until')}</label>
-          <input type="date" value={form.available_until} onChange={e => setForm(f => ({ ...f, available_until: e.target.value }))} style={inp} />
+          <DateInput value={form.available_until} onChange={e => setForm(f => ({ ...f, available_until: e.target.value }))} style={inp} />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={lbl}>{t('subcontractors.notes')}</label>
           <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 52, resize: 'vertical' }} />
         </div>
@@ -199,14 +200,14 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
               </span>
             ))}
             {(worker.skills || []).length === 0 && !showSkillForm && (
-              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('subcontractors.no_skills')}</span>
+              <span className="u-text3-sm">{t('subcontractors.no_skills')}</span>
             )}
           </div>
 
           {/* Add skill form */}
           {showSkillForm && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '12px', background: 'var(--surface-3)', borderRadius: 8 }}>
-              <div style={{ gridColumn: '1/-1' }}>
+              <div className="u-col-full">
                 <label style={lbl}>{t('subcontractors.add_skill')} *</label>
                 <select value={skillForm.skill_id} onChange={e => setSkillForm(f => ({ ...f, skill_id: e.target.value }))} style={inp}>
                   <option value="">{t('subcontractors.select_skill')}</option>
@@ -242,7 +243,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <div className="u-actions-8">
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
           {isEdit ? t('subcontractors.close') : t('subcontractors.cancel')}
         </button>
@@ -287,13 +288,13 @@ function WorkersPanel({ subId }: { subId: string }) {
       {workers.length === 0 ? (
         <EmptyState icon="👤" title={t('subcontractors.empty_people_title')} description={t('subcontractors.empty_people_desc')} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           {workers.map(w => (
             <div key={w.id} style={{ ...panel, padding: '14px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="u-flex1-min0">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{w.name}</div>
+                    <div className="u-md-700">{w.name}</div>
                     {w.role && <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{w.role}</span>}
                     {!w.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--danger-bg, var(--danger-border))', color: 'var(--danger)' }}>{t('subcontractors.inactivo')}</span>}
                   </div>
@@ -350,7 +351,7 @@ function WorkersPanel({ subId }: { subId: string }) {
           <p style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', marginBottom: 20 }}>
             {t('subcontractors.se_desactivara_a')} <strong>{deactivateTarget.name}</strong> {t('subcontractors.y_no_podra_iniciar_sesion_ni_ser')}
           </p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <Button variant="ghost" onClick={() => setDeactivateTarget(null)}>{t('subcontractors.cancel')}</Button>
             <Button variant="danger" onClick={() => { deactivate(deactivateTarget.id); setDeactivateTarget(null) }}>{t('subcontractors.deactivate')}</Button>
           </div>
@@ -421,9 +422,9 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
         <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>← Volver</button>
-        <div style={{ flex: 1 }}>
+        <div className="u-flex1">
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>{sub.name} <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', fontWeight: 400 }}>{sub.code}</span></div>
-          {sub.company && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{sub.company} · {sub.email}</div>}
+          {sub.company && <div className="u-text2-sm">{sub.company} · {sub.email}</div>}
         </div>
       </div>
 
@@ -468,7 +469,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             <EmptyState icon="📋" title={t('subcontractors.empty_assignments_title')} description={t('subcontractors.empty_assignments_desc')} />
           ) : assignments.map(a => (
             <div key={a.id} style={{ ...panel, padding: '14px 18px', marginBottom: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="u-row-between">
                 <div>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{a.project_code} — {a.project_name}</div>
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
@@ -502,29 +503,21 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             <EmptyState icon="🕐" title={t('subcontractors.empty_hours_title')} description={t('subcontractors.empty_hours_desc')} />
           ) : (
             <div style={{ ...panel, overflow: 'hidden' }}>
-              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                    {['Fecha', 'Horas', 'Descripción', 'Ref. tarea', 'Coste', 'Proyecto'].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {timelogs.map(l => (
-                    <tr key={l.id} style={{ borderBottom: '1px solid var(--surface-1)' }}>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{l.log_date}</td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{l.hours}h</td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-1)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description || '—'}</td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.task_reference || '—'}</td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--warning)', fontFamily: 'var(--font-mono)' }}>
-                        {l.cost_amount ? l.cost_amount.toLocaleString(localeActivo(), {style:'currency',currency}) : '—'}
-                      </td>
-                      <td style={{ padding: '9px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.project_name || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <Table
+                data={timelogs}
+                columns={[
+                  { key: 'log_date', label: 'Fecha', render: (_v, l) => <span className="u-text2-sm">{l.log_date}</span> },
+                  { key: 'hours', label: 'Horas', render: (_v, l) => <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{l.hours}h</span> },
+                  { key: 'description', label: 'Descripción', render: (_v, l) => <span style={{ display: 'block', fontSize: "var(--text-sm)", color: 'var(--text-1)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description || '—'}</span> },
+                  { key: 'task_reference', label: 'Ref. tarea', render: (_v, l) => <span className="u-text2-xs">{l.task_reference || '—'}</span> },
+                  { key: 'cost_amount', label: 'Coste', render: (_v, l) => (
+                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', fontFamily: 'var(--font-mono)' }}>
+                      {l.cost_amount ? l.cost_amount.toLocaleString(localeActivo(), {style:'currency',currency}) : '—'}
+                    </span>
+                  ) },
+                  { key: 'project_name', label: 'Proyecto', render: (_v, l) => <span className="u-text2-xs">{l.project_name || '—'}</span> },
+                ]}
+              />
             </div>
           )}
         </div>
@@ -561,7 +554,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                         </span>
                       </td>
                       <td style={{ padding: '9px 14px' }}>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div className="u-row-6">
                           {inv.status === 'received' && (
                             <button onClick={() => updateInvStatus({ id: inv.id, status: 'approved' })} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Aprobar</button>
                           )}
@@ -592,7 +585,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
             <div>
               <label style={lbl}>Fecha</label>
-              <input type="date" value={tlForm.log_date} onChange={e => setTlForm(f=>({...f,log_date:e.target.value}))} style={inp} />
+              <DateInput value={tlForm.log_date} onChange={e => setTlForm(f=>({...f,log_date:e.target.value}))} style={inp} />
             </div>
             <div>
               <label style={lbl}>Horas *</label>
@@ -602,12 +595,12 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               <label style={lbl}>Referencia tarea</label>
               <input value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder={t('subcontractors.referencia_de_tarea')} aria-label={t('subcontractors.referencia_de_tarea')} />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="u-col-full">
               <label style={lbl}>{t('subcontractors.descripcion')}</label>
               <input value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t('subcontractors.descripcion_del_parte')} aria-label={t('subcontractors.descripcion_del_parte')} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowTimelog(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => logHours(tlForm)} loading={logging} disabled={!tlForm.hours || logging}>Registrar horas</Button>
           </div>
@@ -624,7 +617,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
             <div>
               <label style={lbl}>{t('subcontractors.fecha_emision')}</label>
-              <input type="date" value={invForm.issue_date} onChange={e => setInvForm(f=>({...f,issue_date:e.target.value}))} style={inp} />
+              <DateInput value={invForm.issue_date} onChange={e => setInvForm(f=>({...f,issue_date:e.target.value}))} style={inp} />
             </div>
             <div>
               <label style={lbl}>Importe base (€) *</label>
@@ -639,12 +632,12 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                 {t('subcontractors.total_con_iva')} <strong>{(+invForm.amount * (1 + invForm.tax_pct/100)).toLocaleString(localeActivo(), {style:'currency',currency})}</strong>
               </div>
             )}
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="u-col-full">
               <label style={lbl}>{t('subcontractors.descripcion')}</label>
               <input value={invForm.description} onChange={e => setInvForm(f=>({...f,description:e.target.value}))} style={inp} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowInvoice(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => createInv(invForm)} loading={invoicing} disabled={!invForm.invoice_number || !invForm.amount || invoicing}>Registrar factura</Button>
           </div>
@@ -655,7 +648,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
       {showAssign && (
         <Modal open title={t('subcontractors.nueva_asignacion_2')} onClose={() => setShowAssign(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="u-col-full">
               <label style={lbl}>Proyecto *</label>
               <select value={asgForm.project_id} onChange={e => setAsgForm(f=>({...f,project_id:e.target.value}))} style={inp}>
                 <option value="">Seleccionar...</option>
@@ -676,10 +669,10 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
             <div>
               <label style={lbl}>Fecha inicio</label>
-              <input type="date" value={asgForm.start_date} onChange={e => setAsgForm(f=>({...f,start_date:e.target.value}))} style={inp} />
+              <DateInput value={asgForm.start_date} onChange={e => setAsgForm(f=>({...f,start_date:e.target.value}))} style={inp} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>{t('subcontractors.crear_asignacion')}</Button>
           </div>
@@ -789,14 +782,14 @@ export default function SubcontractorsPage() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
-                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{s.name}</div>
-                  {s.company && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{s.company}</div>}
+                  <div className="u-md-700">{s.name}</div>
+                  {s.company && <div className="u-text2-xs">{s.company}</div>}
                 </div>
                 <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: s.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: s.is_active ? 'var(--success)' : 'var(--danger)' }}>
                   {s.is_active ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
-              {s.email && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>📧 {s.email}</div>}
+              {s.email && <div className="u-text2-xs">📧 {s.email}</div>}
               <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                 👥 {s.worker_count || 0} persona{(s.worker_count || 0) !== 1 ? 's' : ''} · {s.assignment_count} {t('subcontractors.asignacion_2')}{s.assignment_count !== 1 ? 'es' : ''}
               </div>
@@ -833,13 +826,13 @@ export default function SubcontractorsPage() {
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               onClick={() => setSelected(s)}>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{s.name}</div>
-                {s.company && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{s.company}</div>}
+                <div className="u-base-600">{s.name}</div>
+                {s.company && <div className="u-text2-xs">{s.company}</div>}
               </div>
               <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{s.code || '—'}</span>
-              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{s.email || '—'}</span>
-              <span style={{ fontSize: "var(--text-sm)" }}>{s.worker_count || 0}</span>
-              <span style={{ fontSize: "var(--text-sm)" }}>{s.assignment_count || 0}</span>
+              <span className="u-text2-sm">{s.email || '—'}</span>
+              <span className="u-sm">{s.worker_count || 0}</span>
+              <span className="u-sm">{s.assignment_count || 0}</span>
               <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: s.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: s.is_active ? 'var(--success)' : 'var(--danger)' }}>
                 {s.is_active ? 'Activo' : 'Inactivo'}
               </span>
@@ -884,11 +877,11 @@ export default function SubcontractorsPage() {
               </select>
             </div>
           </div>
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <label style={lbl}>Notas</label>
             <textarea value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>Crear subcontratista</Button>
           </div>
@@ -925,11 +918,11 @@ export default function SubcontractorsPage() {
               </select>
             </div>
           </div>
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <label style={lbl}>Notas</label>
             <textarea value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => { setShowEdit(false); setEditTarget(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => update({id: editTarget.id, ...editForm})} loading={updating} disabled={!editForm.name || updating}>Guardar cambios</Button>
           </div>

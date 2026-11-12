@@ -30,8 +30,8 @@ from app.services.service_desk.dynamic_forms_service import (
     _get_json,
     _normalize_mapping_rule,
     _save_rules_with_history,
-    _set_json,
     _visible_options,
+    reglas_o_sembrar,
 )
 
 class DynamicRulesIn(BaseModel):
@@ -65,12 +65,7 @@ class DiffIn(BaseModel):
 @router.get("/dynamic-forms", summary="Obtener configuración de formulario dinámico de tickets")
 def get_dynamic_forms(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     org_id = getattr(current_user, "organization_id", None)
-    rules = _get_json(db, _RULES_KEY, org_id, fallback=None)
-    if not isinstance(rules, dict):
-        rules = _default_rules()
-        _set_json(db, _RULES_KEY, org_id, rules, "Service Desk dynamic forms rules")
-        db.commit()
-    return APIResponse.ok(data=rules)
+    return APIResponse.ok(data=reglas_o_sembrar(db, org_id))
 
 
 @router.get("/dynamic-forms/public", summary="Obtener configuración dinámica para portal cliente")
@@ -79,12 +74,7 @@ def get_dynamic_forms_public(
     _client=Depends(get_current_portal_client),
 ):
     # Portal clients currently use the global baseline rules.
-    rules = _get_json(db, _RULES_KEY, None, fallback=None)
-    if not isinstance(rules, dict):
-        rules = _default_rules()
-        _set_json(db, _RULES_KEY, None, rules, "Service Desk dynamic forms rules")
-        db.commit()
-    return APIResponse.ok(data=rules)
+    return APIResponse.ok(data=reglas_o_sembrar(db, None))
 
 
 @router.get("/dynamic-forms/context-options", summary="Opciones contextuales para campos dinámicos (clientes/servicios/CI)")

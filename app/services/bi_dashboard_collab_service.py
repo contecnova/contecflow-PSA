@@ -11,6 +11,7 @@ Reactions are stored as lightweight AppSetting JSON (no separate table needed,
 volume is low and schema is schemaless by design).
 """
 from __future__ import annotations
+import logging
 
 import json
 import uuid
@@ -38,6 +39,7 @@ def _get_reactions(db: Session, org_id: Optional[str]) -> dict:
     try:
         return json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("_get_reactions: excepcion ignorada", exc_info=True)
         return {}
 
 

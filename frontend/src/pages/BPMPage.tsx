@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { CSSProperties, RefObject } from 'react'
+import type BaseViewer from 'bpmn-js/lib/BaseViewer'
+import type { BaseViewerOptions } from 'bpmn-js/lib/BaseViewer'
+import type Canvas from 'diagram-js/lib/core/Canvas'
 import { Button, Page } from '../components/ui'
 import { Network, Plus, X, ChevronLeft, Edit3, Download, Search, Play } from 'lucide-react'
 import BpmRunPanel from './bpm/BpmRunPanel'
@@ -134,12 +137,12 @@ ${edgeXml}
 // ─── PROCESS CATALOG ─────────────────────────────────────────────────────────
 const CATEGORIES = [
   { id: 'all',        label: 'Todos los procesos', color: 'var(--accent)' },
-  { id: 'proyectos',  label: 'Gestión de Proyectos', color: '#3b82f6' },
-  { id: 'finanzas',   label: 'Finanzas y Facturación', color: '#10b981' },
-  { id: 'rrhh',       label: 'RRHH y Recursos', color: '#f59e0b' },
-  { id: 'servicedesk',label: 'Service Desk / ITSM', color: '#ef4444' },
-  { id: 'crm',        label: 'CRM y Ventas', color: '#8b5cf6' },
-  { id: 'admin',      label: 'Administración', color: '#6b7280' },
+  { id: 'proyectos',  label: 'Gestión de Proyectos', color: 'var(--accent)' },
+  { id: 'finanzas',   label: 'Finanzas y Facturación', color: 'var(--success)' },
+  { id: 'rrhh',       label: 'RRHH y Recursos', color: 'var(--warning)' },
+  { id: 'servicedesk',label: 'Service Desk / ITSM', color: 'var(--danger)' },
+  { id: 'crm',        label: 'CRM y Ventas', color: 'var(--purple)' },
+  { id: 'admin',      label: 'Administración', color: 'var(--text-3)' },
 ]
 
 const CAT_COLOR = Object.fromEntries(CATEGORIES.map(c => [c.id, c.color]))
@@ -1712,7 +1715,7 @@ const PROCESS_CATALOG = [
 
 // ─── BPMN VIEWER HOOK ────────────────────────────────────────────────────────
 function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: string | null, editMode: boolean) {
-  const instanceRef = useRef<any>(null)
+  const instanceRef = useRef<BaseViewer | null>(null)
 
   useEffect(() => {
     if (!containerRef.current || !xml) return
@@ -1728,7 +1731,7 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
       // JS module.
       await loadBpmnCssOnce()
 
-      let BpmnClass: any
+      let BpmnClass: new (options?: BaseViewerOptions) => BaseViewer
       if (editMode) {
         const mod = await import('bpmn-js/lib/Modeler')
         BpmnClass = mod.default
@@ -1742,8 +1745,10 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
 
       try {
         await instance.importXML(xml)
-        const canvas = instance.get('canvas')
-        canvas.zoom('fit-viewport', 'auto')
+        const canvas = instance.get<Canvas>('canvas')
+        // Con 'fit-viewport' el centro solo actúa como indicador (centrar o no):
+        // diagram-js comprueba si es truthy. Antes se pasaba 'auto'.
+        canvas.zoom('fit-viewport', { x: 0, y: 0 })
       } catch (err) {
         console.error('BPMN import error:', err)
       }
@@ -1887,7 +1892,7 @@ const diagramContainer: CSSProperties = {
   height: '100%',
   border: '1px solid var(--surface-4)',
   borderRadius: 10,
-  background: '#ffffff',
+  background: 'var(--on-accent-light)',
   overflow: 'hidden',
 }
 // Pill used for the "Modo edición" indicator overlaid on the diagram.
@@ -2124,7 +2129,7 @@ export default function BPMPage(): JSX.Element {
     if (!selectedProcess?._backendId) return
     try {
       const r = await bpmnProcessesApi.start(selectedProcess._backendId)
-      const inst = r.data as any
+      const inst = r.data as { status?: string; error?: string } | null
       if (inst?.status === 'failed') toast.error(inst.error || traducir('bpm.estado_failed'))
       else toast.success(traducir('bpm.instancia_iniciada'))
       setSelectedProcess(null)
@@ -2140,7 +2145,7 @@ export default function BPMPage(): JSX.Element {
     <Page
       icon={<Network size={18} />}
       title={traducir('bpm.bpm_procesos_de_negocio')}
-      subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => (p as any).isCustom).length} personalizados`}
+      subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => p.isCustom).length} personalizados`}
       rightActions={
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <div className="ds-segmented" role="group" aria-label={traducir('bpm.vista')}>
@@ -2215,7 +2220,7 @@ export default function BPMPage(): JSX.Element {
               border: '1px solid var(--accent)',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ fontSize: 'var(--text-md)', fontWeight: 700 }}>{traducir('bpm.nuevo_proceso_personalizado')}</div>
+                <div className="u-md-700">{traducir('bpm.nuevo_proceso_personalizado')}</div>
                 <button onClick={() => setShowAddForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
                   <X size={16} />
                 </button>
@@ -2244,7 +2249,7 @@ export default function BPMPage(): JSX.Element {
                 <label style={lbl}>{traducir('bpm.descripcion')}</label>
                 <input value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder={traducir('bpm.describe_brevemente_el_proceso')} style={inp} />
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="u-row-8">
                 <Button disabled={!newProcess.name.trim()} onClick={handleAddProcess}>{traducir('bpm.crear_y_disenar')}</Button>
                 <button onClick={() => setShowAddForm(false)} style={{ ...ghostBtn, padding: '8px 14px', fontSize: 'var(--text-base)' }}>Cancelar</button>
               </div>
@@ -2265,7 +2270,7 @@ export default function BPMPage(): JSX.Element {
                 <div style={{ ...tag(catColor) }}>{CATEGORIES.find(c => c.id === selectedProcess.category)?.label}</div>
                 <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{selectedProcess.name}</div>
                 {selectedProcess.isCustom && <div style={{ ...tag('#f59e0b') }}>Personalizado</div>}
-                <div style={{ flex: 1 }} />
+                <div className="u-flex1" />
                 <button
                   onClick={handleExport}
                   style={{ ...ghostBtn, padding: '6px 12px', fontSize: 'var(--text-sm)' }}
@@ -2276,7 +2281,7 @@ export default function BPMPage(): JSX.Element {
                   selectedProcess._backendId ? (
                     <Button onClick={handleStart}><Play size={13} /> {traducir('bpm.iniciar')}</Button>
                   ) : (
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('bpm.guarda_para_iniciar')}</span>
+                    <span className="u-text3-xs">{traducir('bpm.guarda_para_iniciar')}</span>
                   )
                 )}
                 {editMode ? (
@@ -2373,7 +2378,7 @@ export default function BPMPage(): JSX.Element {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, lineHeight: 1.3 }}>{proc.name}</div>
-                          {(proc as any).isCustom && <div style={{ ...tag('#f59e0b'), flexShrink: 0, marginLeft: 6 }}>Custom</div>}
+                          {proc.isCustom && <div style={{ ...tag('#f59e0b'), flexShrink: 0, marginLeft: 6 }}>Custom</div>}
                         </div>
                         <div style={{ marginBottom: 8 }}>
                           <span style={tag(color)}>{catLabel}</span>

@@ -9,6 +9,7 @@ Allows users and organizations to save named dashboard states:
 State persisted in AppSetting JSON, scoped by organization.
 """
 from __future__ import annotations
+import logging
 
 import json
 import uuid
@@ -43,6 +44,7 @@ def _get_json(db: Session, key: str, organization_id: Optional[str], default: An
     try:
         return json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("_get_json: excepcion ignorada", exc_info=True)
         return default
 
 

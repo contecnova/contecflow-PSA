@@ -68,8 +68,13 @@ class AzureSTTProvider(STTProvider):
             f"https://{self._region}.stt.speech.microsoft.com"
             "/speech/recognition/conversation/cognitiveservices/v1"
         )
+        # El llamador pasa el idioma del usuario en ISO 639-1 ("es"); Azure
+        # quiere BCP-47 y, si es el mismo idioma, se respeta la variante
+        # configurada (AZURE_STT_LANGUAGE).
+        from app.services.formato_regional import a_bcp47
+        language = a_bcp47(language, self._default_language)
         params = {
-            "language": language or self._default_language,
+            "language": language,
             "format": "detailed",
         }
         headers = {

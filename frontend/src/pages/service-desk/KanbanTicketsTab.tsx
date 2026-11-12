@@ -38,11 +38,11 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
 
   const KANBAN_COLS = [
-    { id: 'open',           label: t('service_desk.status_open'),           color: '#4f8ef7' },
-    { id: 'in_progress',    label: t('service_desk.status_in_progress'),    color: '#7F77DD' },
-    { id: 'pending_client', label: t('service_desk.status_waiting_client'), color: '#fb923c' },
-    { id: 'pending_third',  label: t('service_desk.status_pending_third'), color: '#fb923c' },
-    { id: 'resolved',       label: t('service_desk.status_resolved'),       color: '#34d399' },
+    { id: 'open',           label: t('service_desk.status_open'),           color: 'var(--accent)' },
+    { id: 'in_progress',    label: t('service_desk.status_in_progress'),    color: 'var(--purple)' },
+    { id: 'pending_client', label: t('service_desk.status_waiting_client'), color: 'var(--orange)' },
+    { id: 'pending_third',  label: t('service_desk.status_pending_third'), color: 'var(--orange)' },
+    { id: 'resolved',       label: t('service_desk.status_resolved'),       color: 'var(--success)' },
   ]
 
   // Auditoria 2026-11: se pedian los 200 mas recientes de cualquier estado y
@@ -173,7 +173,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
                   }}>
                     {ticket.title}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div className="u-row-between">
                     <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>
                       {ticket.requester_name || ticket.assigned_name || '—'}
                     </span>

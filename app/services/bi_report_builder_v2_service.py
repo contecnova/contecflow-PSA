@@ -8,6 +8,7 @@ Advances the Phase-2 Report Builder with:
 - Preset categories for navigation
 """
 from __future__ import annotations
+import logging
 
 import json
 import time
@@ -247,6 +248,7 @@ def _get_json(db: Session, key: str, organization_id: Optional[str], default: An
     try:
         return json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("_get_json: excepcion ignorada", exc_info=True)
         return default
 
 
@@ -447,6 +449,7 @@ def execute_preset_with_controls(
             executions[execution_id] = row
             _save_executions(db, organization_id, executions)
         except Exception as exc:
+            logging.getLogger(__name__).warning("execute_preset_with_controls: excepcion ignorada", exc_info=True)
             error = str(exc)
             break
 

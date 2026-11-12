@@ -21,6 +21,8 @@ import {
 import { useToast } from '../context/ToastContext'
 import { Sparkles, X, RefreshCw } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
+import { useDialogo } from './ui'
+import DateInput from './ui/DateInput'
 
 interface Suggestion {
   task_id: string | number
@@ -151,6 +153,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
   }
 
   const selectedCount = useMemo(() => suggestions.filter(s => s._selected).length, [suggestions])
+  const dialogRef = useDialogo<HTMLDivElement>(open, onClose)
 
   if (!open) return null
 
@@ -159,7 +162,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
       zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div role="dialog" aria-modal="true" tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Escape') onClose() }}
         style={{
@@ -188,7 +191,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
 
         {/* Controls */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
-          <label style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+          <label className="u-text3-sm">
             {traducir('smartschedulemodal.max_tareas_a_planificar')}
           </label>
           <input
@@ -275,8 +278,8 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                       </div>
                     )}
                   </div>
-                  <input
-                    type="date" value={s.suggested_start || ''}
+                  <DateInput
+                    value={s.suggested_start || ''}
                     onChange={e => _updateDate(idx, 'suggested_start', e.target.value)}
                     disabled={isApplying}
                     style={{
@@ -285,8 +288,8 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                       color: 'var(--text-1)', fontSize: 'var(--text-xs)',
                     }}
                   />
-                  <input
-                    type="date" value={s.suggested_due || ''}
+                  <DateInput
+                    value={s.suggested_due || ''}
                     onChange={e => _updateDate(idx, 'suggested_due', e.target.value)}
                     disabled={isApplying}
                     style={{
@@ -306,10 +309,10 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           paddingTop: 14, borderTop: '1px solid var(--surface-4)', marginTop: 12,
         }}>
-          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+          <div className="u-text3-sm">
             {selectedCount} {traducir('smartschedulemodal.de')} {suggestions.length} seleccionadas
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="u-row-8">
             <button onClick={onClose} disabled={isApplying}
               style={{
                 padding: '8px 16px',

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
+import { CHART_COLORS_EXTENDED, COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useState } from 'react'
@@ -93,8 +93,8 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
 
   return (
     <Modal open onClose={onClose} title={isEdit ? t('issue_types.edit_modal_title') : t('issue_types.new_modal_title')}>
-      <div style={{display:'flex',flexDirection:'column',gap:14}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <div className="u-stack-14">
+        <div className="u-grid2-12">
           <div>
             <label style={ls}>{t('issue_types.name')}</label>
             <input style={is} value={form.name} onChange={e => {
@@ -122,7 +122,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
                 <button key={c} onClick={() => set('color')(c)}
                   style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}} />
               ))}
-              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => set('color')(e.target.value)}
+              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
                 style={{width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',padding:0}} />
             </div>
           </div>
@@ -138,7 +138,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
         {customFields.length > 0 && (
           <div>
             <label style={ls}>{t('issue_types.required_fields_label')}</label>
-            <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            <div className="u-wrap-8">
               {customFields.map(f => (
                 <label key={f.field_key} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',
                   padding:'4px 10px',borderRadius:6,border:`1px solid ${form.field_keys.includes(f.field_key)?'var(--accent-glow)':'var(--surface-4)'}`,
@@ -272,7 +272,7 @@ export default function IssueTypesPage(): JSX.Element {
                 {types.map((typeItem, i) => (
                   <tr key={typeItem.id} style={{borderBottom:'1px solid #1e2d45', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
                     <td style={{padding:'10px 12px'}}>
-                      <div style={{display:'flex', alignItems:'center', gap:10}}>
+                      <div className="u-row-center-10">
                         <div style={{width:32, height:32, borderRadius:8, background:alpha(typeItem.color, '20'),
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)"}}>
                           {typeItem.icon || '📌'}
@@ -293,7 +293,7 @@ export default function IssueTypesPage(): JSX.Element {
                       {typeItem.field_keys && typeItem.field_keys.length > 0 ? typeItem.field_keys.join(', ') : '—'}
                     </td>
                     <td style={{padding:'10px 12px'}}>
-                      <div style={{display:'flex', gap:8}}>
+                      <div className="u-row-8">
                         <button onClick={() => { setEditing(typeItem); setShowForm(true) }}
                           style={{background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
                             padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
@@ -312,7 +312,7 @@ export default function IssueTypesPage(): JSX.Element {
             </table>
             <div style={{marginTop:20, padding:'12px 16px', background:'var(--surface-1)', borderRadius:8,
               border:'1px solid #1e2d45', fontSize: "var(--text-sm)", color:'var(--text-3)', lineHeight:1.7}}>
-              <strong style={{color:'var(--text-2)'}}>{t('issue_types.how_to_use')}</strong> {t('issue_types.how_to_use_desc')}
+              <strong className="u-text2">{t('issue_types.how_to_use')}</strong> {t('issue_types.how_to_use_desc')}
             </div>
           </div>
         </div>

@@ -82,19 +82,17 @@ def test_la_capa_api_no_accede_a_la_base_de_datos():
         + "\n  ".join(culpables))
 
 
-def test_las_fronteras_de_transaccion_siguen_en_el_endpoint():
-    """El otro lado de la decisión, para que quede fijado y no se vaya solo.
+def test_las_transacciones_viven_en_el_servicio():
+    """Auditoria 2026-11 (#21): decision cambiada a proposito.
 
-    Que los `commit` vivan en el endpoint **es** el diseño: el servicio prepara
-    y el endpoint confirma. Si este número cae a cero, alguien ha movido las
-    transacciones al servicio, y eso es un cambio de arquitectura que merece su
-    propia conversación — no un efecto colateral.
+    Antes el diseño era "el servicio prepara y el endpoint confirma" (>50
+    commits en app/api). Se movieron todos al servicio para que los workers y la
+    orquestacion reutilicen la misma unidad de trabajo; lo vigila
+    tests/test_sin_commits_en_la_api.py. Aqui solo quedan rollback/close de
+    tareas de fondo y streaming.
     """
     datos = _detector().medir()
-    assert datos["total_transaccion"] > 50, (
-        f"sólo quedan {datos['total_transaccion']} fronteras de transacción en "
-        "la capa API: si se han movido a los servicios, revisar que sea una "
-        "decisión y no un descuido")
+    assert datos["total_transaccion"] < 50, datos["total_transaccion"]
 
 
 def test_el_detector_mide_algo_de_verdad():
@@ -104,6 +102,6 @@ def test_el_detector_mide_algo_de_verdad():
     test de arriba pasaría sin comprobar nada.
     """
     datos = _detector().medir()
-    assert len(datos["ficheros"]) > 20, (
+    assert len(datos["ficheros"]) > 10, (  # 2026-11: menos tras sacar los commits
         f"el detector sólo ve {len(datos['ficheros'])} ficheros con acceso o "
         "transacciones en app/api: revisar si sigue funcionando")

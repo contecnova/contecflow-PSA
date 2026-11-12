@@ -15,6 +15,7 @@ pantalla). Decia tener un respaldo con LLM que no existia.
 All state stored as AppSetting JSON blobs (no new DB tables).
 """
 from __future__ import annotations
+import logging
 
 import json
 import re
@@ -72,6 +73,7 @@ def _get_json(db: Session, key: str, org_id: Optional[str], *, default=None):
     try:
         return json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("_get_json: excepcion ignorada", exc_info=True)
         return default
 
 

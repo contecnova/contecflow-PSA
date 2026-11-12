@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import SLAEvent, SLAEventType, Ticket
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 def get_ticket_or_404(db: Session, ticket_id: str) -> Ticket:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return ticket
 
 
 def pause_ticket_sla(db: Session, ticket_id: str, user_id: str, note: str) -> dict:
     ticket = get_ticket_or_404(db, ticket_id)
     if ticket.sla_paused_at:
-        raise HTTPException(400, "SLA ya está pausado")
+        raise ErrorDeDominio(400, "SLA ya está pausado")
 
     ticket.sla_paused_at = datetime.now(timezone.utc)
     if ticket.status.value not in ("resolved", "closed"):
@@ -43,7 +43,7 @@ def pause_ticket_sla_from_payload(db: Session, ticket_id: str, user_id: str, pay
 def resume_ticket_sla(db: Session, ticket_id: str, user_id: str) -> dict:
     ticket = get_ticket_or_404(db, ticket_id)
     if not ticket.sla_paused_at:
-        raise HTTPException(400, "SLA no está pausado")
+        raise ErrorDeDominio(400, "SLA no está pausado")
 
     now = datetime.now(timezone.utc)
     paused_at_tz = ticket.sla_paused_at

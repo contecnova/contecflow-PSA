@@ -11,7 +11,7 @@ from app.models.user import User
 from app.models.billing_reports import ApprovalRequest
 from app.models.billing_reports import ApprovalWorkflow
 from app.models.billing_reports import ApprovalDecision
-from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 
 from app.services.approval_engine._base import _apply_entity_final_decision, _is_authorized, _notify_requester_approved, _record_sod_violation, find_default_workflow, log_financial_approval_event, logger, notify_approver, scope_request_query
@@ -35,14 +35,14 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
         contexto.setdefault("department", getattr(current_user, "department", None))
         wf = elegir_flujo(db, payload.entity_type, contexto)
         if not wf:
-            raise HTTPException(
+            raise ErrorDeDominio(
                 404, f"No hay flujo de aprobación configurado para '{payload.entity_type}'"
             )
         wf_id = wf.id
     else:
         wf = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == wf_id).first()
         if not wf:
-            raise HTTPException(404, "Flujo no encontrado")
+            raise ErrorDeDominio(404, "Flujo no encontrado")
 
     # ── Auto-aprobación: comprobar reglas antes de crear la solicitud ──────────
     auto_result = _check_auto_approval(wf, payload)
@@ -130,20 +130,20 @@ def _load_request_and_workflow_for_decision(
         ApprovalRequest.id == request_id
     ).first()
     if not req:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if req.status != "pending":
-        raise HTTPException(400, f"La solicitud ya está en estado '{req.status}'")
+        raise ErrorDeDominio(400, f"La solicitud ya está en estado '{req.status}'")
 
     wf = db.query(ApprovalWorkflow).options(
         joinedload(ApprovalWorkflow.steps)
     ).filter(ApprovalWorkflow.id == req.workflow_id).first()
     if not wf:
-        raise HTTPException(404, "Flujo no encontrado")
+        raise ErrorDeDominio(404, "Flujo no encontrado")
 
     steps = sorted(wf.steps, key=lambda s: s.step_order)
     step = next((s for s in steps if s.step_order == req.current_step), None)
     if not step:
-        raise HTTPException(400, "No se encontró el paso actual del flujo de aprobación")
+        raise ErrorDeDominio(400, "No se encontró el paso actual del flujo de aprobación")
     return req, wf, steps, step
 
 def _validate_decision_authorization(
@@ -151,18 +151,18 @@ def _validate_decision_authorization(
 ) -> None:
     """Apply authorization / SoD / attachment / double-vote validations."""
     if not _is_authorized(step, current_user, req.requested_by, db, req=req):
-        raise HTTPException(403, "No tienes permiso para aprobar este paso")
+        raise ErrorDeDominio(403, "No tienes permiso para aprobar este paso")
 
     if req.requested_by == current_user.id:
         _record_sod_violation(req, current_user, db)
-        raise HTTPException(
+        raise ErrorDeDominio(
             403,
             "SoD: el solicitante no puede aprobar su propia solicitud "
             "(Segregación de Funciones — crear ≠ aprobar)",
         )
 
     if step.requires_attachment and decision in ("approved", "rejected") and not attachment_url:
-        raise HTTPException(400, "Este paso requiere adjuntar un documento para emitir la decisión")
+        raise ErrorDeDominio(400, "Este paso requiere adjuntar un documento para emitir la decisión")
 
     existing_vote = next(
         (d for d in (req.decisions or [])
@@ -173,7 +173,7 @@ def _validate_decision_authorization(
         None
     )
     if existing_vote:
-        raise HTTPException(400, "Ya has emitido tu voto en este paso")
+        raise ErrorDeDominio(400, "Ya has emitido tu voto en este paso")
 
 def _record_decision_row(
     req, decision: str, note: Optional[str], delegate_to: Optional[str],
@@ -216,7 +216,7 @@ def _apply_delegated_decision(
     req, steps, note: Optional[str], delegate_to: Optional[str], db: Session
 ) -> None:
     if not delegate_to:
-        raise HTTPException(400, "Debes indicar delegate_to para delegar la aprobación")
+        raise ErrorDeDominio(400, "Debes indicar delegate_to para delegar la aprobación")
     req.final_note = f"Delegado a {delegate_to} ({note or 'sin nota'})"
     db.commit()
     notify_approver(
@@ -376,9 +376,9 @@ def cancel_approval_request(db: Session, request_id: str, current_user: User):
         db.query(ApprovalRequest), db, current_user
     ).filter(ApprovalRequest.id == request_id).first()
     if not req:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if req.requested_by != current_user.id and current_user.role not in ("admin", "pm"):
-        raise HTTPException(403)
+        raise ErrorDeDominio(403)
     req.status = "cancelled"
     req.completed_at = datetime.now(timezone.utc)
     log_financial_approval_event(

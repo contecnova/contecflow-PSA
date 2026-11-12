@@ -6,6 +6,7 @@ subpaquete `app/services/tasks/` se reexportan desde ahí y no se copian: el
 porqué, largo y con nombre y apellidos, está en el bloque de abajo.
 """
 from __future__ import annotations
+from app.core.errores import ErrorDeDominio
 
 # ── Reexportado del subpaquete `tasks/` ──────────────────────────────────────
 #
@@ -186,7 +187,7 @@ def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
 
     project = project_for_user(db, project_id, current_user)
     if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
 
     if current_user.role in (UserRole.employee, UserRole.subcontractor):
         has_task = db.query(Task).filter(
@@ -194,7 +195,7 @@ def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
             Task.assignee_id == current_user.id,
         ).first()
         if not has_task:
-            raise HTTPException(status_code=403, detail="No tienes tareas en este proyecto")
+            raise ErrorDeDominio(status_code=403, detail="No tienes tareas en este proyecto")
 
     tasks = db.query(Task).options(
         joinedload(Task.assignee)
@@ -217,11 +218,11 @@ def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
 def create_task_record(db: Session, payload, current_user):
 
     if current_user.role in (UserRole.employee, UserRole.subcontractor):
-        raise HTTPException(status_code=403, detail="No tienes permiso para crear tareas")
+        raise ErrorDeDominio(status_code=403, detail="No tienes permiso para crear tareas")
 
     project = project_for_user(db, payload.project_id, current_user)
     if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
     from app.services.issue_type_service import validar_tipo
     validar_tipo(project.id, payload.issue_type, db)
 
@@ -237,7 +238,7 @@ def create_task_record(db: Session, payload, current_user):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Código de tarea duplicado. Inténtalo de nuevo.")
+        raise ErrorDeDominio(status_code=409, detail="Código de tarea duplicado. Inténtalo de nuevo.")
     db.refresh(task)
     from app.core.events import emit, EventType
     emit(db, EventType.TASK_CREATED,
@@ -260,14 +261,14 @@ def get_task_record(db: Session, task_id: str, current_user):
     ).filter(Task.id == task_id).first()
 
     if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada")
 
     if current_user.role != UserRole.admin:
         project = db.query(Project).filter(Project.id == task.project_id).first()
         is_project_pm = project and project.pm_id == current_user.id
         is_task_participant = (task.assignee_id == current_user.id or task.reporter_id == current_user.id)
         if not is_project_pm and not is_task_participant:
-            raise HTTPException(status_code=403, detail="No tienes acceso a esta tarea")
+            raise ErrorDeDominio(status_code=403, detail="No tienes acceso a esta tarea")
 
     return task
 
@@ -280,7 +281,7 @@ def _autorizar_edicion_de_tarea(task, project, current_user) -> None:
         return
     es_pm = project and project.pm_id == current_user.id
     if not es_pm and task.assignee_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para editar esta tarea")
+        raise ErrorDeDominio(status_code=403, detail="No tienes permiso para editar esta tarea")
 
 
 def _guardar_con_bloqueo_optimista(db: Session, task, cambios: dict, task_id: str) -> None:
@@ -301,7 +302,7 @@ def _guardar_con_bloqueo_optimista(db: Session, task, cambios: dict, task_id: st
 
     version_cliente = cambios.get("version")
     if version_cliente is not None and version_cliente != (task.version or 1):
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=409,
             detail=(
                 f"Conflicto de edición: la tarea fue modificada por otro usuario "
@@ -315,13 +316,13 @@ def _guardar_con_bloqueo_optimista(db: Session, task, cambios: dict, task_id: st
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error updating task {task_id}: {str(e)}")
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=409, detail="Task state conflict. Please reload and try again.",
         )
     except Exception as e:
         db.rollback()
         logger.error(f"Database error updating task {task_id}: {str(e)}")
-        raise HTTPException(status_code=503, detail="Database operation failed")
+        raise ErrorDeDominio(status_code=503, detail="Database operation failed")
 
 
 def _registrar_movimiento(db: Session, task, cambios: dict, estado_anterior, current_user) -> None:
@@ -367,11 +368,11 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
     """
     task = task_query_for_user(db, current_user).filter(Task.id == task_id).first()
     if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada")
 
     project = project_for_user(db, task.project_id, current_user)
     if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
 
     _autorizar_edicion_de_tarea(task, project, current_user)
     from app.services.issue_type_service import validar_tipo
@@ -427,20 +428,20 @@ def cancel_task_record(db: Session, task_id: str, current_user=None) -> dict:
         )
     task = q.first()
     if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada")
     if task.status == TaskStatus.cancelled:
-        raise HTTPException(status_code=400, detail="La tarea ya esta cancelada")
+        raise ErrorDeDominio(status_code=400, detail="La tarea ya esta cancelada")
     task.status = TaskStatus.cancelled
     try:
         db.commit()
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error cancelling task {task_id}: {str(e)}")
-        raise HTTPException(status_code=409, detail="Cannot cancel task. State conflict.")
+        raise ErrorDeDominio(status_code=409, detail="Cannot cancel task. State conflict.")
     except Exception as e:
         db.rollback()
         logger.error(f"Database error cancelling task {task_id}: {str(e)}")
-        raise HTTPException(status_code=503, detail="Database operation failed")
+        raise ErrorDeDominio(status_code=503, detail="Database operation failed")
     from app.core.events import emit, EventType
     emit(db, EventType.TASK_DELETED,
          {"title": task.title, "project_id": task.project_id, "reason": "cancelled"},
@@ -464,14 +465,14 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
         )
     task = q.first()
     if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada")
 
     if current_user.role != UserRole.admin:
         project = db.query(Project).filter(Project.id == task.project_id).first()
         is_project_pm = project and project.pm_id == current_user.id
         is_task_participant = (task.assignee_id == current_user.id or task.reporter_id == current_user.id)
         if not is_project_pm and not is_task_participant:
-            raise HTTPException(status_code=403, detail="No tienes acceso a esta tarea")
+            raise ErrorDeDominio(status_code=403, detail="No tienes acceso a esta tarea")
 
     comment = TaskComment(
         task_id=task_id,
@@ -484,11 +485,11 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error adding comment to task {task_id}: {str(e)}")
-        raise HTTPException(status_code=409, detail="Cannot add comment. Conflict.")
+        raise ErrorDeDominio(status_code=409, detail="Cannot add comment. Conflict.")
     except Exception as e:
         db.rollback()
         logger.error(f"Database error adding comment to task {task_id}: {str(e)}")
-        raise HTTPException(status_code=503, detail="Database operation failed")
+        raise ErrorDeDominio(status_code=503, detail="Database operation failed")
     db.refresh(comment)
     return comment
 
@@ -527,7 +528,7 @@ def _aplicar_fechas_a_tarea(db: Session, cambio: dict, current_user) -> Optional
     if current_user:
         try:
             enforce_abac(db, current_user, "task", task.id, action="update")
-        except HTTPException:
+        except (HTTPException, ErrorDeDominio):
             return {"id": task.id, "reason": "abac_denied"}
 
     if "start_date" in cambio:
@@ -562,11 +563,11 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error in bulk_update_dates: {str(e)}")
-        raise HTTPException(status_code=409, detail="Constraint violation in bulk date update.")
+        raise ErrorDeDominio(status_code=409, detail="Constraint violation in bulk date update.")
     except Exception as e:
         db.rollback()
         logger.error(f"Database error in bulk_update_dates: {str(e)}")
-        raise HTTPException(status_code=503, detail="Database operation failed")
+        raise ErrorDeDominio(status_code=503, detail="Database operation failed")
 
     return {"updated": actualizadas, "errors": errors}
 
@@ -674,11 +675,11 @@ def create_task_dependency(
     try:
         dependency_type = DependencyType(tipo)
     except ValueError:
-        raise HTTPException(400, f"Tipo de dependencia no válido: {tipo} (FS, SS, FF o SF)")
+        raise ErrorDeDominio(400, f"Tipo de dependencia no válido: {tipo} (FS, SS, FF o SF)")
     if predecessor_id == successor_id:
-        raise HTTPException(400, "Una tarea no puede depender de sí misma")
+        raise ErrorDeDominio(400, "Una tarea no puede depender de sí misma")
     if _cierra_un_ciclo(db, predecessor_id, successor_id):
-        raise HTTPException(400, "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior")
+        raise ErrorDeDominio(400, "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior")
     existing = (
         db.query(TaskDependency)
         .filter(
@@ -687,7 +688,7 @@ def create_task_dependency(
         ).first()
     )
     if existing and existing.is_active:
-        raise HTTPException(409, "La dependencia ya existe")
+        raise ErrorDeDominio(409, "La dependencia ya existe")
     if existing and not existing.is_active:
         existing.is_active = True
         existing.dependency_type = dependency_type
@@ -724,7 +725,7 @@ def delete_task_dependency(db: Session, dep_id: str) -> dict:
     """Delete a task dependency by id. Raises 404 if not found."""
     dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id, TaskDependency.is_active == True).first()
     if not dep:
-        raise HTTPException(404, "Dependencia no encontrada")
+        raise ErrorDeDominio(404, "Dependencia no encontrada")
     dep.is_active = False
     db.commit()
     return {"ok": True, "message": "Dependencia eliminada correctamente"}

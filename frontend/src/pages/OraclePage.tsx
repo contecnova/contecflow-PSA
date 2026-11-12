@@ -118,7 +118,7 @@ export default function OraclePage() {
         title={t('ai.oracle_title')}
         subtitle="Detecta riesgos y anomalías en tus proyectos con reglas de negocio multi-factor (retraso · SLA · burnout · presupuesto)"
         actions={
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div className="u-row-center-10">
             <Button onClick={() => runOracle()} disabled={running}>
               {running ? '🔄 Analizando...' : '🔮 Ejecutar análisis'}
             </Button>
@@ -131,9 +131,9 @@ export default function OraclePage() {
       {analysis && (
         <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: 'rgba(52,211,153,0.25)', background: 'var(--success-bg)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
+            <div className="u-min0">
               <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>{t('oracle.analisis_completado')}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+              <div className="u-text2-sm">
                 {/* Backend devuelve {alerts_generated, methodology, run_at} no {predictions_generated, projects_analyzed} */}
                 {analysis.alerts_generated || 0} alertas generadas
                 {analysis.methodology && <span> {t('oracle.metodo')} <em>{analysis.methodology}</em></span>}
@@ -146,7 +146,7 @@ export default function OraclePage() {
               {(analysis.alerts ?? []).slice(0, 5).map((a, i) => (
                 <div key={i}>• {a.type}: {a.entity} ({Math.round((a.probability || 0) * 100)}%)</div>
               ))}
-              {(analysis.alerts?.length ?? 0) > 5 && <div style={{ color: 'var(--text-3)' }}>… {(analysis.alerts?.length ?? 0) - 5} {t('oracle.mas')}</div>}
+              {(analysis.alerts?.length ?? 0) > 5 && <div className="u-text3">… {(analysis.alerts?.length ?? 0) - 5} {t('oracle.mas')}</div>}
             </div>
           )}
         </div>
@@ -178,7 +178,7 @@ export default function OraclePage() {
                 <XAxis type="number" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} width={130} />
                 <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }} />
-                <Bar dataKey="count" fill="#4f8ef7" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -211,7 +211,7 @@ export default function OraclePage() {
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
         <EmptyState icon="🔮" title={t('oracle.sin_predicciones_disponibles')} description={preds.length ? "No hay predicciones con este filtro" : "Ejecuta el análisis para detectar riesgos con IA"} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           {filtered.map(p => {
             const sv = (p.severity && SEV[p.severity]) || SEV.low
             const ti = (p.type && TYPE_ICONS[p.type]) || { icon: '⚡', label: p.type }
@@ -221,7 +221,7 @@ export default function OraclePage() {
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                     <span style={{ fontSize: "var(--text-xl-em)" }}>{ti.icon}</span>
                     <div>
-                      <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.title}</div>
+                      <div className="u-md-700">{p.title}</div>
                       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
                         {ti.label} · {p.entity_type} {p.entity_name ? `— ${p.entity_name}` : ''}
                       </div>
@@ -230,7 +230,7 @@ export default function OraclePage() {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                     <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: sv.bg, color: sv.color, fontWeight: 700 }}>{sv.label}</span>
                     {p.probability && (
-                      <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{Math.round(p.probability * 100)}% prob.</span>
+                      <span className="u-text2-sm">{Math.round(p.probability * 100)}% prob.</span>
                     )}
                     {!p.is_acknowledged && (
                       <button onClick={() => p.id && ack(p.id)}

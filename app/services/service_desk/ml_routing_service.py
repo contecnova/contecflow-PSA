@@ -241,6 +241,7 @@ def _skill_match(db: Session, user_id: str, category_id: str | None) -> float:
                 return 0.7
         return 0.3
     except Exception:
+        _logger.warning("_skill_match: excepcion ignorada", exc_info=True)
         return 0.5
 
 

@@ -4,51 +4,105 @@
 import type { AxiosResponse } from 'axios'
 import api from './_core'
 
-export interface GeneralSettings {
-  organization_name?: string
-  default_currency?: string
-  default_timezone?: string
-  default_language?: string
-  working_hours_per_day?: number
-  weekly_capacity_hours?: number
-  vacation_days_per_year?: number
-  default_tax_rate?: number
-  [k: string]: unknown
+/** `SettingOut` (app/schemas/settings.py): `GET /settings/general` devuelve una lista. */
+export interface GeneralSetting {
+  key: string
+  value: string | null
+  description: string | null
 }
 
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL'
 
+/** `GET /settings/log-level` (get_log_level en app/api/v1/endpoints/settings.py). */
 export interface LogLevelResponse {
+  root: string
+  contecflow: string
+  uvicorn: string
+  uvicorn_error: string
+  uvicorn_access: string
+  valid_levels: string[]
+}
+
+/** `LogLevelPayload` (app/schemas/settings.py). */
+export interface LogLevelPayload {
   level: LogLevel
+  logger?: string | null
 }
 
+/** `POST /settings/log-level` (set_log_level). */
+export interface LogLevelChange {
+  ok: boolean
+  logger: string
+  level: string
+  affected: string[]
+}
+
+/** Un ajuste de `get_runtime_group` (app/services/settings_service/runtime.py). */
+export interface RuntimeSetting {
+  key: string
+  type: 'int' | 'float' | 'bool' | 'str'
+  label: string
+  value: string | number | boolean | null
+  plataforma: boolean
+}
+
+/** `GET /settings/runtime/{group}`. */
 export interface RuntimeFlagsResponse {
-  [key: string]: { value: string; updated_at?: string; updated_by?: string }
+  group: string
+  items: RuntimeSetting[]
 }
 
+/** Claves de `PROVIDER_REGISTRY` (app/services/integration_credentials_service.py).
+ *  Auditoría 2026-11 (#25): la lista anterior (jira, github, gitlab, salesforce, m365,
+ *  aws_kms...) no coincidía con el registro del servidor. */
 export type IntegrationProvider =
-  | 'jira'
-  | 'github'
-  | 'gitlab'
-  | 'salesforce'
+  | 'smtp'
+  | 'sd_mailbox'
+  | 'contecmind'
+  | 'contecintelligence'
+  | 'monitoring'
+  | 'aws_s3'
+  | 'ms_graph'
+  | 'slack'
+  | 'twilio'
   | 'stripe'
   | 'docusign'
   | 'adobe_sign'
-  | 'm365'
-  | 'slack'
-  | 'twilio'
-  | 'aws_s3'
-  | 'aws_kms'
+  | 'ai_providers'
+  | 'webhooks'
+  | 'open_exchange_rates'
 
+/** Elemento de `list_providers` (app/services/integration_credentials_service.py). */
 export interface IntegrationStatus {
   provider: IntegrationProvider
-  configured: boolean
-  keys: string[]
+  label: string
 }
 
+/** Un campo de `describe_provider` (app/services/integration_credentials_service.py). */
+export interface IntegrationField {
+  key: string
+  type: string
+  label: string
+  is_secret: boolean
+  value: string | number | boolean | null
+  configured: boolean
+  source: 'db' | 'env' | 'unset'
+}
+
+/** `GET /settings/integrations/{provider}` (describe_provider). */
 export interface IntegrationProviderConfig {
   provider: IntegrationProvider
-  values: Record<string, string>
+  label: string
+  items: IntegrationField[]
+}
+
+/** `PUT /settings/integrations/{provider}/{key}` (set_credential). */
+export interface IntegrationFieldUpdate {
+  provider: IntegrationProvider
+  key: string
+  configured: boolean
+  source: 'db' | 'unset'
+  is_secret?: boolean
 }
 
 export interface IntegrationTestResult {
@@ -76,19 +130,20 @@ export interface AuditLogEntry {
 }
 
 export const settingsApi = {
-  general: (): Promise<AxiosResponse<GeneralSettings>> =>
+  general: (): Promise<AxiosResponse<GeneralSetting[]>> =>
     api.get('/settings/general'),
 
   logLevel: (): Promise<AxiosResponse<LogLevelResponse>> =>
     api.get('/settings/log-level'),
 
-  setLogLevel: (data: { level: LogLevel }): Promise<AxiosResponse<LogLevelResponse>> =>
+  setLogLevel: (data: LogLevelPayload): Promise<AxiosResponse<LogLevelChange>> =>
     api.post('/settings/log-level', data),
 
   runtimeGroup: (group: string): Promise<AxiosResponse<RuntimeFlagsResponse>> =>
     api.get(`/settings/runtime/${group}`),
 
-  setRuntime: (group: string, key: string, value: string | number | boolean | null): Promise<AxiosResponse<RuntimeFlagsResponse>> =>
+  // Devuelve la fila `AppSetting` guardada (set_runtime_value); nadie la lee.
+  setRuntime: (group: string, key: string, value: string | number | boolean | null): Promise<AxiosResponse<unknown>> =>
     api.put(`/settings/runtime/${group}/${key}`, { value: String(value) }),
 
   /** Qué falta por configurar en la empresa, medido (revisión 2026-11). */
@@ -102,15 +157,11 @@ export const settingsApi = {
   dbIsolation: (): Promise<AxiosResponse<{ armed: boolean; role?: string; tables_with_rls?: number; tables_expected?: number; reason?: string | null }>> =>
     api.get('/settings/db-isolation'),
 
-  /** Traducciones del back-office de la empresa: `{idioma: {módulo: {clave: texto}}}`. */
-  appTranslations: (): Promise<AxiosResponse<Record<string, Record<string, Record<string, string>>>>> =>
-    api.get('/settings/app-translations'),
-
   /** Fusiona por clave; un texto vacío quita la personalización. Devuelve todas. */
   saveAppTranslations: (translations: Record<string, unknown>): Promise<AxiosResponse<Record<string, Record<string, Record<string, string>>>>> =>
     api.put('/settings/app-translations', { translations }),
 
-  integrations: (): Promise<AxiosResponse<IntegrationStatus[]>> =>
+  integrations: (): Promise<AxiosResponse<{ providers: IntegrationStatus[] }>> =>
     api.get('/settings/integrations'),
 
   integrationProvider: (provider: IntegrationProvider): Promise<AxiosResponse<IntegrationProviderConfig>> =>
@@ -120,12 +171,9 @@ export const settingsApi = {
     provider: IntegrationProvider,
     key: string,
     value: string | number | boolean | null | undefined,
-  ): Promise<AxiosResponse<IntegrationProviderConfig>> =>
+  ): Promise<AxiosResponse<IntegrationFieldUpdate>> =>
     api.put(`/settings/integrations/${provider}/${key}`, { value: value == null ? '' : String(value) }),
 
   testIntegration: (provider: IntegrationProvider): Promise<AxiosResponse<IntegrationTestResult>> =>
     api.post(`/settings/integrations/${provider}/test`),
-
-  auditLog: (params: AuditLogParams = {}): Promise<AxiosResponse<AuditLogEntry[]>> =>
-    api.get('/settings/audit-log', { params }),
 } as const

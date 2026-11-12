@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 import json
 
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.settings import AppSetting
 from app.models.service_desk import Ticket, TicketComment, TicketTimeLog
 from app.services.sla_service import log_history as _log_history
+from app.core.errores import ErrorDeDominio
 
 
 # La guarda vive en `scoping.py`, junto a `scope_ticket_query`, de la que
@@ -85,7 +87,7 @@ def _a_partes(db: Session, ticket: Ticket, user, minutos: int, descripcion: Opti
         return {"timesheet": "skipped", "reason": "Menos de un cuarto de hora: no llega al mínimo de los partes"}
     try:
         imputacion = validate_and_create_imputation(entrada, user, db)
-    except HTTPException as exc:
+    except (HTTPException, ErrorDeDominio) as exc:
         return {"timesheet": "skipped", "reason": str(exc.detail)}
     return {"timesheet": "created", "imputation_id": imputacion.id, "hours": imputacion.hours}
 
@@ -124,6 +126,7 @@ def restore_pending_snapshot(db: Session, ticket: Ticket, current_user_id: str) 
     try:
         snap = json.loads(row.value)
     except Exception:
+        logging.getLogger(__name__).debug("restore_pending_snapshot: excepcion ignorada", exc_info=True)
         snap = {}
 
     old_status = str(ticket.status.value) if hasattr(ticket.status, "value") else str(ticket.status)
@@ -177,4 +180,4 @@ def commit_or_rollback(db, detail: str = "Error de transacción") -> None:
     except Exception:
         db.rollback()
         _logger.exception("Database transaction failed in service_desk")
-        raise HTTPException(500, detail)
+        raise ErrorDeDominio(500, detail)

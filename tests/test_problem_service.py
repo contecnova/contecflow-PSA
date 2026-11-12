@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.orm import Session
 from app.services.service_desk.problem_service import list_problems_payload, _validate_problem_org_constraints
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 @pytest.fixture
 def db_session(db) -> Session:
@@ -25,5 +26,5 @@ def test_validate_problem_org_constraints_invalid_project(db_session):
     class DummyUser:
         is_superadmin = False
         organization_id = "org-1"
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         _validate_problem_org_constraints(db_session, DummyUser(), project_id="nonexistent")

@@ -1,11 +1,12 @@
 """Training and Git metrics: training_completion_rate, certifications_by_user,
 prs_by_author, prs_by_project, pr_cycle_time, deployments_by_env, deployment_success_rate."""
+import logging
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 
 
 @register_metric("training_completion_rate")
@@ -51,6 +52,7 @@ def metric_training_completion_rate(
             })
         rows.sort(key=lambda x: x["value"], reverse=True)
     except Exception:
+        logging.getLogger(__name__).warning("metric_training_completion_rate: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Tasa finalización (%)"}
@@ -90,6 +92,7 @@ def metric_certifications_by_user(
                 "value": r.certs,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_certifications_by_user: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Certificaciones"}
@@ -120,6 +123,7 @@ def metric_prs_by_author(
 
         rows = [{"label": r.author_login or "Desconocido", "value": r.prs} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_prs_by_author: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Pull Requests"}
@@ -162,6 +166,7 @@ def metric_prs_by_project(
                 "value": r.prs,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_prs_by_project: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Pull Requests"}
@@ -208,6 +213,7 @@ def metric_pr_cycle_time(
                 "pr_count": len(times),
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_pr_cycle_time: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Horas (media ciclo PR)"}
@@ -238,6 +244,7 @@ def metric_deployments_by_env(
 
         rows = [{"label": r.environment or "Sin entorno", "value": r.deploys} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_deployments_by_env: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Despliegues"}
@@ -284,6 +291,7 @@ def metric_deployment_success_rate(
                 "success": success,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_deployment_success_rate: excepcion ignorada", exc_info=True)
         rows = []
 
     return rows, {"y_label": "Tasa éxito (%)"}

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG_MIA = "org-wf-mia"
 ORG_AJENA = "org-wf-ajena"
@@ -84,7 +85,7 @@ def test_EL_HALLAZGO_un_plano_de_otra_organizacion_da_404(db, blueprints_y_ejecu
     from app.services.service_desk import workflow_designer_service as svc
 
     ajeno = blueprints_y_ejecuciones[ORG_AJENA]["blueprint"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.blueprint_propio(db, _Usuario(ORG_MIA), ajeno.id)
     assert exc.value.status_code == 404
 
@@ -98,7 +99,7 @@ def test_un_plano_inexistente_da_el_mismo_404(db):
     que existe."""
     from app.services.service_desk import workflow_designer_service as svc
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.blueprint_propio(db, _Usuario(ORG_MIA), "no-existe")
     assert exc.value.status_code == 404
 
@@ -117,7 +118,7 @@ def test_EL_HALLAZGO_una_ejecucion_de_otra_organizacion_da_404(db, blueprints_y_
     from app.services.service_desk import workflow_designer_service as svc
 
     ajena = blueprints_y_ejecuciones[ORG_AJENA]["run"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.run_propio(db, _Usuario(ORG_MIA), ajena.id)
     assert exc.value.status_code == 404
 
@@ -140,7 +141,7 @@ def test_la_version_de_un_plano_se_acota_por_su_plano(db, blueprints_y_ejecucion
         graph_json="{}"))
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.version_del_blueprint(db, mio, 1)
     assert exc.value.status_code == 404
 
@@ -149,6 +150,6 @@ def test_clonar_un_plano_sin_versiones_lo_dice(db, blueprints_y_ejecuciones):
     from app.services.service_desk import workflow_designer_service as svc
 
     mio = blueprints_y_ejecuciones[ORG_MIA]["blueprint"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.grafo_de_cabecera(mio)
     assert exc.value.status_code == 400

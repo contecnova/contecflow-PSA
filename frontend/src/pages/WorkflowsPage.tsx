@@ -10,7 +10,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Workflow } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { CHART_COLORS_EXTENDED, alpha } from '../constants/theme'
+import { CHART_COLORS_EXTENDED, COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 
 type ProjectRole = 'admin' | 'pm' | 'team_lead' | 'employee' | 'hr'
 
@@ -94,7 +94,7 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
 
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar estado' : 'Nuevo estado'}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div>
           <label style={labelStyle}>{t('workflows.nombre_del_estado')}</label>
           <input style={inputStyle} value={form.name}
@@ -117,16 +117,16 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
         </div>
         <div>
           <label style={labelStyle}>Color</label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="u-wrap-8">
             {COLORS.map(c => (
               <button key={c} onClick={() => set('color')(c)}
                 style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: form.color === c ? '3px solid #fff' : '2px solid transparent', cursor: 'pointer' }} />
             ))}
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => set('color')(e.target.value)}
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
               style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0 }} />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
             <input type="checkbox" checked={form.is_initial} onChange={e => set('is_initial')(e.target.checked)} />
             {t('workflows.estado_inicial_punto_de_entrada')}
@@ -168,8 +168,8 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
 
   return (
     <Modal open onClose={onClose} title={t('workflows.nueva_transicion')}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="u-stack-14">
+        <div className="u-grid2-12">
           <div>
             <label style={labelStyle}>Desde</label>
             <select style={inputStyle} value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
@@ -273,7 +273,7 @@ export default function WorkflowsPage() {
         title={t('project_workflows.page_title')}
         subtitle={t('project_workflows.page_subtitle')}
         actions={selectedProject && states.length > 0 && (
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="u-row-8">
             <button
               onClick={() => openConfirmGlobal({
                 message: `¿Restablecer el workflow de "${_selectedProj?.name}" al Scrum estándar?\n\nEsto eliminará todos los estados y transiciones personalizados y los sustituirá por los 5 estados Scrum por defecto. Las tareas conservarán su valor de estado actual.`,
@@ -339,20 +339,20 @@ export default function WorkflowsPage() {
                 + Estado
               </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="u-stack-8">
               {states.map(s => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
                   <span style={{ fontSize: "var(--text-lg)" }}>{s.icon}</span>
-                  <div style={{ flex: 1 }}>
+                  <div className="u-flex1">
                     <div style={{ fontWeight: 500, fontSize: "var(--text-base)" }}>{s.name}</div>
                     <div style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{s.value}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="u-row-6">
                     {s.is_initial && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>Inicial</span>}
                     {s.is_final  && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--success-bg)', color: 'var(--success)' }}>Final</span>}
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="u-row-6">
                     <button onClick={() => { setEditingState(s); setShowStateForm(true) }}
                       style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                     <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el estado "${s.name}"?`, onConfirm: () => deleteState(s.id), danger: true }) }}
@@ -377,7 +377,7 @@ export default function WorkflowsPage() {
                 {t('workflows.sin_transiciones_define_que_estados_pueden_pasar')}
               </div>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="u-stack-6">
               {states.flatMap(s =>
                 (s.transitions_from || []).map(tr => {
                   const toState = states.find(ss => String(ss.id) === String(tr.to_state_id))
@@ -385,10 +385,10 @@ export default function WorkflowsPage() {
                     <div key={tr.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
-                        <span style={{ color: 'var(--text-1)' }}>{s.icon} {s.name}</span>
-                        <span style={{ color: 'var(--text-3)' }}>→</span>
+                        <span className="u-text1">{s.icon} {s.name}</span>
+                        <span className="u-text3">→</span>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: toState?.color || 'var(--text-2)', display: 'inline-block' }} />
-                        <span style={{ color: 'var(--text-1)' }}>{toState?.icon} {toState?.name}</span>
+                        <span className="u-text1">{toState?.icon} {toState?.name}</span>
                         {tr.label && <span style={{ color: 'var(--text-2)', fontStyle: 'italic' }}>&quot;{tr.label}&quot;</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 4 }}>
@@ -413,13 +413,13 @@ export default function WorkflowsPage() {
             <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{t('workflows.diagrama_del_workflow')}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
               {[...states].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((s, i) => (
-                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div key={s.id} className="u-row-center-8">
                   <div style={{ textAlign: 'center', minWidth: 100 }}>
                     <div style={{ width: 64, height: 64, borderRadius: '50%', background: alpha(s.color, '25'), border: `2px solid ${s.color}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', fontSize: "var(--text-xl)" }}>
                       {s.icon || s.name.charAt(0)}
                     </div>
                     <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: s.color }}>{s.name}</div>
-                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{s.is_initial ? 'Inicio' : s.is_final ? 'Fin' : ''}</div>
+                    <div className="u-text3-2xs">{s.is_initial ? 'Inicio' : s.is_final ? 'Fin' : ''}</div>
                   </div>
                   {i < states.length - 1 && (
                     <div style={{ color: 'var(--surface-4)', fontSize: "var(--text-xl)" }}>→</div>

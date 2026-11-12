@@ -24,6 +24,7 @@ from app.services.auth_service import (
     consume_sso_state_payload,
     register_sso_state,
 )
+from app.core.errores import ErrorDeDominio
 
 
 # ── El almacén de estado transporta el payload ───────────────────────────────
@@ -184,7 +185,7 @@ def test_un_correo_no_verificado_se_rechaza():
         saml_attribute_email = None
         saml_attribute_name = None
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         auth_sso._extraer_identidad(
             _Config(), {"email": "a@b.com", "email_verified": False}
         )
@@ -200,7 +201,7 @@ def test_sin_correo_no_se_puede_identificar():
         saml_attribute_email = None
         saml_attribute_name = None
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         auth_sso._extraer_identidad(_Config(), {"sub": "123"})
     assert exc.value.status_code == 502
 

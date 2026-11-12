@@ -1,8 +1,8 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import ServiceCategory, ServiceItem
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def create_category_record(db: Session, payload) -> ServiceCategory:
 def get_category_or_404(db: Session, cat_id: str) -> ServiceCategory:
     category = db.query(ServiceCategory).filter(ServiceCategory.id == cat_id).first()
     if not category:
-        raise HTTPException(404, "Categoria no encontrada")
+        raise ErrorDeDominio(404, "Categoria no encontrada")
     return category
 
 
@@ -108,7 +108,7 @@ def create_service_record(db: Session, payload) -> ServiceItem:
 def get_service_or_404(db: Session, service_id: str) -> ServiceItem:
     service = db.query(ServiceItem).filter(ServiceItem.id == service_id).first()
     if not service:
-        raise HTTPException(404, "No encontrado")
+        raise ErrorDeDominio(404, "No encontrado")
     return service
 
 

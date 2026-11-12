@@ -341,10 +341,10 @@ def preview_advanced_report(
     }
 
 
-def get_visual_query_builder_schema() -> dict[str, Any]:
+def get_visual_query_builder_schema(db=None, org_id=None) -> dict[str, Any]:
     """Expose a no-SQL catalog for visual query builder clients."""
     return {
-        "entities": report_builder_service.ENTITIES,
+        "entities": report_builder_service.entidades(db, org_id),
         "operators": report_builder_service.OPERATORS,
         "groups": report_builder_service.GROUPS,
     }

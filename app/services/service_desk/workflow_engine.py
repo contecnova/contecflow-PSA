@@ -165,6 +165,7 @@ def evaluate_expression(expr: str, context: dict) -> bool:
     except Exception:
         # Comparar tipos incompatibles es un fallo de la expresión, no del
         # flujo: la rama no se toma y el flujo sigue por la otra.
+        logger.debug("evaluate_expression: excepcion ignorada", exc_info=True)
         return False
 
 
@@ -300,6 +301,7 @@ def _ejecutar_un_nodo(db: Session, run: WorkflowRun, graph, node) -> Optional[Wo
     try:
         branch, payload, wait_seconds = _execute_node(ntype, _node_config(node), run, db)
     except Exception as exc:
+        logger.debug("_ejecutar_un_nodo: excepcion ignorada", exc_info=True)
         _record_error(db, run, f"executor {ntype} falló: {exc}")
         return run
 
@@ -598,6 +600,7 @@ def _nodo_espera(n: _Nodo) -> tuple[str, dict, int]:
     try:
         seconds = int(n.config.get("wait_minutes") or 0) * 60
     except Exception:
+        logger.warning("_nodo_espera: excepcion ignorada", exc_info=True)
         seconds = 0
     return WAIT, {
         "wait_minutes": n.config.get("wait_minutes"),
@@ -687,14 +690,17 @@ def _nodo_notificar(n: _Nodo) -> tuple[str, dict, int]:
                 delivered += 1
         elif isinstance(recipients, str):
             delivered = notify_role(n.db, recipients, tipo, title, body,
-                                    resource=resource, resource_id=resource_id)
+                                    resource=resource, resource_id=resource_id,
+                                    organization_id=n.run.organization_id)
             if n.config.get("channel") == "email":
                 from app.models.user import User
                 ids = [r[0] for r in n.db.query(User.id).filter(
-                    User.role == recipients, User.is_active == True).all()]  # noqa: E712
+                    User.role == recipients, User.is_active == True,  # noqa: E712
+                    User.organization_id == n.run.organization_id).all()]
         if n.config.get("channel") == "email" and ids:
             _enviar_correos_del_flujo(n, ids, title, body)
     except Exception as exc:
+        logger.warning("_nodo_notificar: excepcion ignorada", exc_info=True)
         return "failure", {
             "channel": n.config.get("channel"), "error": str(exc)[:300], "delivered": 0,
         }, 0
@@ -720,6 +726,7 @@ def _nodo_llamada_http(n: _Nodo) -> tuple[str, dict, int]:
         try:
             body = json.loads(body_template)
         except Exception:
+            logger.debug("_nodo_llamada_http: excepcion ignorada", exc_info=True)
             body = body_template
     try:
         import httpx  # noqa: WPS433
@@ -735,6 +742,7 @@ def _nodo_llamada_http(n: _Nodo) -> tuple[str, dict, int]:
             "response": (r.text or "")[:500],
         }, 0
     except Exception as exc:
+        logger.warning("_nodo_llamada_http: excepcion ignorada", exc_info=True)
         return "failure", {"method": method, "url": url, "error": str(exc)[:500]}, 0
 
 
@@ -788,6 +796,7 @@ def _nodo_crear_ticket(n: _Nodo) -> tuple[str, dict, int]:
         # «transaction has been rolled back»: el registro del paso, el avance del
         # run e incluso `_record_error`, que es justo quien tiene que anotar el
         # problema. Un nodo que falla debe dejar el run anotable.
+        logger.warning("_nodo_crear_ticket: excepcion ignorada", exc_info=True)
         n.db.rollback()
         return "failure", {
             "queue": n.config.get("queue"), "error": str(exc)[:300], "created": False,

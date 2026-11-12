@@ -348,6 +348,7 @@ def assess_change_risk(change_id: str, db: Session = Depends(get_db), current_us
         if not isinstance(impacted, list):
             impacted = []
     except Exception:
+        logger.debug("assess_change_risk: excepcion ignorada", exc_info=True)
         impacted = []
 
     assessment = assess_change_risk_ai(
@@ -382,6 +383,7 @@ def plan_change_rollout(
         if not isinstance(impacted, list):
             impacted = []
     except Exception:
+        logger.debug("plan_change_rollout: excepcion ignorada", exc_info=True)
         impacted = []
 
     estimated_duration = int(payload.get("estimated_duration_minutes", 120))
@@ -434,6 +436,7 @@ def rollback_script(change_id: str, db: Session = Depends(get_db), current_user:
         if not isinstance(impacted, list):
             impacted = []
     except Exception:
+        logger.debug("rollback_script: excepcion ignorada", exc_info=True)
         impacted = []
 
     script = generate_rollback_automation_script(

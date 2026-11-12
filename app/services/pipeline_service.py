@@ -1,6 +1,5 @@
 import uuid as _uuid
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.pipeline import Opportunity, OpportunityActivity, OpportunityStage, PipelineStageConfig
@@ -9,6 +8,7 @@ from app.models.user import User
 from app.services.numbering import next_numbered_code
 from app.core.config import settings
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def _con_cliente(db: Session, datos: dict) -> dict:
         from app.models.clients import Client
         cliente = db.query(Client).filter(Client.id == datos["client_id"]).first()
         if cliente is None:
-            raise HTTPException(400, "Cliente no encontrado")
+            raise ErrorDeDominio(400, "Cliente no encontrado")
         datos["client_name"] = cliente.name
     return datos
 
@@ -108,7 +108,7 @@ def oportunidad_propia(db: Session, current_user: User, opp_id: str) -> Opportun
         Opportunity.is_active == True,  # noqa: E712
     ).first()
     if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
+        raise ErrorDeDominio(404, "Oportunidad no encontrada")
     return opp
 
 
@@ -127,7 +127,7 @@ def update_opportunity(
     if new_stage and new_stage != old_stage:
         allowed = _STAGE_VALID_TRANSITIONS.get(old_stage, set())
         if new_stage not in allowed:
-            raise HTTPException(
+            raise ErrorDeDominio(
                 status_code=400,
                 detail=(
                     f"Transición de etapa no permitida: "
@@ -161,7 +161,7 @@ def update_opportunity(
 def delete_opportunity(db: Session, current_user: User, opp_id: str) -> dict:
     opp = oportunidad_propia(db, current_user, opp_id)
     if opp.project_id:
-        raise HTTPException(400, "No se puede eliminar: la oportunidad esta vinculada a un proyecto")
+        raise ErrorDeDominio(400, "No se puede eliminar: la oportunidad esta vinculada a un proyecto")
     opp.is_active = False
     db.commit()
     return {"ok": True, "message": "Oportunidad eliminada correctamente"}
@@ -195,11 +195,11 @@ def add_activity(
 def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str) -> dict:
     opp = oportunidad_propia(db, current_user, opp_id)
     if opp.project_id:
-        raise HTTPException(400, f"Esta oportunidad ya está vinculada al proyecto {opp.project_id}")
+        raise ErrorDeDominio(400, f"Esta oportunidad ya está vinculada al proyecto {opp.project_id}")
     # Revisión 2026-11: convertir marca la oportunidad como ganada; una perdida
     # o cancelada no se resucita así.
     if str(getattr(opp.stage, "value", opp.stage)) in ("lost", "cancelled"):
-        raise HTTPException(400, "Una oportunidad perdida o cancelada no se convierte en proyecto")
+        raise ErrorDeDominio(400, "Una oportunidad perdida o cancelada no se convierte en proyecto")
 
     code = next_numbered_code(db, "project", prefix="PRJ", padding=4)
 
@@ -315,7 +315,7 @@ def create_stage_config(db: Session, payload_dict: dict) -> PipelineStageConfig:
     ).first()
     if existing:
         from fastapi import status
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"La etapa '{payload_dict['stage_key']}' ya existe")
+        raise ErrorDeDominio(status_code=status.HTTP_409_CONFLICT, detail=f"La etapa '{payload_dict['stage_key']}' ya existe")
     stage = PipelineStageConfig(**payload_dict)
     db.add(stage)
     db.commit()
@@ -326,7 +326,7 @@ def create_stage_config(db: Session, payload_dict: dict) -> PipelineStageConfig:
 def update_stage_config(db: Session, stage_id: str, data: dict) -> PipelineStageConfig:
     stage = db.query(PipelineStageConfig).filter(PipelineStageConfig.id == stage_id).first()
     if not stage:
-        raise HTTPException(404, "Etapa no encontrada")
+        raise ErrorDeDominio(404, "Etapa no encontrada")
     for k, v in data.items():
         setattr(stage, k, v)
     db.commit()

@@ -21,7 +21,7 @@ vi.mock('../services/api', () => ({
     columns: [{ id: 'c1', status: 'in_progress', wip_limit: 1 }] } }), saveKanbanConfig: vi.fn(), addKanbanColumn: vi.fn(), updateKanbanColumn: vi.fn() },
 }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
-vi.mock('../context/ConfirmContext', () => ({ openConfirmGlobal: vi.fn() }))
+vi.mock('../context/ConfirmContext', () => ({ openConfirmGlobal: vi.fn(), pedirTexto: vi.fn().mockResolvedValue(null) }))
 vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string) => k, useAppLang: () => ({ t: (k: string) => k, lang: 'es' }) }))
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1', role: 'admin' }, hasRole: () => true }) }))
 vi.mock('../components/layout/PageHeader', () => ({ default: ({ actions }: { actions: JSX.Element }) => <div>{actions}</div> }))

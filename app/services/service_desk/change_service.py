@@ -1,8 +1,8 @@
+import logging
 import json
 from datetime import datetime, timezone as tz
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,6 +15,7 @@ from app.services.service_desk.scoping import (
     scope_problem_query as _scope_problem_query,
     scope_ticket_query as _scope_ticket_query,
 )
+from app.core.errores import ErrorDeDominio
 
 
 def cancelar_cambio(db, current_user, change_id: str) -> dict:
@@ -33,13 +34,12 @@ def cancelar_cambio(db, current_user, change_id: str) -> dict:
     paso. Se responde 409, no 400: el conflicto es con el estado actual del
     recurso.
     """
-    from fastapi import HTTPException
 
     from app.models.service_desk import ChangeStatus
 
     cambio = get_change_by_id(db, current_user, change_id)
     if not cambio:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
 
     TERMINALES = {
         ChangeStatus.implemented,
@@ -47,7 +47,7 @@ def cancelar_cambio(db, current_user, change_id: str) -> dict:
         ChangeStatus.closed_failed,
     }
     if cambio.status in TERMINALES:
-        raise HTTPException(
+        raise ErrorDeDominio(
             409,
             f"No se puede cancelar un cambio en estado "
             f"{cambio.status.value}: ya se ha ejecutado")
@@ -130,7 +130,7 @@ def get_change_by_id(db: Session, current_user: User, change_id: str):
 def get_change_payload(db: Session, current_user: User, change_id: str, full: bool = False) -> dict:
     change = get_change_by_id(db, current_user, change_id)
     if not change:
-        raise HTTPException(404, "Change request no encontrado")
+        raise ErrorDeDominio(404, "Change request no encontrado")
     return serialize_change(change, full=full)
 
 
@@ -209,6 +209,7 @@ def _load_window(suggested_window_json: str | None) -> dict | None:
         import json
         return json.loads(suggested_window_json)
     except Exception:
+        logging.getLogger(__name__).debug("_load_window: excepcion ignorada", exc_info=True)
         return None
 
 
@@ -218,7 +219,7 @@ def next_change_number(db: Session) -> str:
 
 def build_change_request(payload: dict, requester_id: str, number: str) -> ITSMChangeRequest:
     if not payload.get("title") or not payload.get("description"):
-        raise HTTPException(422, "title y description son obligatorios")
+        raise ErrorDeDominio(422, "title y description son obligatorios")
 
     change = ITSMChangeRequest(
         number=number,
@@ -290,7 +291,7 @@ def _pasar_a_revision(db: Session, change: ITSMChangeRequest, current_user: User
     try:
         cab.start_cab_workflow(db, change_id=change.id, requester=current_user)
     except ValueError as exc:
-        raise HTTPException(409, "No hay comité de cambios configurado (Service Desk → ajustes, "
+        raise ErrorDeDominio(409, "No hay comité de cambios configurado (Service Desk → ajustes, "
                                  "SD_CAB_GROUP_ID): un cambio normal o de emergencia necesita su aprobación") from exc
 
 
@@ -303,14 +304,14 @@ def _aplicar_estado(db: Session, change: ITSMChangeRequest, nuevo: str, current_
     from app.services.service_desk.change_calendar_service import exigir_ventana_libre
 
     if nuevo in _SOLO_POR_EL_CAB:
-        raise HTTPException(409, "Un cambio se aprueba votando en el CAB, no editándolo")
+        raise ErrorDeDominio(409, "Un cambio se aprueba votando en el CAB, no editándolo")
     if nuevo in _A_REVISION:
         _pasar_a_revision(db, change, current_user)
         return
     if nuevo == "scheduled":
         estado = getattr(change.status, "value", change.status)
         if estado != "approved":
-            raise HTTPException(409, "Solo se programa un cambio aprobado")
+            raise ErrorDeDominio(409, "Solo se programa un cambio aprobado")
         exigir_ventana_libre(db, change)
     change.status = nuevo
 
@@ -352,6 +353,7 @@ def _maybe_auto_approve(
     try:
         change_type_val = change.change_type.value if hasattr(change.change_type, "value") else change.change_type
     except Exception:
+        logging.getLogger(__name__).debug("_maybe_auto_approve: excepcion ignorada", exc_info=True)
         change_type_val = ""
 
     if change_type_val != "standard":
@@ -384,7 +386,7 @@ def create_change_record(db: Session, current_user: User, payload: dict) -> ITSM
 def update_change_record(db: Session, current_user: User, change_id: str, payload: dict) -> ITSMChangeRequest:
     change = get_change_by_id(db, current_user, change_id)
     if not change:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
 
     prev_status = change.status.value if hasattr(change.status, "value") else change.status
     apply_change_update(change, payload, current_user.id)
@@ -398,7 +400,7 @@ def update_change_record(db: Session, current_user: User, change_id: str, payloa
 def approve_change_record(db: Session, current_user: User, change_id: str, payload: dict) -> ITSMChangeRequest:
     change = get_change_by_id(db, current_user, change_id)
     if not change:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
 
     # Un miembro del CAB vota; un administrador fuera del comite decide por
     # encima (queda como quien lo aprobo o rechazo).
@@ -410,9 +412,9 @@ def approve_change_record(db: Session, current_user: User, change_id: str, paylo
         return change
     except ValueError as exc:
         if str(exc) != "user_not_in_cab":
-            raise HTTPException(422, str(exc)) from exc
+            raise ErrorDeDominio(422, str(exc)) from exc
         if getattr(current_user.role, "value", current_user.role) != "admin" and not current_user.is_superadmin:
-            raise HTTPException(403, "Solo vota un miembro del CAB")
+            raise ErrorDeDominio(403, "Solo vota un miembro del CAB")
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     exigir_que_no_sea_suyo(db, change.requester_id, current_user, "itsm_change", change.id)
     approve_change_request(change, approved=aprobar, approver_id=current_user.id, reason=payload.get("reason"))
@@ -426,14 +428,14 @@ def enforce_change_org_constraints(db: Session, current_user: User, change: ITSM
     if change.owner_id:
         owner = db.query(User).filter(User.id == change.owner_id).first()
         if not owner or owner.organization_id != current_user.organization_id:
-            raise HTTPException(403, "No puedes asignar owner fuera de tu organización")
+            raise ErrorDeDominio(403, "No puedes asignar owner fuera de tu organización")
 
     if change.related_ticket_id:
         ticket = _scope_ticket_query(db.query(Ticket), db, current_user).filter(Ticket.id == change.related_ticket_id).first()
         if not ticket:
-            raise HTTPException(403, "Ticket relacionado fuera de tu organización")
+            raise ErrorDeDominio(403, "Ticket relacionado fuera de tu organización")
 
     if change.related_problem_id:
         problem = _scope_problem_query(db.query(Problem), db, current_user).filter(Problem.id == change.related_problem_id).first()
         if not problem:
-            raise HTTPException(403, "Problema relacionado fuera de tu organización")
+            raise ErrorDeDominio(403, "Problema relacionado fuera de tu organización")

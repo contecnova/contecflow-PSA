@@ -92,7 +92,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
 
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar campo' : 'Nuevo campo personalizado'}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div>
           <label style={labelStyle}>{traducir('customfields.nombre_del_campo')}</label>
           <input style={inputStyle} value={form.name} onChange={e => {
@@ -135,7 +135,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
                 </span>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <input style={{ ...inputStyle, flex: 1 }} value={optionInput}
                 onChange={e => setOptionInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addOption()}
@@ -145,7 +145,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
             <input type="checkbox" checked={form.is_required} onChange={e => set('is_required')(e.target.checked)} />
             <span>Campo obligatorio</span>
@@ -245,7 +245,7 @@ export default function CustomFieldsPage(): JSX.Element {
         <div style={panelStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{fields.length} campos — {selectedProj?.name}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{traducir('customfields.estos_campos_aparecen_en_todas_las_tareas')}</div>
+            <div className="u-text2-sm">{traducir('customfields.estos_campos_aparecen_en_todas_las_tareas')}</div>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
             <thead>
@@ -265,9 +265,9 @@ export default function CustomFieldsPage(): JSX.Element {
                     <td style={{ padding: '10px 12px' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span>{type?.icon}</span>
-                        <span style={{ color: 'var(--text-2)' }}>{type?.label}</span>
+                        <span className="u-text2">{type?.label}</span>
                         {f.field_type === 'select' && f.options && f.options.length > 0 && (
-                          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>({f.options.length} opciones)</span>
+                          <span className="u-text3-xs">({f.options.length} opciones)</span>
                         )}
                       </span>
                     </td>
@@ -282,7 +282,7 @@ export default function CustomFieldsPage(): JSX.Element {
                       </span>
                     </td>
                     <td style={{ padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div className="u-row-8">
                         <button onClick={() => { setEditing(f); setShowForm(true) }}
                           style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                           Editar

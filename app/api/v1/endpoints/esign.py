@@ -31,6 +31,7 @@ from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User, UserRole
 from app.core.abac_enforce import enforce_abac
 from app.services import esign_service
+from app.core.errores import ErrorDeDominio
 
 router = APIRouter()
 _logger = logging.getLogger(__name__)
@@ -57,8 +58,7 @@ def _get_esign_setting(db: Session, sujeto, key: str) -> Optional[str]:
 
 
 def _set_esign_setting(db: Session, sujeto, key: str, value: str) -> None:
-    esign_service.guardar_ajuste_de_firma(db, sujeto, key, value)
-    db.commit()
+    esign_service.guardar_ajustes_de_firma(db, sujeto, {key: value})
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -266,12 +266,12 @@ def update_esign_config(
     # transacciones para una peticion, asi que un fallo a mitad dejaba unas
     # credenciales guardadas y otras no — con la mitad de un DocuSign nuevo y la
     # mitad del viejo, que es peor que no haber guardado nada.
+    ajustes = {}
     for field, db_key in field_key_map.items():
         val = data.get(field)
         if val is not None and val != "***":
-            esign_service.guardar_ajuste_de_firma(
-                db, current_user, db_key, val)
-    db.commit()
+            ajustes[db_key] = val
+    esign_service.guardar_ajustes_de_firma(db, current_user, ajustes)
     return APIResponse.ok(data={"ok": True})
 
 
@@ -441,7 +441,7 @@ async def docusign_webhook(
         await run_db(esign_service.update_envelope_from_webhook, db, env, new_status)
         _logger.info(f"[eSign] DocuSign webhook: envelope {provider_id} → {new_status}")
     # intentional: chained re-raise preserves context
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception:
         _logger.exception(f"[eSign] DocuSign webhook processing failed for {provider_id}")
@@ -487,11 +487,19 @@ async def adobe_webhook(
 
     agreement   = payload.get("agreement", {}) if isinstance(payload, dict) else {}
     provider_id = agreement.get("id")
-    raw_status  = (agreement.get("status") or "").lower()
 
     if not provider_id:
         _logger.warning("[eSign] Adobe webhook sin agreement.id")
         raise HTTPException(400, "Payload Adobe sin agreement.id")
+
+    # Auditoria 2026-11: el client id no es un secreto, asi que el estado del
+    # cuerpo no se cree: se lee de la API de Adobe. Si no se puede, 503 y Adobe
+    # reintenta; nunca se aplica un estado sin confirmar.
+    from app.core.async_db import run_db
+    raw_status = await run_db(esign_service.adobe_agreement_status, db, str(provider_id))
+    if raw_status is None:
+        raise HTTPException(503, "No se pudo confirmar el estado con Adobe Sign")
+    raw_status = raw_status.lower()
 
     status_map = {
         "out_for_signature": ESignStatus.sent.value,
@@ -506,7 +514,6 @@ async def adobe_webhook(
         return {"status": "ignored", "reason": "status_not_mapped"}
 
     # Audit #C7: same pattern as DocuSign webhook above — offload DB to threadpool.
-    from app.core.async_db import run_db
     try:
         env = await run_db(esign_service.get_envelope_by_provider_id, db, provider_id)
         if not env:
@@ -515,7 +522,7 @@ async def adobe_webhook(
         await run_db(esign_service.update_envelope_from_webhook, db, env, new_status)
         _logger.info(f"[eSign] Adobe Sign webhook: agreement {provider_id} → {new_status}")
     # intentional: chained re-raise preserves context
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception:
         _logger.exception(f"[eSign] Adobe webhook processing failed for {provider_id}")

@@ -16,11 +16,12 @@ from app.models.resources import Absence, AbsenceStatus, AbsenceType
 from app.models.user import User
 from app.services.approval_engine._base import exigir_que_no_sea_suyo
 from tests.conftest import auth
+from app.core.errores import ErrorDeDominio
 
 
 def test_la_regla():
     yo = SimpleNamespace(id="u1", role="admin")
-    with pytest.raises(HTTPException) as e:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as e:
         exigir_que_no_sea_suyo(None, "u1", yo, "absence", "a1")
     assert e.value.status_code == 403
     exigir_que_no_sea_suyo(None, "u2", yo, "absence", "a1")

@@ -25,8 +25,32 @@ from app.models.mfa import (
 _logger = logging.getLogger(__name__)
 
 
+def _pdf_de_factura(source_id: str, params: dict, db: Session) -> Optional[bytes]:
+    """La factura sale del generador de facturas, no de un dibujo propio.
+
+    Auditoria 2026-11 (hallazgo 23): aqui habia un segundo generador de
+    factura —sin NIF, sin direccion, con `€` fijo— duplicando a `invoice_pdf`.
+    """
+    from app.models.billing_reports import Invoice
+    from app.services import invoice_pdf
+    from app.services._pdf_marca import PALETA_DE_FACTURA, marca_de_organizacion
+
+    invoice = db.query(Invoice).filter(Invoice.id == source_id).first()
+    if not invoice:
+        return None
+    marca = marca_de_organizacion(
+        db, getattr(invoice, "organization_id", None), base=PALETA_DE_FACTURA,
+        nombre_por_defecto=params.get("company_name") or "Contecflow",
+    )
+    return invoice_pdf.pdf_de_factura(db, invoice, company_name=marca.nombre, paleta=marca.paleta)
+
+
 def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: Session) -> bytes:
     """Generate PDF using reportlab, or a minimal fallback if not installed."""
+    if export_type == "invoice" and source_id:
+        pdf = _pdf_de_factura(source_id, params, db)
+        if pdf is not None:
+            return pdf
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -69,13 +93,16 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
         if export_type == "project_summary" and source_id:
             project = db.query(Project).filter(Project.id == source_id).first()
             if project:
+                from app.services.formato_regional import formatear_importe, simbolo_de_moneda
                 elements.append(Paragraph(f"Resumen del proyecto: {project.name}", section_style))
                 data = [
                     ["Campo", "Valor"],
                     ["Código", project.code or "—"],
                     ["Cliente", project.client_name or "—"],
                     ["Estado", project.status or "—"],
-                    ["Presupuesto", f"{project.budget_amount:,.0f} €" if project.budget_amount else "—"],
+                    ["Presupuesto", formatear_importe(project.budget_amount, simbolo_de_moneda(
+                        db, project.organization_id, moneda=getattr(project, "currency", None)))
+                     if project.budget_amount else "—"],
                     ["Inicio", str(project.start_date) if project.start_date else "—"],
                     ["Fin previsto", str(project.end_date_planned) if project.end_date_planned else "—"],
                 ]
@@ -94,50 +121,6 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
                     ("PADDING", (0, 0), (-1, -1), 6),
                 ]))
                 elements.append(t)
-
-        elif export_type == "invoice" and source_id:
-            from app.models.billing_reports import Invoice, InvoiceLine
-            invoice = db.query(Invoice).filter(Invoice.id == source_id).first()
-            if invoice:
-                elements.append(Paragraph(f"Factura {invoice.number}", section_style))
-                data = [
-                    ["Cliente", invoice.client_name or "—"],
-                    ["Fecha emisión", str(invoice.issue_date) if invoice.issue_date else "—"],
-                    ["Vencimiento", str(invoice.due_date) if invoice.due_date else "—"],
-                    ["Estado", invoice.status or "—"],
-                ]
-                t = Table(data, colWidths=[60 * mm, 110 * mm])
-                t.setStyle(TableStyle([
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0D7E0")),
-                    ("PADDING", (0, 0), (-1, -1), 6),
-                ]))
-                elements.append(t)
-                elements.append(Spacer(1, 10 * mm))
-
-                lines = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == source_id).all()
-                if lines:
-                    line_data = [["Concepto", "Horas", "Tarifa", "Total"]]
-                    for ln in lines:
-                        line_data.append([
-                            ln.description or "—",
-                            f"{ln.quantity:.1f}h" if ln.quantity else "—",
-                            f"{ln.unit_price:.2f}€" if ln.unit_price else "—",
-                            f"{ln.total:.2f}€" if ln.total else "—",
-                        ])
-                    line_data.append(["", "", "TOTAL", f"{invoice.total:.2f}€" if invoice.total else "—"])
-                    t2 = Table(line_data, colWidths=[90 * mm, 25 * mm, 25 * mm, 30 * mm])
-                    t2.setStyle(TableStyle([
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(primary_color)),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 9),
-                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0D7E0")),
-                        ("PADDING", (0, 0), (-1, -1), 5),
-                        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-                    ]))
-                    elements.append(t2)
 
         else:
             elements.append(Paragraph(f"Tipo: {export_type}", section_style))

@@ -56,12 +56,10 @@ _A_MANO = "organization_id"
 #: Las que están exentas, con su razón. Una entrada aquí es una decisión
 #: escrita, no una excepción por inercia.
 EXENTAS = {
-    # `run_daily_auto_resolution_job` es un trabajo de fondo y recibe la
-    # organización explícita; además la publica en la sesión (a mano, porque
-    # aquí el sujeto es un id y no una fila). Se declara porque el detector
-    # busca la llamada al ayudante y este sitio no la usa.
-    ("app/api/v1/endpoints/service_desk/ai_auto_resolution.py",
-     "_run_job_in_background"),
+    # Auditoría 2026-11 (#21): la tarea de fondo de auto-resolución
+    # (`_run_job_in_background`) estaba aquí exenta; se movió con su
+    # transacción a `services/service_desk/auto_resolucion_operaciones.py`, que
+    # este detector (solo `app/api`) no recorre.
     # Revisión 2026-11. Sólo identifica la conexión del flujo de BI (ticket de
     # un uso o JWT): todavía no hay sujeto cuyo contexto publicar, y no lee
     # datos de negocio. Los datos los lee `_organizacion_del_usuario`, que abre

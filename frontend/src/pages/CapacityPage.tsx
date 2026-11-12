@@ -20,6 +20,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 type UserItem = {
   id: string | number
@@ -150,7 +151,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
             <option value="">Seleccionar...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
-          {validation.errors.user_id && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.user_id}</div>}
+          {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
         </div>
         <div>
           <label style={ls}>Proyecto</label>
@@ -159,21 +160,21 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <div>
             <label style={ls}>Semana</label>
-            <input type="date" value={form.week_start}
+            <DateInput value={form.week_start}
               onChange={e => {
                 setForm(current => ({ ...current, week_start: monday(e.target.value) }))
                 validation.clearFieldError('week_start')
               }} style={validation.inputStyle(fs, 'week_start')} />
-            {validation.errors.week_start && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.week_start}</div>}
+            {validation.errors.week_start && <div className="u-field-error">{validation.errors.week_start}</div>}
           </div>
           <div>
             <label style={ls}>Horas planificadas</label>
             <input type="number" value={form.planned_hours} min="1" max="80" step="0.5"
               onChange={setField('planned_hours')} style={validation.inputStyle(fs, 'planned_hours')} />
-            {validation.errors.planned_hours && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.planned_hours}</div>}
+            {validation.errors.planned_hours && <div className="u-field-error">{validation.errors.planned_hours}</div>}
           </div>
         </div>
         <div>
@@ -181,7 +182,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
           <input value={form.notes} onChange={setField('notes')} style={fs} placeholder={t('capacity.notas_de_la_asignacion')} aria-label={t('capacity.notas_de_la_asignacion')} />
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <div className="u-actions-8">
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
         <Button onClick={submit} loading={isPending} disabled={isPending}>
           Asignar
@@ -371,7 +372,7 @@ export default function CapacityPage(): JSX.Element {
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px' }}>
             <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: k.color, lineHeight: 1.1 }}>{k.value}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{k.label}</div>
+            <div className="u-hint">{k.label}</div>
           </div>
         ))}
       </div>
@@ -444,7 +445,7 @@ export default function CapacityPage(): JSX.Element {
                       {u.full_name.split(' ').slice(0, 2).join(' ')}
                     </div>
                     {u.department && (
-                      <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{u.department}</div>
+                      <div className="u-text3-2xs">{u.department}</div>
                     )}
                   </td>
                   <td style={{ textAlign: 'center', padding: '4px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>

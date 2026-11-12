@@ -14,7 +14,7 @@ interface Resumen { request_id: string; entity_type: string; summary?: string | 
 const caja: CSSProperties = { maxWidth: 460, margin: '10vh auto', padding: 28, borderRadius: 14,
   background: 'var(--surface-1)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', fontFamily: 'inherit' }
 const boton = (fondo: string): CSSProperties => ({ flex: 1, padding: '10px 14px', borderRadius: 10, border: 'none',
-  background: fondo, color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' })
+  background: fondo, color: 'var(--on-accent-light)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' })
 
 function mensajeDe(e: unknown): string {
   const d = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
@@ -55,7 +55,7 @@ export default function AprobacionPorCorreoPage() {
           <p style={{ margin: '0 0 16px', color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>
             Paso {resumen.step} · decides como {resumen.approver}
           </p>
-          <label htmlFor="nota" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Nota (obligatoria para rechazar)</label>
+          <label htmlFor="nota" className="u-text2-sm">Nota (obligatoria para rechazar)</label>
           <textarea id="nota" rows={3} value={nota} onChange={e => setNota(e.target.value)}
             style={{ width: '100%', boxSizing: 'border-box', margin: '6px 0 16px', padding: 10, borderRadius: 8,
               background: 'var(--surface-2)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', fontFamily: 'inherit' }} />

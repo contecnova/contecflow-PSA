@@ -8,7 +8,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal, Spinner, EmptyState } from '../../components/ui'
+import { Button, Modal, Spinner, EmptyState, Table } from '../../components/ui'
 import { bpmnInstancesApi, apiErrorMsg } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -34,7 +34,43 @@ function parseVars(text: string): Record<string, unknown> {
   return out
 }
 
-function CompleteModal({ step, onClose }: { step: any; onClose: () => void }) {
+/** `serializar_paso` (app/services/bpmn_engine.py). */
+interface BpmnStep {
+  id: string
+  instance_id: string
+  element_id: string
+  element_type: string
+  name: string | null
+  status: string
+  candidate_role: string | null
+  due_at: string | null
+  completed_by_user_id: string | null
+  result: unknown
+  created_at: string | null
+  completed_at: string | null
+  human: boolean
+}
+
+/** Paso de la bandeja: el paso más el proceso y las variables de su instancia. */
+type InboxStep = BpmnStep & { process_name: string | null; variables: Record<string, unknown> }
+
+/** `serializar` (app/services/bpmn_engine.py); el listado añade `process_name` y no trae pasos. */
+interface BpmnInstance {
+  id: string
+  process_id: string
+  version: number
+  status: string
+  variables: Record<string, unknown>
+  error: string | null
+  started_by_user_id: string | null
+  started_at: string | null
+  ended_at: string | null
+  active_steps: string[]
+  steps?: BpmnStep[]
+  process_name?: string | null
+}
+
+function CompleteModal({ step, onClose }: { step: InboxStep; onClose: () => void }) {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -46,8 +82,8 @@ function CompleteModal({ step, onClose }: { step: any; onClose: () => void }) {
   })
   return (
     <Modal open title={`${t('bpm.completar')} — ${step.name || step.element_id}`} onClose={onClose} width={520}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{step.process_name}</div>
+      <div className="u-stack-12">
+        <div className="u-text2-sm">{step.process_name}</div>
         {step.variables && Object.keys(step.variables).length > 0 && (
           <div style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 8, padding: 10 }}>
             {Object.entries(step.variables).map(([k, v]) => <div key={k}>{k} = {String(v)}</div>)}
@@ -55,7 +91,7 @@ function CompleteModal({ step, onClose }: { step: any; onClose: () => void }) {
         )}
         <label htmlFor="bpm-vars" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)' }}>{t('bpm.variables_ayuda')}</label>
         <textarea id="bpm-vars" value={vars} onChange={e => setVars(e.target.value)} rows={4} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder={'aprobada=true\nimporte=500'} />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} loading={isPending} disabled={isPending}>{t('bpm.completar')}</Button>
         </div>
@@ -68,7 +104,7 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data, isLoading } = useQuery<any>({ queryKey: ['bpmn-instance', id], queryFn: () => bpmnInstancesApi.get(id).then(r => r.data) })
+  const { data, isLoading } = useQuery<BpmnInstance>({ queryKey: ['bpmn-instance', id], queryFn: () => bpmnInstancesApi.get(id).then(r => r.data) })
   const { mutate: cancel } = useMutation({
     mutationFn: () => bpmnInstancesApi.cancel(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bpmn-instances'] }); qc.invalidateQueries({ queryKey: ['bpmn-instance', id] }) },
@@ -77,24 +113,20 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
   return (
     <Modal open title={t('bpm.instancia')} onClose={onClose} width={640}>
       {isLoading || !data ? <Spinner /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontSize: 'var(--text-sm)' }}>
+        <div className="u-stack-10">
+          <div className="u-sm">
             <strong style={{ color: STATUS_COLOR[data.status] }}>{t('bpm.estado_' + data.status)}</strong> · v{data.version}
             {data.error && <div role="alert" style={{ color: 'var(--danger)', marginTop: 4 }}>{data.error}</div>}
           </div>
-          <table className="table">
-            <thead><tr><th>{t('bpm.paso')}</th><th>{t('bpm.tipo')}</th><th>{t('bpm.estado')}</th><th>{t('bpm.cuando')}</th></tr></thead>
-            <tbody>
-              {(data.steps || []).map((s: any) => (
-                <tr key={s.id}>
-                  <td>{s.name || s.element_id}</td>
-                  <td style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{s.element_type}{s.candidate_role ? ` · ${s.candidate_role}` : ''}</td>
-                  <td style={{ color: STATUS_COLOR[s.status] }}>{t('bpm.estado_' + s.status)}</td>
-                  <td style={{ fontSize: 'var(--text-xs)' }}>{(s.completed_at || s.due_at || s.created_at || '').slice(0, 16).replace('T', ' ')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table
+            data={data.steps || []}
+            columns={[
+              { key: 'name', label: t('bpm.paso'), render: (_v, s: BpmnStep) => s.name || s.element_id },
+              { key: 'element_type', label: t('bpm.tipo'), render: (_v, s: BpmnStep) => <span className="u-text2-xs">{s.element_type}{s.candidate_role ? ` · ${s.candidate_role}` : ''}</span> },
+              { key: 'status', label: t('bpm.estado'), render: (_v, s: BpmnStep) => <span style={{ color: STATUS_COLOR[s.status] }}>{t('bpm.estado_' + s.status)}</span> },
+              { key: 'completed_at', label: t('bpm.cuando'), render: (_v, s: BpmnStep) => <span className="u-xs">{(s.completed_at || s.due_at || s.created_at || '').slice(0, 16).replace('T', ' ')}</span> },
+            ]}
+          />
           {data.status === 'running' && (
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button variant="secondary" onClick={() => cancel()}>{t('bpm.cancelar_instancia')}</Button>
@@ -108,12 +140,12 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
 
 export default function BpmRunPanel() {
   const { t } = useAppLang()
-  const [completing, setCompleting] = useState<any>(null)
+  const [completing, setCompleting] = useState<InboxStep | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
-  const { data: inbox = [], isLoading: loadingInbox } = useQuery<any[]>({
+  const { data: inbox = [], isLoading: loadingInbox } = useQuery<InboxStep[]>({
     queryKey: ['bpmn-inbox'], queryFn: () => bpmnInstancesApi.inbox().then(r => (Array.isArray(r.data) ? r.data : [])),
   })
-  const { data: instances = [], isLoading: loadingInst } = useQuery<any[]>({
+  const { data: instances = [], isLoading: loadingInst } = useQuery<BpmnInstance[]>({
     queryKey: ['bpmn-instances'], queryFn: () => bpmnInstancesApi.list().then(r => (Array.isArray(r.data) ? r.data : [])),
   })
   return (
@@ -126,11 +158,11 @@ export default function BpmRunPanel() {
           <table className="table">
             <thead><tr><th>{t('bpm.paso')}</th><th>{t('bpm.proceso')}</th><th>{t('bpm.rol')}</th><th /></tr></thead>
             <tbody>
-              {inbox.map((s: any) => (
+              {inbox.map(s => (
                 <tr key={s.id}>
                   <td>{s.name || s.element_id}</td>
                   <td>{s.process_name}</td>
-                  <td style={{ color: 'var(--text-2)' }}>{s.candidate_role || '—'}</td>
+                  <td className="u-text2">{s.candidate_role || '—'}</td>
                   <td style={{ textAlign: 'right' }}><Button onClick={() => setCompleting(s)}>{t('bpm.completar')}</Button></td>
                 </tr>
               ))}
@@ -146,12 +178,12 @@ export default function BpmRunPanel() {
           <table className="table">
             <thead><tr><th>{t('bpm.proceso')}</th><th>{t('bpm.estado')}</th><th>{t('bpm.pendiente')}</th><th>{t('bpm.inicio')}</th><th /></tr></thead>
             <tbody>
-              {instances.map((i: any) => (
+              {instances.map(i => (
                 <tr key={i.id}>
                   <td>{i.process_name}</td>
                   <td style={{ color: STATUS_COLOR[i.status] }}>{t('bpm.estado_' + i.status)}</td>
-                  <td style={{ fontSize: 'var(--text-xs)' }}>{(i.active_steps || []).join(', ') || '—'}</td>
-                  <td style={{ fontSize: 'var(--text-xs)' }}>{(i.started_at || '').slice(0, 16).replace('T', ' ')}</td>
+                  <td className="u-xs">{(i.active_steps || []).join(', ') || '—'}</td>
+                  <td className="u-xs">{(i.started_at || '').slice(0, 16).replace('T', ' ')}</td>
                   <td style={{ textAlign: 'right' }}><Button variant="secondary" onClick={() => setViewing(i.id)}>{t('bpm.ver')}</Button></td>
                 </tr>
               ))}

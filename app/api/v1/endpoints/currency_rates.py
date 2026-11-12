@@ -15,11 +15,11 @@ from app.core.deps import (
 from app.db.session import get_db
 from app.models.billing_reports import InvoiceStatus
 from app.models.user import User
-from app.services.audit import audit_log
 from app.services import currency_rates_service
 from app.schemas.currency_rates import ExchangeRateCreate
 from app.core.responses import APIListResponse, APIResponse
 from app.core import timeutil
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -75,30 +75,15 @@ def upsert_exchange_rate(
     if payload.rate <= 0:
         raise HTTPException(status_code=400, detail="Rate must be positive")
     eff = payload.effective_date or timeutil.today()
-    rate_obj, created, previous_snapshot = currency_rates_service.upsert_exchange_rate(
+    rate_obj, created = currency_rates_service.registrar_tipo_de_cambio(
         db,
+        current_user,
         from_currency=from_c,
         to_currency=to_c,
         rate=payload.rate,
         effective_date=eff,
         source=payload.source or "manual",
     )
-    audit_log(
-        db,
-        current_user,
-        "CREATE" if created else "UPDATE",
-        "exchange_rates",
-        rate_obj.id,
-        f"{rate_obj.from_currency}->{rate_obj.to_currency}@{rate_obj.effective_date}",
-        old_values=previous_snapshot,
-        new_values={
-            "id": rate_obj.id,
-            "rate": rate_obj.rate,
-            "source": rate_obj.source,
-            "effective_date": str(rate_obj.effective_date),
-        },
-    )
-    db.commit()
     if created:
         return APIResponse.ok(data={
             "id": rate_obj.id,
@@ -150,7 +135,7 @@ def _convert_currency_impl(
         raise HTTPException(status_code=404, detail=f"No exchange rate found for {from_c}->{to_c}")
 
     converted = amount * snapshot["rate"]
-    currency_rates_service.log_currency_conversion(
+    currency_rates_service.registrar_conversion(
         db,
         organization_id=getattr(current_user, "organization_id", None),
         entity_type="currency_conversion",
@@ -162,7 +147,6 @@ def _convert_currency_impl(
         rate_used=float(snapshot["rate"]),
         rate_date=date.fromisoformat(snapshot["rate_date"]),
     )
-    db.commit()
 
     return {
         "amount": amount,
@@ -215,7 +199,7 @@ def convert_currency_post(
 
 @router.get("/currency/report", summary="Multi-currency consolidated report")
 def multicurrency_report(
-    report_currency: str = Query(default="EUR", description="Target currency for consolidation"),
+    report_currency: str = Query(default=settings.DEFAULT_CURRENCY, description="Target currency for consolidation"),
     as_of_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),

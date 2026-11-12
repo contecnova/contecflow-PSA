@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import HTTPException, Response
+from fastapi import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ from app.models.service_desk import Announcement
 from app.schemas.service_desk import AnnouncementIn
 from app.services.pagination_service import paginate_query
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,6 @@ def get_announcement_by_id(db: Session, ann_id: str) -> Optional[Announcement]:
 def deactivate_announcement_record(db: Session, ann_id: str) -> Announcement:
     announcement = get_announcement_by_id(db, ann_id)
     if not announcement:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     announcement.is_active = False
     return announcement

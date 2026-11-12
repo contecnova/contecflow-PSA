@@ -169,6 +169,7 @@ def assert_safe_outbound_url(url: str, *, require_https: bool = True) -> str:
     try:
         addrinfo = socket.getaddrinfo(hostname, parsed.port or default_port, proto=socket.IPPROTO_TCP)
     except Exception:
+        logger.debug("assert_safe_outbound_url: excepcion ignorada", exc_info=True)
         addrinfo = []
     for entry in addrinfo:
         try:

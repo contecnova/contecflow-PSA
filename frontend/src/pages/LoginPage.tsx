@@ -443,7 +443,7 @@ export default function LoginPage(): JSX.Element {
             <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0, lineHeight: 1.6 }}>
               {t('login.choose_org')}
             </p>
-            <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div role="list" className="u-stack-8">
               {eleccion.organizations.map(o => (
                 <button key={o.id} role="listitem" type="button" disabled={loading}
                   onClick={() => { void elegirEmpresa(o.id) }}

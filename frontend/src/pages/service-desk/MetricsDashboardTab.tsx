@@ -77,7 +77,7 @@ function KpiCard({ label, value, sub, color, icon, accentBar }: { label?: ReactN
     <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 3, background: bar, borderRadius: '14px 14px 0 0' }} />
       <div style={{ ...S.cardPad, flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           {icon && (
             <span style={{
               fontSize: "var(--text-lg-em)",
@@ -124,7 +124,7 @@ function BarRow({ label, count, total, color }: { label: string; count: number; 
         <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textTransform: 'capitalize' }}>
           {label.replace(/_/g, ' ')}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <span style={{
             fontSize: "var(--text-xs)",
             fontWeight: 700,
@@ -201,7 +201,7 @@ function GaugeCard({ label, value, color, suffix = '%', sub }: { label?: ReactNo
         <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 700, color, lineHeight: 1, letterSpacing: '-0.5px' }}>
           {value != null ? `${value}${suffix}` : '—'}
         </div>
-        {sub && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>}
+        {sub && <div className="u-hint">{sub}</div>}
       </div>
     </div>
   )
@@ -256,7 +256,7 @@ function ResolutionBar({ resolved, total }: { resolved: number; total: number })
 }
 
 function StarRating({ value }: { value: number | null }) {
-  if (value == null) return <span style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>—</span>
+  if (value == null) return <span className="u-text3-sm">—</span>
   const filled = Math.round(value)
   const color = value >= 4 ? COLOR.success : value >= 3 ? COLOR.warning : COLOR.danger
   return (
@@ -389,7 +389,7 @@ export default function MetricsDashboardTab() {
             {t('metricsdashboard.service_desk_ultimos')} {days} {t('metricsdashboard.dias')}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="u-row-6">
           {[7, 30, 90].map(d => (
             <PeriodButton
               key={d}
@@ -558,7 +558,7 @@ export default function MetricsDashboardTab() {
             {t('metricsdashboard.sin_datos_de_agentes_en_este_periodo')}
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="u-scroll-x">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--surface-3)' }}>
@@ -600,7 +600,7 @@ export default function MetricsDashboardTab() {
                     }}
                   >
                     <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="u-row-center-10">
                         <AgentAvatar name={a.agent_name} />
                         <span style={{ fontSize: "var(--text-base)", fontWeight: 500, color: 'var(--text-1)' }}>
                           {a.agent_name}

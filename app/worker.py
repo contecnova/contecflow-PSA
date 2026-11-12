@@ -376,6 +376,7 @@ def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
             error = str(exc)[:500]
             http_exc = exc
         except Exception as exc:
+            _worker_logger.warning("deliver_webhook_task: excepcion ignorada", exc_info=True)
             error = str(exc)[:500]
 
         # Log every attempt — including failed ones — before deciding to retry.
@@ -437,12 +438,17 @@ def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
         return {"success": success, "status_code": status_code, "suspended": not hook.is_active}
 
 
+@celery_app.task(name="app.worker.ejecutar_en_segundo_plano")
+def ejecutar_en_segundo_plano(ruta: str, args: list, kwargs: dict):
+    """Ejecuta lo que `app.core.segundo_plano.encolar` saco de una peticion."""
+    from app.core.segundo_plano import resolver
+    return resolver(ruta)(*args, **kwargs)
+
+
 @celery_app.task(name="app.worker.run_alert_engine")
 def run_alert_engine():
-    from app.db.session import worker_db_session
-    from app.services.alert_service import run_alert_engine as _run_alert_engine
-    with worker_db_session() as db:
-        return _run_alert_engine(db)
+    from app.services.alert_service import run_alert_engine_job
+    return run_alert_engine_job()
 
 
 @celery_app.task(name="app.worker.run_perf_reminders")
@@ -757,6 +763,7 @@ def run_agent_task(
                         module="nexusagent", user_id=user_id, max_tokens=800,
                     )
                 except Exception:
+                    _worker_logger.debug("run_agent_task: excepcion ignorada", exc_info=True)
                     result_summary = (
                         f"⚠ Sin proveedor IA configurado. Instrucción recibida: *{instruction}*\n\n"
                         f"Configura un proveedor en IA & Conectores para ejecutar instrucciones reales."
@@ -842,6 +849,7 @@ def run_agent_task(
                 try:
                     db.commit()
                 except Exception:
+                    _worker_logger.warning("run_agent_task: excepcion ignorada", exc_info=True)
                     db.rollback()
             raise
 

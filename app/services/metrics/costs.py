@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.user import User
-from . import register_metric
+from ._registro import register_metric
 from app.models.clients import Client
 
 

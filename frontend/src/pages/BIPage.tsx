@@ -179,7 +179,7 @@ export default function BIPage(): JSX.Element {
                 ))}
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="u-scroll-x">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
                   <thead>
                     <tr style={{ background: 'var(--surface-2)' }}>

@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import LeccionesQueAplican from '../components/lecciones/LeccionesQueAplican'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ComponentProps } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, portalApi, templatesApi, dependenciesApi } from '../services/api'
+import type { MemberAddPayload, ProjectCreatePayload, ProjectStatus } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
 import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
@@ -28,6 +29,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 const PROJ_COLS = [
   { id: 'name',     label: 'Proyecto',     width: '2fr',   sortKey: 'name' },
@@ -38,6 +40,90 @@ const PROJ_COLS = [
   { id: 'progress', label: 'Progreso',     width: '80px',  sortKey: 'progress_pct' },
   { id: 'risk',     label: 'Riesgo',       width: '80px',  sortKey: 'risk_level' },
 ]
+
+type Traductor = ReturnType<typeof useAppT>
+/** Cambio de un campo de texto, select, textarea o DateInput. */
+type CambioDeCampo = { target: { value: string } }
+
+/** `ProjectSummary` (app/schemas/projects.py): una fila del listado. `task_count` lo lee la tarjeta aunque el esquema no lo declara. */
+type ProjectSummary = {
+  id: string
+  code: string
+  name: string
+  status: string
+  project_type?: string
+  risk_level?: string
+  pm_name?: string | null
+  client_name?: string | null
+  department?: string | null
+  budget_amount?: number | null
+  total_cost_spent?: number | null
+  budget_used_pct?: number | null
+  progress_pct?: number | null
+  team_size?: number
+  task_count?: number
+  start_date?: string | null
+  end_date_planned?: string | null
+}
+type ProjectPhase = { id: string; name: string; start_date?: string | null; end_date?: string | null; status?: string }
+type ProjectTask = { id: string; code?: string; title: string; status: string; priority?: string; story_points?: number | null; created_at?: string; due_date?: string | null }
+/** `ProjectOut` (app/schemas/projects.py): el detalle. `billing_type`, `retainer_*` y `tasks` no los
+ *  declara el esquema (ver informe de la auditoría); la pantalla los lee igualmente. */
+type ProjectDetail = ProjectSummary & {
+  description?: string | null
+  client_id?: string | null
+  billing_type?: string | null
+  retainer_amount?: number | null
+  retainer_day?: number | null
+  project_manager?: { full_name: string } | null
+  phases?: ProjectPhase[]
+  tasks_total?: number
+  tasks_done?: number
+  tasks?: ProjectTask[]
+}
+type ProjectForm = {
+  name: string
+  project_type: string
+  status: string
+  client_name: string
+  department: string
+  budget_amount: string | number
+  description: string
+  risk_level: string
+  start_date: string
+  end_date_planned: string
+  client_id: string
+  billing_type: string
+  retainer_amount: string | number
+  retainer_day: string | number
+}
+type ProjectMember = { id: string; user_id: string; full_name: string; email?: string; role: string; allocation_pct: number; avatar_initials?: string }
+/** Solicitud de mejora del portal (`/portal/feature-requests/team`). */
+type FeatureRequest = {
+  id: string
+  code?: string
+  title: string
+  description?: string | null
+  business_justification?: string | null
+  client_approved?: boolean
+  priority?: string
+  status: string
+  pm_response?: string | null
+  estimated_hours?: number | null
+  estimated_cost?: number | null
+  estimated_delivery_weeks?: number | null
+  submitted_at?: string | null
+}
+type RespondForm = { pm_response: string; estimated_hours: string | number; estimated_cost: string | number; estimated_delivery_weeks: string | number; status: string }
+type RespondBody = { pm_response?: string; estimated_hours?: number; estimated_cost?: number; estimated_delivery_weeks?: number; status: string }
+type TemplateTask = { title: string; estimated_hours: number; priority: string }
+type TemplatePhase = { id?: string; name: string; duration_weeks: number; tasks?: TemplateTask[] }
+type ProjectTemplate = { id: string; name: string; description?: string | null; project_type: string; estimated_weeks?: number | null; estimated_hours?: number | null; phases?: TemplatePhase[] }
+type NewTemplate = { name: string; description: string; project_type: string; estimated_weeks: number; estimated_hours?: number; phases: TemplatePhase[] }
+type InstantiateForm = { name: string; client_id: string; client_name: string; start_date: string; budget_amount: string; pm_id?: string }
+type InstantiateResult = { project_code: string; project_name: string; phases_created: number; tasks_created: number }
+type GanttTasks = ComponentProps<typeof GanttChart>['tasks']
+type GanttDeps = ComponentProps<typeof GanttChart>['dependencies']
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -63,7 +149,7 @@ const RISK_LEVELS = [
   { value: 'critical', label: 'Crítico' },
 ]
 
-function makeProjectFormSchema(t: any) {
+function makeProjectFormSchema(t: Traductor) {
   return z.object({
     name: z.string().min(1, t('projects.error_name_required')),
     project_type: z.string().min(1, t('projects.error_type_required')),
@@ -88,7 +174,7 @@ function makeProjectFormSchema(t: any) {
   })
 }
 
-function makeProjectMemberSchema(t: any) {
+function makeProjectMemberSchema(t: Traductor) {
   return z.object({
     user_id: z.string().trim().min(1, t('projects.error_person_required')),
     role: z.string().trim().min(1, t('projects.error_role_required')),
@@ -99,7 +185,7 @@ function makeProjectMemberSchema(t: any) {
   })
 }
 
-function StatusDropdown({ project, onUpdate }: { project: any; onUpdate: (s: any) => void }) {
+function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, 'status'>; onUpdate: (s: string) => void }) {
   const [open, setOpen] = useState(false)
   const cfg: Record<string, { color: string; icon: string }> = {
     planning:  { color: 'var(--text-2)', icon: '📋' },
@@ -156,7 +242,7 @@ function StatusDropdown({ project, onUpdate }: { project: any; onUpdate: (s: any
   )
 }
 
-function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: any; onClick: (p: any) => void; onStatusChange: (id: any, s: any) => void; onEdit: (p: any) => void }) {
+function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: ProjectSummary; onClick: (p: ProjectSummary) => void; onStatusChange: (id: string, s: string) => void; onEdit: (p: ProjectSummary) => void }) {
   return (
     <div className="ds-card"
       onPointerEnter={e => e.currentTarget.style.borderColor = 'var(--accent-border)'}
@@ -171,7 +257,7 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: an
           {project.client_name && <div className="ds-muted">Cliente: {project.client_name}</div>}
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-          <StatusDropdown project={project} onUpdate={(status: any) => onStatusChange(project.id, status)} />
+          <StatusDropdown project={project} onUpdate={status => onStatusChange(project.id, status)} />
           <Badge label={project.risk_level} display={undefined} _color={undefined} />
           <ProjectRiskBadge projectId={project.id} hasData={(project.task_count ?? project.team_size ?? 1) > 0} />
         </div>
@@ -187,14 +273,14 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: an
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-sm)' }}>
         <button type="button" style={{ cursor: 'pointer', display: 'flex', gap: 'var(--space-4)', background: 'transparent', border: 'none', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-          <span className="ds-muted">Equipo: <span style={{ color: 'var(--text-1)' }}>{project.team_size}</span></span>
+          <span className="ds-muted">Equipo: <span className="u-text1">{project.team_size}</span></span>
           {project.budget_amount && (
             <span style={{ color: project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
               {project.budget_used_pct?.toFixed(0) ?? 0}% presupuesto
             </span>
           )}
         </button>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="u-row-6">
           <Link to={`/projects/${project.id}`} onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)',
@@ -220,11 +306,11 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: an
   )
 }
 
-function ProjectFormModal({ open, onClose, project = null }: { open: any; onClose: any; project?: any }) {
+function ProjectFormModal({ open, onClose, project = null }: { open: boolean; onClose: () => void; project?: ProjectSummary | null }) {
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const { _invalidate } = useInvalidate() as any
+  const { invalidate: _invalidate } = useInvalidate()
   const t = useAppT()
   const isEdit = !!project
   const projectFormSchema = useMemo(() => makeProjectFormSchema(t), [t])
@@ -232,14 +318,14 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
   // Cargar datos completos del proyecto cuando se edita
   const { data: fullProject } = useQuery({
     queryKey: ['project', project?.id],
-    queryFn: () => projectsApi.get(project.id).then(r => (r.data as any)),
+    queryFn: () => projectsApi.get(project.id).then(r => r.data as ProjectDetail),
     enabled: !!project?.id,
   })
 
   // Usar fullProject si está disponible (tiene todos los campos), sino el project del prop
-  const src = fullProject || project
+  const src: ProjectDetail = fullProject || project
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ProjectForm>({
     name: '', project_type: '', status: 'planning',
     client_name: '', department: '', budget_amount: '',
     description: '', risk_level: 'low',
@@ -274,12 +360,12 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments-select'],
-    queryFn: () => settingsApi.getDepartments().then(r => (r.data as any[])),
+    queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
 
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: any) => {
+    mutationFn: (data: ProjectForm) => {
       if (isEdit) {
         // En edición: convertir strings vacíos a null para poder borrar valores,
         // pero mantener 0 y false como valores válidos
@@ -289,10 +375,13 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
         return projectsApi.update(project.id, clean)
       } else {
         // En creación: filtrar campos vacíos para no enviar nulls innecesarios
-        const clean = Object.fromEntries(
+        const clean: Partial<ProjectForm> = Object.fromEntries(
           Object.entries(data).filter(([, v]) => v !== '' && v !== null && v !== undefined)
         )
-        return projectsApi.create(clean as any)
+        // `ProjectCreatePayload` sigue a `ProjectCreate`. El formulario guarda importes como
+        // texto y lleva además `status`, `risk_level`, `billing_type` y `retainer_*`, que
+        // `ProjectCreate` no admite y pydantic descarta (auditoría 2026-11, #25).
+        return projectsApi.create(clean as ProjectCreatePayload)
       }
     },
     onSuccess: (_saved) => {
@@ -314,7 +403,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
     onError: e => toast.error(extractErr(e, 'Error al guardar el proyecto')),
   })
 
-  const set = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: keyof ProjectForm) => (e: CambioDeCampo) => setForm(f => ({ ...f, [k]: e.target.value }))
   const validateForm = () => {
     const parsed = projectFormSchema.safeParse(form)
     if (parsed.success) {
@@ -338,7 +427,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={fs} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
-          {errors.name && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.name}</div>}
+          {errors.name && <div className="u-field-error">{errors.name}</div>}
         </div>
         <div>
           <label style={ls}>Tipo *</label>
@@ -346,7 +435,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
             <option value="">Seleccionar...</option>
             {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          {errors.project_type && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.project_type}</div>}
+          {errors.project_type && <div className="u-field-error">{errors.project_type}</div>}
         </div>
         <div>
           <label style={ls}>Estado</label>
@@ -380,13 +469,13 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
           <label style={ls}>{traducir('projects.label_billing')}</label>
           <select value={form.billing_type} onChange={set('billing_type')} style={fs}>
             <option value="">{traducir('projects.no_billing')}</option>
-            {(BILLING_TYPES as any[]).map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {(BILLING_TYPES as { value: string; label: string }[]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div>
           <label style={ls}>Presupuesto (€)</label>
           <input type="number" value={form.budget_amount} onChange={set('budget_amount')} style={fs} placeholder="Presupuesto total" aria-label="Presupuesto total" />
-          {errors.budget_amount && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.budget_amount}</div>}
+          {errors.budget_amount && <div className="u-field-error">{errors.budget_amount}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
@@ -397,18 +486,18 @@ function ProjectFormModal({ open, onClose, project = null }: { open: any; onClos
             <div>
               <label style={ls}>{traducir('projects.label_retainer_day')}</label>
               <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} />
-              {errors.retainer_day && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.retainer_day}</div>}
+              {errors.retainer_day && <div className="u-field-error">{errors.retainer_day}</div>}
             </div>
           </>
         )}
         <div>
           <label style={ls}>Fecha inicio</label>
-          <input type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
+          <DateInput value={form.start_date} onChange={set('start_date')} style={fs} />
         </div>
         <div>
           <label style={ls}>Fecha fin planificada</label>
-          <input type="date" value={form.end_date_planned} onChange={set('end_date_planned')} style={fs} />
-          {errors.end_date_planned && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.end_date_planned}</div>}
+          <DateInput value={form.end_date_planned} onChange={set('end_date_planned')} style={fs} />
+          {errors.end_date_planned && <div className="u-field-error">{errors.end_date_planned}</div>}
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>{traducir('projects.label_description')}</label>
@@ -438,7 +527,7 @@ const MEMBER_ROLES: Record<string, string> = {
   stakeholder:'👔 Stakeholder', other:'👤 Otro',
 }
 
-function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { project: any; detail: any; open: any; onClose: any; onEdit: (p: any) => void }) {
+function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { project: ProjectSummary | null; detail: ProjectDetail | undefined; open: boolean; onClose: () => void; onEdit: (p: ProjectSummary) => void }) {
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -451,39 +540,41 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['project-members', project?.id],
-    queryFn: () => projectsApi.members(project.id).then(r => (r.data as any[])),
+    queryFn: () => projectsApi.members(project.id).then(r => r.data as ProjectMember[]),
     enabled: !!project?.id && tab === 'team',
   })
   const { data: allUsersRaw = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => (r.data as any[])),
+    queryFn: () => usersApi.list().then(r => r.data),
     enabled: !!project?.id && tab === 'team',
   })
 
   // ── Feature Requests (tab 'requests') ─────────────────────────
-  const [respondingFr, setRespondingFr] = useState(null)
-  const [respondForm, setRespondForm] = useState({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
+  const [respondingFr, setRespondingFr] = useState<string | null>(null)
+  const [respondForm, setRespondForm] = useState<RespondForm>({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
 
   const { data: featureRequests = [], isLoading: loadingFRs } = useQuery({
     queryKey: ['project-feature-requests', project?.id],
-    queryFn: () => portalApi.featureRequests({ project_id: project.id }).then(r => (r.data as any[])),
+    queryFn: () => portalApi.featureRequests({ project_id: project.id }).then((r): FeatureRequest[] => r.data),
     enabled: !!project?.id && tab === 'requests',
   })
 
   const { mutate: respondFR, isPending: respondingFRPending } = useMutation({
-    mutationFn: ({ id, data }: { id: any; data: any }) => portalApi.respondFeatureRequest(id, data),
+    mutationFn: ({ id, data }: { id: string; data: RespondBody }) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-feature-requests', project?.id] }); setRespondingFr(null); setRespondForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
   const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : []
 
   const { mutate: addMember, isPending: adding } = useMutation({
-    mutationFn: (d: any) => projectsApi.addMember(project.id, d),
+    // Sin strictNullChecks, zod marca opcionales todas las claves del tipo inferido;
+    // `user_id` y `role` ya los ha exigido el esquema al validar.
+    mutationFn: (d: z.infer<ReturnType<typeof makeProjectMemberSchema>>) => projectsApi.addMember(project.id, d as MemberAddPayload),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-members', project.id] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); setShowAdd(false); setAddForm({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' }); addValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error al añadir miembro')),
   })
   const { mutate: removeMember } = useMutation({
-    mutationFn: (memberId: any) => projectsApi.removeMember(project.id, memberId),
+    mutationFn: (memberId: string) => projectsApi.removeMember(project.id, memberId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-members', project.id] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -501,7 +592,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
   const memberUserIds = new Set(members.map(m => m.user_id))
   const availableUsers = allUsers.filter(u => !memberUserIds.has(u.id))
 
-  const setAddField = (key: string) => (e: any) => {
+  const setAddField = (key: keyof typeof addForm) => (e: CambioDeCampo) => {
     const value = key === 'allocation_pct' ? Number(e.target.value) : e.target.value
     setAddForm(current => ({ ...current, [key]: value }))
     addValidation.clearFieldError(key)
@@ -582,7 +673,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                     <option value="">Seleccionar persona...</option>
                     {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
                   </select>
-                  {addValidation.errors.user_id && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{addValidation.errors.user_id}</div>}
+                  {addValidation.errors.user_id && <div className="u-field-error">{addValidation.errors.user_id}</div>}
                 </div>
                 <div>
                   <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>ROL</label>
@@ -596,7 +687,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                   <input type="number" min="1" max="100" value={addForm.allocation_pct}
                     onChange={setAddField('allocation_pct')}
                     style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
-                  {addValidation.errors.allocation_pct && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{addValidation.errors.allocation_pct}</div>}
+                  {addValidation.errors.allocation_pct && <div className="u-field-error">{addValidation.errors.allocation_pct}</div>}
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -618,15 +709,15 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
               <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>{traducir('projects.usa_el_boton_anadir_miembro_para_asignar')}</div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="u-stack-8">
               {members.map(m => (
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-border), var(--purple-border))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0, color: 'var(--accent)' }}>
                     {m.avatar_initials}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div className="u-flex1">
                     <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{m.full_name}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.email}</div>
+                    <div className="u-text2-sm">{m.email}</div>
                   </div>
                   <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '3px 9px' }}>
                     {MEMBER_ROLES[m.role] || m.role}
@@ -647,7 +738,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
       {tab === 'phases' && (
         detail.phases?.length > 0 ? (
           <div>
-            {detail.phases.map((ph: any) => (
+            {detail.phases.map(ph => (
               <div key={ph.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, marginBottom: 8, fontSize: "var(--text-base)" }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{ph.name}</div>
@@ -684,7 +775,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
               <div style={{ fontSize: "var(--text-sm)", marginTop: 4, color: 'var(--text-3)' }}>{traducir('projects.los_clientes_pueden_crear_solicitudes_desde_el')}</div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="u-stack-10">
               {featureRequests.map(fr => {
                 const statusColors: Record<string, string> = { new: 'var(--accent)', reviewing: 'var(--warning)', estimated: 'var(--orange)', approved: 'var(--success)', rejected: 'var(--danger)', in_development: 'var(--purple)', done: 'var(--success)' }
                 const priorityColors: Record<string, string> = { low: 'var(--text-2)', medium: 'var(--accent)', high: 'var(--warning)', critical: 'var(--danger)' }
@@ -694,7 +785,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                 return (
                   <div key={fr.id} style={{ background: 'var(--surface-1)', border: `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                           <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
                           <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: statusColors[fr.status] || 'var(--text-2)', background: alpha(statusColors[fr.status] || 'var(--text-2)', '18'), border: `1px solid ${alpha(statusColors[fr.status] || 'var(--text-2)', '40')}`, borderRadius: 5, padding: '2px 7px' }}>{statusLabels[fr.status] || fr.status}</span>
@@ -707,9 +798,9 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                         {fr.business_justification && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 4, fontStyle: 'italic' }}>{traducir('projects.justificacion')} {fr.business_justification}</div>}
                         {(fr.estimated_cost != null || fr.estimated_hours != null) && (
                           <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-                            {fr.estimated_cost != null && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>💶 {fmtCurrency(fr.estimated_cost)}</span>}
-                            {fr.estimated_hours != null && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>⏱ {fr.estimated_hours}h</span>}
-                            {fr.estimated_delivery_weeks != null && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>📅 {fr.estimated_delivery_weeks} sem.</span>}
+                            {fr.estimated_cost != null && <span className="u-text2-sm">💶 {fmtCurrency(fr.estimated_cost)}</span>}
+                            {fr.estimated_hours != null && <span className="u-text2-sm">⏱ {fr.estimated_hours}h</span>}
+                            {fr.estimated_delivery_weeks != null && <span className="u-text2-sm">📅 {fr.estimated_delivery_weeks} sem.</span>}
                           </div>
                         )}
                         {fr.pm_response && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 6, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6, borderLeft: '3px solid var(--accent-glow)' }}>💬 {fr.pm_response}</div>}
@@ -747,7 +838,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                           <label style={{ ...ls }}>{traducir('projects.mensaje_al_cliente')}</label>
                           <textarea rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} />
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="u-row-center-10">
                           <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estado</label>
                           <select value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))} style={{ ...fs, width: 'auto' }}>
                             <option value="estimated">Estimada</option>
@@ -756,7 +847,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                             <option value="in_development">En desarrollo</option>
                             <option value="done">Completada</option>
                           </select>
-                          <div style={{ flex: 1 }} />
+                          <div className="u-flex1" />
                           <Button onClick={() => respondFR({ id: fr.id, data: { pm_response: respondForm.pm_response || undefined, estimated_hours: respondForm.estimated_hours !== '' ? Number(respondForm.estimated_hours) : undefined, estimated_cost: respondForm.estimated_cost !== '' ? Number(respondForm.estimated_cost) : undefined, estimated_delivery_weeks: respondForm.estimated_delivery_weeks !== '' ? Number(respondForm.estimated_delivery_weeks) : undefined, status: respondForm.status } })} disabled={respondingFRPending}>
                             {respondingFRPending ? 'Guardando...' : 'Guardar respuesta'}
                           </Button>
@@ -787,20 +878,20 @@ function TemplatesTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [instantiating, setInstantiating] = useState<any>(null)
-  const [instForm, setInstForm] = useState<Record<string, any>>({ name:'', client_id:'', client_name:'', start_date: new Date().toISOString().slice(0,10), budget_amount:'' })
+  const [instantiating, setInstantiating] = useState<ProjectTemplate | null>(null)
+  const [instForm, setInstForm] = useState<InstantiateForm>({ name:'', client_id:'', client_name:'', start_date: new Date().toISOString().slice(0,10), budget_amount:'' })
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['project-templates'],
-    queryFn: () => templatesApi.list().then(r => (r.data as any[])),
+    queryFn: () => templatesApi.list().then((r): ProjectTemplate[] => r.data),
   })
-  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => (r.data as any[])) })
+  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
   const users = Array.isArray(usersRaw) ? usersRaw : []
   const pms = users.filter(u => ['admin','pm'].includes(u.role))
 
   const { mutate: instantiate, isPending: creating } = useMutation({
-    mutationFn: ({ tplId, data }: { tplId: any; data: any }) => templatesApi.instantiate(tplId, data).then(r => (r.data as any)),
-    onSuccess: (data: any) => {
+    mutationFn: ({ tplId, data }: { tplId: string; data: Omit<InstantiateForm, 'budget_amount'> & { budget_amount?: number } }) => templatesApi.instantiate(tplId, data).then((r): InstantiateResult => r.data),
+    onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['projects'] })
       toast.success(`✓ Proyecto creado: ${data.project_code} — ${data.project_name}\\n${data.phases_created} fases · ${data.tasks_created} tareas`)
       setInstantiating(null)
@@ -808,10 +899,10 @@ function TemplatesTab() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [newTpl, setNewTpl] = useState<Record<string, any>>({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',duration_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8,priority:'medium'}]}] })
+  const [newTpl, setNewTpl] = useState<NewTemplate>({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',duration_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8,priority:'medium'}]}] })
 
   const { mutate: createTpl, isPending: creatingTpl } = useMutation({
-    mutationFn: (d: any) => templatesApi.create(d),
+    mutationFn: (d: NewTemplate) => templatesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-templates'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -832,8 +923,8 @@ function TemplatesTab() {
             <div key={t.id} style={{...card,padding:'18px 22px'}}>
               <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:12}}>
                 <span style={{fontSize: "var(--text-2xl)"}}>{TPL_ICONS[t.project_type]||'📋'}</span>
-                <div style={{flex:1}}>
-                  <div style={{fontSize: "var(--text-md)",fontWeight:700}}>{t.name}</div>
+                <div className="u-flex1">
+                  <div className="u-md-700">{t.name}</div>
                   {t.description && <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginTop:2}}>{t.description}</div>}
                 </div>
               </div>
@@ -844,16 +935,16 @@ function TemplatesTab() {
                 <span>📁 {t.phases?.length||0} fases</span>
               </div>
 
-              {t.phases?.slice(0,3).map((ph: any,i: number) => (
+              {t.phases?.slice(0,3).map((ph, i) => (
                 <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 8%, transparent)',fontSize: "var(--text-sm)"}}>
-                  <span style={{color:'var(--text-2)'}}>{i+1}.</span> <span style={{color:'var(--text-1)'}}>{ph.name}</span>
+                  <span className="u-text2">{i+1}.</span> <span className="u-text1">{ph.name}</span>
                   <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.duration_weeks}w · {ph.tasks?.length||0} tareas</span>
                 </div>
               ))}
-              {(t.phases?.length||0) > 3 && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',marginTop:4}}>+{t.phases.length-3} {traducir('projects.fases_mas')}</div>}
+              {(t.phases?.length||0) > 3 && <div className="u-hint">+{t.phases.length-3} {traducir('projects.fases_mas')}</div>}
 
               <button onClick={() => { setInstantiating(t); setInstForm({ name:`${t.name} — ${new Date().getFullYear()}`, client_id:'', client_name:'', start_date:new Date().toISOString().slice(0,10), budget_amount:'', pm_id:'' }) }}
-                style={{marginTop:14,width:'100%',background:'linear-gradient(135deg, var(--accent), var(--purple))',border:'none',borderRadius:8,padding:'9px',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:700,fontSize: "var(--text-base)"}}>
+                style={{marginTop:14,width:'100%',background:'linear-gradient(135deg, var(--accent), var(--purple))',border:'none',borderRadius:8,padding:'9px',color:'var(--on-accent-light)',cursor:'pointer',fontFamily:'inherit',fontWeight:700,fontSize: "var(--text-base)"}}>
                 {traducir('projects.crear_proyecto_desde_esta_plantilla')}
               </button>
             </div>
@@ -863,14 +954,14 @@ function TemplatesTab() {
 
       {instantiating && (
         <Modal open title={`Crear proyecto — ${instantiating.name}`} onClose={() => setInstantiating(null)} width={520}>
-          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div className="u-stack-14">
             <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'10px 14px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
-              {traducir('projects.esta_plantilla_creara')} <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.reduce((s: number, p: any)=>s+(p.tasks?.length||0),0)||0} tareas</strong> {traducir('projects.automaticamente')}
+              {traducir('projects.esta_plantilla_creara')} <strong className="u-text1">{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong className="u-text1">{instantiating.phases?.reduce((s: number, p)=>s+(p.tasks?.length||0),0)||0} tareas</strong> {traducir('projects.automaticamente')}
             </div>
             <div><label style={ls}>{traducir('projects.nombre_del_proyecto_2')}</label><input value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
               <div><label style={ls}>Cliente</label><ClientSelect value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
-              <div><label style={ls}>{traducir('projects.label_start_date')}</label><input type="date" value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
+              <div><label style={ls}>{traducir('projects.label_start_date')}</label><DateInput value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Presupuesto €</label><input type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Project Manager</label>
                 <select value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))} style={fs}>
@@ -879,7 +970,7 @@ function TemplatesTab() {
                 </select>
               </div>
             </div>
-            <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setInstantiating(null)}>Cancelar</Button>
               <Button onClick={() => instantiate({ tplId: instantiating.id, data: { ...instForm, budget_amount: instForm.budget_amount ? +instForm.budget_amount : undefined } })} disabled={creating || !instForm.name}>
                 {creating ? 'Creando...' : '▶ Crear proyecto'}
@@ -891,7 +982,7 @@ function TemplatesTab() {
 
       {showCreate && (
         <Modal open title={traducir('projects.nueva_plantilla_2')} onClose={() => setShowCreate(false)} width={580}>
-          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div className="u-stack-14">
             <div><label style={ls}>Nombre *</label><input value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
             <div><label style={ls}>{traducir('projects.label_description')}</label><textarea value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
@@ -903,7 +994,7 @@ function TemplatesTab() {
               <div><label style={ls}>Semanas estimadas</label><input type="number" value={newTpl.estimated_weeks} onChange={e => setNewTpl(f=>({...f,estimated_weeks:+e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Horas estimadas</label><input type="number" value={newTpl.estimated_hours||''} onChange={e => setNewTpl(f=>({...f,estimated_hours:+e.target.value}))} style={fs} /></div>
             </div>
-            <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => createTpl(newTpl)} disabled={creatingTpl || !newTpl.name}>Crear plantilla</Button>
             </div>
@@ -915,29 +1006,16 @@ function TemplatesTab() {
 }
 
 // Wrapper that fetches dependencies and passes them to GanttChart
-function GanttWithDeps({ projectId, tasks }: { projectId: any; tasks: any }) {
-  const { data: depsRaw = [] } = useQuery({
+function GanttWithDeps({ projectId, tasks }: { projectId: string; tasks: GanttTasks }) {
+  const { data: depsRaw = [] } = useQuery<GanttDeps>({
     queryKey: ['task-deps', projectId],
-    queryFn: () => projectId ? dependenciesApi.get(projectId).then(r => (r.data as any[])) : Promise.resolve([]),
+    queryFn: () => projectId ? dependenciesApi.get(projectId).then(r => r.data) : Promise.resolve([]),
     enabled: !!projectId,
   })
   const deps = Array.isArray(depsRaw) ? depsRaw : []
   return <GanttChart mode="project" tasks={tasks} dependencies={deps} />
 }
 
-
-interface ProjectRow {
-  id: string | number
-  name?: string
-  code?: string
-  project_type: string
-  pm_name?: string
-  status?: string
-  budget_used_pct?: number
-  progress_pct?: number
-  risk_level?: string
-  [key: string]: unknown
-}
 
 export default function ProjectsPage() {
   const traducir = useAppT()
@@ -950,37 +1028,38 @@ export default function ProjectsPage() {
   const statusFilter = searchParams.get('status') || ''
   const typeFilter = searchParams.get('type') || ''
   const view = searchParams.get('view') || 'grid'
-  const setParam = (k: string, v: any) => setSearchParams((p: URLSearchParams) => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
-  const setSearch = (v: any) => setParam('search', v)
-  const setStatusFilter = (v: any) => setParam('status', v)
-  const setTypeFilter = (v: any) => setParam('type', v)
-  const setView = (v: any) => setParam('view', v)
+  const setParam = (k: string, v: string) => setSearchParams((p: URLSearchParams) => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
+  const setSearch = (v: string) => setParam('search', v)
+  const setStatusFilter = (v: string) => setParam('status', v)
+  const setTypeFilter = (v: string) => setParam('type', v)
+  const setView = (v: string) => setParam('view', v)
   const [showCreate, setShowCreate] = useState(false)
-  const [editTarget, setEditTarget] = useState<any>(null)
-  const [selected, setSelected] = useState<any>(null)
+  const [editTarget, setEditTarget] = useState<ProjectSummary | null>(null)
+  const [selected, setSelected] = useState<ProjectSummary | null>(null)
   const [ganttMode, setGanttMode] = useState('portfolio')  // portfolio | project
   const { visibleCols, colTemplate, ColToggle, visible: visCols } = useColVisibility(PROJ_COLS, 'projects')
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects', search, statusFilter],
-    queryFn: () => projectsApi.list({ search: search || undefined, status: statusFilter || undefined } as any).then(r => (r.data as any[])),
+    // `statusFilter` sale de un <select>: texto que el servidor valida contra `ProjectStatus`.
+    queryFn: () => projectsApi.list({ search: search || undefined, status: (statusFilter || undefined) as ProjectStatus }).then(r => r.data as ProjectSummary[]),
   })
 
   const { data: projectDetail } = useQuery({
     queryKey: ['project', selected?.id],
-    queryFn: () => projectsApi.get(selected.id).then(r => (r.data as any)),
+    queryFn: () => projectsApi.get(selected.id).then(r => r.data as ProjectDetail),
     enabled: !!selected,
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }: { id: any; status: any }) => projectsApi.update(id, { status }),
+    // `status` sale de un <select> con los valores de `ProjectStatus`.
+    mutationFn: ({ id, status }: { id: string; status: string }) => projectsApi.update(id, { status: status as ProjectStatus }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const filtered = projects.filter(p => !typeFilter || p.project_type === typeFilter)
-  const { sort: projSort, setSort: setProjSort, sortedData: sortedProjectsRaw } = useSort(filtered, 'name')
-  const sortedProjects = sortedProjectsRaw as ProjectRow[]
+  const { sort: projSort, setSort: setProjSort, sortedData: sortedProjects } = useSort(filtered, 'name')
 
   const stats = {
     total: projects.length,
@@ -1068,14 +1147,14 @@ export default function ProjectsPage() {
         <div className="ds-grid-cards">
           {sortedProjects.map(p => (
             <ProjectCard key={p.id} project={p} onClick={setSelected}
-              onStatusChange={(id: any, status: any) => updateStatus({ id, status })} onEdit={setEditTarget} />
+              onStatusChange={(id, status) => updateStatus({ id, status })} onEdit={setEditTarget} />
           ))}
         </div>
       ) : view === 'list' ? (
         <div data-export-table="projects-list" className="ds-card" style={{ padding: 0, overflowX: 'auto' }}>
           <div style={{ minWidth: 920 }}>
           <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-            {visibleCols.map((c: any) => (
+            {(visibleCols as typeof PROJ_COLS).map(c => (
               c.id === 'risk'
                 ? <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
                     <SortableTH col={c.sortKey} sort={projSort} onSort={setProjSort}>{c.label}</SortableTH>
@@ -1092,15 +1171,15 @@ export default function ProjectsPage() {
             >
               {visCols.includes('name') && (
                 <button type="button" style={{ cursor: 'pointer', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => setSelected(p)}>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{p.name}</div>
+                  <div className="u-base-600">{p.name}</div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{p.code}</div>
                 </button>
               )}
-              {visCols.includes('type') && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{TYPE_LABELS[p.project_type] || p.project_type}</span>}
-              {visCols.includes('pm') && <span style={{ fontSize: "var(--text-sm)" }}>{p.pm_name || '—'}</span>}
-              {visCols.includes('status') && <StatusDropdown project={p} onUpdate={(status: any) => updateStatus({ id: p.id, status })} />}
+              {visCols.includes('type') && <span className="u-text2-sm">{TYPE_LABELS[p.project_type] || p.project_type}</span>}
+              {visCols.includes('pm') && <span className="u-sm">{p.pm_name || '—'}</span>}
+              {visCols.includes('status') && <StatusDropdown project={p} onUpdate={status => updateStatus({ id: p.id, status })} />}
               {visCols.includes('budget') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: (p.budget_used_pct ?? 0) > 90 ? 'var(--danger)' : 'var(--text-2)' }}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
-              {visCols.includes('progress') && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{p.progress_pct?.toFixed(0) ?? 0}%</span>}
+              {visCols.includes('progress') && <span className="u-text2-sm">{p.progress_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('risk') && <Badge label={p.risk_level} display={undefined} _color={undefined} />}
             </div>
           ))}
@@ -1141,7 +1220,7 @@ export default function ProjectsPage() {
           {ganttMode === 'project' && selected && projectDetail && (
             <GanttWithDeps
               projectId={selected.id}
-              tasks={(projectDetail.tasks || []).map((t: any) => ({
+              tasks={(projectDetail.tasks || []).map(t => ({
                 id: t.id, code: t.code, title: t.title,
                 status: t.status, priority: t.priority,
                 story_points: t.story_points,

@@ -21,14 +21,6 @@ declare global {
 }
 
 declare module 'react' {
-  interface HTMLAttributes<T> {
-    style?: any
-  }
-
-  interface SVGAttributes<T> {
-    style?: any
-  }
-
   interface CSSProperties {
     [key: string]: string | number | undefined | null
   }

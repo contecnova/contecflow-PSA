@@ -246,6 +246,7 @@ class SemanticAssigner(ServiceBase):
                 from app.services.settings_service import get_runtime_str
                 backend = get_runtime_str(db, "SEMANTIC_EMBEDDINGS_BACKEND")
             except Exception:
+                logger.debug("_resolve_embeddings_runtime: excepcion ignorada", exc_info=True)
                 backend = None
         backend = (backend or settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
         if backend == "transformer":
@@ -284,6 +285,7 @@ class SemanticAssigner(ServiceBase):
             self.TOP_K_HISTORY      = get_runtime_int(self.db, "SEM_TOP_K_HISTORY") or self.__class__.TOP_K_HISTORY
             self.MULTI_ROLE_FACTOR  = get_runtime_float(self.db, "SEM_MULTI_ROLE_FACTOR") or _cfg.SEM_MULTI_ROLE_FACTOR
         except Exception:
+            logger.debug("__init__: excepcion ignorada", exc_info=True)
             self.WEIGHT_PROFILE    = self.__class__.WEIGHT_PROFILE
             self.WEIGHT_HISTORY    = self.__class__.WEIGHT_HISTORY
             self.TOP_K_HISTORY     = self.__class__.TOP_K_HISTORY

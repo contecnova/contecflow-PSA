@@ -19,7 +19,10 @@
  * autocontenido para no acoplar el portal al AuthContext del operador.
  */
 import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type {
+  CSSProperties, ComponentType, ReactNode, MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent,
+  InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes,
+} from 'react'
 import {
   LayoutDashboard, FlaskConical, Lightbulb, Map, BookOpen, FileText,
   Receipt, Headphones, MessageSquare, Settings, LogOut, Search,
@@ -31,6 +34,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { useTabListKeys } from '../../components/ui/Tabs'
 import { localeActivo } from '../../utils/helpers'
+import StatusBadge, { type StatusBadgeKind } from '../../components/ui/StatusBadge'
 
 // ── Section configuration (grouped like the backoffice) ──────────────────────
 export const PORTAL_NAV_GROUPS = [
@@ -72,16 +76,39 @@ export const PORTAL_NAV_GROUPS = [
   },
 ]
 
-const SECTION_INDEX: Record<string, any> = (() => {
-  const out: Record<string, any> = {}
+type NavItem = (typeof PORTAL_NAV_GROUPS)[number]['items'][number]
+type SectionCfg = NavItem & { group: string; groupKey: string }
+
+/** Icono de lucide (o compatible) que se pinta con un tamaño. */
+export type PortalIcon = ComponentType<{ size?: number | string }>
+
+const SECTION_INDEX: Record<string, SectionCfg> = (() => {
+  const out: Record<string, SectionCfg> = {}
   for (const g of PORTAL_NAV_GROUPS) for (const it of g.items) out[it.id] = { ...it, group: g.label, groupKey: g.labelKey }
   return out
 })()
 
 // ── Shell ────────────────────────────────────────────────────────────────────
-export function PortalShell({ section, onSection, branding, badges, children }: any) {
+export interface PortalBranding {
+  logo_url?: string | null
+  brand_name?: string | null
+  primary_color?: string | null
+}
+
+/** Contadores por sección (id de sección → pendientes). */
+export type PortalBadges = Record<string, number | undefined>
+
+interface PortalShellProps {
+  section: string
+  onSection: (section: string) => void
+  branding?: PortalBranding | null
+  badges?: PortalBadges
+  children?: ReactNode
+}
+
+export function PortalShell({ section, onSection, branding, badges, children }: PortalShellProps) {
   const { t: traducir } = useAppLang()
-  const { client, logout } = useClientAuth() as any
+  const { client, logout } = useClientAuth()
   const t = useLang()
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('portal_sidebar_collapsed') === '1')
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -92,7 +119,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
 
   // Atajo de teclado: ⌘+Shift+N / Ctrl+Shift+N abre el menú quick-create (igual que backoffice)
   useEffect(() => {
-    const onKey = (e: any) => {
+    const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault()
         setQuickOpen(o => !o)
@@ -144,11 +171,11 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
               width: 32, height: 32, borderRadius: 8, flexShrink: 0,
               background: `linear-gradient(135deg, ${branding?.primary_color || 'var(--accent)'}, var(--purple, #7c3aed))`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 'var(--text-lg)', fontWeight: 800, color: '#fff',
+              fontSize: 'var(--text-lg)', fontWeight: 800, color: 'var(--on-accent-light)',
             }}>◈</div>
           )}
           {!collapsed && (
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="u-flex1-min0">
               <div style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: 'var(--text-1)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {branding?.brand_name || tr('portal', 'Portal cliente')}
               </div>
@@ -276,7 +303,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                   width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
                   background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 'var(--text-sm)', fontWeight: 800, color: '#fff',
+                  fontSize: 'var(--text-sm)', fontWeight: 800, color: 'var(--on-accent-light)',
                 }}>{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
                 <div style={{ overflow: 'hidden', flex: 1 }}>
                   <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{client?.full_name || client?.email}</div>
@@ -328,7 +355,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
               color: 'var(--text-2)', padding: 4,
             }}><Menu size={18} /></button>
 
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="u-flex1-min0">
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               {tr(sectionCfg.groupKey, sectionCfg.group)}
             </div>
@@ -337,7 +364,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="u-row-center-10">
             <button
               onClick={() => setQuickOpen(true)}
               title={traducir('portalui.crear_nuevo')}
@@ -346,7 +373,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: 30, height: 30,
                 background: 'var(--accent)', border: 'none',
-                borderRadius: 8, color: '#fff', cursor: 'pointer',
+                borderRadius: 8, color: 'var(--on-accent-light)', cursor: 'pointer',
                 fontWeight: 700, lineHeight: 1,
               }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
@@ -371,7 +398,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
               {(badges?.support || 0) + (badges?.messages || 0) > 0 && (
                 <span style={{
                   position: 'absolute', top: -4, right: -4,
-                  background: 'var(--danger, #ef4444)', color: '#fff',
+                  background: 'var(--danger, #ef4444)', color: 'var(--on-accent-light)',
                   borderRadius: 999, fontSize: 'var(--text-3xs, 9px)', fontWeight: 800,
                   minWidth: 16, height: 16, padding: '0 4px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -382,7 +409,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
               width: 32, height: 32, borderRadius: '50%',
               background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 'var(--text-sm)', fontWeight: 800, color: '#fff',
+              fontSize: 'var(--text-sm)', fontWeight: 800, color: 'var(--on-accent-light)',
             }}>{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
           </div>
         </header>
@@ -430,7 +457,33 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
 }
 
 // ── Page Header ──────────────────────────────────────────────────────────────
-export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, breadcrumb }: any) {
+export interface PortalBreadcrumb {
+  label: ReactNode
+  onClick?: () => void
+}
+
+export interface PortalMetaItem {
+  icon?: ReactNode
+  value?: ReactNode
+  label?: ReactNode
+  color?: string
+}
+
+/** Quita las entradas condicionales (`cond && {...}`) de una lista de meta. */
+export function metaItems(items: Array<PortalMetaItem | false | null | undefined | 0 | ''>): PortalMetaItem[] {
+  return items.filter((m): m is PortalMetaItem => Boolean(m))
+}
+
+interface PortalPageHeaderProps {
+  title: ReactNode
+  subtitle?: ReactNode
+  icon?: PortalIcon
+  actions?: ReactNode
+  meta?: PortalMetaItem[]
+  breadcrumb?: PortalBreadcrumb[]
+}
+
+export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, breadcrumb }: PortalPageHeaderProps) {
   return (
     <div style={{
       marginBottom: 24,
@@ -439,7 +492,7 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
     }}>
       {breadcrumb && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-          {breadcrumb.map((c: any, i: number) => (
+          {breadcrumb.map((c, i) => (
             <span key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: 'var(--text-xs)' }}>›</span>}
               {c.onClick ? (
@@ -461,7 +514,7 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-        <div style={{ minWidth: 0 }}>
+        <div className="u-min0">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {Icon && (
               <div style={{
@@ -489,11 +542,11 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
           )}
           {meta && meta.length > 0 && (
             <div style={{ display: 'flex', gap: 14, marginTop: 10, flexWrap: 'wrap', paddingLeft: Icon ? 50 : 0 }}>
-              {meta.map((m: any, i: number) => (
+              {meta.map((m, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
                   {m.icon && <span style={{ opacity: 0.7, display: 'inline-flex' }}>{m.icon}</span>}
                   <span style={{ color: m.color || 'var(--text-2)' }}>{m.value}</span>
-                  {m.label && <span style={{ color: 'var(--text-3)' }}>{m.label}</span>}
+                  {m.label && <span className="u-text3">{m.label}</span>}
                 </div>
               ))}
             </div>
@@ -510,7 +563,15 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
 }
 
 // ── Card ─────────────────────────────────────────────────────────────────────
-export function PortalCard({ children, style = {}, accent, padding = 20, onClick }: any) {
+interface PortalCardProps {
+  children?: ReactNode
+  style?: CSSProperties
+  accent?: boolean
+  padding?: CSSProperties['padding']
+  onClick?: (e: ReactMouseEvent<HTMLDivElement> | ReactKeyboardEvent<HTMLDivElement>) => void
+}
+
+export function PortalCard({ children, style = {}, accent, padding = 20, onClick }: PortalCardProps) {
   const base: CSSProperties = {
     background: 'var(--surface-2)',
     border: `1px solid ${accent ? 'var(--accent-border, rgba(79,142,247,0.25))' : 'var(--surface-4)'}`,
@@ -536,7 +597,18 @@ export function PortalCard({ children, style = {}, accent, padding = 20, onClick
 }
 
 // ── KPI ──────────────────────────────────────────────────────────────────────
-export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', trend, footer, big = false }: any) {
+interface PortalKpiProps {
+  icon?: PortalIcon
+  label: ReactNode
+  value: ReactNode
+  sub?: ReactNode
+  tone?: string
+  trend?: number | null
+  footer?: ReactNode
+  big?: boolean
+}
+
+export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', trend, footer, big = false }: PortalKpiProps) {
   const toneColor = ({
     default: 'var(--text-1)',
     accent:  'var(--accent)',
@@ -569,14 +641,22 @@ export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', tre
         letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 6,
       }}>{value}</div>
       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', fontWeight: 500 }}>{label}</div>
-      {sub && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>}
+      {sub && <div className="u-hint">{sub}</div>}
       {footer && <div style={{ marginTop: 'auto', paddingTop: 10 }}>{footer}</div>}
     </PortalCard>
   )
 }
 
 // ── Section heading ──────────────────────────────────────────────────────────
-export function PortalSection({ title, hint, action, children, style = {} }: any) {
+interface PortalSectionProps {
+  title?: ReactNode
+  hint?: ReactNode
+  action?: ReactNode
+  children?: ReactNode
+  style?: CSSProperties
+}
+
+export function PortalSection({ title, hint, action, children, style = {} }: PortalSectionProps) {
   return (
     <div style={{ marginBottom: 22, ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
@@ -592,13 +672,27 @@ export function PortalSection({ title, hint, action, children, style = {} }: any
 }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
-export function PortalTabs({ tabs, value, onChange, ariaLabel }: any) {
-  const { listRef, onKeyDown, focusId } = useTabListKeys(tabs.map((tab: any) => tab.id), value, onChange)
+export interface PortalTab {
+  id: string
+  label: ReactNode
+  icon?: ReactNode
+  badge?: number | null
+}
+
+interface PortalTabsProps {
+  tabs: PortalTab[]
+  value: string
+  onChange: (id: string) => void
+  ariaLabel?: string
+}
+
+export function PortalTabs({ tabs, value, onChange, ariaLabel }: PortalTabsProps) {
+  const { listRef, onKeyDown, focusId } = useTabListKeys(tabs.map(tab => tab.id), value, onChange)
   return (
     <div ref={listRef} role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown} style={{
       display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20, flexWrap: 'wrap',
     }}>
-      {tabs.map((tab: any) => {
+      {tabs.map(tab => {
         const active = value === tab.id
         return (
           <button
@@ -631,7 +725,14 @@ export function PortalTabs({ tabs, value, onChange, ariaLabel }: any) {
 }
 
 // ── Empty state ──────────────────────────────────────────────────────────────
-export function PortalEmpty({ icon: Icon, title, description, action }: any) {
+interface PortalEmptyProps {
+  icon?: PortalIcon
+  title: ReactNode
+  description?: ReactNode
+  action?: ReactNode
+}
+
+export function PortalEmpty({ icon: Icon, title, description, action }: PortalEmptyProps) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -657,7 +758,15 @@ export function PortalEmpty({ icon: Icon, title, description, action }: any) {
 }
 
 // ── Progress ─────────────────────────────────────────────────────────────────
-export function PortalProgress({ value, max = 100, color, height = 6, showLabel = false }: any) {
+interface PortalProgressProps {
+  value: number
+  max?: number
+  color?: string
+  height?: number
+  showLabel?: boolean
+}
+
+export function PortalProgress({ value, max = 100, color, height = 6, showLabel = false }: PortalProgressProps) {
   const pct = max ? Math.min((value / max) * 100, 100) : 0
   const c = color || (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)')
   return (
@@ -675,45 +784,52 @@ export function PortalProgress({ value, max = 100, color, height = 6, showLabel 
 }
 
 // ── Badge ────────────────────────────────────────────────────────────────────
-export function PortalBadge({ children, tone = 'default', icon }: any) {
-  const tones: Record<string, any> = {
-    default: { bg: 'var(--surface-3)', fg: 'var(--text-2)', bd: 'var(--surface-4)' },
-    accent:  { bg: 'var(--accent-muted)', fg: 'var(--accent)', bd: 'var(--accent-border, rgba(79,142,247,0.25))' },
-    success: { bg: 'var(--success-bg, rgba(16,185,129,0.12))', fg: 'var(--success)', bd: 'var(--success-border, rgba(16,185,129,0.3))' },
-    warning: { bg: 'var(--warning-bg, rgba(245,158,11,0.12))', fg: 'var(--warning)', bd: 'var(--warning-border, rgba(245,158,11,0.3))' },
-    danger:  { bg: 'var(--danger-bg, rgba(239,68,68,0.12))',  fg: 'var(--danger)',  bd: 'var(--danger-border, rgba(239,68,68,0.3))' },
-    orange:  { bg: 'var(--orange-bg)', fg: 'var(--orange)', bd: 'var(--orange-border)' },
-    purple:  { bg: 'rgba(124,58,237,0.12)',  fg: 'var(--purple, #7c3aed)', bd: 'rgba(124,58,237,0.3)' },
+interface PortalBadgeProps {
+  children?: ReactNode
+  tone?: string
+  icon?: ReactNode
+}
+
+export function PortalBadge({ children, tone = 'default', icon }: PortalBadgeProps) {
+  // Mismo API de siempre (tone/icon); el pintado es el badge compartido.
+  const kinds: Record<string, StatusBadgeKind> = {
+    default: 'neutral', accent: 'accent', success: 'success', warning: 'warning',
+    danger: 'danger', orange: 'orange', purple: 'purple',
   }
-  const c = tones[tone] || tones.default
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      fontSize: 'var(--text-xs)', fontWeight: 700,
-      padding: '2px 9px', borderRadius: 999,
-      background: c.bg, color: c.fg, border: `1px solid ${c.bd}`,
-      textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
-    }}>
+    <StatusBadge kind={kinds[tone] || 'neutral'}>
       {icon}
       {children}
-    </span>
+    </StatusBadge>
   )
 }
 
 // ── Button ───────────────────────────────────────────────────────────────────
-export function PortalButton({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, type = 'button', style = {} }: any) {
+interface PortalButtonProps {
+  children?: ReactNode
+  onClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void
+  variant?: string
+  size?: string
+  disabled?: boolean
+  loading?: boolean
+  icon?: ReactNode
+  type?: 'button' | 'submit' | 'reset'
+  style?: CSSProperties
+}
+
+export function PortalButton({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, type = 'button', style = {} }: PortalButtonProps) {
   const v = ({
     primary:   { background: 'var(--accent)', color: 'var(--on-accent)', border: '1px solid var(--accent)' },
     secondary: { background: 'var(--surface-3)', color: 'var(--text-1)', border: '1px solid var(--surface-4)' },
     danger:    { background: 'var(--danger-bg, rgba(239,68,68,0.12))', color: 'var(--danger)', border: '1px solid var(--danger-border, rgba(239,68,68,0.3))' },
     ghost:     { background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border, rgba(79,142,247,0.25))' },
     subtle:    { background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid transparent' },
-  } as Record<string, any>)[variant] || {}
+  } as Record<string, CSSProperties>)[variant] || {}
   const s = ({
     sm: { fontSize: 'var(--text-sm)', padding: '6px 12px', gap: 5 },
     md: { fontSize: 'var(--text-sm)', padding: '8px 16px', gap: 6 },
     lg: { fontSize: 'var(--text-base)', padding: '10px 22px', gap: 7 },
-  } as Record<string, any>)[size] || {}
+  } as Record<string, CSSProperties>)[size] || {}
   const dis = disabled || loading
   return (
     <button
@@ -750,7 +866,14 @@ const fieldBase: CSSProperties = {
   fontFamily: 'inherit', transition: 'border-color 0.15s, box-shadow 0.15s',
 }
 
-export function PortalField({ label, hint, required, children }: any) {
+interface PortalFieldProps {
+  label?: ReactNode
+  hint?: ReactNode
+  required?: boolean
+  children?: ReactNode
+}
+
+export function PortalField({ label, hint, required, children }: PortalFieldProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
       {label && (
@@ -758,16 +881,16 @@ export function PortalField({ label, hint, required, children }: any) {
           fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)',
           textTransform: 'uppercase', letterSpacing: '0.07em',
         }}>
-          {label}{required && <span style={{ color: 'var(--danger)' }}> *</span>}
+          {label}{required && <span className="u-danger"> *</span>}
         </label>
       )}
       {children}
-      {hint && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{hint}</div>}
+      {hint && <div className="u-text3-xs">{hint}</div>}
     </div>
   )
 }
 
-export function PortalInput(props: any) {
+export function PortalInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
@@ -778,7 +901,7 @@ export function PortalInput(props: any) {
   )
 }
 
-export function PortalSelect(props: any) {
+export function PortalSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select {...props} style={{ ...fieldBase, ...(props.style || {}) }}>
       {props.children}
@@ -786,14 +909,24 @@ export function PortalSelect(props: any) {
   )
 }
 
-export function PortalTextarea(props: any) {
+export function PortalTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea {...props} style={{ ...fieldBase, resize: 'vertical', ...(props.style || {}) }} />
   )
 }
 
 // ── Modal ────────────────────────────────────────────────────────────────────
-export function PortalModal({ open, onClose, title, subtitle, width = 560, children, footer }: any) {
+interface PortalModalProps {
+  open: boolean
+  onClose: () => void
+  title?: ReactNode
+  subtitle?: ReactNode
+  width?: CSSProperties['maxWidth']
+  children?: ReactNode
+  footer?: ReactNode
+}
+
+export function PortalModal({ open, onClose, title, subtitle, width = 560, children, footer }: PortalModalProps) {
   if (!open) return null
   return (
     <div role="presentation" onMouseDown={onClose} style={{
@@ -830,8 +963,16 @@ export function PortalModal({ open, onClose, title, subtitle, width = 560, child
 }
 
 // ── Banner ───────────────────────────────────────────────────────────────────
-export function PortalBanner({ tone = 'info', icon, title, body, action }: any) {
-  const tones: Record<string, any> = {
+interface PortalBannerProps {
+  tone?: string
+  icon?: ReactNode
+  title?: ReactNode
+  body?: ReactNode
+  action?: ReactNode
+}
+
+export function PortalBanner({ tone = 'info', icon, title, body, action }: PortalBannerProps) {
+  const tones: Record<string, { bg: string; bd: string; fg: string }> = {
     info:    { bg: 'var(--accent-muted)', bd: 'var(--accent-border, rgba(79,142,247,0.25))', fg: 'var(--accent)' },
     warning: { bg: 'var(--warning-bg, rgba(245,158,11,0.12))', bd: 'var(--warning-border, rgba(245,158,11,0.3))', fg: 'var(--warning)' },
     danger:  { bg: 'var(--danger-bg, rgba(239,68,68,0.12))',  bd: 'var(--danger-border, rgba(239,68,68,0.3))',  fg: 'var(--danger)' },
@@ -845,7 +986,7 @@ export function PortalBanner({ tone = 'info', icon, title, body, action }: any) 
       display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
     }}>
       {icon && <div style={{ color: c.fg, flexShrink: 0, display: 'inline-flex' }}>{icon}</div>}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="u-flex1-min0">
         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: c.fg }}>{title}</div>
         {body && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginTop: 2 }}>{body}</div>}
       </div>
@@ -855,17 +996,30 @@ export function PortalBanner({ tone = 'info', icon, title, body, action }: any) 
 }
 
 // ── Donut chart (lightweight SVG) ────────────────────────────────────────────
-export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop, centerBottom }: any) {
+export interface PortalDonutSegment {
+  value?: number | null
+  color?: string
+}
+
+interface PortalDonutProps {
+  size?: number
+  stroke?: number
+  segments?: PortalDonutSegment[]
+  centerTop?: ReactNode
+  centerBottom?: ReactNode
+}
+
+export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop, centerBottom }: PortalDonutProps) {
   const { t: traducir } = useAppLang()
   const radius = size / 2 - stroke / 2
   const circ = 2 * Math.PI * radius
-  const total = segments.reduce((s: number, x: any) => s + Math.max(0, x.value || 0), 0)
+  const total = segments.reduce((s, x) => s + Math.max(0, x.value || 0), 0)
   let offset = 0
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} role="img" aria-label={traducir('portalui.distribucion')}>
         <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--surface-4)" strokeWidth={stroke} />
-        {total > 0 && segments.map((seg: any, i: number) => {
+        {total > 0 && segments.map((seg, i) => {
           const len = (Math.max(0, seg.value || 0) / total) * circ
           const dasharray = `${len} ${circ - len}`
           const dashoffset = -offset
@@ -888,7 +1042,14 @@ export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop,
 }
 
 // ── Sparkline ────────────────────────────────────────────────────────────────
-export function PortalSpark({ values = [], width = 110, height = 32, color = 'var(--accent)' }: any) {
+interface PortalSparkProps {
+  values?: number[]
+  width?: number
+  height?: number
+  color?: string
+}
+
+export function PortalSpark({ values = [], width = 110, height = 32, color = 'var(--accent)' }: PortalSparkProps) {
   if (!values.length) return null
   const min = Math.min(...values, 0)
   const max = Math.max(...values, 1)
@@ -911,11 +1072,18 @@ export function PortalSpark({ values = [], width = 110, height = 32, color = 'va
 }
 
 // ── Horizontal bars (distribution) ──────────────────────────────────────────
-export function PortalBars({ items = [] }: any) {
-  const max = Math.max(1, ...items.map((i: any) => i.value || 0))
+export interface PortalBarItem {
+  label: ReactNode
+  value?: number | null
+  color?: string
+  suffix?: string
+}
+
+export function PortalBars({ items = [] }: { items?: PortalBarItem[] }) {
+  const max = Math.max(1, ...items.map(i => i.value || 0))
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {items.map((it: any, idx: number) => (
+    <div className="u-stack-10">
+      {items.map((it, idx) => (
         <div key={idx}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', marginBottom: 4 }}>
             <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>{it.label}</span>
@@ -934,7 +1102,7 @@ export function PortalBars({ items = [] }: any) {
 export const PORTAL_API = CLIENT_API
 export { useLang as usePortalLang }
 
-export function formatDuration(minutes: any) {
+export function formatDuration(minutes: number | string | null | undefined) {
   if (minutes == null || Number.isNaN(Number(minutes))) return '—'
   const m = Math.round(Number(minutes))
   if (m < 60) return `${m} min`
@@ -943,13 +1111,13 @@ export function formatDuration(minutes: any) {
   return r ? `${h}h ${r}min` : `${h}h`
 }
 
-export function formatMoney(value: any, currency = 'EUR') {
+export function formatMoney(value: number | string | null | undefined, currency = 'EUR') {
   const n = Number(value || 0)
   try { return n.toLocaleString(localeActivo(), { style: 'currency', currency }) }
   catch { return `${n.toLocaleString(localeActivo())} ${currency}` }
 }
 
-export function relativeDate(iso: any) {
+export function relativeDate(iso: string | number | Date | null | undefined) {
   if (!iso) return '—'
   try {
     const d = new Date(iso)
@@ -962,7 +1130,7 @@ export function relativeDate(iso: any) {
   } catch { return iso }
 }
 
-export function useDebounced(value: any, delay = 250) {
+export function useDebounced<T>(value: T, delay = 250): T {
   const [v, setV] = useState(value)
   useEffect(() => {
     const t = setTimeout(() => setV(value), delay)

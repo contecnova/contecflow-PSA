@@ -13,6 +13,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
+import DateInput from '../components/ui/DateInput'
 
 interface MilestoneItem {
   id: string | number
@@ -156,7 +157,7 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: m.is_completed ? 'var(--success-bg)' : 'var(--surface-2)', border: `1px solid ${m.is_completed ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
       <input type="checkbox" checked={m.is_completed} onChange={e => update({ is_completed: e.target.checked, completed_date: e.target.checked ? new Date().toISOString().split('T')[0] : null })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
-      <div style={{ flex: 1 }}>
+      <div className="u-flex1">
         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, textDecoration: m.is_completed ? 'line-through' : 'none', color: m.is_completed ? 'var(--text-2)' : 'var(--text-1)' }}>{m.name}</div>
         {m.due_date && <div style={{ fontSize: "var(--text-xs)", color: new Date(m.due_date) < new Date() && !m.is_completed ? 'var(--danger)' : 'var(--text-2)' }}>📅 {fmtDate(m.due_date)}</div>}
       </div>
@@ -166,7 +167,7 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
           {m.billing_pct && <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{m.billing_pct}% contrato</div>}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div className="u-row-6">
         {/* Se factura en Facturación por hitos, que pide aprobación y genera la factura (revisión 2026-11). */}
         {m.is_completed && !m.is_billed && (
           <Link to="/milestone-billing" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', fontSize: "var(--text-xs)", textDecoration: 'none' }}>💶 Facturar en Hitos →</Link>
@@ -285,7 +286,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
             { label: 'Tarifa cliente', value: data.billing_rate ? `${data.billing_rate}€/h` : '—' },
           ].map(({ label, value }) => (
             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', fontSize: "var(--text-base)" }}>
-              <span style={{ color: 'var(--text-2)' }}>{label}</span>
+              <span className="u-text2">{label}</span>
               <span style={{ fontWeight: 600 }}>{value}</span>
             </div>
           ))}
@@ -299,7 +300,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
               <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', fontSize: "var(--text-sm)" }}>
                 <span>{p.user_name}</span>
                 <div style={{ display: 'flex', gap: 12 }}>
-                  <span style={{ color: 'var(--text-2)' }}>{fmtHours(p.hours)}</span>
+                  <span className="u-text2">{fmtHours(p.hours)}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.cost)}</span>
                 </div>
               </div>
@@ -318,7 +319,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
               <XAxis dataKey="week" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} tickFormatter={w => w.slice(5)} angle={-30} textAnchor="end" />
               <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
               <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}h`, 'Horas']} />
-              <Bar dataKey="hours" fill="#4f8ef7" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="hours" fill="var(--accent)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -333,12 +334,12 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
         {data.milestones?.length === 0 ? (
           <EmptyState icon="🏁" title={t('profitability.sin_hitos_de_facturacion')} description="Anade hitos para seguir la facturacion del proyecto" />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="u-stack-8">
             {(data.milestones ?? []).map(m => (
               <MilestoneRow key={m.id} m={m} projectId={projectId} />
             ))}
             <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
-              <span style={{ color: 'var(--text-2)' }}>Total facturado:</span>
+              <span className="u-text2">Total facturado:</span>
               <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
                 {fmtCurrency((data.milestones ?? []).filter(m => m.is_billed).reduce((s, m) => s + (m.billing_amount || 0), 0))}
               </span>
@@ -350,11 +351,11 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
           <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div><label style={ls}>Nombre</label><input value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('profitability.nombre_del_hito')} aria-label={t('profitability.nombre_del_hito')} /></div>
-              <div><label style={ls}>Fecha</label><input type="date" value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
+              <div><label style={ls}>Fecha</label><DateInput value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
               <div><label style={ls}>Importe €</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder={t('profitability.importe_del_hito')} aria-label={t('profitability.importe_del_hito')} /></div>
               <div><label style={ls}>% Contrato</label><input type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('profitability.porcentaje_del_contrato')} aria-label={t('profitability.porcentaje_del_contrato')} /></div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <Button size="sm" onClick={() => addMilestone(msForm)} disabled={!msForm.name}>{t('profitability.anadir')}</Button>
               <Button size="sm" variant="secondary" onClick={() => setShowAddMilestone(false)}>Cancelar</Button>
             </div>
@@ -450,8 +451,8 @@ export default function ProfitabilityPage() {
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => p.project_id != null && setSelectedProject(p.project_id)}>
                 <div>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{p.project_name}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.project_code} · {p.client_name || p.department || '—'}</div>
+                  <div className="u-base-600">{p.project_name}</div>
+                  <div className="u-text2-xs">{p.project_code} · {p.client_name || p.department || '—'}</div>
                 </div>
                 <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{fmtCurrency(p.billing_revenue)}</span>
                 <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.total_cost ?? p.internal_cost)}</span>
@@ -460,7 +461,7 @@ export default function ProfitabilityPage() {
                   <div style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: colorDeMargen(p.margin_pct, [0, 15, Infinity]), fontWeight: 700, marginBottom: 4 }}>{p.margin_pct == null ? '—' : `${p.margin_pct.toFixed(1)}%`}</div>
                   <MarginBar margin_pct={p.margin_pct ?? 0} />
                 </div>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{fmtHours(p.total_hours)}</span>
+                <span className="u-text2-sm">{fmtHours(p.total_hours)}</span>
                 <button onClick={e => { e.stopPropagation(); if (p.project_id != null) setSelectedProject(p.project_id) }} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Detalle</button>
               </div>
             ))}

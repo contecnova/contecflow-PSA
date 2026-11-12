@@ -11,7 +11,7 @@ from app.models.okrs import Objective, KeyResult, KRCheckin
 from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.models.user import User
-from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 
 def calc_progress(kr: KeyResult) -> float:
@@ -106,11 +106,11 @@ def sync_kr_from_tasks(
         .first()
     )
     if not kr:
-        raise HTTPException(404, "KR no encontrado")
+        raise ErrorDeDominio(404, "KR no encontrado")
 
     obj = kr.objective
     if not obj or not obj.project_id:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400,
             "El Objetivo vinculado al KR no tiene proyecto asociado. "
             "Establece project_id en el Objetivo antes de sincronizar.",

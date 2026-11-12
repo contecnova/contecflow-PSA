@@ -15,6 +15,7 @@ import { CreditCard, Download } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import FichaDeFactura from '../components/invoices/FichaDeFactura'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 interface InvoiceLine {
   description: string
@@ -290,16 +291,16 @@ function InvoicesTab() {
             return (
               <div key={inv.id} style={{display:'grid',gridTemplateColumns:COLUMNAS,gap:12,padding:'12px 18px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',alignItems:'center'}}>
                 <button type="button" onClick={() => setAbierta(String(inv.id))} title={t('invoices.ficha_abrir')} style={{fontSize: "var(--text-sm)",fontFamily:'var(--font-mono)',color:'var(--accent)',background:'none',border:'none',padding:0,cursor:'pointer',textAlign:'left',textDecoration:'underline',textUnderlineOffset:3}}>{inv.number}</button>
-                <span style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{inv.project_code||'—'}</span>
+                <span className="u-text2-xs">{inv.project_code||'—'}</span>
                 <div>
-                  <div style={{fontSize: "var(--text-base)",fontWeight:600}}>{inv.client_name||'—'}</div>
-                  {inv.po_reference && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{t('invoices.po', { ref: inv.po_reference })}</div>}
+                  <div className="u-base-600">{inv.client_name||'—'}</div>
+                  {inv.po_reference && <div className="u-text3-xs">{t('invoices.po', { ref: inv.po_reference })}</div>}
                 </div>
-                <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{inv.issue_date}</span>
+                <span className="u-text2-sm">{inv.issue_date}</span>
                 <span style={{fontSize: "var(--text-sm)",color:isOverdue?'var(--danger)':'var(--text-2)'}}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
                 <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{(inv.total||0).toLocaleString(localeActivo(),{style:'currency',currency:inv.currency||'EUR'})}</span>
                 <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 8px',borderRadius:20,background:alpha(cfg.color, '20'),color:cfg.color}}>{cfg.label}</span>
-                <div style={{display:'flex',gap:6}}>
+                <div className="u-row-6">
                   {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border-strong)',borderRadius:6,padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.send')}</button>}
                   {inv.status === 'draft' && <button onClick={() => setAbierta(String(inv.id))} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.ficha_editar')}</button>}
                   {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:6,padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
@@ -317,7 +318,7 @@ function InvoicesTab() {
 
       {showCreate && (
         <Modal open title={t('invoices.new_invoice')} onClose={() => setShowCreate(false)} width={680}>
-          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div className="u-stack-14">
             <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'12px 16px'}}>
               <div style={{fontSize: "var(--text-sm)",fontWeight:700,color:'var(--accent)',marginBottom:8}}>{t('invoices.generate_from_timesheets')}</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:10,alignItems:'flex-end'}}>
@@ -334,8 +335,8 @@ function InvoicesTab() {
                     {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
                   </select>
                 </div>
-                <div><label style={ls}>{t('invoices.period_from')}</label><input type="date" value={form.period_from} onChange={e => setForm(f=>({...f,period_from:e.target.value}))} style={fs} /></div>
-                <div><label style={ls}>{t('invoices.period_to')}</label><input type="date" value={form.period_to} onChange={e => setForm(f=>({...f,period_to:e.target.value}))} style={fs} /></div>
+                <div><label style={ls}>{t('invoices.period_from')}</label><DateInput value={form.period_from} onChange={e => setForm(f=>({...f,period_from:e.target.value}))} style={fs} /></div>
+                <div><label style={ls}>{t('invoices.period_to')}</label><DateInput value={form.period_to} onChange={e => setForm(f=>({...f,period_to:e.target.value}))} style={fs} /></div>
                 <Button onClick={() => generatePreview({ project_id: form.project_id, date_from: form.period_from, date_to: form.period_to, tax_rate: form.tax_rate })} disabled={!form.project_id}>
                   {t('invoices.generate_lines')}
                 </Button>
@@ -354,8 +355,8 @@ function InvoicesTab() {
               <div><label style={ls}>{t('invoices.client_email')}</label><input value={form.client_email} onChange={e => setForm(f=>({...f,client_email:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>{t('invoices.client_vat')}</label><input value={form.client_vat} onChange={e => setForm(f=>({...f,client_vat:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>{t('invoices.po_reference')}</label><input value={form.po_reference||''} onChange={e => setForm(f=>({...f,po_reference:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>{t('invoices.issue_date_label')}</label><input type="date" value={form.issue_date} onChange={e => setForm(f=>({...f,issue_date:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>{t('invoices.due_date_label')}</label><input type="date" value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={fs} /></div>
+              <div><label style={ls}>{t('invoices.issue_date_label')}</label><DateInput value={form.issue_date} onChange={e => setForm(f=>({...f,issue_date:e.target.value}))} style={fs} /></div>
+              <div><label style={ls}>{t('invoices.due_date_label')}</label><DateInput value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>{t('invoices.tax_rate')}</label><input type="number" value={form.tax_rate} onChange={e => setForm(f=>({...f,tax_rate:+e.target.value}))} style={fs} /></div>
               <div><label style={ls}>{t('invoices.notes')}</label><input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={fs} /></div>
             </div>
@@ -375,7 +376,7 @@ function InvoicesTab() {
               </div>
             )}
 
-            <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('invoices.cancel')}</Button>
               <Button onClick={() => create(form)} disabled={isPending || !form.client_id || !form.issue_date}>
                 {isPending ? t('invoices.creating') : t('invoices.create_invoice')}

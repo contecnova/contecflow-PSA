@@ -33,7 +33,7 @@ from app.core.deps import (
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
-from app.services.ai_dispatch import call_ai, get_default_provider
+from app.services.ai_provider_service import call_ai, get_default_provider
 from app.services.ai_provider_service import PresupuestoDeIAAgotado
 from app.services import ai_provider_service as _gobernado
 
@@ -43,7 +43,7 @@ import logging
 _logger = logging.getLogger("v16_core")
 
 # ── Service-layer delegation ──────────────────────────────────────────────────
-from app.services.ai_client import (
+from app.services.ai_governance import (
     check_prompt_injection as _check_prompt_injection,
 )
 from app.schemas.ai_chat import (

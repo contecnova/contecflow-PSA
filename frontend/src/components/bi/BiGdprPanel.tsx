@@ -14,6 +14,7 @@ import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biGdprApi, unwrapList } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import {
   Shield, AlertTriangle, CheckCircle, Download, Trash2,
   Clock, Users, ToggleLeft, ToggleRight,
@@ -93,8 +94,8 @@ const S = {
   input:    { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' } as CSSProperties,
   select:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%' } as CSSProperties,
   btn:      { padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
-  btnRed:   { padding: '6px 12px', borderRadius: 8, background: 'var(--danger)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
-  btnGreen: { padding: '6px 12px', borderRadius: 8, background: 'var(--success)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
+  btnRed:   { padding: '6px 12px', borderRadius: 8, background: 'var(--danger)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
+  btnGreen: { padding: '6px 12px', borderRadius: 8, background: 'var(--success)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
   btnGhost: { padding: '6px 12px', borderRadius: 8, background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' } as CSSProperties,
   row:      { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } as CSSProperties,
   badge:    (color: string): CSSProperties => ({ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: `color-mix(in srgb, ${color} 13%, transparent)`, color }),
@@ -149,6 +150,7 @@ function DsrTab() {
   const t  = useAppT()
   const isNarrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
+  const { confirmar } = useConfirm()
   const [form, setForm]         = useState<DsrForm>({ user_id: '', request_type: 'erasure', notes: '' })
   const [statusFilter, setFilter] = useState<string>('')
   const [expandedId, setExpanded] = useState<string | number | null>(null)
@@ -221,14 +223,14 @@ function DsrTab() {
       {isLoading ? (
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>Cargando…</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="u-stack-6">
           {dsrs.map((dsr) => {
             const overdue  = isOverdue(dsr)
             const expanded = expandedId === dsr.id
             return (
               <div key={dsr.id} style={{ ...S.innerCard }}>
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: isNarrow ? 'wrap' : undefined, gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{dsr.subject_id ?? dsr.user_id}</span>
                       <span style={S.badge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{dsr.request_type}</span>
@@ -246,7 +248,16 @@ function DsrTab() {
                     {dsr.status === 'pending' && (
                       <>
                         {dsr.request_type === 'erasure' && (
-                          <button onClick={() => { if (window.confirm('¿Ejecutar borrado irreversible de datos PII?')) erasureMut.mutate(dsr.id) }}
+                          <button onClick={async () => {
+                              const ok = await confirmar({
+                                title: 'Borrado irreversible de datos personales',
+                                message: `Se borrarán de forma permanente los datos PII del usuario ${dsr.user_id}. Esta acción no se puede deshacer.`,
+                                danger: true,
+                                confirmLabel: 'Borrar PII',
+                                palabraConfirmacion: 'BORRAR',
+                              })
+                              if (ok) erasureMut.mutate(dsr.id)
+                            }}
                             disabled={erasureMut.isPending} style={{ ...S.btnRed, opacity: erasureMut.isPending ? 0.5 : 1 }}>
                             <Trash2 size={11} style={{ verticalAlign: 'middle' }} /> Borrar PII
                           </button>
@@ -343,10 +354,10 @@ function ConsentTab() {
       {isLoading ? (
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>Cargando…</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="u-stack-6">
           {consents.map((c, i) => (
             <div key={c.user_id ?? i} style={S.row}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="u-flex1-min0">
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{c.user_id}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>
                   {c.purpose && <span style={{ marginRight: 8 }}>{c.purpose}</span>}
@@ -385,7 +396,7 @@ function ConsentTab() {
             <button onClick={() => setHistUser(null)} style={{ ...S.btnGhost, padding: '3px 8px' }}>✕</button>
           </div>
           {!(historyData.history?.length) ? (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('bigdpr.sin_historial')}</div>
+            <div className="u-text3-sm">{t('bigdpr.sin_historial')}</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {(historyData.history || []).map((h, idx) => (
@@ -436,7 +447,7 @@ function MasksTab() {
           {t('bi.gdpr.add_mask', 'Añadir máscara')}
         </button>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="u-stack-6">
         {(unwrapList(masksData) as NonNullable<MaskListResponse['items']>).map((m, i) => (
           <div key={i} style={{ ...S.row, justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{m.dataset ?? m.entity}.{m.field}</span>
@@ -483,7 +494,7 @@ function StatsTab() {
       {byType.length > 0 && (
         <div style={{ ...S.innerCard, marginBottom: 12 }}>
           <div style={S.sectionTitle}>{t('bigdpr.dsrs_por_tipo')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="u-stack-8">
             {byType.map(({ type, count }) => (
               <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ ...S.badge(TYPE_COLOR[type] ?? 'var(--text-3)'), minWidth: 110, display: 'inline-block' }}>{type}</span>

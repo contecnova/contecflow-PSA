@@ -9,6 +9,7 @@ Funciones exportadas (públicas):
 from __future__ import annotations
 
 import logging
+import os
 import time
 import json
 from datetime import datetime, timezone
@@ -22,7 +23,9 @@ from app.core.encryption import encrypt_value, decrypt_value
 from app.models.ai_providers import AIProvider
 from app.models.ai_providers import AIUsageLog
 from app.models.user import User
+from app.core.asignacion import es_asignable
 from sqlalchemy import func as sqlfunc
+from app.core.errores import ErrorDeDominio
 
 _logger = logging.getLogger("ai_provider_service")
 
@@ -41,18 +44,31 @@ def _normalize_ollama_base(base_url: str) -> str:
     return base
 
 # ── Catálogo de modelos por proveedor ─────────────────────────────────────────
+# Auditoria 2026-11: los modelos y sus precios ($/M tokens, usados para el coste
+# de cada llamada) estaban escritos aqui; cambian cada pocos meses y obligaban a
+# tocar codigo. Ahora salen de `app/core/ai_models.json`, y una instalacion puede
+# usar el suyo con `AI_MODELS_CATALOG_PATH` sin desplegar codigo.
+_MODELOS_POR_DEFECTO = os.path.join(os.path.dirname(os.path.dirname(__file__)), "core", "ai_models.json")
+
+
+def _cargar_modelos() -> dict:
+    ruta = os.getenv("AI_MODELS_CATALOG_PATH") or _MODELOS_POR_DEFECTO
+    with open(ruta, encoding="utf-8") as fichero:
+        return json.load(fichero)
+
+
+_MODELOS = _cargar_modelos()
+
+
+def _modelos(proveedor: str) -> list:
+    return _MODELOS.get(proveedor, [])
+
+
 PROVIDER_CATALOG = {
     "anthropic": {
         "name": "Anthropic (Claude)",
         "icon": "🟠",
-        "models": [
-            {"id": "claude-opus-4-5",               "name": "Claude Opus 4.5",             "context": 200000, "cost_in": 15.0,  "cost_out": 75.0},
-            {"id": "claude-sonnet-4-5",              "name": "Claude Sonnet 4.5",           "context": 200000, "cost_in": 3.0,   "cost_out": 15.0},
-            {"id": "claude-haiku-4-5",               "name": "Claude Haiku 4.5",            "context": 200000, "cost_in": 0.80,  "cost_out": 4.0},
-            {"id": "claude-3-7-sonnet-20250219",     "name": "Claude 3.7 Sonnet",           "context": 200000, "cost_in": 3.0,   "cost_out": 15.0},
-            {"id": "claude-3-5-sonnet-20241022",     "name": "Claude 3.5 Sonnet",           "context": 200000, "cost_in": 3.0,   "cost_out": 15.0},
-            {"id": "claude-3-5-haiku-20241022",      "name": "Claude 3.5 Haiku",            "context": 200000, "cost_in": 0.80,  "cost_out": 4.0},
-        ],
+        "models": _modelos("anthropic"),
         "base_url": settings.ANTHROPIC_API_URL,
         "key_hint": "sk-ant-...",
         "docs_url": settings.ANTHROPIC_DOCS_URL,
@@ -60,15 +76,7 @@ PROVIDER_CATALOG = {
     "openai": {
         "name": "OpenAI",
         "icon": "🟢",
-        "models": [
-            {"id": "gpt-4o",      "name": "GPT-4o",       "context": 128000, "cost_in": 2.50, "cost_out": 10.0},
-            {"id": "gpt-4o-mini", "name": "GPT-4o Mini",  "context": 128000, "cost_in": 0.15, "cost_out": 0.60},
-            {"id": "o3",          "name": "o3 (razonamiento)", "context": 200000, "cost_in": 10.0, "cost_out": 40.0},
-            {"id": "o3-mini",     "name": "o3-mini",      "context": 200000, "cost_in": 1.10, "cost_out": 4.40},
-            {"id": "o4-mini",     "name": "o4-mini",      "context": 200000, "cost_in": 1.10, "cost_out": 4.40},
-            {"id": "o1",          "name": "o1",           "context": 200000, "cost_in": 15.0, "cost_out": 60.0},
-            {"id": "o1-mini",     "name": "o1-mini",      "context": 128000, "cost_in": 3.0,  "cost_out": 12.0},
-        ],
+        "models": _modelos("openai"),
         "base_url": settings.OPENAI_API_URL,
         "key_hint": "sk-...",
         "docs_url": settings.OPENAI_DOCS_URL,
@@ -76,12 +84,7 @@ PROVIDER_CATALOG = {
     "gemini": {
         "name": "Google (Gemini)",
         "icon": "🔵",
-        "models": [
-            {"id": "gemini-2.5-pro",        "name": "Gemini 2.5 Pro",        "context": 1000000, "cost_in": 1.25,  "cost_out": 10.0},
-            {"id": "gemini-2.5-flash",      "name": "Gemini 2.5 Flash",      "context": 1000000, "cost_in": 0.15,  "cost_out": 0.60},
-            {"id": "gemini-2.0-flash",      "name": "Gemini 2.0 Flash",      "context": 1000000, "cost_in": 0.10,  "cost_out": 0.40},
-            {"id": "gemini-2.0-flash-lite", "name": "Gemini 2.0 Flash Lite", "context": 1000000, "cost_in": 0.075, "cost_out": 0.30},
-        ],
+        "models": _modelos("gemini"),
         "base_url": settings.GEMINI_API_URL,
         "key_hint": "AIza...",
         "docs_url": settings.GEMINI_DOCS_URL,
@@ -89,10 +92,7 @@ PROVIDER_CATALOG = {
     "deepseek": {
         "name": "DeepSeek",
         "icon": "🐋",
-        "models": [
-            {"id": "deepseek-chat",     "name": "DeepSeek-V3", "context": 64000, "cost_in": 0.27, "cost_out": 1.10},
-            {"id": "deepseek-reasoner", "name": "DeepSeek-R1", "context": 64000, "cost_in": 0.55, "cost_out": 2.19},
-        ],
+        "models": _modelos("deepseek"),
         "base_url": settings.DEEPSEEK_API_URL,
         "key_hint": "sk-...",
         "docs_url": settings.DEEPSEEK_DOCS_URL,
@@ -100,14 +100,7 @@ PROVIDER_CATALOG = {
     "groq": {
         "name": "Groq (ultra rápido)",
         "icon": "⚡",
-        "models": [
-            {"id": "meta-llama/llama-4-maverick-17b-128e-instruct", "name": "Llama 4 Maverick 17B", "context": 131072, "cost_in": 0.20, "cost_out": 0.60},
-            {"id": "meta-llama/llama-4-scout-17b-16e-instruct",     "name": "Llama 4 Scout 17B",    "context": 131072, "cost_in": 0.11, "cost_out": 0.34},
-            {"id": "llama-3.3-70b-versatile",  "name": "Llama 3.3 70B",         "context": 128000, "cost_in": 0.59, "cost_out": 0.79},
-            {"id": "llama-3.1-8b-instant",     "name": "Llama 3.1 8B",          "context": 128000, "cost_in": 0.05, "cost_out": 0.08},
-            {"id": "qwen-qwq-32b",             "name": "QwQ 32B (razonamiento)", "context": 131072, "cost_in": 0.29, "cost_out": 0.39},
-            {"id": "gemma2-9b-it",             "name": "Gemma 2 9B",             "context": 8192,   "cost_in": 0.20, "cost_out": 0.20},
-        ],
+        "models": _modelos("groq"),
         "base_url": settings.GROQ_API_URL,
         "key_hint": "gsk_...",
         "docs_url": settings.GROQ_DOCS_URL,
@@ -115,14 +108,7 @@ PROVIDER_CATALOG = {
     "mistral": {
         "name": "Mistral AI",
         "icon": "🌪",
-        "models": [
-            {"id": "mistral-large-latest", "name": "Mistral Large",   "context": 131000, "cost_in": 2.0,  "cost_out": 6.0},
-            {"id": "mistral-small-latest", "name": "Mistral Small 3", "context": 32000,  "cost_in": 0.10, "cost_out": 0.30},
-            {"id": "codestral-latest",     "name": "Codestral",       "context": 256000, "cost_in": 0.30, "cost_out": 0.90},
-            {"id": "ministral-8b-latest",  "name": "Ministral 8B",    "context": 131000, "cost_in": 0.10, "cost_out": 0.10},
-            {"id": "mistral-saba-latest",  "name": "Mistral Saba",    "context": 32000,  "cost_in": 0.20, "cost_out": 0.60},
-            {"id": "open-mistral-nemo",    "name": "Mistral Nemo 12B","context": 128000, "cost_in": 0.15, "cost_out": 0.15},
-        ],
+        "models": _modelos("mistral"),
         "base_url": settings.MISTRAL_API_URL,
         "key_hint": "...",
         "docs_url": settings.MISTRAL_DOCS_URL,
@@ -130,20 +116,7 @@ PROVIDER_CATALOG = {
     "ollama": {
         "name": "Ollama (local)",
         "icon": "🦙",
-        "models": [
-            {"id": "llama3.3",       "name": "Llama 3.3 70B",      "context": 128000, "cost_in": 0, "cost_out": 0},
-            {"id": "llama3.2",       "name": "Llama 3.2 3B",       "context": 128000, "cost_in": 0, "cost_out": 0},
-            {"id": "llama3.1:70b",   "name": "Llama 3.1 70B",      "context": 128000, "cost_in": 0, "cost_out": 0},
-            {"id": "gemma3",         "name": "Gemma 3 4B",         "context": 128000, "cost_in": 0, "cost_out": 0},
-            {"id": "gemma3:27b",     "name": "Gemma 3 27B",        "context": 128000, "cost_in": 0, "cost_out": 0},
-            {"id": "phi4",           "name": "Phi-4 14B",          "context": 16000,  "cost_in": 0, "cost_out": 0},
-            {"id": "qwen2.5",        "name": "Qwen 2.5 7B",        "context": 128000, "cost_in": 0, "cost_out": 0},
-            {"id": "qwen2.5-coder",  "name": "Qwen 2.5 Coder 7B",  "context": 128000, "cost_in": 0, "cost_out": 0},
-            {"id": "deepseek-r1",    "name": "DeepSeek-R1 8B",     "context": 64000,  "cost_in": 0, "cost_out": 0},
-            {"id": "mistral",        "name": "Mistral 7B",         "context": 32000,  "cost_in": 0, "cost_out": 0},
-            {"id": "mistral-nemo",   "name": "Mistral Nemo 12B",   "context": 128000, "cost_in": 0, "cost_out": 0},
-            {"id": "codellama",      "name": "CodeLlama",          "context": 16000,  "cost_in": 0, "cost_out": 0},
-        ],
+        "models": _modelos("ollama"),
         "base_url": settings.OLLAMA_BASE_URL + "/api/chat",
         "key_hint": "(no requiere clave)",
         "docs_url": settings.OLLAMA_DOCS_URL,
@@ -151,12 +124,7 @@ PROVIDER_CATALOG = {
     "azure": {
         "name": "Azure OpenAI",
         "icon": "☁️",
-        "models": [
-            {"id": "gpt-4o",      "name": "GPT-4o",      "context": 128000, "cost_in": 2.50, "cost_out": 10.0},
-            {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "context": 128000, "cost_in": 0.15, "cost_out": 0.60},
-            {"id": "o3-mini",     "name": "o3-mini",     "context": 200000, "cost_in": 1.10, "cost_out": 4.40},
-            {"id": "o4-mini",     "name": "o4-mini",     "context": 200000, "cost_in": 1.10, "cost_out": 4.40},
-        ],
+        "models": _modelos("azure"),
         "base_url": settings.AZURE_OPENAI_API_URL,
         "key_hint": "(Azure API key)",
         "docs_url": settings.AZURE_OPENAI_DOCS_URL,
@@ -580,8 +548,7 @@ def update_provider(db: Session, provider, data: dict, *,
                     is_superadmin: bool, organization_id) -> object:
     fuera = set(data) - CAMPOS_EDITABLES_DEL_PROVEEDOR
     if fuera:
-        from fastapi import HTTPException
-        raise HTTPException(400, f"No se pueden cambiar: {', '.join(sorted(fuera))}")
+        raise ErrorDeDominio(400, f"No se pueden cambiar: {', '.join(sorted(fuera))}")
     if data.get("is_default"):
         _clear_default(db, is_superadmin=is_superadmin, organization_id=organization_id)
 
@@ -595,7 +562,7 @@ def update_provider(db: Session, provider, data: dict, *,
             v = encrypt_value(v)
         if k in {"api_key", "api_base_url", "default_model", "provider", "available_models"}:
             changed_runtime_fields = True
-        if hasattr(provider, k):
+        if es_asignable(provider, k):
             setattr(provider, k, v)
 
     if changed_runtime_fields:

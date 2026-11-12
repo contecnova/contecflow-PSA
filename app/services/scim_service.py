@@ -1,5 +1,6 @@
 """SCIM service — provisioning helpers (RFC 7644)."""
 from __future__ import annotations
+import logging
 
 import hashlib
 import hmac
@@ -14,6 +15,7 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.mfa import Organization
 from app.models.user import User, UserRole, UserStatus
+from app.core.errores import ErrorDeDominio
 
 
 def registrar_borrado_en_auditoria(
@@ -44,6 +46,26 @@ def registrar_borrado_en_auditoria(
     ))
 
 
+def auditar_borrado_y_confirmar(db, user_id: str, org_id: str, aplicado: bool) -> None:
+    """`registrar_borrado_en_auditoria` y confirma; best-effort.
+
+    Si falla, deshace antes de salir: sin esto la sesion se queda en
+    transaccion abortada y cualquier cosa que la reutilice falla con un error
+    que no tiene nada que ver con su causa. Auditoria 2026-08, hallazgo 22.
+
+    Que el rastro de auditoria de un BORRADO DE USUARIO sea best-effort es
+    decision declarada, no un descuido — pero conviene saber que un borrado
+    puede quedar sin registro.
+    """
+    try:
+        registrar_borrado_en_auditoria(db, user_id, org_id, aplicado)
+        db.commit()
+    except Exception:  # pragma: no cover — audit best-effort
+        db.rollback()
+        import logging
+        logging.getLogger(__name__).exception("SCIM delete audit failed")
+
+
 def scim_token_expected() -> str:
     return settings.SCIM_BEARER_TOKEN
 
@@ -65,7 +87,7 @@ def generate_scim_token(db: Session, org_id: str) -> str:
         .first()
     )
     if not org:
-        raise HTTPException(status_code=404, detail="Organización no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Organización no encontrada")
     token = secrets.token_urlsafe(32)
     org.scim_token_hash = hash_scim_token(token)
     db.commit()
@@ -124,13 +146,13 @@ def require_scim_token(
         is not None
     )
     if not legacy_configured and not any_per_org:
-        raise HTTPException(status_code=503, detail="SCIM no configurado")
+        raise ErrorDeDominio(status_code=503, detail="SCIM no configurado")
 
     if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Token SCIM requerido")
+        raise ErrorDeDominio(status_code=401, detail="Token SCIM requerido")
     provided = authorization.split(" ", 1)[1].strip()
     if not provided:
-        raise HTTPException(status_code=401, detail="Token SCIM requerido")
+        raise ErrorDeDominio(status_code=401, detail="Token SCIM requerido")
 
     # 1) Per-org token: resolve the org by the presented token's hash.
     token_hash = hash_scim_token(provided)
@@ -148,16 +170,16 @@ def require_scim_token(
     if resolved is not None:
         # Token is valid for SOME org — it must be the one in the path.
         if not hmac.compare_digest(resolved.id, org_id):
-            raise HTTPException(status_code=403, detail="Token SCIM inválido para esta organización")
+            raise ErrorDeDominio(status_code=403, detail="Token SCIM inválido para esta organización")
         if not resolved.is_active:
-            raise HTTPException(status_code=404, detail="Organización no encontrada")
+            raise ErrorDeDominio(status_code=404, detail="Organización no encontrada")
         return resolved
 
     # 2) Legacy global token (backward compat).
     if _legacy_global_token_allows(org_id, provided):
         return ensure_org(db, org_id)
 
-    raise HTTPException(status_code=403, detail="Token SCIM inválido")
+    raise ErrorDeDominio(status_code=403, detail="Token SCIM inválido")
 
 
 def ensure_org(db: Session, org_id: str) -> Organization:
@@ -167,7 +189,7 @@ def ensure_org(db: Session, org_id: str) -> Organization:
         .first()
     )
     if not org:
-        raise HTTPException(status_code=404, detail="Organización no encontrada")
+        raise ErrorDeDominio(status_code=404, detail="Organización no encontrada")
     return org
 
 
@@ -212,6 +234,7 @@ def parse_role(value: Optional[str]) -> UserRole:
     try:
         return UserRole(value)
     except Exception:
+        logging.getLogger(__name__).debug("parse_role: excepcion ignorada", exc_info=True)
         return UserRole.employee
 
 
@@ -219,7 +242,7 @@ def create_scim_user(org_id: str, payload: dict, db: Session) -> User:
     """Create a new SCIM-provisioned user.  Raises 400/409 on validation errors."""
     user_name = payload.get("userName")
     if not user_name:
-        raise HTTPException(status_code=400, detail="userName requerido")
+        raise ErrorDeDominio(status_code=400, detail="userName requerido")
 
     name = payload.get("name") or {}
     given = name.get("givenName") or ""
@@ -235,7 +258,7 @@ def create_scim_user(org_id: str, payload: dict, db: Session) -> User:
         (User.username == user_name) | (User.email == email)
     ).first()
     if existing:
-        raise HTTPException(status_code=409, detail="Usuario ya existe")
+        raise ErrorDeDominio(status_code=409, detail="Usuario ya existe")
     # Revisión 2026-11: el cupo del plan también por SCIM (antes se saltaba).
     from app.services.organizations_service import exigir_cupo
     exigir_cupo(db, org_id, "users")
@@ -425,7 +448,7 @@ def process_bulk_operation(
         from app.services.organizations_service import exigir_cupo
         try:
             exigir_cupo(db, org_id, "users")
-        except HTTPException as e:
+        except (HTTPException, ErrorDeDominio) as e:
             raise ValueError(str(e.detail)) from e
         role = parse_role(((data.get("roles") or [{}])[0] or {}).get("value"))
         new_user = User(
@@ -613,6 +636,7 @@ def process_bulk_operations(
         try:
             responses.append(process_bulk_operation(org_id, op, db))
         except Exception as exc:
+            logging.getLogger(__name__).debug("process_bulk_operations: excepcion ignorada", exc_info=True)
             error_count += 1
             responses.append({
                 "method": (op.get("method") or "").upper(),

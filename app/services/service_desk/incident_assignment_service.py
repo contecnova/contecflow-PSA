@@ -21,11 +21,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
 from app.models.settings import AppSetting
+from app.core.errores import ErrorDeDominio
 
 # Ningun modelo entrenado: el metodo es por reglas (ver la cabecera).
 _LGBM_AVAILABLE = False
@@ -110,7 +110,7 @@ def recommend_assignment(
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+        raise ErrorDeDominio(status_code=404, detail="Ticket no encontrado")
 
     members: list[Any] = []
     if ticket.assigned_group_id:
@@ -392,6 +392,7 @@ def _get_setting(db: Session, key: str, org_id: Optional[str]) -> dict:
     try:
         return json.loads(row.value)
     except Exception:
+        logger.debug("_get_setting: excepcion ignorada", exc_info=True)
         return {}
 
 

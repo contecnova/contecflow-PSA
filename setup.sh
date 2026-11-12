@@ -1127,7 +1127,7 @@ start_services() {
         log "SQLite recuperada correctamente tras limpiar WAL/SHM"
       else
         error "SQLite sigue en estado inválido: $SQLITE_RECHECK_OUTPUT"
-        error "Ejecuta: rm -f contecflow.db* && $PY_BIN -m app.db.migrate"
+        error "Ejecuta: rm -f contecflow.db* && $PY_BIN -m alembic upgrade head"
         exit 1
       fi
     fi

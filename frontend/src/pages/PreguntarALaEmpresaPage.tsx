@@ -15,12 +15,13 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { BadgeCheck, Database, MessageSquareText, Send, ShieldAlert, Sigma } from 'lucide-react'
-import { conectoresApi, mensajeDeConector } from '../services/api'
+import { conectoresApi, mensajeDeConector, apiStream } from '../services/api'
 import type { Metrica, RespuestaCI } from '../services/api'
 import { Button, EmptyState, Page, Spinner, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import { localeActivo } from '../utils/helpers'
+import DateInput from '../components/ui/DateInput'
 
 type Fila = Record<string, unknown>
 type Grafico = { type?: string; title?: string; data?: Fila[]; xAxis?: { key: string; label: string } | null
@@ -30,9 +31,6 @@ const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius
 const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 const sub: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }
 
-function leerCookie(n: string) {
-  return document.cookie.split('; ').find(c => c.startsWith(n + '='))?.split('=')[1]
-}
 const valorTexto = (v: unknown) => typeof v === 'number' ? v.toLocaleString(localeActivo()) : v == null ? '—' : String(v)
 
 export default function PreguntarALaEmpresaPage() {
@@ -94,10 +92,10 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
     cancelar.current = ctrl
     setPensando(true); setProgreso([]); setTexto(''); setRespuesta(null); setError(null)
     try {
-      const resp = await fetch(`${(import.meta.env.VITE_API_URL as string | undefined) || '/api/v1'}/conectores/contecintelligence/preguntar/directo`, {
-        method: 'POST', credentials: 'include', signal: ctrl.signal,
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': leerCookie('csrf_token') || '' },
-        body: JSON.stringify({ question: q, source_id: fuente || undefined, conversation_id: conversacion }),
+      // apiStream: el cliente API en versión flujo (CSRF, cookies, refresco de sesión).
+      const resp = await apiStream('/conectores/contecintelligence/preguntar/directo', {
+        signal: ctrl.signal,
+        body: { question: q, source_id: fuente || undefined, conversation_id: conversacion },
       })
       if (!resp.ok || !resp.body) {
         const err = await resp.json().catch(() => ({ detail: '' }))
@@ -134,7 +132,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="u-stack-14">
       <form style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={e => { e.preventDefault(); enviar() }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <label style={sub} htmlFor="ci-fuente">{t('ci.fuente')}</label>
@@ -149,7 +147,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
             <Button size="xs" variant="ghost" onClick={() => { setConversacion(null); setRespuesta(null); setTexto('') }}>{t('ci.nueva_conversacion')}</Button>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="u-row-8">
           <textarea aria-label={t('ci.pregunta')} rows={2} value={pregunta} onChange={e => setPregunta(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }}
             placeholder={t('ci.pregunta_placeholder')} style={{ ...campo, flex: 1, resize: 'vertical' }} />
@@ -159,7 +157,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
 
       {(pensando || progreso.length > 0) && !respuesta && (
         <div style={caja} aria-live="polite">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{pensando && <Spinner size={16} />}<strong style={{ fontSize: 'var(--text-sm)' }}>{t('ci.calculando')}</strong></div>
+          <div className="u-row-center-8">{pensando && <Spinner size={16} />}<strong className="u-sm">{t('ci.calculando')}</strong></div>
           <ol style={{ margin: '8px 0 0', paddingLeft: 18, ...sub }}>{progreso.slice(-8).map((p, i) => <li key={i}>{p}</li>)}</ol>
           {texto && <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 'var(--text-sm)' }}>{texto}</div>}
         </div>
@@ -207,7 +205,7 @@ function Datos({ g }: { g: Grafico }) {
   const dibujable = !!x && series.length > 0 && ['bar_chart', 'line_chart', 'timeseries_line', 'area_chart', 'combo_chart'].includes(g.type || '')
   const Grafica = g.type === 'bar_chart' ? BarChart : LineChart
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-stack-12">
       {dibujable && (
         <div style={{ height: 260 }} role="img" aria-label={g.title}>
           <ResponsiveContainer>
@@ -308,21 +306,21 @@ function DetalleMetrica({ m }: { m: Metrica }) {
       )}
 
       <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <strong style={{ fontSize: 'var(--text-sm)' }}>{t('ci.explicar_cambio')}</strong>
+        <strong className="u-sm">{t('ci.explicar_cambio')}</strong>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input aria-label={t('ci.columna_fecha')} placeholder={t('ci.columna_fecha')} value={col} onChange={e => setCol(e.target.value)} style={campo} />
           <span style={sub}>{t('ci.periodo_actual')}</span>
-          <input type="date" aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} style={campo} />
-          <input type="date" aria-label={t('ci.periodo_actual')} value={actual.end} onChange={e => setActual(v => ({ ...v, end: e.target.value }))} style={campo} />
+          <DateInput aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} style={campo} />
+          <DateInput aria-label={t('ci.periodo_actual')} value={actual.end} onChange={e => setActual(v => ({ ...v, end: e.target.value }))} style={campo} />
           <span style={sub}>{t('ci.periodo_anterior')}</span>
-          <input type="date" aria-label={t('ci.periodo_anterior')} value={anterior.start} onChange={e => setAnterior(v => ({ ...v, start: e.target.value }))} style={campo} />
-          <input type="date" aria-label={t('ci.periodo_anterior')} value={anterior.end} onChange={e => setAnterior(v => ({ ...v, end: e.target.value }))} style={campo} />
+          <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.start} onChange={e => setAnterior(v => ({ ...v, start: e.target.value }))} style={campo} />
+          <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.end} onChange={e => setAnterior(v => ({ ...v, end: e.target.value }))} style={campo} />
           <Button size="sm" variant="secondary" disabled={!col} loading={explicar.isPending} onClick={() => explicar.mutate()}>{t('ci.explicar')}</Button>
         </div>
         {explicar.isError && <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{mensajeDeConector(explicar.error, t('ci.error'))}</div>}
         {exp && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 'var(--text-sm)' }}>
+          <div className="u-stack-8">
+            <div className="u-sm">
               {valorTexto(exp.antes)} → <strong>{valorTexto(exp.despues)}</strong> ({exp.delta != null && exp.delta >= 0 ? '+' : ''}{valorTexto(exp.delta)}{exp.delta_pct != null ? `, ${exp.delta_pct.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })} %` : ''})
             </div>
             {exp.aviso && <div style={{ ...sub, color: 'var(--warning)' }}>{exp.aviso}</div>}

@@ -30,6 +30,7 @@ El guardián general está en `test_miembros_de_enum_existen.py`.
 from __future__ import annotations
 
 import pytest
+from app.core.errores import ErrorDeDominio
 
 SECRETO = "secreto-de-la-pasarela"
 
@@ -108,7 +109,7 @@ def test_un_secreto_que_no_cuadra_no_crea_nada(db, agente, monkeypatch):
     from app.services.service_desk import inbound_email_service as svc
 
     monkeypatch.setattr(settings, "INBOUND_EMAIL_SECRET", SECRETO)
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.process_inbound_email(db, {"from": "x@example.com", "subject": "hola"}, provided_secret="otro")
     assert exc.value.status_code in (401, 403)
     assert db.query(Ticket).count() == 0

@@ -184,9 +184,8 @@ def revoke_api_key(key_id: str, db: Session = Depends(get_db),
     return APIResponse.ok(data=svc.revoke_api_key_record(key_id, current_user.id, db))
 
 
-@router.post("/api-keys/verify")
-def verify_api_key_endpoint(payload: dict = Body(...), db: Session = Depends(get_db)):
-    return APIResponse.ok(data=svc.verify_api_key_record(payload.get("key", ""), db))
+# Auditoria 2026-11: se quito `POST /api-keys/verify` (sin autenticar). Era un
+# oraculo de claves y sobraba: la clave ya autentica (`GET /auth/me` con ella).
 
 
 # ── Recurring Invoices ────────────────────────────────────────────────────────

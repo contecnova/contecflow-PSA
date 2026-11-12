@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, tasksApi, risksApi } from '../services/api'
+import { projectsApi, tasksApi, risksApi, type ProjectDetail, type ProjectUpdatePayload } from '../services/api'
 import { Spinner, LoadBar as LoadBarRaw } from '../components/ui'
 import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -12,19 +12,26 @@ import LeccionesDelProyecto from '../components/lecciones/LeccionesDeOrigen'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 // LoadBar's inferred props are all-required; expose a loose signature for callers.
 const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: number; label?: string; color?: string }) => JSX.Element
 
 // ── Loose project / task / member / risk shapes (API slices are narrowly typed) ──
  
-type Project = { [k: string]: any; id: string; name?: string; status?: string }
+/**
+ * `ProjectOut` (app/schemas/projects.py), tal como lo tipa el slice de proyectos.
+ * `pm_name` NO viene en `GET /projects/{id}` (ProjectOut trae `project_manager`):
+ * la pantalla lo lee igualmente, así que el PM no se muestra nunca. Se declara
+ * opcional para no cambiar el comportamiento; ver informe de la auditoría #25.
+ */
+type Project = ProjectDetail & { pm_name?: string | null }
  
-type Task = { [k: string]: any; id?: string; status?: string; title?: string; assignee_name?: string; due_date?: string }
+type Task = { id?: string; status?: string; title?: string; assignee_name?: string; due_date?: string }
  
-type Member = { [k: string]: any; id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null }
+type Member = { id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null }
  
-type Risk = { [k: string]: any; id?: string; title?: string; description?: string; impact?: string; severity?: string; status?: string }
+type Risk = { id?: string; title?: string; description?: string; impact?: string; severity?: string; status?: string }
 
 const STATUS_COLOR_MAP: Record<string, string> = {
   planning:  'var(--text-2)',
@@ -155,9 +162,9 @@ function TasksTab({ projectId }: { projectId?: string }) {
   const done   = tasks.filter(tk => tk.status === 'done' || tk.status === 'closed')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-stack-12">
       <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-3)', paddingBottom: 4 }}>
-        <span>{t('project_detail.total')}: <b style={{ color: 'var(--text-1)' }}>{tasks.length}</b></span>
+        <span>{t('project_detail.total')}: <b className="u-text1">{tasks.length}</b></span>
         <span>{t('project_detail.open_tasks')}: <b style={{ color: 'var(--accent)' }}>{open.length}</b></span>
         <span>{t('project_detail.completed_tasks')}: <b style={{ color: 'var(--success)' }}>{done.length}</b></span>
       </div>
@@ -171,7 +178,7 @@ function TasksTab({ projectId }: { projectId?: string }) {
             width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
             background: STATUS_COLOR[task.status || ''] || 'var(--text-3)',
           }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="u-flex1-min0">
             <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {task.title}
             </div>
@@ -220,7 +227,7 @@ function TeamTab({ projectId }: { projectId?: string }) {
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="u-stack-8">
       {members.map((m, i) => (
         <div key={m.id || m.user_id || i} style={{
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -235,7 +242,7 @@ function TeamTab({ projectId }: { projectId?: string }) {
           }}>
             {(m.full_name || m.name || '?').charAt(0).toUpperCase()}
           </div>
-          <div style={{ flex: 1 }}>
+          <div className="u-flex1">
             <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{m.full_name || m.name || '—'}</div>
             {(m.role || m.project_role) && (
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 1 }}>{m.role || m.project_role}</div>
@@ -278,7 +285,7 @@ function RisksTab({ projectId }: { projectId?: string }) {
   const IMPACT_COLOR: Record<string, string> = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--danger)' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="u-stack-8">
       {risks.map((risk, i) => {
         const impColor = IMPACT_COLOR[risk.impact || risk.severity || ''] || 'var(--text-3)'
         return (
@@ -316,9 +323,17 @@ function RisksTab({ projectId }: { projectId?: string }) {
   )
 }
 
+type EditProjectFormState = {
+  name: string
+  description: string
+  status: string
+  end_date_planned: string
+  budget_amount: number | string
+}
+
 function EditProjectForm({ project, onSave, onCancel, isPending }: {
   project: Project
-  onSave: (form: Record<string, string>) => void
+  onSave: (form: EditProjectFormState) => void
   onCancel: () => void
   isPending: boolean
 }) {
@@ -333,14 +348,15 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
     cancelled: { color: STATUS_COLOR_MAP.cancelled, label: t('project_detail.status_cancelled') },
     archived:  { color: STATUS_COLOR_MAP.archived,  label: t('project_detail.status_archived') },
   }
-  const [form, setForm] = useState<Record<string, string>>({
+  // `budget_amount` arranca con el número del proyecto y pasa a texto al editarlo.
+  const [form, setForm] = useState<EditProjectFormState>({
     name: project.name || '',
     description: project.description || '',
     status: project.status || 'active',
     end_date_planned: project.end_date_planned?.slice(0, 10) || '',
     budget_amount: project.budget_amount ?? '',
   })
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+  const set = (k: keyof EditProjectFormState, v: string) => setForm(f => ({ ...f, [k]: v }))
   const inputStyle: CSSProperties = {
     width: '100%', boxSizing: 'border-box',
     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -367,7 +383,7 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
       </div>
       <div>
         <label style={labelStyle}>{t('project_detail.end_date_label')}</label>
-        <input type="date" value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} style={inputStyle}
+        <DateInput value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} style={inputStyle}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
@@ -384,7 +400,7 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="u-row-8">
         <button onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
           style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: 'var(--on-accent)', cursor: isPending || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit', opacity: !form.name.trim() ? 0.5 : 1 }}>
           <Check size={13} />{isPending ? t('project_detail.saving') : t('project_detail.save_changes')}
@@ -427,12 +443,13 @@ export default function ProjectDetailPage() {
 
   const { data: project, isLoading } = useQuery<Project>({
     queryKey: ['project', id],
-    queryFn: () => projectsApi.get(id!).then(r => r.data as Project),
+    queryFn: () => projectsApi.get(id!).then(r => r.data),
     staleTime: 30_000,
   })
 
   const { mutate: updateProject, isPending: saving } = useMutation({
-    mutationFn: (data: Record<string, string>) => projectsApi.update(id!, data as Record<string, never>),
+    // El formulario manda `status` y `budget_amount` tal como salen de los inputs (texto).
+    mutationFn: (data: EditProjectFormState) => projectsApi.update(id!, data as ProjectUpdatePayload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', id] })
       qc.invalidateQueries({ queryKey: ['projects'] })
@@ -512,10 +529,10 @@ export default function ProjectDetailPage() {
                 </span>
               )}
               {project.pm_name && (
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('project_detail.pm_label')}: {project.pm_name}</span>
+                <span className="u-text2-sm">{t('project_detail.pm_label')}: {project.pm_name}</span>
               )}
               {project.client_name && (
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>· {project.client_name}</span>
+                <span className="u-text2-sm">· {project.client_name}</span>
               )}
             </div>
           </div>

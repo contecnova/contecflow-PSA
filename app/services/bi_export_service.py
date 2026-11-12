@@ -17,8 +17,8 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ def _openpyxl_bi():
         from openpyxl.styles import Font, PatternFill
         from openpyxl.worksheet.table import Table, TableStyleInfo
     except ImportError as exc:
-        raise HTTPException(500, f"openpyxl no instalado: {exc}") from exc
+        raise ErrorDeDominio(500, f"openpyxl no instalado: {exc}") from exc
     return openpyxl, BarChart, LineChart, Reference, Font, PatternFill, Table, TableStyleInfo
 
 
@@ -79,7 +79,7 @@ def _cabecera_con_estilo(ws, fila: int) -> None:
 
 
 def _hoja_de_resumen(wb, data: dict, *, report_title: str, period_days: int,
-                     tickets: list, sla: list):
+                     tickets: list, sla: list, simbolo: str = "¤"):
     """La hoja de KPIs, con su tabla con nombre."""
     _, _, _, _, Font, _, Table, TableStyleInfo = _openpyxl_bi()
 
@@ -94,7 +94,7 @@ def _hoja_de_resumen(wb, data: dict, *, report_title: str, period_days: int,
     _cabecera_con_estilo(ws, 4)
 
     filas = [
-        ["Ingresos totales (€)", data.get("total_revenue_period", 0)],
+        [f"Ingresos totales ({simbolo})", data.get("total_revenue_period", 0)],
         ["Tickets gestionados", sum(tickets) if tickets else 0],
         # «N/A» y no 0: sin medidas de SLA no hay cumplimiento del 0 %, hay
         # ausencia de dato.
@@ -113,7 +113,7 @@ def _hoja_de_resumen(wb, data: dict, *, report_title: str, period_days: int,
     return ws
 
 
-def _graficos_mensuales(ws, n: int) -> None:
+def _graficos_mensuales(ws, n: int, simbolo: str = "¤") -> None:
     """Barras de ingresos y línea de cumplimiento de SLA sobre la hoja mensual."""
     _, BarChart, LineChart, Reference, _, _, _, _ = _openpyxl_bi()
 
@@ -122,7 +122,7 @@ def _graficos_mensuales(ws, n: int) -> None:
     barras = BarChart()
     barras.type = "col"
     barras.title = "Ingresos Mensuales"
-    barras.y_axis.title = "€"
+    barras.y_axis.title = simbolo
     barras.x_axis.title = "Mes"
     barras.add_data(Reference(ws, min_col=2, min_row=1, max_row=n + 1), titles_from_data=True)
     barras.set_categories(categorias)
@@ -136,7 +136,7 @@ def _graficos_mensuales(ws, n: int) -> None:
     ws.add_chart(linea, "F20")
 
 
-def _hoja_mensual(wb, labels: list, revenue: list, tickets: list, sla: list) -> int:
+def _hoja_mensual(wb, labels: list, revenue: list, tickets: list, sla: list, simbolo: str = "¤") -> int:
     """La hoja de datos mensuales, con totales por fórmula y sus gráficos.
 
     Los totales se escriben como **fórmulas de Excel** y no como números: quien
@@ -146,7 +146,7 @@ def _hoja_mensual(wb, labels: list, revenue: list, tickets: list, sla: list) -> 
     _, _, _, _, Font, _, Table, TableStyleInfo = _openpyxl_bi()
 
     ws = wb.create_sheet("Datos Mensuales")
-    ws.append(["Mes", "Ingresos (€)", "Tickets", "SLA (%)"])
+    ws.append(["Mes", f"Ingresos ({simbolo})", "Tickets", "SLA (%)"])
     _cabecera_con_estilo(ws, 1)
 
     n = min(len(labels), len(revenue), len(tickets), len(sla))
@@ -165,7 +165,7 @@ def _hoja_mensual(wb, labels: list, revenue: list, tickets: list, sla: list) -> 
         tabla = Table(displayName="TablaIngresosMensuales", ref=f"A1:D{n + 1}")
         tabla.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
         ws.add_table(tabla)
-        _graficos_mensuales(ws, n)
+        _graficos_mensuales(ws, n, simbolo)
 
     for col in ("A", "B", "C", "D"):
         ws.column_dimensions[col].width = 18
@@ -190,12 +190,14 @@ def export_dashboard_excel(
     tickets = data.get("tickets", [])
     sla = data.get("sla_compliance", [])
 
+    from app.services.formato_regional import simbolo_de_moneda
+    simbolo = simbolo_de_moneda(db, org_id)
     wb = openpyxl.Workbook()
     _hoja_de_resumen(
         wb, data, report_title=report_title, period_days=period_days,
-        tickets=tickets, sla=sla,
+        tickets=tickets, sla=sla, simbolo=simbolo,
     )
-    n = _hoja_mensual(wb, labels, revenue, tickets, sla)
+    n = _hoja_mensual(wb, labels, revenue, tickets, sla, simbolo)
 
     ws_sla = wb.create_sheet("Tickets SLA")
     ws_sla.append(["Mes", "Tickets", "SLA (%)"])
@@ -228,13 +230,15 @@ def export_dashboard_pptx(
         from pptx.enum.chart import XL_CHART_TYPE
         from pptx.util import Inches, Pt
     except ImportError as exc:
-        raise HTTPException(500, f"python-pptx no instalado: {exc}") from exc
+        raise ErrorDeDominio(500, f"python-pptx no instalado: {exc}") from exc
 
     data = _get_kpi_data(db, org_id, period_days)
     labels = data.get("labels", [])
     revenue = data.get("revenue", [])
     tickets = data.get("tickets", [])
     sla = data.get("sla_compliance", [])
+    from app.services.formato_regional import formatear_importe, simbolo_de_moneda
+    simbolo = simbolo_de_moneda(db, org_id)
 
     prs = Presentation()
     prs.slide_width = Inches(13.33)
@@ -259,7 +263,7 @@ def export_dashboard_pptx(
     tf.paragraphs[0].runs[0].font.bold = True
 
     kpis = [
-        ("Ingresos totales", f"€ {data.get('total_revenue_period', 0):,.0f}"),
+        ("Ingresos totales", formatear_importe(data.get('total_revenue_period', 0), simbolo)),
         ("Proyectos activos", str(data.get("open_projects", 0))),
         ("Resolución media", f"{data.get('avg_resolution_hours', 0):.1f} h"),
         ("Cumpl. SLA prom.", f"{sum(sla)/len(sla)*100:.1f}%" if sla else "N/A"),
@@ -287,14 +291,14 @@ def export_dashboard_pptx(
 
         chart_data = ChartData()
         chart_data.categories = labels[:len(revenue)]
-        chart_data.add_series("Ingresos (€)", revenue[:len(labels)])
+        chart_data.add_series(f"Ingresos ({simbolo})", revenue[:len(labels)])
         chart = slide3.shapes.add_chart(
             XL_CHART_TYPE.COLUMN_CLUSTERED,
             Inches(0.5), Inches(1.0), Inches(12.0), Inches(5.8),
             chart_data,
         ).chart
         chart.has_title = True
-        chart.chart_title.text_frame.text = "Ingresos por Mes (€)"
+        chart.chart_title.text_frame.text = f"Ingresos por Mes ({simbolo})"
 
     # ── Slide 4: SLA line chart ───────────────────────────────────────────────
     if labels and sla:

@@ -18,7 +18,7 @@ import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { Wallet, Globe, History, Plus } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
+import StatusBadge from '../components/ui/StatusBadge'
 
 // Loosely-typed alias: Input infers its props as required.
 const Input = InputRaw as unknown as (props: Record<string, unknown>) => JSX.Element
@@ -37,7 +37,7 @@ export default function UserCostsPage() {
   const { lang } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
-  const [editProfile, setEditProfile] = useState<{ user: UserRow; profile?: Record<string, unknown> } | null>(null) // { user, profile? }
+  const [editProfile, setEditProfile] = useState<{ user: UserRow; profile?: ProfileRow } | null>(null) // { user, profile? }
   const [editCountry, setEditCountry] = useState<CountryRow | null>(null) // preset
   const [historyUser, setHistoryUser] = useState<UserRow | null>(null) // user
   const [search, setSearch] = useState('')
@@ -126,7 +126,7 @@ export default function UserCostsPage() {
         title={t('usercosts.paises_y_de_coste_empresa')}
         icon={<Globe size={16} />}
         actions={
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="u-row-6">
             <Button size="sm" variant="ghost" onClick={() => seedCountriesMut.mutate(false)}
                     disabled={seedCountriesMut.isPending}>
               Cargar predefinidos
@@ -179,7 +179,7 @@ export default function UserCostsPage() {
                       <td style={td}>{u.full_name}</td>
                       <td style={{ ...td, color: 'var(--text-3)' }}>{u.department || '—'}</td>
                       <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                        {u.cost_per_hour ? fmtCur(u.cost_per_hour, 'EUR', lang) : <span style={{ color: 'var(--warning)' }}>Falta</span>}
+                        {u.cost_per_hour ? fmtCur(u.cost_per_hour, 'EUR', lang) : <span className="u-warning">Falta</span>}
                       </td>
                       <td style={td}>
                         <SourceBadge source={u.source} />
@@ -267,7 +267,7 @@ function KpiBox({ icon, label, value, sub, accent = 'var(--accent)' }: { icon: R
       <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{sub}</div>}
+      {sub && <div className="u-text3-xs">{sub}</div>}
     </div>
   )
 }
@@ -283,14 +283,14 @@ function CountryCard({ c, onEdit }: { c: CountryRow; onEdit: () => void }) {
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8,
       padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="u-row-between">
         <span style={{ fontWeight: 600 }}>{c.country_code} · {c.country_name}</span>
-        {c.is_default && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>predefinido</span>}
+        {c.is_default && <span className="u-text3-xs">predefinido</span>}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 'var(--text-sm)' }}>
         <span><strong>{((c.employer_cost_pct ?? 0) * 100).toFixed(1)}%</strong> coste empresa</span>
-        <span style={{ color: 'var(--text-3)' }}>{c.productive_hours_year} {t('usercosts.h_ano')}</span>
-        <span style={{ color: 'var(--text-3)' }}>{c.currency}</span>
+        <span className="u-text3">{c.productive_hours_year} {t('usercosts.h_ano')}</span>
+        <span className="u-text3">{c.currency}</span>
       </div>
       {c.notes && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-4)' }}>{c.notes}</div>}
     </div>
@@ -305,20 +305,29 @@ function SourceBadge({ source }: { source?: string }) {
   }
   const cfg = cfgMap[source || ''] || { label: source, color: 'var(--text-3)' }
   return (
-    <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 10,
-                   border: `1px solid ${alpha(cfg.color, '55')}`, color: cfg.color, background: alpha(cfg.color, '11') }}>
-      {cfg.label}
-    </span>
+    <StatusBadge color={cfg.color} caps={false}>{cfg.label}</StatusBadge>
   )
 }
 
 
 // ── Profile wizard ───────────────────────────────────────────────────────────
-function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: UserRow; countries: CountryRow[]; existing?: any; onClose: () => void; onSaved: () => void }) {
+type ProfileForm = {
+  valid_from: string
+  country_code: string
+  currency: string
+  gross_annual_salary: number | string
+  employer_cost_pct: number | string
+  extra_annual_costs: number | string
+  productive_hours_year: number | string
+  notes: string
+}
+
+function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: UserRow; countries: CountryRow[]; existing?: ProfileRow & { country_code?: string; extra_annual_costs?: number }; onClose: () => void; onSaved: () => void }) {
   const { t } = useAppLang()
   const { lang } = useAppLang()
   const toast = useToast()
-  const [form, setForm] = useState({
+  // Los campos numéricos guardan el texto del input al editarlos.
+  const [form, setForm] = useState<ProfileForm>({
     valid_from: existing?.valid_from || new Date().toISOString().slice(0, 10),
     country_code: existing?.country_code || '',
     currency: existing?.currency || 'EUR',
@@ -372,7 +381,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
 
   return (
     <Modal open onClose={onClose} title={`Coste/hora — ${user.full_name}`} width={620}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: 0 }}>
           {t('usercosts.selecciona_el_pais_rellena_ss_empresa_y')}
         </p>
@@ -430,7 +439,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
                onChange={(e: { target: { value: string } }) => setForm({ ...form, notes: e.target.value })}
                placeholder="Ej: ascenso a senior 2026" />
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={save}>{t('usercosts.guardar_version')}</Button>
         </div>
@@ -500,7 +509,7 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
   return (
     <Modal open onClose={onClose}
            title={preset.id ? `Editar ${preset.country_name}` : 'Nuevo país'} width={520}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-stack-12">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
           <Input label={t('usercosts.codigo_iso')} value={form.country_code}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, country_code: e.target.value.toUpperCase() })}
@@ -526,7 +535,7 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
               <Button variant="danger" onClick={remove}>Eliminar override</Button>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="u-row-8">
             <Button variant="secondary" onClick={onClose}>Cancelar</Button>
             <Button onClick={save}>Guardar</Button>
           </div>
@@ -568,7 +577,7 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
                     background: 'var(--success-bg)', color: 'var(--success)',
                   }}>vigente</span>}
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                <div className="u-text3-xs">
                   {fmtCur(p.gross_annual_salary, p.currency, lang)} bruto · {((p.employer_cost_pct ?? 0) * 100).toFixed(1)}% empresa · {p.productive_hours_year}{t('usercosts.h_ano')}
                   {p.notes && <> · {p.notes}</>}
                 </div>
@@ -577,7 +586,7 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                   {fmtCur(p.cost_per_hour, p.currency, lang)} / h
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                <div className="u-text3-xs">
                   {fmtCur(p.total_annual_cost, p.currency, lang)} {t('usercosts.ano')}
                 </div>
               </div>

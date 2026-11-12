@@ -46,7 +46,7 @@ function TRow({ t: ticket, onClick }: { t: Ticket; onClick: () => void }) {
       <td style={{ padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{ticket.number}</td>
       <td style={{ padding: '10px 8px', maxWidth: 320 }}>
         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.title}</div>
-        {ticket.requester_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{ticket.requester_name}</div>}
+        {ticket.requester_name && <div className="u-text3-xs">{ticket.requester_name}</div>}
       </td>
       <td style={{ padding: '10px 8px' }}><PBadge v={ticket.priority} /></td>
       <td style={{ padding: '10px 8px' }}><SBadge v={ticket.status} /></td>
@@ -150,7 +150,7 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
 
       {isLoading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> :
        filtered.length === 0 ? <EmptyState icon="🎫" title={t('service_desk.no_tickets')} description={t('service_desk.no_matching')} /> :
-      <div data-export-table="service-desk-export" style={{ overflowX: 'auto' }}>
+      <div data-export-table="service-desk-export" className="u-scroll-x">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
@@ -207,14 +207,14 @@ export function MajorIncidents() {
                 <span style={{ fontWeight: 600, fontSize: "var(--text-sm)", color: COLOR.danger, marginRight: 10 }}>{m.number}</span>
                 <span style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</span>
               </div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('service_desk.mi_declared_at')} {fmtDate(m.declared_at)}</div>
+              <div className="u-text2-xs">{t('service_desk.mi_declared_at')} {fmtDate(m.declared_at)}</div>
             </div>
           ))}
         </div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{mis.length} incidentes mayores registrados</div>
+        <div className="u-text2-base">{mis.length} incidentes mayores registrados</div>
         <Button onClick={() => setShowDeclare(true)} style={{ background: alpha(COLOR.danger, '20'), color: COLOR.danger,
           border: `1px solid ${alpha(COLOR.danger, '40')}` }}>
           🚨 {t('service_desk.mi_declare_btn')}
@@ -222,7 +222,7 @@ export function MajorIncidents() {
       </div>
 
       {isLoading ? <Spinner /> : (
-        <div data-export-table="service-desk-export" style={{ overflowX: 'auto' }}>
+        <div data-export-table="service-desk-export" className="u-scroll-x">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
@@ -290,7 +290,7 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 
   return (
     <Modal open title={`🚨 ${t('service_desk.mi_declare_btn')}`} onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         <div>
           <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.mi_title_lbl')} *</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} />
@@ -307,7 +307,7 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
           <textarea id={`${idPrefix}-impact`} value={form.impact_statement} onChange={set('impact_statement')} rows={3}
             style={{ ...IS, resize: 'vertical' }} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}
             style={{ background: alpha(COLOR.danger, '20'), color: COLOR.danger, border: `1px solid ${alpha(COLOR.danger, '40')}` }}>
@@ -355,7 +355,7 @@ export function RoutingRules() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+        <div className="u-text3-sm">
           {t('service_desk.routing_no_rules_desc')}
         </div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.routing_new_title')}</Button>
@@ -363,19 +363,19 @@ export function RoutingRules() {
 
       {isLoading ? <Spinner /> :
        rules.length === 0 ? <EmptyState icon="⚡" title={t('service_desk.routing_no_rules')} description={t('service_desk.routing_no_rules_desc')} /> :
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="u-stack-8">
         {rules.map((rule, _i) => {
           let conds: Record<string, unknown> = {}, acts: Record<string, unknown> = {}
           try { conds = JSON.parse(rule.conditions || '{}'); acts = JSON.parse(rule.actions || '{}') } catch { /* noop */ }
           return (
             <div key={rule.id} style={{ background: 'var(--surface-2)', border: `1px solid ${rule.is_active ? 'var(--surface-4)' : 'var(--surface-3)'}`,
               borderRadius: 10, padding: '14px 18px', opacity: rule.is_active ? 1 : 0.5 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="u-row-between">
                 <div>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginRight: 10 }}>#{rule.priority}</span>
                   <span style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)' }}>{rule.name}</span>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="u-row-8">
                   <button onClick={() => toggleRule({ id: rule.id, is_active: !rule.is_active })}
                     aria-pressed={rule.is_active}
                     aria-label={`${rule.is_active ? 'Desactivar' : 'Activar'} regla ${rule.name}`}
@@ -724,7 +724,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
           ))}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSave} disabled={isPending || !form.name} loading={isPending}>{isEdit ? t('common.save') : t('service_desk.routing_new_title')}</Button>
         </div>

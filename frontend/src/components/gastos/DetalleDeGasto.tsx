@@ -74,7 +74,7 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
               </div>
             ))}
           {gasto.status !== 'draft' && (gasto.policy_flags ?? []).length > 0 && (
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>{t('gas.enviado_con_avisos', { n: gasto.policy_flags!.length })}</div>
+            <div className="u-hint">{t('gas.enviado_con_avisos', { n: gasto.policy_flags!.length })}</div>
           )}
         </section>
 
@@ -89,11 +89,11 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
             )}
           </h4>
           {adj.isLoading ? <Spinner size={16} /> : (adj.data?.items ?? []).length === 0
-            ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('gas.sin_justificantes')}</div>
+            ? <div className="u-text3-sm">{t('gas.sin_justificantes')}</div>
             : adj.data!.items.map(a => (
               <div key={a.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--surface-3)' }}>
                 <button type="button" onClick={() => abrir(a.id)} style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontSize: 'var(--text-sm)' }}>{a.filename}</button>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{a.size_bytes ? `${Math.max(1, Math.round(a.size_bytes / 1024))} KB` : ''}</span>
+                <span className="u-text3-xs">{a.size_bytes ? `${Math.max(1, Math.round(a.size_bytes / 1024))} KB` : ''}</span>
                 {editable && <Button size="xs" variant="ghost" title={t('gas.quitar')} icon={<Trash2 size={12} />} onClick={() => quitar(a.id)}>{''}</Button>}
               </div>
             ))}

@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-cierre-mia"
 OTRA = "org-cierre-ajena"
@@ -81,7 +82,7 @@ def test_EL_HALLAZGO_no_se_configura_el_paso_de_workflow_de_otro_cliente(
     from app.services import bookings_service as svc
 
     ajeno = pasos_de_workflow[OTRA]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.paso_de_workflow_propio(
             db, _Usuario(ORG), ajeno["workflow"].id, ajeno["paso"].id)
     assert exc.value.status_code == 404
@@ -116,7 +117,7 @@ def test_el_paso_de_un_workflow_que_no_es_suyo_tampoco_vale(db, pasos_de_workflo
     """Cruzando los ids: el workflow propio con el paso ajeno."""
     from app.services import bookings_service as svc
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.paso_de_workflow_propio(
             db, _Usuario(ORG),
             pasos_de_workflow[ORG]["workflow"].id,

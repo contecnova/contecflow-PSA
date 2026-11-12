@@ -28,16 +28,187 @@ import {
   Activity, Bell, AlertTriangle, Map as MapIcon, Flag, FileDown,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
+import { confirmar } from '../context/ConfirmContext'
 import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
+import DateInput from '../components/ui/DateInput'
 
 const NO_PERMISSION_TIP = 'Solo admin / RR.HH.'
 
-// ── Shapes laxas para filas/respuestas de API (indexables por string) ───────
-type Dict = { [k: string]: any }
-type AnswerMap = { [k: string]: any }
+// ── Formas de la API (app/services/performance_service/*) ───────────────────
+/** Respuestas por `question_key`: puntuación, sí/no o texto. */
+type AnswerMap = Record<string, string | number | null>
+
+interface Cycle {
+  id: string
+  name: string
+  status: string
+  start_date?: string | null
+  end_date?: string | null
+  total_reviews?: number
+  submitted?: number
+  pending?: number
+}
+
+/** `serialize_review` (evaluaciones.py). */
+interface Review {
+  id: string
+  cycle_id: string
+  reviewee_id: string
+  reviewee_name: string | null
+  reviewer_id: string
+  reviewer_name: string | null
+  review_type: string
+  status: string
+  answers: AnswerMap
+  score_overall: number | null
+  submitted_at: string | null
+}
+
+/** `serialize_question` (ciclos_y_preguntas.py). */
+interface Question {
+  id: string
+  cycle_id: string
+  key: string
+  label: string
+  hint: string | null
+  kind: string
+  order: number | null
+  required: boolean
+  scale_min: number | null
+  scale_max: number | null
+}
+
+/** Cuerpo de `ReviewQuestionIn` / `ReviewQuestionUpdate`. */
+type QuestionPayload = Partial<Pick<Question, 'key' | 'label' | 'hint' | 'kind' | 'required' | 'scale_min' | 'scale_max'>>
+
+interface EligibleUser {
+  id: string
+  full_name: string
+  team?: string | null
+  department?: string | null
+}
+
+/** Respuesta de `/performance/cycles/{id}/eligible-reviewers`. */
+interface EligiblePool {
+  users?: EligibleUser[]
+  reason_blocked?: string | null
+}
+
+/** `serialize_campaign` (campanas_360.py). */
+interface Campaign {
+  id: string
+  cycle_id: string
+  subject_id: string
+  subject_name: string | null
+  status: string
+  anonymity_threshold: number
+  created_at: string | null
+  closed_at: string | null
+  total_reviewers?: number
+  submitted?: number
+  pending?: number
+  by_type?: Record<string, number>
+}
+
+interface CampaignGroup {
+  count: number
+  anonymized: boolean
+  text_by_question?: Record<string, Array<{ text: unknown }>>
+}
+
+/** `aggregate_campaign` (campanas_360.py). */
+interface CampaignDashboard {
+  campaign: Campaign
+  groups?: Record<string, CampaignGroup>
+  questions?: Question[]
+  comparison?: Record<string, Record<string, number | null>>
+  total_submitted: number
+  total_assigned: number
+  anonymity_threshold: number
+}
+
+interface HistoryRating {
+  label: string
+  scale_max: number
+  self?: number | null
+  others?: number | null
+}
+
+interface HistoryPoint {
+  campaign_id: string
+  cycle_name: string
+  created_at: string | null
+  ratings?: Record<string, HistoryRating>
+}
+
+interface History360 {
+  subject_name?: string
+  series?: HistoryPoint[]
+}
+
+interface HistoryQuestion {
+  key: string
+  label: string
+  max: number
+}
+
+interface StalledCycle {
+  cycle_id: string
+  cycle_name: string
+  completion_rate: number
+  overdue?: boolean
+  end_date?: string | null
+}
+
+interface OrgKpis {
+  active_cycles: number
+  closed_cycles: number
+  pending_reviews_active: number
+  total_reviews_active: number
+  global_completion_rate: number
+  avg_days_to_submit_closed: number | null
+  stalled_cycles?: StalledCycle[]
+}
+
+interface StalledReviewer {
+  user_id: string
+  user_name: string
+  pending: number
+}
+
+interface CycleKpis {
+  cycle_name: string
+  completion_rate: number
+  submitted: number
+  total_reviews: number
+  days_to_close: number | null
+  avg_days_to_submit: number | null
+  top_stalled_reviewers?: StalledReviewer[]
+}
+
+interface DevGoal {
+  id: string
+  title: string
+  status: string
+  due_date: string | null
+  completed_at: string | null
+}
+
+interface DevPlan {
+  id: string
+  subject_id: string
+  subject_name: string | null
+  title: string
+  summary: string | null
+  status: string
+  target_date: string | null
+  next_review_at: string | null
+  progress_pct: number
+  goals: DevGoal[]
+}
 
 // ── Estilos compartidos ────────────────────────────────────────────────────
 // Se extraen aquí los patrones inline más repetidos para reducir ruido en JSX
@@ -111,8 +282,8 @@ const QUESTION_KINDS = [
 const KIND_LABEL = Object.fromEntries(QUESTION_KINDS.map(k => [k.id, k.label]))
 
 const isRatingKind = (k: string) => k === 'rating_5' || k === 'rating_10' || k === 'scale_likert'
-const ratingMax = (q: Dict) => q.scale_max ?? (q.kind === 'rating_10' ? 10 : 5)
-const ratingMin = (q: Dict) => q.scale_min ?? 1
+const ratingMax = (q: Question) => q.scale_max ?? (q.kind === 'rating_10' ? 10 : 5)
+const ratingMin = (q: Question) => q.scale_min ?? 1
 
 // ── ScoreBar ────────────────────────────────────────────────────────────────
 function ScoreBar({ value, max = 5 }: { value: number | null | undefined; max?: number }) {
@@ -122,7 +293,7 @@ function ScoreBar({ value, max = 5 }: { value: number | null | undefined; max?: 
               : pct >= 40 ? 'var(--warning)'
               : 'var(--danger)'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div className="u-row-center-8">
       <div style={{ flex: 1, height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.4s var(--easing)' }} />
       </div>
@@ -133,12 +304,12 @@ function ScoreBar({ value, max = 5 }: { value: number | null | undefined; max?: 
 }
 
 // ── ReviewForm: rellenar una evaluación dinámica según preguntas del ciclo ─
-function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) {
+function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }) {
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
 
-  const { data: questions = [], isLoading: loadingQs } = useQuery<Dict[]>({
+  const { data: questions = [], isLoading: loadingQs } = useQuery<Question[]>({
     queryKey: ['perf-cycle-questions', review.cycle_id],
     queryFn: () => performanceApi.listQuestions(review.cycle_id).then(r => r.data),
   })
@@ -216,7 +387,7 @@ function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) 
                       <div style={styles.titleSmBold}>
                         {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                       </div>
-                      {q.hint && <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>{q.hint}</div>}
+                      {q.hint && <div className="ds-muted u-xs">{q.hint}</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       {buttons.map(n => {
@@ -323,15 +494,16 @@ function ReviewForm({ review, onClose }: { review: Dict; onClose: () => void }) 
 }
 
 // ── AssignReviewModal: HR/Admin asigna quién evalúa a quién (smart 360°) ───
-function AssignReviewModal({ cycle, onClose }: { cycle: Dict; onClose: () => void }) {
+function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => void }) {
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState({ reviewer_id: '', reviewee_id: '', review_type: 'manager' })
 
-  const { data: users = [] } = useQuery<Dict[]>({
+  const { data: users = [] } = useQuery({
     queryKey: ['users-for-review-assign'],
-    queryFn: () => usersApi.list({ page_size: 200 }).then((r: any) => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    // `usersApi.list` ya devuelve el array (todasLasPaginas).
+    queryFn: () => usersApi.list({ page_size: 200 }).then(r => r.data),
   })
 
   // Cuando hay reviewee, consultamos backend para conocer la elegibilidad por
@@ -339,14 +511,14 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Dict; onClose: () => voi
   const eligibilityQueries = useQueries({
     queries: REVIEW_TYPES.map(t => ({
       queryKey: ['perf-eligible', cycle.id, form.reviewee_id, t.id],
-      queryFn: () => performanceApi.eligibleReviewers(cycle.id, form.reviewee_id, t.id).then(r => r.data),
+      queryFn: (): Promise<EligiblePool> => performanceApi.eligibleReviewers(cycle.id, form.reviewee_id, t.id).then(r => r.data),
       enabled: !!form.reviewee_id,
     })),
   })
 
-  const elByType: Dict = Object.fromEntries(REVIEW_TYPES.map((t, i) => [t.id, eligibilityQueries[i].data]))
+  const elByType: Record<string, EligiblePool | undefined> = Object.fromEntries(REVIEW_TYPES.map((t, i) => [t.id, eligibilityQueries[i].data]))
 
-  const currentTypePool: Dict | undefined = elByType[form.review_type]
+  const currentTypePool: EligiblePool | undefined = elByType[form.review_type]
   const eligibleUsers = currentTypePool?.users || []
   const blockedReason = currentTypePool?.reason_blocked
 
@@ -387,7 +559,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Dict; onClose: () => voi
             onChange={e => setForm(f => ({ ...f, reviewee_id: e.target.value }))}
             className="ds-input">
             <option value="">Selecciona…</option>
-            {users.map((u: Dict) => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+            {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
           </select>
         </div>
 
@@ -432,7 +604,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Dict; onClose: () => voi
               className="ds-input"
               disabled={!form.reviewee_id || !!blockedReason}>
               <option value="">{form.reviewee_id ? 'Selecciona…' : 'Elige primero la persona evaluada'}</option>
-              {eligibleUsers.map((u: Dict) => (
+              {eligibleUsers.map(u => (
                 <option key={u.id} value={u.id}>
                   {u.full_name}{u.team ? ` · ${u.team}` : (u.department ? ` · ${u.department}` : '')}
                 </option>
@@ -464,7 +636,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
   const qc = useQueryClient()
   const editable = cycleStatus === 'draft'
 
-  const { data: questions = [], isLoading } = useQuery<Dict[]>({
+  const { data: questions = [], isLoading } = useQuery<Question[]>({
     queryKey: ['perf-cycle-questions', cycleId],
     queryFn: () => performanceApi.listQuestions(cycleId).then(r => r.data),
   })
@@ -472,12 +644,12 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
   const invalidate = () => qc.invalidateQueries({ queryKey: ['perf-cycle-questions', cycleId] })
 
   const { mutate: addQ } = useMutation({
-    mutationFn: (data: Dict) => performanceApi.addQuestion(cycleId, data),
+    mutationFn: (data: QuestionPayload) => performanceApi.addQuestion(cycleId, data),
     onSuccess: () => { invalidate(); toast.success('Pregunta añadida') },
     onError: e => toast.error(extractErr(e, 'Error al añadir')),
   })
   const { mutate: updateQ } = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Dict }) => performanceApi.updateQuestion(id, data),
+    mutationFn: ({ id, data }: { id: string; data: QuestionPayload }) => performanceApi.updateQuestion(id, data),
     onSuccess: () => { invalidate(); toast.success('Pregunta actualizada') },
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
@@ -488,7 +660,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
   })
 
   const [adding, setAdding] = useState(false)
-  const [editing, setEditing] = useState<Dict | null>(null)
+  const [editing, setEditing] = useState<Question | null>(null)
 
   if (isLoading) return <Spinner />
 
@@ -505,7 +677,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
         )}
       </div>
       {questions.length === 0 ? (
-        <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>
+        <div className="ds-muted u-sm">
           {traducir('performancereviews.sin_preguntas')} {editable && 'Añade alguna o siembra las predeterminadas.'}
         </div>
       ) : (
@@ -516,7 +688,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
                 <div style={styles.titleSmBold}>
                   {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                 </div>
-                <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                <div className="ds-muted u-xs">
                   {KIND_LABEL[q.kind] || q.kind} · key={q.key}
                 </div>
               </div>
@@ -525,8 +697,8 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
                   <Button size="sm" variant="ghost" onClick={() => setEditing(q)} aria-label="Editar">
                     <Pencil size={11} />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    if (confirm(`¿Eliminar pregunta "${q.label}"?`)) removeQ(q.id)
+                  <Button size="sm" variant="ghost" onClick={async () => {
+                    if (await confirmar({ message: `¿Eliminar pregunta "${q.label}"?`, danger: true, confirmLabel: 'Eliminar' })) removeQ(q.id)
                   }} aria-label="Eliminar">
                     <Trash2 size={11} />
                   </Button>
@@ -537,7 +709,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
         </div>
       )}
       {!editable && (
-        <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+        <div className="ds-muted u-xs">
           {traducir('performancereviews.la_plantilla_solo_es_editable_mientras_el')}
         </div>
       )}
@@ -559,7 +731,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
 }
 
 function QuestionEditModal({ question, onClose, onSave }: {
-  question?: Dict; onClose: () => void; onSave: (data: Dict) => void
+  question?: Question; onClose: () => void; onSave: (data: QuestionPayload) => void
 }) {
   const traducir = useAppT()
   const isEdit = !!question
@@ -574,7 +746,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
   }))
 
   const submit = () => {
-    const data: Dict = {
+    const data: QuestionPayload = {
       label: form.label.trim(),
       hint:  form.hint.trim() || null,
       kind:  form.kind,
@@ -652,7 +824,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
 }
 
 // ── New360CampaignModal: wizard que crea una campaña con todos sus evaluadores
-function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => void }) {
+function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => void }) {
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -682,23 +854,24 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
   }))
   const setThreshold  = (v: string) => setCampaign(s => ({ ...s, threshold: v }))
 
-  const { data: users = [] } = useQuery<Dict[]>({
+  const { data: users = [] } = useQuery({
     queryKey: ['users-for-360-campaign'],
-    queryFn: () => usersApi.list({ page_size: 200 }).then((r: any) => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    // `usersApi.list` ya devuelve el array (todasLasPaginas).
+    queryFn: () => usersApi.list({ page_size: 200 }).then(r => r.data),
   })
 
   // Para cada tipo (excepto self) calculamos elegibilidad cuando hay subject
   const elQueries = useQueries({
     queries: ['manager', 'peer', 'upward'].map(t => ({
       queryKey: ['perf-eligible', cycle.id, subjectId, t],
-      queryFn: () => performanceApi.eligibleReviewers(cycle.id, subjectId, t).then(r => r.data),
+      queryFn: (): Promise<EligiblePool> => performanceApi.eligibleReviewers(cycle.id, subjectId, t).then(r => r.data),
       enabled: !!subjectId,
     })),
   })
-  const [managerData, peerData, upwardData] = elQueries.map(q => q.data) as Dict[]
-  const managerOptions: Dict[] = managerData?.users || []
-  const peerOptions: Dict[]    = peerData?.users    || []
-  const upwardOptions: Dict[]  = upwardData?.users  || []
+  const [managerData, peerData, upwardData] = elQueries.map(q => q.data)
+  const managerOptions: EligibleUser[] = managerData?.users || []
+  const peerOptions: EligibleUser[]    = peerData?.users    || []
+  const upwardOptions: EligibleUser[]  = upwardData?.users  || []
 
   // Si hay un único manager elegible, lo preseleccionamos.
   // Omitimos managerId y setManagerId a propósito: managerId solo se usa para
@@ -776,7 +949,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                   <User size={12} style={{ verticalAlign: 'middle' }} /> {traducir('performancereviews.autoevaluacion')}
                 </div>
-                <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                <div className="ds-muted u-xs">
                   {traducir('performancereviews.la_propia_persona_se_evalua_recomendado_en')}
                 </div>
               </label>
@@ -815,7 +988,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
                   <AlertCircle size={12} /> {peerData.reason_blocked}
                 </div>
               ) : peerOptions.length === 0 ? (
-                <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                <div className="ds-muted u-xs">
                   {traducir('performancereviews.sin_pares_elegibles')}
                 </div>
               ) : (
@@ -855,7 +1028,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
                   <AlertCircle size={12} /> {upwardData.reason_blocked}
                 </div>
               ) : upwardOptions.length === 0 ? (
-                <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                <div className="ds-muted u-xs">
                   {traducir('performancereviews.sin_reportes_directos')}
                 </div>
               ) : (
@@ -896,8 +1069,8 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Dict; onClose: () => v
         )}
 
         <div className="ds-row-between" style={{ alignItems: 'center' }}>
-          <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>
-            Total: <strong style={{ color: 'var(--text-1)' }}>{totalReviewers}</strong> evaluador(es)
+          <div className="ds-muted u-sm">
+            Total: <strong className="u-text1">{totalReviewers}</strong> evaluador(es)
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -917,7 +1090,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
 }) {
   const traducir = useAppT()
   const toast = useToast()
-  const { data, isLoading } = useQuery<Dict>({
+  const { data, isLoading } = useQuery<CampaignDashboard>({
     queryKey: ['perf-campaign-dashboard', campaignId],
     queryFn: () => performanceApi.campaignDashboard(campaignId).then(r => r.data),
   })
@@ -950,8 +1123,8 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
 
   const c = data.campaign
   const groups = data.groups || {}
-  const ratingQs = (data.questions || []).filter((q: Dict) => isRatingKind(q.kind))
-  const textQs   = (data.questions || []).filter((q: Dict) => !isRatingKind(q.kind))
+  const ratingQs = (data.questions || []).filter(q => isRatingKind(q.kind))
+  const textQs   = (data.questions || []).filter(q => !isRatingKind(q.kind))
 
   const GROUP_META = [
     { id: 'self',    label: 'Self',    Icon: User },
@@ -996,7 +1169,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
         {ratingQs.length > 0 && (
           <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <div className="ds-eyebrow">{traducir('performancereviews.comparacion_por_pregunta')}</div>
-            {ratingQs.map((q: Dict) => {
+            {ratingQs.map(q => {
               const max = ratingMax(q)
               const cmp = data.comparison?.[q.key] || {}
               const selfVal = cmp.self
@@ -1035,14 +1208,14 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
                         return (
                           <div key={id} className="ds-row" style={{ gap: 8, alignItems: 'center' }}>
                             <span style={{ width: 80, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{label}</span>
-                            <span className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>—</span>
+                            <span className="ds-muted u-xs">—</span>
                           </div>
                         )
                       }
                       return (
                         <div key={id} className="ds-row" style={{ gap: 8, alignItems: 'center' }}>
                           <span style={{ width: 80, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{label}</span>
-                          <div style={{ flex: 1 }}>
+                          <div className="u-flex1">
                             <ScoreBar value={v} max={max} />
                           </div>
                         </div>
@@ -1059,7 +1232,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
         {textQs.length > 0 && (
           <div className="ds-stack-sm">
             <div className="ds-eyebrow">Comentarios cualitativos</div>
-            {textQs.map((q: Dict) => (
+            {textQs.map(q => (
               <div key={q.id} className="ds-card--inset" style={{ display: 'block' }}>
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
                   {q.label}
@@ -1085,7 +1258,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
                           {traducir('performancereviews.sin_respuestas')}
                         </div>
                       )}
-                      {!g.anonymized && items.map((it: Dict, idx: number) => (
+                      {!g.anonymized && items.map((it, idx: number) => (
                         <div key={idx} style={{ paddingLeft: 18, fontSize: 'var(--text-xs)',
                           color: 'var(--text-2)', borderLeft: '2px solid var(--surface-4)',
                           marginLeft: 6, marginBottom: 4 }}>
@@ -1124,7 +1297,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
   subjectId?: string; subjectName?: string; onClose: () => void
 }) {
   const traducir = useAppT()
-  const { data, isLoading } = useQuery<Dict>({
+  const { data, isLoading } = useQuery<History360>({
     queryKey: ['perf-360-history', subjectId],
     queryFn: () => performanceApi.history360(subjectId).then(r => r.data),
   })
@@ -1132,12 +1305,12 @@ function History360Modal({ subjectId, subjectName, onClose }: {
   // useMemo (auditoría 2026-08, P1-6): con `?? []` / `|| []` esto creaba un
   // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
   // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
-  const series: Dict[] = useMemo(() => data?.series || [], [data?.series])
+  const series: HistoryPoint[] = useMemo(() => data?.series || [], [data?.series])
   // Recopilamos todas las question keys que aparecen al menos una vez
-  const allQs = useMemo<Dict[]>(() => {
-    const map = new Map<string, Dict>()
+  const allQs = useMemo<HistoryQuestion[]>(() => {
+    const map = new Map<string, HistoryQuestion>()
     for (const s of series) {
-      for (const [k, v] of Object.entries<any>(s.ratings || {})) {
+      for (const [k, v] of Object.entries(s.ratings || {})) {
         if (!map.has(k)) map.set(k, { key: k, label: v.label, max: v.scale_max })
       }
     }
@@ -1202,7 +1375,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
                     {others != null && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', minWidth: 36 }}>others</span>
-                        <div style={{ flex: 1 }}>
+                        <div className="u-flex1">
                           <ScoreBar value={others} max={q.max} />
                         </div>
                       </div>
@@ -1210,7 +1383,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
                     {self != null && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', minWidth: 36 }}>self</span>
-                        <div style={{ flex: 1 }}>
+                        <div className="u-flex1">
                           <ScoreBar value={self} max={q.max} />
                         </div>
                       </div>
@@ -1233,10 +1406,10 @@ function History360Modal({ subjectId, subjectName, onClose }: {
 
 // ── CampaignsList: campañas 360° dentro de un ciclo ───────────────────────
 function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
-  cycle: Dict; isManager: boolean; onCreate: (cycle: Dict) => void; onOpenDashboard: (id: string) => void
+  cycle: Cycle; isManager: boolean; onCreate: (cycle: Cycle) => void; onOpenDashboard: (id: string) => void
 }) {
   const traducir = useAppT()
-  const { data: campaigns = [], isLoading } = useQuery<Dict[]>({
+  const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: ['perf-campaigns', cycle.id],
     queryFn: () => performanceApi.listCampaigns(cycle.id).then(r => r.data).catch(() => []),
   })
@@ -1256,7 +1429,7 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
         )}
       </div>
       {isLoading ? <Spinner /> : campaigns.length === 0 ? (
-        <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>
+        <div className="ds-muted u-sm">
           {traducir('performancereviews.sin_campanas_una_campana_agrupa_autoevaluacion_manager')}
         </div>
       ) : (
@@ -1280,10 +1453,10 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
                   <div style={styles.titleSmBolder}>
                     {camp.subject_name}
                   </div>
-                  <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                  <div className="ds-muted u-xs">
                     {submitted}/{total} respuestas ({pct}%) · {camp.status}
                     {' · '}
-                    {Object.entries<any>(camp.by_type || {})
+                    {Object.entries(camp.by_type || {})
                       .filter(([, n]) => n > 0)
                       .map(([t, n]) => `${t}:${n}`).join(' ')}
                   </div>
@@ -1303,13 +1476,13 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
 
 // ── CycleCard: tarjeta de un ciclo con sus evaluaciones ────────────────────
 function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCreateCampaign, onOpenDashboard }: {
-  cycle: Dict; isManager: boolean
+  cycle: Cycle; isManager: boolean
   onActivate: (id: string) => void; onCloseCycle: (id: string) => void
-  onAssign: (cycle: Dict) => void; onCreateCampaign: (cycle: Dict) => void; onOpenDashboard: (id: string) => void
+  onAssign: (cycle: Cycle) => void; onCreateCampaign: (cycle: Cycle) => void; onOpenDashboard: (id: string) => void
 }) {
   const traducir = useAppT()
   const [expanded, setExpanded] = useState(false)
-  const { data: reviews = [], isLoading } = useQuery<Dict[]>({
+  const { data: reviews = [], isLoading } = useQuery<Review[]>({
     queryKey: ['perf-cycle-reviews', cycle.id],
     queryFn: () => performanceApi.cycleReviews(cycle.id).then(r => r.data).catch(() => []),
     enabled: expanded && (cycle.status === 'active' || cycle.status === 'closed'),
@@ -1334,18 +1507,18 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
           }}>
           <ChevronIcon size={16} />
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="u-flex1-min0">
           <div style={styles.titleMdBold}>{cycle.name}</div>
           <div className="ds-row-wrap" style={{ marginTop: 4 }}>
             <span className={`ds-pill ds-pill--${statusCfg.kind === 'neutral' ? '' : statusCfg.kind}`}>
               {statusCfg.label}
             </span>
             {cycle.start_date && (
-              <span className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+              <span className="ds-muted u-xs">
                 {fmtDate(cycle.start_date)} – {cycle.end_date ? fmtDate(cycle.end_date) : '?'}
               </span>
             )}
-            <span className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+            <span className="ds-muted u-xs">
               {cycle.total_reviews || 0} evaluaciones · {cycle.pending} pendientes · {cycle.submitted} enviadas
             </span>
             {avgScore && (
@@ -1396,7 +1569,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
           {(cycle.status === 'active' || cycle.status === 'closed') && (
             isLoading ? <Spinner /> : reviews.length === 0 ? (
               <div className="ds-card--inset" style={{ display: 'block' }}>
-                <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>
+                <div className="ds-muted u-sm">
                   {traducir('performancereviews.sin_evaluaciones_aun')} {cycle.status === 'active' && isManager && 'Pulsa "Asignar" para crear la primera.'}
                   {cycle.status === 'active' && !isManager && 'RR.HH. asignará las evaluaciones cuando estén listas.'}
                 </div>
@@ -1445,7 +1618,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
 }
 
 // ── NewCycleModal ──────────────────────────────────────────────────────────
-function NewCycleModal({ existingCycles, onClose }: { existingCycles: Dict[]; onClose: () => void }) {
+function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; onClose: () => void }) {
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1456,7 +1629,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Dict[]; on
   })
 
   const cloneable = useMemo(
-    () => (existingCycles || []).filter((c: Dict) => c.id),
+    () => (existingCycles || []).filter(c => c.id),
     [existingCycles],
   )
 
@@ -1493,13 +1666,13 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Dict[]; on
         <div style={styles.twoColGrid}>
           <div className="ds-field">
             <label className="ds-field__label">Inicio</label>
-            <input type="date" value={form.start_date}
+            <DateInput value={form.start_date}
               onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
               className="ds-input" />
           </div>
           <div className="ds-field">
             <label className="ds-field__label">Fin</label>
-            <input type="date" value={form.end_date}
+            <DateInput value={form.end_date}
               onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
               className="ds-input" />
           </div>
@@ -1555,11 +1728,11 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Dict[]; on
 }
 
 // ── KPIDashboardTab: panel operativo de HR ─────────────────────────────────
-function KPIDashboardTab({ cycles }: { cycles: Dict[] }) {
+function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
   const toast = useToast()
   const qc = useQueryClient()
 
-  const { data: kpis, isLoading } = useQuery<Dict>({
+  const { data: kpis, isLoading } = useQuery<OrgKpis>({
     queryKey: ['perf-kpis-org'],
     queryFn: () => performanceApi.orgKpis().then(r => r.data),
   })
@@ -1585,7 +1758,7 @@ function KPIDashboardTab({ cycles }: { cycles: Dict[] }) {
         fontFamily: 'var(--font-mono)' }}>
         {value}
       </div>
-      {hint && <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>{hint}</div>}
+      {hint && <div className="ds-muted u-xs">{hint}</div>}
     </div>
   )
 
@@ -1628,13 +1801,13 @@ function KPIDashboardTab({ cycles }: { cycles: Dict[] }) {
             {kpis.stalled_cycles.length} ciclo(s) atascado(s)
           </div>
           <div className="ds-stack-sm">
-            {kpis.stalled_cycles.map((s: Dict) => (
+            {kpis.stalled_cycles.map(s => (
               <div key={s.cycle_id} className="ds-row-between" style={styles.rowItemTile}>
                 <div style={styles.flex1MinW0}>
                   <div style={styles.titleSmBolder}>
                     {s.cycle_name}
                   </div>
-                  <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                  <div className="ds-muted u-xs">
                     {s.completion_rate}% completado
                     {s.overdue && ' · vencido'}
                     {s.end_date && ` · cerraba ${s.end_date}`}
@@ -1647,11 +1820,11 @@ function KPIDashboardTab({ cycles }: { cycles: Dict[] }) {
       )}
 
       {/* Drill-down por ciclo */}
-      {(cycles?.filter((c: Dict) => c.status === 'active').length ?? 0) > 0 && (
+      {(cycles?.filter(c => c.status === 'active').length ?? 0) > 0 && (
         <div className="ds-card--inset" style={{ display: 'block' }}>
           <div className="ds-eyebrow" style={{ marginBottom: 6 }}>Ciclos activos en detalle</div>
           <div className="ds-stack-sm">
-            {cycles.filter((c: Dict) => c.status === 'active').map((c: Dict) => (
+            {cycles.filter(c => c.status === 'active').map(c => (
               <CycleKpiRow key={c.id} cycle={c} />
             ))}
           </div>
@@ -1661,8 +1834,8 @@ function KPIDashboardTab({ cycles }: { cycles: Dict[] }) {
   )
 }
 
-function CycleKpiRow({ cycle }: { cycle: Dict }) {
-  const { data: k, isLoading } = useQuery<Dict>({
+function CycleKpiRow({ cycle }: { cycle: Cycle }) {
+  const { data: k, isLoading } = useQuery<CycleKpis>({
     queryKey: ['perf-cycle-kpi', cycle.id],
     queryFn: () => performanceApi.cycleKpis(cycle.id).then(r => r.data),
   })
@@ -1677,14 +1850,14 @@ function CycleKpiRow({ cycle }: { cycle: Dict }) {
         <div style={styles.titleSmBolder}>
           {k.cycle_name}
         </div>
-        <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+        <div className="ds-muted u-xs">
           {k.submitted}/{k.total_reviews} enviadas
           {k.days_to_close != null && ` · cierra en ${k.days_to_close} días`}
           {k.avg_days_to_submit != null && ` · media ${k.avg_days_to_submit} d`}
         </div>
         {k.top_stalled_reviewers?.length > 0 && (
           <div className="ds-row-wrap" style={{ marginTop: 6 }}>
-            {k.top_stalled_reviewers.slice(0, 5).map((s: Dict) => (
+            {k.top_stalled_reviewers.slice(0, 5).map(s => (
               <span key={s.user_id} style={{
                 fontSize: 'var(--text-2xs)', padding: '2px 6px',
                 background: 'var(--surface-4)', borderRadius: 'var(--radius-sm)',
@@ -1726,7 +1899,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
   const [openPlanId, setOpenPlanId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
-  const { data: plans = [], isLoading } = useQuery<Dict[]>({
+  const { data: plans = [], isLoading } = useQuery<DevPlan[]>({
     queryKey: ['dev-plans', subjectId],
     queryFn: () => performanceApi.listUserPlans(subjectId).then(r => r.data),
     enabled: !!subjectId,
@@ -1749,7 +1922,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
           description="Tras una campaña 360° crea un plan con objetivos concretos, fechas y revisiones." />
       ) : (
         <div className="ds-stack-sm">
-          {plans.map((p: Dict) => {
+          {plans.map(p => {
             const cfg = PLAN_STATUS_CFG[p.status as keyof typeof PLAN_STATUS_CFG] || PLAN_STATUS_CFG.draft
             return (
               // Auditoría 2026-08 (P1-6): tarjeta clicable sin vía de teclado.
@@ -1770,11 +1943,11 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
                       <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: cfg.color }}>
                         {cfg.label}
                       </span>
-                      <span className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                      <span className="ds-muted u-xs">
                         {(p.goals || []).length} objetivos
                       </span>
                       {p.target_date && (
-                        <span className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                        <span className="ds-muted u-xs">
                           Objetivo: {p.target_date}
                         </span>
                       )}
@@ -1869,13 +2042,13 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
         <div style={styles.twoColGrid}>
           <div className="ds-field">
             <label className="ds-field__label">Fecha objetivo</label>
-            <input type="date" value={form.target_date}
+            <DateInput value={form.target_date}
               onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))}
               className="ds-input" />
           </div>
           <div className="ds-field">
             <label className="ds-field__label">{traducir('performancereviews.proxima_revision_2')}</label>
-            <input type="date" value={form.next_review_at}
+            <DateInput value={form.next_review_at}
               onChange={e => setForm(f => ({ ...f, next_review_at: e.target.value }))}
               className="ds-input" />
           </div>
@@ -1888,9 +2061,9 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
             <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
               <input value={g.title}
                 onChange={e => setGoal(idx, 'title', e.target.value)}
-                className="ds-input" placeholder={`Objetivo ${idx + 1}`}
-                style={{ flex: 1 }} />
-              <input type="date" value={g.due_date}
+                className="ds-input u-flex1" placeholder={`Objetivo ${idx + 1}`}
+                 />
+              <DateInput value={g.due_date}
                 onChange={e => setGoal(idx, 'due_date', e.target.value)}
                 className="ds-input" style={{ width: 150 }} />
               {form.goals.length > 1 && (
@@ -1923,7 +2096,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
   const qc = useQueryClient()
   const [newGoal, setNewGoal] = useState('')
 
-  const { data: plan, isLoading } = useQuery<Dict>({
+  const { data: plan, isLoading } = useQuery<DevPlan>({
     queryKey: ['dev-plan', planId],
     queryFn: () => performanceApi.getPlan(planId).then(r => r.data),
   })
@@ -1986,7 +2159,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
         {plan.summary && (
           <div className="ds-card--inset" style={{ display: 'block' }}>
             <div className="ds-eyebrow">Contexto</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+            <div className="u-text2-sm">
               {plan.summary}
             </div>
           </div>
@@ -1995,10 +2168,10 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
         <div className="ds-card--inset" style={{ display: 'block' }}>
           <div className="ds-eyebrow">Objetivos</div>
           {plan.goals.length === 0 ? (
-            <div className="ds-muted" style={{ fontSize: 'var(--text-sm)' }}>{traducir('performancereviews.sin_objetivos_aun')}</div>
+            <div className="ds-muted u-sm">{traducir('performancereviews.sin_objetivos_aun')}</div>
           ) : (
             <div className="ds-stack-sm">
-              {plan.goals.map((g: Dict) => {
+              {plan.goals.map(g => {
                 return (
                   <div key={g.id} className="ds-row-between" style={{
                     gap: 8, padding: '8px 10px',
@@ -2009,7 +2182,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
                       <div style={styles.titleSmBold}>
                         {g.title}
                       </div>
-                      <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+                      <div className="ds-muted u-xs">
                         {g.due_date && `Vence ${g.due_date} · `}
                         {g.completed_at && `Completado ${g.completed_at}`}
                       </div>
@@ -2022,7 +2195,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
                       ))}
                     </select>
                     <Button size="sm" variant="ghost"
-                      onClick={() => { if (confirm('¿Eliminar objetivo?')) removeG(g.id) }}
+                      onClick={async () => { if (await confirmar({ message: '¿Eliminar objetivo?', danger: true, confirmLabel: 'Eliminar' })) removeG(g.id) }}
                       aria-label="Eliminar">
                       <Trash2 size={11} />
                     </Button>
@@ -2035,7 +2208,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
             <input value={newGoal}
               onChange={e => setNewGoal(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && newGoal.trim() && addG(newGoal.trim())}
-              className="ds-input" style={{ flex: 1 }}
+              className="ds-input u-flex1"
               placeholder={traducir('performancereviews.anadir_nuevo_objetivo_y_pulsar_enter')} />
             <Button size="sm" onClick={() => newGoal.trim() && addG(newGoal.trim())}
               disabled={!newGoal.trim()}>
@@ -2069,9 +2242,9 @@ export default function PerformanceReviewsPage() {
   // mediante helpers locales para mantener una API similar a setState.
   const [modals, setModals] = useState<{
     showNewCycle: boolean
-    editingReview: Dict | null
-    assigningCycle: Dict | null
-    campaigningCycle: Dict | null
+    editingReview: Review | null
+    assigningCycle: Cycle | null
+    campaigningCycle: Cycle | null
     openDashboardId: string | null
     historySubject: { id?: string; name?: string } | null
   }>({
@@ -2084,9 +2257,9 @@ export default function PerformanceReviewsPage() {
   })
   const setModal = (key: string, value: unknown) => setModals(m => ({ ...m, [key]: value }))
   const setShowNewCycle     = (v: boolean) => setModal('showNewCycle', v)
-  const setEditingReview    = (v: Dict | null) => setModal('editingReview', v)
-  const setAssigningCycle   = (v: Dict | null) => setModal('assigningCycle', v)
-  const setCampaigningCycle = (v: Dict | null) => setModal('campaigningCycle', v)
+  const setEditingReview    = (v: Review | null) => setModal('editingReview', v)
+  const setAssigningCycle   = (v: Cycle | null) => setModal('assigningCycle', v)
+  const setCampaigningCycle = (v: Cycle | null) => setModal('campaigningCycle', v)
   const setOpenDashboardId  = (v: string | null) => setModal('openDashboardId', v)
   const setHistorySubject   = (v: { id?: string; name?: string } | null) => setModal('historySubject', v)
   const {
@@ -2094,11 +2267,11 @@ export default function PerformanceReviewsPage() {
     campaigningCycle, openDashboardId, historySubject,
   } = modals
 
-  const { data: cycles = [], isLoading: loadingCycles } = useQuery<Dict[]>({
+  const { data: cycles = [], isLoading: loadingCycles } = useQuery<Cycle[]>({
     queryKey: ['perf-cycles'],
     queryFn: () => performanceApi.cycles().then(r => r.data).catch(() => []),
   })
-  const { data: myReviews = [], isLoading: loadingMine } = useQuery<Dict[]>({
+  const { data: myReviews = [], isLoading: loadingMine } = useQuery<Review[]>({
     queryKey: ['perf-my-reviews'],
     queryFn: () => performanceApi.myReviews().then(r => r.data).catch(() => []),
   })
@@ -2193,7 +2366,7 @@ export default function PerformanceReviewsPage() {
               <div style={styles.titleSmBolder}>
                 {traducir('performancereviews.mi_evolucion_360')}
               </div>
-              <div className="ds-muted" style={{ fontSize: 'var(--text-xs)' }}>
+              <div className="ds-muted u-xs">
                 {traducir('performancereviews.compara_tus_puntuaciones_others_vs_self_a')}
               </div>
             </div>
@@ -2219,7 +2392,7 @@ export default function PerformanceReviewsPage() {
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <TypeIcon size={16} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)' }}>
                       Evaluar a {r.reviewee_name}
                     </div>

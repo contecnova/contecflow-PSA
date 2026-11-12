@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { imputationsApi, projectsApi, tasksApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
+import { useDialogo, Table } from '../components/ui'
 import { Timer } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -110,6 +111,7 @@ function StartModal({ onClose, onStart, isPending }: {
     ),
     enabled: !!projectId,
   })
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
     <>
@@ -122,8 +124,7 @@ function StartModal({ onClose, onStart, isPending }: {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none',
       }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="start-timer-title"
-        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="start-timer-title"
         tabIndex={-1}
         style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
@@ -163,7 +164,7 @@ function StartModal({ onClose, onStart, isPending }: {
             onClick={() => onStart({ project_id: projectId, task_id: taskId || null, is_billable: billable })}
             style={{
               flex: 1, padding: '11px', background: 'var(--accent)', border: 'none',
-              borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
+              borderRadius: 9, color: 'var(--on-accent-light)', fontSize: "var(--text-base)", fontWeight: 700,
               cursor: projectId ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
               opacity: (!projectId || isPending) ? 0.6 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -211,6 +212,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
   const isSaving = pendingAction === 'stop'
   const isCancelling = pendingAction === 'cancel'
   const isBusy = pendingAction !== null
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
     <>
@@ -223,8 +225,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none',
       }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="stop-timer-title"
-        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="stop-timer-title"
         tabIndex={-1}
         style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
@@ -273,7 +274,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
             onClick={() => onStop({ description: description || 'Sesión de trabajo', is_billable: billable, task_id: taskId || null, force_duplicate: forceDuplicate })}
             style={{
               padding: '11px', background: 'var(--danger)', border: 'none',
-              borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
+              borderRadius: 9, color: 'var(--on-accent-light)', fontSize: "var(--text-base)", fontWeight: 700,
               cursor: 'pointer', fontFamily: 'inherit', opacity: isBusy ? 0.6 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
@@ -420,7 +421,7 @@ export default function TimerPage() {
         actions={!currentTimer && (
           <button onClick={() => setShowStart(true)} style={{
             padding: '9px 20px', background: 'var(--accent)', border: 'none',
-            borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
+            borderRadius: 9, color: 'var(--on-accent-light)', fontSize: "var(--text-base)", fontWeight: 700,
             cursor: 'pointer', fontFamily: 'inherit',
           }}>{traducir('timer.nueva_sesion')}</button>
         )}
@@ -433,7 +434,7 @@ export default function TimerPage() {
           borderLeft: `4px solid ${stateColor}`,
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="u-row-center-8">
             <span style={{
               width: 8, height: 8, borderRadius: '50%', background: stateColor,
               boxShadow: isRunning ? `0 0 10px ${stateColor}` : 'none',
@@ -462,7 +463,7 @@ export default function TimerPage() {
             {formatTime(elapsed)}
           </div>
 
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+          <div className="u-text3-sm">
             Inicio: {new Date(currentTimer.started_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             {(currentTimer.paused_duration_secs || 0) > 0 && (
               <span style={{ marginLeft: 14 }}>· Pausado acumulado: {formatTime(currentTimer.paused_duration_secs ?? 0)}</span>
@@ -473,21 +474,21 @@ export default function TimerPage() {
             {isPaused ? (
               <button onClick={() => resumeMutation.mutate()} disabled={isLoading} style={{
                 padding: '12px 28px', background: 'var(--accent)', border: 'none',
-                borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
+                borderRadius: 10, color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
                 cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 opacity: isLoading ? 0.6 : 1,
               }}>▶ Reanudar</button>
             ) : (
               <button onClick={() => pauseMutation.mutate()} disabled={isLoading} style={{
                 padding: '12px 28px', background: 'var(--warning)', border: 'none',
-                borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
+                borderRadius: 10, color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
                 cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 opacity: isLoading ? 0.6 : 1,
               }}>⏸ Pausar</button>
             )}
             <button onClick={() => setShowStop(true)} disabled={isLoading} style={{
               padding: '12px 28px', background: 'var(--danger)', border: 'none',
-              borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
+              borderRadius: 10, color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
               cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
               opacity: isLoading ? 0.6 : 1,
             }}>⏹ Detener y guardar</button>
@@ -506,7 +507,7 @@ export default function TimerPage() {
           </div>
           <button onClick={() => setShowStart(true)} style={{
             marginTop: 8, padding: '12px 32px', background: 'var(--accent)', border: 'none',
-            borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
+            borderRadius: 10, color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
             cursor: 'pointer', fontFamily: 'inherit',
           }}>{traducir('timer.iniciar_cronometro_2')}</button>
         </div>
@@ -521,7 +522,7 @@ export default function TimerPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{traducir('timer.historial_de_sesiones')}</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+          <div className="u-text3-sm">
             {timerHistory.length} {traducir('timer.sesion')}{timerHistory.length !== 1 ? 'es' : ''}
           </div>
         </div>
@@ -530,47 +531,41 @@ export default function TimerPage() {
             {traducir('timer.no_hay_sesiones_registradas_todavia')}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
-            <thead>
-              <tr style={{ background: 'var(--surface-3)' }}>
-                {['Proyecto', 'Descripción', 'Horas', 'Tipo', 'Fecha'].map(h => (
-                  <th key={h} style={{
-                    padding: '10px 16px', textAlign: 'left',
-                    fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)',
-                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timerHistory.map((s, i) => (
-                <tr key={s.id} style={{ borderTop: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-3)' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-1)' }}>
-                    {s.project?.name || s.project?.code || `Proyecto #${s.project?.id || '?'}`}
-                  </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-2)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {s.description || '—'}
-                  </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-1)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-                    {typeof s.hours === 'number' ? s.hours.toFixed(2) : (s.hours_imputed?.toFixed(2) || '—')}h
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center',
-                      padding: '3px 10px', borderRadius: 20, fontSize: "var(--text-xs)", fontWeight: 700,
-                      background: s.is_billable ? 'rgba(104,211,145,0.15)' : 'rgba(113,128,150,0.15)',
-                      color: s.is_billable ? 'var(--success)' : 'var(--text-3)',
-                    }}>
-                      {s.is_billable ? '💰 Facturable' : '🔧 Interno'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>
-                    {s.created_at ? new Date(s.created_at).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table
+            data={timerHistory}
+            columns={[
+              { key: 'project', label: 'Proyecto', render: (_v, s) => (
+                <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>
+                  {s.project?.name || s.project?.code || `Proyecto #${s.project?.id || '?'}`}
+                </span>
+              ) },
+              { key: 'description', label: 'Descripción', render: (_v, s) => (
+                <span style={{ display: 'block', color: 'var(--text-2)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {s.description || '—'}
+                </span>
+              ) },
+              { key: 'hours', label: 'Horas', render: (_v, s) => (
+                <span style={{ color: 'var(--text-1)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+                  {typeof s.hours === 'number' ? s.hours.toFixed(2) : (s.hours_imputed?.toFixed(2) || '—')}h
+                </span>
+              ) },
+              { key: 'is_billable', label: 'Tipo', render: (_v, s) => (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  padding: '3px 10px', borderRadius: 20, fontSize: "var(--text-xs)", fontWeight: 700,
+                  background: s.is_billable ? 'rgba(104,211,145,0.15)' : 'rgba(113,128,150,0.15)',
+                  color: s.is_billable ? 'var(--success)' : 'var(--text-3)',
+                }}>
+                  {s.is_billable ? '💰 Facturable' : '🔧 Interno'}
+                </span>
+              ) },
+              { key: 'created_at', label: 'Fecha', render: (_v, s) => (
+                <span className="u-text3-sm">
+                  {s.created_at ? new Date(s.created_at).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                </span>
+              ) },
+            ]}
+          />
         )}
       </div>
 

@@ -439,53 +439,25 @@ def _send_email(recipients: List[str], subject: str, body_html: str, attachment_
     de abajo es real— pero el log se llenaba de un fallo que no era un fallo, y
     eso es peor que no registrar nada: entierra los avisos de verdad.
 
-    Retirado el camino primario inexistente. Si algun dia se escribe un
-    `email_service`, este es el sitio donde enchufarlo, y entonces el respaldo
-    SMTP pasa a ser respaldo de verdad.
+    Auditoria 2026-11 (hallazgo 20): el envio va por
+    `notification_service.enviar_correo`, el unico emisor SMTP. Antes reusaba
+    un solo mensaje y le iba ANADIENDO una cabecera `To` por destinatario
+    (`msg["To"] = ...` no sustituye), asi que el tercero recibia el informe con
+    los dos anteriores a la vista. Ahora cada destinatario recibe el suyo.
     """
-    try:
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-        from email.mime.application import MIMEApplication
-        from app.core.config import settings  # type: ignore
+    from app.services.notification_service import ServidorSmtp, enviar_correo
 
-        smtp_host = getattr(settings, "SMTP_HOST", None)
-        smtp_port = int(getattr(settings, "SMTP_PORT", 587))
-        smtp_user = getattr(settings, "SMTP_USER", None)
-        # Auditoria 2026-08. Dos nombres de ajuste que NO existen, con el
-        # correcto al lado: el ajuste es `SMTP_PASS`, no `SMTP_PASSWORD`, y el
-        # remitente es `SMTP_FROM`, no `EMAILS_FROM_EMAIL`. Con los nombres
-        # malos, `smtp_pass` era siempre None y **`smtp.login()` no se llamaba
-        # nunca**, y el remitente configurado se ignoraba.
-        smtp_pass = getattr(settings, "SMTP_PASS", None)
-        from_addr = (getattr(settings, "SMTP_FROM", None) or smtp_user
-                     or settings.NOTIFICATION_EMAIL_FROM)
-
-        if not smtp_host:
-            logger.warning("SMTP not configured — email delivery skipped")
-            return False
-
-        msg = MIMEMultipart()
-        msg["From"] = from_addr
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body_html, "html"))
-        if attachment_bytes and attachment_filename:
-            part = MIMEApplication(attachment_bytes)
-            part["Content-Disposition"] = f'attachment; filename="{attachment_filename}"'
-            msg.attach(part)
-
-        with smtplib.SMTP(smtp_host, smtp_port) as smtp:
-            smtp.starttls()
-            if smtp_user and smtp_pass:
-                smtp.login(smtp_user, smtp_pass)
-            for recipient in recipients:
-                msg["To"] = recipient
-                smtp.sendmail(from_addr, recipient, msg.as_string())
-        return True
-    except Exception as exc:
-        logger.error("Email delivery failed: %s", exc)
+    servidor = ServidorSmtp.del_entorno()
+    if not servidor.configurado:
+        logger.warning("SMTP not configured — email delivery skipped")
         return False
+    adjuntos = ([(attachment_filename, attachment_bytes, "application/octet-stream")]
+                if attachment_bytes and attachment_filename else None)
+    ok = True
+    for recipient in recipients:
+        if not enviar_correo(recipient, subject, body_html, adjuntos=adjuntos, servidor=servidor).enviado:
+            ok = False
+    return ok
 
 
 # ── Delivery execution ────────────────────────────────────────────────────────

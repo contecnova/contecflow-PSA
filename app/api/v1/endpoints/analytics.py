@@ -100,7 +100,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Coste interno acumulado por proyecto",
         "x_label": "Proyecto",
-        "y_label": "Coste (€)",
+        "y_label": "Coste (¤)",
         "default_chart": "bar",
     },
     "cost_by_person": {
@@ -108,7 +108,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Coste total por persona en el período",
         "x_label": "Persona",
-        "y_label": "Coste (€)",
+        "y_label": "Coste (¤)",
         "default_chart": "bar",
     },
     "cost_by_month": {
@@ -116,7 +116,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Evolución mensual del coste interno",
         "x_label": "Mes",
-        "y_label": "Coste (€)",
+        "y_label": "Coste (¤)",
         "default_chart": "line",
     },
     "cost_per_hour_by_person": {
@@ -124,7 +124,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Coste/hora actual derivado del perfil de coste vigente (admin/hr)",
         "x_label": "Persona",
-        "y_label": "Coste/h (€)",
+        "y_label": "Coste/h (¤)",
         "default_chart": "bar",
     },
     "cost_per_hour_by_department": {
@@ -132,7 +132,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Coste/hora medio por departamento",
         "x_label": "Departamento",
-        "y_label": "Coste/h (€)",
+        "y_label": "Coste/h (¤)",
         "default_chart": "bar",
     },
     "cost_per_hour_by_country": {
@@ -140,7 +140,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Coste/hora medio por país (multi-país)",
         "x_label": "País",
-        "y_label": "Coste/h (€)",
+        "y_label": "Coste/h (¤)",
         "default_chart": "bar",
     },
     "annual_cost_by_person": {
@@ -148,7 +148,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Bruto + SS empresa + extras anuales por persona",
         "x_label": "Persona",
-        "y_label": "€/año",
+        "y_label": "¤/año",
         "default_chart": "bar",
     },
     "annual_cost_by_country": {
@@ -156,7 +156,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Coste empresa anual agregado por país",
         "x_label": "País",
-        "y_label": "€/año",
+        "y_label": "¤/año",
         "default_chart": "bar",
     },
     "cost_profile_coverage": {
@@ -180,7 +180,7 @@ CATALOGUE = {
         "category": "Costes",
         "description": "Coste/hora medio de la org mes a mes (drift por subidas)",
         "x_label": "Mes",
-        "y_label": "Coste/h (€)",
+        "y_label": "Coste/h (¤)",
         "default_chart": "line",
     },
     "margin_by_project": {
@@ -188,7 +188,7 @@ CATALOGUE = {
         "category": "Rentabilidad",
         "description": "Ingresos, costes y margen bruto por proyecto",
         "x_label": "Proyecto",
-        "y_label": "€",
+        "y_label": "¤",
         "default_chart": "bar_grouped",
     },
     "margin_evolution": {
@@ -196,7 +196,7 @@ CATALOGUE = {
         "category": "Rentabilidad",
         "description": "Evolución mensual del margen",
         "x_label": "Mes",
-        "y_label": "€",
+        "y_label": "¤",
         "default_chart": "line",
     },
     "budget_consumption": {
@@ -268,7 +268,7 @@ CATALOGUE = {
         "category": "Negocio",
         "description": "Valor y número de oportunidades por etapa",
         "x_label": "Etapa",
-        "y_label": "€ Ponderado",
+        "y_label": "¤ Ponderado",
         "default_chart": "bar",
     },
     "pipeline_evolution": {
@@ -276,7 +276,7 @@ CATALOGUE = {
         "category": "Negocio",
         "description": "Evolución mensual del valor del pipeline",
         "x_label": "Mes",
-        "y_label": "€",
+        "y_label": "¤",
         "default_chart": "line",
     },
     "absences_by_month": {
@@ -316,7 +316,7 @@ CATALOGUE = {
         "category": "Rentabilidad",
         "description": "Comparativa coste acumulado vs presupuesto por proyecto",
         "x_label": "Proyecto",
-        "y_label": "€",
+        "y_label": "¤",
         "default_chart": "bar_grouped",
     },
     # ── Service Desk ─────────────────────────────────────────────────────────
@@ -398,7 +398,7 @@ CATALOGUE = {
         "label": "Ingresos por cliente",
         "category": "Negocio",
         "description": "Facturación total por cliente en el período",
-        "x_label": "Cliente", "y_label": "€", "default_chart": "bar",
+        "x_label": "Cliente", "y_label": "¤", "default_chart": "bar",
     },
     "projects_by_client": {
         "label": "Proyectos por cliente",
@@ -410,7 +410,7 @@ CATALOGUE = {
         "label": "Contratos por estado",
         "category": "Negocio",
         "description": "Distribución de contratos por estado y valor acumulado",
-        "x_label": "Estado", "y_label": "€", "default_chart": "bar",
+        "x_label": "Estado", "y_label": "¤", "default_chart": "bar",
     },
     "win_rate_evolution": {
         "label": "Tasa de éxito comercial",
@@ -423,7 +423,7 @@ CATALOGUE = {
         "label": "Coste de licencias por proveedor",
         "category": "ALM",
         "description": "Gasto anual en licencias agrupado por proveedor",
-        "x_label": "Proveedor", "y_label": "€/año", "default_chart": "bar",
+        "x_label": "Proveedor", "y_label": "¤/año", "default_chart": "bar",
     },
     "license_expiry_timeline": {
         "label": "Línea de tiempo de vencimientos",
@@ -461,7 +461,7 @@ CATALOGUE = {
         "label": "Proyección de ingresos (90 días)",
         "category": "Estrategia",
         "description": "Ingresos pronosticados: combinan pipeline + proyectos activos + contratos vigentes",
-        "x_label": "Origen", "y_label": "€", "default_chart": "bar_stacked",
+        "x_label": "Origen", "y_label": "¤", "default_chart": "bar_stacked",
     },
     "burnout_index": {
         "label": "Índice de riesgo de burnout por persona",
@@ -554,43 +554,43 @@ CATALOGUE = {
         "label": "Ingresos reconocidos por mes",
         "category": "Ingresos",
         "description": "Evolución mensual de ingresos reconocidos (ASC-606 / rev_entries)",
-        "x_label": "Mes", "y_label": "€", "default_chart": "line",
+        "x_label": "Mes", "y_label": "¤", "default_chart": "line",
     },
     "revenue_by_contract": {
         "label": "Ingresos reconocidos por contrato",
         "category": "Ingresos",
         "description": "Total de ingresos reconocidos acumulados por contrato",
-        "x_label": "Contrato", "y_label": "€", "default_chart": "bar",
+        "x_label": "Contrato", "y_label": "¤", "default_chart": "bar",
     },
     "expenses_by_category": {
         "label": "Gastos por categoría",
         "category": "Gastos",
         "description": "Total de gastos agrupados por categoría",
-        "x_label": "Categoría", "y_label": "€", "default_chart": "pie",
+        "x_label": "Categoría", "y_label": "¤", "default_chart": "pie",
     },
     "expenses_by_project": {
         "label": "Gastos por proyecto",
         "category": "Gastos",
         "description": "Total de gastos imputados por proyecto",
-        "x_label": "Proyecto", "y_label": "€", "default_chart": "bar",
+        "x_label": "Proyecto", "y_label": "¤", "default_chart": "bar",
     },
     "expenses_billable_vs_internal": {
         "label": "Gastos facturables vs internos",
         "category": "Gastos",
         "description": "Comparativa del importe de gastos facturables y gastos internos",
-        "x_label": "Tipo", "y_label": "€", "default_chart": "pie",
+        "x_label": "Tipo", "y_label": "¤", "default_chart": "pie",
     },
     "expenses_trend": {
         "label": "Evolución mensual de gastos",
         "category": "Gastos",
         "description": "Tendencia mensual de gastos aprobados",
-        "x_label": "Mes", "y_label": "€", "default_chart": "line",
+        "x_label": "Mes", "y_label": "¤", "default_chart": "line",
     },
     "expenses_pending_approval": {
         "label": "Gastos pendientes de aprobación",
         "category": "Gastos",
         "description": "Importe y número de gastos en estado 'submitted' por persona",
-        "x_label": "Persona", "y_label": "€ pendiente", "default_chart": "bar",
+        "x_label": "Persona", "y_label": "¤ pendiente", "default_chart": "bar",
     },
     # ── Sprints & Tasks ────────────────────────────────────────────────────────
     "sprint_velocity_trend": {
@@ -652,7 +652,7 @@ CATALOGUE = {
         "label": "Uso de presupuesto por portfolio",
         "category": "Portfolio",
         "description": "Presupuesto total vs gastado por cada portfolio activo",
-        "x_label": "Portfolio", "y_label": "€", "default_chart": "bar_stacked",
+        "x_label": "Portfolio", "y_label": "¤", "default_chart": "bar_stacked",
     },
     "performance_scores_by_person": {
         "label": "Score de evaluación por persona",
@@ -695,25 +695,25 @@ CATALOGUE = {
         "label": "Facturas por estado",
         "category": "Facturación",
         "description": "Número e importe de facturas agrupadas por estado",
-        "x_label": "Estado", "y_label": "€", "default_chart": "bar",
+        "x_label": "Estado", "y_label": "¤", "default_chart": "bar",
     },
     "invoice_amount_by_month": {
         "label": "Facturación mensual",
         "category": "Facturación",
         "description": "Importe total facturado por mes",
-        "x_label": "Mes", "y_label": "€", "default_chart": "line",
+        "x_label": "Mes", "y_label": "¤", "default_chart": "line",
     },
     "invoice_amount_by_client": {
         "label": "Facturación por cliente",
         "category": "Facturación",
         "description": "Total facturado por cliente en el período",
-        "x_label": "Cliente", "y_label": "€", "default_chart": "bar",
+        "x_label": "Cliente", "y_label": "¤", "default_chart": "bar",
     },
     "invoice_overdue_amount": {
         "label": "Facturas vencidas pendientes de cobro",
         "category": "Facturación",
         "description": "Facturas no pagadas con fecha de vencimiento superada por cliente",
-        "x_label": "Cliente", "y_label": "€ vencido", "default_chart": "bar",
+        "x_label": "Cliente", "y_label": "¤ vencido", "default_chart": "bar",
     },
     "alerts_by_severity": {
         "label": "Alertas por severidad",
@@ -786,20 +786,27 @@ CATALOGUE = {
         "label": "Pipeline comercial por responsable",
         "category": "Negocio",
         "description": "Valor ponderado del pipeline abierto por propietario de la oportunidad",
-        "x_label": "Responsable", "y_label": "Pipeline (€)", "default_chart": "bar",
+        "x_label": "Responsable", "y_label": "Pipeline (¤)", "default_chart": "bar",
     },
 }
 
 
+def _simbolo(db, current_user) -> str:
+    """Las etiquetas del catálogo llevan `¤`; se sirve el símbolo de la moneda de la organización."""
+    from app.services.formato_regional import simbolo_de_moneda
+    return simbolo_de_moneda(db, getattr(current_user, "organization_id", None))
+
+
 @router.get("/catalogue", summary="Catálogo de métricas disponibles")
-def get_catalogue(current_user: User = Depends(get_current_user)):
+def get_catalogue(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.formato_regional import con_moneda
     result = {}
     for key, meta in CATALOGUE.items():
         cat = meta["category"]
         if cat not in result:
             result[cat] = []
         result[cat].append({"id": key, **meta})
-    return APIResponse.ok(data=result)
+    return APIResponse.ok(data=con_moneda(result, _simbolo(db, current_user)))
 
 
 def _date_range(date_from: Optional[str], date_to: Optional[str]):
@@ -900,7 +907,9 @@ def run_query(
     if metric_id not in CATALOGUE:
         raise HTTPException(404, f"Métrica '{metric_id}' no encontrada")
 
-    meta = CATALOGUE[metric_id]
+    from app.services.formato_regional import con_moneda
+    simbolo = _simbolo(db, current_user)
+    meta = con_moneda(CATALOGUE[metric_id], simbolo)
     d_from, d_to = _date_range(date_from, date_to)
     project_ids = _filtered_project_ids(
         db, current_user,
@@ -943,6 +952,7 @@ def run_query(
             client_id=client_id, group_by=group_by,
             organization_id=current_user.organization_id, meta=meta,
         )
+        meta = con_moneda(meta, simbolo)  # el parche de la métrica también trae `¤`
 
     response = _respuesta_de_metrica(metric_id, meta, filtros, rows)
     if not no_cache and not meta.get("error"):
@@ -1010,14 +1020,15 @@ class AskRequest(BaseModel):
 
 @router.get("/narrative", summary="Narrativa ejecutiva generada por IA")
 def get_narrative(
-    lang: str = Query("es", description="Idioma: es | en | ca"),
+    lang: Optional[str] = Query(None, description="Idioma: es | en | ca (por defecto, el del usuario / la organización)"),
     force_refresh: bool = Query(False, description="Ignorar caché y regenerar"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
     from app.services.bi_storytelling import generate_narrative
     org_id = getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data=generate_narrative(org_id=org_id, lang=lang, force_refresh=force_refresh))
+    return APIResponse.ok(data=generate_narrative(org_id=org_id, lang=lang, force_refresh=force_refresh,
+                                                  user_id=current_user.id))
 
 
 @router.post("/ask", summary="Pregunta en lenguaje natural sobre los datos OLAP")

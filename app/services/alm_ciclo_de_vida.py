@@ -16,11 +16,11 @@ from datetime import date
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.models.alm import ALMAsset, ALMAssetHistory
+from app.core.errores import ErrorDeDominio
 
 #: Fechas que vencen, en el orden en que se leen.
 VENCIMIENTOS = ("warranty_expiry", "eol_date", "lease_expiry", "next_maintenance_date")
@@ -63,13 +63,13 @@ def exigir_ci(db: Session, ci_id: Optional[str], current_user) -> None:
         return
     from app.services.service_desk.cmdb_service import get_scoped_ci_by_id
     if get_scoped_ci_by_id(db, current_user, ci_id) is None:
-        raise HTTPException(422, "El CI no existe")
+        raise ErrorDeDominio(422, "El CI no existe")
 
 
 def activo_o_404(db: Session, activo_id: str) -> ALMAsset:
     a = db.query(ALMAsset).filter(ALMAsset.id == activo_id, ALMAsset.is_active.is_(True)).first()
     if a is None:
-        raise HTTPException(404, "Activo no encontrado")
+        raise ErrorDeDominio(404, "Activo no encontrado")
     return a
 
 
@@ -158,6 +158,13 @@ def abrir_ticket_de_renovacion(db: Session, activo: ALMAsset, usuario_id: Option
     anotar(db, activo, "refresh_ticket_id", activo.refresh_ticket_id, t.id, usuario_id, f"Ticket {t.number}")
     activo.refresh_ticket_id = t.id
     return {"ticket_id": t.id, "number": t.number, "created": True}
+
+
+def abrir_ticket_de_renovacion_confirmado(db: Session, activo_id: str, usuario_id: Optional[str]) -> dict:
+    """La accion del endpoint: busca el activo (404), abre el ticket y confirma."""
+    datos = abrir_ticket_de_renovacion(db, activo_o_404(db, activo_id), usuario_id)
+    db.commit()
+    return datos
 
 
 def escanear_vencimientos(db: Session) -> dict:

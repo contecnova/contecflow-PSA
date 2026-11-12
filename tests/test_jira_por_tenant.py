@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-jira-mia"
 OTRA = "org-jira-ajena"
@@ -75,7 +76,7 @@ def test_EL_HALLAZGO_no_se_puede_usar_la_configuracion_de_otro_cliente(db, escen
     from app.services.service_desk import jira_sync_service as svc
 
     ajena = escenario[OTRA]["config"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.configuracion_activa_propia(db, _Usuario(ORG), ajena.id)
     assert exc.value.status_code == 404
 
@@ -91,7 +92,7 @@ def test_una_configuracion_parada_no_sirve_para_empujar(db, escenario):
     mia.is_active = False
     db.commit()
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.configuracion_activa_propia(db, _Usuario(ORG), mia.id)
     assert exc.value.status_code == 404
     # Pero sigue siendo suya para verla y editarla.
@@ -102,7 +103,7 @@ def test_EL_HALLAZGO_no_se_puede_empujar_el_ticket_de_otro_cliente(db, escenario
     from app.services.service_desk import jira_sync_service as svc
 
     ajeno = escenario[OTRA]["ticket"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.ticket_propio(db, _Usuario(ORG), ajeno.id)
     assert exc.value.status_code == 404
 
@@ -162,7 +163,7 @@ def test_no_se_puede_borrar_la_configuracion_de_otro_cliente(db, escenario):
     from app.services.service_desk import jira_sync_service as svc
 
     ajena = escenario[OTRA]["config"]
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.borrar_configuracion(db, _Usuario(ORG), ajena.id)
     assert exc.value.status_code == 404
 
@@ -180,7 +181,9 @@ def test_el_parche_serializa_los_mapas_y_cifra_el_token(db, escenario):
         "priority_map": {"high": "High"},
         "name": "Renombrada",
     })
-    assert mia.jira_api_token_enc == "token-nuevo"
+    # Auditoria 2026-11: el token se cifra (antes quedaba en claro).
+    assert mia.jira_api_token_enc != "token-nuevo"
+    assert svc.jira_token_en_claro(mia) == "token-nuevo"
     assert json.loads(mia.status_map_json) == {"open": "To Do"}
     assert json.loads(mia.priority_map_json) == {"high": "High"}
     assert mia.name == "Renombrada"

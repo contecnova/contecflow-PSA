@@ -13,8 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.core.errores import ErrorDeDominio
 
 
 @dataclass(frozen=True)
@@ -39,10 +39,10 @@ def _contrato(db, usuario, id_):
     from app.models.user import UserRole
     from app.services.contract_service import get_contract
     if getattr(usuario, "role", None) not in (UserRole.admin, UserRole.pm, UserRole.team_lead, UserRole.hr):
-        raise HTTPException(403, "Los contratos sólo los abren los responsables")
+        raise ErrorDeDominio(403, "Los contratos sólo los abren los responsables")
     c = get_contract(db, id_, usuario)
     if c is None:
-        raise HTTPException(404, "Contrato no encontrado")
+        raise ErrorDeDominio(404, "Contrato no encontrado")
     return c
 
 
@@ -66,7 +66,7 @@ def registrar_ficha(ficha: Ficha) -> None:
 
 def ficha(clave: str) -> Ficha:
     if clave not in FICHAS:
-        raise HTTPException(404, f"Tipo de ficha desconocido: {clave}")
+        raise ErrorDeDominio(404, f"Tipo de ficha desconocido: {clave}")
     return FICHAS[clave]
 
 

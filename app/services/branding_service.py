@@ -15,10 +15,10 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.tenancy import assert_org_id_is_own
+from app.core.errores import ErrorDeDominio
 
 #: Un nombre de variable CSS y su valor, acotados. Vienen del cliente y acaban
 #: en una hoja de estilo: sin tope, una sola variable puede pesar megas.
@@ -31,7 +31,7 @@ def _organizacion(db: Session, org_id: str):
 
     fila = db.query(Organization).filter(Organization.id == org_id).first()
     if not fila:
-        raise HTTPException(404, "Organization not found")
+        raise ErrorDeDominio(404, "Organization not found")
     return fila
 
 
@@ -87,7 +87,7 @@ def _traducciones_de(marca, org_id: str) -> dict:
 def guardar_traducciones_del_portal(
     db: Session, user, org_id: str, cambios: dict
 ) -> dict:
-    """Fusiona `cambios` sobre las traducciones que ya haya. No confirma.
+    """Fusiona `cambios` sobre las traducciones que ya haya, y confirma.
 
     La fusion —y no el reemplazo— es el comportamiento del endpoint original,
     heredado a su vez de un `bucket.update` en memoria. Se conserva: guardar una
@@ -114,6 +114,7 @@ def guardar_traducciones_del_portal(
     # idioma borraba las demás de ese idioma. Ahora es por clave; vacío borra.
     actuales = fusionar_traducciones(_traducciones_de(marca, org_id), cambios or {})
     marca.portal_translations = json.dumps(actuales, ensure_ascii=False)
+    db.commit()
     return actuales
 
 

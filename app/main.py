@@ -91,6 +91,7 @@ def _read_alembic_heads() -> set[str] | None:
         heads = set(script.get_heads())
         return heads or None
     except Exception:
+        logger.debug("_read_alembic_heads: excepcion ignorada", exc_info=True)
         return None
 
 
@@ -369,7 +370,7 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
                 coalesce=True,
             )
             _scheduler.add_job(
-                "app.services.alert_jobs:run_alert_engine_job",
+                "app.services.alert_service:run_alert_engine_job",
                 CronTrigger(hour=8, minute=0),
                 id="scheduled_alert_engine",
                 replace_existing=True,
@@ -673,7 +674,11 @@ async def _presupuesto_de_ia_agotado(_request, exc):
     return JSONResponse(status_code=429, content={"detail": str(exc)})
 
 
+from app.core.errores import ErrorDeDominio  # noqa: E402
+
+
 @app.exception_handler(HTTPException)
+@app.exception_handler(ErrorDeDominio)  # auditoria 2026-11: los servicios ya no lanzan HTTPException
 async def http_exception_sanitizer(_request: Request, exc: HTTPException):
     safe_detail = sanitize_http_detail(exc.status_code, exc.detail)
     if safe_detail != exc.detail:
@@ -997,8 +1002,11 @@ def health():
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         db_status = "ok"
-    except Exception as e:
-        db_status = f"error: {e}"
+    except Exception:
+        # Auditoria 2026-11: /health es publico; el error (host, usuario de la
+        # BD, ruta del fichero) va al log, no a la respuesta.
+        logger.exception("health: la BD no responde")
+        db_status = "error"
     return {
         "status": "ok",
         "version": settings.VERSION,
@@ -1020,8 +1028,9 @@ def readiness():
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         checks["db"] = {"status": "ok"}
-    except Exception as e:
-        checks["db"] = {"status": "error", "detail": str(e)}
+    except Exception:
+        logger.exception("ready: la BD no responde")
+        checks["db"] = {"status": "error", "detail": "unreachable"}
         http_status = 503
 
     redis_url = settings.REDIS_URL
@@ -1034,8 +1043,9 @@ def readiness():
             client.close()
             checks["redis"] = {"status": "ok"}
             checks["celery_broker"] = {"status": "ok"}
-        except Exception as e:
-            checks["redis"] = {"status": "error", "detail": str(e)}
+        except Exception:
+            logger.exception("ready: Redis no responde")
+            checks["redis"] = {"status": "error", "detail": "unreachable"}
             checks["celery_broker"] = {"status": "error", "detail": "unreachable"}
             http_status = 503
     else:

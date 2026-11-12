@@ -10,11 +10,11 @@ from collections import deque
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.bookings import TaskDependency, DependencyType
 from app.models.task import Task
+from app.core.errores import ErrorDeDominio
 
 
 def _mover_sucesora(succ, current_task, dep) -> Optional[dict]:
@@ -96,11 +96,11 @@ def cascade_reschedule(task_id: str, new_end_date: date, db: Session) -> dict:
     """
     raiz = db.query(Task).filter(Task.id == task_id).first()
     if not raiz:
-        raise HTTPException(404, "Tarea no encontrada")
+        raise ErrorDeDominio(404, "Tarea no encontrada")
 
     fin_anterior = raiz.due_date
     if not fin_anterior:
-        raise HTTPException(400, "La tarea raíz no tiene fecha de fin definida")
+        raise ErrorDeDominio(400, "La tarea raíz no tiene fecha de fin definida")
 
     desplazamiento = new_end_date - fin_anterior
     if desplazamiento.days == 0:

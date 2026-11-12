@@ -2,7 +2,7 @@
 
 Uso típico:
     from app.services.stt import transcribe_audio
-    result = transcribe_audio(audio_bytes, filename, content_type, language="es")
+    result = transcribe_audio(audio_bytes, filename, content_type, language=idioma(db, user_id=..., org_id=...))
     print(result.text, result.provider)
 
 Settings relevantes (todos optional; los defaults asumen OpenAI):

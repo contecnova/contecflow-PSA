@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import FormularioDeLeccion, { TablaDeHechos } from './FormularioDeLeccion'
+import DateInput from '../ui/DateInput'
 
 const titulo: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-2)', margin: '0 0 6px' }
 const texto: CSSProperties = { fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', lineHeight: 1.55, margin: 0 }
@@ -43,13 +44,13 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
   if (editando && l) return <FormularioDeLeccion leccion={l} onClose={() => setEditando(false)} onGuardada={() => { setEditando(false); refrescar() }} />
   return (
     <Modal open onClose={onClose} size="xl" title={l ? `${l.codigo} — ${l.titulo}` : '…'} subtitle={l?.origen_ref ?? undefined}>
-      {isLoading ? <Spinner /> : isError ? <div role="alert" style={{ color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div> : l && (
+      {isLoading ? <Spinner /> : isError ? <div role="alert" className="u-danger">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div> : l && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: 22 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="u-stack-16">
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ color: ColorDeEstado(l.estado), border: '1px solid currentColor', borderRadius: 99, padding: '1px 10px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>{t(`lec.estado_${l.estado}`)}</span>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{t(`lec.tipo_${l.tipo}`)} · {t(`lec.cat_${l.categoria}`, l.categoria)} · {t(`lec.sev_${l.severidad}`)}</span>
-              {l.etiquetas && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>#{l.etiquetas.split(',').map(e => e.trim()).join(' #')}</span>}
+              <span className="u-text2-xs">{t(`lec.tipo_${l.tipo}`)} · {t(`lec.cat_${l.categoria}`, l.categoria)} · {t(`lec.sev_${l.severidad}`)}</span>
+              {l.etiquetas && <span className="u-text3-xs">#{l.etiquetas.split(',').map(e => e.trim()).join(' #')}</span>}
             </div>
             <section><h4 style={titulo}>{t('lec.recomendacion')}</h4><p style={{ ...texto, fontWeight: 600 }}>{l.recomendacion}</p></section>
             <section><h4 style={titulo}>{t('lec.que_paso')}</h4><p style={texto}>{l.que_paso}</p></section>
@@ -73,7 +74,7 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
                   style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 200px 150px auto', gap: 6, marginTop: 8 }}>
                   <input aria-label={t('lec.nueva_accion')} placeholder={t('lec.nueva_accion')} value={accion.descripcion} onChange={e => setAccion(v => ({ ...v, descripcion: e.target.value }))} style={campo} />
                   <UserSelect value={accion.responsable_id} onChange={(uid: string) => setAccion(v => ({ ...v, responsable_id: uid }))} placeholder={t('lec.responsable')} />
-                  <input type="date" aria-label={t('lec.fecha_limite')} value={accion.fecha_limite} onChange={e => setAccion(v => ({ ...v, fecha_limite: e.target.value }))} style={campo} />
+                  <DateInput aria-label={t('lec.fecha_limite')} value={accion.fecha_limite} onChange={e => setAccion(v => ({ ...v, fecha_limite: e.target.value }))} style={campo} />
                   <Button size="sm" type="submit" loading={nuevaAccion.isPending}>{t('lec.anadir')}</Button>
                 </form>
               )}
@@ -93,12 +94,12 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
               <h4 style={titulo}>{t('lec.le_sirvio')}</h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, textAlign: 'center' }}>
                 {(['util', 'aplicada', 'no_aplica'] as const).map(v => (
-                  <div key={v}><div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{l.usos[v]}</div><div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t(`lec.uso_${v}`)}</div></div>
+                  <div key={v}><div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{l.usos[v]}</div><div className="u-text3-xs">{t(`lec.uso_${v}`)}</div></div>
                 ))}
               </div>
             </section>
             <section><h4 style={titulo}>{t('lec.hechos')}</h4><TablaDeHechos hechos={l.hechos ?? []} /></section>
-            {l.validada_en && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('lec.validada_el', { fecha: fmtDate(l.validada_en) })}</div>}
+            {l.validada_en && <div className="u-text3-xs">{t('lec.validada_el', { fecha: fmtDate(l.validada_en) })}</div>}
           </aside>
         </div>
       )}

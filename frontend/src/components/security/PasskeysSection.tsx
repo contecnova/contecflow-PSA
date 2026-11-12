@@ -59,12 +59,12 @@ export default function PasskeysSection() {
             {editando?.id === p.id ? (
               <>
                 <input aria-label={t('passkeys.name')} value={editando.name} onChange={e => setEditando({ id: p.id, name: e.target.value })}
-                  className="ds-input" style={{ flex: 1 }} />
+                  className="ds-input u-flex1" />
                 <button type="button" className="ds-btn" onClick={() => renombrar(editando)}>{t('common.save')}</button>
               </>
             ) : (
               <>
-                <span style={{ flex: 1 }}>🔑 {p.name || t('passkeys.unnamed')}
+                <span className="u-flex1">🔑 {p.name || t('passkeys.unnamed')}
                   <span style={{ color: 'var(--text-3)', marginLeft: 6 }}>
                     {p.last_used_at ? `${t('passkeys.last_used')} ${String(p.last_used_at).slice(0, 10)}` : t('passkeys.never_used')}
                   </span>
@@ -79,11 +79,11 @@ export default function PasskeysSection() {
         ))}
       </ul>
       {soporta ? (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="u-row-8">
           <input aria-label={t('passkeys.name')} placeholder={t('passkeys.name_ph')} value={nombre}
-            onChange={e => setNombre(e.target.value)} className="ds-input" style={{ flex: 1 }} />
+            onChange={e => setNombre(e.target.value)} className="ds-input u-flex1" />
           <button type="button" onClick={() => anadir()} disabled={anadiendo}
-            style={{ padding: '7px 14px', background: 'var(--accent)', border: 'none', borderRadius: 7, color: '#fff',
+            style={{ padding: '7px 14px', background: 'var(--accent)', border: 'none', borderRadius: 7, color: 'var(--on-accent-light)',
               fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
             {anadiendo ? '…' : t('passkeys.add')}
           </button>

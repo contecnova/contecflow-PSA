@@ -112,6 +112,7 @@ def _load_baseline_map(db: Session, organization_id: Optional[str]) -> dict:
     try:
         payload = json.loads(row.value)
     except Exception:
+        logger.debug("_load_baseline_map: excepcion ignorada", exc_info=True)
         return {}
     return payload if isinstance(payload, dict) else {}
 
@@ -353,6 +354,7 @@ def _count_matching_kb_articles(db: Session, ticket: Ticket) -> int:
             or 0
         )
     except Exception:
+        logger.warning("_count_matching_kb_articles: excepcion ignorada", exc_info=True)
         return 0
 
 

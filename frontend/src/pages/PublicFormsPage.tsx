@@ -5,7 +5,7 @@ import { useState } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formsApi } from '../services/api'
-import { Button, Modal, EmptyState, Spinner } from '../components/ui'
+import { Button, Modal, EmptyState, Spinner, Table } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FileText } from 'lucide-react'
@@ -89,7 +89,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
 
   return (
     <Modal open title={isEdit ? `${t('public_forms.edit_form')} — ${form.name}` : t('public_forms.new_form_title')} onClose={onClose} width={520}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <div>
           <label style={LS}>{t('public_forms.name_label')}</label>
           <input value={f.name} onChange={set('name')} style={FS} placeholder={t('public_forms.name_placeholder')} />
@@ -98,7 +98,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
           <label style={LS}>{t('public_forms.description_label')}</label>
           <textarea value={f.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }} rows={2} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <div>
             <label style={LS}>{t('public_forms.type_label')}</label>
             <select value={f.form_type} onChange={set('form_type')} style={FS}>
@@ -153,28 +153,20 @@ function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => 
         <EmptyState title={t('public_forms.no_submissions')} description={t('public_forms.no_submissions_subtitle')} />
       ) : (
         <div style={{ maxHeight: 420, overflowY: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                {[t('public_forms.col_date'), t('public_forms.col_sender'), t('public_forms.col_subject'), t('public_forms.col_priority'), t('public_forms.col_ticket')].map(h => (
-                  <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 700, fontSize: "var(--text-xs)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {subs.map(s => (
-                <tr key={s.id} style={{ borderBottom: '1px solid var(--surface-3)' }}>
-                  <td style={{ padding: '8px 10px', color: 'var(--text-2)', fontSize: "var(--text-sm)" }}>
-                    {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString(localeActivo()) : '—'}
-                  </td>
-                  <td style={{ padding: '8px 10px' }}>{s.submitter_name || s.submitter_email || '—'}</td>
-                  <td style={{ padding: '8px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.subject}</td>
-                  <td style={{ padding: '8px 10px', textTransform: 'capitalize', color: 'var(--text-2)' }}>{s.priority}</td>
-                  <td style={{ padding: '8px 10px', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{s.created_entity_id ? `#${String(s.created_entity_id).slice(0, 8)}` : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table
+            data={subs}
+            columns={[
+              { key: 'submitted_at', label: t('public_forms.col_date'), render: (_v, s) => (
+                <span className="u-text2-sm">
+                  {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString(localeActivo()) : '—'}
+                </span>
+              ) },
+              { key: 'submitter_name', label: t('public_forms.col_sender'), render: (_v, s) => s.submitter_name || s.submitter_email || '—' },
+              { key: 'subject', label: t('public_forms.col_subject'), render: (_v, s) => <span style={{ display: 'block', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.subject}</span> },
+              { key: 'priority', label: t('public_forms.col_priority'), render: (_v, s) => <span style={{ textTransform: 'capitalize', color: 'var(--text-2)' }}>{s.priority}</span> },
+              { key: 'created_entity_id', label: t('public_forms.col_ticket'), render: (_v, s) => <span style={{ color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{s.created_entity_id ? `#${String(s.created_entity_id).slice(0, 8)}` : '—'}</span> },
+            ]}
+          />
         </div>
       )}
     </Modal>
@@ -272,11 +264,11 @@ export default function PublicFormsPage() {
                 }}>
                   {getPublicUrl(form.token)}
                 </div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>
+                <div className="u-hint">
                   {t('public_forms.submissions_received').replace('{n}', String(form.submission_count || 0))}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="u-wrap-8">
                 <Button variant="secondary" onClick={() => copyLink(form.token)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.copy_link')}</Button>
                 <Button variant="secondary" title={t('public_forms.copy_widget_help')}
                   onClick={() => copyLink(form.token, getWidgetCode(form.token), t('public_forms.widget_copied'))}

@@ -30,6 +30,7 @@ que las hereda de su padre —pregunta del ciclo, objetivo del plan— y las de
 from __future__ import annotations
 
 import pytest
+from app.core.errores import ErrorDeDominio
 
 ORG = "org-desempeno"
 OTRA = "org-ajena"
@@ -115,7 +116,7 @@ def test_la_pregunta_de_otra_organizacion_da_404(db, sesion_con_filtro):
         seed_default_questions=True)
     pregunta = ciclo.questions[0]
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.pregunta_propia(db, _Usuario(OTRA), pregunta.id)
     assert exc.value.status_code == 404
 
@@ -184,7 +185,7 @@ def test_el_objetivo_de_otra_organizacion_da_404(db, sesion_con_filtro):
     objetivo = plan.goals[0]
 
     assert svc.objetivo_propio(db, _Usuario(ORG), objetivo.id).id == objetivo.id
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.objetivo_propio(db, _Usuario(OTRA), objetivo.id)
     assert exc.value.status_code == 404
 
@@ -207,8 +208,13 @@ def test_EL_ESTRUCTURAL_ninguna_creacion_del_modulo_omite_la_organizacion():
         "Review360Campaign", "DevelopmentPlan", "DevGoal",
     }
     sin_organizacion = []
-    for ruta in ("app/services/performance_service.py",
-                 "app/services/dev_plan_service.py"):
+    # `performance_service` es un paquete desde la auditoria 2026-11 (#24):
+    # se recorren todos sus submodulos.
+    import glob
+    rutas = sorted(glob.glob("app/services/performance_service/*.py")) + [
+        "app/services/dev_plan_service.py"]
+    assert len(rutas) > 1
+    for ruta in rutas:
         arbol = ast.parse(io.open(ruta, encoding="utf-8").read())
         for nodo in ast.walk(arbol):
             if not (isinstance(nodo, ast.Call)

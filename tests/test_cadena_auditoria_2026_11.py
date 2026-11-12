@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.models.enterprise import AuditLog
 from app.models.mfa import Organization
 from app.models.user import User
-from app.services import cadena_auditoria as cadena
+from app.db import cadena_auditoria as cadena
 from app.services.audit import audit_log
 from tests.conftest import auth
 

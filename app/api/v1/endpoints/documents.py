@@ -23,7 +23,7 @@ from app.schemas.documents import (
     DocumentPermissionCreate, DocumentPermissionOut, DocumentApprovalPayload
 )
 from app.services.s3_service import file_storage
-from app.services.ai_dispatch import call_ai
+from app.services.ai_provider_service import call_ai
 from app.services import documents_service as doc_svc
 
 from app.services import reserva_de_documentos as _reserva

@@ -95,7 +95,7 @@ export default function ResetPasswordPage() {
           {t('reset_password.brand_subtitle')}
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="u-stack-16">
           {/* New password */}
           <div>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>

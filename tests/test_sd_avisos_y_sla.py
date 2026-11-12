@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
+from app.core.errores import ErrorDeDominio
 
 ORG = "1"
 
@@ -460,7 +461,7 @@ def test_no_se_borra_un_calendario_que_usa_una_politica(db):
     db.flush()
     db.add(SLAPolicy(name="Estandar", calendar_id=cal.id, organization_id=ORG))
     db.commit()
-    with pytest.raises(HTTPException) as e:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as e:
         delete_sla_calendar(cal.id, db)
     assert "Estandar" in e.value.detail
 

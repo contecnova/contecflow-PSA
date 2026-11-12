@@ -4,15 +4,19 @@
  * Tabs: Retención · Legal Hold · Moderación · Integraciones · Auditoría · Webhooks · eDiscovery
  */
 import { useState } from 'react'
-import type { ComponentType, CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ShieldCheck, Scale, Plug, ScrollText, Webhook, Search, Plus, RefreshCcw, X, Download,
+  type LucideIcon,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { collabApi } from '../services/collaborationApi'
+import { apiUrl } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import { useTabListKeys } from '../components/ui/Tabs'
+import { Table } from '../components/ui'
+import DateInput from '../components/ui/DateInput'
 
 type TabId = 'retention' | 'legal_hold' | 'integrations' | 'webhooks' | 'audit' | 'ediscovery'
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
@@ -117,13 +121,13 @@ export default function ChatAdminPage(): JSX.Element {
   const t = useAppT() as (key: string, params?: Record<string, unknown>) => string
   const [tab, setTab] = useState<TabId>('retention')
 
-  const TABS: Array<{ id: TabId; label: string; icon: ComponentType<any> }> = [
-    { id: 'retention', label: t('chat_admin.tab_retention'), icon: ShieldCheck as ComponentType<any> },
-    { id: 'legal_hold', label: t('chat_admin.tab_legal_hold'), icon: Scale as ComponentType<any> },
-    { id: 'integrations', label: t('chat_admin.tab_integrations'), icon: Plug as ComponentType<any> },
-    { id: 'webhooks', label: t('chat_admin.tab_webhooks'), icon: Webhook as ComponentType<any> },
-    { id: 'audit', label: t('chat_admin.tab_audit'), icon: ScrollText as ComponentType<any> },
-    { id: 'ediscovery', label: t('chat_admin.tab_ediscovery'), icon: Search as ComponentType<any> },
+  const TABS: Array<{ id: TabId; label: string; icon: LucideIcon }> = [
+    { id: 'retention', label: t('chat_admin.tab_retention'), icon: ShieldCheck },
+    { id: 'legal_hold', label: t('chat_admin.tab_legal_hold'), icon: Scale },
+    { id: 'integrations', label: t('chat_admin.tab_integrations'), icon: Plug },
+    { id: 'webhooks', label: t('chat_admin.tab_webhooks'), icon: Webhook },
+    { id: 'audit', label: t('chat_admin.tab_audit'), icon: ScrollText },
+    { id: 'ediscovery', label: t('chat_admin.tab_ediscovery'), icon: Search },
   ]
   const teclas = useTabListKeys(TABS.map(x => x.id), tab, id => setTab(id as TabId))
 
@@ -202,7 +206,7 @@ function Btn({
   children: ReactNode
   onClick?: () => void
   variant?: ButtonVariant
-  icon?: ComponentType<any>
+  icon?: LucideIcon
   disabled?: boolean
 }) {
   const v: Record<ButtonVariant, CSSProperties> = {
@@ -281,22 +285,21 @@ function RetentionTab() {
           <Btn variant="secondary" icon={RefreshCcw} onClick={() => run.mutate()}>{t('chat_admin.run_sweep')}</Btn>
         </div>
         {data.length === 0 ? <Empty text={t('chat_admin.no_policies_hint')} /> : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
-            <thead><tr style={{ borderBottom: '1px solid var(--surface-4)', textAlign: 'left' }}>
-              <th style={th}>{t('chat_admin.col_name')}</th><th style={th}>{t('chat_admin.col_scope')}</th><th style={th}>{t('chat_admin.col_apply_to')}</th><th style={th}>{t('chat_admin.col_months')}</th><th style={th}>{t('chat_admin.col_active')}</th>
-            </tr></thead>
-            <tbody>{data.map((r) => (
-              <tr key={r.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                <td style={td}>{r.name}</td><td style={td}>{r.scope}</td><td style={td}>{r.apply_to}</td><td style={td}>{r.retention_months}</td>
-                <td style={td}>{r.is_active ? '✓' : '—'}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+          <Table
+            data={data}
+            columns={[
+              { key: 'name', label: t('chat_admin.col_name') },
+              { key: 'scope', label: t('chat_admin.col_scope') },
+              { key: 'apply_to', label: t('chat_admin.col_apply_to') },
+              { key: 'retention_months', label: t('chat_admin.col_months') },
+              { key: 'is_active', label: t('chat_admin.col_active'), render: (_v, r) => (r.is_active ? '✓' : '—') },
+            ]}
+          />
         )}
       </Card>
       <Card>
         <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_policy')}</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           <Field label={t('chat_admin.col_name')}><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label={t('chat_admin.col_scope')}>
             <select style={inputStyle} value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value as RetentionScope })}>
@@ -352,13 +355,13 @@ function LegalHoldTab() {
       <Card>
         <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.legal_hold_cases')} ({data.length})</h3>
         {data.length === 0 ? <Empty text={t('chat_admin.no_holds')} /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             {data.map((h) => (
               <div key={h.id} style={{ padding: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="u-row-between">
                   <div>
                     <div style={{ fontWeight: 700 }}>{h.case_reference}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{h.description}</div>
+                    <div className="u-text3-xs">{h.description}</div>
                   </div>
                   {h.is_active && <Btn variant="danger" icon={X} onClick={() => release.mutate(h.id)}>{t('chat_admin.release')}</Btn>}
                 </div>
@@ -372,7 +375,7 @@ function LegalHoldTab() {
       </Card>
       <Card>
         <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_case')}</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           <Field label={t('chat_admin.case_reference_label')}><input style={inputStyle} value={form.case_reference} onChange={(e) => setForm({ ...form, case_reference: e.target.value })} placeholder="CASO-2026-001" /></Field>
           <Field label={t('chat_admin.description_label')}><textarea rows={2} style={inputStyle} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
           <Field label={t('chat_admin.custodians_label')}><input style={inputStyle} value={form.custodian_user_ids} onChange={(e) => setForm({ ...form, custodian_user_ids: e.target.value })} /></Field>
@@ -409,12 +412,12 @@ function IntegrationsTab() {
       <Card>
         <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.integrations')} ({data.length})</h3>
         {data.length === 0 ? <Empty text={t('chat_admin.no_integrations')} /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             {data.map((it) => (
               <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
                 <div>
                   <div style={{ fontWeight: 700 }}>{it.name}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{it.kind}{!it.is_enabled && ` · ${t('chat_admin.disabled')}`}</div>
+                  <div className="u-text3-xs">{it.kind}{!it.is_enabled && ` · ${t('chat_admin.disabled')}`}</div>
                 </div>
                 <Btn variant="danger" icon={X} onClick={() => remove.mutate(it.id)}>{t('chat_admin.delete')}</Btn>
               </div>
@@ -424,7 +427,7 @@ function IntegrationsTab() {
       </Card>
       <Card>
         <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.connect_integration')}</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           <Field label={t('chat_admin.kind_label')}>
             <select style={inputStyle} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as IntegrationKind })}>
               <option value="jira">Jira</option>
@@ -470,14 +473,14 @@ function WebhooksTab() {
       <Card>
         <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.tab_webhooks')} ({data.length})</h3>
         {data.length === 0 ? <Empty text={t('chat_admin.no_webhooks')} /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             {data.map((w) => (
               <div key={w.id} style={{ padding: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
-                <div style={{ fontWeight: 700 }}>{w.name} <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>({w.direction})</span></div>
+                <div style={{ fontWeight: 700 }}>{w.name} <span className="u-text3-xs">({w.direction})</span></div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', wordBreak: 'break-all' }}>
-                  {w.direction === 'incoming' ? `POST /api/v1/collaboration/webhooks/incoming/${w.secret_token}` : (w.url || '—')}
+                  {w.direction === 'incoming' ? `POST ${apiUrl(`/collaboration/webhooks/incoming/${w.secret_token}`)}` : (w.url || '—')}
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                <div className="u-hint">
                   {t('chat_admin.events_label')}: {w.events?.join(', ') || '—'}
                 </div>
               </div>
@@ -487,7 +490,7 @@ function WebhooksTab() {
       </Card>
       <Card>
         <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_webhook')}</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="u-stack-10">
           <Field label={t('chat_admin.direction_label')}>
             <select style={inputStyle} value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value as WebhookDirection })}>
               <option value="incoming">{t('chat_admin.direction_incoming')}</option>
@@ -524,19 +527,16 @@ function AuditTab() {
             : t('chat_admin.chain_broken', { breaks: verify.data.breaks?.length || 0 })}
         </div>
       )}
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
-        <thead><tr style={{ borderBottom: '1px solid var(--surface-4)', textAlign: 'left' }}>
-          <th style={th}>{t('chat_admin.col_date')}</th><th style={th}>{t('chat_admin.col_action')}</th><th style={th}>{t('chat_admin.col_type')}</th><th style={th}>{t('chat_admin.col_entity')}</th><th style={th}>{t('chat_admin.col_actor')}</th>
-        </tr></thead>
-        <tbody>{data.map((e) => (
-          <tr key={e.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{e.created_at?.replace('T', ' ').slice(0, 19)}</td>
-            <td style={td}>{e.action}</td><td style={td}>{e.entity_type}</td>
-            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{e.entity_id?.slice(0, 8) || '—'}</td>
-            <td style={{ ...td, fontSize: 11 }}>{e.actor_user_id?.slice(0, 8) || '—'}</td>
-          </tr>
-        ))}</tbody>
-      </table>
+      <Table
+        data={data}
+        columns={[
+          { key: 'created_at', label: t('chat_admin.col_date'), render: (_v, e) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{e.created_at?.replace('T', ' ').slice(0, 19)}</span> },
+          { key: 'action', label: t('chat_admin.col_action') },
+          { key: 'entity_type', label: t('chat_admin.col_type') },
+          { key: 'entity_id', label: t('chat_admin.col_entity'), render: (_v, e) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{e.entity_id?.slice(0, 8) || '—'}</span> },
+          { key: 'actor_user_id', label: t('chat_admin.col_actor'), render: (_v, e) => <span style={{ fontSize: 11 }}>{e.actor_user_id?.slice(0, 8) || '—'}</span> },
+        ]}
+      />
     </Card>
   )
 }
@@ -572,16 +572,14 @@ function EdiscoveryTab() {
         <Field label={t('chat_admin.custodians_label')}><input style={inputStyle} value={form.user_ids} onChange={(e) => setForm({ ...form, user_ids: e.target.value })} /></Field>
         <Field label={t('chat_admin.keywords_label')}><input style={inputStyle} value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} /></Field>
         <div />
-        <Field label={t('chat_admin.from_label')}><input type="datetime-local" style={inputStyle} value={form.date_from} onChange={(e) => setForm({ ...form, date_from: e.target.value })} /></Field>
-        <Field label={t('chat_admin.to_label')}><input type="datetime-local" style={inputStyle} value={form.date_to} onChange={(e) => setForm({ ...form, date_to: e.target.value })} /></Field>
+        <Field label={t('chat_admin.from_label')}><DateInput withTime style={inputStyle} value={form.date_from} onChange={(e) => setForm({ ...form, date_from: e.target.value })} /></Field>
+        <Field label={t('chat_admin.to_label')}><DateInput withTime style={inputStyle} value={form.date_to} onChange={(e) => setForm({ ...form, date_to: e.target.value })} /></Field>
       </div>
       <Btn icon={Download} onClick={() => exp.mutate()} disabled={exp.isPending}>{exp.isPending ? t('chat_admin.exporting') : t('chat_admin.export_json')}</Btn>
     </Card>
   )
 }
 
-const th: CSSProperties = { padding: '8px 10px', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }
-const td: CSSProperties = { padding: '10px', color: 'var(--text-1)' }
 
 function tryJson(s: string): Record<string, unknown> {
   try {

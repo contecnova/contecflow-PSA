@@ -26,6 +26,7 @@ from datetime import date, timedelta
 import pytest
 
 from app.services import adhoc_analytics_service
+from app.core.errores import ErrorDeDominio
 
 
 @pytest.fixture()
@@ -162,7 +163,7 @@ def test_el_filtro_de_fechas_se_aplica_con_cadenas_iso(db, imputaciones):
 def test_fecha_no_valida_da_400(db):
     from fastapi import HTTPException
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         adhoc_analytics_service.run_adhoc_query(
             metric="hours_logged", dimensions=[], filters={},
             date_from="no-es-una-fecha", date_to=None, limit=100, db=db,
@@ -175,7 +176,7 @@ def test_metrica_no_soportada_da_400_no_vacio(db):
     de «no hay datos». Ahora se rechaza explícitamente."""
     from fastapi import HTTPException
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         adhoc_analytics_service.run_adhoc_query(
             metric="metrica_inexistente", dimensions=[], filters={},
             date_from=None, date_to=None, limit=100, db=db,

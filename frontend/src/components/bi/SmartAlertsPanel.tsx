@@ -53,7 +53,7 @@ const S: Record<string, React.CSSProperties> = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' },
   cardPad:     { padding: '20px 24px' },
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
-  btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' },
+  btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' },
   btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' },
 }
 
@@ -130,9 +130,9 @@ export default function SmartAlertsPanel() {
           {(rules?.items || []).map(rule => (
             <div key={rule.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--surface-4)' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: rule.severity === 'critical' ? COLOR.danger : rule.severity === 'warning' ? COLOR.warning : COLOR.success, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
+              <div className="u-flex1">
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{rule.name}</div>
-                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{rule.metric_key} · {String(rule.condition || '').replace(/_/g, ' ')}</div>
+                <div className="u-text3-2xs">{rule.metric_key} · {String(rule.condition || '').replace(/_/g, ' ')}</div>
               </div>
               <span style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 10, background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)', fontWeight: 700 }}>
                 {rule.enabled ? 'activa' : 'pausada'}
@@ -163,9 +163,9 @@ export default function SmartAlertsPanel() {
           {[...(history?.items || [])].reverse().map(entry => (
             <div key={entry.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 4, background: entry.severity === 'critical' ? COLOR.danger : entry.severity === 'warning' ? COLOR.warning : COLOR.success, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
+              <div className="u-flex1">
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{entry.rule_name}</div>
-                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
+                <div className="u-text3-2xs">
                   {entry.metric_key} · {String(entry.condition || '').replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
                 </div>
                 {entry.correlated && entry.correlated.length > 0 && (

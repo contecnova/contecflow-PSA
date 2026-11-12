@@ -25,7 +25,7 @@ export default function Section({
     <section className={`ds-section ${className}`.trim()}>
       {(title || subtitle || actions) && (
         <header className="ds-section__head">
-          <div className="ds-stack-sm" style={{ minWidth: 0 }}>
+          <div className="ds-stack-sm u-min0">
             {title && (eyebrow
               ? <div className="ds-eyebrow">{title}</div>
               : <h3 className="ds-section__title">{title}</h3>

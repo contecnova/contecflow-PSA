@@ -31,7 +31,8 @@ def _create_active_workflow(client, admin_token, step_type: str, config: dict) -
 
 
 def test_run_workflow_now_executes_provision_identity_step(client, admin_token, monkeypatch):
-    from app.services import bookings_service as svc
+    # La cola de flujos llama a la accion desde el submodulo (auditoria 2026-11, #24).
+    from app.services.bookings_service import aprovisionamiento as svc
 
     def fake_execute_provision_action(config, context):
         assert config.get("operation") == "create_ad_user"
@@ -75,7 +76,8 @@ def test_run_workflow_now_executes_provision_identity_step(client, admin_token, 
 
 
 def test_run_workflow_now_executes_terraform_step(client, admin_token, monkeypatch):
-    from app.services import bookings_service as svc
+    # La cola de flujos llama a la accion desde el submodulo (auditoria 2026-11, #24).
+    from app.services.bookings_service import aprovisionamiento as svc
 
     def fake_execute_terraform_action(config, context):
         assert config.get("command") == "apply"
@@ -106,7 +108,8 @@ def test_run_workflow_now_executes_terraform_step(client, admin_token, monkeypat
 
 
 def test_run_workflow_now_executes_ansible_step(client, admin_token, monkeypatch):
-    from app.services import bookings_service as svc
+    # La cola de flujos llama a la accion desde el submodulo (auditoria 2026-11, #24).
+    from app.services.bookings_service import aprovisionamiento as svc
 
     def fake_execute_ansible_action(config, context):
         assert config.get("playbook") == "onboarding.yml"
@@ -170,7 +173,8 @@ def test_update_workflow_step_retries_endpoint(client, admin_token):
 
 
 def test_run_workflow_now_retries_failed_action_and_records_metrics(client, admin_token, monkeypatch):
-    from app.services import bookings_service as svc
+    # La cola de flujos llama a la accion desde el submodulo (auditoria 2026-11, #24).
+    from app.services.bookings_service import aprovisionamiento as svc
 
     calls = {"n": 0}
 

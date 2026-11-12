@@ -54,53 +54,6 @@ class ProvisionIn(BaseModel):
     service_item_id: str
 
 
-def _render_context(ticket, current_user, service_item_id: str) -> dict:
-    return {
-        "ticket_id": ticket.id,
-        "ticket_number": ticket.number,
-        "ticket_title": ticket.title,
-        "ticket_description": ticket.description,
-        "service_item_id": service_item_id,
-        "requester_name": ticket.requester_name or "",
-        "requester_email": ticket.requester_email or "",
-        "requester_user_id": ticket.requester_user_id or "",
-        "assignee_user_id": ticket.assigned_to_user_id or "",
-        "current_user_id": current_user.id,
-        "project_id": ticket.project_id,
-    }
-
-
-def _execute_step(step: dict, context: dict) -> dict:
-    from app.services import bookings_service as _provision_exec
-
-    step_type = str(step.get("type", "")).lower()
-    if step_type in {
-        "provision_identity",
-        "create_ad_user",
-        "disable_ad_user",
-        "assign_license",
-        "revoke_license",
-    }:
-        cfg = dict(step)
-        if step_type != "provision_identity":
-            cfg["operation"] = step_type
-        out = _provision_exec._execute_provision_action(cfg, context)
-        return {"type": step_type, "provider": "ad", **out}
-
-    if step_type in {"terraform", "terraform_apply", "terraform_destroy", "terraform_plan"}:
-        cfg = dict(step)
-        if step_type != "terraform":
-            cfg["command"] = step_type.replace("terraform_", "")
-        out = _provision_exec._execute_terraform_action(cfg, context)
-        return {"type": step_type, "provider": "terraform", **out}
-
-    if step_type in {"ansible", "ansible_playbook"}:
-        out = _provision_exec._execute_ansible_action(step, context)
-        return {"type": step_type, "provider": "ansible", **out}
-
-    return {"type": step_type, "status": "unknown"}
-
-
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.get("/popular", summary="Servicios más solicitados por volumen de tickets")
@@ -179,8 +132,6 @@ def trigger_provisioning(
     Supports real external provisioning providers (AD/identity, Terraform,
     Ansible) plus local ticket mutations.
     """
-    from datetime import datetime, timezone
-
     org_id = getattr(current_user, "organization_id", None)
     config = svc.configuracion_de_aprovisionamiento(db, service_item_id, org_id)
 
@@ -191,52 +142,9 @@ def trigger_provisioning(
 
     ticket = org_scoped_or_404(db, Ticket, payload.ticket_id, current_user, detail="Ticket not found")
 
-    steps_done = []
-    context = _render_context(ticket, current_user, service_item_id)
-    for step in config.get("steps", []):
-        step_type = step.get("type", "")
-        step_content = step.get("content", "")
-        try:
-            if step_type == "comment":
-                svc.anotar_comentario_de_aprovisionamiento(
-                    db, ticket, current_user, step_content,
-                    nombre_del_bot=NOMBRE_DEL_BOT_DE_APROVISIONAMIENTO)
-                steps_done.append({"type": step_type, "status": "ok"})
-            elif step_type == "status_change":
-                anterior = str(ticket.status)
-                ticket.status = step.get("target_status", ticket.status)
-                svc.anotar_en_el_historial_del_ticket(
-                    db, ticket, current_user, campo="status",
-                    valor_anterior=anterior, valor_nuevo=str(ticket.status))
-                steps_done.append({"type": step_type, "status": "ok"})
-            elif step_type == "assign_group":
-                ticket.assigned_group = step.get("group", ticket.assigned_group)
-                steps_done.append({"type": step_type, "status": "ok"})
-            else:
-                provider_result = _execute_step(step, context)
-                step_ok = bool(provider_result.get("ok", False))
-                steps_done.append({
-                    "type": step_type,
-                    "status": "ok" if step_ok else "error",
-                    "provider": provider_result.get("provider"),
-                    "result": provider_result,
-                })
-
-                svc.anotar_en_el_historial_del_ticket(
-                    db, ticket, current_user, campo="provisioning_step",
-                    valor_nuevo=svc.resumen_de_paso(step_type, provider_result))
-        except Exception as exc:
-            steps_done.append({"type": step_type, "status": "error", "error": str(exc)})
-
-    if config.get("notify_on_provision"):
-        svc.anotar_en_el_historial_del_ticket(
-            db, ticket, current_user, campo="provisioning",
-            valor_nuevo=(
-                f"Auto-provisioned via service {service_item_id} "
-                f"at {datetime.now(timezone.utc).isoformat()}"
-            ))
-
-    db.commit()
+    steps_done = svc.ejecutar_pasos_de_aprovisionamiento(
+        db, ticket, current_user, service_item_id, config,
+        nombre_del_bot=NOMBRE_DEL_BOT_DE_APROVISIONAMIENTO)
     return APIResponse.ok(data={
         "ticket_id": payload.ticket_id,
         "service_item_id": service_item_id,

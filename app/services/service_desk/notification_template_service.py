@@ -9,12 +9,12 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.cab import EmailTemplate
 from app.services.service_desk.plantillas_aviso import IDIOMAS, POR_DEFECTO, VARIABLES
 from app.services.service_desk.ticket_event_processor import renderizar
+from app.core.errores import ErrorDeDominio
 
 #: Valores de ejemplo para la vista previa.
 EJEMPLO = {
@@ -37,9 +37,9 @@ def _fila(db: Session, code: str, idioma: str, org_id: Optional[str]) -> Optiona
 
 def _exigir(code: str, idioma: str) -> None:
     if code not in POR_DEFECTO:
-        raise HTTPException(404, "Aviso desconocido")
+        raise ErrorDeDominio(404, "Aviso desconocido")
     if idioma not in IDIOMAS:
-        raise HTTPException(422, f"Idioma sin textos: {idioma}")
+        raise ErrorDeDominio(422, f"Idioma sin textos: {idioma}")
 
 
 def listar(db: Session, org_id: Optional[str]) -> list[dict]:
@@ -66,7 +66,7 @@ def guardar(db: Session, org_id: Optional[str], user_id: Optional[str], code: st
             subject: str, body_html: str, is_active: bool) -> dict:
     _exigir(code, idioma)
     if not subject.strip() or not body_html.strip():
-        raise HTTPException(422, "El asunto y el texto no pueden quedar vacíos")
+        raise ErrorDeDominio(422, "El asunto y el texto no pueden quedar vacíos")
     fila = _fila(db, code, idioma, org_id)
     if fila is None:
         fila = EmailTemplate(

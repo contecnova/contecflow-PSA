@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from app.core.modulos_ia import comprobar_modulo
 from app.models.ai_chat import AIActionLog, AIGovernanceConfig
 from tests.conftest import auth
+from app.core.errores import ErrorDeDominio
 
 
 def _apagar(client, token, modulo):
@@ -36,6 +37,6 @@ def test_EL_HALLAZGO_el_tope_diario_cuenta_con_el_nombre_de_gobierno(db):
     db.add(AIGovernanceConfig(organization_id="1", module="nexusassist", is_enabled=True, max_actions_per_day=1))
     db.add(AIActionLog(user_id="dev-test-id", module="nexusassist", action_type="chat"))
     db.commit()
-    with pytest.raises(HTTPException) as e:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as e:
         comprobar_modulo(db, "1", "nexusassist", "dev-test-id")
     assert e.value.status_code == 429

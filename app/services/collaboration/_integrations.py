@@ -183,6 +183,7 @@ async def handle_callback(state: str, code: str) -> tuple[Optional[str], Optiona
                 return None, None, f"token exchange falló: {r.status_code} {r.text[:200]}"
             data = r.json()
     except Exception as exc:
+        logger.warning("handle_callback: excepcion ignorada", exc_info=True)
         return None, None, str(exc)
     return pending["integration_id"], data, ""
 
@@ -210,6 +211,7 @@ def decrypt(value: str | None) -> Optional[str]:
     try:
         return _fernet().decrypt(value.encode()).decode()
     except Exception:
+        logger.debug("decrypt: excepcion ignorada", exc_info=True)
         return None
 
 

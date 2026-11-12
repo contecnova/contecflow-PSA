@@ -39,8 +39,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Iterable, Sequence
 
-from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from app.core.errores import ErrorDeDominio
 
 #: Los dos formatos que entiende. Un tercero se añade aquí y en `_ESCRITORES`.
 FORMATOS = ("csv", "xlsx")
@@ -131,7 +131,7 @@ def respuesta_tabular(
     """
     formato = (formato or "csv").lower()
     if formato not in FORMATOS:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400, f"Formato no soportado: {formato!r}. Admitidos: {', '.join(FORMATOS)}")
 
     filas = list(filas)

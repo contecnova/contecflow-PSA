@@ -292,7 +292,7 @@ export default function BIProjectDetailPage(): JSX.Element {
         title={t('bi.detail_title')}
         subtitle={t('bi_project_detail.subtitle', { projectName })}
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="u-row-center-8">
             <button
               onClick={handleExportMembersCsv}
               style={{
@@ -354,8 +354,8 @@ export default function BIProjectDetailPage(): JSX.Element {
       />
 
       <div style={{ ...panelStyle, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('bi.analysis_window')}</div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="u-text2-sm">{t('bi.analysis_window')}</div>
+        <div className="u-row-6">
           {[4, 8, 12].map((w) => (
             <button
               key={w}
@@ -380,19 +380,19 @@ export default function BIProjectDetailPage(): JSX.Element {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
         <div style={panelStyle}>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bi.current_margin')}</div>
+          <div className="u-text3-xs">{t('bi.current_margin')}</div>
           <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, color: marginPct >= 20 ? 'var(--success)' : marginPct >= 0 ? 'var(--warning)' : 'var(--danger)' }}>
             {marginPct.toFixed(1)}%
           </div>
         </div>
         <div style={panelStyle}>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bi.revenues')}</div>
+          <div className="u-text3-xs">{t('bi.revenues')}</div>
           <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--accent)' }}>
             {Math.round(Number(marginCard?.revenue || 0)).toLocaleString(localeActivo())} €
           </div>
         </div>
         <div style={panelStyle}>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bi.cost')}</div>
+          <div className="u-text3-xs">{t('bi.cost')}</div>
           <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>
             {Math.round(Number(marginCard?.cost || 0)).toLocaleString(localeActivo())} €
           </div>
@@ -404,7 +404,7 @@ export default function BIProjectDetailPage(): JSX.Element {
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.hours_by_week')}</div>
           <div style={{ height: 260 }}>
             {hoursLoading ? (
-              <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
+              <div className="u-text3-sm">{t('bi.loading')}</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={hoursChart} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
@@ -423,7 +423,7 @@ export default function BIProjectDetailPage(): JSX.Element {
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.cost_by_month')}</div>
           <div style={{ height: 260 }}>
             {costLoading ? (
-              <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
+              <div className="u-text3-sm">{t('bi.loading')}</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={costChart} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
@@ -443,7 +443,7 @@ export default function BIProjectDetailPage(): JSX.Element {
         <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.revenue_vs_cost')}</div>
         <div style={{ height: 280 }}>
           {marginLoading ? (
-            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
+            <div className="u-text3-sm">{t('bi.loading')}</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={detailBars} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
@@ -464,9 +464,9 @@ export default function BIProjectDetailPage(): JSX.Element {
         <div style={panelStyle}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.project_members')}</div>
           {membersLoading ? (
-            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
+            <div className="u-text3-sm">{t('bi.loading')}</div>
           ) : !membersWithUserId.length ? (
-            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.no_member_data')}</div>
+            <div className="u-text3-sm">{t('bi.no_member_data')}</div>
           ) : (
             <div style={{ overflow: 'auto', maxHeight: 280 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
@@ -502,9 +502,9 @@ export default function BIProjectDetailPage(): JSX.Element {
         <div style={panelStyle}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.weekly_trend')}</div>
           {!selectedUserId ? (
-            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.select_person')}</div>
+            <div className="u-text3-sm">{t('bi.select_person')}</div>
           ) : weeklyByPersonLoading || weeklyTeamLoading ? (
-            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
+            <div className="u-text3-sm">{t('bi.loading')}</div>
           ) : (
             <div style={{ height: 280 }}>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>

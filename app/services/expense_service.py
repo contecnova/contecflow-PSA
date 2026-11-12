@@ -23,6 +23,7 @@ from app.models.project import ProjectStatus
 from app.models.user import User as UserModel
 from app.models.user import UserRole
 from app.services.audit import audit_log
+from app.core.errores import ErrorDeDominio
 
 # ── Status alias normalizer ────────────────────────────────────────────────────
 # PostgreSQL enforces enum types strictly. The frontend uses "pending" to mean
@@ -38,7 +39,6 @@ def _normalize_status(status: Optional[str]) -> Optional[str]:
 from app.services.notifications import notify_user
 from app.services.numbering import next_numbered_code
 from datetime import datetime as _dt
-from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -81,9 +81,9 @@ def review_expense(
 
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not expense:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.submitted:
-        raise HTTPException(400, "El gasto no está pendiente de revisión")
+        raise ErrorDeDominio(400, "El gasto no está pendiente de revisión")
 
     avisos: list[str] = []
     if approved:   # control presupuestario: avisa, o 409 si BUDGET_CONTROL_POLICY = bloquear
@@ -230,14 +230,14 @@ def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> 
         max_tokens=500, is_superadmin=bool(getattr(usuario, "is_superadmin", False)),
         organization_id=getattr(usuario, "organization_id", None))
     if es_aviso_de_ia(texto):
-        raise HTTPException(503, texto)
+        raise ErrorDeDominio(503, texto)
     crudo = texto.strip()
     if crudo.startswith("```"):
         crudo = crudo.split("```")[1].removeprefix("json").strip()
     try:
         extraido = _json.loads(crudo)
     except _json.JSONDecodeError:
-        raise HTTPException(422, "La IA devolvió un formato inesperado. Intenta con otra imagen.")
+        raise ErrorDeDominio(422, "La IA devolvió un formato inesperado. Intenta con otra imagen.")
     if extraido.get("date"):
         try:
             _dt.strptime(extraido["date"], "%Y-%m-%d")
@@ -365,12 +365,12 @@ def create_expense_record(db: Session, payload, user_id: str, code: str):
     if payload.project_id:
         project = db.query(Project).filter(Project.id == payload.project_id).first()
         if not project:
-            raise HTTPException(404, "Proyecto no encontrado")
+            raise ErrorDeDominio(404, "Proyecto no encontrado")
         if project.status in [
             ProjectStatus.completed, ProjectStatus.closed,
             ProjectStatus.cancelled, ProjectStatus.archived,
         ]:
-            raise HTTPException(400, "No se pueden generar gastos facturables en proyectos cerrados")
+            raise ErrorDeDominio(400, "No se pueden generar gastos facturables en proyectos cerrados")
 
     expense = Expense(code=code, user_id=user_id, **payload.model_dump())
     from app.services.gastos_avanzados import aplicar_kilometraje
@@ -379,7 +379,7 @@ def create_expense_record(db: Session, payload, user_id: str, code: str):
     if expense.is_billable and expense.project_id:
         project = db.query(Project).filter(Project.id == expense.project_id).first()
         if project and project.status not in [ProjectStatus.active, ProjectStatus.planning]:
-            raise HTTPException(400, "No se puede marcar gasto como facturable en proyecto no activo")
+            raise ErrorDeDominio(400, "No se puede marcar gasto como facturable en proyecto no activo")
 
     db.add(expense)
     db.commit()
@@ -395,12 +395,12 @@ def admin_update_expense(db: Session, expense_id: str, payload):
 
     e = db.query(Expense).filter(Expense.id == expense_id).first()
     if not e:
-        raise HTTPException(404, "Gasto no encontrado")
+        raise ErrorDeDominio(404, "Gasto no encontrado")
 
     if payload.is_billable and e.project_id:
         project = db.query(Project).filter(Project.id == e.project_id).first()
         if project and project.status not in [ProjectStatus.active, ProjectStatus.planning]:
-            raise HTTPException(400, "No se puede marcar gasto como facturable en proyecto no activo")
+            raise ErrorDeDominio(400, "No se puede marcar gasto como facturable en proyecto no activo")
 
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(e, k, v)
@@ -417,9 +417,9 @@ def update_my_expense(db: Session, expense_id: str, user_id: str, payload):
         Expense.id == expense_id, Expense.user_id == user_id
     ).first()
     if not expense:
-        raise HTTPException(404, "Gasto no encontrado")
+        raise ErrorDeDominio(404, "Gasto no encontrado")
     if expense.status not in (ExpenseStatus.draft, ExpenseStatus.rejected):
-        raise HTTPException(400, "Solo se pueden editar gastos en borrador o rechazados")
+        raise ErrorDeDominio(400, "Solo se pueden editar gastos en borrador o rechazados")
     if expense.status == ExpenseStatus.rejected:
         # Corregir un gasto rechazado lo devuelve a borrador para volver a enviarlo;
         # el motivo del rechazo se queda a la vista hasta entonces.
@@ -438,9 +438,9 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
         Expense.id == expense_id, Expense.user_id == user_id
     ).first()
     if not expense:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.draft:
-        raise HTTPException(400, "El gasto ya ha sido enviado")
+        raise ErrorDeDominio(400, "El gasto ya ha sido enviado")
     # Revisión 2026-11: las políticas de gasto bloquean aquí o dejan el aviso para la aprobación.
     from app.services.gastos_avanzados import antes_de_enviar
     contexto_politica = antes_de_enviar(db, expense)
@@ -466,9 +466,9 @@ def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
         Expense.id == expense_id, Expense.user_id == user_id
     ).first()
     if not expense:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.submitted:
-        raise HTTPException(400, "Solo se pueden retirar gastos enviados")
+        raise ErrorDeDominio(400, "Solo se pueden retirar gastos enviados")
     expense.status = ExpenseStatus.draft
     expense.submitted_at = None
     from app.services.approval_engine import fuentes
@@ -481,9 +481,9 @@ def reimburse_expense_record(db: Session, expense_id: str) -> dict:
 
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not expense:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.approved:
-        raise HTTPException(400, "El gasto debe estar aprobado")
+        raise ErrorDeDominio(400, "El gasto debe estar aprobado")
     expense.status = ExpenseStatus.reimbursed
     expense.reimbursed_at = datetime.now(timezone.utc)
     db.commit()
@@ -501,9 +501,9 @@ def delete_my_expense(db: Session, expense_id: str, user_id: str) -> dict:
         Expense.id == expense_id, Expense.user_id == user_id
     ).first()
     if not expense:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     if expense.status not in [ExpenseStatus.draft, ExpenseStatus.rejected]:
-        raise HTTPException(400, "Solo se pueden eliminar gastos en borrador o rechazados")
+        raise ErrorDeDominio(400, "Solo se pueden eliminar gastos en borrador o rechazados")
     # audit #36 soft-delete — preserva el histórico para auditoría financiera.
     expense.is_active = False
     db.commit()

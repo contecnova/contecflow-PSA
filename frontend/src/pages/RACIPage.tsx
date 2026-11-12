@@ -123,7 +123,7 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="u-stack-14">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
         <div>
           <label style={lbStyle}>Tipo</label>
@@ -151,7 +151,7 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
           </select>
         </div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={() => save()} disabled={isPending || !form.item_label || !form.user_id}>
           {isPending ? t('common.saving') : 'Añadir entrada'}
@@ -211,8 +211,8 @@ export default function RACIPage() {
           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px',
             background: v.bg, border: `1px solid ${alpha(v.color, '40')}`, borderRadius: 20 }}>
             <span style={{ fontWeight: 800, fontSize: "var(--text-base)", color: v.color }}>{k}</span>
-            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{v.label}</span>
-            <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>— {v.desc}</span>
+            <span className="u-text2-xs">{v.label}</span>
+            <span className="u-text3-2xs">— {v.desc}</span>
           </div>
         ))}
       </div>
@@ -232,11 +232,11 @@ export default function RACIPage() {
       {!selectedProject ? (
         <EmptyState icon="📋" title={traducir('raci.selecciona_un_proyecto_2')} description="Elige un proyecto para ver y gestionar su matriz RACI" />
       ) : isLoading ? (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>{t('common.loading')}</span></div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span className="u-text2">{t('common.loading')}</span></div>
       ) : items.length === 0 ? (
         <EmptyState icon="📊" title="Matriz RACI vacia" description="Anade la primera entrada para empezar a asignar responsabilidades" action={<button className="btn-primary" onClick={() => setShowAdd(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>{traducir('raci.anadir_primera_entrada')}</button>} />
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="u-scroll-x">
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: 600 }}>
             <thead>
               <tr>
@@ -277,7 +277,7 @@ export default function RACIPage() {
                                 <RoleCell role={a.role} editable={false} />
                                 <button onClick={() => { openConfirmGlobal({ message: '¿Quitar esta asignación RACI? Esta acción no se puede deshacer.', onConfirm: () => deleteEntry(a.entry_id), danger: true }) }}
                                   title="Quitar asignacion"
-                                  style={{ position: 'absolute', top: -6, right: -6, width: 14, height: 14, borderRadius: '50%', background: 'var(--danger)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: "var(--text-3xs)", display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                                  style={{ position: 'absolute', top: -6, right: -6, width: 14, height: 14, borderRadius: '50%', background: 'var(--danger)', border: 'none', color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-3xs)", display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                                   ×
                                 </button>
                               </div>

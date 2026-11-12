@@ -12,7 +12,6 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.models.user import User
@@ -23,6 +22,7 @@ from app.models.settings import AppSetting
 from app.models.task import Task
 from app.core import timeutil
 from app.services.pagination_service import paginate_query
+from app.core.errores import ErrorDeDominio
 
 # ── Entity catalog (static config) ───────────────────────────────────────────
 
@@ -40,11 +40,11 @@ ENTITIES: Dict[str, Dict] = {
             "client_name":      {"label": "Cliente",          "type": "str"},
             "department":       {"label": "Departamento",     "type": "str"},
             "is_billable":      {"label": "Facturable",       "type": "bool"},
-            "billing_rate":     {"label": "Tarifa fact. (€/h)","type": "float"},
+            "billing_rate":     {"label": "Tarifa fact. (¤/h)","type": "float"},
             "contract_amount":  {"label": "Importe contrato", "type": "float"},
             "billing_type":     {"label": "Tipo facturación", "type": "str"},
             "budget_hours":     {"label": "Horas presupuesto","type": "float"},
-            "budget_amount":    {"label": "Presupuesto (€)",  "type": "float"},
+            "budget_amount":    {"label": "Presupuesto (¤)",  "type": "float"},
             "currency":         {"label": "Moneda",           "type": "str"},
             "start_date":       {"label": "Fecha inicio",     "type": "date"},
             "end_date_planned": {"label": "Fin planificado",  "type": "date"},
@@ -78,7 +78,7 @@ ENTITIES: Dict[str, Dict] = {
         "columns": {
             "date":                  {"label": "Fecha",              "type": "date"},
             "hours":                 {"label": "Horas",              "type": "float"},
-            "cost_amount":           {"label": "Coste (€)",          "type": "float"},
+            "cost_amount":           {"label": "Coste (¤)",          "type": "float"},
             "hourly_rate_snapshot":  {"label": "Tarifa horaria",     "type": "float"},
             "description":           {"label": "Descripción",        "type": "str"},
             "is_approved":           {"label": "Aprobada",           "type": "bool"},
@@ -229,8 +229,8 @@ ENTITIES: Dict[str, Dict] = {
             "status":             {"label": "Estado",             "type": "str"},
             "response_type":      {"label": "Respuesta",          "type": "str"},
             "mitigation_plan":    {"label": "Plan mitigación",    "type": "str"},
-            "cost_impact_min":    {"label": "Coste mín. (€)",     "type": "float"},
-            "cost_impact_max":    {"label": "Coste máx. (€)",     "type": "float"},
+            "cost_impact_min":    {"label": "Coste mín. (¤)",     "type": "float"},
+            "cost_impact_max":    {"label": "Coste máx. (¤)",     "type": "float"},
             "schedule_impact_days":{"label": "Impacto plazo (días)","type": "float"},
             "identified_date":    {"label": "Identificado",       "type": "date"},
             "review_date":        {"label": "Revisión",           "type": "date"},
@@ -262,7 +262,7 @@ ENTITIES: Dict[str, Dict] = {
             "status":           {"label": "Estado",           "type": "str"},
             "total_hours":      {"label": "Total horas",      "type": "float"},
             "billable_hours":   {"label": "Horas facturables","type": "float"},
-            "total_cost":       {"label": "Coste total (€)",  "type": "float"},
+            "total_cost":       {"label": "Coste total (¤)",  "type": "float"},
             "submitted_at":     {"label": "Enviado",          "type": "date"},
             "reviewed_at":      {"label": "Revisado",         "type": "date"},
             "review_notes":     {"label": "Notas revisión",   "type": "str"},
@@ -279,7 +279,7 @@ ENTITIES: Dict[str, Dict] = {
             "is_completed":         {"label": "Completado",         "type": "bool"},
             "completed_date":       {"label": "Fecha completado",   "type": "date"},
             "billing_status":       {"label": "Estado facturación", "type": "str"},
-            "billing_amount":       {"label": "Importe factura (€)","type": "float"},
+            "billing_amount":       {"label": "Importe factura (¤)","type": "float"},
             "billing_pct":          {"label": "Porcentaje factura", "type": "float"},
             "is_billed":            {"label": "Facturado",          "type": "bool"},
             "billed_at":            {"label": "Fecha factura",      "type": "date"},
@@ -351,8 +351,8 @@ ENTITIES: Dict[str, Dict] = {
             "role":             {"label": "Rol / Perfil",     "type": "str"},
             "email":            {"label": "Email",            "type": "str"},
             "phone":            {"label": "Teléfono",         "type": "str"},
-            "cost_rate":        {"label": "Tarifa coste (€/h)","type": "float"},
-            "sell_rate":        {"label": "Tarifa venta (€/h)","type": "float"},
+            "cost_rate":        {"label": "Tarifa coste (¤/h)","type": "float"},
+            "sell_rate":        {"label": "Tarifa venta (¤/h)","type": "float"},
             "currency":         {"label": "Moneda",           "type": "str"},
             "available_from":   {"label": "Disponible desde", "type": "date"},
             "available_until":  {"label": "Disponible hasta", "type": "date"},
@@ -365,7 +365,7 @@ ENTITIES: Dict[str, Dict] = {
         "group": "subcontratistas",
         "columns": {
             "po_number":         {"label": "Nº Pedido (PO)",     "type": "str"},
-            "po_amount":         {"label": "Techo PO (€)",       "type": "float"},
+            "po_amount":         {"label": "Techo PO (¤)",       "type": "float"},
             "hours_contracted":  {"label": "Horas contratadas",  "type": "float"},
             "hours_logged":      {"label": "Horas registradas",  "type": "float"},
             "start_date":        {"label": "Inicio",             "type": "date"},
@@ -407,6 +407,13 @@ ENTITIES: Dict[str, Dict] = {
         },
     },
 }
+
+def entidades(db: Optional[Session] = None, org_id: Optional[str] = None) -> Dict[str, Dict]:
+    """`ENTITIES` para servir: las etiquetas de importe llevan `¤` y salen con el
+    símbolo de la moneda de la organización (auditoría 2026-11, hallazgo 30)."""
+    from app.services.formato_regional import con_moneda, simbolo_de_moneda
+    return con_moneda(ENTITIES, simbolo_de_moneda(db, org_id))
+
 
 GROUPS: Dict[str, str] = {
     "proyectos_recursos":  "Proyectos y Recursos",
@@ -593,14 +600,14 @@ def apply_filter(query, model, column: str, operator: str, value: Any):
     traducción son incoherencias del servidor, y se lanzan como tales.
     """
     if not hasattr(model, column):
-        raise HTTPException(
+        raise ErrorDeDominio(
             500,
             f"Catálogo de informes incoherente: la columna '{column}' no existe "
             f"en {model.__name__}",
         )
     clausula = _CLAUSULAS.get(operator)
     if clausula is None:
-        raise HTTPException(
+        raise ErrorDeDominio(
             500,
             f"Catálogo de informes incoherente: el operador '{operator}' no "
             f"tiene traducción a SQL",
@@ -681,14 +688,14 @@ def _preparar_consulta(
     """
     model = get_model_class(entity)
     if model is None:
-        raise HTTPException(400, f"Entidad '{entity}' no soportada en este entorno")
+        raise ErrorDeDominio(400, f"Entidad '{entity}' no soportada en este entorno")
 
     entity_def = ENTITIES.get(entity, {})
     allowed_cols = set(entity_def.get("columns", {}).keys())
 
     for c in columns:
         if c not in allowed_cols:
-            raise HTTPException(400, f"Columna '{c}' no permitida para la entidad '{entity}'")
+            raise ErrorDeDominio(400, f"Columna '{c}' no permitida para la entidad '{entity}'")
 
     db_query = _acotar_por_tenant(db.query(model), model, current_user, db)
 
@@ -697,9 +704,9 @@ def _preparar_consulta(
         op = _valor_del_filtro(f, "operator", "")
         val = _valor_del_filtro(f, "value")
         if col_name not in allowed_cols:
-            raise HTTPException(400, f"Columna de filtro '{col_name}' no permitida")
+            raise ErrorDeDominio(400, f"Columna de filtro '{col_name}' no permitida")
         if op not in OPERATORS:
-            raise HTTPException(400, f"Operador '{op}' no soportado")
+            raise ErrorDeDominio(400, f"Operador '{op}' no soportado")
         db_query = apply_filter(db_query, model, col_name, op, val)
 
     # Un `sort_column` que no esté en el catálogo se ignora en silencio, y es lo

@@ -50,14 +50,14 @@ export default function LeccionesQueAplican({ contexto, id, campos }: {
   const items = q.data?.items ?? []
   return (
     <section aria-label={t('lec.que_aplican')} style={caja}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="u-row-center-8">
         <Lightbulb size={15} color="var(--warning)" aria-hidden />
         <strong style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{t('lec.que_aplican')}</strong>
-        {q.data && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('lec.de_evaluadas', { n: items.length, total: q.data.evaluadas })}</span>}
+        {q.data && <span className="u-text3-xs">{t('lec.de_evaluadas', { n: items.length, total: q.data.evaluadas })}</span>}
       </div>
       {q.isLoading ? <Spinner size={16} />
         : q.isError ? <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--danger)' }}>{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
-        : items.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('lec.ninguna_aplica')}</div>
+        : items.length === 0 ? <div className="u-text3-sm">{t('lec.ninguna_aplica')}</div>
         : items.map(r => (
           <article key={r.id} style={{ borderLeft: `3px solid ${r.tipo === 'evitar' ? 'var(--danger)' : 'var(--success)'}`, padding: '4px 0 4px 10px' }}>
             <button type="button" onClick={() => setAbierta(r.id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', color: 'var(--text-1)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>

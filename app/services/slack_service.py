@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.core.outbound_url import validate_outbound_url
+from app.core.outbound_url import abrir, validate_outbound_url
 from app.models.mfa import (
     SlackConfig, SlackNotificationLog,
 )
@@ -50,7 +50,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
                     "Authorization": f"Bearer {config.bot_token}",
                 }
             )
-            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+            with abrir(req, timeout=5) as resp:  # noqa: S310
                 result = json.loads(resp.read())
                 if result.get("ok"):
                     return True, None
@@ -68,7 +68,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
                 validate_outbound_url(config.webhook_url, field="webhook_url"), data=body,
                 headers={"Content-Type": "application/json"}
             )
-            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+            with abrir(req, timeout=5) as resp:  # noqa: S310
                 return resp.status in (200, 201), None
         except Exception as e:
             _logger.exception("Webhook delivery failed for platform=%s", config.platform)

@@ -15,6 +15,7 @@ from app.models.project import Project, ProjectStatus
 from app.models.task import Task, TaskStatus
 from app.models.user import User, UserRole, UserStatus
 from app.core import timeutil
+from app.services.formato_regional import formatear_importe, simbolo_de_moneda
 
 logger = logging.getLogger(__name__)
 
@@ -207,13 +208,15 @@ class AlertEngine:
             pct = (total_cost / p.budget_amount) * 100
 
             critica, umbral_critico, sev_critica = self._config(AlertType.budget_critical, p.organization_id)
+            simbolo = simbolo_de_moneda(self.db, p.organization_id, moneda=getattr(p, "currency", None))
             aviso, umbral_aviso, sev_aviso = self._config(AlertType.budget_exceeded, p.organization_id)
             if critica and pct >= umbral_critico and not self._alert_exists(AlertType.budget_critical, project_id=p.id):
                 self._create_alert(
                     AlertType.budget_critical,
                     sev_critica,
                     f"Presupuesto agotado: {p.name}",
-                    f"El proyecto {p.code} ha consumido {pct:.0f}% del presupuesto ({total_cost:.0f}€ / {p.budget_amount:.0f}€)",
+                    f"El proyecto {p.code} ha consumido {pct:.0f}% del presupuesto "
+                    f"({formatear_importe(total_cost, simbolo)} / {formatear_importe(p.budget_amount, simbolo)})",
                     project_id=p.id, value=pct, threshold=umbral_critico,
                 )
                 count += 1
@@ -328,6 +331,24 @@ def run_alert_engine(db: Session) -> dict:
     return {"alerts_generated": count}
 
 
+def run_alert_engine_job() -> dict:
+    """Entrada de los programadores (APScheduler y Celery beat), con su propia sesion.
+
+    Auditoria 2026-11 (hallazgo 23): vivia sola en `alert_jobs.py` (21 lineas)
+    y `app.worker.run_alert_engine` repetia lo mismo a mano; ahora los dos
+    llaman aqui.
+    """
+    from app.db.session import worker_db_session
+    try:
+        with worker_db_session() as db:
+            result = run_alert_engine(db)
+    except Exception:
+        logger.exception("Scheduled alert engine failed")
+        raise
+    logger.info("Scheduled alert engine finished: %s", result)
+    return result
+
+
 def get_alerts_query(db: Session, resolved: bool, severity, current_user: User):
     """Return a filtered, ordered Alert query scoped to the current user's permissions."""
     q = db.query(Alert).filter(Alert.is_resolved == resolved)
@@ -410,3 +431,12 @@ def resolve_alert(db: Session, alert_id: str, resolved_by_id, current_user: User
         alert.resolved_at = datetime.now(timezone.utc)
         alert.resolved_by = resolved_by_id
         db.commit()
+
+
+def unidades_por_tipo(db) -> dict:
+    """Unidad del umbral de cada tipo de alerta: la configurada o la de fabrica."""
+    from app.models.advanced_config import AlertConfig
+    from app.services.advanced_config_service import DEFAULT_ALERT_CONFIGS
+    unidades = {d[0]: d[4] for d in DEFAULT_ALERT_CONFIGS}
+    unidades.update({c.alert_type: c.threshold_unit for c in db.query(AlertConfig).all() if c.threshold_unit})
+    return unidades

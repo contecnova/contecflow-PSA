@@ -563,6 +563,7 @@ def summarize_call(call_id: str, organization_id: str) -> None:
     """
     from app.db.session import SessionLocal
     from app.services.collaboration._transcription import summarize_text
+    from app.services.formato_regional import idioma
     db = SessionLocal()
     try:
         call = db.query(CollaborationCall).filter(CollaborationCall.id == call_id).first()
@@ -577,7 +578,7 @@ def summarize_call(call_id: str, organization_id: str) -> None:
         else:
             db.add(CollaborationTranscript(
                 organization_id=organization_id, call_id=call.id,
-                language="es", text=text, segments_json=[],
+                language=idioma(db, org_id=organization_id), text=text, segments_json=[],
                 summary=summary, actions_json=actions,
             ))
         call.has_summary = True

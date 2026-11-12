@@ -94,7 +94,7 @@ const S = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' } as CSSProperties,
   cardPad:     { padding: '20px 24px' } as CSSProperties,
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' } as CSSProperties,
-  btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
+  btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
   btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' } as CSSProperties,
   btnAccentOutline: (c: string = COLOR.accent): CSSProperties => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: alpha(c, '18'), color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
 }
@@ -111,7 +111,7 @@ function toFiniteNumber(value: unknown, fallback = 0) {
 
 function SectionHeading({ title, description }: { title: string; description?: string }) {
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div className="u-mb-16">
       <h2 style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>{title}</h2>
       {description && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', margin: 0 }}>{description}</p>}
     </div>
@@ -183,12 +183,12 @@ export default function DataGovernancePage(): JSX.Element {
   })
   const { data: govLineageData, refetch: refetchGovLineage } = useQuery<ItemsResponse<LineageEdge>>({
     queryKey: ['data-gov-lineage', govAuditTick],
-    queryFn: () => biGovernanceAuditApi.listLineage({}).then(r => r.data as ItemsResponse<LineageEdge>).catch(() => ({ items: [] })),
+    queryFn: () => biGovernanceAuditApi.listLineage().then(r => r.data as ItemsResponse<LineageEdge>).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
   const { data: govFieldData, refetch: refetchGovFields } = useQuery<ItemsResponse<FieldSensitivity>>({
     queryKey: ['data-gov-fields', govAuditTick],
-    queryFn: () => biGovernanceAuditApi.listFieldSensitivity({}).then(r => r.data as ItemsResponse<FieldSensitivity>).catch(() => ({ items: [] })),
+    queryFn: () => biGovernanceAuditApi.listFieldSensitivity().then(r => r.data as ItemsResponse<FieldSensitivity>).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
   const { data: bookmarks } = useQuery<ItemsResponse<BookmarkItem>>({
@@ -300,14 +300,14 @@ export default function DataGovernancePage(): JSX.Element {
               </div>
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
                 {govAuditItems.length === 0
-                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_eventos_de_auditoria')}</div>
+                  ? <div className="u-text3-sm">{t('datagovernance.sin_eventos_de_auditoria')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {govAuditItems.slice(0, 20).map((ev, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
                           <span style={{ fontSize: 'var(--text-2xs)', background: alpha(COLOR.info, '18'), color: COLOR.info, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="u-flex1-min0">
                             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.resource || '—'}</div>
-                            <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{ev.user_id || '—'} · {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString(localeActivo()) : '—'}</div>
+                            <div className="u-text3-2xs">{ev.user_id || '—'} · {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString(localeActivo()) : '—'}</div>
                           </div>
                         </div>
                       ))}
@@ -325,17 +325,17 @@ export default function DataGovernancePage(): JSX.Element {
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input value={newLineageSource} onChange={e => setNewLineageSource(e.target.value)} placeholder="Tabla origen" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
-                  <span style={{ color: 'var(--text-3)' }}>→</span>
+                  <span className="u-text3">→</span>
                   <input value={newLineageTarget} onChange={e => setNewLineageTarget(e.target.value)} placeholder="Tabla destino" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
                   <button onClick={handleAddLineageEdge} style={{ ...S.btnAccentOutline(), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>{t('datagovernance.anadir')}</button>
                 </div>
                 {govLineageItems.length === 0
-                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_edges_de_linaje')}</div>
+                  ? <div className="u-text3-sm">{t('datagovernance.sin_edges_de_linaje')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {govLineageItems.slice(0, 20).map((edge, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
                           <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{edge.source_table || edge.source || '—'}</span>
-                          <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>→</span>
+                          <span className="u-text3-sm">→</span>
                           <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{edge.target_table || edge.target || '—'}</span>
                         </div>
                       ))}
@@ -360,16 +360,16 @@ export default function DataGovernancePage(): JSX.Element {
                   <button onClick={handleUpsertFieldSensitivity} style={{ ...S.btnAccentOutline(COLOR.warning), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>Clasificar</button>
                 </div>
                 {govFieldItems.length === 0
-                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('datagovernance.sin_campos_clasificados')}</div>
+                  ? <div className="u-text3-sm">{t('datagovernance.sin_campos_clasificados')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {govFieldItems.slice(0, 20).map((f, i) => {
                         const sc = f.sensitivity === 'critical' || f.sensitivity === 'pii' ? COLOR.danger : f.sensitivity === 'high' ? COLOR.warning : COLOR.success
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
                             <span style={{ fontSize: 'var(--text-2xs)', background: alpha(sc, '18'), color: sc, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>{f.sensitivity || '—'}</span>
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="u-flex1-min0">
                               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.field_name || '—'}</div>
-                              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{f.dataset_id || '—'}</div>
+                              <div className="u-text3-2xs">{f.dataset_id || '—'}</div>
                             </div>
                           </div>
                         )
@@ -393,7 +393,7 @@ export default function DataGovernancePage(): JSX.Element {
               <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Vistas compartidas</span>
             </div>
             <div style={{ ...S.cardPad, display: 'grid', gap: 10 }}>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="u-row-8">
                 <input value={sharedViewName} onChange={e => setSharedViewName(e.target.value)} placeholder={t('datagovernance.nombre_de_la_vista')}
                   style={{ ...S.input, flex: 1 }} />
                 <button onClick={handleCreateSharedView} style={S.btnAccentOutline(COLOR.success)}>Guardar vista</button>
@@ -414,16 +414,16 @@ export default function DataGovernancePage(): JSX.Element {
               </label>
               <div style={{ display: 'grid', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
                 {sortedSharedViews.length === 0
-                  ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+                  ? <div className="u-text3-sm">
                       {sharedViews.length === 0 ? 'Sin vistas compartidas. Guarda una para empezar.' : 'Sin coincidencias.'}
                     </div>
                   : sortedSharedViews.map(v => (
                       <div key={v.id} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <div>
                           <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
-                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{v.dashboard_key} · {v.created_by_name || '—'} · {v.active === false ? 'inactiva' : 'activa'}</div>
+                          <div className="u-text3-2xs">{v.dashboard_key} · {v.created_by_name || '—'} · {v.active === false ? 'inactiva' : 'activa'}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div className="u-row-6">
                           <button onClick={() => handleToggleSharedView(v)}
                             style={{ ...S.btnAccentOutline(v.active ? COLOR.warning : COLOR.success), padding: '4px 8px', fontSize: 'var(--text-xs)' }}>
                             {v.active ? 'Desactivar' : 'Activar'}
@@ -454,10 +454,10 @@ export default function DataGovernancePage(): JSX.Element {
               <button onClick={handleCreateComment} style={S.btnAccentOutline()}>Guardar comentario</button>
               <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'grid', gap: 8, maxHeight: 200, overflowY: 'auto' }}>
                 {comments.length === 0
-                  ? <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>{t('datagovernance.sin_comentarios_para_este_widget')}</div>
+                  ? <div className="u-text3-sm">{t('datagovernance.sin_comentarios_para_este_widget')}</div>
                   : comments.map(c => (
                       <div key={c.id} style={{ padding: '8px 10px', background: 'var(--surface-3)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                        <div style={{ flex: 1 }}>
+                        <div className="u-flex1">
                           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{c.message}</div>
                           <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 2 }}>{c.created_by_name || '—'} · {c.created_at ? new Date(c.created_at).toLocaleString(getLocale(String(lang))) : ''}</div>
                         </div>
@@ -477,7 +477,7 @@ export default function DataGovernancePage(): JSX.Element {
         <div style={S.card}>
           <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.bookmarks_de_dashboard')}</span>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="u-row-center-8">
               <input value={newBookmarkName} onChange={e => setNewBookmarkName(e.target.value)} placeholder={t('datagovernance.nombre_del_bookmark')}
                 style={{ ...S.input, width: 200 }} />
               <button onClick={async () => {
@@ -496,15 +496,15 @@ export default function DataGovernancePage(): JSX.Element {
               : <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
                   {bookmarkItems.map(bm => (
                     <div key={bm.id} style={{ ...S.card, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div className="u-row-between">
                         <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-1)' }}>🔖 {bm.name}</span>
                         <button onClick={async () => {
                           try { await biBookmarksApi.delete(bm.id); setBookmarksTick(x => x + 1) } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
                         }}
                           style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>✕</button>
                       </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('datagovernance.periodo')} {bm.period_days}d · Tab: {bm.active_tab || 'executive'}</div>
-                      {bm.description && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{bm.description}</div>}
+                      <div className="u-text3-xs">{t('datagovernance.periodo')} {bm.period_days}d · Tab: {bm.active_tab || 'executive'}</div>
+                      {bm.description && <div className="u-text2-xs">{bm.description}</div>}
                       {bm.shared && <span style={{ fontSize: 'var(--text-2xs)', padding: '3px 8px', borderRadius: 10, background: alpha(COLOR.success, '18'), color: COLOR.success, fontWeight: 700, alignSelf: 'flex-start' }}>Compartido</span>}
                     </div>
                   ))}
@@ -529,7 +529,7 @@ export default function DataGovernancePage(): JSX.Element {
               ].map(k => (
                 <div key={k.label} style={{ padding: '12px 16px', background: 'var(--surface-3)', borderRadius: 10 }}>
                   <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--text-1)', marginBottom: 4 }}>{k.value ?? '—'}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{k.label}</div>
+                  <div className="u-text3-xs">{k.label}</div>
                 </div>
               ))}
             </div>

@@ -16,6 +16,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } fro
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { openConfirmGlobal } from '../context/ConfirmContext'
+import DateInput from '../components/ui/DateInput'
 
 const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -33,6 +34,95 @@ const ASC_METHOD_CFG: Record<string, MethodCfg> = {
   completed_contract:  { label:'Contrato completado', desc:'Todo el importe el mes en que el proyecto cierra', icon:'✅' },
 }
 
+/** `_serialize_obligation` (app/services/revenue_service.py). */
+interface Obligation {
+  id: string
+  contract_id: string
+  milestone_id: string | null
+  name: string
+  allocated_pct: number
+  allocated_amount: number
+  is_satisfied: boolean
+  satisfied_date: string | null
+  // El serializador no los envía (ni el modelo los tiene): la pantalla los lee
+  // y los manda al crear, pero el backend no los guarda.
+  method?: string
+  standalone_price?: number
+  notes?: string
+}
+
+type ObligationPayload = { name: string; method: string; standalone_price: number; notes: string }
+
+/** `_serialize_contract` (app/services/revenue_service.py). */
+interface RevenueContract {
+  id: string
+  project_id: string | null
+  client_id: string | null
+  name: string
+  contract_value: number
+  currency: string
+  method: string | null
+  start_date: string | null
+  end_date: string | null
+  duration_months: number | null
+  is_active: boolean
+  notes: string | null
+  created_at: string | null
+}
+
+/** `_serialize_entry` (app/services/revenue_service.py). */
+interface RevenueEntry {
+  id: string
+  rev_contract_id: string
+  entry_type: string | null
+  amount: number
+  currency: string
+  period_year: number
+  period_month: number
+  milestone_id: string | null
+  description: string | null
+  reverses_entry_id: string | null
+  created_by: string | null
+  created_at: string | null
+  // Campos que la tabla lee pero `_serialize_entry` no envía.
+  method?: string
+  contract_id?: string
+  contract_name?: string
+  obligation_name?: string
+  recognized_amount?: number
+  deferred_amount?: number
+  is_reversed?: boolean
+  status?: string
+}
+
+/** `_serialize_period_close` (app/services/revenue_service.py). */
+interface PeriodClose {
+  id: string
+  period_year: number
+  period_month: number
+  closed_by: string | null
+  closed_at: string | null
+  notes: string | null
+}
+
+/** `get_asc606_dashboard` (app/services/revenue_service.py). */
+interface Asc606MonthRow { month: number; year: number; recognized: number; deferred: number; unbilled: number }
+interface Asc606Dashboard {
+  year: number
+  total_recognized: number
+  entry_count: number
+  by_month: Asc606MonthRow[]
+  contracts: RevenueContract[]
+}
+
+type ContractPayload = {
+  project_id: string; name: string; method: string; contract_value: number; currency: string
+  start_date: string; end_date: string; duration_months: number | null; notes: string
+}
+type ClosePeriodPayload = { year: number; month: number; notes: string | null }
+type RunMonthlyPayload = { year: number; month: number }
+type EntryParams = { contract_id?: string; year?: string; month?: string }
+
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 // ── Obligations panel (per-contract) ─────────────────────────────────────────
@@ -41,10 +131,10 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
+  const [editing, setEditing] = useState<Obligation | null>(null)
   const [form, setForm] = useState({ name:'', method:'over_time', standalone_price:'', notes:'' })
 
-  const { data: obs = [], isLoading } = useQuery<any[]>({
+  const { data: obs = [], isLoading } = useQuery<Obligation[]>({
     queryKey: ['asc606-obligations', contractId],
     queryFn: () => revenueRecognitionApi.obligations(contractId).then(r => r.data),
   })
@@ -52,7 +142,7 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
   const reset = () => { setForm({ name:'', method:'over_time', standalone_price:'', notes:'' }); setEditing(null); setShowForm(false) }
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: (d: any) => editing
+    mutationFn: (d: ObligationPayload) => editing
       ? revenueRecognitionApi.updateObligation(editing.id, d).then(r => r.data)
       : revenueRecognitionApi.createObligation(contractId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-obligations', contractId] }); reset() },
@@ -67,16 +157,16 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
 
   return (
     <Modal open onClose={onClose} title={t('revenue.obligaciones_de_desempeno')} width={560}>
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="u-stack-12">
         {isLoading ? <Spinner /> : obs.length === 0 && !showForm ? (
           <EmptyState icon="📋" title={t('revenue.sin_obligaciones')} description="Añade las obligaciones de desempeño de este contrato" />
         ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {obs.map((ob: any) => {
+          <div className="u-stack-8">
+            {obs.map(ob => {
               const mCfg = ASC_METHOD_CFG[ob.method] || { label: ob.method, icon:'•' }
               return (
                 <div key={ob.id} style={{ background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'center', gap:12 }}>
-                  <div style={{ flex:1, minWidth:0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{ob.name}</div>
                     <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2 }}>
                       {mCfg.icon} {mCfg.label}
@@ -85,7 +175,7 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                    <button onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:ob.standalone_price||'', notes:ob.notes||'' }); setShowForm(true) }}
+                    <button onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:String(ob.standalone_price||''), notes:ob.notes||'' }); setShowForm(true) }}
                       style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>✏</button>
                     <button onClick={() => del(ob.id)}
                       style={{ background:'none', border:'1px solid rgba(239,68,68,0.2)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--danger)' }}>🗑</button>
@@ -114,7 +204,7 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
             <div><label style={ls}>Notas</label>
               <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
             </div>
-            <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+            <div className="u-actions-8">
               <Button variant="secondary" onClick={reset}>Cancelar</Button>
               <Button onClick={() => save({ ...form, standalone_price: parseFloat(form.standalone_price)||0 })} disabled={saving || !form.name.trim()}>
                 {saving ? '...' : editing ? 'Guardar' : 'Añadir'}
@@ -159,28 +249,29 @@ export default function RevenuePage() {
   const [closePeriod, setClosePeriod] = useState({ year: cerradoY, month: cerradoM, notes: '' })
   const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency, start_date:'', end_date:'', duration_months:'', notes:'' })
 
-  const { data: projects = [] } = useQuery<any[]>({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => (r.data as any)?.items ?? r.data ?? []) })
+  // `projectsApi.list` recorre todas las páginas y devuelve siempre el array.
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data ?? []) })
 
   // ── New ASC 606 queries ────────────────────────────────────────────────────
-  const { data: asc606Dashboard } = useQuery<any>({
+  const { data: asc606Dashboard } = useQuery<Asc606Dashboard>({
     queryKey: ['asc606-dashboard', dashYear],
     queryFn: () => revenueRecognitionApi.dashboard(dashYear, undefined).then(r => r.data),
   })
-  const { data: contracts = [], isLoading: contractsLoading } = useQuery<any[]>({
+  const { data: contracts = [], isLoading: contractsLoading } = useQuery<RevenueContract[]>({
     queryKey: ['asc606-contracts'],
     queryFn: () => revenueRecognitionApi.contracts(undefined).then(r => r.data),
     enabled: tab === 'asc606',
   })
-  const { data: periodCloses = [] } = useQuery<any[]>({
+  const { data: periodCloses = [] } = useQuery<PeriodClose[]>({
     queryKey: ['asc606-period-closes'],
     queryFn: () => revenueRecognitionApi.periodCloses().then(r => r.data),
     enabled: tab === 'asc606',
   })
 
-  const { data: entries = [], isLoading: entriesLoading } = useQuery<any[]>({
+  const { data: entries = [], isLoading: entriesLoading } = useQuery<RevenueEntry[]>({
     queryKey: ['asc606-entries', entryFilter],
     queryFn: () => {
-      const p: Record<string, any> = {}
+      const p: EntryParams = {}
       if (entryFilter.contract_id) p.contract_id = entryFilter.contract_id
       if (entryFilter.year)        p.year         = entryFilter.year
       if (entryFilter.month)       p.month        = entryFilter.month
@@ -196,7 +287,7 @@ export default function RevenuePage() {
 
   // ── New ASC 606 mutations ──────────────────────────────────────────────────
   const { mutate: createContract, isPending: creatingContract } = useMutation({
-    mutationFn: (d: any) => revenueRecognitionApi.createContract(d),
+    mutationFn: (d: ContractPayload) => revenueRecognitionApi.createContract(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['asc606-contracts'] })
       qc.invalidateQueries({ queryKey: ['asc606-dashboard', dashYear] })
@@ -206,7 +297,7 @@ export default function RevenuePage() {
     onError: e => toast.error(extractErr(e, 'Error al crear contrato')),
   })
   const { mutate: closePeriodMut, isPending: closingPeriod } = useMutation({
-    mutationFn: (d: any) => revenueRecognitionApi.closePeriod(d),
+    mutationFn: (d: ClosePeriodPayload) => revenueRecognitionApi.closePeriod(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['asc606-period-closes'] })
       setShowCloseModal(false)
@@ -220,7 +311,7 @@ export default function RevenuePage() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: runMonthly, isPending: runningMonthly } = useMutation({
-    mutationFn: (d: any) => revenueRecognitionApi.runMonthly(d),
+    mutationFn: (d: RunMonthlyPayload) => revenueRecognitionApi.runMonthly(d),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['asc606-dashboard', dashYear] })
       const r = res.data.recognized
@@ -229,7 +320,7 @@ export default function RevenuePage() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const asc606ChartData = (asc606Dashboard?.by_month || []).map((m: any) => ({
+  const asc606ChartData = (asc606Dashboard?.by_month || []).map(m => ({
     mes: MONTHS[m.month - 1],
     Reconocido: Math.round(Number(m.recognized) || 0),
     Diferido:   Math.round(Number(m.deferred) || 0),
@@ -252,14 +343,14 @@ export default function RevenuePage() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap:14, marginBottom:28 }}>
         {[
           { label:`Reconocido ${dashYear}`, value:fmt(asc606Dashboard?.total_recognized), icon:'✅' },
-          { label:`Diferido ${dashYear}`,   value:fmt((asc606Dashboard?.by_month || []).reduce((a: number, m: any) => a + (Number(m.deferred) || 0), 0)), icon:'⏳' },
+          { label:`Diferido ${dashYear}`,   value:fmt((asc606Dashboard?.by_month || []).reduce((a, m) => a + (Number(m.deferred) || 0), 0)), icon:'⏳' },
           { label:'Contratos activos', value:asc606Dashboard?.contracts?.length || 0, icon:'📑' },
           { label:'Entradas registradas', value:asc606Dashboard?.entry_count || 0, icon:'📋' },
         ].map((k,i) => (
           <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'16px 18px' }}>
             <div style={{ fontSize: "var(--text-xl)", marginBottom:6 }}>{k.icon}</div>
             <div style={{ fontSize: "var(--text-xl-em)", fontWeight:500, marginBottom:2 }}>{k.value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{k.label}</div>
+            <div className="u-text2-sm">{k.label}</div>
           </div>
         ))}
       </div>
@@ -305,7 +396,7 @@ export default function RevenuePage() {
                 <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'14px 16px' }}>
                   <div style={{ fontSize: "var(--text-lg-em)", marginBottom:4 }}>{k.icon}</div>
                   <div style={{ fontSize: "var(--text-xl)", fontWeight:500, marginBottom:2 }}>{k.value}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{k.label}</div>
+                  <div className="u-text2-xs">{k.label}</div>
                 </div>
               ))}
             </div>
@@ -319,7 +410,7 @@ export default function RevenuePage() {
                 <BarChart data={asc606ChartData}>
                   <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
                   <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
-                  <Tooltip formatter={(v: any, n: any) => [fmt(v), n]} />
+                  <Tooltip formatter={(v: number, n: string) => [fmt(v), n]} />
                   <Legend />
                   <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
                   <Bar dataKey="Diferido"   fill="var(--warning)" radius={[3,3,0,0]} />
@@ -333,7 +424,7 @@ export default function RevenuePage() {
           {periodCloses.length > 0 && (
             <div style={{ ...card, padding:'16px 20px' }}>
               <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Cierres contables</div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              <div className="u-wrap-8">
                 {periodCloses.map(pc => (
                   <div key={pc.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:6, background:'var(--surface-2)', fontSize: "var(--text-sm)" }}>
                     <Lock size={11} style={{ color:'var(--accent)' }} />
@@ -357,13 +448,13 @@ export default function RevenuePage() {
             {contractsLoading ? <Spinner /> : contracts.length === 0 ? (
               <EmptyState icon="📑" title={t('revenue.sin_contratos_asc_606')} description="Crea un contrato para configurar el reconocimiento de ingresos por proyecto" />
             ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <div className="u-stack-10">
                 {contracts.map(c => {
                   const mCfg = ASC_METHOD_CFG[c.method] || { label: c.method, icon:'•' }
                   return (
                     <div key={c.id} style={{ ...card, padding:'14px 18px' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                        <div style={{ flex:1, minWidth:0 }}>
+                        <div className="u-flex1-min0">
                           <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', marginBottom:6 }}>
                             <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{c.name}</span>
                             <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>
@@ -396,7 +487,7 @@ export default function RevenuePage() {
 
       {/* ── Entradas contables ── */}
       {tab === 'entries' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div className="u-stack-16">
           {/* Filters */}
           <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
             <div style={{ flex:'1 1 220px', minWidth:0 }}>
@@ -449,13 +540,13 @@ export default function RevenuePage() {
                       <tr key={e.id} style={{ borderBottom:'1px solid var(--surface-4)', background: idx%2===0?'transparent':'rgba(255,255,255,0.02)', opacity: isReversed ? 0.5 : 1 }}>
                         <td style={{ padding:'10px 14px' }}>
                           <div style={{ fontWeight:500 }}>{e.contract_name || e.contract_id}</div>
-                          {e.obligation_name && <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{e.obligation_name}</div>}
+                          {e.obligation_name && <div className="u-text3-xs">{e.obligation_name}</div>}
                         </td>
                         <td style={{ padding:'10px 14px', fontFamily:'var(--font-mono)', fontSize: "var(--text-sm)" }}>
                           {e.period_year}-{String(e.period_month).padStart(2,'0')}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
-                          <span style={{ fontSize: "var(--text-xs)" }}>{mCfg.icon} {mCfg.label}</span>
+                          <span className="u-xs">{mCfg.icon} {mCfg.label}</span>
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center', fontWeight:600, color:'var(--success)' }}>
                           {fmt(e.recognized_amount ?? e.amount)}
@@ -501,7 +592,7 @@ export default function RevenuePage() {
               <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--accent-muted)', color:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-sm)", fontWeight:700, flexShrink:0 }}>{i+1}</div>
               <div>
                 <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:3 }}>{title}</div>
-                <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{desc}</div>
+                <div className="u-text2-sm">{desc}</div>
               </div>
             </div>
           ))}
@@ -512,7 +603,7 @@ export default function RevenuePage() {
                 <span style={{ fontSize: "var(--text-lg)" }}>{v.icon}</span>
                 <div>
                   <div style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{v.label}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{v.desc}</div>
+                  <div className="u-text2-xs">{v.desc}</div>
                 </div>
               </div>
             ))}
@@ -523,7 +614,7 @@ export default function RevenuePage() {
       {/* ── Modal nuevo contrato ASC 606 ── */}
       {showCreateContract && (
         <Modal open title={t('revenue.nuevo_contrato_asc_606')} onClose={() => setShowCreateContract(false)} width={540}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <div><label style={ls}>Proyecto</label>
               <select value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} style={fs}>
                 <option value="">Seleccionar proyecto...</option>
@@ -538,7 +629,7 @@ export default function RevenuePage() {
                 {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option>)}
               </select>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="u-grid2-12">
               <div><label style={ls}>{t('revenue.valor_del_contrato_2')}</label>
                 <input type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder="50000" />
               </div>
@@ -548,9 +639,9 @@ export default function RevenuePage() {
                 </select>
               </div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div><label style={ls}>Fecha inicio</label><input type="date" value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Fecha fin</label><input type="date" value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} style={fs} /></div>
+            <div className="u-grid2-12">
+              <div><label style={ls}>Fecha inicio</label><DateInput value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
+              <div><label style={ls}>Fecha fin</label><DateInput value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} style={fs} /></div>
             </div>
             {contractForm.method === 'straight_line' && (
               <div><label style={ls}>{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
@@ -560,7 +651,7 @@ export default function RevenuePage() {
             <div><label style={ls}>Notas</label>
               <textarea value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreateContract(false)}>Cancelar</Button>
               <Button
                 onClick={() => createContract({
@@ -580,11 +671,11 @@ export default function RevenuePage() {
       {/* ── Modal cerrar período ── */}
       {showCloseModal && (
         <Modal open title={t('revenue.cerrar_periodo_contable')} onClose={() => setShowCloseModal(false)} width={420}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <div style={{ background:'var(--warning-bg)', borderRadius:8, padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--warning)' }}>
               {t('revenue.una_vez_cerrado_no_se_podran_crear')}
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="u-grid2-12">
               <div><label style={ls}>{t('revenue.ano')}</label>
                 <input type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} style={fs} />
               </div>
@@ -602,7 +693,7 @@ export default function RevenuePage() {
             <div><label style={ls}>Notas (opcional)</label>
               <textarea value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCloseModal(false)}>Cancelar</Button>
               <Button
                 onClick={() => closePeriodMut({ year: closePeriod.year, month: closePeriod.month, notes: closePeriod.notes || null })}

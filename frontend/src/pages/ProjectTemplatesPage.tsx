@@ -2,37 +2,54 @@
  * ProjectTemplatesPage — Manage and instantiate project templates.
  * Templates predefine phases, tasks, risks and deliverables for fast project creation.
  */
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { templatesApi } from '../services/api'
-import { Spinner } from '../components/ui'
+import { templatesApi, type ApiError } from '../services/api'
+import { Spinner, useDialogo } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { LayoutTemplate } from 'lucide-react'
-import { alpha } from '../constants/theme'
+import StatusBadge from '../components/ui/StatusBadge'
+import DateInput from '../components/ui/DateInput'
 
 const PHASE_COLOR = 'var(--accent)'
 const TASK_COLOR  = 'var(--success)'
 const RISK_COLOR  = 'var(--warning)'
 const DELIV_COLOR = 'var(--accent)'
 
-type Tpl = { [k: string]: unknown; id: string; name?: string; description?: string; estimated_weeks?: number; estimated_hours?: number; phases?: any[]; risks?: any[]; deliverables?: any[]; risk_count?: number; deliverable_count?: number }
-
-function Badge({ color, label }: { color: string; label: ReactNode }) {
-  return (
-    <span style={{
-      fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-      background: alpha(color, '20'), color,
-    }}>{label}</span>
-  )
+// Formas de `list_templates_all` (app/services/billing_reports_service/plantillas.py)
+// y de lo que acepta `TemplateCreate` (app/schemas/billing_reports.py).
+type TplTask = { id?: string; title: string; estimated_hours: number | null; skill_required: string | null }
+type TplPhase = {
+  id?: string; name: string; order?: number; description?: string | null
+  estimated_weeks: number | null; estimated_hours?: number | null; tasks: TplTask[]
 }
+type TplRisk = { title: string; category: string | null; probability: string; impact: string; mitigation_plan: string | null }
+type TplDeliverable = {
+  name: string; format: string | null; week_offset: number | null; billing_pct: number | null; acceptance_criteria: string | null
+  // El detalle lo pinta como `title`; el listado no envía entregables (solo `deliverable_count`).
+  title?: string
+}
+type Tpl = { [k: string]: unknown; id: string; name?: string; description?: string; estimated_weeks?: number; estimated_hours?: number; phases?: TplPhase[]; risks?: TplRisk[]; deliverables?: TplDeliverable[]; risk_count?: number; deliverable_count?: number }
+
+/** `TemplateInstantiateOut` (app/schemas/billing_reports.py). */
+interface TemplateInstantiateOut {
+  ok: boolean
+  project_id: string
+  project_code: string
+  project_name: string
+  phases_created: number
+  tasks_created: number
+}
+
+
 
 function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl: Tpl) => void; t: (k: string) => string }) {
   const [expanded, setExpanded] = useState(false)
   const phaseCount = tpl.phases?.length || 0
-  const taskCount = (tpl.phases || []).reduce((acc: number, p: any) => acc + (p.tasks?.length || 0), 0)
+  const taskCount = (tpl.phases || []).reduce((acc, p) => acc + (p.tasks?.length || 0), 0)
   const riskCount = tpl.risk_count || tpl.risks?.length || 0
   const deliverableCount = tpl.deliverable_count || tpl.deliverables?.length || 0
 
@@ -55,20 +72,20 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           {tpl.estimated_weeks && (
-            <Badge color="var(--text-3)" label={`${tpl.estimated_weeks}${t('project_templates.weeks_abbr')}`} />
+            <StatusBadge color="var(--text-3)" caps={false}>{`${tpl.estimated_weeks}${t('project_templates.weeks_abbr')}`}</StatusBadge>
           )}
           {tpl.estimated_hours && (
-            <Badge color="var(--text-3)" label={`${tpl.estimated_hours}h`} />
+            <StatusBadge color="var(--text-3)" caps={false}>{`${tpl.estimated_hours}h`}</StatusBadge>
           )}
         </div>
       </div>
 
       {/* Stats row */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 14, flexWrap: 'wrap' }}>
-        {phaseCount > 0 && <Badge color={PHASE_COLOR} label={`${phaseCount} ${t('projects.phases').toLowerCase()}`} />}
-        {taskCount > 0 && <Badge color={TASK_COLOR}  label={`${taskCount} ${t('tasks.title').toLowerCase()}`} />}
-        {riskCount > 0 && <Badge color={RISK_COLOR}  label={`${riskCount} ${t('risks.title').toLowerCase()}`} />}
-        {deliverableCount > 0 && <Badge color={DELIV_COLOR} label={`${deliverableCount} ${t('project_templates.deliverables').toLowerCase()}`} />}
+        {phaseCount > 0 && <StatusBadge color={PHASE_COLOR} caps={false}>{`${phaseCount} ${t('projects.phases').toLowerCase()}`}</StatusBadge>}
+        {taskCount > 0 && <StatusBadge color={TASK_COLOR} caps={false}>{`${taskCount} ${t('tasks.title').toLowerCase()}`}</StatusBadge>}
+        {riskCount > 0 && <StatusBadge color={RISK_COLOR} caps={false}>{`${riskCount} ${t('risks.title').toLowerCase()}`}</StatusBadge>}
+        {deliverableCount > 0 && <StatusBadge color={DELIV_COLOR} caps={false}>{`${deliverableCount} ${t('project_templates.deliverables').toLowerCase()}`}</StatusBadge>}
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>
@@ -100,14 +117,14 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: PHASE_COLOR, marginBottom: 4 }}>
                 {t('project_templates.phase')} {phase.order}: {phase.name}
               </div>
-              {phase.tasks?.map((task: any, j: number) => (
+              {phase.tasks?.map((task, j) => (
                 <div key={j} style={{
                   fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14,
                   display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2,
                 }}>
                   <span style={{ color: TASK_COLOR }}>●</span>
                   {task.title}
-                  {task.estimated_hours && <span style={{ color: 'var(--text-3)' }}>({task.estimated_hours}h)</span>}
+                  {task.estimated_hours && <span className="u-text3">({task.estimated_hours}h)</span>}
                 </div>
               ))}
             </div>
@@ -116,7 +133,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
           {(tpl.risks?.length ?? 0) > 0 && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: RISK_COLOR, marginBottom: 4 }}>{t('project_templates.predefined_risks')}</div>
-              {tpl.risks!.map((risk: any, i: number) => (
+              {tpl.risks!.map((risk, i) => (
                 <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
                   <span style={{ color: RISK_COLOR }}>▲</span>{risk.title}
                 </div>
@@ -127,7 +144,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
           {(tpl.deliverables?.length ?? 0) > 0 && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: DELIV_COLOR, marginBottom: 4 }}>{t('project_templates.deliverables')}</div>
-              {tpl.deliverables!.map((d: any, i: number) => (
+              {tpl.deliverables!.map((d, i) => (
                 <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
                   <span style={{ color: DELIV_COLOR }}>◆</span>{d.title}
                 </div>
@@ -142,7 +159,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
 
 function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const t = useAppT()
-  const [form, setForm] = useState<{ name: string; description: string; project_type: string; estimated_weeks: string; estimated_hours: string; phases: any[]; risks: any[]; deliverables: any[] }>({
+  const [form, setForm] = useState<{ name: string; description: string; project_type: string; estimated_weeks: string; estimated_hours: string; phases: TplPhase[]; risks: TplRisk[]; deliverables: TplDeliverable[] }>({
     name: '',
     description: '',
     project_type: 'consulting',
@@ -152,7 +169,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
     risks: [],
     deliverables: [],
   })
-  const [phase, setPhase] = useState<{ name: string; description: string; estimated_weeks: string; estimated_hours: string; tasks: any[] }>({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
+  const [phase, setPhase] = useState<{ name: string; description: string; estimated_weeks: string; estimated_hours: string; tasks: TplTask[] }>({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
   const [task, setTask] = useState({ title: '', estimated_hours: '', skill_required: '' })
   const [risk, setRisk] = useState({ title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' })
   const [deliverable, setDeliverable] = useState({ name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' })
@@ -161,7 +178,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
   const mutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => templatesApi.create(payload),
     onSuccess: () => onDone(),
-    onError: (err: any) => setError(err.response?.data?.detail || 'No se pudo crear la plantilla'),
+    onError: (err: ApiError) => setError(err.response?.data?.detail || 'No se pudo crear la plantilla'),
   })
 
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -248,13 +265,14 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
       estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
     })
   }
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div role="dialog" aria-modal="true" style={{
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('projecttemplates.nueva_plantilla_desde_cero')} style={{
         background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 900,
         maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
         boxShadow: '0 20px 60px rgba(0,0,0,.3)',
@@ -269,7 +287,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
         </div>
         <textarea value={form.description} onChange={set('description')} rows={2} placeholder={t('projecttemplates.descripcion')} style={{ ...inp, width: '100%', resize: 'vertical', marginBottom: 14 }} />
 
-        <div style={{ marginBottom: 16 }}>
+        <div className="u-mb-16">
           <div style={h3}>Fases ({form.phases.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
             <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} placeholder="Nombre fase" style={inp} />
@@ -293,7 +311,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
           </div>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div className="u-mb-16">
           <div style={h3}>Riesgos ({form.risks.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
             <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_riesgo')} style={inp} />
@@ -305,7 +323,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
           <textarea value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder={t('projecttemplates.mitigacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div className="u-mb-16">
           <div style={h3}>Entregables ({form.deliverables.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
             <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} placeholder="Nombre" style={inp} />
@@ -319,7 +337,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
 
         {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: "var(--text-sm)" }}>{error}</div>}
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <div className="u-actions-10">
           <button onClick={onClose} style={btnSecondary}>Cancelar</button>
           <button onClick={submit} disabled={mutation.isPending} style={btnPrimary}>{mutation.isPending ? 'Creando...' : 'Crear plantilla'}</button>
         </div>
@@ -344,7 +362,7 @@ const btnPrimary: CSSProperties = {
   borderRadius: 8,
   border: 'none',
   background: 'var(--accent)',
-  color: '#fff',
+  color: 'var(--on-accent-light)',
   cursor: 'pointer',
   fontWeight: 700,
   fontFamily: 'inherit',
@@ -376,7 +394,7 @@ const h3: CSSProperties = {
 
 // ── Modal: instantiate template ───────────────────────────────────────────────
 
-function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () => void; onDone: (data: any) => void; t: (k: string) => string }) {
+function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () => void; onDone: (data: TemplateInstantiateOut) => void; t: (k: string) => string }) {
   const [projectName, setProjectName] = useState(tpl?.name || '')
   const [clientName, setClientName] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -384,10 +402,10 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => templatesApi.instantiate(tpl.id, data),
-    onSuccess: (res: { data: unknown }) => {
+    onSuccess: (res: { data: TemplateInstantiateOut }) => {
       onDone(res.data)
     },
-    onError: (err: any) => {
+    onError: (err: ApiError) => {
       setError(err.response?.data?.detail || t('project_templates.creation_error'))
     },
   })
@@ -400,13 +418,14 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
       start_date: startDate || undefined,
     })
   }
+  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="template-apply-title" style={{
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="template-apply-title" style={{
         background: 'var(--surface-1)', borderRadius: 14, padding: 32, width: 480,
         maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,.3)',
       }}>
@@ -450,8 +469,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
             {t('project_templates.start_date_label')}
           </div>
-          <input
-            type="date"
+          <DateInput
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
             style={{
@@ -471,7 +489,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <div className="u-actions-10">
           <button
             onClick={onClose}
             style={{
@@ -511,7 +529,7 @@ export default function ProjectTemplatesPage() {
     queryFn: () => templatesApi.list().then((r: { data: Tpl[] }) => r.data),
   })
 
-  const handleInstantiateSuccess = (result: any) => {
+  const handleInstantiateSuccess = (result: TemplateInstantiateOut) => {
     setSelectedTpl(null)
     setSuccessMsg(
       t('project_templates.created_ok')
@@ -562,7 +580,7 @@ export default function ProjectTemplatesPage() {
           </div>
         </div>
       ) : (
-        <div data-export-table="project-templates-list" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div data-export-table="project-templates-list" className="u-stack-16">
           {templates.map(tpl => (
             <TemplateCard
               key={tpl.id}

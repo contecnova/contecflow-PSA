@@ -33,7 +33,7 @@ export default function ForbiddenPage(): JSX.Element {
           {t('forbidden.message')}
         </p>
         <p style={{ margin: '0 0 18px', color: 'var(--text-2)', lineHeight: 1.6 }}>
-          {t('forbidden.requested_route')} <strong style={{ color: 'var(--text-1)' }}>{from}</strong>
+          {t('forbidden.requested_route')} <strong className="u-text1">{from}</strong>
         </p>
         <p style={{ margin: '0 0 22px', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
           {t('forbidden.contact_admin')}

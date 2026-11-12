@@ -5,6 +5,7 @@ from app.models.task import TaskStatus, Task
 from app.models.user import User, UserRole
 from fastapi import HTTPException
 from datetime import date
+from app.core.errores import ErrorDeDominio
 
 @pytest.fixture
 def db_session(db) -> Session:
@@ -15,7 +16,7 @@ def test_validate_task_transition_valid():
     validate_task_transition(TaskStatus.in_progress, TaskStatus.done)
 
 def test_validate_task_transition_invalid():
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         validate_task_transition(TaskStatus.done, TaskStatus.todo)
 
 def test_apply_status_side_effects_sets_timestamps():
@@ -31,7 +32,7 @@ def test_apply_status_side_effects_sets_timestamps():
     assert t.completed_at is not None
 
 def test_cascade_reschedule_no_task(db_session):
-    with pytest.raises(HTTPException):
+    with pytest.raises((HTTPException, ErrorDeDominio)):
         cascade_reschedule("nonexistent", date.today(), db_session)
 
 # bulk_update_tasks edge case: forbidden for employee

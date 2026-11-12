@@ -314,7 +314,7 @@ export default function FinanceDashboardPage(): JSX.Element {
       {/* Top projects by margin */}
       {topProjects.length > 0 && (
         <SectionCard title={t('financedashboard.rentabilidad_por_proyecto')} badge={topProjects.length}>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="u-scroll-x">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--surface-3)' }}>
@@ -345,7 +345,7 @@ export default function FinanceDashboardPage(): JSX.Element {
                           {p.project_name || p.name}
                         </div>
                         {p.client_name && (
-                          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{p.client_name}</div>
+                          <div className="u-text3-xs">{p.client_name}</div>
                         )}
                       </td>
                       <td style={{ padding: '11px 16px', textAlign: 'center', fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>

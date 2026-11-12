@@ -102,7 +102,7 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
       padding: '14px 16px',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="u-flex1-min0">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
               #{String(cluster.cluster_id || '').slice(0, 8)}
@@ -231,14 +231,14 @@ export default function AlertCorrelationPanel() {
   const mergingId = isMerging ? mergeVars?.cluster_id : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       <Card style={{ padding: '20px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="u-row-center-8">
             <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)' }}>
               {t('alertcorrelation.estadisticas_de_correlacion')}
             </span>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            <span className="u-text3-xs">
               {t('alertcorrelation.ventana_ultimas')} {windowHours}h
             </span>
           </div>
@@ -271,7 +271,7 @@ export default function AlertCorrelationPanel() {
             description="No hay grupos de alertas correladas en la ventana actual. Ejecuta el escáner para revisar."
           />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             {clusters.map(c => (
               <ClusterCard
                 key={c.cluster_id}

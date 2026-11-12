@@ -130,7 +130,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
               ['Avance', `${data.elapsed_pct?.toFixed(0)}%`],
             ] as Array<[string, number | string | undefined]>).map(([k, v]) => (
               <div key={k}>
-                <span style={{ color: 'var(--text-3)' }}>{k}: </span>
+                <span className="u-text3">{k}: </span>
                 <span style={{ fontWeight: 500 }}>{typeof v === 'number' ? v.toFixed(2) : v}</span>
               </div>
             ))}

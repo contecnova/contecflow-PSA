@@ -12,7 +12,8 @@ import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
-import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi } from '../../services/api'
+import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi, apiUrlAbsoluta } from '../../services/api'
+import DateInput from '../../components/ui/DateInput'
 
 type Turno = { id: string; user_id: string; user_name?: string; start_dt: string; end_dt: string; notes?: string | null }
 type Calendario = { id: string; name: string; group_id: string; group_name?: string; is_active: boolean; entries: Turno[] }
@@ -56,8 +57,8 @@ export function GuardiasConfig() {
         {ahora.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: COLOR.warning }}>{t('sd_cfg.oc_none_now')}</div>
           : ahora.map(a => (
             <div key={`${a.schedule_id}-${a.user_name}`} style={{ fontSize: 'var(--text-sm)', display: 'flex', gap: 8 }}>
-              <strong>{a.user_name}</strong><span style={{ color: 'var(--text-2)' }}>{a.group_name}</span>
-              <span style={{ color: 'var(--text-3)' }}>{t('sd_cfg.oc_until', { when: fecha(a.until) })}</span>
+              <strong>{a.user_name}</strong><span className="u-text2">{a.group_name}</span>
+              <span className="u-text3">{t('sd_cfg.oc_until', { when: fecha(a.until) })}</span>
             </div>
           ))}
       </div>
@@ -65,13 +66,13 @@ export function GuardiasConfig() {
       {isLoading ? <Spinner /> : calendarios.length === 0 ? <EmptyState icon="🌙" title={t('sd_cfg.oc_empty')} description={t('sd_cfg.oc_help')} /> : calendarios.map(c => (
         <div key={c.id} className="ds-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <strong style={{ flex: 1 }}>{c.name}</strong>
-            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{c.group_name}</span>
+            <strong className="u-flex1">{c.name}</strong>
+            <span className="u-text2-sm">{c.group_name}</span>
             <Button variant="secondary" onClick={() => setTurnoPara(c)}>+ {t('sd_cfg.oc_add_shift')}</Button>
             <Button variant="secondary" onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(c.id), danger: true })}>
               <span style={{ color: COLOR.danger }}>{t('common.delete')}</span></Button>
           </div>
-          {c.entries.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('sd_cfg.oc_no_shifts')}</div>
+          {c.entries.length === 0 ? <div className="u-text3-sm">{t('sd_cfg.oc_no_shifts')}</div>
             : [...c.entries].sort((a, b) => a.start_dt.localeCompare(b.start_dt)).map(e => (
               <div key={e.id} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
                 <span style={{ minWidth: 140, fontWeight: 600 }}>{e.user_name}</span>
@@ -102,13 +103,13 @@ function FormCalendario({ colas, pendiente, onCancelar, onGuardar }: { colas: Co
   const [nombre, setNombre] = useState('')
   const [cola, setCola] = useState(colas[0]?.id ?? '')
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-stack-12">
       <div><label style={LS} htmlFor="oc-name">{t('sd_cfg.chg_name')} *</label><input id="oc-name" aria-label={t('sd_cfg.chg_name')} value={nombre} onChange={e => setNombre(e.target.value)} style={IS} /></div>
       <div><label style={LS} htmlFor="oc-queue">{t('sd_cfg.oc_queue')} *</label>
         <select id="oc-queue" aria-label={t('sd_cfg.oc_queue')} value={cola} onChange={e => setCola(e.target.value)} style={IS}>
           {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!nombre.trim() || !cola || pendiente} loading={pendiente} onClick={() => onGuardar({ name: nombre.trim(), group_id: cola })}>{t('common.save')}</Button>
       </div>
@@ -123,16 +124,16 @@ function FormTurno({ personas, pendiente, onCancelar, onGuardar }: { personas: P
   const [hasta, setHasta] = useState('')
   const valido = persona && desde && hasta && hasta > desde
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-stack-12">
       <div><label style={LS} htmlFor="oc-person">{t('sd_cfg.oc_person')} *</label>
         <select id="oc-person" aria-label={t('sd_cfg.oc_person')} value={persona} onChange={e => setPersona(e.target.value)} style={IS}>
           {personas.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
         </select></div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div><label style={LS} htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><input id="oc-from" aria-label={t('sd_cfg.chg_from')} type="datetime-local" value={desde} onChange={e => setDesde(e.target.value)} style={IS} /></div>
-        <div><label style={LS} htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><input id="oc-to" aria-label={t('sd_cfg.chg_to')} type="datetime-local" value={hasta} onChange={e => setHasta(e.target.value)} style={IS} /></div>
+        <div><label style={LS} htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><DateInput id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} style={IS} /></div>
+        <div><label style={LS} htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><DateInput id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} style={IS} /></div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!valido || pendiente} loading={pendiente}
           onClick={() => onGuardar({ user_id: persona, start_dt: new Date(desde).toISOString(), end_dt: new Date(hasta).toISOString() })}>{t('common.save')}</Button>
@@ -144,7 +145,7 @@ function FormTurno({ personas, pendiente, onCancelar, onGuardar }: { personas: P
 export function MonitorizacionConfig() {
   const t = useAppT()
   const toast = useToast()
-  const url = `${window.location.origin}/api/v1/sd/events/prometheus`
+  const url = apiUrlAbsoluta('/sd/events/prometheus')
   const { data: alertas = [], isLoading } = useQuery<Alerta[]>({
     queryKey: ['sd-monitoring-alerts'], queryFn: () => sdMonitoringApi.alerts(30).then(r => r.data as Alerta[]), refetchInterval: 60000,
   })
@@ -153,19 +154,19 @@ export function MonitorizacionConfig() {
       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 720 }}>{t('sd_cfg.mon_intro')}</div>
       <div className="ds-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <span style={LS}>{t('sd_cfg.mon_url')}</span>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="u-row-8">
           <input readOnly value={url} aria-label={t('sd_cfg.mon_url')} style={{ ...IS, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }} />
           <Button variant="secondary" onClick={() => { navigator.clipboard.writeText(url); toast.success(t('sd_cfg.mail_copy')) }}>{t('sd_cfg.mail_copy')}</Button>
         </div>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('sd_cfg.mon_url_help')}</div>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+        <div className="u-text2-sm">{t('sd_cfg.mon_url_help')}</div>
+        <div className="u-text2-sm">
           {t('sd_cfg.mon_token')} <a href="/settings?tab=integrations" style={{ color: 'var(--accent)' }}>{t('sd_cfg.mail_credentials')}</a>
         </div>
       </div>
       <div>
         <span style={LS}>{t('sd_cfg.mon_log')}</span>
-        {isLoading ? <Spinner /> : alertas.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('sd_cfg.mon_empty')}</div> : (
-          <div style={{ overflowX: 'auto' }}>
+        {isLoading ? <Spinner /> : alertas.length === 0 ? <div className="u-text3-sm">{t('sd_cfg.mon_empty')}</div> : (
+          <div className="u-scroll-x">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
               <tbody>
                 {alertas.map(a => (
@@ -174,7 +175,7 @@ export function MonitorizacionConfig() {
                     <td style={{ padding: '7px 8px', fontWeight: 600, color: a.status === 'firing' ? COLOR.danger : COLOR.success, whiteSpace: 'nowrap' }}>
                       {t(a.status === 'firing' ? 'sd_cfg.mon_firing' : 'sd_cfg.mon_resolved')}
                     </td>
-                    <td style={{ padding: '7px 8px' }}>{a.title}<span style={{ color: 'var(--text-3)' }}> · {a.source}{a.severity ? ` · ${a.severity}` : ''}</span></td>
+                    <td style={{ padding: '7px 8px' }}>{a.title}<span className="u-text3"> · {a.source}{a.severity ? ` · ${a.severity}` : ''}</span></td>
                     <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{t('sd_cfg.mon_repeats', { n: a.occurrences })}</td>
                     <td style={{ padding: '7px 8px' }}>{a.ticket_id && <a href={`/service-desk?ticket=${a.ticket_id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{a.ticket_number}</a>}</td>
                   </tr>

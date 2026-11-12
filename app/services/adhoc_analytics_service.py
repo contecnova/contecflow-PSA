@@ -20,11 +20,11 @@ from datetime import date
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from fastapi import HTTPException
 from app.models.billing_reports import Invoice
 from app.models.imputation import Imputation
 from app.models.service_desk import Ticket
 from app.models.task import Task
+from app.core.errores import ErrorDeDominio
 
 _ADHOC_METRICS: dict = {
     "hours_logged": {
@@ -108,7 +108,7 @@ def _coerce_date(value) -> Optional[date]:
     try:
         return date.fromisoformat(str(value)[:10])
     except ValueError:
-        raise HTTPException(400, f"Fecha no válida: {value!r}. Usa formato ISO (YYYY-MM-DD).")
+        raise ErrorDeDominio(400, f"Fecha no válida: {value!r}. Usa formato ISO (YYYY-MM-DD).")
 
 
 def _enum_str(value):
@@ -225,11 +225,11 @@ def run_adhoc_query(
     de aquí es la decisión de cuál toca.
     """
     if db is None:
-        raise HTTPException(500, "run_adhoc_query requiere una sesión de base de datos")
+        raise ErrorDeDominio(500, "run_adhoc_query requiere una sesión de base de datos")
 
     spec = _ADHOC_METRICS.get(metric)
     if spec is None:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400,
             f"Métrica no soportada: {metric!r}. Disponibles: "
             f"{', '.join(sorted(_ADHOC_METRICS))}.",
@@ -337,7 +337,7 @@ def run_analytics_drilldown(
     """Las filas que hay detrás de una celda de un informe analítico."""
     spec = _DRILLDOWNS.get(metric)
     if spec is None:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400, detail=f"Metric '{metric}' not supported for drilldown",
         )
 

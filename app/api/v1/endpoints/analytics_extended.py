@@ -8,6 +8,7 @@ from typing import List, Optional, Dict
 import logging
 import csv
 import io
+from app.core.errores import ErrorDeDominio
 # Auditoría 2026-08 (hallazgo 22). Antes era `v238_service`, un módulo nombrado
 # por número de versión con seis dominios dentro. La analítica ad-hoc tiene ahora
 # su propio módulo.
@@ -57,7 +58,7 @@ def adhoc_analytics(
             db=db,
         )
         return APIResponse.ok(data=result)
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except ValueError as e:
         return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})

@@ -10,6 +10,7 @@ import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biQueryBuilderApi } from '../../services/api'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { Table } from '../ui'
 
 const TABS = [
   { id: 'builder', label: '🔧 Constructor' },
@@ -267,7 +268,7 @@ export default function BiQueryBuilderPanel() {
               {/* Fields */}
               <div style={ps}>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 10 }}>Campos a incluir</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div className="u-wrap-8">
                   {availableFields.map(f => (
                     <button key={f.name} onClick={() => toggleField(f.name)}
                       style={{ ...btn(selectedFields.includes(f.name)), padding: '5px 12px', fontSize: "var(--text-sm)" }}>
@@ -280,7 +281,7 @@ export default function BiQueryBuilderPanel() {
               {/* Filters */}
               <div style={ps}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Filtros</span>
+                  <span className="u-base-600">Filtros</span>
                   <button style={btn(false)} onClick={addFilter}>{traducir('biquerybuilder.anadir_filtro')}</button>
                 </div>
                 {filters.map((f, i) => (
@@ -312,7 +313,7 @@ export default function BiQueryBuilderPanel() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Agregaciones</span>
+                  <span className="u-base-600">Agregaciones</span>
                   <button style={btn(false)} onClick={addAgg}>{traducir('biquerybuilder.anadir')}</button>
                 </div>
                 {aggregations.map((a, i) => (
@@ -384,16 +385,16 @@ export default function BiQueryBuilderPanel() {
               {traducir('biquerybuilder.no_hay_queries_guardadas_todavia_crea_una')}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="u-stack-10">
               {savedQueries.map(q => (
                 <div key={q.id} style={{ ...ps, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{q.name}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+                    <div className="u-text3-sm">
                       Dataset: <b>{q.dataset}</b> · Campos: {(q.fields ?? []).join(', ') || '—'}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="u-row-8">
                     <button style={btn(false)} onClick={() => loadSavedQuery(q)}>✎ Cargar</button>
                     <button style={btn(true)} onClick={() => execSavedMut.mutate(q.id)}
                       disabled={execSavedMut.isPending}>▶ Ejecutar</button>
@@ -424,29 +425,15 @@ export default function BiQueryBuilderPanel() {
                   {traducir('biquerybuilder.totales_parciales', { leidas: (results.filas_leidas ?? 0).toLocaleString(), totales: (results.filas_totales ?? 0).toLocaleString() })}
                 </div>
               )}
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-                      {(results.columns ?? []).map(col => (
-                        <th key={col} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(results.rows ?? []).slice(0, 200).map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-2)' }}>
-                        {(results.columns ?? []).map(col => (
-                          <td key={col} style={{ padding: '7px 12px', color: 'var(--text-1)' }}>
-                            {row[col] == null ? <span style={{ color: 'var(--text-4)' }}>null</span> : String(row[col])}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="u-scroll-x">
+                <Table
+                  data={(results.rows ?? []).slice(0, 200)}
+                  columns={(results.columns ?? []).map(col => ({
+                    key: col,
+                    label: <span style={{ whiteSpace: 'nowrap' }}>{col}</span>,
+                    render: (_v: never, row: Record<string, unknown>) => (row[col] == null ? <span style={{ color: 'var(--text-4)' }}>null</span> : String(row[col])),
+                  }))}
+                />
                 {results.rows && results.rows.length > 200 && (
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 8, textAlign: 'center' }}>
                     {traducir('biquerybuilder.mostrando_200_de')} {results.rows.length} filas

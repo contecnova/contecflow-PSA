@@ -14,7 +14,7 @@ import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
-import { sdInboundApi } from '../../services/api'
+import { sdInboundApi, apiUrlAbsoluta } from '../../services/api'
 
 type Entrada = { id: string; received_at?: string; sender?: string; outcome: string; reason?: string; ticket_id?: string; ticket_number?: string }
 type Prueba = { ok: boolean; unread?: number; error?: string; protocol?: string }
@@ -31,7 +31,7 @@ export default function ConfigCorreoEntrante() {
   const toast = useToast()
   const qc = useQueryClient()
   const [prueba, setPrueba] = useState<Prueba | null>(null)
-  const webhook = `${window.location.origin}/api/v1/sd/inbound-email`
+  const webhook = apiUrlAbsoluta('/sd/inbound-email')
 
   const { data: entradas = [], isLoading } = useQuery<Entrada[]>({
     queryKey: ['sd-inbound-messages'],
@@ -61,8 +61,8 @@ export default function ConfigCorreoEntrante() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div className="ds-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <span style={LS}>{t('sd_cfg.mail_mailbox')}</span>
-          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('sd_cfg.mail_mailbox_help')}</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="u-text2-sm">{t('sd_cfg.mail_mailbox_help')}</div>
+          <div className="u-wrap-8">
             <Button variant="secondary" onClick={() => { window.location.href = '/settings?tab=integrations' }}>{t('sd_cfg.mail_credentials')}</Button>
             <Button variant="secondary" onClick={() => probar.mutate()} loading={probar.isPending}>{t('sd_cfg.mail_test')}</Button>
             <Button onClick={() => leer.mutate()} loading={leer.isPending}>{t('sd_cfg.mail_run')}</Button>
@@ -72,15 +72,15 @@ export default function ConfigCorreoEntrante() {
               {prueba.ok ? t('sd_cfg.mail_ok', { n: prueba.unread ?? 0 }) : prueba.error}
             </div>
           )}
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+          <div className="u-text3-xs">
             <strong>{t('sd_cfg.mail_address')}:</strong> {t('sd_cfg.mail_address_help')}
           </div>
         </div>
 
         <div className="ds-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <span style={LS}>{t('sd_cfg.mail_gateway')}</span>
-          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('sd_cfg.mail_gateway_help')}</div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="u-text2-sm">{t('sd_cfg.mail_gateway_help')}</div>
+          <div className="u-row-8">
             <input readOnly value={webhook} aria-label={t('sd_cfg.mail_gateway')}
               style={{ flex: 1, minWidth: 0, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--surface-4)',
                 background: 'var(--surface-3)', color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }} />
@@ -94,9 +94,9 @@ export default function ConfigCorreoEntrante() {
       <div>
         <span style={LS}>{t('sd_cfg.mail_log')}</span>
         {isLoading ? <Spinner /> : entradas.length === 0 ? (
-          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('sd_cfg.mail_log_empty')}</div>
+          <div className="u-text3-sm">{t('sd_cfg.mail_log_empty')}</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="u-scroll-x">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
               <tbody>
                 {entradas.map(e => (
@@ -109,7 +109,7 @@ export default function ConfigCorreoEntrante() {
                     <td style={{ padding: '7px 8px' }}>
                       {e.ticket_id
                         ? <a href={`/service-desk?ticket=${e.ticket_id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{e.ticket_number}</a>
-                        : <span style={{ color: 'var(--text-3)' }}>{e.reason}</span>}
+                        : <span className="u-text3">{e.reason}</span>}
                     </td>
                   </tr>
                 ))}

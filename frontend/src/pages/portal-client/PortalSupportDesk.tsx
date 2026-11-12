@@ -350,7 +350,7 @@ export function PortalSupportDesk() {
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Star size={14} style={{ color: 'var(--warning)' }} /> {traducir('portalsupportdesk.como_valorarias_la_atencion_recibida')}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="u-row-8">
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} onClick={() => submitCSAT({ score: n })} style={{
                       flex: 1, padding: '12px', borderRadius: 10,
@@ -369,10 +369,10 @@ export function PortalSupportDesk() {
             {Array.isArray(ticketDetail.history) && ticketDetail.history.length > 0 && (
               <PortalCard style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{traducir('portalsupportdesk.actividad_del_ticket')}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="u-stack-8">
                   {ticketDetail.history.slice(-8).reverse().map((h, idx) => (
                     <div key={`${h.changed_at}-${idx}`} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
-                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{h.changed_at} · {h.changed_by || 'Sistema'}</div>
+                      <div className="u-text3-2xs">{h.changed_at} · {h.changed_by || 'Sistema'}</div>
                       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginTop: 2 }}>
                         {h.field}: {String(h.old_value ?? '—')} → {String(h.new_value ?? '—')}
                       </div>
@@ -385,7 +385,7 @@ export function PortalSupportDesk() {
             {upcomingEvents.length > 0 && (
               <PortalCard style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{traducir('portalsupportdesk.calendario_de_eventos')}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="u-stack-8">
                   {upcomingEvents.map((ev) => (
                     <div key={ev.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
                       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 700 }}>{ev.title}</div>
@@ -396,7 +396,7 @@ export function PortalSupportDesk() {
               </PortalCard>
             )}
 
-            <div style={{ marginBottom: 16 }}>
+            <div className="u-mb-16">
               <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 12 }}>{traducir('portalsupportdesk.conversacion')}</div>
               {ticketDetail.comments?.filter(c => c.is_public).map(c => (
                 <div key={c.id} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
@@ -406,12 +406,12 @@ export function PortalSupportDesk() {
                       ? 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))'
                       : 'linear-gradient(135deg, var(--success, #10b981), var(--accent))',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 'var(--text-xs)', fontWeight: 800, color: '#fff',
+                    fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--on-accent-light)',
                   }}>{c.author_name?.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ display: 'flex', gap: 10, marginBottom: 4, alignItems: 'baseline', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{c.author_name}</span>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{c.created_at}</span>
+                      <span className="u-text3-xs">{c.created_at}</span>
                       {c.author_type === 'agent' && <PortalBadge tone="accent">Agente</PortalBadge>}
                     </div>
                     <div style={{
@@ -499,13 +499,13 @@ export function PortalSupportDesk() {
             action={<PortalButton icon={<Plus size={14} />} onClick={() => { setDynamicValues({}); setShowCreate(true) }}>Abrir ticket</PortalButton>}
           />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             {tickets.map(tk => {
               const TypeIcon = TYPE_ICON[tk.ticket_type || ""] || Headphones
               return (
                 <PortalCard key={tk.id} onClick={() => setSelectedId(tk.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="u-flex1-min0">
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{tk.number}</span>
                         <TypeIcon size={13} style={{ color: 'var(--text-2)' }} />
@@ -563,15 +563,15 @@ export function PortalSupportDesk() {
           {kbArticles.length === 0 ? (
             <PortalEmpty icon={Search} title={searchKB ? `Sin resultados para "${searchKB}"` : 'Base de conocimiento vacía'} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="u-stack-10">
               {kbArticles.map(a => (
                 <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id as string)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{a.title}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</div>
+                    <div className="u-text3-xs">👁 {a.view_count} · ✓ {a.helpful_count}</div>
                   </div>
                   {a.summary && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 8px' }}>{a.summary}</p>}
-                  {a.tags && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>🏷 {a.tags}</div>}
+                  {a.tags && <div className="u-text3-xs">🏷 {a.tags}</div>}
                 </PortalCard>
               ))}
             </div>
@@ -584,7 +584,7 @@ export function PortalSupportDesk() {
         announcements.length === 0 ? (
           <PortalEmpty icon={Megaphone} title={traducir('portalsupportdesk.sin_comunicados_activos')} />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             {announcements.map(a => {
               const Icon = a.type === 'outage' ? AlertTriangle : a.type === 'maintenance' ? Wrench : a.type === 'resolved' ? CheckCircle2 : Megaphone
               const tone = a.type === 'outage' ? 'danger' : a.type === 'maintenance' ? 'warning' : a.type === 'resolved' ? 'success' : 'accent'
@@ -595,7 +595,7 @@ export function PortalSupportDesk() {
                     <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--surface-3)', color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Icon size={15} />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="u-flex1-min0">
                       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{a.title}</div>
                       <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: 0 }}>{a.body}</p>
                       {a.starts_at && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>{a.starts_at}{a.ends_at && ` → ${a.ends_at}`}</div>}
@@ -651,7 +651,7 @@ export function PortalSupportDesk() {
         )}
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <PortalField label={traducir('portalsupportdesk.tipo_de_ticket')}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="u-wrap-8">
               {([
                 ['incident', 'Incidencia', Bug],
                 ['service_request', 'Solicitud', ClipboardList],
@@ -677,7 +677,7 @@ export function PortalSupportDesk() {
           <PortalField label={traducir('portalsupportdesk.descripcion')} required hint="Cuanto más contexto añadas, antes te resolveremos">
             <PortalTextarea rows={4} value={createForm.description} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portalsupportdesk.describe_el_problema_o_solicitud')} />
           </PortalField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="u-grid2-12">
             <PortalField label="Urgencia">
               <PortalSelect value={createForm.urgency} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, urgency: e.target.value }))}>
                 <option value="critical">{traducir('portalsupportdesk.critica_el_negocio_esta_parado')}</option>
@@ -781,7 +781,7 @@ function SugerenciasDeLaKb({ texto, onResuelto }: { texto: string; onResuelto: (
   return (
     <div role="region" aria-label={traducir('sd_cfg.kb_suggest_title')}
       style={{ border: '1px solid var(--accent)', background: 'var(--accent-muted)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <strong style={{ fontSize: 'var(--text-sm)' }}>{traducir('sd_cfg.kb_suggest_title')}</strong>
+      <strong className="u-sm">{traducir('sd_cfg.kb_suggest_title')}</strong>
       {sugerencias.slice(0, 3).map(a => (
         <div key={a.id} style={{ background: 'var(--surface-1)', borderRadius: 8, padding: '8px 10px' }}>
           <button type="button" onClick={() => setAbierto(abierto === a.id ? null : a.id)} aria-expanded={abierto === a.id}

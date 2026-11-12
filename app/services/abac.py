@@ -13,10 +13,10 @@ from app.models.abac import ABACPolicy, UserAttribute, AttributeDefinition, Poli
 from app.models.user import User
 from app.services.abac_recursos import atributos_del_recurso
 import uuid
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy import text
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -905,5 +905,5 @@ DEFAULT_ABAC_ATTRIBUTES = [
 
 def get_org_id(user) -> str:
     if not user.organization_id:
-        raise HTTPException(400, "User has no organization")
+        raise ErrorDeDominio(400, "User has no organization")
     return str(user.organization_id)

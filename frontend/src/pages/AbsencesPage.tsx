@@ -13,7 +13,8 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
-import { alpha } from '../constants/theme'
+import DsBadge from '../components/ui/StatusBadge'
+import DateInput from '../components/ui/DateInput'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -90,7 +91,7 @@ function StatusBadge({ status }: { status?: string }) {
   const t = useAppT()
   const cfgMap = statusCfg(t)
   const cfg = cfgMap[status || ''] || cfgMap.pending
-  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, border: `1px solid ${alpha(cfg.color, '40')}`, textTransform: 'uppercase' }}>{cfg.label}</span>
+  return <DsBadge color={cfg.color}>{cfg.label}</DsBadge>
 }
 
 function RequestModal({ onClose }: { onClose: () => void }) {
@@ -131,7 +132,7 @@ function RequestModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal open title={t('absences.modal_request_title')} onClose={onClose} width={460}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         {/* Balance de vacaciones */}
         {balance && form.type === 'vacation' && (
           <div style={{ display: 'flex', gap: 8, padding: '10px 14px',
@@ -155,18 +156,18 @@ function RequestModal({ onClose }: { onClose: () => void }) {
           <select id={typeId} value={form.type} onChange={set('type')} style={validation.inputStyle(fs, 'type')}>
             {Object.entries(typeLabels(t)).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.type && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.type}</div>}
+          {validation.errors.type && <div className="u-field-error">{validation.errors.type}</div>}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid2-12">
           <div>
             <label htmlFor={startId} style={ls}>{t('absences.label_start_required')}</label>
-            <input id={startId} type="date" value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
-            {validation.errors.start_date && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.start_date}</div>}
+            <DateInput id={startId} value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
+            {validation.errors.start_date && <div className="u-field-error">{validation.errors.start_date}</div>}
           </div>
           <div>
             <label htmlFor={endId} style={ls}>{t('absences.label_end_required')}</label>
-            <input id={endId} type="date" value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
-            {validation.errors.end_date && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.end_date}</div>}
+            <DateInput id={endId} value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+            {validation.errors.end_date && <div className="u-field-error">{validation.errors.end_date}</div>}
           </div>
         </div>
         <div>
@@ -174,7 +175,7 @@ function RequestModal({ onClose }: { onClose: () => void }) {
           <textarea id={reasonId} value={form.reason} onChange={set('reason')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('absences.reason_placeholder')} />
         </div>
         {error ? <div style={{ fontSize: "var(--text-base)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{errDetailText(error, t('absences.error_submit'))}</div> : null}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending}>
             {isPending ? t('absences.sending') : t('absences.request_action')}
@@ -207,17 +208,17 @@ function ReviewModal({ absence, onClose }: { absence: Absence; onClose: () => vo
         ].map(({ label, value }) => (
           <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{value}</div>
+            <div className="u-base-600">{value}</div>
           </div>
         ))}
       </div>
       {absence.reason && <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 16 }}>{absence.reason}</p>}
-      <div style={{ marginBottom: 16 }}>
+      <div className="u-mb-16">
         <label htmlFor={`${idPrefix}-notes`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{t('absences.label_notes_rejection')}</label>
         <textarea id={`${idPrefix}-notes`} value={notes} onChange={e => setNotes(e.target.value)} rows={2}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant="danger" onClick={() => mutate({ approved: false })} disabled={isPending} loading={isPending}>{t('absences.reject_action')}</Button>
         <Button onClick={() => mutate({ approved: true })} disabled={isPending} loading={isPending}>{t('absences.approve_action')}</Button>
@@ -336,7 +337,7 @@ function EditAbsenceModal({ absence, onClose }: { absence: Absence; onClose: () 
 
   return (
     <Modal open title={t('absences.modal_edit_title')} onClose={onClose} width={460}>
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div className="u-stack-14">
         <div style={{ padding:'10px 14px', background:'var(--warning-bg)',
           border:'1px solid rgba(255,184,0,0.3)', borderRadius:8, fontSize: "var(--text-sm)", color:'var(--warning)' }}>
           {t('absences.warning_edit_pending_only')}
@@ -347,21 +348,21 @@ function EditAbsenceModal({ absence, onClose }: { absence: Absence; onClose: () 
           <select id={typeId} value={form.type} onChange={setField('type')} style={validation.inputStyle(IS, 'type')}>
             {Object.entries(typeLabels(t)).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.type && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.type}</div>}
+          {validation.errors.type && <div className="u-field-error">{validation.errors.type}</div>}
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <div className="u-grid2-12">
           <div>
             <label htmlFor={startId} style={LS}>{t('absences.start_label')}</label>
-            <input id={startId} type="date" value={form.start_date}
+            <DateInput id={startId} value={form.start_date}
               onChange={setField('start_date')} style={validation.inputStyle(IS, 'start_date')} />
-            {validation.errors.start_date && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.start_date}</div>}
+            {validation.errors.start_date && <div className="u-field-error">{validation.errors.start_date}</div>}
           </div>
           <div>
             <label htmlFor={endId} style={LS}>{t('absences.end_label')}</label>
-            <input id={endId} type="date" value={form.end_date}
+            <DateInput id={endId} value={form.end_date}
               onChange={setField('end_date')} style={validation.inputStyle(IS, 'end_date')} />
-            {validation.errors.end_date && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.end_date}</div>}
+            {validation.errors.end_date && <div className="u-field-error">{validation.errors.end_date}</div>}
           </div>
         </div>
 
@@ -379,7 +380,7 @@ function EditAbsenceModal({ absence, onClose }: { absence: Absence; onClose: () 
           </div>
         ) : null}
 
-        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             onClick={submit}
@@ -518,10 +519,10 @@ export default function AbsencesPage(): JSX.Element {
                   { value: 'rejected', label: t('absences.status_rejected') },
                   { value: 'cancelled', label: t('absences.status_cancelled') },
                 ]} />
-                <input type="date" aria-label={t('absences.start_label')} value={mineFilterFrom} onChange={e => setMineFilterFrom(e.target.value)}
+                <DateInput aria-label={t('absences.start_label')} value={mineFilterFrom} onChange={e => setMineFilterFrom(e.target.value)}
                   style={{ background: mineFilterFrom ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${mineFilterFrom ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: mineFilterFrom ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
-                <span style={{ color: 'var(--text-3)' }}>—</span>
-                <input type="date" aria-label={t('absences.end_label')} value={mineFilterTo} onChange={e => setMineFilterTo(e.target.value)}
+                <span className="u-text3">—</span>
+                <DateInput aria-label={t('absences.end_label')} value={mineFilterTo} onChange={e => setMineFilterTo(e.target.value)}
                   style={{ background: mineFilterTo ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${mineFilterTo ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: mineFilterTo ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
                 {(mineFilterType || mineFilterStatus || mineFilterFrom || mineFilterTo) && (
                   <button onClick={() => { setMineFilterType(''); setMineFilterStatus(''); setMineFilterFrom(''); setMineFilterTo('') }}
@@ -534,18 +535,18 @@ export default function AbsencesPage(): JSX.Element {
               {filteredMine.length === 0 ? (
                 <EmptyState icon="🔍" title={t('common.no_results', 'Sin resultados con los filtros aplicados')} />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="u-stack-10">
                   {filteredMine.map(a => (
                     <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: `1px solid ${a.status === 'rejected' ? 'var(--danger-border)' : a.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
-                      <div style={{ flex: 1 }}>
+                      <div className="u-flex1">
                         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{typeLabels(t)[a.type || ""] || a.type}</div>
-                        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                          {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} {t('absences.workdays_unit')}</span>
+                        <div className="u-text2-sm">
+                          {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · <span className="u-text1">{a.working_days} {t('absences.workdays_unit')}</span>
                         </div>
                         {a.rejection_reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', marginTop: 4 }}>💬 {a.rejection_reason}</div>}
                       </div>
                       <StatusBadge status={a.status} />
-                      <div style={{ display:'flex', gap:6 }}>
+                      <div className="u-row-6">
                         {a.status === 'pending' && (
                           <button aria-label={`${t('absences.edit_action')} ${typeLabels(t)[a.type || ""] || a.type}`} onClick={() => setEditingAbsence(a)}
                             style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
@@ -588,10 +589,10 @@ export default function AbsencesPage(): JSX.Element {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
                 <SearchInput value={pendingSearch} onChange={setPendingSearch} placeholder={t('absences.search_person', 'Buscar persona...')} style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 320 }} />
                 <FilterSelect value={pendingFilterType} onChange={setPendingFilterType} placeholder={t('absences.type_label')} options={Object.entries(typeLabels(t)).map(([v, l]) => ({ value: v, label: l.replace(/^\S+\s/, '') }))} />
-                <input type="date" aria-label={t('absences.start_label')} value={pendingFilterFrom} onChange={e => setPendingFilterFrom(e.target.value)}
+                <DateInput aria-label={t('absences.start_label')} value={pendingFilterFrom} onChange={e => setPendingFilterFrom(e.target.value)}
                   style={{ background: pendingFilterFrom ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${pendingFilterFrom ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: pendingFilterFrom ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
-                <span style={{ color: 'var(--text-3)' }}>—</span>
-                <input type="date" aria-label={t('absences.end_label')} value={pendingFilterTo} onChange={e => setPendingFilterTo(e.target.value)}
+                <span className="u-text3">—</span>
+                <DateInput aria-label={t('absences.end_label')} value={pendingFilterTo} onChange={e => setPendingFilterTo(e.target.value)}
                   style={{ background: pendingFilterTo ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${pendingFilterTo ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: pendingFilterTo ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
                 {(pendingSearch || pendingFilterType || pendingFilterFrom || pendingFilterTo) && (
                   <button onClick={() => { setPendingSearch(''); setPendingFilterType(''); setPendingFilterFrom(''); setPendingFilterTo('') }}
@@ -604,12 +605,12 @@ export default function AbsencesPage(): JSX.Element {
               {filteredPending.length === 0 ? (
                 <EmptyState icon="🔍" title={t('common.no_results', 'Sin resultados con los filtros aplicados')} />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="u-stack-10">
                   {filteredPending.map(a => (
                     <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{a.user_name}</div>
-                        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                      <div className="u-flex1">
+                        <div className="u-md-700">{a.user_name}</div>
+                        <div className="u-text2-sm">
                           {typeLabels(t)[a.type || ""]} · {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
                         </div>
                         {a.reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
@@ -636,10 +637,10 @@ export default function AbsencesPage(): JSX.Element {
               { value: 'rejected', label: t('absences.status_rejected') },
               { value: 'cancelled', label: t('absences.status_cancelled') },
             ]} />
-            <input type="date" aria-label={t('absences.start_label')} value={teamFilterFrom} onChange={e => setTeamFilterFrom(e.target.value)}
+            <DateInput aria-label={t('absences.start_label')} value={teamFilterFrom} onChange={e => setTeamFilterFrom(e.target.value)}
               style={{ background: teamFilterFrom ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${teamFilterFrom ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: teamFilterFrom ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
-            <span style={{ color: 'var(--text-3)' }}>—</span>
-            <input type="date" aria-label={t('absences.end_label')} value={teamFilterTo} onChange={e => setTeamFilterTo(e.target.value)}
+            <span className="u-text3">—</span>
+            <DateInput aria-label={t('absences.end_label')} value={teamFilterTo} onChange={e => setTeamFilterTo(e.target.value)}
               style={{ background: teamFilterTo ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${teamFilterTo ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: teamFilterTo ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
             {(teamSearch || teamFilterType || teamFilterStatus || teamFilterFrom || teamFilterTo) && (
               <button onClick={() => { setTeamSearch(''); setTeamFilterType(''); setTeamFilterStatus(''); setTeamFilterFrom(''); setTeamFilterTo('') }}
@@ -665,10 +666,10 @@ export default function AbsencesPage(): JSX.Element {
               </div>
               {(sortedTeamAbs as Absence[]).map(a => (
                 <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
-                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{a.user_name}</span>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{typeLabels(t)[a.type || ""]?.replace(/^\S+\s/, '') || a.type}</span>
-                  <span style={{ fontSize: "var(--text-sm)" }}>{fmtDate(a.start_date)}</span>
-                  <span style={{ fontSize: "var(--text-sm)" }}>{fmtDate(a.end_date)}</span>
+                  <span className="u-base-600">{a.user_name}</span>
+                  <span className="u-text2-sm">{typeLabels(t)[a.type || ""]?.replace(/^\S+\s/, '') || a.type}</span>
+                  <span className="u-sm">{fmtDate(a.start_date)}</span>
+                  <span className="u-sm">{fmtDate(a.end_date)}</span>
                   <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{a.working_days}d</span>
                   <StatusBadge status={a.status} />
                 </div>

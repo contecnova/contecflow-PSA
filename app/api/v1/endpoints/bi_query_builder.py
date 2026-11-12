@@ -75,8 +75,9 @@ class PreviewQueryIn(BaseModel):
 def get_schema(
     request: Request,
     current_user: User = Depends(require_admin_or_pm),
+    db: Session = Depends(get_db),
 ):
-    return APIResponse.ok(data=svc.get_schema())
+    return APIResponse.ok(data=svc.get_schema(db, current_user.organization_id))
 
 
 @router.get("/bi/query-builder/queries", summary="Listar queries guardadas")

@@ -11,19 +11,19 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from fastapi import HTTPException
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.models.document_collab import DocumentCollabSnapshot
 from app.models.documents import Document
+from app.core.errores import ErrorDeDominio
 
 
 def get_document_or_404(db: Session, doc_id: str) -> Document:
     """Fetch a Document by id, raising 404 if not found."""
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
-        raise HTTPException(404, "Document not found")
+        raise ErrorDeDominio(404, "Document not found")
     return doc
 
 

@@ -524,6 +524,7 @@ def _puntuacion_de_cmdb(db: Session) -> int:
         descubiertos = activos.filter(CI.is_discovered.is_(True)).scalar() or 0
         return round(descubiertos / total * 100) if total else 50
     except Exception:
+        logger.warning("_puntuacion_de_cmdb: excepcion ignorada", exc_info=True)
         return 50
 
 

@@ -10,6 +10,7 @@ Covers:
 """
 import pytest
 from tests.conftest import auth
+from app.core.errores import ErrorDeDominio
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -269,7 +270,7 @@ class TestCustomerHealthScore:
         from app.services.customer_health_service import compute_composite_health
         from fastapi import HTTPException
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
             compute_composite_health("does-not-exist", db)
         assert exc.value.status_code == 404
 

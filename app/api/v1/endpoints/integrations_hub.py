@@ -15,6 +15,7 @@ from app.core.secret_utils import decrypt_config_secrets
 from app.db.session import get_db
 from app.core.deps import require_any_manager
 from app.models.user import User
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -354,7 +355,7 @@ def _verificar_token_de_teams(request: Request) -> Optional[dict]:
             options={"verify_exp": True, "verify_signature": True},
         )
     # intentional: chained re-raise preserves context
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception:
         # Un solo mensaje para todos los modos de fallo —firma mala, emisor
@@ -392,7 +393,8 @@ async def slack_inbound_command(
     # threadpool — the slack_* helpers below are sync internally.
     from app.core.async_db import run_db
     from app.services.integrations import find_user_by_slack_name
-    contecflow_user = await run_db(find_user_by_slack_name, db, params.get("user_name", ""))
+    contecflow_user = await run_db(find_user_by_slack_name, db, params.get("user_name", ""),
+                                   params.get("team_id"))
 
     return await _ejecutar_comando_del_bot(
         params.get("text", "").strip(), contecflow_user, db, canal="Slack")
@@ -521,7 +523,9 @@ async def teams_inbound_command(
     # Audit #C7: DB lookup offloaded to threadpool.
     from app.core.async_db import run_db
     from app.services.integrations import find_user_by_teams_name
-    contecflow_user = (await run_db(find_user_by_teams_name, db, teams_name)) if teams_name else None
+    # El tenant lo pone el Bot Framework de Microsoft (peticion con token verificado).
+    tenant_id = ((body.get("channelData") or {}).get("tenant") or {}).get("id")         or (body.get("conversation") or {}).get("tenantId")
+    contecflow_user = (await run_db(find_user_by_teams_name, db, teams_name, tenant_id)) if teams_name else None
 
     # Revisión 2026-11: lo que no es un comando se contesta con la base de
     # conocimiento de la empresa de quien escribe (app/services/teams_bot.py).

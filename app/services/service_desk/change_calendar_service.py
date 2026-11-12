@@ -17,12 +17,12 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import ChangeBlackout, ITSMChangeRequest, Release
 from app.services.sla_service import aware
+from app.core.errores import ErrorDeDominio
 
 #: Estados en los que un cambio ocupa su hueco en el calendario.
 OCUPAN = ("approved", "scheduled", "in_progress")
@@ -73,15 +73,15 @@ def choques(db: Session, change: ITSMChangeRequest) -> list[dict]:
 def exigir_ventana_libre(db: Session, change: ITSMChangeRequest) -> None:
     """Para programar: fechas validas y fuera de congelacion (salvo emergencia)."""
     if not (change.planned_start and change.planned_end):
-        raise HTTPException(422, "Para programar un cambio hacen falta inicio y fin planificados")
+        raise ErrorDeDominio(422, "Para programar un cambio hacen falta inicio y fin planificados")
     inicio, fin = aware(change.planned_start), aware(change.planned_end)
     if fin <= inicio:
-        raise HTTPException(422, "El fin planificado tiene que ser posterior al inicio")
+        raise ErrorDeDominio(422, "El fin planificado tiene que ser posterior al inicio")
     if _v(change.change_type) == "emergency":
         return
     pisadas = congelaciones_que_pisa(db, inicio, fin)
     if pisadas:
-        raise HTTPException(409, "El cambio cae en una ventana de congelación: "
+        raise ErrorDeDominio(409, "El cambio cae en una ventana de congelación: "
                                  + ", ".join(b.name for b in pisadas))
 
 
@@ -133,10 +133,10 @@ def listar_congelaciones(db: Session) -> list[dict]:
 def guardar_congelacion(db: Session, datos: dict, blackout_id: Optional[str] = None) -> ChangeBlackout:
     inicio, fin = aware(datos["start_at"]), aware(datos["end_at"])
     if fin <= inicio:
-        raise HTTPException(422, "La congelación tiene que acabar después de empezar")
+        raise ErrorDeDominio(422, "La congelación tiene que acabar después de empezar")
     b = db.get(ChangeBlackout, blackout_id) if blackout_id else ChangeBlackout()
     if b is None or (blackout_id and not b.is_active):
-        raise HTTPException(404, "Congelación no encontrada")
+        raise ErrorDeDominio(404, "Congelación no encontrada")
     b.name, b.reason, b.start_at, b.end_at = datos["name"], datos.get("reason"), inicio, fin
     db.add(b)
     return b
@@ -145,7 +145,7 @@ def guardar_congelacion(db: Session, datos: dict, blackout_id: Optional[str] = N
 def borrar_congelacion(db: Session, blackout_id: str) -> None:
     b = db.get(ChangeBlackout, blackout_id)
     if b is None or not b.is_active:
-        raise HTTPException(404, "Congelación no encontrada")
+        raise ErrorDeDominio(404, "Congelación no encontrada")
     b.is_active = False
 
 
@@ -173,10 +173,10 @@ def listar_versiones(db: Session) -> list[dict]:
 def guardar_version(db: Session, datos: dict, release_id: Optional[str] = None) -> Release:
     r = db.get(Release, release_id) if release_id else Release()
     if r is None or (release_id and not r.is_active):
-        raise HTTPException(404, "Versión no encontrada")
+        raise ErrorDeDominio(404, "Versión no encontrada")
     estado = datos.get("status") or r.status or "planned"
     if estado not in ESTADOS_DE_VERSION:
-        raise HTTPException(422, f"Estado de versión inválido: {estado}")
+        raise ErrorDeDominio(422, f"Estado de versión inválido: {estado}")
     if estado == "released":
         pendientes = [c.number for c in db.query(ITSMChangeRequest).filter(
             ITSMChangeRequest.release_id == r.id,
@@ -184,14 +184,14 @@ def guardar_version(db: Session, datos: dict, release_id: Optional[str] = None) 
                                               "cancelled"]),
         ).all()] if r.id else []
         if pendientes:
-            raise HTTPException(409, "Faltan cambios por implementar: " + ", ".join(pendientes))
+            raise ErrorDeDominio(409, "Faltan cambios por implementar: " + ", ".join(pendientes))
         r.released_at = r.released_at or datetime.now(timezone.utc)
     r.name = datos.get("name") or r.name
     r.version, r.notes, r.owner_id = datos.get("version"), datos.get("notes"), datos.get("owner_id")
     r.planned_date = aware(datos["planned_date"]) if datos.get("planned_date") else None
     r.status = estado
     if not r.name:
-        raise HTTPException(422, "La versión necesita nombre")
+        raise ErrorDeDominio(422, "La versión necesita nombre")
     db.add(r)
     return r
 
@@ -199,7 +199,7 @@ def guardar_version(db: Session, datos: dict, release_id: Optional[str] = None) 
 def borrar_version(db: Session, release_id: str) -> None:
     r = db.get(Release, release_id)
     if r is None or not r.is_active:
-        raise HTTPException(404, "Versión no encontrada")
+        raise ErrorDeDominio(404, "Versión no encontrada")
     r.is_active = False
     db.query(ITSMChangeRequest).filter(ITSMChangeRequest.release_id == release_id).update(
         {"release_id": None}, synchronize_session=False)

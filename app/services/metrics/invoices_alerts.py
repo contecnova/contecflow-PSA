@@ -2,12 +2,13 @@
 invoices_by_status, invoice_amount_by_month, invoice_amount_by_client,
 invoice_overdue_amount, alerts_by_severity, alerts_by_type,
 unresolved_alerts_by_project, sla_breach_trend, sla_breach_by_type."""
+import logging
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 from ._monthly import agrupar_por_mes, serie_de_cuentas
 from app.core import timeutil
 
@@ -45,8 +46,9 @@ def metric_invoices_by_status(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_invoices_by_status: excepcion ignorada", exc_info=True)
         rows = []
-    return rows, {"y_label": "Importe (€)"}
+    return rows, {"y_label": "Importe (¤)"}
 
 
 @register_metric("invoice_amount_by_month")
@@ -83,8 +85,9 @@ def metric_invoice_amount_by_month(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_invoice_amount_by_month: excepcion ignorada", exc_info=True)
         rows = []
-    return rows, {"y_label": "Facturado (€)"}
+    return rows, {"y_label": "Facturado (¤)"}
 
 
 @register_metric("invoice_amount_by_client")
@@ -123,8 +126,9 @@ def metric_invoice_amount_by_client(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_invoice_amount_by_client: excepcion ignorada", exc_info=True)
         rows = []
-    return rows, {"y_label": "Facturado (€)"}
+    return rows, {"y_label": "Facturado (¤)"}
 
 
 @register_metric("invoice_overdue_amount")
@@ -158,8 +162,9 @@ def metric_invoice_overdue_amount(
                 "invoice_number": inv.number,
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_invoice_overdue_amount: excepcion ignorada", exc_info=True)
         rows = []
-    return rows, {"y_label": "Importe vencido (€)"}
+    return rows, {"y_label": "Importe vencido (¤)"}
 
 
 @register_metric("alerts_by_severity")
@@ -193,6 +198,7 @@ def metric_alerts_by_severity(
             key=lambda x: SEVERITY_ORDER.get(x["label"], 99)
         )
     except Exception:
+        logging.getLogger(__name__).warning("metric_alerts_by_severity: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -219,6 +225,7 @@ def metric_alerts_by_type(
 
         rows = [{"label": r.alert_type or "Sin tipo", "value": r.cnt} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_alerts_by_type: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -255,6 +262,7 @@ def metric_unresolved_alerts_by_project(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_unresolved_alerts_by_project: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Alertas no resueltas"}
 
@@ -285,6 +293,7 @@ def metric_sla_breach_trend(
 
         rows = serie_de_cuentas(agrupar_por_mes(instantes, lambda r: r[0]))
     except Exception:
+        logging.getLogger(__name__).warning("metric_sla_breach_trend: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Incumplimientos SLA"}
 
@@ -322,5 +331,6 @@ def metric_sla_breach_by_type(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_sla_breach_by_type: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}

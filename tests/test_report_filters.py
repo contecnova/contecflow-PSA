@@ -47,6 +47,7 @@ from app.services.report_builder_service import (
     apply_filter,
     get_model_class,
 )
+from app.core.errores import ErrorDeDominio
 
 
 class _ConsultaFalsa:
@@ -213,14 +214,14 @@ def test_EL_HALLAZGO_una_columna_inexistente_ya_no_devuelve_todo_sin_filtrar():
     el error es del catálogo del servidor y no de quien pide el informe — y un
     500 se ve en los logs mientras que un informe con filas de más no se ve en
     ningún sitio."""
-    with pytest.raises(HTTPException) as e:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as e:
         apply_filter(_ConsultaFalsa(), Project, "columna_que_no_existe", "eq", "x")
     assert e.value.status_code == 500
     assert "columna_que_no_existe" in str(e.value.detail)
 
 
 def test_un_operador_sin_traduccion_tambien_lanza():
-    with pytest.raises(HTTPException) as e:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as e:
         apply_filter(_ConsultaFalsa(), Project, "name", "operador_inventado", "x")
     assert e.value.status_code == 500
 

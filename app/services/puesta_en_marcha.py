@@ -11,6 +11,7 @@ y entra como recomendada. La MFA obligatoria la activa el superadmin en
 Organizaciones; el admin de la empresa no puede, así que va sin enlace.
 """
 from __future__ import annotations
+import logging
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -49,6 +50,7 @@ def lista(db: Session, org: str) -> dict:
         from app.db import rls
         aislamiento = rls.estado(db.connection())
     except Exception:
+        logging.getLogger(__name__).debug("lista: excepcion ignorada", exc_info=True)
         aislamiento = {"armed": False, "reason": "no se pudo medir"}
 
     puntos = [

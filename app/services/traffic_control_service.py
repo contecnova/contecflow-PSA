@@ -5,6 +5,7 @@ per-tenant/per-scope rate limits without schema migrations.
 """
 
 from __future__ import annotations
+import logging
 
 import json
 from datetime import datetime, timezone
@@ -46,6 +47,7 @@ def consume_quota(
         try:
             payload = json.loads(row.value)
         except Exception:
+            logging.getLogger(__name__).debug("consume_quota: excepcion ignorada", exc_info=True)
             payload = {"window_start": current_bucket, "count": 0}
     else:
         payload = {"window_start": current_bucket, "count": 0}

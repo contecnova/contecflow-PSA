@@ -60,9 +60,7 @@ export default function FormField({ label, required, error, hint, children, styl
         </div>
       )}
       {hint && !error && (
-        <div id={hintId} style={{
-          marginTop: 4, fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-        }}>
+        <div id={hintId} className="u-hint">
           {hint}
         </div>
       )}

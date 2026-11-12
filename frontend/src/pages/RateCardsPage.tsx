@@ -12,6 +12,7 @@ import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
+import DateInput from '../components/ui/DateInput'
 
 type AppliesTo = 'role' | 'department' | 'client'
 
@@ -124,7 +125,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
   return (
     <Modal open title={isEdit ? '✏️ Editar tarifa' : '+ Nueva tarifa'} onClose={onClose} width={500}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={lbl}>Rol / Perfil *</label>
           <input value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} style={inp} placeholder="Rol o perfil" aria-label="Rol o perfil" />
         </div>
@@ -142,13 +143,13 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
         </div>
         <div>
           <label style={lbl}>{traducir('ratecards.valido_desde')}</label>
-          <input type="date" value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} style={inp} />
+          <DateInput value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} style={inp} />
         </div>
         <div>
           <label style={lbl}>{traducir('ratecards.valido_hasta')}</label>
-          <input type="date" value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} style={inp} />
+          <DateInput value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} style={inp} />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={lbl}>Notas</label>
           <input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Notas internas" aria-label="Notas internas" />
         </div>
@@ -161,7 +162,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <div className="u-actions-8">
         <button onClick={onClose} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>{t('common.cancel')}</button>
         <Button onClick={save} loading={isPending} disabled={!form.label || isPending}>
           {isEdit ? '💾 Guardar' : '+ Añadir'}
@@ -217,9 +218,9 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
         <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
           ← Volver
         </button>
-        <div style={{ flex: 1 }}>
+        <div className="u-flex1">
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>{table.name}</div>
-          {table.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{table.description}</div>}
+          {table.description && <div className="u-text2-sm">{table.description}</div>}
         </div>
         {avgMargin !== null && (
           <div style={{ fontSize: "var(--text-base)", color: 'var(--success)', fontWeight: 700, background: 'var(--success-bg)', padding: '4px 12px', borderRadius: 8 }}>
@@ -271,7 +272,7 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
                       {e.valid_from || e.valid_to ? `${e.valid_from || '?'} → ${e.valid_to || '∞'}` : '—'}
                     </td>
                     <td style={{ padding: '10px 16px' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div className="u-row-6">
                         <button onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
                         <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                       </div>
@@ -290,14 +291,14 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
 
       {showDupe && (
         <Modal open title={traducir('ratecards.duplicar_tabla_con_escalado')} onClose={() => setShowDupe(false)} width={420}>
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <label style={lbl}>Escalado anual (%)</label>
             <input type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} style={inp} min="0" max="20" step="0.5" />
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>
               {traducir('ratecards.se_creara_una_copia_de')}{table.name}{traducir('ratecards.con_todas_las_tarifas_incrementadas_en_este')}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowDupe(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => duplicate()} loading={duping}>Duplicar +{dupeEsc}%</Button>
           </div>
@@ -393,7 +394,7 @@ export default function RateCardsPage() {
                 </div>
               </div>
               {t.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>{t.description}</div>}
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+              <div className="u-text2-sm">
                 💶 {t.entry_count || 0} tarifa{t.entry_count !== 1 ? 's' : ''} definida{t.entry_count !== 1 ? 's' : ''}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
@@ -431,7 +432,7 @@ export default function RateCardsPage() {
               {traducir('ratecards.tabla_por_defecto_se_usa_cuando_no')}
             </label>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={createTable} loading={isPending} disabled={!form.name || isPending}>Crear tabla</Button>
           </div>

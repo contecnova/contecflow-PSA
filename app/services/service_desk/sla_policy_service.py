@@ -1,8 +1,8 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import SLAPolicy
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def _exigir_calendario(db: Session, calendar_id) -> None:
     from app.models.cmdb import SLACalendar
     cal = db.get(SLACalendar, calendar_id)
     if cal is None or not cal.is_active:
-        raise HTTPException(422, "El calendario elegido no existe")
+        raise ErrorDeDominio(422, "El calendario elegido no existe")
 
 
 def create_sla_policy_record(db: Session, payload) -> SLAPolicy:
@@ -87,7 +87,7 @@ def _quitar_otros_por_defecto(db: Session, policy: SLAPolicy) -> None:
 def get_sla_policy_or_404(db: Session, policy_id: str) -> SLAPolicy:
     policy = db.query(SLAPolicy).filter(SLAPolicy.id == policy_id).first()
     if not policy:
-        raise HTTPException(404, "Politica SLA no encontrada")
+        raise ErrorDeDominio(404, "Politica SLA no encontrada")
     return policy
 
 

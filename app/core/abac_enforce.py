@@ -46,6 +46,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.services.abac import ABACService
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger("contecflow.abac.enforce")
 
@@ -141,7 +142,7 @@ def enforce_abac(
             db, user, getattr(user, "organization_id", None),
             resource_type, resource_id, action,
         )
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception as exc:
         logger.error(

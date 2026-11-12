@@ -17,6 +17,7 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import type { CSSProperties } from 'react'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 type EntryType = 'feature' | 'bugfix' | 'improvement' | 'milestone' | 'breaking'
 
@@ -107,7 +108,7 @@ function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: 
       borderRadius: 12, padding: '14px 18px', display: 'flex', gap: 14,
     }}>
       <div style={{ fontSize: "var(--text-xl-em)", flexShrink: 0, marginTop: 2 }}>{meta.icon}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="u-flex1-min0">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 10 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
@@ -122,7 +123,7 @@ function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: 
             <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{entry.title}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{entry.entry_date}</span>
+            <span className="u-text3-xs">{entry.entry_date}</span>
             <button onClick={() => onDelete(entry.id)}
               style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', padding: '2px 4px', fontSize: "var(--text-md)", borderRadius: 4 }}
               title="Eliminar entrada">×</button>
@@ -160,7 +161,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="u-stack-14">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
         <div>
           <label style={lbStyle}>{t('changelog.version_tag')}</label>
@@ -168,8 +169,8 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
         </div>
         <div>
           <label style={lbStyle}>{t('changelog.date')}</label>
-          <input type="date" value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} style={validation.inputStyle(inputStyle, 'entry_date')} />
-          {validation.errors.entry_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.entry_date}</p>}
+          <DateInput value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} style={validation.inputStyle(inputStyle, 'entry_date')} />
+          {validation.errors.entry_date && <p className="u-field-error">{validation.errors.entry_date}</p>}
         </div>
         <div>
           <label style={lbStyle}>{t('changelog.type')}</label>
@@ -181,13 +182,13 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
       <div>
         <label style={lbStyle}>{t('changelog.title_label')}</label>
         <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder={t('changelog.title_ph')} />
-        {validation.errors.title && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.title}</p>}
+        {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
       </div>
       <div>
         <label style={lbStyle}>{t('changelog.description')}</label>
         <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder={t('changelog.description_ph')} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('changelog.cancel')}</Button>
         <Button onClick={submit} disabled={isPending}>{isPending ? t('changelog.saving') : t('changelog.add_entry')}</Button>
       </div>
@@ -217,15 +218,15 @@ function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onC
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="u-stack-14">
       <div style={{ background: 'rgba(79,142,247,0.08)', border: '1px solid rgba(79,142,247,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
         {t('changelog.generate_info')}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="u-grid2-12">
         <div>
           <label style={lbStyle}>{t('changelog.period_weeks')}</label>
           <input type="number" value={weeks} onChange={e => { setWeeks(Number(e.target.value)); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
-          {validation.errors.weeks && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.weeks}</p>}
+          {validation.errors.weeks && <p className="u-field-error">{validation.errors.weeks}</p>}
         </div>
         <div>
           <label style={lbStyle}>{t('changelog.version_tag_optional')}</label>
@@ -242,7 +243,7 @@ function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onC
           {t('changelog.generated_empty', {message: genResult.message})}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{genResult ? t('changelog.close') : t('changelog.cancel')}</Button>
         {!genResult && <Button onClick={submitGenerate} disabled={isPending}>{isPending ? t('changelog.generating') : t('changelog.generate')}</Button>}
       </div>
@@ -332,14 +333,14 @@ export default function ChangelogPage(): JSX.Element {
       {!selectedProject ? (
         <EmptyState icon="📋" title={t('changelog.empty_title')} description={t('changelog.empty_desc')} />
       ) : isLoading ? (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>{t('changelog.loading')}</span></div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span className="u-text2">{t('changelog.loading')}</span></div>
       ) : entries.length === 0 ? (
         <EmptyState icon="📝" title={t('changelog.empty_title')}
           description={t('changelog.empty_desc')}
           action={<button className="btn-primary" onClick={() => setShowGenerate(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>{t('changelog.generate')}</button>}
         />
       ) : (
-        <div data-export-table="changelog-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div data-export-table="changelog-list" className="u-stack-10">
           {entries.map(e => <EntryCard key={e.id} entry={e} onDelete={(id) => openConfirmGlobal({ message: `¿Eliminar la entrada "${e.title}"? Esta acción no se puede deshacer.`, onConfirm: () => deleteEntry(id), danger: true })} />)}
         </div>
       )}

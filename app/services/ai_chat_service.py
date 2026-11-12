@@ -6,7 +6,6 @@ Backward-compatible interface for existing code depending on this module.
 # Core logging and action tracking
 from app.services.ai_chat.core_service import (
     log_action,
-    demo_response,
     prepare_chat,
     persist_chat_response,
 )
@@ -54,7 +53,6 @@ from app.services.ai_chat.tool_execution_service import (
 __all__ = [
     # Core
     "log_action",
-    "demo_response",
     "prepare_chat",
     "persist_chat_response",
     # Prompts

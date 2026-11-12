@@ -172,14 +172,7 @@ def _org_o_404(db: Session, org_id: str):
 def request_deletion(org_id: str, payload: MotivoIn, db: Session = Depends(get_db),
                      current_user: User = Depends(require_superadmin)):
     from app.services import baja_de_empresa_service as _baja
-    from app.services.audit import audit_log
-    org = _org_o_404(db, org_id)
-    try:
-        _baja.pedir_baja(db, org, payload.reason, current_user)
-    except ValueError:
-        raise HTTPException(422, "Para dar de baja una empresa hay que indicar el motivo")
-    audit_log(db, current_user, "ORG_DELETION_REQUESTED", "organizations", org.id, payload.reason[:200])
-    db.commit()
+    org = _baja.pedir_baja_auditada(db, org_id, payload.reason, current_user)
     return APIResponse.ok(data=_orgs.serialize_organization(org, db))
 
 
@@ -187,14 +180,7 @@ def request_deletion(org_id: str, payload: MotivoIn, db: Session = Depends(get_d
 def cancel_deletion(org_id: str, db: Session = Depends(get_db),
                     current_user: User = Depends(require_superadmin)):
     from app.services import baja_de_empresa_service as _baja
-    from app.services.audit import audit_log
-    org = _org_o_404(db, org_id)
-    try:
-        _baja.deshacer_baja(db, org)
-    except ValueError:
-        raise HTTPException(409, "Esta empresa no tiene una baja pedida")
-    audit_log(db, current_user, "ORG_DELETION_CANCELLED", "organizations", org.id, org.name)
-    db.commit()
+    org = _baja.deshacer_baja_auditada(db, org_id, current_user)
     return APIResponse.ok(data=_orgs.serialize_organization(org, db))
 
 
@@ -203,11 +189,7 @@ def export_organization(org_id: str, db: Session = Depends(get_db),
                         current_user: User = Depends(require_superadmin)):
     from fastapi.responses import Response
     from app.services import baja_de_empresa_service as _baja
-    from app.services.audit import audit_log
-    org = _org_o_404(db, org_id)
-    contenido = _baja.exportar(db, org.id)
-    audit_log(db, current_user, "ORG_EXPORTED", "organizations", org.id, org.name)
-    db.commit()
+    org, contenido = _baja.exportar_auditado(db, org_id, current_user)
     return Response(contenido, media_type="application/zip",
                     headers={"Content-Disposition": f'attachment; filename="{org.slug}-export.zip"'})
 

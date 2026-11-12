@@ -147,13 +147,13 @@ export default function IncidentAssignmentPanel() {
   return (
     <Card style={{ padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <UserCheck size={18} style={{ color: 'var(--accent)' }} />
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
             {t('sd.assign.title', 'Asignación inteligente de incidencias')}
           </h2>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <span style={{
             fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em',
@@ -168,7 +168,7 @@ export default function IncidentAssignmentPanel() {
             {t('sd_cfg.assign_rules')}
           </span>
           {stats?.total_recommendations != null && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            <span className="u-text3-xs">
               {stats.total_recommendations} recomendaciones · {stats.total_unassigned ?? 0} {t('incidentassignment.sin_asignar')}
             </span>
           )}
@@ -202,7 +202,7 @@ export default function IncidentAssignmentPanel() {
               rows={2}
               style={{ ...inputBase, resize: 'vertical' }}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <select value={priority} onChange={e => setPriority(e.target.value)} style={{ ...inputBase, flex: '0 0 180px' }}>
                 <option value="p1_critical">{t('incidentassignment.p1_critico')}</option>
                 <option value="p2_high">P2 Alto</option>
@@ -291,7 +291,7 @@ export default function IncidentAssignmentPanel() {
               {allScores.length > 0 && (
                 <>
                   <div style={fieldLabel}>{t('sd.assign.top_agents', 'Top candidatos')}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="u-stack-6">
                     {allScores.slice(0, 5).map((rec, i) => {
                       const score = Math.round((rec.score ?? 0) * 100)
                       const scoreColor = score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--text-3)'
@@ -307,7 +307,7 @@ export default function IncidentAssignmentPanel() {
                           border: '1px solid var(--surface-4)',
                           borderRadius: 8,
                         }}>
-                          <div style={{ minWidth: 0, flex: 1 }}>
+                          <div className="u-flex1-min0">
                             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
                               {rec.name ?? rec.user_id}
                             </div>
@@ -318,7 +318,7 @@ export default function IncidentAssignmentPanel() {
                             )}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                            <span className="u-text3-xs">
                               {rec.active_tickets ?? 0} tickets
                             </span>
                             <span style={{

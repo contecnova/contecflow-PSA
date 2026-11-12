@@ -1,16 +1,9 @@
 /**
- * api.ts — Constantes de API y configuración del cliente
+ * api.ts — Constantes de negocio y catálogos.
  *
- * NUNCA hardcodees URLs de API en componentes.
- * Usa siempre estas constantes o el cliente axios en services/api.js
+ * NUNCA hardcodees URLs de API en componentes: usa el cliente (`services/api`)
+ * o, si no puede pasar por él, `apiUrl`/`apiWsUrl` de `services/api/urls`.
  */
-
-// TODO type: import.meta.env typings come from Vite — narrow once we add vite-env.d.ts
-const VITE_API_URL = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL
-
-// Base URL de la API — configurable via variable de entorno Vite
-// Recomendado: VITE_API_URL=https://api.miapp.com/api/v1
-export const API_BASE: string = VITE_API_URL || '/api/v1'
 
 // TODO type: business_config.json/constants.json have no schema — values inferred as `any`
 import constants from './constants.json'

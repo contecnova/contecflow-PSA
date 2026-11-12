@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 from typing import Optional, List
 
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 from app.models.billing_reports import RolePermission, SodRule, SodViolation, GrcAuditLog
+from app.core.errores import ErrorDeDominio
 
 
 # NOTE (audit #110): an earlier version of this file used a ``_models()``
@@ -255,7 +255,7 @@ def get_sod_rule_or_404(db: Session, rule_id: str):
     """Return SodRule by id or raise HTTP 404."""
     rule = db.query(SodRule).filter(SodRule.id == rule_id).first()
     if not rule:
-        raise HTTPException(status_code=404)
+        raise ErrorDeDominio(status_code=404)
     return rule
 
 
@@ -297,7 +297,7 @@ def get_violation_or_404(db: Session, violation_id: str):
     """Return SodViolation by id or raise HTTP 404."""
     v = db.query(SodViolation).filter(SodViolation.id == violation_id).first()
     if not v:
-        raise HTTPException(status_code=404)
+        raise ErrorDeDominio(status_code=404)
     return v
 
 

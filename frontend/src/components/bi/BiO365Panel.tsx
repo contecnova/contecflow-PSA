@@ -122,7 +122,7 @@ export default function BiO365Panel() {
     <div style={S.card}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="u-row-center-10">
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
             <Cloud size={16} />
           </div>
@@ -162,8 +162,8 @@ export default function BiO365Panel() {
 
       {/* Reportes tab */}
       {tab === 'reports' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="u-stack-16">
+          <div className="u-wrap-6">
             {(config?.reports ?? []).map(key => ({ key, label: t(`bio365.informe_${key}`) })).map(r => (
               <button key={r.key} onClick={() => setSelectedReport(r.key)}
                 style={{
@@ -216,7 +216,7 @@ export default function BiO365Panel() {
                 <div style={{ ...S.label, marginBottom: 8 }}>{t('bio365.licencias_por_producto')}</div>
                 {Object.entries(adoptionData.by_product ?? {}).sort((a, b) => b[1] - a[1]).map(([prod, n]) => (
                   <div key={prod} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)', padding: '5px 0', borderTop: '1px solid var(--surface-4)' }}>
-                    <span style={{ color: 'var(--text-2)' }}>{prod}</span>
+                    <span className="u-text2">{prod}</span>
                     <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{n.toLocaleString(localeActivo())}</span>
                   </div>
                 ))}
@@ -232,8 +232,8 @@ export default function BiO365Panel() {
 
       {/* Configuración tab */}
       {tab === 'config' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-stack-14">
+          <div className="u-row-center-8">
             <Settings size={14} style={{ color: 'var(--text-3)' }} />
             <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>
               {t('bi.o365.graph_config', 'Microsoft Graph API')}
@@ -272,7 +272,7 @@ export default function BiO365Panel() {
             </button>
           </div>
           {config?.last_sync_at && (
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+            <div className="u-text3-xs">
               {t('bio365.ultimo_sync')} {new Date(config.last_sync_at).toLocaleString(localeActivo())}
             </div>
           )}

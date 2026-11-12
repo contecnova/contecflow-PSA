@@ -74,12 +74,12 @@ function DocumentosEnLaBusqueda({ q }: { q: string }) {
         <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)' }}>{t('docs.titulo')} · contecmind</span>
         {docs.isFetching && <Spinner size={14} />}
       </div>
-      {docs.isError ? <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{mensajeDeConector(docs.error, t('docs.error_generico'))}</div>
-        : !docs.isFetching && items.length === 0 ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{t('docs.sin_resultados')}</div>
+      {docs.isError ? <div role="alert" className="u-text3-sm">{mensajeDeConector(docs.error, t('docs.error_generico'))}</div>
+        : !docs.isFetching && items.length === 0 ? <div className="u-text3-sm">{t('docs.sin_resultados')}</div>
         : items.map(d => (
           <button key={d.document_id} type="button" onClick={() => setAbierto(d.document_id)} style={{ ...panel, padding: '12px 16px', marginBottom: 6, cursor: 'pointer', textAlign: 'left', width: '100%' }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>{d.title}</div>
-            {d.snippet && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{d.snippet}</div>}
+            {d.snippet && <div className="u-text2-xs">{d.snippet}</div>}
           </button>
         ))}
       {abierto && <DocumentoContecmind id={abierto} puedeEscribir={!!disp.data?.puede_escribir} onClose={() => setAbierto(null)} />}
@@ -145,7 +145,7 @@ function FTSMode() {
           </div>
         </div>
         {/* Filtros por tipo */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="u-wrap-6">
           <button onClick={() => setEntity('all')}
             style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${entity === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`,
               background: entity === 'all' ? 'var(--accent-muted)' : 'transparent', color: entity === 'all' ? 'var(--accent)' : 'var(--text-2)',
@@ -196,7 +196,7 @@ function FTSMode() {
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
                     {item.name || item.title || item.code || item.number || '—'}
                   </div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                  <div className="u-text2-xs">
                     {item.code && item.code !== (item.name || item.title) && `${item.code} · `}
                     {item.status && `${item.status} · `}
                     {item.client_name || item.project_name || ''}
@@ -243,7 +243,7 @@ function NQLMode() {
           style={{ ...inp, minHeight: 80, resize: 'vertical', fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)' }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="u-wrap-6">
             {EXAMPLES.map((ex, i) => (
               <button key={i} onClick={() => setQuery(ex)}
                 style={{ fontSize: "var(--text-2xs)", padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)',

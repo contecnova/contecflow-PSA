@@ -14,6 +14,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { LARGE_PAGE_SIZE } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 type PeriodOpt = 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'H1' | 'H2' | 'annual' | ''
 type OkrStatus = 'draft' | 'active' | 'completed' | 'cancelled' | string
@@ -187,13 +188,13 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
             <span style={{ fontSize: "var(--text-xs)", color: statusCfg.color, fontWeight:700 }}>
               {statusCfg.label}
             </span>
-            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>
+            <span className="u-text3-xs">
               {obj.period} {obj.year}
             </span>
             {obj.owner_name && (
-              <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>· {obj.owner_name}</span>
+              <span className="u-text2-xs">· {obj.owner_name}</span>
             )}
-            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>
+            <span className="u-text3-xs">
               {obj.key_results?.length || 0} KRs
             </span>
           </div>
@@ -430,7 +431,7 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
           </div>
           <div className="ds-field">
             <label className="ds-field__label">{t('okrs.fecha_limite')}</label>
-            <input type="date" value={form.due_date}
+            <DateInput value={form.due_date}
               onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
               className="ds-input" />
           </div>
@@ -526,7 +527,7 @@ export default function OKRsPage() {
         <EmptyState svgIcon={<Trophy size={36} />} title={t('okrs.sin_objetivos')}
           description="Crea tu primer OKR para alinear al equipo. Un OKR define un objetivo cualitativo y 3-5 resultados clave medibles." />
       ) : (
-        <div data-export-table="okrs-list" style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        <div data-export-table="okrs-list" className="u-stack-12">
           {objectives.map((obj) => (
             <ObjectiveCard key={obj.id} obj={obj}
               onEdit={(o) => { setEditingObj(o); setShowObjModal(true) }}

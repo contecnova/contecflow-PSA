@@ -115,7 +115,7 @@ export default function GovernancePage(): JSX.Element {
           <div key={k.label} style={{ ...card, padding: '16px 20px' }}>
             <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 4 }}>{k.icon}</div>
             <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: k.color, marginBottom: 2 }}>{k.value}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{k.label}</div>
+            <div className="u-text2-xs">{k.label}</div>
           </div>
         ))}
       </div>
@@ -146,13 +146,13 @@ export default function GovernancePage(): JSX.Element {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                     <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
-                    <div style={{ minWidth: 0 }}>
+                    <div className="u-min0">
                       <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{t(meta.labelKey)}</div>
                       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>{t(meta.descKey)}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 10 }}>
-                    {usage && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{usage.calls || 0} calls</span>}
+                    {usage && <span className="u-text2-xs">{usage.calls || 0} calls</span>}
                     <button onClick={() => toggle({ module: key, is_enabled: !isEnabled })}
                       style={{ width: 44, height: 24, borderRadius: 12, background: isEnabled ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${isEnabled ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
                       <div style={{ width: 18, height: 18, borderRadius: 9, background: isEnabled ? 'var(--success)' : 'var(--text-2)', position: 'absolute', top: 2, left: isEnabled ? 22 : 2, transition: 'all 0.2s' }} />
@@ -196,7 +196,7 @@ export default function GovernancePage(): JSX.Element {
                   <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: "var(--text-base)" }}>
                     <span>{r.name}</span>
                     <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{r.calls}</span>
-                    <span style={{ color: 'var(--warning)' }}>{r.tokens}K</span>
+                    <span className="u-warning">{r.tokens}K</span>
                   </div>
                 ))}
               </div>
@@ -208,7 +208,7 @@ export default function GovernancePage(): JSX.Element {
       {/* AUDIT TAB */}
       {tab === 'audit' && (
         <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="u-scroll-x">
           <div style={{ minWidth: 560 }}>
           <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
             <span>{t('governance.col_date')}</span><span>{t('governance.col_module')}</span><span>{t('governance.col_prompt')}</span><span>{t('governance.col_tokens')}</span>
@@ -220,7 +220,7 @@ export default function GovernancePage(): JSX.Element {
               <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)" }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module ?? '']?.icon} {MODULE_CFG[l.module ?? ''] ? t(MODULE_CFG[l.module ?? ''].labelKey) : l.module}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>
-              <span style={{ color: 'var(--warning)' }}>{(l.tokens_used || 0).toLocaleString(localeActivo())}</span>
+              <span className="u-warning">{(l.tokens_used || 0).toLocaleString(localeActivo())}</span>
             </div>
           ))}
           </div>

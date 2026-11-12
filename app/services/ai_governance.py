@@ -23,7 +23,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.ai_governance import AIGuardrailPolicyModel
 from app.models.ai_governance import AIGuardrailAuditLog
-from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger("contecflow.ai.governance")
 
@@ -105,6 +105,7 @@ def _estimate_tokens(text: str) -> int:
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except Exception:
+        logger.debug("_estimate_tokens: excepcion ignorada", exc_info=True)
         words = text.split()
         return max(len(text) // 4, int(len(words) * 1.3))
 
@@ -562,6 +563,40 @@ def get_audit_stats(
     }
 
 
+# ── Prompt-injection heuristics ──────────────────────────────────────────────
+#
+# Auditoria 2026-11 (hallazgo 23): vivia sola en `ai_client.py`, un modulo que
+# se presentaba como «low-level Claude API wrapper» y que, vaciado por
+# refactors anteriores, ya solo contenia esta lista. Es una guarda de entrada,
+# asi que va con las demas guardas.
+
+_INJECTION_PATTERNS = [
+    "ignore previous instructions",
+    "ignore all instructions",
+    "disregard your instructions",
+    "forget your instructions",
+    "you are now",
+    "act as if",
+    "pretend you are",
+    "jailbreak",
+    "bypass your",
+    "override your",
+    "system prompt",
+    "new instructions:",
+    "ignore everything above",
+    "ignore everything below",
+    "print your system",
+    "reveal your prompt",
+    "what are your instructions",
+]
+
+
+def check_prompt_injection(message: str) -> bool:
+    """Return *True* if *message* appears to be a prompt-injection attempt."""
+    lower = message.lower()
+    return any(p in lower for p in _INJECTION_PATTERNS)
+
+
 # ── Convenience wrappers used from ai_chat endpoints ─────────────────────────
 
 def check_prompt(
@@ -600,7 +635,7 @@ def check_output(
 
 def get_org_id(user) -> str:
     if not user.organization_id:
-        raise HTTPException(400, "User has no organization")
+        raise ErrorDeDominio(400, "User has no organization")
     return str(user.organization_id)
 
 

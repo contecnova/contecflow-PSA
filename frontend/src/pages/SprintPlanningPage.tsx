@@ -118,14 +118,14 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
 
   return (
     <Modal open onClose={onClose} title={t('sprint_planning.modal_title')}>
-      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+      <div className="u-stack-14">
         {!result ? (
           <>
             <div>
               <label style={ls}>{t('sprint_planning.plan_name')}</label>
               <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} />
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div className="u-grid2-12">
               <div>
                 <label style={ls}>{t('sprint_planning.team_capacity_sp')}</label>
                 <input type="number" style={is} value={form.team_capacity}
@@ -145,8 +145,8 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
                 <div style={{marginTop:10,padding:'8px 10px',background:'var(--purple-bg)',border:'1px solid var(--purple-border)',borderRadius:8}}>
                   <div style={{color:'var(--purple)',fontWeight:700,marginBottom:4}}>🧠 {t('sprint_planning.semantic_estimate_title')}</div>
                   <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
-                    <span>⏱ {t('sprint_planning.base_label')}: <strong style={{color:'var(--text-1)'}}>{semEstimate.total_base_hours}h</strong></span>
-                    <span>⚠ {t('sprint_planning.risk_label')}: <strong style={{color:'var(--warning)'}}>+{semEstimate.risk_premium_pct}%</strong></span>
+                    <span>⏱ {t('sprint_planning.base_label')}: <strong className="u-text1">{semEstimate.total_base_hours}h</strong></span>
+                    <span>⚠ {t('sprint_planning.risk_label')}: <strong className="u-warning">+{semEstimate.risk_premium_pct}%</strong></span>
                     <span>📦 {t('sprint_planning.recommended_label')}: <strong style={{color:'var(--success)'}}>{semEstimate.recommended_hours}h</strong></span>
                     <span>✅ {t('sprint_planning.fits_sprint_label')}: <strong style={{color: semEstimate.fit_in_sprint ? 'var(--success)' : 'var(--danger)'}}>{semEstimate.fit_in_sprint ? t('sprint_planning.yes') : t('sprint_planning.no')}</strong></span>
                   </div>
@@ -170,12 +170,12 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
           <>
             <div style={{padding:'14px 16px',background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:8}}>
               <div style={{fontSize: "var(--text-md)",fontWeight:600,color:'var(--success)',marginBottom:4}}>✅ {t('sprint_planning.plan_generated_label')}: {result.name}</div>
-              <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{result.task_count} {t('sprint_planning.tasks_label')} · {result.total_points}{traducir('sprintplanning.p_de')} {result.team_capacity}p</div>
+              <div className="u-text2-sm">{result.task_count} {t('sprint_planning.tasks_label')} · {result.total_points}{traducir('sprintplanning.p_de')} {result.team_capacity}p</div>
             </div>
             {/* Barra de utilización */}
             <div>
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:6,fontSize: "var(--text-sm)"}}>
-                <span style={{color:'var(--text-2)'}}>{t('sprint_planning.sprint_utilization')}</span>
+                <span className="u-text2">{t('sprint_planning.sprint_utilization')}</span>
                 <span style={{color:utilizationColor,fontWeight:700}}>{utilizationPct}%</span>
               </div>
               <div style={{height:10,background:'var(--surface-4)',borderRadius:5,overflow:'hidden'}}>
@@ -281,7 +281,7 @@ export default function SprintPlanningPage() {
       )}
 
       {project && plans.length > 0 && (
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        <div className="u-stack-10">
           {plans.map(plan => {
             const sc = STATUS_CFG[plan.status] || STATUS_CFG.draft
             const pct = plan.team_capacity > 0 ? Math.round(plan.total_points/plan.team_capacity*100) : 0
@@ -289,8 +289,8 @@ export default function SprintPlanningPage() {
             return (
               <div key={plan.id} style={{...ps,padding:'16px 20px',border:`1px solid ${alpha(sc.color, '30')}`}}>
                 <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:isExpanded?12:0}}>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div className="u-flex1">
+                    <div className="u-row-center-10">
                       <span style={{fontWeight:600,fontSize: "var(--text-md)"}}>{plan.name}</span>
                       <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,
                         background:sc.bg,color:sc.color,fontWeight:600}}>{t('sprint_planning.status_' + plan.status)}</span>
@@ -299,7 +299,7 @@ export default function SprintPlanningPage() {
                       {plan.task_count} {t('sprint_planning.tasks_label')} · {plan.total_points}{traducir('sprintplanning.p_de')} {plan.team_capacity}p ({pct}% {t('sprint_planning.utilization_label')})
                     </div>
                   </div>
-                  <div style={{display:'flex',gap:8}}>
+                  <div className="u-row-8">
                     {plan.status === 'draft' && <>
                       <button onClick={() => updateStatus({id:plan.id,status:'accepted'})}
                         style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--success-border)',

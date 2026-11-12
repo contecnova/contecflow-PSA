@@ -1,23 +1,115 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { AxiosInstance } from 'axios'
 
 // TODO type: services/api still JS — apiClient is treated as a loose `{ get, post }` shape.
-import api, { usersApi, portalClientsApi, portalConversationsApi, sdGroupsApi } from '../../services/api'
+import api, { usersApi, portalClientsApi, portalConversationsApi, sdGroupsApi, apiWsUrl, type UserListItem } from '../../services/api'
 // TODO type: ToastContext still JS — useToast().success/error are typed inline.
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
-import { resolveWsBase } from '../../utils/wsUtils'
 import { CLIENT_API, S as PORTAL_STYLES } from '../../pages/portal-client/portalClientContext'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { alpha } from '../../constants/theme'
+import { useDialogo } from '../ui'
+import StatusBadge from '../ui/StatusBadge'
 
-// Loose backend shapes — full domain types pending services/api migration.
-type Conversation = Record<string, any>
-type Message = Record<string, any>
-type ApiClient = {
-  get: (path: string, config?: any) => Promise<{ data: any }>
-  post: (path: string, body?: any, config?: any) => Promise<{ data: any }>
+// Formas del backend: app/services/portal_conversation_service (serializacion.py, politicas.py).
+
+/** `_policy_out`. */
+interface ConversationPolicy {
+  id: string
+  topic_type: string
+  is_active: boolean
+  requires_client_message_approval: boolean
+  requires_team_message_approval: boolean
+  redact_sensitive_content: boolean
+  allow_legacy_federation: boolean
+  assignment_mode: string
+  default_group_id: string | null
+  default_role_key: string | null
+  first_response_hours: number | null
+  escalation_hours: number | null
+  approval_role_key: string | null
+  sensitive_keywords: string[]
 }
+
+/** `_message_out` / `_legacy_message_out`. */
+interface Message {
+  id: string
+  source: string
+  sender_type: string
+  sender_name: string
+  body: string
+  is_internal_note?: boolean
+  grc_status: string
+  is_redacted?: boolean
+  moderation_notes?: string | null
+  created_at?: string | null
+}
+
+/** `_participant_out` (lo que se pinta). */
+interface Participant {
+  id: string
+  display_name: string
+}
+
+/** `_conversation_out` / `_legacy_conversation_out`. */
+interface Conversation {
+  id: string
+  source: string
+  title?: string | null
+  topic_type?: string | null
+  policy?: ConversationPolicy | null
+  assigned_group_name?: string | null
+  assigned_role_key?: string | null
+  is_sla_breached?: boolean
+  pending_review_count?: number
+  created_at?: string | null
+  last_message_at?: string | null
+  participants?: Participant[]
+  unread_for_team?: number
+  unread_for_client?: number
+  last_message?: Message | null
+}
+
+/** Borrador editable de una política (keywords como texto separado por comas). */
+interface PolicyDraft {
+  requires_client_message_approval?: boolean
+  requires_team_message_approval?: boolean
+  redact_sensitive_content?: boolean
+  allow_legacy_federation?: boolean
+  assignment_mode?: string
+  default_role_key?: string
+  default_group_id?: string
+  first_response_hours?: number
+  escalation_hours?: number
+  approval_role_key?: string
+  sensitive_keywords?: string
+}
+
+type PolicyFlag = 'requires_client_message_approval' | 'requires_team_message_approval' | 'redact_sensitive_content' | 'allow_legacy_federation'
+
+/** Lo que se envía al guardar una política. */
+interface PolicyPayload {
+  requires_client_message_approval: boolean
+  requires_team_message_approval: boolean
+  redact_sensitive_content: boolean
+  allow_legacy_federation: boolean
+  assignment_mode?: string
+  default_group_id: string | null
+  default_role_key: string | null
+  first_response_hours: number
+  escalation_hours: number
+  approval_role_key: string | null
+  sensitive_keywords: string[]
+}
+
+interface AgentGroup {
+  id: string
+  name: string
+}
+
+/** Cliente axios: el del backoffice o el del portal. */
+type ApiClient = Pick<AxiosInstance, 'get' | 'post'>
 type Toast = { success: (m: string) => void; error: (m: string) => void }
 type Mode = 'team' | 'client'
 type ProjectOption = { id: string; name?: string; code?: string }
@@ -73,20 +165,15 @@ const GRC_LABEL: Record<string, GrcLabel> = {
   blocked: { text: 'Bloqueado', color: 'var(--danger)' },
 }
 
-const EMPTY_LIST: any[] = []
+const EMPTY_LIST: never[] = []
 
-interface BadgeProps {
-  children?: ReactNode
-  color?: string
-}
+const POLICY_FLAGS: Array<[PolicyFlag, string]> = [
+  ['requires_client_message_approval', 'Aprobación para mensajes cliente'],
+  ['requires_team_message_approval', 'Aprobación para mensajes equipo'],
+  ['redact_sensitive_content', 'Redactar contenido sensible'],
+  ['allow_legacy_federation', 'Federar chat legacy'],
+]
 
-function Badge({ children, color = 'var(--text-2)' }: BadgeProps) {
-  return (
-    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: alpha(color, '22'), color, border: `1px solid ${alpha(color, '33')}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-      {children}
-    </span>
-  )
-}
 
 interface ConversationListItemProps {
   conversation: Conversation
@@ -119,10 +206,10 @@ function ConversationListItem({ conversation, selected, onSelect, mode }: Conver
         <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{(conversation.last_message_at || conversation.created_at || '').slice(0, 16)}</div>
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-        <Badge color={conversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[conversation.source] || conversation.source}</Badge>
-        {conversation.pending_review_count > 0 && <Badge color="var(--warning)">{conversation.pending_review_count} {t('governedconversations.revision')}</Badge>}
-        {conversation.is_sla_breached && <Badge color="var(--danger)">SLA vencido</Badge>}
-        {unread > 0 && <Badge color="var(--danger)">{unread} {t('governedconversations.sin_leer')}</Badge>}
+        <StatusBadge color={conversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[conversation.source] || conversation.source}</StatusBadge>
+        {conversation.pending_review_count > 0 && <StatusBadge color="var(--warning)">{conversation.pending_review_count} {t('governedconversations.revision')}</StatusBadge>}
+        {conversation.is_sla_breached && <StatusBadge color="var(--danger)">SLA vencido</StatusBadge>}
+        {unread > 0 && <StatusBadge color="var(--danger)">{unread} {t('governedconversations.sin_leer')}</StatusBadge>}
       </div>
       <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.45 }}>{lastPreview ? String(lastPreview).slice(0, 120) : 'Sin mensajes aún'}</div>
     </button>
@@ -146,14 +233,14 @@ function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
       <div style={{ maxWidth: '88%', width: 'fit-content', background: bubbleBg, border: `1px solid ${borderColor}`, borderRadius: 14, padding: '12px 14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>{message.sender_name}</div>
-          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{(message.created_at || '').slice(0, 16)}</div>
+          <div className="u-text3-2xs">{(message.created_at || '').slice(0, 16)}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          <Badge color={message.sender_type === 'client' ? 'var(--warning)' : 'var(--accent)'}>{message.sender_type}</Badge>
-          <Badge color={grc.color}>{grc.text}</Badge>
-          {message.is_internal_note && <Badge color="var(--danger)">Interna</Badge>}
-          {message.is_redacted && <Badge color="var(--accent)">Redactada</Badge>}
-          {message.source === 'legacy_client_message' && <Badge color="var(--warning)">Legacy</Badge>}
+          <StatusBadge color={message.sender_type === 'client' ? 'var(--warning)' : 'var(--accent)'}>{message.sender_type}</StatusBadge>
+          <StatusBadge color={grc.color}>{grc.text}</StatusBadge>
+          {message.is_internal_note && <StatusBadge color="var(--danger)">Interna</StatusBadge>}
+          {message.is_redacted && <StatusBadge color="var(--accent)">Redactada</StatusBadge>}
+          {message.source === 'legacy_client_message' && <StatusBadge color="var(--warning)">Legacy</StatusBadge>}
         </div>
         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{message.body}</div>
         {message.moderation_notes && <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('governedconversations.moderacion')} {message.moderation_notes}</div>}
@@ -257,12 +344,13 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
       })
     }
   }, [defaultProjectId, open, projectOptions])
+  const dialogRef = useDialogo<HTMLDivElement>(open, onClose)
 
   if (!open) return null
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-      <div role="dialog" aria-modal="true" style={{ ...cardStyle, width: 620, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '18px 20px' }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" style={{ ...cardStyle, width: 620, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '18px 20px' }}>
         <div style={{ fontSize: "var(--text-17)", fontWeight: 800, marginBottom: 16 }}>{mode === 'team' ? 'Nueva conversación gobernada' : 'Nueva conversación con el equipo'}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div style={{ gridColumn: '1 / -1' }}>
@@ -323,6 +411,7 @@ export interface GovernedConversationInboxProps {
   clientOrgId?: string
   enableRealtime?: boolean
   wsTicketPath?: string
+  /** Ruta WebSocket relativa a la API (`/ws/...`), sin el prefijo `/api/v1`. */
   wsEndpoint?: string
   title?: ReactNode
   emptyTitle?: ReactNode
@@ -366,7 +455,7 @@ export function GovernedConversationInbox({
 
   const { data: conversationsData, isLoading: loadingConversations } = useQuery<Conversation[]>({
     queryKey: listQueryKey,
-    queryFn: () => apiClient.get(listPath, { params: filters }).then((response) => response.data as Conversation[]).catch(() => [] as Conversation[]),
+    queryFn: () => apiClient.get<Conversation[]>(listPath, { params: filters }).then((response) => response.data).catch((): Conversation[] => []),
     refetchInterval: enableRealtime ? false : 30000,
   })
   const conversations: Conversation[] = conversationsData || EMPTY_LIST
@@ -390,14 +479,14 @@ export function GovernedConversationInbox({
 
   const { data: messagesData, isLoading: loadingMessages } = useQuery<Message[]>({
     queryKey: messagesQueryKey,
-    queryFn: () => apiClient.get(messagesPath as string).then((response) => response.data as Message[]),
+    queryFn: () => apiClient.get<Message[]>(messagesPath as string).then((response) => response.data),
     enabled: !!messagesPath,
   })
   const messages: Message[] = messagesData || EMPTY_LIST
 
   const { data: teamUsersData } = useQuery<UserOption[]>({
     queryKey: ['users', 'portal-conversations'],
-    queryFn: () => usersApi.list().then((response: { data: any }) => Array.isArray(response.data) ? response.data : (response.data?.items || [])).catch(() => []),
+    queryFn: () => usersApi.list().then((response: { data: UserListItem[] | { items?: UserListItem[] } }) => Array.isArray(response.data) ? response.data : (response.data?.items || [])).catch((): UserListItem[] => []),
     enabled: mode === 'team' && showCreate,
   })
   const teamUsers: UserOption[] = teamUsersData || EMPTY_LIST
@@ -411,7 +500,7 @@ export function GovernedConversationInbox({
 
   const createConversation = useMutation({
     mutationFn: async (payload: CreateConversationForm) => {
-      const createResponse = await apiClient.post(listPath, {
+      const createResponse = await apiClient.post<Conversation>(listPath, {
         title: payload.title,
         topic_type: payload.topic_type,
         project_id: payload.project_id || undefined,
@@ -483,8 +572,7 @@ export function GovernedConversationInbox({
         const response = await apiClient.get(wsTicketPath!)
         const ticket = response?.data?.ticket
         if (!ticket || closed) return
-        const wsBase = resolveWsBase()
-        socket = new window.WebSocket(`${wsBase}${wsEndpoint}?ticket=${encodeURIComponent(ticket)}`)
+        socket = new window.WebSocket(apiWsUrl(`${wsEndpoint}?ticket=${encodeURIComponent(ticket)}`))
         socket.onopen = () => { attempt = 0 }
         socket.onmessage = () => {
           qc.invalidateQueries({ queryKey: [queryPrefix] })
@@ -528,7 +616,7 @@ export function GovernedConversationInbox({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, marginBottom: 4 }}>{title}</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{conversations.length} {t('governedconversations.conversacion_es')} {headerKpi} {t('governedconversations.sin_leer')}</div>
+          <div className="u-text2-sm">{conversations.length} {t('governedconversations.conversacion_es')} {headerKpi} {t('governedconversations.sin_leer')}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {projectOptions.length > 1 && (
@@ -547,17 +635,17 @@ export function GovernedConversationInbox({
         <div style={{ ...cardStyle, padding: '32px 24px', textAlign: 'center' }}>
           <div style={{ fontSize: "var(--text-38)", marginBottom: 12 }}>💬</div>
           <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 6 }}>{emptyTitle}</div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{emptyDescription}</div>
+          <div className="u-text2-base">{emptyDescription}</div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 18 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
             {conversations.map((conversation) => (
               <ConversationListItem key={conversation.id} conversation={conversation} selected={conversation.id === selectedConversationId} onSelect={setSelectedConversationId} mode={mode} />
             ))}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="u-stack-14">
             {selectedConversation && (
               <div style={{ ...cardStyle, padding: '16px 18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -569,15 +657,15 @@ export function GovernedConversationInbox({
                       {selectedConversation.assigned_role_key ? ` · Rol: ${selectedConversation.assigned_role_key}` : ''}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <Badge color={selectedConversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[selectedConversation.source] || selectedConversation.source}</Badge>
-                    {selectedConversation.policy?.requires_client_message_approval && <Badge color="var(--warning)">{t('governedconversations.aprobacion_cliente')}</Badge>}
-                    {selectedConversation.policy?.requires_team_message_approval && <Badge color="var(--warning)">{t('governedconversations.aprobacion_equipo')}</Badge>}
-                    {selectedConversation.is_sla_breached && <Badge color="var(--danger)">SLA vencido</Badge>}
+                  <div className="u-wrap-6">
+                    <StatusBadge color={selectedConversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[selectedConversation.source] || selectedConversation.source}</StatusBadge>
+                    {selectedConversation.policy?.requires_client_message_approval && <StatusBadge color="var(--warning)">{t('governedconversations.aprobacion_cliente')}</StatusBadge>}
+                    {selectedConversation.policy?.requires_team_message_approval && <StatusBadge color="var(--warning)">{t('governedconversations.aprobacion_equipo')}</StatusBadge>}
+                    {selectedConversation.is_sla_breached && <StatusBadge color="var(--danger)">SLA vencido</StatusBadge>}
                   </div>
                 </div>
                 {Array.isArray(selectedConversation.participants) && selectedConversation.participants.length > 0 && (
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                  <div className="u-text2-sm">
                     Participantes: {selectedConversation.participants.map((participant) => participant.display_name).join(', ')}
                   </div>
                 )}
@@ -586,9 +674,9 @@ export function GovernedConversationInbox({
 
             <div style={{ ...cardStyle, padding: '16px 18px', minHeight: 320 }}>
               {loadingMessages ? (
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Cargando mensajes…</div>
+                <div className="u-text2-base">Cargando mensajes…</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="u-stack-12">
                   {messages.map((message) => (
                     <MessageBubble key={message.id} message={message} mode={mode} onReview={(item, decision) => reviewMessage.mutate({ messageId: item.id, decision })} />
                   ))}
@@ -630,23 +718,23 @@ export function ConversationPoliciesPanel() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const [drafts, setDrafts] = useState<Record<string, Record<string, any>>>({})
+  const [drafts, setDrafts] = useState<Record<string, PolicyDraft>>({})
 
-  const { data: agentGroupsData } = useQuery({
+  const { data: agentGroupsData } = useQuery<AgentGroup[]>({
     queryKey: ['sd-agent-groups', 'portal-conversations'],
     queryFn: () => sdGroupsApi.list().then((response) => response.data || []).catch(() => []),
   })
   const agentGroups = agentGroupsData || EMPTY_LIST
 
-  const { data: policiesData, isLoading } = useQuery({
+  const { data: policiesData, isLoading } = useQuery<ConversationPolicy[]>({
     queryKey: ['portal-conversation-policies'],
     queryFn: () => portalConversationsApi.getPolicies().then((response) => response.data).catch(() => []),
   })
   const policies = policiesData || EMPTY_LIST
 
   useEffect(() => {
-    const nextDrafts: Record<string, Record<string, any>> = {}
-    policies.forEach((policy: any) => {
+    const nextDrafts: Record<string, PolicyDraft> = {}
+    policies.forEach(policy => {
       nextDrafts[policy.topic_type] = {
         requires_client_message_approval: policy.requires_client_message_approval,
         requires_team_message_approval: policy.requires_team_message_approval,
@@ -669,7 +757,7 @@ export function ConversationPoliciesPanel() {
   }, [policies])
 
   const savePolicy = useMutation({
-    mutationFn: ({ topicType, payload }: { topicType: string; payload: any }) => portalConversationsApi.updatePolicy(topicType, payload),
+    mutationFn: ({ topicType, payload }: { topicType: string; payload: PolicyPayload }) => portalConversationsApi.updatePolicy(topicType, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-conversation-policies'] })
       toast.success('Política guardada')
@@ -677,20 +765,20 @@ export function ConversationPoliciesPanel() {
     onError: (error) => toast.error(extractErr(error, 'No se pudo guardar la política')),
   })
 
-  if (isLoading) return <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{t('governedconversations.cargando_politicas')}</div>
+  if (isLoading) return <div className="u-text2-base">{t('governedconversations.cargando_politicas')}</div>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {policies.map((policy: any) => {
-        const draft = drafts[policy.topic_type] || {}
+    <div className="u-stack-14">
+      {policies.map(policy => {
+        const draft: PolicyDraft = drafts[policy.topic_type] || {}
         return (
           <div key={policy.id} style={{ ...cardStyle, padding: '16px 18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: "var(--text-md-em)", fontWeight: 800, textTransform: 'capitalize' }}>{policy.topic_type}</div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('governedconversations.politica_grc_y_de_enrutado_para_conversaciones')} {policy.topic_type}.</div>
+                <div className="u-text2-sm">{t('governedconversations.politica_grc_y_de_enrutado_para_conversaciones')} {policy.topic_type}.</div>
               </div>
-              <Badge color={policy.is_active ? 'var(--success)' : 'var(--text-2)'}>{policy.is_active ? 'Activa' : 'Inactiva'}</Badge>
+              <StatusBadge color={policy.is_active ? 'var(--success)' : 'var(--text-2)'}>{policy.is_active ? 'Activa' : 'Inactiva'}</StatusBadge>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
@@ -710,7 +798,7 @@ export function ConversationPoliciesPanel() {
                 <label style={labelStyle}>{t('governedconversations.pool_de_asignacion')}</label>
                 <select value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))} style={inputStyle}>
                   <option value="">{t('governedconversations.sin_pool')}</option>
-                  {agentGroups.map((group: any) => <option key={group.id} value={group.id}>{group.name}</option>)}
+                  {agentGroups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
                 </select>
               </div>
               <div>
@@ -732,12 +820,7 @@ export function ConversationPoliciesPanel() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginTop: 14 }}>
-              {[
-                ['requires_client_message_approval', 'Aprobación para mensajes cliente'],
-                ['requires_team_message_approval', 'Aprobación para mensajes equipo'],
-                ['redact_sensitive_content', 'Redactar contenido sensible'],
-                ['allow_legacy_federation', 'Federar chat legacy'],
-              ].map(([key, label]) => (
+              {POLICY_FLAGS.map(([key, label]) => (
                 <label key={key} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: "var(--text-sm)", color: 'var(--text-2)', cursor: 'pointer' }}>
                   <input type="checkbox" checked={Boolean(draft[key])} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], [key]: event.target.checked } }))} />
                   {label}
@@ -784,7 +867,7 @@ export function TeamGovernedConversationInbox(props: Partial<GovernedConversatio
       queryPrefix="portal-conversations-team"
       enableRealtime
       wsTicketPath="/ws/ticket"
-      wsEndpoint="/api/v1/ws/notifications"
+      wsEndpoint="/ws/notifications"
     />
   )
 }
@@ -798,7 +881,7 @@ export function ClientGovernedConversationInbox(props: Partial<GovernedConversat
       queryPrefix="portal-conversations-client"
       enableRealtime
       wsTicketPath="/ws/portal-ticket"
-      wsEndpoint="/api/v1/ws/portal-notifications"
+      wsEndpoint="/ws/portal-notifications"
     />
   )
 }

@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.project import Project
@@ -13,6 +12,7 @@ from app.services.service_desk.scoping import (
     scope_ticket_query as _scope_ticket_query,
 )
 from app.services.sla_service import next_problem_number as _next_problem_number
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +94,13 @@ def _validate_problem_org_constraints(db: Session, current_user: User, project_i
         ).first()
         if not project:
             if update:
-                raise HTTPException(403, "No puedes mover problemas fuera de tu organización")
-            raise HTTPException(403, "No puedes crear problemas para proyectos fuera de tu organización")
+                raise ErrorDeDominio(403, "No puedes mover problemas fuera de tu organización")
+            raise ErrorDeDominio(403, "No puedes crear problemas para proyectos fuera de tu organización")
 
     if owner_user_id:
         owner = db.query(User).filter(User.id == owner_user_id).first()
         if not owner or owner.organization_id != current_user.organization_id:
-            raise HTTPException(403, "No puedes asignar un owner fuera de tu organización")
+            raise ErrorDeDominio(403, "No puedes asignar un owner fuera de tu organización")
 
 
 def create_problem_record(db: Session, current_user: User, payload: ProblemIn) -> Problem:
@@ -119,7 +119,7 @@ def create_problem_record(db: Session, current_user: User, payload: ProblemIn) -
 def get_scoped_problem_or_404(db: Session, current_user: User, problem_id: str) -> Problem:
     problem = _scope_problem_query(db.query(Problem), db, current_user).filter(Problem.id == problem_id).first()
     if not problem:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return problem
 
 
@@ -141,7 +141,7 @@ def link_ticket_to_problem_record(db: Session, current_user: User, problem_id: s
     problem = get_scoped_problem_or_404(db, current_user, problem_id)
     ticket = _scope_ticket_query(db.query(Ticket), db, current_user).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     ticket.problem_id = problem.id
 
 
@@ -251,7 +251,7 @@ def create_problem_from_correlation(
     # Build a descriptive title from the most common words in ticket titles
     tickets = db.query(Ticket).filter(Ticket.id.in_(ticket_ids)).all()
     if not tickets:
-        raise HTTPException(400, "No tickets found for correlation")
+        raise ErrorDeDominio(400, "No tickets found for correlation")
 
     # Use the first ticket title as a base if we have few tickets
     base_title = tickets[0].title if tickets else "Recurring incidents"

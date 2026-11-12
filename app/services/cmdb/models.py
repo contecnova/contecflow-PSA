@@ -16,6 +16,7 @@ from app.models.cmdb import CMDBChangelog
 from app.models.service_desk import CIStatus, CIType, ConfigurationItem
 from app.services.cmdb.parser import compute_config_hash, string_similarity
 from app.services.cmdb.utils import utcnow, PROVIDER_AGENT
+from app.core.errores import ErrorDeDominio
 
 #: Lo que el descubrimiento dice del estado, en el estado de la CMDB.
 ESTADO_DESCUBIERTO = {
@@ -631,12 +632,11 @@ def list_agent_registrations(db: Session, org_id: str | None = None) -> list[dic
 
 def revoke_agent_token(db: Session, agent_id: str, org_id: str | None = None) -> None:
     """Deactivate an agent registration (revoke its token)."""
-    from fastapi import HTTPException
     from app.models.cmdb import CMDBAgentRegistration
 
     reg = _agentes(db, org_id).filter(CMDBAgentRegistration.id == agent_id).first()
     if not reg:
-        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+        raise ErrorDeDominio(status_code=404, detail=f"Agent {agent_id} not found")
     reg.is_active = False
     db.flush()
 
@@ -646,12 +646,11 @@ def rotate_agent_token(db: Session, agent_id: str, org_id: str | None = None) ->
 
     The old token is immediately invalidated.  Returns the new raw token once.
     """
-    from fastapi import HTTPException
     from app.models.cmdb import CMDBAgentRegistration
 
     reg = _agentes(db, org_id).filter(CMDBAgentRegistration.id == agent_id).first()
     if not reg:
-        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+        raise ErrorDeDominio(status_code=404, detail=f"Agent {agent_id} not found")
 
     raw_token = secrets.token_hex(32)
     reg.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -682,12 +681,11 @@ def process_agent_checkin(
 
     Returns summary dict with `agent_id`, `ci_id`, `created`/`updated` flags.
     """
-    from fastapi import HTTPException
     from app.services.cmdb.parser import resolve_agent_by_token, normalize_agent_payload
 
     reg = resolve_agent_by_token(db, raw_token)
     if not reg:
-        raise HTTPException(status_code=401, detail="Invalid or revoked agent token")
+        raise ErrorDeDominio(status_code=401, detail="Invalid or revoked agent token")
 
     ci_dict = normalize_agent_payload(payload, reg.id)
 

@@ -24,8 +24,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ def create_version_snapshot(
 ) -> dict:
     """Capture current dataset state as a new immutable version."""
     if not dataset_key.replace("_", "").replace("-", "").replace(".", "").isalnum():
-        raise HTTPException(422, "dataset_key solo puede contener letras, números, _ - .")
+        raise ErrorDeDominio(422, "dataset_key solo puede contener letras, números, _ - .")
 
     version_id = str(uuid.uuid4())[:8]
     now = _utcnow()
@@ -177,7 +177,7 @@ def get_version_data(db: Session, org_id: str, dataset_key: str, version_id: str
     data_k = _data_key(dataset_key, version_id, org_id)
     data = _get_json(db, data_k, default=None)
     if data is None:
-        raise HTTPException(404, f"Versión {version_id!r} no encontrada para dataset {dataset_key!r}")
+        raise ErrorDeDominio(404, f"Versión {version_id!r} no encontrada para dataset {dataset_key!r}")
     return data
 
 
@@ -214,6 +214,7 @@ def diff_versions(
                 removed = records_a if not records_b else []
     except Exception:
         # Fallback: naive Python diff by JSON serialization
+        logger.warning("diff_versions: excepcion ignorada", exc_info=True)
         set_a = {json.dumps(r, sort_keys=True) for r in records_a}
         set_b = {json.dumps(r, sort_keys=True) for r in records_b}
         added = [json.loads(r) for r in set_b - set_a]
@@ -252,7 +253,7 @@ def temporal_query(
     # Sort ascending by created_at and find last version <= as_of
     candidates = [v for v in sorted(versions, key=lambda x: x["created_at"]) if v["created_at"] <= as_of]
     if not candidates:
-        raise HTTPException(404, f"No hay versión disponible en o antes de {as_of!r} para {dataset_key!r}")
+        raise ErrorDeDominio(404, f"No hay versión disponible en o antes de {as_of!r} para {dataset_key!r}")
 
     target_version = candidates[-1]
     return get_version_data(db, org_id, dataset_key, target_version["version_id"])

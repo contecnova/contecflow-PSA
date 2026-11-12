@@ -14,6 +14,7 @@ from app.services.sla_service import (
     norm_enum as _norm_enum,
 )
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -272,11 +273,10 @@ def apply_ticket_update(
 
 def _exigir_contrato_uc(db: Session, contrato_id: str, org_id) -> None:
     """Un UC es un contrato de ALM activo, con plazo del proveedor y de la organizacion del ticket."""
-    from fastapi import HTTPException
     from app.models.alm import ALMContract
 
     c = db.get(ALMContract, contrato_id)
     ajeno = c is not None and c.organization_id not in (None, org_id)
     sin_plazo = (c.resolution_hours or 0) <= 0 and (c.response_hours or 0) <= 0 if c is not None else True
     if c is None or ajeno or not c.is_active or sin_plazo:
-        raise HTTPException(422, "El contrato no existe o no tiene plazo del proveedor (UC)")
+        raise ErrorDeDominio(422, "El contrato no existe o no tiene plazo del proveedor (UC)")

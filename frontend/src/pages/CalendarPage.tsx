@@ -5,7 +5,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, projectsApi, sprintsApi, absencesApi, unwrapList } from '../services/api'
-import type { TaskListParams } from '../services/api/tasks'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar } from 'lucide-react'
@@ -63,7 +62,7 @@ export default function CalendarPage(): JSX.Element {
   // Tareas con fecha de vencimiento
   const { data: tasks = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-tasks', year, month],
-    queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: 100 } as TaskListParams)
+    queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: 100 })
       .then(r => (unwrapList(r) as TaskItem[]).map((t): CalendarEvent => ({
         date: t.due_date ?? '', type: 'task', title: t.title ?? '', id: t.id, status: t.status,
       }))).catch(() => []),
@@ -138,7 +137,7 @@ export default function CalendarPage(): JSX.Element {
 
       {/* Controles */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="u-row-center-8">
           <button onClick={prevMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>‹</button>
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, minWidth: 200, textAlign: 'center' }}>{MONTHS[month]} {year}</div>
           <button onClick={nextMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>›</button>
@@ -149,7 +148,7 @@ export default function CalendarPage(): JSX.Element {
         </div>
 
         {/* Filtros */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="u-wrap-6">
           {[['all', 'Todo'], ...Object.entries(EVENT_TYPES).map(([k, v]) => [k, v.label])].map(([k, label]) => (
             <button key={k} onClick={() => setFilter(k)}
               style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filter === k ? EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)' : 'var(--surface-4)'}`,
@@ -202,7 +201,7 @@ export default function CalendarPage(): JSX.Element {
                 fontSize: "var(--text-base)", fontWeight: isToday ? 800 : 400,
                 color: isToday ? 'var(--accent)' : 'var(--text-2)',
                 marginBottom: 4,
-                ...(isToday ? { background: 'var(--accent)', color: '#000', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)" } : {})
+                ...(isToday ? { background: 'var(--accent)', color: 'var(--on-accent-dark)', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)" } : {})
               }}>{day}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {dayEvents.slice(0, 3).map((e) => {

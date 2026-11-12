@@ -17,6 +17,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus } from 'lucide-react'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { pedirTexto } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 
 // TODO type: changeRolloutApi rollout plan/phase payloads — needs shared types
@@ -244,13 +245,14 @@ export default function ChangeRolloutPanel() {
     }
   }
 
-  const handleAdvance = (id: string | number) => {
-    const notes = window.prompt('Notas opcionales para esta fase:', '') ?? ''
+  const handleAdvance = async (id: string | number) => {
+    const notes = await pedirTexto({ title: 'Avanzar fase', message: 'Puedes añadir notas para esta fase.', label: 'Notas (opcional)', multiline: true, confirmLabel: 'Avanzar' })
+    if (notes === null) return
     advanceMutation.mutate({ id, notes: notes.trim() })
   }
 
-  const handleRollback = (changeId: string) => {
-    const reason = window.prompt('Motivo del rollback (queda registrado):', '')
+  const handleRollback = async (changeId: string) => {
+    const reason = await pedirTexto({ title: 'Rollback del cambio', message: 'El motivo del rollback queda registrado.', label: 'Motivo del rollback', required: true, multiline: true, danger: true, confirmLabel: 'Hacer rollback' })
     if (!reason || !reason.trim()) return
     rollbackMutation.mutate({ changeId, reason: reason.trim() })
   }
@@ -258,7 +260,7 @@ export default function ChangeRolloutPanel() {
   return (
     <Card style={{ padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <GitBranch size={18} style={{ color: 'var(--purple)' }} />
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
             {t('sd.rollout.title', 'Planes de rollout de cambios')}
@@ -314,19 +316,19 @@ export default function ChangeRolloutPanel() {
               ))}
             </select>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1 / -1' }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>Fases:</span>
+              <span className="u-text2-xs">Fases:</span>
               <input
                 type="number" min={1} max={10}
                 value={form.phases}
                 onChange={e => setForm(f => ({ ...f, phases: Number(e.target.value) }))}
                 style={{ ...inputBase, width: 80 }}
               />
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+              <span className="u-text3-xs">
                 Vista previa: {buildPhases(form.strategy, form.phases).map(p => `${p.target_pct}%`).join(' → ')}
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="u-row-8">
             <Button
               onClick={() => createMutation.mutate(form)}
               disabled={!form.change_request_id.trim() || createMutation.isPending}
@@ -350,7 +352,7 @@ export default function ChangeRolloutPanel() {
           ) : !plans.length ? (
             <EmptyState icon="🚀" title={t('sd.rollout.no_plans', 'No hay planes para este CR')} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="u-stack-6">
               {plans.map(plan => {
                 const meta = STATUS_META[plan.status || ''] ?? STATUS_META.draft
                 const isSel = selectedId === plan.id
@@ -413,9 +415,9 @@ export default function ChangeRolloutPanel() {
             <div style={{ marginBottom: 14 }}>
               <div style={fieldLabel}>{t('sd.rollout.phases', 'Progreso de fases')}</div>
               {(selectedPlan.rollout_phases || []).length === 0 ? (
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('changerollout.sin_fases_definidas')}</div>
+                <div className="u-text3-xs">{t('changerollout.sin_fases_definidas')}</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="u-stack-6">
                   {(selectedPlan.rollout_phases || []).map((phase, i) => {
                     const cur = selectedPlan.current_phase_index ?? 0
                     const phaseStatus = phase.status || (i < cur ? 'completed' : i === cur ? 'ready' : 'pending')
@@ -438,7 +440,7 @@ export default function ChangeRolloutPanel() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           flexShrink: 0,
                         }}>{phaseStatus === 'completed' ? '✓' : i + 1}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="u-flex1-min0">
                           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 600 }}>
                             {phase.name}
                             <span style={{ marginLeft: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 400 }}>
@@ -460,7 +462,7 @@ export default function ChangeRolloutPanel() {
             </div>
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="u-wrap-8">
               {selectedPlan.status === 'draft' && (
                 <Button
                   size="sm"
@@ -516,13 +518,13 @@ export default function ChangeRolloutPanel() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 8 }}>
                   {simulate.estimated_duration_minutes != null && (
-                    <span><span style={{ color: 'var(--text-3)' }}>{t('changerollout.duracion_estimada')}</span> <strong>{simulate.estimated_duration_minutes}min</strong></span>
+                    <span><span className="u-text3">{t('changerollout.duracion_estimada')}</span> <strong>{simulate.estimated_duration_minutes}min</strong></span>
                   )}
                   {simulate.recommended_window && (
-                    <span><span style={{ color: 'var(--text-3)' }}>Ventana:</span> <strong>{simulate.recommended_window}</strong></span>
+                    <span><span className="u-text3">Ventana:</span> <strong>{simulate.recommended_window}</strong></span>
                   )}
                   {simulate.rollback_readiness && (
-                    <span><span style={{ color: 'var(--text-3)' }}>Rollback:</span> <strong>{simulate.rollback_readiness}</strong></span>
+                    <span><span className="u-text3">Rollback:</span> <strong>{simulate.rollback_readiness}</strong></span>
                   )}
                 </div>
                 {Array.isArray(simulate.recommendations) && simulate.recommendations.length > 0 && (

@@ -113,7 +113,7 @@ def test_EL_HALLAZGO_jira_trae_el_estado_a_la_tarea(client, admin_token, db, mon
     t = Task(code="TSK-J1", project_id=p.id, title="J", status="todo", jira_issue_key="PRJ-1", organization_id="1")
     db.add(t)
     db.commit()
-    monkeypatch.setattr(cab_service, "get_jira_issue", lambda cfg, key: {
+    monkeypatch.setattr(cab_service.integraciones, "get_jira_issue", lambda cfg, key: {
         "ok": True, "data": {"fields": {"status": {"name": "In Progress"}}}})
     iid = _integracion(client, admin_token, "jira", {"base_url": "https://x", "email": "a@b.c", "api_token": "k"})
     assert _sync(client, admin_token, iid).status_code == 200

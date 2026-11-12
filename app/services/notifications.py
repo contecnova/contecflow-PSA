@@ -11,6 +11,14 @@ Multi-worker WebSocket delivery:
     to the Redis channel "contecflow:ws:<user_id>" so every worker can push it
     to the client immediately, regardless of which process holds the WS connection.
     Without Redis, the WS polling loop delivers it within ~15 seconds.
+
+Auditoria 2026-11 (hallazgo 23). Las notificaciones vivian en tres modulos:
+este (avisos en la aplicacion: fila + empujon por WS), `realtime_notifications`
+(una funcion de una linea que empujaba por WS desde codigo asincrono) y
+`notification_service` (correo). `realtime_notifications` hacia lo mismo que
+`_push_ws_notification` pero desde `async`: se ha traido aqui como
+`publish_user_notification` y el modulo se ha borrado. `notification_service`
+se queda aparte porque su responsabilidad es otra: el correo saliente.
 """
 import json
 import logging
@@ -32,10 +40,20 @@ def _push_ws_notification(user_id: str, payload: dict) -> None:
     try:
         import redis as sync_redis
         r = sync_redis.from_url(_REDIS_URL, decode_responses=True)
-        r.publish(f"contecflow:ws:{user_id}", json.dumps(payload))
+        from app.services.ws_manager import canal_de_usuario
+        r.publish(canal_de_usuario(user_id), json.dumps(payload))
         r.close()
     except Exception as exc:
         logger.debug(f"WS Redis push failed (non-critical): {exc}")
+
+
+async def publish_user_notification(user_id: str, payload: dict) -> None:
+    """Empuja `payload` por WebSocket desde codigo asincrono (sin fila en BD).
+
+    Con Redis llega a todos los workers; sin Redis, a las conexiones de este.
+    """
+    from app.services.ws_manager import manager
+    await manager.publish(user_id, payload)
 
 
 NOTIFICATION_ICONS = {
@@ -116,9 +134,20 @@ def notify_role(
     resource: Optional[str] = None,
     resource_id: Optional[str] = None,
     action_url: Optional[str] = None,
+    *,
+    organization_id: Optional[str],
 ) -> int:
-    """Notify all active users with a given role. Returns count notified."""
-    users = db.query(User).filter(User.role == role, User.is_active == True).all()
+    """Avisa a los usuarios activos de un rol **de una organizacion**.
+
+    Auditoria 2026-11: no filtraba por organizacion; desde un trabajo de fondo
+    (sin contexto de tenant) avisaba al rol en todas las empresas. Ahora la
+    organizacion es obligatoria y sin ella no se avisa a nadie.
+    """
+    if not organization_id:
+        logger.warning("notify_role(%s) sin organizacion: no se avisa a nadie", role)
+        return 0
+    users = db.query(User).filter(User.role == role, User.is_active == True,
+                                  User.organization_id == organization_id).all()
     for u in users:
         notify_user(db, u.id, ntype, title, body, resource, resource_id, action_url)
     return len(users)

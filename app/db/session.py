@@ -158,6 +158,7 @@ def _extract_models_from_select(stmt):
     try:
         froms = list(stmt.froms)
     except Exception:
+        logger.debug("_extract_models_from_select: excepcion ignorada", exc_info=True)
         return models
 
     if not froms:
@@ -170,6 +171,7 @@ def _extract_models_from_select(stmt):
             for mapper in Base.registry.mappers
         }
     except Exception:
+        logger.debug("_extract_models_from_select: excepcion ignorada", exc_info=True)
         return models
 
     for from_clause in froms:
@@ -405,6 +407,7 @@ def _iter_tenant_scoped_models():
     try:
         from app.db.base import Base
     except Exception:
+        logger.debug("_iter_tenant_scoped_models: excepcion ignorada", exc_info=True)
         return
     for mapper in Base.registry.mappers:
         cls = mapper.class_

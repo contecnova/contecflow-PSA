@@ -24,13 +24,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import ConfigurationItem, MonitoringAlert, Ticket, TicketComment
 from app.services import settings_service as _ss
 from app.services.service_desk.ticket_events import como_organizacion
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def organizacion_del_token(db: Session, token: Optional[str]) -> Optional[str]:
     from app.services.integration_credentials_service import _resolve_value, _field_spec
 
     if not token:
-        raise HTTPException(403, "Falta X-Contecflow-Event-Token")
+        raise ErrorDeDominio(403, "Falta X-Contecflow-Event-Token")
     campo = _field_spec("monitoring", "ingest_token")
     with sin_filtro_de_tenant(db):
         filas = db.query(IntegrationCredential).filter(
@@ -65,7 +65,7 @@ def organizacion_del_token(db: Session, token: Optional[str]) -> Optional[str]:
         valor = _resolve_value(fila, campo)
         if valor and hmac.compare_digest(str(valor), token):
             return fila.organization_id
-    raise HTTPException(403, "Token de monitorización inválido")
+    raise ErrorDeDominio(403, "Token de monitorización inválido")
 
 
 # ── Formatos ─────────────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ def leer(payload) -> list[Alerta]:
     salida = []
     for e in elementos:
         if not isinstance(e, dict) or not (e.get("key") and e.get("title")):
-            raise HTTPException(422, "Cada alerta necesita key y title")
+            raise ErrorDeDominio(422, "Cada alerta necesita key y title")
         salida.append(Alerta(
             clave=str(e["key"])[:255], estado="resolved" if e.get("status") == "resolved" else "firing",
             gravedad=e.get("severity"), titulo=str(e["title"])[:500], descripcion=e.get("description"),

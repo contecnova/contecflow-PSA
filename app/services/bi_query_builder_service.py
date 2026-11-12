@@ -13,6 +13,7 @@ Query execution uses safe, parameterized lookups against the OLAP layer or
 raw metric aggregations — never arbitrary SQL.
 """
 from __future__ import annotations
+import logging
 
 import json
 import uuid
@@ -60,6 +61,7 @@ def _get_queries(db: Session, org_id: Optional[str]) -> dict:
         return json.loads(row.value)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
+        logging.getLogger(__name__).debug("_get_queries: excepcion ignorada", exc_info=True)
         return {}
 
 
@@ -76,10 +78,10 @@ def _save_queries(db: Session, org_id: Optional[str], queries: dict) -> None:
     db.commit()
 
 
-def get_schema() -> dict:
+def get_schema(db=None, org_id=None) -> dict:
     """Return available datasets, fields, operators and aggregations."""
     datasets = []
-    for name, meta in report_builder_service.ENTITIES.items():
+    for name, meta in report_builder_service.entidades(db, org_id).items():
         fields = [
             {
                 "name": key,
@@ -239,6 +241,7 @@ def _safe_sort_rows(rows: list[dict], sort_by: Optional[str], sort_dir: str) -> 
         return sorted(rows, key=_key, reverse=reverse)
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
+        logging.getLogger(__name__).debug("_safe_sort_rows: excepcion ignorada", exc_info=True)
         return rows
 
 

@@ -15,6 +15,7 @@ import pytest
 
 from app.services.exportador_tabular import FORMATOS, respuesta_tabular
 from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 
 CABECERA = ["Fecha", "Proyecto", "Horas"]
@@ -102,7 +103,7 @@ def test_los_numeros_van_como_numeros_en_la_hoja():
 
 def test_un_formato_desconocido_es_400_y_no_un_csv_por_defecto():
     """Devolver otra cosa de la que se pide es el defecto que esto cierra."""
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         respuesta_tabular("pdf", nombre="x", cabecera=CABECERA, filas=FILAS)
     assert exc.value.status_code == 400
     assert "pdf" in str(exc.value.detail)

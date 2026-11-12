@@ -137,9 +137,9 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
               }}>
                 <Icon size={15} color={color} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="u-flex1-min0">
                 <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-1)' }}>{label}</div>
-                {hint && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{hint}</div>}
+                {hint && <div className="u-text3-xs">{hint}</div>}
               </div>
             </button>
           ))}

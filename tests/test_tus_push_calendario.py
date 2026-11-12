@@ -28,6 +28,7 @@ import base64
 import pytest
 
 from app.core.config import settings
+from app.core.errores import ErrorDeDominio
 
 
 def _meta(**pares: str) -> str:
@@ -321,7 +322,7 @@ def test_el_alta_push_exige_las_tres_partes_de_la_suscripcion(db):
     from app.services.collaboration import admin as svc
 
     admin = db.query(User).filter(User.username == "admin").first()
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
         svc.guardar_suscripcion_push(db, admin, {"endpoint": "https://push/x"})
     assert exc.value.status_code == 400
 

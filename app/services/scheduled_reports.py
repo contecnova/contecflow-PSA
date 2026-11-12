@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.core.config import settings
-from app.core.outbound_url import validate_outbound_url
+from app.core.outbound_url import abrir, validate_outbound_url
 from app.models.billing_reports import ScheduledReport
 
 logger = logging.getLogger("contecflow.scheduled_reports")
@@ -67,11 +67,10 @@ def proxima_ejecucion(report, desde: Optional[datetime] = None) -> datetime:
 # ── Email sender ──────────────────────────────────────────────────────────────
 
 def _send_email(recipients: list[str], subject: str, html_body: str, pdf_bytes: bytes, filename: str) -> None:
-    import smtplib
-    from email import encoders
-    from email.mime.base import MIMEBase
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
+    """Envia el informe por el emisor comun (auditoria 2026-11, hallazgo 20). Lanza si no sale."""
+    from app.services.notification_service import (
+        ServidorSmtp, construir_mensaje, entregar,
+    )
 
     smtp_host = settings.SMTP_HOST
     smtp_user = settings.SMTP_USER
@@ -80,32 +79,23 @@ def _send_email(recipients: list[str], subject: str, html_body: str, pdf_bytes: 
         # envío quedaba como correcto («Informe enviado a…») sin enviar nada.
         raise RuntimeError("El correo no está configurado (SMTP_HOST/SMTP_USER): el informe no se ha enviado")
 
-    msg = MIMEMultipart()
-    msg["Subject"] = subject
-    msg["From"] = settings.SMTP_FROM or smtp_user
-    msg["To"] = ", ".join(recipients)
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
-
-    if pdf_bytes:
-        pdf_part = MIMEBase("application", "pdf")
-        pdf_part.set_payload(pdf_bytes)
-        encoders.encode_base64(pdf_part)
-        pdf_part.add_header("Content-Disposition", "attachment", filename=filename)
-        msg.attach(pdf_part)
-
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        server.ehlo()
-        server.starttls()
-        server.login(settings.SMTP_USER, settings.SMTP_PASS)
-        server.sendmail(msg["From"], recipients, msg.as_string())
+    servidor = ServidorSmtp.del_entorno()
+    msg = construir_mensaje(
+        remitente=servidor.remitente or smtp_user, para=recipients, asunto=subject, html=html_body,
+        adjuntos=[(filename, pdf_bytes, "application/pdf")] if pdf_bytes else None,
+    )
+    entregar(servidor, msg, recipients)
 
     logger.info("Email sent: %s → %s", subject, recipients)
 
 
 # ── Slack sender ──────────────────────────────────────────────────────────────
 
-def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict) -> None:
+def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict,
+                simbolo: Optional[str] = None) -> None:
     """Post a summary block to a Slack incoming webhook."""
+    from app.services.formato_regional import formatear_importe, simbolo_de_moneda
+    simbolo = simbolo or simbolo_de_moneda()
     try:
         import urllib.request
         import urllib.error
@@ -126,7 +116,7 @@ def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict
             if kpis.get("avg_margin_pct") is not None:
                 lines.append(f"• Margen medio: *{kpis['avg_margin_pct']}%*")
             if kpis.get("pipeline_weighted") is not None:
-                lines.append(f"• Pipeline ponderado: *€{kpis['pipeline_weighted']:,.0f}*")
+                lines.append(f"• Pipeline ponderado: *{formatear_importe(kpis['pipeline_weighted'], simbolo)}*")
             if kpis.get("hours_mtd") is not None:
                 lines.append(f"• Horas imputadas (mes): *{kpis['hours_mtd']}h*")
             if kpis.get("billability_pct") is not None:
@@ -139,7 +129,7 @@ def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict
             validate_outbound_url(webhook_url, field="webhook_url"), data=data,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        with abrir(req, timeout=10) as resp:  # noqa: S310
             logger.info("Slack notification sent for '%s': %s", report_name, resp.status)
     except Exception as exc:
         logger.warning("Slack send failed for '%s': %s", report_name, exc)
@@ -270,7 +260,8 @@ def _execute_report(report: ScheduledReport, db) -> None:
 
     slack = getattr(report, "slack_webhook", None)
     if slack:
-        _send_slack(slack, report.name, report_type, kpis)
+        from app.services.formato_regional import simbolo_de_moneda
+        _send_slack(slack, report.name, report_type, kpis, simbolo_de_moneda(db, org_id))
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

@@ -119,7 +119,7 @@ def test_los_cinco_puntos_usan_spawn():
     repo = pathlib.Path(__file__).resolve().parents[1]
     afectados = [
         "app/api/v1/endpoints/collaboration/ws.py",
-        "app/services/client_portal_service.py",
+        "app/services/client_portal_service/peticiones.py",
         "app/services/collaboration/_queue.py",
         "app/services/collaboration/bots.py",
         "app/services/collaboration/messages.py",

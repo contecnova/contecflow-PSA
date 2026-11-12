@@ -3,6 +3,7 @@
 Uses per-ticket keys so no schema migration is required for MVP persistence.
 """
 from __future__ import annotations
+import logging
 
 import json
 from sqlalchemy.orm import Session
@@ -28,6 +29,7 @@ def save_ticket_dynamic_fields(db: Session, ticket_id: str, fields: dict | None)
     try:
         serialized = json.dumps(payload, ensure_ascii=False)
     except Exception:
+        logging.getLogger(__name__).debug("save_ticket_dynamic_fields: excepcion ignorada", exc_info=True)
         serialized = "{}"
 
     key = _key(ticket_id)
@@ -55,4 +57,5 @@ def get_ticket_dynamic_fields(db: Session, ticket_id: str) -> dict:
         data = json.loads(row.value)
         return data if isinstance(data, dict) else {}
     except Exception:
+        logging.getLogger(__name__).debug("get_ticket_dynamic_fields: excepcion ignorada", exc_info=True)
         return {}

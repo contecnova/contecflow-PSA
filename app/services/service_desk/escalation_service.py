@@ -2,7 +2,6 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -21,6 +20,7 @@ from app.schemas.service_desk import EscalationRuleIn
 from app.services.service_desk.ticket_events import registrar
 from app.services.sla_service import aware
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -62,29 +62,29 @@ def validate_escalation_rule(payload: EscalationRuleIn) -> None:
         trigger = EscalationTrigger(payload.trigger)
         action = EscalationAction(payload.action)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise ErrorDeDominio(400, str(exc))
     if trigger == EscalationTrigger.idle_hours and not (payload.idle_hours_threshold or 0) > 0:
-        raise HTTPException(422, "La regla de inactividad necesita las horas")
+        raise ErrorDeDominio(422, "La regla de inactividad necesita las horas")
     if action == EscalationAction.reassign_group and not payload.target_group_id:
-        raise HTTPException(422, "Falta la cola de destino")
+        raise ErrorDeDominio(422, "Falta la cola de destino")
     if action == EscalationAction.elevate_priority:
         try:
             TicketPriority(payload.target_priority or "")
         except ValueError:
-            raise HTTPException(422, "Falta la prioridad nueva")
+            raise ErrorDeDominio(422, "Falta la prioridad nueva")
     if action == EscalationAction.notify_custom:
         try:
             ids = json.loads(payload.notify_user_ids or "[]")
         except ValueError:
             ids = None
         if not isinstance(ids, list) or not ids:
-            raise HTTPException(422, "Falta a quién avisar")
+            raise ErrorDeDominio(422, "Falta a quién avisar")
     if payload.applies_to_priority:
         try:
             prioridades = json.loads(payload.applies_to_priority)
             [TicketPriority(p) for p in prioridades]
         except (ValueError, TypeError):
-            raise HTTPException(422, "Prioridades inválidas")
+            raise ErrorDeDominio(422, "Prioridades inválidas")
 
 
 def build_escalation_rule(payload: EscalationRuleIn) -> EscalationRule:
@@ -101,7 +101,7 @@ def create_escalation_rule_record(db, payload: EscalationRuleIn) -> EscalationRu
 def get_escalation_rule_by_id(db: Session, rule_id: str) -> EscalationRule:
     rule = db.query(EscalationRule).filter(EscalationRule.id == rule_id).first()
     if not rule:
-        raise HTTPException(404)
+        raise ErrorDeDominio(404)
     return rule
 
 
@@ -132,6 +132,7 @@ def _parse_priority_filter(raw_priority_filter: Optional[str]):
     try:
         return json.loads(raw_priority_filter)
     except Exception:
+        logger.debug("_parse_priority_filter: excepcion ignorada", exc_info=True)
         return [raw_priority_filter]
 
 

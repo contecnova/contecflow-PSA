@@ -52,6 +52,7 @@ class RedisBus(EventBus):
                 try:
                     event = json.loads(message["data"])
                 except Exception:  # noqa: S112
+                    logger.debug("_listen: excepcion ignorada", exc_info=True)
                     continue
                 queues = list(self._channel_index.get(channel, ()))
                 for q in queues:

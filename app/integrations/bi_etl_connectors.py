@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.network import assert_safe_outbound_url
+from app.core.outbound_url import cliente_httpx  # auditoria 2026-11: redirecciones e IP final
 from app.models.settings import AppSetting
 
 logger = logging.getLogger(__name__)
@@ -105,7 +106,7 @@ def _http_get(
 ) -> Any:
     """GET con httpx, tras comprobar que la URL no apunta a la red interna."""
     assert_safe_outbound_url(url)
-    with _httpx.Client(timeout=_plazo(timeout)) as client:
+    with cliente_httpx(timeout=_plazo(timeout)) as client:
         resp = client.get(url, headers=headers or {})
         resp.raise_for_status()
         return resp.json()
@@ -123,7 +124,7 @@ def _http_post(
     Pass *raw_body* (str) to send a pre-serialised string body instead of *payload* (dict).
     """
     assert_safe_outbound_url(url)
-    with _httpx.Client(timeout=_plazo(timeout)) as client:
+    with cliente_httpx(timeout=_plazo(timeout)) as client:
         if raw_body is not None:
             resp = client.post(url, content=raw_body.encode(), headers=headers or {})
         elif payload is not None:
@@ -154,6 +155,7 @@ def _log_sync(
             logs = json.loads(row.value)
         # intentional: best-effort fallback, log noise outweighs diagnostic value
         except Exception:
+            logger.debug("_log_sync: excepcion ignorada", exc_info=True)
             logs = []
     entry = {
         "connector": connector,

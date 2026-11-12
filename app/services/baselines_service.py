@@ -20,13 +20,13 @@ import json
 from datetime import date
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.models.marketplace import GanttBaseline
 from app.models.project import Project
 from app.models.task import Task
+from app.core.errores import ErrorDeDominio
 
 #: Estados que cuentan como tarea terminada al congelar. Se comparan por su
 #: valor de texto porque el modelo usa un `Enum` y el histórico trae cadenas.
@@ -54,7 +54,7 @@ def proyecto_propio(db: Session, user, project_id: str) -> Project:
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Project not found")
+        raise ErrorDeDominio(404, "Project not found")
     return fila
 
 
@@ -74,7 +74,7 @@ def linea_base_propia(db: Session, user, project_id: str, baseline_id: str) -> G
         .first()
     )
     if not fila:
-        raise HTTPException(404, "Baseline not found")
+        raise ErrorDeDominio(404, "Baseline not found")
     return fila
 
 

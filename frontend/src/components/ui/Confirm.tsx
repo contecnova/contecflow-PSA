@@ -19,8 +19,8 @@ export default function Confirm({ open, title, description, onCancel, onConfirm,
   const t = useAppT()
   return (
     <Modal open={open} onClose={onCancel} title={title} width={400}>
-      <div style={{ marginBottom: 20 }}>{description}</div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      <div className="u-mb-20">{description}</div>
+      <div className="u-actions-8">
         <Button variant="secondary" onClick={onCancel} disabled={loading}>
           {t('common.cancel')}
         </Button>

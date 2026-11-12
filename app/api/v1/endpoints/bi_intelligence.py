@@ -121,9 +121,9 @@ def phase2_report_preview(
     "/bi/intelligence/query-builder/schema",
     summary="Schema del Query Builder visual (sin SQL)",
 )
-def phase2_visual_query_builder_schema(current_user: User = Depends(get_current_user)):
-    _ = current_user
-    return APIResponse.ok(data=svc.get_visual_query_builder_schema())
+def phase2_visual_query_builder_schema(current_user: User = Depends(get_current_user),
+                                       db: Session = Depends(get_db)):
+    return APIResponse.ok(data=svc.get_visual_query_builder_schema(db, current_user.organization_id))
 
 
 @router.post(

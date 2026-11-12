@@ -78,7 +78,7 @@ export function KpiCard({ label, value, sub, color, icon, accentBar, action }: K
     <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 3, background: bar, borderRadius: '14px 14px 0 0' }} />
       <div style={{ ...S.cardPad, flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           {icon && (
             <span style={{
               fontSize: "var(--text-lg-em)", background: alpha(bar, '18'),
@@ -161,7 +161,7 @@ export function GaugeCard({ label, value, color, suffix = '%', sub }: GaugeCardP
           lineHeight: 1, letterSpacing: '-0.5px',
         }}>{value != null ? `${value}${suffix}` : '—'}</div>
         {sub && (
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>
+          <div className="u-hint">{sub}</div>
         )}
       </div>
     </div>
@@ -185,7 +185,7 @@ export function BarRow({ label, count, total, color, displayValue }: BarRowProps
         <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textTransform: 'capitalize' }}>
           {String(label).replace(/_/g, ' ')}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <span style={{
             fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)',
             background: 'var(--surface-4)', borderRadius: 6, padding: '2px 7px',
@@ -261,7 +261,7 @@ export function DashPageShell({
         title={title}
         subtitle={headerSubtitle}
         actions={hasPeriodSelector ? (
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="u-row-6">
             {periods.map(d => (
               <PeriodButton key={d} active={days === d}
                 label={d >= 365 ? '1a' : d >= 90 ? '90d' : `${d}d`}
@@ -301,7 +301,7 @@ export function KpiCardSkeleton() {
     <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 3, background: 'var(--surface-4)', borderRadius: '14px 14px 0 0' }} />
       <div style={{ ...S.cardPad, flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <div style={skBox(32, 32, 8)} />
           <div style={skBox(80, 10, 4)} />
         </div>
@@ -316,7 +316,7 @@ export function GaugeCardSkeleton() {
   return (
     <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
       <div style={skBox(68, 68, '50%', { flexShrink: 0 })} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="u-stack-8">
         <div style={skBox(80, 10, 4)} />
         <div style={skBox(50, 26, 6)} />
         <div style={skBox(100, 9, 4)} />

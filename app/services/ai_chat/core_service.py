@@ -41,35 +41,6 @@ def log_action(
     ))
 
 
-def demo_response(message: str, ctx: dict) -> str:
-    """Fallback responses when no AI provider is configured."""
-    msg = message.lower()
-    losses = ctx.get("projects_at_loss", [])
-    if any(w in msg for w in ["pérdida", "perdidas", "margen", "rentab", "beneficio", "profit"]):
-        if losses:
-            names = ", ".join(f"**{x['project']}** ({x['margin']:+.0f}€)" for x in losses[:5])
-            return (f"Proyectos actualmente **en pérdidas**: {names}.\n\n"
-                    f"El contexto incluye datos de coste (horas × tarifa + gastos) vs facturado. "
-                    f"Configura un proveedor IA para análisis detallado.")
-        return ("No se detectan proyectos en pérdidas con los datos disponibles. "
-                "Configura un proveedor IA en IA & Conectores para análisis completo.")
-    if any(w in msg for w in ["proyecto", "project", "riesgo", "risk"]):
-        return (f"Según los datos del sistema, tienes **{ctx['active_projects']} proyectos activos**, "
-                f"**{ctx['overdue_tasks']} tareas con retraso** y **{ctx['open_tickets']} tickets abiertos**. "
-                f"Para análisis detallado de riesgos, visita la sección Predicciones de ContecflowOracle.")
-    if any(w in msg for w in ["hora", "imput", "timesheet"]):
-        return (f"Esta semana se han registrado **{ctx['hours_this_week']} horas** en total. "
-                f"Accede a Timesheets para el detalle por proyecto y persona.")
-    if any(w in msg for w in ["ticket", "soport", "incidencia"]):
-        return (f"Hay **{ctx['open_tickets']} tickets abiertos** en el Service Desk.")
-    return (f"Hola, soy ContecflowAssist 👋 Tengo acceso a los datos de tu empresa: "
-            f"**{ctx['active_projects']} proyectos activos**, "
-            f"**{ctx['open_tickets']} tickets** abiertos, "
-            f"**{ctx['hours_this_week']}h** imputadas esta semana.\n\n"
-            f"Configura un proveedor IA en **IA & Conectores** (Google Gemini, OpenAI, Anthropic…) para respuestas completas.\n\n"
-            f"Prueba: *¿Cuáles son los proyectos en pérdidas?* o *¿Qué tickets llevan más de 48h sin respuesta?*")
-
-
 def _pagina_del_usuario(db: Session, context_type, context_id) -> str:
     """Lo que el usuario tiene abierto (proyecto, ticket, sprint) para el prompt.
 

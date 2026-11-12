@@ -312,6 +312,7 @@ def push_nexus_to_jira(
             task.jira_synced_at = datetime.datetime.now(datetime.timezone.utc)
             created += 1
         except Exception as e:
+            logger.warning("push_nexus_to_jira: excepcion ignorada", exc_info=True)
             errors += 1
             errs.append({"task_id": task.id, "error": str(e)[:100]})
 

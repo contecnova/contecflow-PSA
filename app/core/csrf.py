@@ -48,8 +48,8 @@ _DEFAULT_EXEMPT_PREFIXES = (
     "/api/v1/cab/webhooks/",
     "/api/v1/integrations-hub/slack",  # revisión 2026-11: decía integrations_hub y no casaba con la ruta
     "/api/v1/integrations-hub/teams",
-    "/api/v1/esign/docusign/webhook",
-    "/api/v1/esign/adobe/webhook",
+    "/api/v1/esign/webhooks/",  # auditoria 2026-11: las rutas reales son /esign/webhooks/{docusign,adobe}
+    "/api/v1/invoices/stripe/webhook",
     "/api/v1/service-desk/voice/twilio",
     "/api/v1/service-desk/multichannel/inbound",
     "/api/v1/collaboration/bots/",
@@ -69,6 +69,7 @@ def _normalised_origins() -> Set[str]:
             if p.scheme and p.netloc:
                 out.add(f"{p.scheme}://{p.netloc}".lower())
         except Exception:  # noqa: S112
+            logger.debug("_normalised_origins: excepcion ignorada", exc_info=True)
             continue
     return out
 

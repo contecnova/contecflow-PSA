@@ -20,15 +20,6 @@ import app.services.ai_modules_service as _svc
 router = APIRouter()
 
 # Local aliases for backward compatibility with tests
-def _api_key():
-    return _svc.api_key()
-
-def _call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=1000):
-    return _svc.call_ai_unified(db, messages, system=system, module=module,
-                                user_id=user_id, max_tokens=max_tokens)
-
-
-
 def _compute_kb_embedding(db, article_id: str, text: str):
     return _svc.compute_kb_embedding(db, article_id, text)
 

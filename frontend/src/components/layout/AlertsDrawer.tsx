@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { alertsApi } from '../../services/api'
@@ -6,6 +5,7 @@ import { X, Bell, ExternalLink } from 'lucide-react'
 import { fmtRelative } from '../../utils/helpers'
 import { useAuth } from '../../context/AuthContext'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { Drawer } from '../ui'
 
 interface SeverityCfg {
   dot: string
@@ -44,7 +44,6 @@ export default function AlertsDrawer({ onClose }: Props) {
   const { t } = useAppLang()
   const { hasRole } = useAuth()
   const qc = useQueryClient()
-  const drawerRef = useRef<HTMLDivElement | null>(null)
 
   const { data: alerts = [], isLoading } = useQuery<AlertItem[]>({
     queryKey: ['alerts-drawer'],
@@ -69,50 +68,13 @@ export default function AlertsDrawer({ onClose }: Props) {
     },
   })
 
-  // Close on Escape + focus trap
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handler)
-    drawerRef.current?.focus()
-    return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
-
   const critical = alerts.filter(a => a.severity === 'critical')
   const warning  = alerts.filter(a => a.severity === 'warning')
   const info     = alerts.filter(a => a.severity === 'info')
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        role="presentation"
-        onMouseDown={onClose}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(0,0,0,0.35)',
-        }}
-      />
-
-      {/* Drawer panel */}
-      <div
-        ref={drawerRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-label="Alertas activas"
-        aria-modal="true"
-        style={{
-          position: 'fixed', top: 0, right: 0, bottom: 0,
-          width: 400, maxWidth: '95vw',
-          background: 'var(--surface-1)',
-          borderLeft: '1px solid var(--surface-4)',
-          zIndex: 201,
-          display: 'flex', flexDirection: 'column',
-          boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
-          outline: 'none',
-        }}
-      >
+    // Fondo, Esc, trampa de foco y devolucion del foco: los pone <Drawer>.
+    <Drawer onClose={onClose} ariaLabel="Alertas activas" variant="borde" width={400} zIndex={200}>
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -120,7 +82,7 @@ export default function AlertsDrawer({ onClose }: Props) {
           borderBottom: '1px solid var(--surface-4)',
           flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="u-row-center-10">
             <Bell size={16} color="var(--text-1)" />
             <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>Alertas activas</span>
             {alerts.length > 0 && (
@@ -131,7 +93,7 @@ export default function AlertsDrawer({ onClose }: Props) {
               }}>{alerts.length}</span>
             )}
           </div>
-          <button onClick={onClose} style={{
+          <button onClick={onClose} aria-label="Cerrar" style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: 'var(--text-3)', padding: 4, borderRadius: 6, display: 'flex',
           }}>
@@ -188,7 +150,7 @@ export default function AlertsDrawer({ onClose }: Props) {
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.dot, marginTop: 5, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="u-flex1-min0">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                         <span style={{ fontSize: "var(--text-md)" }}>{(alert.alert_type && TYPE_ICONS[alert.alert_type]) || '🔔'}</span>
                         <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{alert.title}</span>
@@ -254,7 +216,6 @@ export default function AlertsDrawer({ onClose }: Props) {
             {t('alertsdrawer.ver_todas_las_alertas')}
           </NavLink>
         </div>
-      </div>
-    </>
+    </Drawer>
   )
 }

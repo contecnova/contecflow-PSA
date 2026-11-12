@@ -16,6 +16,7 @@ import {
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
+import { apiWsUrl } from '../services/api/urls'
 import {
   CLIENT_API, LangContext, PortalCustomContext, useLang, useClientAuth,
   ClientAuthProvider, LoginScreen,
@@ -195,8 +196,7 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
         const ticketRes = await CLIENT_API.get('/ws/portal-ticket')
         const ticket = ticketRes?.data?.ticket
         if (!ticket || cancelled) return
-        const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-        const wsUrl = `${wsProto}://${window.location.host}/api/v1/ws/portal-notifications?ticket=${encodeURIComponent(ticket)}`
+        const wsUrl = apiWsUrl(`/ws/portal-notifications?ticket=${encodeURIComponent(ticket)}`)
         socket = new window.WebSocket(wsUrl)
         socket.onopen = () => { attempt = 0 }
         socket.onmessage = (event) => {
@@ -295,7 +295,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     job_title: client?.job_title || '',
   })
   const [pendingLang, setPendingLang] = useState(client?.language || 'es')
-  const [pwdForm, setPwdForm] = useState({ new_pwd: '', confirm: '' })
+  const [pwdForm, setPwdForm] = useState({ current: '', new_pwd: '', confirm: '' })
   const [pwdError, setPwdError] = useState('')
   const [savedProfile, setSavedProfile] = useState(false)
   const [savedLanguage, setSavedLanguage] = useState(false)
@@ -364,8 +364,8 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
   })
 
   const { mutate: savePwd, isPending: changingPwd } = useMutation({
-    mutationFn: (d: { new_pwd: string; confirm: string }) => CLIENT_API.patch('/portal/auth/me', { password: d.new_pwd }).then(r => r.data),
-    onSuccess: () => { setPwdForm({ new_pwd: '', confirm: '' }); toast.success('Contraseña actualizada') },
+    mutationFn: (d: { current: string; new_pwd: string; confirm: string }) => CLIENT_API.patch('/portal/auth/me', { password: d.new_pwd, current_password: d.current }).then(r => r.data),
+    onSuccess: () => { setPwdForm({ current: '', new_pwd: '', confirm: '' }); toast.success('Contraseña actualizada') },
     onError: (e: unknown) => {
       const raw = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       setPwdError(Array.isArray(raw) ? raw.map((d: { msg?: string }) => d.msg).join(', ') : (raw ? String(raw) : 'Error al cambiar contraseña'))
@@ -408,11 +408,11 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
             width: 64, height: 64, borderRadius: 16,
             background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 'var(--text-xl-em)', fontWeight: 800, color: '#fff', flexShrink: 0,
+            fontSize: 'var(--text-xl-em)', fontWeight: 800, color: 'var(--on-accent-light)', flexShrink: 0,
           }}>{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="u-flex1-min0">
             <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800 }}>{client?.full_name}</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{client?.email}</div>
+            <div className="u-text2-sm">{client?.email}</div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
               {client?.job_title && `${client.job_title} · `}{client?.company || client?.organization_name}
             </div>
@@ -475,7 +475,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
                     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
                     borderRadius: 10,
                   }}>
-                    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{p.label}</span>
+                    <span className="u-text2-sm">{p.label}</span>
                     <PortalBadge tone={me?.[p.key] ? 'success' : 'default'}>{me?.[p.key] ? 'Sí' : 'No'}</PortalBadge>
                   </div>
                 ))}
@@ -503,7 +503,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-1)', marginBottom: 2 }}>
                       <span style={{ marginRight: 6 }}>{th.icon}</span>{th.label}
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{th.desc}</div>
+                    <div className="u-text3-xs">{th.desc}</div>
                   </button>
                 )
               })}
@@ -539,7 +539,11 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       {tab === 'security' && (
         <PortalCard>
           <PortalSection title={traducir('portalcliente.cambiar_contrasena')} hint="Mínimo 8 caracteres">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="u-stack-12">
+              <PortalField label="Contraseña actual">
+                <PortalInput type="password" autoComplete="current-password" value={pwdForm.current}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, current: e.target.value }))} placeholder="Contraseña actual" />
+              </PortalField>
               <PortalField label={traducir('portalcliente.nueva_contrasena')}>
                 <PortalInput type="password" value={pwdForm.new_pwd}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} placeholder={traducir('portalcliente.nueva_contrasena')} />
@@ -556,7 +560,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
               <PortalButton icon={<KeyRound size={13} />} loading={changingPwd}
-                disabled={!pwdForm.new_pwd || !pwdForm.confirm}
+                disabled={!pwdForm.current || !pwdForm.new_pwd || !pwdForm.confirm}
                 onClick={handlePwdChange}>{traducir('portalcliente.cambiar_contrasena')}</PortalButton>
             </div>
             <div style={{ marginTop: 14, fontSize: 'var(--text-xs)', color: 'var(--text-3)', lineHeight: 1.6 }}>

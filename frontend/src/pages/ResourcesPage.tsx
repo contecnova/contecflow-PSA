@@ -14,6 +14,7 @@ import { ROLE_LABELS, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 const ROLES = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }))
 
@@ -46,11 +47,11 @@ function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
       borderRadius: 14, padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start',
     }}>
       <Avatar name={member.full_name} size={38} url={undefined} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="u-flex1-min0">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <div>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{member.full_name}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{member.job_title || member.department}</div>
+            <div className="u-text3-xs">{member.job_title || member.department}</div>
           </div>
           <span style={{
             fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
@@ -117,7 +118,7 @@ function BurnoutMonitorTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="u-wrap-6">
           {[
             { id: 'all', label: 'Todos' },
             { id: 'yellow', label: 'Atención' },
@@ -147,14 +148,14 @@ function BurnoutMonitorTab() {
           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
             borderRadius: 20, background: m.bg, border: `1px solid ${m.border}` }}>
             <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: m.color }}>{summary[k] ?? 0}</span>
-            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{m.label}</span>
+            <span className="u-text3-xs">{m.label}</span>
           </div>
         ))}
       </div>
 
       {isLoading ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}>
-          <Spinner /><span style={{ color: 'var(--text-2)' }}>{t('resources.analyzing_load_patterns')}</span>
+          <Spinner /><span className="u-text2">{t('resources.analyzing_load_patterns')}</span>
         </div>
       ) : members.length === 0 ? (
         <EmptyState icon="🎉" title={t('resources.empty_title')} description={t('resources.empty_desc')} />
@@ -249,7 +250,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
       </div>
       {showRates && resource.user?.hourly_rate && (
         <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--surface-3)', borderRadius: 8, fontSize: "var(--text-sm)", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: 'var(--text-3)' }}>Tarifa</span>
+          <span className="u-text3">Tarifa</span>
           <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)', fontWeight: 700 }}>{resource.user.hourly_rate}€/h</span>
         </div>
       )}
@@ -292,7 +293,7 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
   }
   return (
     <Modal open={open} onClose={onClose} title="Editar recurso">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-stack-14">
         <Input label="Email" type="email" value={form.email} onChange={set('email')} placeholder={undefined} required={undefined} hint={undefined} />
         <Input label="Nombre completo" value={form.full_name} onChange={set('full_name')} placeholder={undefined} required={undefined} hint={undefined} />
         <Input label="Cargo" value={form.job_title} onChange={set('job_title')} placeholder={undefined} required={undefined} hint={undefined} />
@@ -385,7 +386,7 @@ function SmartMatchTab() {
                 </span>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <select value={skillInput} onChange={e => setSkillInput(e.target.value)} style={{ ...inputStyle, flex: 1 }}>
                 <option value="">Seleccionar skill...</option>
                 {allSkills.filter(s => !form.skills.includes(s.name)).map(s => <option key={s.id || s.name} value={s.name}>{s.name}</option>)}
@@ -412,8 +413,8 @@ function SmartMatchTab() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
             <div><label style={labelStyle}>Horas necesarias</label><input type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} style={inputStyle} /></div>
             <div><label style={labelStyle}>{t('resources.tarifa_max_h')}</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder="Tarifa maxima" aria-label="Tarifa maxima" /></div>
-            <div><label style={labelStyle}>Inicio</label><input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} /></div>
-            <div><label style={labelStyle}>Fin</label><input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={inputStyle} /></div>
+            <div><label style={labelStyle}>Inicio</label><DateInput value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} /></div>
+            <div><label style={labelStyle}>Fin</label><DateInput value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={inputStyle} /></div>
           </div>
 
           <Button onClick={() => search({ ...form, max_hourly_rate: form.max_hourly_rate ? +form.max_hourly_rate : undefined })} loading={isPending} disabled={isPending} style={{ width: '100%' }}>
@@ -440,7 +441,7 @@ function SmartMatchTab() {
                     <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg,${alpha(scoreColor(c.scores.overall), '40')},${alpha(scoreColor(c.scores.overall), '20')})`, border: `1px solid ${alpha(scoreColor(c.scores.overall), '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: scoreColor(c.scores.overall) }}>{i + 1}</div>
                     <div>
                       <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{c.user_name}</div>
-                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.job_title || c.role} · {c.department || '—'}</div>
+                      <div className="u-text2-sm">{c.job_title || c.role} · {c.department || '—'}</div>
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -461,7 +462,7 @@ function SmartMatchTab() {
                   <span>⏱ {c.availability_hours}h disponibles</span>
                   <span>📋 {c.active_tasks} tareas activas</span>
                   {(c.matched_skills?.length ?? 0) > 0 && <span>✓ {c.matched_skills!.join(', ')}</span>}
-                  {(c.missing_skills?.length ?? 0) > 0 && <span style={{ color: 'var(--danger)' }}>✗ Faltan: {c.missing_skills!.join(', ')}</span>}
+                  {(c.missing_skills?.length ?? 0) > 0 && <span className="u-danger">✗ Faltan: {c.missing_skills!.join(', ')}</span>}
                 </div>
               </div>
             ))}
@@ -520,7 +521,7 @@ export default function ResourcesPage() {
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px' }}>
             <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: k.color, lineHeight: 1.1 }}>{k.value}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{k.label}</div>
+            <div className="u-hint">{k.label}</div>
           </div>
         ))}
       </div>
@@ -547,7 +548,7 @@ export default function ResourcesPage() {
             <ViewToggle view={view} onChange={setView} />
           </div>
           {isLoading ? (
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando recursos...</span></div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '40px 0' }}><Spinner /><span className="u-text2">Cargando recursos...</span></div>
           ) : filtered.length === 0 ? (
             <EmptyState icon="👥" title={t('resources.sin_recursos')} description="No hay personas que coincidan con el filtro actual" />
           ) : view === 'grid' ? (
@@ -570,17 +571,17 @@ export default function ResourcesPage() {
                 <div key={r.user?.id} style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '11px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer' }}
                   onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onPointerLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="u-row-center-10">
                     <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
                       {r.user?.full_name?.charAt(0) || '?'}
                     </div>
                     <div>
-                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{r.user?.full_name}</div>
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{r.user?.job_title}</div>
+                      <div className="u-base-600">{r.user?.full_name}</div>
+                      <div className="u-text2-xs">{r.user?.job_title}</div>
                     </div>
                   </div>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{r.user?.department || '—'}</span>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{r.user?.role || '—'}</span>
+                  <span className="u-text2-sm">{r.user?.department || '—'}</span>
+                  <span className="u-text2-sm">{r.user?.role || '—'}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ flex: 1, height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${Math.min(r.current_load_pct ?? 0, 100)}%`, background: (r.current_load_pct ?? 0) > 100 ? 'var(--danger)' : (r.current_load_pct ?? 0) > 80 ? 'var(--warning)' : 'var(--success)', borderRadius: 3 }} />
@@ -588,7 +589,7 @@ export default function ResourcesPage() {
                     <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: (r.current_load_pct ?? 0) > 100 ? 'var(--danger)' : 'var(--text-1)', minWidth: 34 }}>{r.current_load_pct}%</span>
                   </div>
                   <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.hours_this_week || 0}h</span>
-                  <span style={{ fontSize: "var(--text-sm)" }}>{r.active_projects || 0}</span>
+                  <span className="u-sm">{r.active_projects || 0}</span>
                   {hasRole('admin', 'hr') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.user?.hourly_rate ? `${r.user.hourly_rate}€` : '—'}</span>}
                 </div>
               ))}

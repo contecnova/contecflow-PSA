@@ -12,6 +12,7 @@ import { fmtCurrency, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import DateInput from '../components/ui/DateInput'
 
 type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | string
 type RiskStatus = 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'closed' | 'materialized' | string
@@ -161,7 +162,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
   const cellRisks = (p: string, i: string) => risks.filter((r) => r.probability === p && r.impact === i)
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="u-scroll-x">
       <table style={{ borderCollapse: 'separate', borderSpacing: 4 }}>
         <thead>
           <tr>
@@ -238,7 +239,7 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
   return (
     <Modal open title={isEdit ? t('risks.edit_title') : t('risks.new_title')} onClose={onClose} width={660}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('risks.form.title')}</label>
           <input value={form.title} onChange={set('title')} style={fs} placeholder={t('risks.form.title_ph')} />
         </div>
@@ -293,17 +294,17 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
         </div>
         <div>
           <label style={ls}>{t('risks.form.review_date')}</label>
-          <input type="date" value={form.review_date} onChange={set('review_date')} style={fs} />
+          <DateInput value={form.review_date} onChange={set('review_date')} style={fs} />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('risks.form.description')}</label>
           <textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('risks.form.mitigation_plan')}</label>
           <textarea value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('risks.form.mitigation_plan_ph')} />
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('risks.form.contingency_plan')}</label>
           <textarea value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('risks.form.contingency_plan_ph')} />
         </div>
@@ -431,38 +432,38 @@ export default function RisksPage() {
             </div>
           </div>
           {view === 'list' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="u-stack-10">
           {sortedRisks.map((r: RiskItem) => {
             const lvl = (r.risk_level && LEVEL_CFG[r.risk_level]) || LEVEL_CFG.low
             return (
               <div key={r.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha(lvl.color, '30')}`, borderRadius: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: lvl.color, marginTop: 4, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
+                  <div className="u-flex1">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                       <div>
-                        <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{r.title}</span>
+                        <span className="u-md-700">{r.title}</span>
                         <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8, fontFamily: 'var(--font-mono)' }}>{r.code}</span>
                         {r.project_name && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>· {r.project_name}</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: lvl.bg, color: lvl.color, border: `1px solid ${alpha(lvl.color, '40')}` }}>{lvl.label}</span>
-                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{r.status_label}</span>
+                        <span className="u-text2-xs">{r.status_label}</span>
                         <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
                         <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: r.mitigation_plan ? 8 : 0 }}>
-                      <span>Prob: <span style={{ color: 'var(--text-1)' }}>{r.probability_label}</span></span>
-                      <span>Impacto: <span style={{ color: 'var(--text-1)' }}>{r.impact_label}</span></span>
-                      {r.category_label && <span>Tipo: <span style={{ color: 'var(--text-1)' }}>{r.category_label}</span></span>}
-                      {r.owner_name && <span>Responsable: <span style={{ color: 'var(--text-1)' }}>{r.owner_name}</span></span>}
-                      {r.cost_impact_max && <span>Impacto €: <span style={{ color: 'var(--warning)' }}>hasta {fmtCurrency(Number(r.cost_impact_max))}</span></span>}
-                      {r.schedule_impact_days && <span>Plazo: <span style={{ color: 'var(--warning)' }}>+{r.schedule_impact_days}d</span></span>}
+                      <span>Prob: <span className="u-text1">{r.probability_label}</span></span>
+                      <span>Impacto: <span className="u-text1">{r.impact_label}</span></span>
+                      {r.category_label && <span>Tipo: <span className="u-text1">{r.category_label}</span></span>}
+                      {r.owner_name && <span>Responsable: <span className="u-text1">{r.owner_name}</span></span>}
+                      {r.cost_impact_max && <span>Impacto €: <span className="u-warning">hasta {fmtCurrency(Number(r.cost_impact_max))}</span></span>}
+                      {r.schedule_impact_days && <span>Plazo: <span className="u-warning">+{r.schedule_impact_days}d</span></span>}
                     </div>
                     {r.mitigation_plan && (
                       <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>
-                        🛡️ <span style={{ color: 'var(--text-1)' }}>{r.mitigation_plan}</span>
+                        🛡️ <span className="u-text1">{r.mitigation_plan}</span>
                       </div>
                     )}
                   </div>
@@ -478,7 +479,7 @@ export default function RisksPage() {
               return (
                 <div key={r.id} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(lvl.color, '30')}`, borderRadius: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="u-row-center-8">
                       <div style={{ width: 10, height: 10, borderRadius: '50%', background: lvl.color, flexShrink: 0 }} />
                       <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: lvl.bg, color: lvl.color }}>{lvl.label}</span>
                     </div>

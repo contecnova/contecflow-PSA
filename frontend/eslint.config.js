@@ -5,6 +5,47 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import tsParser from '@typescript-eslint/parser'
 import tsPlugin from '@typescript-eslint/eslint-plugin'
 
+// Reglas de estilo con no-restricted-syntax. Van en una constante porque el
+// bloque de services/api las repite sin la de fetch (una regla solo admite una
+// lista de opciones por fichero).
+const RESTRICCIONES_DE_ESTILO = [
+  {
+    selector: "Literal[value=/^#(00d4ff|0ea5e9|7c3aed)/i]",
+    message: 'Hex literales de marca obsoletos (#00d4ff/#0ea5e9/#7c3aed). Usa var(--accent), var(--purple), o COLOR.* desde constants/theme.js.',
+  },
+  // Auditoria 2026-11: hex fijo como valor de una propiedad de color. Los
+  // que coincidian con un token se pasaron a var() con
+  // scripts/codemods/colores-a-tokens.mjs; esto impide que vuelvan.
+  {
+    selector: "Property[key.name=/^(color|background|backgroundColor|borderColor|fill|stroke|outlineColor)$/][value.type='Literal'][value.value=/^#[0-9a-fA-F]{3,8}$/]",
+    message: 'Color hex fijo en una propiedad de estilo. Usa var(--token) (index.css) o COLOR.* de constants/theme; no sigue a los temas ni al acento.',
+  },
+  {
+    selector: "Property[key.name='fontSize'][value.type='Literal'][value.raw=/^[0-9]+$/]",
+    message: 'fontSize literal numérico. Usa var(--text-xs|sm|base|md|lg|xl|2xl|3xl) — escala definida en index.css.',
+  },
+  // Anti-patrón "card armada inline": background var(--surface-2) seguido
+  // de borderRadius dentro del mismo style={{...}}. Usa la clase .ds-card
+  // o el componente <Card> en lugar de repetir background + border + radius.
+  {
+    selector: "Property[key.name='background'][value.value='var(--surface-2)'] ~ Property[key.name='borderRadius']",
+    message: 'Card armada inline detectada (background var(--surface-2) + borderRadius). Usa className="ds-card" o el componente <Card>.',
+  },
+]
+
+// Auditoria 2026-11 (#29): fetch directo se salta el cliente API (cookies,
+// CSRF, refresco de sesion en 401, desenvoltorio de respuestas y errores).
+// Usa services/api; para flujos (SSE) `apiStream`, para URLs `apiUrl`/`apiWsUrl`.
+// Si una excepcion es legitima, justificala en una linea y desactiva la regla ahi.
+const MENSAJE_FETCH = 'fetch directo: usa el cliente de services/api (apiStream para flujos). Si es una excepcion legitima, justificala en un comentario.'
+const FETCH_DIRECTO = [
+  { selector: "CallExpression[callee.name='fetch']", message: MENSAJE_FETCH },
+  { selector: "CallExpression[callee.object.name=/^(window|globalThis|self)$/][callee.property.name='fetch']", message: MENSAJE_FETCH },
+]
+
+const DIALOGOS_NATIVOS = ['confirm', 'prompt', 'alert']
+const MENSAJE_DIALOGOS = 'Dialogo nativo prohibido: usa useConfirm().confirmar/pedirTexto (context/ConfirmContext) o useToast.'
+
 export default [
   js.configs.recommended,
   // eslint-plugin-react flat config (ESLint v9 compatible)
@@ -103,9 +144,6 @@ export default [
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
         caches: 'readonly',
-        alert: 'readonly',
-        confirm: 'readonly',
-        prompt: 'readonly',
       },
       // Auditoría 2026-08 (hallazgo P1-6). Sin este parser, ESLint intentaba
       // leer .ts/.tsx con el parser de JavaScript y se atragantaba en la primera
@@ -176,23 +214,23 @@ export default [
       // Restringir colores hex literales en código nuevo. Los tokens viven en
       // index.css (--accent, --surface-*) y en constants/theme.js (CHART_COLORS,
       // COLOR.*). Si necesitas un color para chart, usa CHART_COLORS_EXTENDED.
-      'no-restricted-syntax': ['warn',
-        {
-          selector: "Literal[value=/^#(00d4ff|0ea5e9|7c3aed)/i]",
-          message: 'Hex literales de marca obsoletos (#00d4ff/#0ea5e9/#7c3aed). Usa var(--accent), var(--purple), o COLOR.* desde constants/theme.js.',
-        },
-        {
-          selector: "Property[key.name='fontSize'][value.type='Literal'][value.raw=/^[0-9]+$/]",
-          message: 'fontSize literal numérico. Usa var(--text-xs|sm|base|md|lg|xl|2xl|3xl) — escala definida en index.css.',
-        },
-        // Anti-patrón "card armada inline": background var(--surface-2) seguido
-        // de borderRadius dentro del mismo style={{...}}. Usa la clase .ds-card
-        // o el componente <Card> en lugar de repetir background + border + radius.
-        {
-          selector: "Property[key.name='background'][value.value='var(--surface-2)'] ~ Property[key.name='borderRadius']",
-          message: 'Card armada inline detectada (background var(--surface-2) + borderRadius). Usa className="ds-card" o el componente <Card>.',
-        },
+      'no-restricted-syntax': ['warn', ...RESTRICCIONES_DE_ESTILO, ...FETCH_DIRECTO],
+
+      // Auditoria 2026-11 (#29): nada de dialogos nativos. Bloquean el hilo, no
+      // siguen el tema ni el idioma y no se pueden probar. Usa
+      // useConfirm().confirmar / pedirTexto (context/ConfirmContext) o useToast.
+      'no-restricted-globals': ['error', ...DIALOGOS_NATIVOS.map(name => ({ name, message: MENSAJE_DIALOGOS }))],
+      'no-restricted-properties': ['error',
+        ...['window', 'globalThis', 'self'].flatMap(object =>
+          DIALOGOS_NATIVOS.map(property => ({ object, property, message: MENSAJE_DIALOGOS }))),
       ],
+    },
+  },
+  {
+    // El cliente API es el unico sitio donde se permite fetch directo.
+    files: ['src/services/api/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['warn', ...RESTRICCIONES_DE_ESTILO],
     },
   },
   {
@@ -215,6 +253,10 @@ export default [
       'no-redeclare': 'off',
       // Los enums y namespaces de TS se declaran antes de usarse en runtime.
       'no-use-before-define': 'off',
+      // Auditoria 2026-11 (#25): 0 `any` explicitos en src (medido con el parser
+      // de TS). Tipa con interfaces del backend (app/schemas, serializadores) o
+      // con `unknown` + estrechamiento donde la forma sea de verdad dinamica.
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {

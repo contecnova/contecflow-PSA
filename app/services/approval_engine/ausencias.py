@@ -4,10 +4,10 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from app.core.errores import ErrorDeDominio
 
 
 def fijar_ausencia(db: Session, usuario: User, delegado_id: Optional[str],
@@ -20,14 +20,14 @@ def fijar_ausencia(db: Session, usuario: User, delegado_id: Optional[str],
     try:
         inicio, fin = date.fromisoformat(desde or ""), date.fromisoformat(hasta or "")
     except ValueError:
-        raise HTTPException(422, "Indica las fechas de inicio y fin (AAAA-MM-DD)")
+        raise ErrorDeDominio(422, "Indica las fechas de inicio y fin (AAAA-MM-DD)")
     if fin < inicio:
-        raise HTTPException(422, "La fecha de fin es anterior a la de inicio")
+        raise ErrorDeDominio(422, "La fecha de fin es anterior a la de inicio")
     if delegado_id == usuario.id:
-        raise HTTPException(422, "No puedes delegar en ti mismo")
+        raise ErrorDeDominio(422, "No puedes delegar en ti mismo")
     delegado = db.query(User).filter(User.id == delegado_id, User.is_active == True).first()  # noqa: E712
     if delegado is None:
-        raise HTTPException(422, "Ese usuario no existe en tu empresa o no está activo")
+        raise ErrorDeDominio(422, "Ese usuario no existe en tu empresa o no está activo")
     usuario.away_delegate_id, usuario.away_from, usuario.away_until = delegado.id, inicio, fin
     db.commit()
     return {"delegate_id": delegado.id, "away_from": inicio.isoformat(), "away_until": fin.isoformat()}

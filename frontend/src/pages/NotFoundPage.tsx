@@ -33,7 +33,7 @@ export default function NotFoundPage(): JSX.Element {
           {t('not_found_page.message')}
         </p>
         <p style={{ margin: '0 0 18px', color: 'var(--text-2)', lineHeight: 1.6 }}>
-          {t('not_found_page.requested_route')} <strong style={{ color: 'var(--text-1)' }}>{location.pathname}</strong>
+          {t('not_found_page.requested_route')} <strong className="u-text1">{location.pathname}</strong>
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link

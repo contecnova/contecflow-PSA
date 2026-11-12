@@ -1,5 +1,23 @@
  
 
+/** Credencial en JSON: el servidor manda el `id` en base64url. */
+export interface CredentialDescriptorJSON extends Omit<PublicKeyCredentialDescriptor, 'id'> {
+  id: string
+}
+
+/** `PublicKeyCredentialCreationOptions` tal como llegan del servidor (binarios en base64url). */
+export interface CreationOptionsJSON extends Omit<PublicKeyCredentialCreationOptions, 'challenge' | 'user' | 'excludeCredentials'> {
+  challenge: string
+  user: Omit<PublicKeyCredentialUserEntity, 'id'> & { id: string }
+  excludeCredentials?: CredentialDescriptorJSON[]
+}
+
+/** `PublicKeyCredentialRequestOptions` tal como llegan del servidor (binarios en base64url). */
+export interface RequestOptionsJSON extends Omit<PublicKeyCredentialRequestOptions, 'challenge' | 'allowCredentials'> {
+  challenge: string
+  allowCredentials?: CredentialDescriptorJSON[]
+}
+
 function b64uToBuf(b64u: string): ArrayBuffer {
   const b64 = b64u.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (b64u.length % 4)) % 4)
   const bin = atob(b64)
@@ -19,12 +37,15 @@ export function webauthnSupported(): boolean {
   return typeof window !== 'undefined' && !!window.PublicKeyCredential && !!navigator.credentials
 }
 
-export async function startRegistration(options: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const pk = { ...options } as any
-  pk.challenge = b64uToBuf(pk.challenge)
-  pk.user = { ...pk.user, id: b64uToBuf(pk.user.id) }
-  if (Array.isArray(pk.excludeCredentials)) {
-    pk.excludeCredentials = pk.excludeCredentials.map((c: any) => ({ ...c, id: b64uToBuf(c.id) }))
+export async function startRegistration(options: CreationOptionsJSON): Promise<Record<string, unknown>> {
+  const { excludeCredentials, ...resto } = options
+  const pk: PublicKeyCredentialCreationOptions = {
+    ...resto,
+    challenge: b64uToBuf(options.challenge),
+    user: { ...options.user, id: b64uToBuf(options.user.id) },
+  }
+  if (Array.isArray(excludeCredentials)) {
+    pk.excludeCredentials = excludeCredentials.map(c => ({ ...c, id: b64uToBuf(c.id) }))
   }
   const cred = (await navigator.credentials.create({ publicKey: pk })) as PublicKeyCredential
   const resp = cred.response as AuthenticatorAttestationResponse
@@ -39,11 +60,11 @@ export async function startRegistration(options: Record<string, unknown>): Promi
   }
 }
 
-export async function startAuthentication(options: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const pk = { ...options } as any
-  pk.challenge = b64uToBuf(pk.challenge)
-  if (Array.isArray(pk.allowCredentials)) {
-    pk.allowCredentials = pk.allowCredentials.map((c: any) => ({ ...c, id: b64uToBuf(c.id) }))
+export async function startAuthentication(options: RequestOptionsJSON): Promise<Record<string, unknown>> {
+  const { allowCredentials, ...resto } = options
+  const pk: PublicKeyCredentialRequestOptions = { ...resto, challenge: b64uToBuf(options.challenge) }
+  if (Array.isArray(allowCredentials)) {
+    pk.allowCredentials = allowCredentials.map(c => ({ ...c, id: b64uToBuf(c.id) }))
   }
   const cred = (await navigator.credentials.get({ publicKey: pk })) as PublicKeyCredential
   const resp = cred.response as AuthenticatorAssertionResponse

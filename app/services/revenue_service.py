@@ -21,7 +21,6 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -32,6 +31,7 @@ from app.models.revenue import (
 from app.models.financial import ProjectMilestone
 from app.models.project import Project
 from app.core import timeutil
+from app.core.errores import ErrorDeDominio
 
 # Un dato que falta —un proyecto sin tarifa— no puede ser silencio: quien opera
 # el cierre mensual tiene que poder ver qué contratos no se han podido reconocer.
@@ -50,7 +50,7 @@ def list_contracts(db: Session, project_id: Optional[str] = None):
 def get_contract(db: Session, contract_id: str) -> RevenueContract:
     c = db.query(RevenueContract).filter(RevenueContract.id == contract_id).first()
     if not c:
-        raise HTTPException(404, "Contrato de reconocimiento no encontrado")
+        raise ErrorDeDominio(404, "Contrato de reconocimiento no encontrado")
     return c
 
 
@@ -83,7 +83,7 @@ def delete_contract(db: Session, contract_id: str) -> None:
     c = get_contract(db, contract_id)
     has_entries = db.query(RevenueEntry).filter(RevenueEntry.rev_contract_id == contract_id).first()
     if has_entries:
-        raise HTTPException(400, "No se puede eliminar un contrato con entradas contables")
+        raise ErrorDeDominio(400, "No se puede eliminar un contrato con entradas contables")
     db.delete(c)
     db.commit()
 
@@ -116,7 +116,7 @@ def create_obligation(db: Session, contract_id: str, data: dict) -> RevenueOblig
 def update_obligation(db: Session, obligation_id: str, data: dict) -> RevenueObligation:
     ob = db.query(RevenueObligation).filter(RevenueObligation.id == obligation_id).first()
     if not ob:
-        raise HTTPException(404, "Obligación no encontrada")
+        raise ErrorDeDominio(404, "Obligación no encontrada")
     allowed = {"name", "allocated_pct", "allocated_amount", "is_satisfied", "satisfied_date", "milestone_id"}
     for k, v in data.items():
         if k in allowed:
@@ -128,7 +128,7 @@ def update_obligation(db: Session, obligation_id: str, data: dict) -> RevenueObl
 def delete_obligation(db: Session, obligation_id: str) -> None:
     ob = db.query(RevenueObligation).filter(RevenueObligation.id == obligation_id).first()
     if not ob:
-        raise HTTPException(404, "Obligación no encontrada")
+        raise ErrorDeDominio(404, "Obligación no encontrada")
     db.delete(ob)
     db.commit()
 
@@ -155,7 +155,7 @@ def is_period_closed(db: Session, year: int, month: int, organization_id: Option
 
 def close_period(db: Session, organization_id: str, year: int, month: int, user_id: str, notes: Optional[str] = None) -> RevenuePeriodClose:
     if is_period_closed(db, year, month, organization_id):
-        raise HTTPException(400, f"El período {year}-{month:02d} ya está cerrado")
+        raise ErrorDeDominio(400, f"El período {year}-{month:02d} ya está cerrado")
     pc = RevenuePeriodClose(
         id=str(uuid.uuid4()),
         organization_id=organization_id,
@@ -181,7 +181,7 @@ def reopen_period(db: Session, organization_id: str, year: int, month: int) -> N
         .first()
     )
     if not pc:
-        raise HTTPException(404, "Período no encontrado o no cerrado")
+        raise ErrorDeDominio(404, "Período no encontrado o no cerrado")
     db.delete(pc)
     db.commit()
 
@@ -237,12 +237,12 @@ def _create_entry(
 def reverse_entry(db: Session, entry_id: str, user_id: str) -> RevenueEntry:
     orig = db.query(RevenueEntry).filter(RevenueEntry.id == entry_id).first()
     if not orig:
-        raise HTTPException(404, "Entrada no encontrada")
+        raise ErrorDeDominio(404, "Entrada no encontrada")
     if orig.entry_type == EntryType.reversal:
-        raise HTTPException(400, "No se puede revertir una entrada de tipo 'reversal'")
+        raise ErrorDeDominio(400, "No se puede revertir una entrada de tipo 'reversal'")
     contract = get_contract(db, orig.rev_contract_id)
     if is_period_closed(db, orig.period_year, orig.period_month, contract.organization_id):
-        raise HTTPException(400, "No se puede revertir una entrada de un período cerrado")
+        raise ErrorDeDominio(400, "No se puede revertir una entrada de un período cerrado")
     rev = _create_entry(
         db, contract,
         entry_type=EntryType.reversal,
@@ -326,6 +326,7 @@ def recognize_on_milestone(db: Session, milestone_id: str, user_id: Optional[str
         try:
             db.commit()
         except Exception:
+            _logger.warning("recognize_on_milestone: excepcion ignorada", exc_info=True)
             db.rollback()
 
 

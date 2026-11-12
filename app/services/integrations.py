@@ -15,7 +15,7 @@ import json
 import logging
 import urllib.request
 
-from app.core.outbound_url import validate_outbound_url
+from app.core.outbound_url import abrir, validate_outbound_url
 import urllib.parse
 from typing import Optional
 from app.core import timeutil
@@ -62,7 +62,7 @@ def send_slack_message(
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        with abrir(req, timeout=10) as resp:  # noqa: S310
             body = resp.read().decode()
         return {"ok": True, "response": body}
     except Exception as e:
@@ -134,7 +134,7 @@ def send_teams_message(
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        with abrir(req, timeout=10) as resp:  # noqa: S310
             body = resp.read().decode()
         return {"ok": True, "response": body}
     except Exception as e:
@@ -167,7 +167,7 @@ def _jira_request(config_dict: dict, method: str, path: str, body: Optional[dict
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=15) as resp:  # noqa: S310
             return {"ok": True, "data": json.loads(resp.read())}
     except urllib.error.HTTPError as e:
         body_err = e.read().decode()[:300]
@@ -410,7 +410,7 @@ def _xero_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=15) as resp:  # noqa: S310
             return {"ok": True, "data": _json.loads(resp.read())}
     except urllib.error.HTTPError as e:
         err = e.read().decode()[:300]
@@ -442,7 +442,7 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=15) as resp:  # noqa: S310
             return {"ok": True, "data": _json.loads(resp.read())}
     except urllib.error.HTTPError as e:
         err = e.read().decode()[:300]
@@ -627,28 +627,60 @@ def _uno_solo(candidatos):
     return candidatos[0] if len(candidatos) == 1 else None
 
 
-def find_user_by_slack_name(db, user_name: str):
+def _organizacion_vinculada(db, clave: str, valor: Optional[str], canal: str) -> Optional[str]:
+    """La organizacion que declara `clave = valor` (workspace de Slack o tenant de Teams).
+
+    Auditoria 2026-11: el usuario del bot se buscaba por nombre en TODAS las
+    organizaciones, y ese nombre lo elige quien escribe. Con el vinculo, solo
+    se busca dentro de la organizacion duena del workspace/tenant. Sin vinculo
+    se mantiene la busqueda global (decision: no cortar los bots ya en uso) y
+    se avisa en el log para que se configure.
+    """
+    from app.models.settings import AppSetting
+
+    if valor:
+        orgs = {o for (o,) in db.query(AppSetting.organization_id).filter(
+            AppSetting.key == clave, AppSetting.value == valor,
+            AppSetting.organization_id.isnot(None)).all()}
+        if len(orgs) == 1:
+            return orgs.pop()
+        if len(orgs) > 1:
+            logger.error("%s: %s=%s esta vinculado a varias organizaciones; se ignora", canal, clave, valor)
+    logger.warning("%s: %s=%r sin organizacion vinculada; el usuario se busca en todas. "
+                   "Configura %s en la organizacion.", canal, clave, valor, clave)
+    return None
+
+
+def find_user_by_slack_name(db, user_name: str, team_id: Optional[str] = None):
     """Usuario de Slack: nombre de usuario o parte local del correo, exactos y sin ambiguedad."""
     nombre = (user_name or "").strip().lower()
     if not nombre:
         return None
     from sqlalchemy import func
-    return _uno_solo(db.query(User).filter(
+    consulta = db.query(User).filter(
         User.is_active == True,  # noqa: E712
         (func.lower(User.username) == nombre) | (func.lower(User.email).like(f"{nombre}@%")),
-    ).limit(2).all())
+    )
+    org = _organizacion_vinculada(db, "SLACK_TEAM_ID", team_id, "Slack")
+    if org:
+        consulta = consulta.filter(User.organization_id == org)
+    return _uno_solo(consulta.limit(2).all())
 
 
-def find_user_by_teams_name(db, teams_name: str):
+def find_user_by_teams_name(db, teams_name: str, tenant_id: Optional[str] = None):
     """Usuario de Teams: nombre completo exacto (sin mayusculas) y sin ambiguedad."""
     nombre = " ".join((teams_name or "").split()).lower()
     if not nombre:
         return None
     from sqlalchemy import func
-    return _uno_solo(db.query(User).filter(
+    consulta = db.query(User).filter(
         User.is_active == True,  # noqa: E712
         func.lower(User.full_name) == nombre,
-    ).limit(2).all())
+    )
+    org = _organizacion_vinculada(db, "TEAMS_TENANT_ID", tenant_id, "Teams")
+    if org:
+        consulta = consulta.filter(User.organization_id == org)
+    return _uno_solo(consulta.limit(2).all())
 
 
 def slack_create_task_from_text(db, text: str, user) -> dict:

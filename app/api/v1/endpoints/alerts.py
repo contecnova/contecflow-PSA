@@ -40,10 +40,8 @@ def list_alerts(
     items, total, _ = paginate_query(q, page, page_size, response)
     # Revisión 2026-11: la unidad de cada tipo sale de su configuración (antes la pantalla
     # ponía € a los presupuestos, que son %, y % a los plazos, que son días).
-    from app.models.advanced_config import AlertConfig
-    from app.services.advanced_config_service import DEFAULT_ALERT_CONFIGS
-    unidades = {d[0]: d[4] for d in DEFAULT_ALERT_CONFIGS}
-    unidades.update({c.alert_type: c.threshold_unit for c in db.query(AlertConfig).all() if c.threshold_unit})
+    from app.services.alert_service import unidades_por_tipo
+    unidades = unidades_por_tipo(db)
     salida = [{**AlertOut.model_validate(a, from_attributes=True).model_dump(),
                "unit": unidades.get(str(getattr(a.alert_type, "value", a.alert_type)))} for a in items]
     return APIListResponse.ok(items=salida, total=total, page=page, page_size=page_size)

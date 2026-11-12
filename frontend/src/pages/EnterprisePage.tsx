@@ -8,7 +8,7 @@ import { extractErr, downloadBlob } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { usersApi, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi } from '../services/api'
+import { usersApi, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi, apiUrl } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -22,6 +22,80 @@ const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
+// ── Lo que pintan las pestañas (campos según su uso aquí) ────────────────────
+interface WebhookTrigger { id: string; name: string; endpoint: string; fire_count?: number }
+interface WebhookLog { id: string; status: string; received_at?: string; payload_preview?: string }
+interface Workflow { id: string; name: string }
+interface WebhookForm { name: string; slug: string; workflow_id: string }
+
+interface GdprRequest {
+  id: string
+  request_type: string
+  status: string
+  subject_name?: string | null
+  subject_email?: string | null
+  notes?: string | null
+  deadline?: string | null
+}
+interface GdprForm { request_type: string; subject_user_id: string; subject_email: string; notes: string }
+
+interface EmailTemplate { id: string; name: string; subject?: string; category?: string; is_system?: boolean }
+interface EmailCatalog { system?: EmailTemplate[]; custom?: EmailTemplate[] }
+interface EmailLog { id: string; status: string; to?: string; subject?: string; sent_at?: string | null; created_at?: string | null }
+interface SendEmailForm { to: string; subject: string; body_html: string; template_id: string }
+interface NewTemplateForm { name: string; subject: string; body_html: string; category: string }
+
+interface IntegrationField { key: string; label: string; type?: string; placeholder?: string }
+interface IntegrationCatalogEntry { type: string; label: string; icon: string; desc?: string; fields?: IntegrationField[] }
+interface OAuthIntegration {
+  id: string
+  name?: string | null
+  integration_type: string
+  is_active?: boolean
+  last_sync_at?: string | null
+  config?: string | Record<string, string> | null
+}
+interface IntegrationForm { name: string; access_token?: string; config: Record<string, string>; integration_type?: string }
+
+/** Detalle de error de FastAPI cuando es una lista de validación. */
+interface ValidationDetail { msg?: string }
+
+interface AuditEvent {
+  id?: string
+  created_at?: string | null
+  action: string
+  resource?: string | null
+  resource_name?: string | null
+  user_name?: string | null
+}
+
+interface ApiKey {
+  id: string
+  name: string
+  key_prefix?: string
+  scopes?: string[]
+  requests_today?: number
+  rate_limit_per_day?: number
+  last_used_at?: string | null
+}
+interface CreatedApiKey { key: string }
+interface ApiKeyForm { name: string; rate_limit_per_hour: number }
+
+interface SsoConfig {
+  id: string
+  provider: string
+  name?: string | null
+  oidc_client_id?: string | null
+  oidc_discovery_url?: string | null
+  oidc_scopes?: string | null
+  is_active?: boolean
+  default_role?: string | null
+  auto_create_users?: boolean
+  allowed_domains?: string | null
+  groups_claim?: string | null
+  role_mapping?: Record<string, string> | null
+}
+
 function WebhooksTab() {
   const traducir = useAppT()
   const qc = useQueryClient()
@@ -30,12 +104,12 @@ function WebhooksTab() {
   const [showLogs, setShowLogs] = useState<string|null>(null)
   const [form, setForm] = useState({ name:'', slug:'', workflow_id:'' })
 
-  const { data: triggers = [], isLoading } = useQuery({ queryKey:['wh-triggers'], queryFn:() => webhooksApi.list().then(r => r.data?.items ?? r.data ?? []) })
-  const { data: workflows = [] } = useQuery({ queryKey:['workflows-ent'], queryFn:() => autoWorkflowsApi.list().then(r => r.data) })
-  const { data: logs = [] } = useQuery({ queryKey:['wh-logs', showLogs], queryFn:() => webhooksApi.logs(showLogs).then(r => r.data), enabled:!!showLogs })
+  const { data: triggers = [], isLoading } = useQuery<WebhookTrigger[]>({ queryKey:['wh-triggers'], queryFn:() => webhooksApi.list().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: workflows = [] } = useQuery<Workflow[]>({ queryKey:['workflows-ent'], queryFn:() => autoWorkflowsApi.list().then(r => r.data) })
+  const { data: logs = [] } = useQuery<WebhookLog[]>({ queryKey:['wh-logs', showLogs], queryFn:() => webhooksApi.logs(showLogs).then(r => r.data), enabled:!!showLogs })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: (d: any) => webhooksApi.create(d),
+    mutationFn: (d: WebhookForm) => webhooksApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['wh-triggers'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -55,15 +129,15 @@ function WebhooksTab() {
       </div>
       {isLoading ? <Spinner /> : triggers.length === 0 ? (
         <EmptyState icon="🔗" title={traducir('enterprise.sin_webhooks')} description="Crea el primer webhook entrante para automatizaciones" />
-      ) : triggers.map((t: any) => (
+      ) : triggers.map(t => (
         <div key={t.id} style={{ ...card, padding:'14px 18px', marginBottom:10 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
-            <div style={{ minWidth:0 }}>
+            <div className="u-min0">
               <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:4 }}>{t.name}</div>
-              <code style={{ fontSize: "var(--text-xs)", background:'var(--surface-2)', padding:'2px 8px', borderRadius:4, color:'var(--text-2)' }}>POST /api/v1{t.endpoint}</code>
+              <code style={{ fontSize: "var(--text-xs)", background:'var(--surface-2)', padding:'2px 8px', borderRadius:4, color:'var(--text-2)' }}>POST {apiUrl(t.endpoint)}</code>
               <span style={{ marginLeft:12, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{t.fire_count} disparos</span>
             </div>
-            <div style={{ display:'flex', gap:8 }}>
+            <div className="u-row-8">
               <button onClick={() => setShowLogs(showLogs === t.id ? null : t.id)} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
                 {showLogs === t.id ? 'Ocultar' : 'Logs'}
               </button>
@@ -72,11 +146,11 @@ function WebhooksTab() {
           </div>
           {showLogs === t.id && (
             <div style={{ marginTop:10, borderTop:'.5px solid var(--surface-4)', paddingTop:8 }}>
-              {logs.length === 0 ? <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{traducir('enterprise.sin_llamadas_aun')}</div> :
-                logs.slice(0,5).map((l: any) => (
+              {logs.length === 0 ? <div className="u-text3-sm">{traducir('enterprise.sin_llamadas_aun')}</div> :
+                logs.slice(0,5).map(l => (
                   <div key={l.id} style={{ fontSize: "var(--text-xs)", padding:'3px 0', borderBottom:'.5px solid var(--surface-4)', display:'flex', gap:10 }}>
                     <span style={{ color: l.status === 'ok' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
-                    <span style={{ color:'var(--text-2)' }}>{l.received_at}</span>
+                    <span className="u-text2">{l.received_at}</span>
                     <span style={{ color:'var(--text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{l.payload_preview}</span>
                   </div>
                 ))
@@ -87,19 +161,19 @@ function WebhooksTab() {
       ))}
       {showCreate && (
         <Modal open title={traducir('enterprise.nuevo_webhook_2')} onClose={() => setShowCreate(false)} width={480}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>Slug (URL)</label><input value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" aria-label={traducir('enterprise.slug_del_webhook')} /></div>
             <div><label style={ls}>Workflow</label>
               <select value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} style={fs}>
                 <option value="">{traducir('enterprise.sin_workflow')}</option>
-                {workflows.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
             <div style={{ background:'var(--surface-2)', borderRadius:8, padding:'8px 12px', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
-              URL: <code>POST /api/v1/webhooks/fire/{form.slug || 'tu-slug'}</code>
+              URL: <code>POST {apiUrl(`/webhooks/fire/${form.slug || 'tu-slug'}`)}</code>
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => create(form)} disabled={isPending || !form.name || !form.slug}>Crear</Button>
             </div>
@@ -115,14 +189,14 @@ function GDPRTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ request_type:'erasure', subject_user_id:'', subject_email:'', notes:'' })
+  const [form, setForm] = useState<GdprForm>({ request_type:'erasure', subject_user_id:'', subject_email:'', notes:'' })
 
-  const { data: requests = [], isLoading } = useQuery({ queryKey:['gdpr'], queryFn:() => gdprApi.list().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: requests = [], isLoading } = useQuery<GdprRequest[]>({ queryKey:['gdpr'], queryFn:() => gdprApi.list().then(r => r.data?.items ?? r.data ?? []) })
   const { data: usersRaw = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list().then(r => r.data) })
   const users = Array.isArray(usersRaw) ? usersRaw : []
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: (d: any) => gdprApi.create(d),
+    mutationFn: (d: GdprForm) => gdprApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['gdpr'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -147,15 +221,15 @@ function GDPRTab() {
         <EmptyState icon="🔒" title={traducir('enterprise.sin_solicitudes_rgpd')} description="No hay solicitudes de privacidad registradas" />
       ) : (
         <div style={{ ...card, overflowX:'auto' }}>
-          {requests.map((r: any) => (
+          {requests.map(r => (
             <div key={r.id} style={{ display:'grid', gridTemplateColumns:'150px 120px 1fr 100px auto', gap:12, minWidth:640, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center' }}>
               <span style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{TYPE_LABELS[r.request_type] || r.request_type}</span>
               <span style={{ fontSize: "var(--text-sm)", fontWeight:500, color:STATUS_COLORS[r.status] || 'var(--text-2)' }}>{r.status}</span>
               <div>
                 <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{r.subject_name || r.subject_email || 'Sin identificar'}</div>
-                {r.notes && <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{r.notes}</div>}
+                {r.notes && <div className="u-text2-xs">{r.notes}</div>}
               </div>
-              <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{r.deadline}</span>
+              <span className="u-text2-sm">{r.deadline}</span>
               {r.status === 'pending' && <Button onClick={() => process(r.id)}>Procesar</Button>}
             </div>
           ))}
@@ -163,7 +237,7 @@ function GDPRTab() {
       )}
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_solicitud_rgpd')} onClose={() => setShowCreate(false)} width={480}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <div><label style={ls}>Tipo</label>
               <select value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} style={fs}>
                 <option value="erasure">{traducir('enterprise.derecho_al_olvido_art_17')}</option>
@@ -175,7 +249,7 @@ function GDPRTab() {
             <div><label style={ls}>Usuario</label>
               <select value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))} style={fs}>
                 <option value="">Seleccionar...</option>
-                {users.map((u: any) => <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>)}
+                {users.map(u => <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>)}
               </select>
             </div>
             <div><label style={ls}>{traducir('enterprise.email_si_ya_no_existe')}</label>
@@ -184,7 +258,7 @@ function GDPRTab() {
             <div><label style={ls}>Notas</label>
               <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} rows={3} style={{...fs, resize:'vertical'}} />
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => create(form)} disabled={isPending || (!form.subject_user_id && !form.subject_email)}>Crear</Button>
             </div>
@@ -201,24 +275,24 @@ function EmailTab() {
   const qc = useQueryClient()
   const [showSend, setShowSend] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
-  const [sendForm, setSendForm] = useState({ to:'', subject:'', body_html:'', template_id:'' })
-  const [newTpl, setNewTpl] = useState({ name:'', subject:'', body_html:'', category:'automation' })
+  const [sendForm, setSendForm] = useState<SendEmailForm>({ to:'', subject:'', body_html:'', template_id:'' })
+  const [newTpl, setNewTpl] = useState<NewTemplateForm>({ name:'', subject:'', body_html:'', category:'automation' })
 
-  const { data: catalog } = useQuery({ queryKey:['email-tpl'], queryFn:() => emailApi.catalog().then(r => r.data) })
-  const { data: logs = [] } = useQuery({ queryKey:['email-logs'], queryFn:() => emailApi.logs().then(r => r.data) })
+  const { data: catalog } = useQuery<EmailCatalog>({ queryKey:['email-tpl'], queryFn:() => emailApi.catalog().then(r => r.data) })
+  const { data: logs = [] } = useQuery<EmailLog[]>({ queryKey:['email-logs'], queryFn:() => emailApi.logs().then(r => r.data) })
 
   const { mutate: send, isPending:sending } = useMutation({
-    mutationFn: (d: any) => emailApi.send({...d, to:[d.to]}),
+    mutationFn: (d: SendEmailForm) => emailApi.send({...d, to:[d.to]}),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['email-logs'] }); setShowSend(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createTpl } = useMutation({
-    mutationFn: (d: any) => emailApi.createTemplate(d),
+    mutationFn: (d: NewTemplateForm) => emailApi.createTemplate(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['email-tpl'] }); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const allTpl = [...(((catalog as any)?.system) || []), ...(((catalog as any)?.custom) || [])]
+  const allTpl = [...(catalog?.system || []), ...(catalog?.custom || [])]
 
   return (
     <div>
@@ -229,9 +303,9 @@ function EmailTab() {
         <Button onClick={() => setShowSend(true)}>✉ Enviar email</Button>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap:20 }}>
-        <div style={{ minWidth:0 }}>
+        <div className="u-min0">
           <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Plantillas ({allTpl.length})</div>
-          {allTpl.map((t: any) => (
+          {allTpl.map(t => (
             <div key={t.id} style={{ ...card, padding:'12px 14px', marginBottom:8 }}>
               <div style={{ display:'flex', gap:6, marginBottom:4 }}>
                 <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>{t.category}</span>
@@ -246,12 +320,12 @@ function EmailTab() {
           <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>{traducir('enterprise.historial_de_envios')}</div>
           {logs.length === 0 ? <EmptyState icon="✉" title={traducir('enterprise.sin_historial_de_envios')} description="Todavia no se han enviado correos desde este modulo" /> : (
             <div style={{ ...card, overflow:'hidden' }}>
-              {logs.slice(0,15).map((l: any) => (
+              {logs.slice(0,15).map(l => (
                 <div key={l.id} style={{ display:'grid', gridTemplateColumns:'50px 1fr auto', gap:8, padding:'8px 14px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                   <span style={{ fontWeight:500, color: l.status === 'sent' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
                   <div>
                     <div style={{ fontWeight:500 }}>{l.to}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{l.subject}</div>
+                    <div className="u-text2-xs">{l.subject}</div>
                   </div>
                   <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', whiteSpace:'nowrap' }}>{(l.sent_at || l.created_at || '').slice(0,16)}</span>
                 </div>
@@ -262,19 +336,19 @@ function EmailTab() {
       </div>
       {showSend && (
         <Modal open title="Enviar email" onClose={() => setShowSend(false)} width={500}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <div><label style={ls}>{traducir('enterprise.para')}</label><input value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder="destinatario@empresa.com" aria-label="Destinatario" /></div>
             <div><label style={ls}>Plantilla</label>
               <select value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} style={fs}>
                 <option value="">{traducir('enterprise.sin_plantilla')}</option>
-                {allTpl.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {allTpl.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             {!sendForm.template_id && <>
               <div><label style={ls}>Asunto</label><input value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>HTML</label><textarea value={sendForm.body_html} onChange={e => setSendForm(f => ({...f, body_html:e.target.value}))} rows={4} style={{...fs, resize:'vertical'}} /></div>
             </>}
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowSend(false)}>Cancelar</Button>
               <Button onClick={() => send(sendForm)} disabled={sending || !sendForm.to}>{sending ? 'Enviando...' : 'Enviar'}</Button>
             </div>
@@ -283,7 +357,7 @@ function EmailTab() {
       )}
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_plantilla_de_email')} onClose={() => setShowCreate(false)} width={560}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <div><label style={ls}>Nombre</label><input value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>Asunto (usa {'{{variable}}'})</label><input value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>{traducir('enterprise.categoria')}</label>
@@ -292,7 +366,7 @@ function EmailTab() {
               </select>
             </div>
             <div><label style={ls}>{traducir('enterprise.html_del_cuerpo')}</label><textarea value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} style={{...fs, resize:'vertical'}} /></div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => createTpl(newTpl)} disabled={!newTpl.name || !newTpl.subject || !newTpl.body_html}>Crear</Button>
             </div>
@@ -307,18 +381,18 @@ function IntegrationsTab() {
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [configuring, setConfiguring] = useState<any>(null)
+  const [configuring, setConfiguring] = useState<IntegrationCatalogEntry | null>(null)
   const [testing, setTesting]         = useState<string|null>(null)
   const [testResult, setTestResult]   = useState<{ok:boolean;message:string}|null>(null)
-  const [form, setForm] = useState<{name:string; access_token:string; config:Record<string,string>; integration_type?:string}>({ name:'', access_token:'', config:{} })
+  const [form, setForm] = useState<IntegrationForm>({ name:'', access_token:'', config:{} })
 
-  const { data: integrations = [] } = useQuery({
+  const { data: integrations = [] } = useQuery<OAuthIntegration[]>({
     queryKey: ['integrations'],
     queryFn: () => oauthIntegrationsApi.list().then(r => r.data),
   })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: (d: any) => oauthIntegrationsApi.create(d),
+    mutationFn: (d: Omit<IntegrationForm, 'config'> & { config: string }) => oauthIntegrationsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); setConfiguring(null); toast.success('Integración guardada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -332,15 +406,15 @@ function IntegrationsTab() {
 
   const { mutate: sync } = useMutation({
     mutationFn: (id: string) => oauthIntegrationsApi.sync(id, {}),
-    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? ` · ${r.data.errors.length} con error` : ''}`) },
+    onSuccess: (r: { data?: { synced?: number; errors?: unknown[] } }) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? ` · ${r.data.errors.length} con error` : ''}`) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const testIntegration = async (integ: any) => {
+  const testIntegration = async (integ: OAuthIntegration) => {
     setTesting(integ.id)
     setTestResult(null)
     try {
-      const cfg = typeof integ.config === 'string' ? JSON.parse(integ.config || '{}') : (integ.config || {})
+      const cfg: Record<string, string> = typeof integ.config === 'string' ? JSON.parse(integ.config || '{}') : (integ.config || {})
       if (integ.integration_type === 'slack') {
         const res = await integrationsHubApi.testSlack({ webhook_url: cfg.webhook_url || '' })
         setTestResult({ ok: true, message: res.data.message })
@@ -358,14 +432,15 @@ function IntegrationsTab() {
       }
     } catch (e: unknown) {
       const _raw1 = (e as {response?:{data?:{detail?:unknown}}})?.response?.data?.detail
-      setTestResult({ ok: false, message: Array.isArray(_raw1) ? _raw1.map((d: any) => d.msg).join(', ') : ((_raw1 as string) || 'Error de conexión') })
+      setTestResult({ ok: false, message: Array.isArray(_raw1) ? _raw1.map((d: ValidationDetail) => d.msg).join(', ') : ((_raw1 as string) || 'Error de conexión') })
     } finally {
       setTesting(null)
     }
   }
 
 
-  const CATALOG: Array<{type:string; label:string; icon:string; desc?:string; fields?:Array<{key:string;label:string;type?:string;placeholder?:string}>}> = INTEGRATION_CATALOG as any
+  // El catálogo viene de la configuración de negocio sin tipar (`unknown`).
+  const CATALOG = INTEGRATION_CATALOG as IntegrationCatalogEntry[]
 
   const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
   const is: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
@@ -377,9 +452,9 @@ function IntegrationsTab() {
 
       {/* Integraciones activas */}
       {integrations.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb-20">
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Configuradas</div>
-          {integrations.map((integ: any) => {
+          {integrations.map(integ => {
             const cat = CATALOG.find((c) => c.type === integ.integration_type) || { icon: '🔗', label: integ.integration_type }
             return (
               <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
@@ -393,7 +468,7 @@ function IntegrationsTab() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className="u-row-6">
                   <button onClick={() => testIntegration(integ)} disabled={testing === integ.id}
                     style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                     {testing === integ.id ? '⟳' : '🔧 Probar'}
@@ -425,7 +500,7 @@ function IntegrationsTab() {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
         {CATALOG.map((cat) => (
-          <button key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} } as any) }}
+          <button key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} }) }}
             type="button"
             style={{ background: 'var(--surface-1)', border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
@@ -433,7 +508,7 @@ function IntegrationsTab() {
           >
             <div style={{ fontSize: "var(--text-2xl)", marginBottom: 6 }}>{cat.icon}</div>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 3 }}>{cat.label}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{cat.desc}</div>
+            <div className="u-text2-xs">{cat.desc}</div>
           </button>
         ))}
       </div>
@@ -449,7 +524,7 @@ function IntegrationsTab() {
               <label style={ls}>{traducir('enterprise.nombre_de_la_integracion')}</label>
               <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={is} />
             </div>
-            {configuring.fields?.map((field: any) => (
+            {configuring.fields?.map(field => (
               <div key={field.key}>
                 <label style={ls}>{field.label}</label>
                 <input
@@ -462,7 +537,7 @@ function IntegrationsTab() {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setConfiguring(null)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <button onClick={() => create({ ...form, integration_type: configuring.type, config: JSON.stringify(form.config) })}
               disabled={isPending}
@@ -518,7 +593,7 @@ function CadenaDeAuditoria() {
     <div style={{ ...card, padding: '14px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{t('enterprise.cadena_titulo')}</div>
+          <div className="u-md-700">{t('enterprise.cadena_titulo')}</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{t('enterprise.cadena_ayuda')}</div>
         </div>
         <Button size="sm" onClick={() => verificar()} disabled={!!ocupado}>{ocupado === 'verificar' ? '…' : t('enterprise.cadena_verificar')}</Button>
@@ -558,15 +633,15 @@ function CadenaDeAuditoria() {
 
 function AuditTab() {
   const traducir = useAppT()
-  const { data: logs = [] } = useQuery({
+  const { data: logs = [] } = useQuery<AuditEvent[]>({
     queryKey: ['audit-ent'],
     queryFn: () => enterpriseApi.auditLog({page:1,page_size:50}).then(r => r.data?.logs || []).catch(() => []),
   })
-  const { data: resetRequestLogs = [] } = useQuery({
+  const { data: resetRequestLogs = [] } = useQuery<AuditEvent[]>({
     queryKey: ['audit-ent-reset-request'],
     queryFn: () => enterpriseApi.auditLog({page:1,page_size:20,action:'PASSWORD_RESET_REQUEST'}).then(r => r.data?.logs || []).catch(() => []),
   })
-  const { data: resetCompleteLogs = [] } = useQuery({
+  const { data: resetCompleteLogs = [] } = useQuery<AuditEvent[]>({
     queryKey: ['audit-ent-reset-complete'],
     queryFn: () => enterpriseApi.auditLog({page:1,page_size:20,action:'PASSWORD_RESET_COMPLETE'}).then(r => r.data?.logs || []).catch(() => []),
   })
@@ -600,12 +675,12 @@ function AuditTab() {
           {traducir('enterprise.eventos_de_recuperacion_de_contrasena')}
         </div>
         {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>{traducir('enterprise.sin_eventos_de_recuperacion')}</div> :
-          passwordResetLogs.map((l: any, i: number) => (
+          passwordResetLogs.map((l, i) => (
             <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, minWidth:700, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
               <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
               <span style={{ fontWeight:600, color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--success)' : 'var(--accent)' }}>{l.action}</span>
-              <span style={{ color:'var(--text-2)' }}>{l.resource_name || l.resource || '-'}</span>
-              <span style={{ color:'var(--text-3)' }}>{l.user_name||''}</span>
+              <span className="u-text2">{l.resource_name || l.resource || '-'}</span>
+              <span className="u-text3">{l.user_name||''}</span>
             </div>
           ))
         }
@@ -616,12 +691,12 @@ function AuditTab() {
           Audit log general (ultimos 30)
         </div>
       {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>{traducir('enterprise.sin_entradas_en_el_audit_log')}</div> :
-        logs.slice(0,30).map((l: any, i: number) => (
+        logs.slice(0,30).map((l, i) => (
           <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, minWidth:700, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
             <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
             <span style={{ fontWeight:500 }}>{l.action}</span>
-            <span style={{ color:'var(--text-2)' }}>{l.resource} {l.resource_name||''}</span>
-            <span style={{ color:'var(--text-3)' }}>{l.user_name||''}</span>
+            <span className="u-text2">{l.resource} {l.resource_name||''}</span>
+            <span className="u-text3">{l.user_name||''}</span>
           </div>
         ))
       }
@@ -635,13 +710,13 @@ function APIKeysTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [newKey, setNewKey] = useState<any>(null)
-  const [form, setForm] = useState({ name:'', rate_limit_per_hour:1000 })
+  const [newKey, setNewKey] = useState<CreatedApiKey | null>(null)
+  const [form, setForm] = useState<ApiKeyForm>({ name:'', rate_limit_per_hour:1000 })
 
-  const { data: keys = [] } = useQuery({ queryKey:['api-keys'], queryFn:() => apiKeysApi.list().then(r => r.data) })
+  const { data: keys = [] } = useQuery<ApiKey[]>({ queryKey:['api-keys'], queryFn:() => apiKeysApi.list().then(r => r.data) })
   const { mutate: create } = useMutation({
-    mutationFn: (d: any) => apiKeysApi.create({ ...d, scopes:['read'] }).then(r => r.data),
-    onSuccess: (data: any) => { qc.invalidateQueries({ queryKey: ['api-keys'] }); setNewKey(data); setShowCreate(false) },
+    mutationFn: (d: ApiKeyForm) => apiKeysApi.create({ ...d, scopes:['read'] }).then(r => r.data),
+    onSuccess: (data: CreatedApiKey) => { qc.invalidateQueries({ queryKey: ['api-keys'] }); setNewKey(data); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: revoke } = useMutation({
@@ -664,15 +739,15 @@ function APIKeysTab() {
       )}
       {keys.length === 0 ? <EmptyState icon="🗝" title={traducir('enterprise.sin_api_keys')} description="Genera una clave para integraciones externas" /> : (
         <div style={{ ...card, overflowX:'auto' }}>
-          {keys.map((k: any) => (
+          {keys.map(k => (
             <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, minWidth:620, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center', fontSize: "var(--text-sm)" }}>
               <div>
                 <div style={{ fontWeight:500 }}>{k.name}</div>
-                <code style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{k.key_prefix}...</code>
+                <code className="u-text2-xs">{k.key_prefix}...</code>
               </div>
-              <span style={{ color:'var(--text-2)' }}>{(k.scopes||[]).join(', ')}</span>
-              <span style={{ color:'var(--text-2)' }}>{k.requests_today||0}/{k.rate_limit_per_day} hoy</span>
-              <span style={{ color:'var(--text-3)' }}>{k.last_used_at || 'Nunca usado'}</span>
+              <span className="u-text2">{(k.scopes||[]).join(', ')}</span>
+              <span className="u-text2">{k.requests_today||0}/{k.rate_limit_per_day} hoy</span>
+              <span className="u-text3">{k.last_used_at || 'Nunca usado'}</span>
               <button onClick={() => { openConfirmGlobal({ message: 'Revocar clave?', onConfirm: () => revoke(k.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'3px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>Revocar</button>
             </div>
           ))}
@@ -680,10 +755,10 @@ function APIKeysTab() {
       )}
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_api_key_2')} onClose={() => setShowCreate(false)} width={420}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="u-stack-14">
             <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder={traducir('enterprise.nombre_de_la_clave')} aria-label={traducir('enterprise.nombre_de_la_clave')} /></div>
             <div><label style={ls}>{traducir('enterprise.limite_por_hora')}</label><input type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} style={fs} /></div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => create(form)} disabled={!form.name}>Crear</Button>
             </div>
@@ -725,23 +800,23 @@ function SSOTab() {
     return datos
   }
 
-  const { data: configs = [] } = useQuery({
+  const { data: configs = [] } = useQuery<SsoConfig[]>({
     queryKey: ['sso-cfg'],
     queryFn: () => enterpriseApi.ssoList().then(r => r.data).catch(() => []),
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: (d: any) => (editId ? enterpriseApi.ssoUpdate(editId, d) : enterpriseApi.ssoCreate(d)),
+    mutationFn: (d: Record<string, unknown>) => (editId ? enterpriseApi.ssoUpdate(editId, d) : enterpriseApi.ssoCreate(d)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); setShowCreate(false); setEditId(null); setForm(VACIO); toast.success('SSO guardado') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: toggle } = useMutation({
-    mutationFn: (c: any) => enterpriseApi.ssoUpdate(c.id, { is_active: !c.is_active }),
+    mutationFn: (c: SsoConfig) => enterpriseApi.ssoUpdate(c.id, { is_active: !c.is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sso-cfg'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const editar = (c: any) => {
+  const editar = (c: SsoConfig) => {
     setEditId(c.id)
     setForm({
       ...VACIO, provider: c.provider, name: c.name || '', oidc_client_id: c.oidc_client_id || '',
@@ -766,7 +841,7 @@ function SSOTab() {
       setTestResult(res.data)
     } catch (e: unknown) {
       const _raw2 = (e as {response?:{data?:{detail?:unknown}}})?.response?.data?.detail
-      const _msg2 = Array.isArray(_raw2) ? _raw2.map((d: any) => d.msg).join(', ') : ((_raw2 as string) || 'Error de conexión')
+      const _msg2 = Array.isArray(_raw2) ? _raw2.map((d: ValidationDetail) => d.msg).join(', ') : ((_raw2 as string) || 'Error de conexión')
       setTestResult({ valid: false, issues: [_msg2] })
     }
   }
@@ -785,9 +860,9 @@ function SSOTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>Single Sign-On (SSO)</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Configura Azure AD / Entra ID, Okta, Google o cualquier proveedor OpenID Connect</div>
+        <div className="u-min0">
+          <div className="u-md-700">Single Sign-On (SSO)</div>
+          <div className="u-text2-sm">Configura Azure AD / Entra ID, Okta, Google o cualquier proveedor OpenID Connect</div>
         </div>
         <button onClick={() => { setShowCreate(s => !s); setEditId(null); setForm(VACIO) }} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
           {showCreate ? '✕ Cancelar' : '+ Añadir proveedor'}
@@ -799,9 +874,9 @@ function SSOTab() {
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--purple)', marginBottom: 8 }}>{traducir('enterprise.como_integrar_sso')}</div>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.7 }}>
           {traducir('enterprise.1_registra_contecflow_como_aplicacion_en_tu')}<br/>
-          {traducir('enterprise.2_configura_el')} <strong style={{ color: 'var(--text-1)' }}>Redirect URI</strong>: <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4 }}>{window.location.origin}/login</code><br/>
+          {traducir('enterprise.2_configura_el')} <strong className="u-text1">Redirect URI</strong>: <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4 }}>{window.location.origin}/login</code><br/>
           {traducir('enterprise.3_copia_el_client_id_y_client')}<br/>
-          {traducir('enterprise.4_anade_el_boton_de_login_sso')} <strong style={{ color: 'var(--text-1)' }}>Ajustes {'>'} Seguridad</strong>.
+          {traducir('enterprise.4_anade_el_boton_de_login_sso')} <strong className="u-text1">Ajustes {'>'} Seguridad</strong>.
         </div>
       </div>
 
@@ -831,7 +906,7 @@ function SSOTab() {
               <label style={labelStyle}>Client Secret *</label>
               <input type="password" value={form.oidc_client_secret} onChange={e => setForm(f=>({...f,oidc_client_secret:e.target.value}))} style={inputStyle} />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="u-col-full">
               <label style={labelStyle}>Discovery URL (OpenID Connect)</label>
               <input value={form.oidc_discovery_url} onChange={e => setForm(f=>({...f,oidc_discovery_url:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.discovery} />
             </div>
@@ -853,7 +928,7 @@ function SSOTab() {
               <label style={labelStyle}>{traducir('enterprise.sso_claim_grupos')}</label>
               <input value={form.groups_claim} onChange={e => setForm(f=>({...f,groups_claim:e.target.value}))} style={inputStyle} />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="u-col-full">
               <label style={labelStyle}>{traducir('enterprise.sso_mapeo')}</label>
               <textarea rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} />
             </div>
@@ -866,7 +941,7 @@ function SSOTab() {
               {traducir('enterprise.sso_activo')}
             </label>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <button onClick={() => create(aPayload(form))} disabled={creating || !form.oidc_client_id} style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-border-strong)', borderRadius: 7, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
               {creating ? '⟳ Guardando...' : '✓ Guardar SSO'}
@@ -880,10 +955,10 @@ function SSOTab() {
         <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
           <div style={{ fontSize: "var(--text-4xl)", marginBottom: 10 }}>🔑</div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>{traducir('enterprise.sin_sso_configurado')}</div>
-          <div style={{ fontSize: "var(--text-sm)" }}>{traducir('enterprise.anade_azure_ad_okta_o_google_para')}</div>
+          <div className="u-sm">{traducir('enterprise.anade_azure_ad_okta_o_google_para')}</div>
         </div>
       ) : (
-        configs.map((c: any) => {
+        configs.map(c => {
           const info = PROVIDER_INFO[c.provider] || { icon: '🔑', label: c.provider }
           return (
             <div key={c.id} style={cardStyle}>
@@ -891,8 +966,8 @@ function SSOTab() {
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                   <span style={{ fontSize: "var(--text-2xl)" }}>{info.icon}</span>
                   <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.name || info.label}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                    <div className="u-md-700">{c.name || info.label}</div>
+                    <div className="u-text2-xs">
                       Client ID: {c.oidc_client_id?.slice(0,8)}...
                       {c.is_active
                         ? <span style={{ marginLeft: 8, color: 'var(--success)' }}>● Activo</span>
@@ -903,7 +978,7 @@ function SSOTab() {
                     )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div className="u-wrap-6">
                   <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                     {c.is_active ? traducir('enterprise.sso_desactivar') : traducir('enterprise.sso_activar')}
                   </button>

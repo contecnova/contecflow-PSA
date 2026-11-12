@@ -65,7 +65,6 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/auth/sso/{config_id}/callback"): "callback del IdP",
     ("POST", "/api/v1/portal/auth/login"): "emite el token de portal",
     ("POST", "/api/v1/portal/auth/logout"): "revoca sesión de portal",
-    ("POST", "/api/v1/bookings/api-keys/verify"): "verificación de API key (rate-limit aparte)",
     # ── OAuth2 como proveedor (developer portal) ─────────────────────────────
     ("POST", "/api/v1/developer/token"): "token endpoint OAuth2: autentica por client_credentials",
     ("POST", "/api/v1/developer/token/revoke"): "revocación OAuth2: autentica por el propio token",
@@ -73,6 +72,7 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/collaboration/integrations/oauth/callback"): "callback OAuth de integración",
     # ── Webhooks entrantes: firmados con HMAC dentro del handler ─────────────
     ("POST", "/api/v1/git/webhooks/github"): "HMAC de GitHub",
+    ("POST", "/api/v1/invoices/stripe/webhook"): "firma Stripe-Signature (payments_service)",
     ("POST", "/api/v1/git/webhooks/gitlab"): "token de GitLab",
     ("POST", "/api/v1/git/webhooks/github/{slug}"): "HMAC de GitHub con el secreto de esa empresa",
     ("POST", "/api/v1/git/webhooks/gitlab/{slug}"): "token de GitLab con el secreto de esa empresa",

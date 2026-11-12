@@ -23,6 +23,13 @@ const LS_STYLE = LABEL_STYLE as CSSProperties
 
 type TicketShape = { [k: string]: unknown; id: string; number?: string | number; title?: string; description?: string; status?: string }
 
+/** Enlace entre tickets (`GET /sd/tickets/{id}/links`). */
+interface TicketLink { link_id: string; link_type: string; ticket_number?: string; ticket_title?: string; ticket_status?: string }
+interface TicketComment { id: string; author_name?: string; is_public?: boolean; created_at?: string; body?: string }
+interface TicketHistoryEntry { change_description?: string | null; field_name?: string; old_value?: unknown; new_value?: unknown; changed_at?: string }
+/** Contrato de ALM usado como contrato de soporte (UC). */
+interface UcContract { id: string; title?: string; vendor_name?: string | null; status?: string; response_hours?: number | null; resolution_hours?: number | null }
+
 // ── CannedResponsePicker ──────────────────────────────────────────────────────
 interface CannedResponse {
   id: string; title?: string; body?: string; category?: string; shortcut?: string
@@ -114,9 +121,9 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
   }
   return (
     <Modal open title={`✂ Dividir ticket ${ticket?.number}`} onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         <div style={{ padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-          {t('service_desk.split_desc_original')} <strong style={{ color: 'var(--text-1)' }}>{ticket?.number}</strong>.
+          {t('service_desk.split_desc_original')} <strong className="u-text1">{ticket?.number}</strong>.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
@@ -136,7 +143,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
           <label style={LS}>{t('service_desk.split_desc_original')}</label>
           <textarea value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} style={{ ...IS, resize: 'vertical' }} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSave} disabled={isPending || !form.new_title.trim()} loading={isPending}>✂ {t('service_desk.split_create_btn')}</Button>
         </div>
@@ -172,7 +179,7 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
   return (
     <Modal open title={`${t('common.edit')} ${ticket.number}`} onClose={onClose} size="lg">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, maxHeight: '75vh', overflowY: 'auto', paddingRight: 4 }}>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={LS}>{t('service_desk.ticket_title')} *</label>
           <input value={form.title} onChange={set('title')} style={IS} />
         </div>
@@ -213,17 +220,17 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={LS}>{t('common.description')} *</label>
           <AIInlineEditor value={form.description} onChange={(val: string) => set('description')({ target: { value: val } })} rows={5} style={{ ...IS, resize: 'vertical' }} />
         </div>
         {['resolved', 'closed'].includes(form.status) && (
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="u-col-full">
             <label style={LS}>{t('service_desk.edit_resolution')}</label>
             <textarea value={form.resolution} onChange={set('resolution')} rows={3} style={{ ...IS, resize: 'vertical' }} />
           </div>
         )}
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={LS}>{t('service_desk.edit_tags')}</label>
           <input value={form.tags} onChange={set('tags')} style={IS} />
         </div>
@@ -246,7 +253,7 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
             {t('common.save')}
           </Button>
         </div>
-        <div style={{ gridColumn: '1/-1' }}>
+        <div className="u-col-full">
           <label style={LS}>{t('ticketdetail.campos_dinamicos_json')}</label>
           <textarea value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} style={{ ...IS, resize: 'vertical', fontFamily: 'var(--font-mono)' }} />
         </div>
@@ -297,7 +304,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
   })
-  const { data: links = [] } = useQuery({
+  const { data: links = [] } = useQuery<TicketLink[]>({
     queryKey: ['sd-ticket-links', ticketId],
     queryFn: () => ticketsApi.links(ticketId).then(r => r.data),
     enabled: !!ticketId,
@@ -314,7 +321,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     queryKey: ['alm-contracts'],
     queryFn: () => almExtApi.contracts().then(r => r.data ?? []),
     enabled: conUc,
-    select: (cs: any[]) => cs.filter(c => (c.resolution_hours > 0 || c.response_hours > 0) && c.status === 'active'),
+    select: (cs: UcContract[]) => cs.filter(c => (c.resolution_hours > 0 || c.response_hours > 0) && c.status === 'active'),
   })
   const { mutate: anotarRespuesta, isPending: anotando } = useMutation({
     mutationFn: () => ticketsApi.update(ticketId, { uc_vendor_responded: true }),
@@ -408,7 +415,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             {isLoading ? <Spinner /> : <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 700 }}>{ticket?.number}</span>
-                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{ticket?.type_label}</span>
+                <span className="u-text3-xs">{ticket?.type_label}</span>
                 <PBadge v={ticket?.priority} />
                 <SBadge v={ticket?.status} />
               </div>
@@ -463,8 +470,8 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               {(ticket.fulfillment_tasks as { id: string; number: string; title: string; status: string; group_name?: string; assignee_name?: string }[]).map(ft => (
                 <div key={ft.id} style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
                   <a href={`/service-desk?ticket=${ft.id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{ft.number}</a>
-                  <span style={{ flex: 1 }}>{ft.title.split(' · ').slice(1).join(' · ') || ft.title}</span>
-                  <span style={{ color: 'var(--text-3)' }}>{ft.group_name}{ft.assignee_name ? ` · ${ft.assignee_name}` : ''}</span>
+                  <span className="u-flex1">{ft.title.split(' · ').slice(1).join(' · ') || ft.title}</span>
+                  <span className="u-text3">{ft.group_name}{ft.assignee_name ? ` · ${ft.assignee_name}` : ''}</span>
                   <SBadge v={ft.status} />
                 </div>
               ))}
@@ -521,7 +528,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 <select id="uc-contrato" value={ticket.uc_contract_id ?? ''} onChange={e => e.target.value && elegirUc(e.target.value)}
                   style={{ ...IS_STYLE, padding: '6px 10px' }}>
                   <option value="">{contratosUc.length ? t('sd_cfg.uc_choose') : t('sd_cfg.uc_none')}</option>
-                  {contratosUc.map((c: any) => (
+                  {contratosUc.map(c => (
                     <option key={c.id} value={c.id}>{c.vendor_name ? `${c.vendor_name} · ` : ''}{c.title} ({[c.response_hours && t('sd_cfg.uc_resp_h', { n: c.response_hours }), c.resolution_hours && t('sd_cfg.uc_hours', { n: c.resolution_hours })].filter(Boolean).join(' / ')})</option>
                   ))}
                 </select>
@@ -549,7 +556,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           </div>
 
           {/* Reasignar */}
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <button onClick={() => setEditAssign(e => !e)} style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
               {editAssign ? '▼' : '▶'} Reasignar ticket
             </button>
@@ -564,7 +571,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           </div>
 
           {/* Descripción */}
-          <div style={{ marginBottom: 20 }}>
+          <div className="u-mb-20">
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('common.description')}</div>
             <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.6, whiteSpace: 'pre-wrap', background: 'var(--surface-2)', borderRadius: 8, padding: '12px 14px' }}>
               {ticket.description}
@@ -572,7 +579,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           </div>
 
           {ticket.dynamic_fields && Object.keys(ticket.dynamic_fields).length > 0 && (
-            <div style={{ marginBottom: 20 }}>
+            <div className="u-mb-20">
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
                 {t('ticketdetail.campos_dinamicos')}
               </div>
@@ -588,7 +595,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           )}
 
           {ticket.resolution && (
-            <div style={{ marginBottom: 20 }}>
+            <div className="u-mb-20">
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.success, marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.edit_resolution')}</div>
               <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: alpha(COLOR.success, '08'), border: `1px solid ${alpha(COLOR.success, '20')}`, borderRadius: 8, padding: '12px 14px', lineHeight: 1.5 }}>
                 {ticket.resolution}
@@ -597,11 +604,11 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           )}
 
           {links.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
+            <div className="u-mb-20">
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
                 {t('service_desk.detail_linked')} ({links.length})
               </div>
-              {links.map((lk: any) => (
+              {links.map(lk => (
                 <div key={lk.link_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                   <span style={{ color: 'var(--text-3)', fontSize: "var(--text-2xs)", textTransform: 'uppercase', minWidth: 70 }}>{lk.link_type}</span>
                   <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{lk.ticket_number}</span>
@@ -613,9 +620,9 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           )}
 
           {/* Time logging */}
-          <div style={{ marginBottom: 20 }}>
+          <div className="u-mb-20">
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.detail_log_time')}</div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-row-8">
               <input type="number" aria-label={t('service_desk.detail_time_spent')} placeholder={t('service_desk.detail_time_spent')} value={timeMin} onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex: 1 }} />
               <select value={timeUnit} onChange={e => setTimeUnit(e.target.value)} style={{ ...IS, width: 120 }}>
                 <option value="minutes">min</option>
@@ -631,19 +638,19 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           </div>
 
           {/* Comments */}
-          <div style={{ marginBottom: 20 }}>
+          <div className="u-mb-20">
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 12, textTransform: 'uppercase' }}>
               {t('common.description')} ({(ticket.comments || []).length})
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-              {(ticket.comments || []).map((c: any) => (
+              {(ticket.comments || []).map((c: TicketComment) => (
                 <div key={c.id} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>
                       {c.author_name}
                       {c.is_public === false && <span style={{ marginLeft: 8, fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--warning)' }}>{t('service_desk.internal_note')}</span>}
                     </span>
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{fmtDate(c.created_at)}</span>
+                    <span className="u-text3-xs">{fmtDate(c.created_at)}</span>
                   </div>
                   <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.body}</div>
                 </div>
@@ -680,15 +687,15 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           </div>
 
           <SeguirYFusionar ticketId={ticketId} />
-          <div style={{ marginBottom: 20 }}><DocumentsPanel ticketId={ticketId} /></div>
-          <div style={{ marginBottom: 20 }}><DocumentosDeFicha ficha="ticket" id={ticketId} sugerir /></div>
-          <div style={{ marginBottom: 20 }}><LeccionesDeOrigen origen="ticket" id={ticketId} cerrado={['resolved', 'closed'].includes(String(ticket?.status))} /></div>
+          <div className="u-mb-20"><DocumentsPanel ticketId={ticketId} /></div>
+          <div className="u-mb-20"><DocumentosDeFicha ficha="ticket" id={ticketId} sugerir /></div>
+          <div className="u-mb-20"><LeccionesDeOrigen origen="ticket" id={ticketId} cerrado={['resolved', 'closed'].includes(String(ticket?.status))} /></div>
 
           {(ticket.history || []).length > 0 && (
             <div>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>{t('service_desk.detail_history')}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {ticket.history.slice(-8).reverse().map((h: any, i: number) => (
+              <div className="u-stack-6">
+                {ticket.history.slice(-8).reverse().map((h: TicketHistoryEntry, i: number) => (
                   <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '5px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between' }}>
                     <span>{h.change_description || `${h.field_name}: ${h.old_value} → ${h.new_value}`}</span>
                     <span style={{ color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 10 }}>{fmtDate(h.changed_at)}</span>
@@ -709,12 +716,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
       )}
       {resolviendo && ticket && (
         <Modal open title={`${t('sd_cfg.qa_resolve')} ${ticket.number}`} onClose={() => setResolviendo(false)}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="u-stack-12">
             <label htmlFor="sd-resolucion" style={LABEL_STYLE}>{t('sd_cfg.qa_resolution')}</label>
             <textarea id="sd-resolucion" aria-label={t('sd_cfg.qa_resolution')} value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)}
               rows={5} style={{ ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }} autoFocus />
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('sd_cfg.qa_resolution_hint')}</div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <div className="u-text3-xs">{t('sd_cfg.qa_resolution_hint')}</div>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResolviendo(false)}>{t('common.cancel')}</Button>
               <Button disabled={!textoResolucion.trim()} onClick={() => {
                 updateTicket({ status: 'resolved', resolution: textoResolucion.trim() })
@@ -765,19 +772,19 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
     <div role="status" style={{ border: `1px solid ${alpha(color, '60')}`, background: alpha(color, '12'), borderRadius: 10,
       padding: '12px 16px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color }}>{texto}</div>
-      {a.comment && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{a.comment}</div>}
+      {a.comment && <div className="u-text2-sm">{a.comment}</div>}
       {puedeDecidir && !rechazando && (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="u-row-8">
           <Button onClick={() => decidir.mutate({ decision: 'approved' })} loading={decidir.isPending}>{t('sd_cfg.apr_approve')}</Button>
           <Button variant="secondary" onClick={() => setRechazando(true)}>{t('sd_cfg.apr_reject')}</Button>
         </div>
       )}
       {puedeDecidir && rechazando && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-stack-8">
           <label htmlFor="apr-motivo" style={LABEL_STYLE}>{t('sd_cfg.apr_reason')}</label>
           <textarea id="apr-motivo" aria-label={t('sd_cfg.apr_reason')} value={motivo} onChange={e => setMotivo(e.target.value)} rows={3}
             style={{ ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }} autoFocus />
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="u-row-8">
             <Button variant="secondary" onClick={() => setRechazando(false)}>{t('common.cancel')}</Button>
             <Button disabled={!motivo.trim()} loading={decidir.isPending}
               onClick={() => decidir.mutate({ decision: 'rejected', comment: motivo.trim() })}>{t('sd_cfg.apr_reject')}</Button>
@@ -813,11 +820,11 @@ function ApoyoDeLaSugerencia({ s }: { s: Sugerencia }) {
         <div>
           <div style={titulo}>{t('sd_cfg.ai_documents')}</div>
           {s.documents_error ? <div style={{ color: COLOR.warning }}>{s.documents_error}</div>
-            : (s.documents ?? []).length === 0 ? <div style={{ color: 'var(--text-3)' }}>{t('sd_cfg.ai_no_documents')}</div>
+            : (s.documents ?? []).length === 0 ? <div className="u-text3">{t('sd_cfg.ai_no_documents')}</div>
             : (s.documents ?? []).map(d => (
               <div key={d.document_id} style={{ marginBottom: 4 }}>
                 <strong>{d.title}</strong>
-                <div style={{ color: 'var(--text-2)' }}>{d.snippet}</div>
+                <div className="u-text2">{d.snippet}</div>
               </div>
             ))}
         </div>

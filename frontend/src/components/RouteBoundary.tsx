@@ -59,6 +59,8 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
         ts: new Date().toISOString(),
       }
       if (typeof fetch === 'function') {
+        // fetch directo a propósito: informe con `keepalive` desde un error boundary, fuera de /api/v1 y sin depender de los interceptores del cliente (un 401 aquí no debe disparar el refresco de sesión).
+        // eslint-disable-next-line no-restricted-syntax
         fetch('/api/logs/frontend-error', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -128,7 +130,7 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
             style={{
               padding: '8px 18px',
               background: 'var(--accent)',
-              color: '#fff',
+              color: 'var(--on-accent-light)',
               border: 'none',
               borderRadius: 8,
               cursor: 'pointer',

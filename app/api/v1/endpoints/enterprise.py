@@ -41,7 +41,7 @@ def verify_audit_chain(
     expected_seq: Optional[int] = Query(None, ge=1), expected_hash: Optional[str] = Query(None, max_length=64),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
-    from app.services import cadena_auditoria
+    from app.db import cadena_auditoria
     esperada = {"seq": expected_seq, "entry_hash": expected_hash} if expected_seq and expected_hash else None
     return APIResponse.ok(data=cadena_auditoria.verificar(db, current_user.organization_id, esperada))
 
@@ -50,14 +50,7 @@ def verify_audit_chain(
 def export_audit_chain(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     import json as _json
     from fastapi.responses import Response
-    from app.services import cadena_auditoria
-    from app.services.audit import audit_log
-    from app.services.settings_service import get_runtime_int
-    limite = int(get_runtime_int(db, "AUDIT_EXPORT_MAX_ROWS", current_user.organization_id) or 0) or 1
-    doc = cadena_auditoria.exportar(db, current_user.organization_id, limite)
-    audit_log(db, current_user, "EXPORT", "audit_chain", resource_name="signed export",
-              metadata={"rows": len(doc["entries"]), "head": doc["head"], "ok": doc["verification"]["ok"]})
-    db.commit()
+    doc = _svc.exportar_cadena_de_auditoria(db, current_user)
     nombre = f"audit-chain-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}.json"
     return Response(_json.dumps(doc, ensure_ascii=False, indent=1), media_type="application/json",
                     headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
@@ -65,7 +58,7 @@ def export_audit_chain(db: Session = Depends(get_db), current_user: User = Depen
 
 @router.get("/audit-log/chain/public-key", summary="Clave pública (PEM) que firma las exportaciones del registro")
 def audit_chain_public_key(current_user: User = Depends(require_admin)):
-    from app.services import cadena_auditoria
+    from app.db import cadena_auditoria
     return APIResponse.ok(data={"public_key_pem": cadena_auditoria.clave_publica_pem(), "alg": "Ed25519"})
 
 

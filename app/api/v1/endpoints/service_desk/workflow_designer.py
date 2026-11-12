@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -23,23 +23,23 @@ from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
-from app.models.workflow_designer import WorkflowRunStatus
 from app.services.service_desk.workflow_designer_service import (
     NODE_CATALOG,
     PROCESS_TYPES,
-    add_blueprint_version,
-    archive_blueprint,
+    anadir_version_confirmada,
+    archivar_blueprint_confirmado,
     blueprint_propio,
     builtin_templates,
-    create_blueprint,
-    exigir_grafo_valido,
-    grafo_de_cabecera,
-    publish_version,
+    cancelar_ejecucion,
+    clonar_blueprint_confirmado,
+    crear_blueprint_confirmado,
+    iniciar_ejecucion,
+    publicar_version_confirmada,
+    reanudar_ejecucion,
     run_propio,
     serialize_blueprint,
     serialize_version,
     validate_graph,
-    version_del_blueprint,
 )
 from app.services.service_desk.workflow_designer_service import (
     list_blueprints as svc_list_blueprints,
@@ -104,19 +104,13 @@ def create_workflow_blueprint(
     payload: BlueprintCreateIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    exigir_grafo_valido(payload.graph)
-
-    bp = create_blueprint(
-        db,
+    bp = crear_blueprint_confirmado(
+        db, current_user,
         name=payload.name,
         process_type=payload.process_type,
         graph=payload.graph,
-        created_by_user_id=current_user.id,
         description=payload.description,
-        organization_id=current_user.organization_id,
     )
-    db.commit()
-    db.refresh(bp)
     return APIResponse.ok(data=serialize_blueprint(bp))
 
 
@@ -136,11 +130,7 @@ def create_blueprint_version(
     payload: BlueprintVersionIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    bp = blueprint_propio(db, current_user, blueprint_id)
-    exigir_grafo_valido(payload.graph)
-    version = add_blueprint_version(db, bp, payload.graph, current_user.id)
-    db.commit()
-    db.refresh(version)
+    version = anadir_version_confirmada(db, current_user, blueprint_id, payload.graph)
     return APIResponse.ok(data=serialize_version(version))
 
 
@@ -150,10 +140,7 @@ def publish_blueprint_version(
     version: int,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    bp = blueprint_propio(db, current_user, blueprint_id)
-    target = version_del_blueprint(db, bp, version)
-    publish_version(db, bp, target)
-    db.commit()
+    publicar_version_confirmada(db, current_user, blueprint_id, version)
     return APIResponse.ok(data={"ok": True, "blueprint_id": blueprint_id, "published_version": version})
 
 
@@ -163,19 +150,7 @@ def clone_blueprint(
     payload: BlueprintCloneIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    src = blueprint_propio(db, current_user, blueprint_id)
-    graph = grafo_de_cabecera(src)
-    bp = create_blueprint(
-        db,
-        name=payload.name,
-        process_type=src.process_type,
-        graph=graph,
-        created_by_user_id=current_user.id,
-        description=src.description,
-        organization_id=current_user.organization_id,
-    )
-    db.commit()
-    db.refresh(bp)
+    bp = clonar_blueprint_confirmado(db, current_user, blueprint_id, payload.name)
     return APIResponse.ok(data=serialize_blueprint(bp))
 
 
@@ -185,9 +160,7 @@ def delete_blueprint(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "sd_workflow_blueprint", blueprint_id, action="delete")
-    bp = blueprint_propio(db, current_user, blueprint_id)
-    archive_blueprint(db, bp)
-    db.commit()
+    archivar_blueprint_confirmado(db, current_user, blueprint_id)
     return APIResponse.ok(data={"ok": True, "archived": True})
 
 
@@ -209,24 +182,13 @@ def start_run(
     payload: RunStartIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    # La guarda va ANTES de llamar al motor: el motor busca el blueprint por id
-    # sin comprobar organizacion, asi que hasta ahora lo unico que impedia
-    # ejecutar el blueprint de otro cliente era el filtro implicito.
-    bp = blueprint_propio(db, current_user, blueprint_id)
-    try:
-        run = engine.start_run(
-            db,
-            blueprint_id=bp.id,
-            target_entity_type=payload.target_entity_type,
-            target_entity_id=payload.target_entity_id,
-            context=payload.context or {},
-            user_id=current_user.id,
-            organization_id=getattr(current_user, "organization_id", None),
-        )
-    except ValueError as exc:
-        raise HTTPException(400, str(exc))
-    db.commit()
-    db.refresh(run)
+    # La guarda de organizacion va antes del motor: ver `iniciar_ejecucion`.
+    run = iniciar_ejecucion(
+        db, current_user, blueprint_id,
+        target_entity_type=payload.target_entity_type,
+        target_entity_id=payload.target_entity_id,
+        context=payload.context or {},
+    )
     return APIResponse.ok(data={
         "run": engine.serialize_run(run),
         "steps": [engine.serialize_step(s) for s in run.steps],
@@ -263,15 +225,7 @@ def resume_run(
     payload: RunResumeIn,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    run = run_propio(db, current_user, run_id)
-    if run.status != WorkflowRunStatus.waiting:
-        raise HTTPException(400, f"run no está en waiting (estado actual: {run.status.value if hasattr(run.status,'value') else run.status})")
-    try:
-        engine.resume(db, run, branch=payload.branch, payload=payload.payload, user_id=current_user.id)
-    except ValueError as exc:
-        raise HTTPException(400, str(exc))
-    db.commit()
-    db.refresh(run)
+    run = reanudar_ejecucion(db, current_user, run_id, branch=payload.branch, payload=payload.payload)
     return APIResponse.ok(data={
         "run": engine.serialize_run(run),
         "steps": [engine.serialize_step(s) for s in run.steps],
@@ -284,7 +238,5 @@ def cancel_run(
     reason: Optional[str] = Body(None, embed=True),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    run = run_propio(db, current_user, run_id)
-    engine.cancel_run(db, run, reason=reason)
-    db.commit()
+    run = cancelar_ejecucion(db, current_user, run_id, reason)
     return APIResponse.ok(data={"ok": True, "run": engine.serialize_run(run)})

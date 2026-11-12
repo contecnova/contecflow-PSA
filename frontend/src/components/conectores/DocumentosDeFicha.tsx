@@ -110,7 +110,7 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
       </header>
 
       {/* Enlazados */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="u-stack-6">
         {enlaces.isLoading ? <Spinner size={18} />
           : enlaces.isError ? <div role="alert" style={{ ...sub, color: 'var(--danger)' }}>{mensajeDeConector(enlaces.error, t('docs.error_generico'))}</div>
           : lista.length === 0 ? <div style={sub}>{t('docs.vacio')}</div>
@@ -147,12 +147,12 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
       )}
 
       {/* Buscar y enlazar */}
-      <form onSubmit={e => { e.preventDefault(); setBuscado(busqueda.trim()) }} style={{ display: 'flex', gap: 6 }}>
+      <form onSubmit={e => { e.preventDefault(); setBuscado(busqueda.trim()) }} className="u-row-6">
         <input aria-label={t('docs.buscar')} placeholder={t('docs.buscar_placeholder')} value={busqueda} onChange={e => setBusqueda(e.target.value)} style={campo} />
         <Button size="sm" variant="secondary" type="submit" icon={<Search size={13} />}>{t('docs.buscar')}</Button>
       </form>
       {buscado.length >= 2 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="u-stack-6">
           {resultados.isLoading ? <Spinner size={16} />
             : resultados.isError ? <div role="alert" style={{ ...sub, color: 'var(--danger)' }}>{mensajeDeConector(resultados.error, t('docs.error_generico'))}</div>
             : (resultados.data?.items ?? []).length === 0 ? <div style={sub}>{t('docs.sin_resultados')}</div>
@@ -163,7 +163,7 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
       {/* Preguntar a la carpeta */}
       {preguntar && lista.length > 0 && (
         <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 12 }}>
-          <form onSubmit={e => { e.preventDefault(); if (pregunta.trim().length >= 2) preguntarCarpeta.mutate() }} style={{ display: 'flex', gap: 6 }}>
+          <form onSubmit={e => { e.preventDefault(); if (pregunta.trim().length >= 2) preguntarCarpeta.mutate() }} className="u-row-6">
             <input aria-label={t('docs.preguntar')} placeholder={t('docs.preguntar_placeholder')} value={pregunta} onChange={e => setPregunta(e.target.value)} style={campo} />
             <Button size="sm" type="submit" icon={<MessageSquareText size={13} />} loading={preguntarCarpeta.isPending}>{t('docs.preguntar')}</Button>
           </form>
@@ -173,7 +173,7 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
               {preguntarCarpeta.data.citations.map((c, i) => (
                 <button key={i} type="button" onClick={() => setAbierto(c.document_id)}
                   style={{ textAlign: 'left', background: 'transparent', border: '1px solid var(--surface-3)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: 'var(--text-2)', fontSize: 'var(--text-xs)' }}>
-                  <strong style={{ color: 'var(--text-1)' }}>[{i + 1}] {c.title || c.document_id}{c.page ? ` · ${t('docs.pagina')} ${c.page}` : ''}</strong>
+                  <strong className="u-text1">[{i + 1}] {c.title || c.document_id}{c.page ? ` · ${t('docs.pagina')} ${c.page}` : ''}</strong>
                   <div style={{ marginTop: 2 }}>{c.text}</div>
                 </button>
               ))}
@@ -192,7 +192,7 @@ function Resultado({ h, onAbrir, onEnlazar, ya }: { h: DocHit; onAbrir: () => vo
   return (
     <div style={{ ...fila, alignItems: 'flex-start' }}>
       <ExternalLink size={14} color="var(--text-3)" style={{ marginTop: 3 }} aria-hidden />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="u-flex1-min0">
         <button type="button" onClick={onAbrir} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-1)', fontWeight: 600, fontSize: 'var(--text-sm)', textAlign: 'left' }}>{h.title}</button>
         {h.snippet && <div style={{ ...sub, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{h.snippet}</div>}
       </div>

@@ -9,8 +9,8 @@ Exports:
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from app.core.errores import ErrorDeDominio
 
-from fastapi import HTTPException
 
 from app.models.task import TaskStatus
 
@@ -55,7 +55,7 @@ def validate_task_transition(current_status: TaskStatus, new_status: TaskStatus)
     """Raise 400 if the transition is not permitted by _TASK_VALID_TRANSITIONS."""
     allowed = _TASK_VALID_TRANSITIONS.get(current_status, set())
     if new_status not in allowed:
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=400,
             detail=f"Transición inválida: {current_status.value} → {new_status.value}.",
         )

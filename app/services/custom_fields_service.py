@@ -21,7 +21,7 @@ from app.models.enterprise import ProjectPermissionLevel
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
-from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 if TYPE_CHECKING:
     pass
@@ -79,7 +79,7 @@ def serialize_perm(p) -> dict:
 def get_project_or_404(project_id: str, db: Session):
     p = db.query(Project).filter(Project.id == project_id).first()
     if not p:
-        raise HTTPException(404, f"Proyecto {project_id} no encontrado")
+        raise ErrorDeDominio(404, f"Proyecto {project_id} no encontrado")
     return p
 
 
@@ -105,7 +105,7 @@ def create_project_custom_field(project_id: str, payload, db: Session) -> dict:
         ProjectCustomField.field_key == payload.field_key,
     ).first()
     if existing:
-        raise HTTPException(400, f"Ya existe un campo con clave '{payload.field_key}' en este proyecto")
+        raise ErrorDeDominio(400, f"Ya existe un campo con clave '{payload.field_key}' en este proyecto")
     f = ProjectCustomField(
         project_id=project_id,
         name=payload.name, field_key=payload.field_key, field_type=payload.field_type,
@@ -125,7 +125,7 @@ def update_project_custom_field(project_id: str, field_id: str, payload, db: Ses
         ProjectCustomField.project_id == project_id,
     ).first()
     if not f:
-        raise HTTPException(404, "Campo no encontrado")
+        raise ErrorDeDominio(404, "Campo no encontrado")
     for k, v in payload.model_dump(exclude_unset=True).items():
         if k == "options":
             f.options = json.dumps(v) if v else None
@@ -142,7 +142,7 @@ def delete_project_custom_field(project_id: str, field_id: str, db: Session) -> 
         ProjectCustomField.project_id == project_id,
     ).first()
     if not f:
-        raise HTTPException(404, "Campo no encontrado")
+        raise ErrorDeDominio(404, "Campo no encontrado")
     db.delete(f)
     db.commit()
     return {"deleted": True}
@@ -205,7 +205,7 @@ def create_workflow_state(project_id: str, payload, db: Session) -> dict:
         WorkflowState.is_active == True,
     ).first()
     if existing:
-        raise HTTPException(400, f"Ya existe un estado con valor '{payload.value}'")
+        raise ErrorDeDominio(400, f"Ya existe un estado con valor '{payload.value}'")
     s = WorkflowState(project_id=project_id, **payload.model_dump())
     db.add(s)
     db.commit()
@@ -220,7 +220,7 @@ def update_workflow_state(project_id: str, state_id: str, payload, db: Session) 
         WorkflowState.is_active == True,
     ).first()
     if not s:
-        raise HTTPException(404, "Estado no encontrado")
+        raise ErrorDeDominio(404, "Estado no encontrado")
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(s, k, v)
     db.commit()
@@ -236,7 +236,7 @@ def delete_workflow_state(project_id: str, state_id: str, db: Session) -> dict:
         WorkflowState.is_active == True,
     ).first()
     if not s:
-        raise HTTPException(404, "Estado no encontrado")
+        raise ErrorDeDominio(404, "Estado no encontrado")
 
     # Check if any active tasks are using this state
     in_use = db.query(Task).filter(
@@ -244,7 +244,7 @@ def delete_workflow_state(project_id: str, state_id: str, db: Session) -> dict:
         Task.project_id == project_id,
     ).count()
     if in_use > 0:
-        raise HTTPException(
+        raise ErrorDeDominio(
             400,
             f"No se puede eliminar: {in_use} tareas usan este estado. Reasígnalas primero.",
         )
@@ -263,7 +263,7 @@ def create_transition(project_id: str, payload, db: Session) -> dict:
             WorkflowState.id == sid, WorkflowState.project_id == project_id, WorkflowState.is_active == True
         ).first()
         if not s:
-            raise HTTPException(404, f"Estado {sid} no encontrado en este proyecto")
+            raise ErrorDeDominio(404, f"Estado {sid} no encontrado en este proyecto")
     t = WorkflowTransition(project_id=project_id, **payload.model_dump())
     db.add(t)
     db.commit()
@@ -283,7 +283,7 @@ def delete_transition(project_id: str, transition_id: str, db: Session) -> dict:
         WorkflowTransition.is_active == True,
     ).first()
     if not t:
-        raise HTTPException(404, "Transición no encontrada")
+        raise ErrorDeDominio(404, "Transición no encontrada")
 
     # Soft-delete: mark as inactive
     t.is_active = False
@@ -298,7 +298,7 @@ def init_default_workflow(project_id: str, db: Session) -> dict:
         WorkflowState.is_active == True,
     ).count()
     if existing > 0:
-        raise HTTPException(400, "Este proyecto ya tiene un workflow definido")
+        raise ErrorDeDominio(400, "Este proyecto ya tiene un workflow definido")
 
     defaults = [
         ("Pendiente",   "todo",        "#7a8aaa", "⭕", True,  False, 0),
@@ -339,14 +339,14 @@ def init_default_workflow(project_id: str, db: Session) -> dict:
 def transition_task(project_id: str, task_id: str, payload, current_user, db: Session) -> dict:
     task = db.query(Task).filter(Task.id == task_id, Task.project_id == project_id).first()
     if not task:
-        raise HTTPException(404, "Tarea no encontrada")
+        raise ErrorDeDominio(404, "Tarea no encontrada")
     to_state = db.query(WorkflowState).filter(
         WorkflowState.id == payload.to_state_id,
         WorkflowState.project_id == project_id,
         WorkflowState.is_active == True,
     ).first()
     if not to_state:
-        raise HTTPException(404, "Estado destino no encontrado")
+        raise ErrorDeDominio(404, "Estado destino no encontrado")
     transition = db.query(WorkflowTransition).join(
         WorkflowState, WorkflowTransition.from_state_id == WorkflowState.id
     ).filter(
@@ -357,15 +357,15 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
         WorkflowState.is_active == True,
     ).first()
     if not transition:
-        raise HTTPException(400, f"No existe transición de '{task.status}' a '{to_state.value}'")
+        raise ErrorDeDominio(400, f"No existe transición de '{task.status}' a '{to_state.value}'")
     if transition.requires_comment and not payload.comment:
-        raise HTTPException(400, "Esta transición requiere un comentario")
+        raise ErrorDeDominio(400, "Esta transición requiere un comentario")
     if (
         transition.required_role
         and current_user.role != transition.required_role
         and current_user.role != "admin"
     ):
-        raise HTTPException(
+        raise ErrorDeDominio(
             403,
             f"Solo usuarios con rol '{transition.required_role}' pueden ejecutar esta transición",
         )
@@ -410,7 +410,7 @@ def grant_permission(project_id: str, payload, current_user, db: Session) -> dic
     get_project_or_404(project_id, db)
     user = db.query(User).filter(User.id == payload.user_id).first()
     if not user:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise ErrorDeDominio(404, "Usuario no encontrado")
     existing = db.query(ProjectPermission).filter(
         ProjectPermission.project_id == project_id,
         ProjectPermission.user_id == payload.user_id,
@@ -418,7 +418,7 @@ def grant_permission(project_id: str, payload, current_user, db: Session) -> dic
     try:
         level_enum = ProjectPermissionLevel(payload.level)
     except ValueError:
-        raise HTTPException(400, f"Nivel inválido: {payload.level}")
+        raise ErrorDeDominio(400, f"Nivel inválido: {payload.level}")
     if existing:
         existing.level = level_enum
         existing.can_see_financials = payload.can_see_financials
@@ -451,11 +451,11 @@ def update_permission(project_id: str, permission_id: str, payload, db: Session)
         ProjectPermission.project_id == project_id,
     ).first()
     if not perm:
-        raise HTTPException(404, "Permiso no encontrado")
+        raise ErrorDeDominio(404, "Permiso no encontrado")
     try:
         perm.level = ProjectPermissionLevel(payload.level)
     except ValueError:
-        raise HTTPException(400, f"Nivel inválido: {payload.level}")
+        raise ErrorDeDominio(400, f"Nivel inválido: {payload.level}")
     perm.can_see_financials = payload.can_see_financials
     perm.can_see_rates = payload.can_see_rates
     perm.can_export = payload.can_export
@@ -473,7 +473,7 @@ def revoke_permission(project_id: str, permission_id: str, db: Session) -> dict:
         ProjectPermission.project_id == project_id,
     ).first()
     if not perm:
-        raise HTTPException(404, "Permiso no encontrado")
+        raise ErrorDeDominio(404, "Permiso no encontrado")
     db.delete(perm)
     db.commit()
     return {"revoked": True}

@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Ticket, TicketComment, TicketStatus
 from app.models.user import User
 import logging
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def get_client_ticket_or_404(db: Session, ticket_id: str, client_id: str) -> Tic
         .first()
     )
     if not ticket:
-        raise HTTPException(404, "Ticket no encontrado")
+        raise ErrorDeDominio(404, "Ticket no encontrado")
     return ticket
 
 

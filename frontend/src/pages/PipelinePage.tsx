@@ -15,6 +15,7 @@ import { useToast } from '../context/ToastContext'
 import { extractErr, fmtCurrency, fmtDate, fmtPct } from '../utils/helpers'
 import { pipelineApi } from '../services/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
+import StatusBadge from '../components/ui/StatusBadge'
 
 const STAGES = ['lead', 'qualification', 'proposal', 'negotiation', 'won', 'lost', 'cancelled']
 
@@ -175,9 +176,7 @@ function CamposDeOportunidad({ form, setForm }: { form: OppForm; setForm: (f: (c
 function ProposalStatusBadge({ status }: { status: string }) {
   const cfg = PROPOSAL_STATUS_COLORS[status] || PROPOSAL_STATUS_COLORS.none
   return (
-    <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 6, background: cfg.bg, color: cfg.color, fontWeight: 600 }}>
-      {cfg.label}
-    </span>
+    <StatusBadge color={cfg.color} caps={false}>{cfg.label}</StatusBadge>
   )
 }
 
@@ -190,7 +189,7 @@ function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label
       <div style={{ fontSize: "var(--text-3xl)", fontWeight: 800, color: tone, lineHeight: 1, marginBottom: subvalue ? 6 : 0 }}>
         {value}
       </div>
-      {subvalue ? <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{subvalue}</div> : null}
+      {subvalue ? <div className="u-text3-sm">{subvalue}</div> : null}
     </Card>
   )
 }
@@ -291,7 +290,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
                 <textarea value={edicion.description} onChange={e => setEdicion(c => (c ? { ...c, description: e.target.value } : c))}
                   rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <div className="u-actions-8">
                 <Button variant="secondary" onClick={() => setEdicion(null)}>Cancelar</Button>
                 <Button onClick={guardarEdicion} loading={updateOpportunity.isPending}>Guardar</Button>
               </div>
@@ -319,7 +318,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
             ].map(({ label, value }) => (
               <div key={label}>
                 <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{value}</div>
+                <div className="u-base-600">{value}</div>
               </div>
             ))}
           </div>
@@ -333,15 +332,15 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
           {/* Propuesta SOW */}
           <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, display: 'grid', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="u-row-center-10">
                 <FileText size={16} style={{ color: 'var(--accent)' }} />
-                <span style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>Propuesta SOW</span>
+                <span className="u-md-700">Propuesta SOW</span>
               </div>
               <ProposalStatusBadge status={proposalStatus} />
             </div>
 
             {opp.proposal_generated_at ? (
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+              <div className="u-text3-sm">
                 Generada: {opp.proposal_generated_at}
                 {opp.proposal_sent_at ? ` · Enviada: ${opp.proposal_sent_at}` : ''}
               </div>
@@ -382,9 +381,9 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 
           {/* Conversión a proyecto */}
           <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, display: 'grid', gap: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="u-row-center-10">
               <Briefcase size={16} style={{ color: 'var(--success)' }} />
-              <span style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>{t('pipeline.conversion_a_proyecto')}</span>
+              <span className="u-md-700">{t('pipeline.conversion_a_proyecto')}</span>
             </div>
 
             {alreadyConverted ? (
@@ -395,7 +394,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
             ) : convertResult ? (
               <div style={{ fontSize: "var(--text-base)", color: 'var(--success)', background: 'var(--success-bg)', borderRadius: 8, padding: '10px 14px' }}>
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>Proyecto creado: {convertResult.project_code}</div>
-                <div style={{ color: 'var(--text-2)' }}>{convertResult.message}</div>
+                <div className="u-text2">{convertResult.message}</div>
                 {convertResult.rev_contract_id && (
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', marginTop: 4 }}>{t('pipeline.contrato_asc_606_creado_automaticamente')}</div>
                 )}
@@ -648,7 +647,7 @@ export default function PipelinePage() {
                     <div style={{ fontSize: "var(--text-sm)", color: STAGE_COLORS[stage], fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                       {stageLabels[stage] || stage}
                     </div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>
+                    <div className="u-hint">
                       {opportunities.length} oportunidad(es) · {fmtCurrency(totalStageRevenue)}
                     </div>
                   </div>
@@ -667,10 +666,10 @@ export default function PipelinePage() {
                     return (
                       <Card key={opportunity.id} style={{ padding: 14, display: 'grid', gap: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="u-flex1-min0">
                             <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opportunity.name}</div>
-                            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{opportunity.client_name || 'Sin cliente'}</div>
-                            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{opportunity.code || 'Sin código'}</div>
+                            <div className="u-text2-sm">{opportunity.client_name || 'Sin cliente'}</div>
+                            <div className="u-hint">{opportunity.code || 'Sin código'}</div>
                           </div>
                           <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                             <button
@@ -695,19 +694,19 @@ export default function PipelinePage() {
                         <div style={{ display: 'grid', gap: 6, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                             <span>Valor</span>
-                            <strong style={{ color: 'var(--text-1)' }}>{fmtCurrency(opportunity.expected_revenue)}</strong>
+                            <strong className="u-text1">{fmtCurrency(opportunity.expected_revenue)}</strong>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                             <span>Probabilidad</span>
-                            <strong style={{ color: 'var(--text-1)' }}>{fmtPct(opportunity.probability)}</strong>
+                            <strong className="u-text1">{fmtPct(opportunity.probability)}</strong>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                             <span>Ponderado</span>
-                            <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(opportunity.weighted_revenue)}</strong>
+                            <strong className="u-warning">{fmtCurrency(opportunity.weighted_revenue)}</strong>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                             <span>Cierre</span>
-                            <strong style={{ color: 'var(--text-1)' }}>{fmtDate(opportunity.expected_close_date)}</strong>
+                            <strong className="u-text1">{fmtDate(opportunity.expected_close_date)}</strong>
                           </div>
                         </div>
 
@@ -719,7 +718,7 @@ export default function PipelinePage() {
                         )}
 
                         <div style={{ display: 'grid', gap: 8 }}>
-                          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                          <div className="u-text3-xs">
                             Responsable: {opportunity.owner_name || 'Sin asignar'}
                           </div>
                           <label style={{ display: 'grid', gap: 6 }}>
@@ -776,7 +775,7 @@ export default function PipelinePage() {
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <div className="u-actions-10">
             <Button variant="secondary" onClick={() => setShowCreate(false)}>
               Cancelar
             </Button>

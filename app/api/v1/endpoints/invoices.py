@@ -3,15 +3,14 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from fastapi import APIRouter, Body, HTTPException, Query, Response, status, Depends
+from fastapi import APIRouter, Body, HTTPException, Query, Request, Response, status, Depends
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db, require_any_manager
-from app.models.billing_reports import InvoiceStatus
 from app.models.user import User, UserRole
 from app.schemas.billing_reports import InvoiceCreate, InvoiceOut, InvoiceSummaryOut
-from app.services import billing_reports_service, stripe_service
+from app.services import billing_reports_service
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
 from app.core.responses import APIListResponse, APIResponse
 
@@ -119,6 +118,15 @@ def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user:
     billing_reports_service.borrar_factura(db, current_user, invoice_id)
     return APIResponse.ok(data={"deleted": invoice_id})
 
+@router.post("/stripe/webhook", summary="Webhook de Stripe (cobro de facturas)")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    # Sin usuario: lo autentica la firma `Stripe-Signature` (payments_service).
+    from app.core.async_db import run_db
+    from app.services import payments_service
+    cuerpo = await request.body()
+    return await run_db(payments_service.handle_stripe_webhook, cuerpo, request.headers.get("stripe-signature"), db)
+
+
 @router.post("/{invoice_id}/payment-link", status_code=status.HTTP_201_CREATED)
 def create_payment_link(
     invoice_id: str,
@@ -126,39 +134,7 @@ def create_payment_link(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: facturacion
 ):
-    invoice = billing_reports_service.get_invoice_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    if not stripe_service.is_configured():
-        # Honesto: la funcionalidad no está disponible hasta configurar Stripe,
-        # en vez de un 503 que sugiere un fallo transitorio.
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="El cobro con Stripe no está disponible: configura STRIPE_SECRET_KEY.",
-        )
-    if invoice.status == InvoiceStatus.paid:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La factura ya está pagada.")
-    # Reutiliza el enlace ya generado (idempotente de cara al usuario).
-    if invoice.stripe_payment_link_url:
-        return APIResponse.ok(data={"url": invoice.stripe_payment_link_url, "id": invoice.stripe_payment_link_id, "reused": True})
-    try:
-        session = stripe_service.create_checkout_session(
-            invoice_id=invoice.id,
-            invoice_number=invoice.number,
-            amount=invoice.total or 0,
-            currency=invoice.currency or settings.DEFAULT_CURRENCY,
-            success_url=f"{settings.FRONTEND_URL}/invoices/{invoice.id}?paid=1",
-            cancel_url=f"{settings.FRONTEND_URL}/invoices/{invoice.id}?canceled=1",
-            customer_email=invoice.client_email,
-        )
-    except stripe_service.StripeError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
-    invoice.stripe_payment_link_url = session["url"]
-    invoice.stripe_payment_link_id = session["id"]
-    if session.get("payment_intent"):
-        invoice.stripe_payment_intent_id = session["payment_intent"]
-    db.commit()
-    return APIResponse.ok(data={"url": session["url"], "id": session["id"], "reused": False})
+    return APIResponse.ok(data=billing_reports_service.crear_enlace_de_pago(db, invoice_id))
 
 
 # ── La descarga de factura que usa la interfaz ───────────────────────────────
@@ -207,41 +183,9 @@ def download_invoice_pdf(
         nombre_por_defecto=settings.PROJECT_NAME,
     )
 
-    lineas_de_factura = [
-        {
-            "description": ln.description,
-            "unit": ln.unit,
-            "quantity": ln.quantity,
-            "unit_price": ln.unit_price,
-            "amount": ln.amount,
-            "discount_pct": ln.discount_pct,
-        }
-        for ln in sorted(inv.lines or [], key=lambda x: (x.order or 0))
-    ]
-
-    from app.services.settings_service import simbolos_de_moneda
-    _moneda = (getattr(inv, "currency", None) or settings.DEFAULT_CURRENCY).upper()
-    pdf_bytes = _invoice_pdf.generate_invoice_pdf(
-        simbolo=simbolos_de_moneda(db, current_user.organization_id).get(_moneda, _moneda),
-        invoice_number=inv.number,
-        issue_date=inv.issue_date,
-        due_date=inv.due_date,
-        client_name=inv.client_name or "",
-        client_address=inv.client_address,
-        client_vat=inv.client_vat,
-        client_email=inv.client_email,
-        lines=lineas_de_factura,
-        subtotal=inv.subtotal or 0,
-        tax_rate=inv.tax_rate or 0,
-        tax_amount=inv.tax_amount or 0,
-        total=inv.total or 0,
-        currency=inv.currency or settings.DEFAULT_CURRENCY,
-        notes=inv.notes,
-        po_reference=inv.po_reference,
-        period_from=inv.period_from,
-        period_to=inv.period_to,
-        company_name=marca.nombre,
-        paleta=marca.paleta,
+    pdf_bytes = _invoice_pdf.pdf_de_factura(
+        db, inv, org_id=current_user.organization_id,
+        company_name=marca.nombre, paleta=marca.paleta,
     )
 
     safe_number = (inv.number or invoice_id).replace("/", "-").replace(" ", "_")

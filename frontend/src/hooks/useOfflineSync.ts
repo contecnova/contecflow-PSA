@@ -1,26 +1,27 @@
 /**
- * useOfflineSync — React hook for offline status + auto-sync on reconnect.
- * Wraps the Dexie-based offlineSync service with proper ESM React imports.
+ * useOfflineSync — estado de conexión y número de imputaciones en la cola
+ * offline (`services/offlineQueue`).
  *
- * Usage:
- *   import useOfflineSync from './hooks/useOfflineSync'
- *   const { isOnline, pendingCount, lastSyncResult } = useOfflineSync()
+ * Auditoría 2026-11: antes leía de una segunda cola (Dexie, `offlineSync.ts`)
+ * en la que nada escribía, así que el contador era siempre 0 aunque hubiera
+ * imputaciones pendientes. La subida al reconectar la hace `initOfflineSync`
+ * (main.tsx); aquí sólo se observa.
+ *
+ * Uso:
+ *   const { isOnline, pendingCount, refresh } = useOfflineSync()
  */
-import { useState, useEffect } from 'react'
-import { syncPendingOps, offlineDb } from '../services/offlineSync'
-import api from '../services/api'
+import { useState, useEffect, useCallback } from 'react'
+import { pendingCount as contarPendientes } from '../services/offlineQueue'
 
-interface SyncOp {
-  method: string
-  url: string
-  body?: unknown
-  headers?: Record<string, string>
-}
-
-export default function useOfflineSync() {
+export default function useOfflineSync(intervaloMs = 3000) {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
-  const [lastSyncResult, setLastSyncResult] = useState<Awaited<ReturnType<typeof syncPendingOps>> | null>(null)
+
+  const refresh = useCallback(() => {
+    contarPendientes()
+      .then(n => setPendingCount(Number(n) || 0))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const goOnline  = () => setIsOnline(true)
@@ -33,25 +34,11 @@ export default function useOfflineSync() {
     }
   }, [])
 
-  // Update pending count whenever connectivity changes
   useEffect(() => {
-    offlineDb.pendingOps.toArray()
-      .then(ops => setPendingCount(ops.length))
-      .catch(() => {})
-  }, [isOnline])
+    refresh()
+    const id = setInterval(refresh, intervaloMs)
+    return () => clearInterval(id)
+  }, [isOnline, intervaloMs, refresh])
 
-  // Auto-sync on reconnect
-  useEffect(() => {
-    if (!isOnline) return
-    const apiFn = (op: SyncOp) =>
-      api.request({ method: op.method, url: op.url, data: op.body, headers: op.headers })
-    syncPendingOps(apiFn)
-      .then(result => {
-        setLastSyncResult(result)
-        setPendingCount(0)
-      })
-      .catch(() => {})
-  }, [isOnline])
-
-  return { isOnline, pendingCount, lastSyncResult }
+  return { isOnline, pendingCount, refresh }
 }

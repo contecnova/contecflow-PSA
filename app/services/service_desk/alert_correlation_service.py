@@ -411,6 +411,7 @@ def _semantic_score(tickets: list[Ticket]) -> float:
                 sims.append(_cosine_similarity(embeddings[i], embeddings[j]))
         return round(sum(sims) / len(sims), 3) if sims else 0.0
     except Exception:
+        logger.debug("_semantic_score: excepcion ignorada", exc_info=True)
         return 0.0
 
 

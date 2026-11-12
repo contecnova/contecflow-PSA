@@ -13,10 +13,10 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import AgentGroup, ServiceItem, Ticket
+from app.core.errores import ErrorDeDominio
 
 ORIGEN = "fulfillment"
 _HECHOS = {"resolved", "closed", "cancelled"}
@@ -31,9 +31,9 @@ def validar_tareas(db: Session, tareas: Optional[list]) -> Optional[str]:
         titulo = str((t or {}).get("title") or "").strip()
         grupo = (t or {}).get("group_id")
         if not titulo or not grupo:
-            raise HTTPException(422, "Cada tarea necesita título y cola")
+            raise ErrorDeDominio(422, "Cada tarea necesita título y cola")
         if db.get(AgentGroup, grupo) is None:
-            raise HTTPException(422, f"La cola de la tarea «{titulo}» no existe")
+            raise ErrorDeDominio(422, f"La cola de la tarea «{titulo}» no existe")
         limpias.append({"title": titulo[:300], "group_id": grupo})
     return json.dumps(limpias)
 

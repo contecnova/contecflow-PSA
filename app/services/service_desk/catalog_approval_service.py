@@ -16,12 +16,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import ServiceItem, Ticket, TicketApproval
 from app.models.user import User, UserRole
 from app.services.service_desk.ticket_events import registrar
+from app.core.errores import ErrorDeDominio
 
 PENDIENTE, APROBADO, RECHAZADO = "pending", "approved", "rejected"
 
@@ -34,10 +34,10 @@ def exigir_aprobador(db: Session, requires_approval: Optional[bool], approval_us
     if not requires_approval:
         return
     if not approval_user_id:
-        raise HTTPException(422, "Un servicio que requiere aprobación necesita un aprobador")
+        raise ErrorDeDominio(422, "Un servicio que requiere aprobación necesita un aprobador")
     u = db.query(User).filter(User.id == approval_user_id, User.is_active == True).first()  # noqa: E712
     if u is None:
-        raise HTTPException(422, "El aprobador no existe o no está activo")
+        raise ErrorDeDominio(422, "El aprobador no existe o no está activo")
 
 
 def solicitar_si_hace_falta(db: Session, ticket: Ticket, service_item: Optional[ServiceItem]) -> Optional[TicketApproval]:
@@ -65,7 +65,7 @@ def pendiente(db: Session, ticket_id: str) -> Optional[TicketApproval]:
 def exigir_aprobado(ticket: Ticket, nuevo_estado: Optional[str]) -> None:
     """No se trabaja un ticket cuya aprobacion sigue pendiente."""
     if ticket.approval_status == PENDIENTE and nuevo_estado in BLOQUEADOS:
-        raise HTTPException(409, "El ticket está pendiente de aprobación")
+        raise ErrorDeDominio(409, "El ticket está pendiente de aprobación")
 
 
 def decidir(db: Session, ticket: Ticket, usuario: User, decision: str, comentario: Optional[str]) -> TicketApproval:
@@ -74,15 +74,15 @@ def decidir(db: Session, ticket: Ticket, usuario: User, decision: str, comentari
     from app.services.service_desk.ticket_update_service import apply_ticket_update
 
     if decision not in (APROBADO, RECHAZADO):
-        raise HTTPException(422, "La decisión es approved o rejected")
+        raise ErrorDeDominio(422, "La decisión es approved o rejected")
     aprobacion = pendiente(db, ticket.id)
     if aprobacion is None:
-        raise HTTPException(409, "El ticket no tiene ninguna aprobación pendiente")
+        raise ErrorDeDominio(409, "El ticket no tiene ninguna aprobación pendiente")
     es_admin = getattr(usuario.role, "value", usuario.role) == UserRole.admin.value or usuario.is_superadmin
     if aprobacion.approver_user_id != usuario.id and not es_admin:
-        raise HTTPException(403, "Solo el aprobador puede decidir")
+        raise ErrorDeDominio(403, "Solo el aprobador puede decidir")
     if decision == RECHAZADO and not (comentario or "").strip():
-        raise HTTPException(422, "Rechazar pide el motivo: es lo que recibe el solicitante")
+        raise ErrorDeDominio(422, "Rechazar pide el motivo: es lo que recibe el solicitante")
 
     aprobacion.status = decision
     aprobacion.comment = (comentario or "").strip() or None

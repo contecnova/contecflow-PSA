@@ -21,12 +21,14 @@ Lo que no ve: las comprobaciones que un endpoint hace DENTRO de su servicio
 empresas, que no deniega sino que esconde las filas ajenas (404). Se dice.
 """
 from __future__ import annotations
+import logging
 
 import inspect
 import re
 from typing import Optional
 
 from starlette.routing import Match
+from app.core.errores import ErrorDeDominio
 
 PERMITE, DENIEGA, NO_APLICA, NO_SE_SABE = "allow", "deny", "not_applicable", "unknown"
 
@@ -96,14 +98,13 @@ def _comprueba_en_el_cuerpo(endpoint) -> bool:
 
 def usuario_explicable(db, quien_pregunta, user_id: str):
     """El usuario a explicar: un admin, sólo gente de su empresa; el superadmin, cualquiera. 404 si no."""
-    from fastapi import HTTPException
     from app.db.session import sin_filtro_de_tenant
     from app.models.user import User
     with sin_filtro_de_tenant(db):
         usuario = db.get(User, user_id)
     if usuario is None or (not quien_pregunta.is_superadmin
                            and usuario.organization_id != quien_pregunta.organization_id):
-        raise HTTPException(404, "Usuario no encontrado")
+        raise ErrorDeDominio(404, "Usuario no encontrado")
     return usuario
 
 
@@ -156,6 +157,7 @@ def explicar(db, app, usuario, metodo: str, camino: str) -> dict:
             permitido, aplicadas, _ = abac_enforce.evaluar(db, usuario, usuario.organization_id, tipo, None, accion,
                                                           auditar=False)
         except Exception:
+            logging.getLogger(__name__).debug("explicar: excepcion ignorada", exc_info=True)
             capas.append(_capa("abac", DENIEGA, "evaluation_error", resource_type=tipo, action=accion))
         else:
             if not aplicadas:

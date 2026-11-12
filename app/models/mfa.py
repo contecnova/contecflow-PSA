@@ -165,6 +165,8 @@ class MFAChallenge(Base):
     token_jti = Column(String(36), nullable=False, unique=True, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
     consumed_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    # Fallos de codigo con este reto; al llegar al maximo se consume (rev. 157).
+    failed_attempts = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", foreign_keys=[user_id])

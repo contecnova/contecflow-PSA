@@ -31,12 +31,13 @@ from app.models.task import Task as _Task
 from app.core.config import settings
 from app.models.user import UserRole
 from app.models.user import User as UserModel
-from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.services.base import ServiceBase
 import logging
 from app.core import timeutil
+from app.core.asignacion import es_asignable
+from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
@@ -435,14 +436,14 @@ def get_project_scoped_or_404(db: Session, project_id: str, current_user):
         .first()
     )
     if not project:
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise ErrorDeDominio(404, "Proyecto no encontrado")
     if (
         not current_user.is_superadmin
         and current_user.organization_id
         and project.organization_id
         and project.organization_id != current_user.organization_id
     ):
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise ErrorDeDominio(404, "Proyecto no encontrado")
     return project
 
 
@@ -503,7 +504,7 @@ def apply_project_update(db: Session, project, data: dict) -> None:
     if "version" in data:
         client_version = data.pop("version")
         if project.version is not None and client_version != project.version:
-            raise HTTPException(
+            raise ErrorDeDominio(
                 409,
                 f"Conflicto de edición: el proyecto fue modificado por otro usuario "
                 f"(versión esperada {client_version}, versión actual {project.version}). "
@@ -524,7 +525,7 @@ def cancel_project_record(db: Session, project_id: str) -> dict:
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise ErrorDeDominio(404, "Proyecto no encontrado")
     if project.status == ProjectStatus.cancelled:
         raise ValueError("El proyecto ya esta cancelado")
     project.status = ProjectStatus.cancelled
@@ -541,7 +542,7 @@ def add_project_phase_record(db: Session, project_id: str, payload):
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise ErrorDeDominio(404, "Proyecto no encontrado")
     phase = ProjectPhase(**payload.model_dump(), project_id=project_id)
     db.add(phase)
     db.commit()
@@ -591,13 +592,13 @@ def add_member_record(db: Session, project_id: str, data: dict):
     """Valida, persiste y retorna un nuevo ProjectMember. Lanza error si ya existe."""
 
     if not data.get("user_id"):
-        raise HTTPException(422, "user_id es obligatorio")
+        raise ErrorDeDominio(422, "user_id es obligatorio")
     existing = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,
         ProjectMember.user_id == data["user_id"],
     ).first()
     if existing and existing.is_active:
-        raise HTTPException(409, "El usuario ya es miembro del proyecto")
+        raise ErrorDeDominio(409, "El usuario ya es miembro del proyecto")
     if existing and not existing.is_active:
         existing.is_active = True
         existing.role = data.get("role", existing.role or "developer")
@@ -635,7 +636,7 @@ def get_member_or_404(db: Session, project_id: str, member_id: str):
         ProjectMember.is_active == True,
     ).first()
     if not m:
-        raise HTTPException(404, "Miembro no encontrado")
+        raise ErrorDeDominio(404, "Miembro no encontrado")
     return m
 
 
@@ -682,7 +683,7 @@ def update_and_save_project(db: Session, project, data: dict):
 def update_member_record(db: Session, m, data: dict):
     """Apply field updates to a ProjectMember, commit, refresh, return it."""
     for k, v in data.items():
-        if hasattr(m, k):
+        if es_asignable(m, k, ("project_id", "user_id")):
             setattr(m, k, v)
     db.commit()
     db.refresh(m)

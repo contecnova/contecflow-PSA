@@ -33,6 +33,9 @@ const THEMES = [
   { id: 'system',        label: 'Sistema',         icon: '💻', desc: 'Sigue la preferencia del SO' },
 ]
 
+// Son DATOS, no estilo: se guardan como `accent_color` y applyAccent() sólo
+// acepta #rrggbb. Con var() (lo que dejó el codemod de colores) el preset no
+// hacía nada. Hex a propósito.
 const ACCENT_PRESETS = [
   { label: 'Índigo',  color: '#4f8ef7' },
   { label: 'Violeta', color: '#a78bfa' },
@@ -175,7 +178,7 @@ export default function UserProfilePanel({ onClose }: Props) {
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)',
           display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <Avatar name={user?.full_name ?? undefined} size={44} url={undefined} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="u-flex1-min0">
             <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.full_name}
@@ -212,12 +215,12 @@ export default function UserProfilePanel({ onClose }: Props) {
 
           {/* ── PERFIL ───────────────────────────────────────────────────────── */}
           {tab === 'profile' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="u-stack-14">
               {/* Info general */}
               <div style={{ padding: '10px 14px', background: 'var(--surface-3)',
                 borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                <div>👤 Usuario: <strong style={{ color: 'var(--text-1)' }}>{user?.username}</strong></div>
-                <div style={{ marginTop: 4 }}>📧 Email: <strong style={{ color: 'var(--text-1)' }}>{profileForm.email || user?.email}</strong></div>
+                <div>👤 Usuario: <strong className="u-text1">{user?.username}</strong></div>
+                <div style={{ marginTop: 4 }}>📧 Email: <strong className="u-text1">{profileForm.email || user?.email}</strong></div>
                 <div style={{ marginTop: 2, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                   {traducir('userprofile.los_cambios_se_aplican_al_mismo_recurso')}
                 </div>
@@ -289,7 +292,7 @@ export default function UserProfilePanel({ onClose }: Props) {
 
               <button onClick={() => saveProfile(profileForm)} disabled={savingProfile}
                 style={{ padding: '10px', background: 'var(--accent)', border: 'none',
-                  borderRadius: 8, color: '#fff', cursor: savingProfile ? 'wait' : 'pointer',
+                  borderRadius: 8, color: 'var(--on-accent-light)', cursor: savingProfile ? 'wait' : 'pointer',
                   fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: 600,
                   opacity: savingProfile ? 0.7 : 1 }}>
                 {savingProfile ? 'Guardando...' : '✓ Guardar perfil'}
@@ -309,7 +312,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                   {traducir('userprofile.tema_de_color')}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="u-stack-6">
                   {THEMES.map(t => (
                     <button key={t.id} onClick={() => applyTheme(t.id)}
                       style={{ display: 'flex', alignItems: 'center', gap: 12,
@@ -318,7 +321,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                         border: `1px solid ${localTheme === t.id ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
                         cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>
                       <span style={{ fontSize: "var(--text-xl)", flexShrink: 0 }}>{t.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="u-flex1-min0">
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 600,
                           color: localTheme === t.id ? 'var(--accent)' : 'var(--text-1)' }}>
                           {t.label}
@@ -359,7 +362,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                         transform: localAccent === p.color ? 'scale(1.15)' : 'scale(1)' }} />
                   ))}
                 </div>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div className="u-row-center-10">
                   <input type="color" value={localAccent ?? '#4f8ef7'} aria-label={traducir('userprofile.color_personalizado')}
                     onChange={e => applyAccent(e.target.value)}
                     style={{ width: 36, height: 36, border: 'none', borderRadius: 7,
@@ -368,7 +371,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                     <div style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>
                       {localAccent ?? traducir('userprofile.acento_del_tema')}
                     </div>
-                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>Color personalizado</div>
+                    <div className="u-text3-2xs">Color personalizado</div>
                   </div>
                   {/* Preview */}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -386,7 +389,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                   {traducir('userprofile.densidad_de_la_interfaz')}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="u-row-8">
                   {([
                     ['compact',     '▤ Compacta'],
                     ['normal',      '▥ Normal'],
@@ -406,7 +409,7 @@ export default function UserProfilePanel({ onClose }: Props) {
 
               <button onClick={saveAppearance}
                 style={{ padding: '10px', background: 'var(--accent)', border: 'none',
-                  borderRadius: 8, color: '#fff', cursor: 'pointer',
+                  borderRadius: 8, color: 'var(--on-accent-light)', cursor: 'pointer',
                   fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: 600 }}>
                 ✓ Guardar apariencia
               </button>
@@ -415,13 +418,13 @@ export default function UserProfilePanel({ onClose }: Props) {
 
           {/* ── IDIOMA ───────────────────────────────────────────────────────── */}
           {tab === 'language' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="u-stack-8">
               <div style={{ padding: '10px 14px', background: 'var(--accent-muted)',
                 border: '1px solid rgba(79,142,247,0.25)', borderRadius: 8,
                 fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 4 }}>
                 <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Idioma activo: </span>
                 {LANGUAGES.find(l => l.code === activeLang)?.flag} {LANGUAGES.find(l => l.code === activeLang)?.label}
-                <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                <div className="u-hint">
                   {traducir('userprofile.la_navegacion_cambia_al_instante_el_contenido')}
                 </div>
               </div>
@@ -453,7 +456,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 }}
                 disabled={pendingLang === activeLang}
                 style={{ padding: '10px', background: 'var(--accent)', border: 'none',
-                  borderRadius: 8, color: '#fff', cursor: pendingLang === activeLang ? 'default' : 'pointer',
+                  borderRadius: 8, color: 'var(--on-accent-light)', cursor: pendingLang === activeLang ? 'default' : 'pointer',
                   fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: 600,
                   opacity: pendingLang === activeLang ? 0.5 : 1, marginTop: 4 }}>
                 ✓ Guardar idioma
@@ -463,12 +466,12 @@ export default function UserProfilePanel({ onClose }: Props) {
 
           {/* ── SEGURIDAD ────────────────────────────────────────────────────── */}
           {tab === 'security' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="u-stack-16">
               {/* Info sesión */}
               <div style={{ padding: '12px 14px', background: 'var(--surface-3)',
                 borderRadius: 8, fontSize: "var(--text-sm)" }}>
                 <div style={{ color: 'var(--text-2)', marginBottom: 6 }}>{traducir('userprofile.sesion_actual')}</div>
-                <div style={{ color: 'var(--text-1)' }}>
+                <div className="u-text1">
                   {traducir('userprofile.ultimo_acceso')} {user?.last_login
                     ? new Date(user.last_login as string).toLocaleDateString(localeActivo(), {
                         day:'2-digit', month:'short', year:'numeric',
@@ -482,7 +485,7 @@ export default function UserProfilePanel({ onClose }: Props) {
 
               {/* Cambio de contraseña */}
               {!user?.sso_provider && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="u-stack-8">
                   <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                     textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>
                     {traducir('userprofile.cambiar_contrasena')}
@@ -547,7 +550,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                     new_password: pwForm.new,
                   })}
                   style={{ padding: '10px', background: 'var(--accent)', border: 'none',
-                    borderRadius: 8, color: '#fff', fontSize: "var(--text-base)",
+                    borderRadius: 8, color: 'var(--on-accent-light)', fontSize: "var(--text-base)",
                     fontFamily: 'inherit', fontWeight: 600,
                     cursor: changingPw || !pwForm.current || !pwForm.new ||
                       pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 'default' : 'pointer',
@@ -597,7 +600,7 @@ function PreferenciasDeAviso() {
   const cambiar = (tipo: string, canal: string, v: boolean) =>
     setPrefs({ ...actuales, [tipo]: { ...(actuales[tipo] || {}), [canal]: v } })
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="u-stack-6">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 700 }}>
         <span>Aviso</span><span style={{ textAlign: 'center' }}>App</span><span style={{ textAlign: 'center' }}>Correo</span>
       </div>

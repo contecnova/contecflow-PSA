@@ -1,4 +1,5 @@
 import { CHART } from '../../constants/theme'
+import { useDialogo } from './useDialogo'
 import React from 'react'
 import { X } from 'lucide-react'
 
@@ -236,7 +237,7 @@ export function Avatar({ name = '', size = 34, url }: AvatarProps) {
       width: size, height: size, borderRadius: '50%', display: 'flex', flexShrink: 0,
       alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.36),
       fontWeight: 700, background: `linear-gradient(145deg, ${from}, ${to})`,
-      color: '#fff', letterSpacing: '0.02em',
+      color: 'var(--on-accent-light)', letterSpacing: '0.02em',
     }}>
       {initials || '?'}
     </div>
@@ -460,7 +461,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
         <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-          {label}{required && <span style={{ color: 'var(--danger)' }}> *</span>}
+          {label}{required && <span className="u-danger"> *</span>}
         </label>
       )}
       <input
@@ -481,7 +482,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
           e.target.style.boxShadow = 'none'
         }}
       />
-      {hint && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{hint}</div>}
+      {hint && <div className="u-text3-xs">{hint}</div>}
     </div>
   )
 }
@@ -649,43 +650,8 @@ interface ModalProps {
 
 export function Modal({ open, onClose, title, children, width, size, subtitle }: ModalProps) {
   const anchoFinal = width ?? ANCHOS_DE_MODAL[size ?? 'md']
-  const dialogRef = React.useRef<HTMLDivElement | null>(null)
-  const onCloseRef = React.useRef(onClose)
-  React.useEffect(() => { onCloseRef.current = onClose })
-
-  // Focus trap: keep keyboard navigation inside the modal while open
-  React.useEffect(() => {
-    if (!open) return
-    const el = dialogRef.current
-    if (!el) return
-    const focusable = el.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )
-    const first = focusable[0]
-    const last  = focusable[focusable.length - 1]
-    const prev  = document.activeElement as HTMLElement | null
-
-    if (first) first.focus()
-
-    const trap = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return
-      if (focusable.length === 0) { e.preventDefault(); return }
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last?.focus() }
-      } else {
-        if (document.activeElement === last)  { e.preventDefault(); first?.focus() }
-      }
-    }
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
-
-    el.addEventListener('keydown', trap)
-    document.addEventListener('keydown', esc)
-    return () => {
-      el.removeEventListener('keydown', trap)
-      document.removeEventListener('keydown', esc)
-      prev?.focus()
-    }
-  }, [open])
+  // Trampa de foco, Esc y devolucion del foco: compartido con los dialogos propios.
+  const dialogRef = useDialogo<HTMLDivElement>(open, onClose)
 
   if (!open) return null
   return (
@@ -788,7 +754,7 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
             }} />
         </div>
       )}
-      <div style={{ overflowX: 'auto' }}>
+      <div className="u-scroll-x">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
@@ -833,7 +799,7 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
       </div>
       {pages > 1 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginTop: 14 }}>
-          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{sorted.length} registros</span>
+          <span className="u-text3-xs">{sorted.length} registros</span>
           <button onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0} style={{ ...btnBase, opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
           <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', minWidth: 60, textAlign: 'center' }}>{page+1} / {pages}</span>
           <button onClick={() => setPage(p => Math.min(pages-1, p+1))} disabled={page === pages-1} style={{ ...btnBase, opacity: page === pages-1 ? 0.4 : 1, cursor: page === pages-1 ? 'not-allowed' : 'pointer' }}>›</button>
@@ -853,7 +819,7 @@ interface TableProps<T> {
 
 export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>) {
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="u-scroll-x">
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
@@ -894,3 +860,6 @@ export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>)
     </div>
   )
 }
+
+export { useDialogo } from './useDialogo'
+export { Drawer } from './Drawer'

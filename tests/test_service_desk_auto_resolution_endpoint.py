@@ -6,7 +6,7 @@ def test_run_job_async_returns_queued(client, admin_token, monkeypatch):
         return {"processed": 0, "auto_resolved": 0, "suggested": 0, "failed": 0, "limit": limit}
 
     monkeypatch.setattr(
-        "app.api.v1.endpoints.service_desk.ai_auto_resolution.run_daily_auto_resolution_job",
+        "app.services.service_desk.auto_resolucion_operaciones.run_daily_auto_resolution_job",
         _fake_run,
     )
 
@@ -37,7 +37,7 @@ def test_run_job_sync_uses_limit(client, admin_token, monkeypatch, db):
         return {"processed": 3, "auto_resolved": 1, "suggested": 1, "failed": 0}
 
     monkeypatch.setattr(
-        "app.api.v1.endpoints.service_desk.ai_auto_resolution.run_daily_auto_resolution_job",
+        "app.services.service_desk.auto_resolucion_operaciones.run_daily_auto_resolution_job",
         _fake_run,
     )
 
@@ -107,7 +107,7 @@ def test_stats_includes_job_history_after_sync_run(client, admin_token, monkeypa
         return {"processed": 5, "auto_resolved": 2, "suggested": 1, "failed": 0}
 
     monkeypatch.setattr(
-        "app.api.v1.endpoints.service_desk.ai_auto_resolution.run_daily_auto_resolution_job",
+        "app.services.service_desk.auto_resolucion_operaciones.run_daily_auto_resolution_job",
         _fake_run,
     )
 

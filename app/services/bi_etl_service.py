@@ -232,6 +232,7 @@ def probar(db: Session, org: Optional[str], cid: str) -> dict:
             n = conector.probar(_descifrar(cfg, tipo))
         return {"ok": True, "records": n}
     except Exception as exc:  # el motivo es lo que el administrador necesita ver
+        logger.debug("probar: excepcion ignorada", exc_info=True)
         return {"ok": False, "error": str(exc)[:500]}
 
 

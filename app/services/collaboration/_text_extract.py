@@ -29,6 +29,7 @@ def extract_text(data: bytes, filename: str, mime_type: str | None = None, max_c
         try:
             return data[:max_chars * 2].decode("utf-8", errors="ignore")[:max_chars]
         except Exception:
+            logger.debug("extract_text: excepcion ignorada", exc_info=True)
             return ""
 
     if ext == "pdf":
@@ -59,6 +60,7 @@ def _from_pdf(data: bytes) -> str:
                 proc = subprocess.run(["pdftotext", "-q", f.name, "-"], capture_output=True, timeout=30)  # noqa: S607
                 return proc.stdout.decode("utf-8", errors="ignore")
             except Exception:
+                logger.debug("_from_pdf: excepcion ignorada", exc_info=True)
                 return ""
     return ""
 
@@ -69,6 +71,7 @@ def _from_docx(data: bytes) -> str:
         doc = Document(io.BytesIO(data))
         return "\n".join(p.text for p in doc.paragraphs if p.text)
     except Exception:
+        logger.debug("_from_docx: excepcion ignorada", exc_info=True)
         return ""
 
 
@@ -82,6 +85,7 @@ def _from_xlsx(data: bytes) -> str:
                 out.append(" ".join(str(c) for c in row if c is not None))
         return "\n".join(out)
     except Exception:
+        logger.debug("_from_xlsx: excepcion ignorada", exc_info=True)
         return ""
 
 
@@ -103,5 +107,6 @@ def _from_office_via_libreoffice(data: bytes, ext: str) -> str:
                 with open(txt_path, encoding="utf-8", errors="ignore") as f:
                     return f.read()
         except Exception:
+            logger.warning("_from_office_via_libreoffice: excepcion ignorada", exc_info=True)
             return ""
     return ""

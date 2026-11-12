@@ -6,6 +6,7 @@ from app.core.responses import APIResponse
 from app.services.ai_copilot_service import get_ai_gantt_suggestions, get_ai_timesheet_anomalies
 from sqlalchemy.orm import Session
 from app.db.session import get_db
+from app.core.errores import ErrorDeDominio
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 def gantt_suggestions(project_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     try:
         return APIResponse.ok(data=get_ai_gantt_suggestions(project_id, db, current_user=user))
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise  # preserve the original status/detail
     except Exception:
         logger.exception("AI gantt suggestions failed for project=%s", project_id)
@@ -24,7 +25,7 @@ def gantt_suggestions(project_id: str, db: Session = Depends(get_db), user=Depen
 def timesheet_anomalies(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     try:
         return APIResponse.ok(data=get_ai_timesheet_anomalies(user_id, db, current_user=user))
-    except HTTPException:
+    except (HTTPException, ErrorDeDominio):
         raise
     except Exception:
         logger.exception("AI timesheet anomalies failed for user=%s", user_id)

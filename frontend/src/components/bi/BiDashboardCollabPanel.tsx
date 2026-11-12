@@ -23,6 +23,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 
 type ApiError = { response?: { data?: { detail?: string } } }
@@ -135,6 +136,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
+  const { confirmar } = useConfirm()
   const [tab, setTab] = useState<string>('comments')
   const [newComment, setNewComment] = useState<string>('')
   const [viewName, setViewName] = useState<string>('')
@@ -263,13 +265,13 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
   return (
     <Card style={{ padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-row-center-8">
           <MessageCircle size={18} style={{ color: 'var(--purple)' }} />
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
             {t('bi.collab.title', 'Colaboración en dashboards BI')}
           </h2>
         </div>
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+        <span className="u-text3-xs">
           dashboard_key: <span style={{ fontFamily: 'var(--font-mono)' }}>{dashboardKey}</span>
         </span>
       </div>
@@ -323,7 +325,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   opacity: c.resolved ? 0.55 : 1,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="u-flex1-min0">
                       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {c.message}
                       </div>
@@ -377,7 +379,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           ) : views.length === 0 ? (
             <EmptyState icon="👁" title={t('bi.collab.no_views', 'Sin vistas guardadas')} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="u-stack-6">
               {views.map(v => (
                 <div key={v.id} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -386,14 +388,14 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   border: '1px solid var(--surface-4)',
                   borderRadius: 8, gap: 10, flexWrap: 'wrap',
                 }}>
-                  <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
                       {v.dashboard_key} {v.created_at && `· ${new Date(v.created_at).toLocaleDateString(localeActivo())}`}
                       {v.created_by_name && ` · ${v.created_by_name}`}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="u-row-center-8">
                     <span style={chip(v.active === false ? 'var(--text-3)' : 'var(--accent)')}>
                       {v.active === false ? 'Inactiva' : 'Activa'}
                     </span>
@@ -453,7 +455,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           ) : shares.length === 0 ? (
             <EmptyState icon="🔗" title={t('bidashboardcollab.sin_accesos_compartidos')} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="u-stack-6">
               {shares.map(s => (
                 <div key={s.id} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -462,7 +464,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   border: '1px solid var(--surface-4)',
                   borderRadius: 8, gap: 10, flexWrap: 'wrap',
                 }}>
-                  <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
                       {s.target_user_name || s.user_name || s.target_user_id || s.user_id}
                     </div>
@@ -470,15 +472,15 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                       <span style={{ fontFamily: 'var(--font-mono)' }}>{s.target_user_id || s.user_id}</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="u-row-center-8">
                     {s.permission === 'view' && <Lock size={12} style={{ color: 'var(--text-3)' }} />}
                     <span style={chip(PERMISSION_COLOR[s.permission ?? ''] || 'var(--text-3)')}>
                       {PERMISSION_LABEL[s.permission ?? ''] || s.permission}
                     </span>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (window.confirm(`¿Revocar acceso de ${s.target_user_name || s.user_name}?`)) {
+                      onClick={async () => {
+                        if (await confirmar({ message: `¿Revocar acceso de ${s.target_user_name || s.user_name}?`, danger: true, confirmLabel: 'Revocar' })) {
                           revokeShareMutation.mutate(s.id)
                         }
                       }}
@@ -518,7 +520,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   borderRadius: 8,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10,
                 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
                       <History size={12} style={{ display: 'inline', marginRight: 6, color: 'var(--text-3)' }} />
                       {t('bidashboardcollab.version')} {v.version}
@@ -537,8 +539,8 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   <Button
                     size="xs"
                     variant="ghost"
-                    onClick={() => {
-                      if (window.confirm(`¿Restaurar versión ${v.version}? Se creará una nueva versión con este contenido.`)) {
+                    onClick={async () => {
+                      if (await confirmar({ message: `¿Restaurar versión ${v.version}? Se creará una nueva versión con este contenido.`, confirmLabel: 'Restaurar' })) {
                         restoreVersionMutation.mutate(v.id)
                       }
                     }}
@@ -572,14 +574,14 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   borderRadius: 8,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
                 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="u-flex1-min0">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Bell size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                       <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
                         {n.event_type || n.type || 'evento'}
                       </span>
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                    <div className="u-hint">
                       {n.message || n.dashboard_key || ''}
                       {n.created_at && ` · ${new Date(n.created_at).toLocaleString(localeActivo())}`}
                     </div>

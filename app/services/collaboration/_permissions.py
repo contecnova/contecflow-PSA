@@ -20,8 +20,8 @@ from __future__ import annotations
 import time
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.core.errores import ErrorDeDominio
 
 # (key, expires_at) → bool
 _MEMBERSHIP_CACHE: dict[str, tuple[float, bool]] = {}
@@ -60,7 +60,7 @@ from app.models.collaboration import (
 def _org(user) -> str:
     org = getattr(user, "organization_id", None)
     if not org:
-        raise HTTPException(403, "Usuario sin organización")
+        raise ErrorDeDominio(403, "Usuario sin organización")
     return org
 
 
@@ -155,12 +155,12 @@ def is_client_conversation_participant(db: Session, client_user, conversation_id
 
 def assert_conversation_access(db: Session, user, conversation_id: str) -> None:
     if not is_conversation_participant(db, user, conversation_id):
-        raise HTTPException(403, "No tienes acceso a esta conversación")
+        raise ErrorDeDominio(403, "No tienes acceso a esta conversación")
 
 
 def assert_team_access(db: Session, user, team_id: str) -> None:
     if not is_team_member(db, user, team_id):
-        raise HTTPException(403, "No eres miembro de este equipo")
+        raise ErrorDeDominio(403, "No eres miembro de este equipo")
 
 
 def assert_workspace(db: Session, user, workspace_id: Optional[str]) -> str:
@@ -168,11 +168,11 @@ def assert_workspace(db: Session, user, workspace_id: Optional[str]) -> str:
     the user's default workspace (creates if missing)."""
     if workspace_id:
         if not can_access_workspace(db, user, workspace_id):
-            raise HTTPException(403, "No tienes acceso a este workspace")
+            raise ErrorDeDominio(403, "No tienes acceso a este workspace")
         return workspace_id
     # default workspace = the one matching the user's org
     from app.models.collaboration import CollaborationWorkspace
     ws = db.query(CollaborationWorkspace).filter(CollaborationWorkspace.organization_id == _org(user)).first()
     if ws:
         return ws.id
-    raise HTTPException(404, "Workspace no inicializado")
+    raise ErrorDeDominio(404, "Workspace no inicializado")

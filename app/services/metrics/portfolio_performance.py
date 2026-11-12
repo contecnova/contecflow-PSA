@@ -2,12 +2,13 @@
 portfolio_budget_usage, performance_scores_by_person,
 performance_cycle_completion_rate, timesheets_approval_rate,
 timesheets_billable_hours_trend, absences_by_type, absences_by_person."""
+import logging
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import register_metric
+from ._registro import register_metric
 
 
 @register_metric("portfolio_budget_usage")
@@ -42,8 +43,9 @@ def metric_portfolio_budget_usage(
             })
         rows.sort(key=lambda x: x["pct_used"], reverse=True)
     except Exception:
+        logging.getLogger(__name__).warning("metric_portfolio_budget_usage: excepcion ignorada", exc_info=True)
         rows = []
-    return rows, {"y_label": "Gasto (€)"}
+    return rows, {"y_label": "Gasto (¤)"}
 
 
 @register_metric("performance_scores_by_person")
@@ -90,6 +92,7 @@ def metric_performance_scores_by_person(
                 "score_teamwork": round(float(rev.score_teamwork or 0), 1),
             })
     except Exception:
+        logging.getLogger(__name__).warning("metric_performance_scores_by_person: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Score global (0-10)"}
 
@@ -140,6 +143,7 @@ def metric_performance_cycle_completion_rate(
             })
         rows.sort(key=lambda x: x["value"], reverse=True)
     except Exception:
+        logging.getLogger(__name__).warning("metric_performance_cycle_completion_rate: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Completado (%)"}
 
@@ -166,6 +170,7 @@ def metric_timesheets_approval_rate(
 
         rows = [{"label": r.status or "Sin estado", "value": r.cnt} for r in q.all()]
     except Exception:
+        logging.getLogger(__name__).warning("metric_timesheets_approval_rate: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {}
 
@@ -206,6 +211,7 @@ def metric_timesheets_billable_hours_trend(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_timesheets_billable_hours_trend: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Horas facturables"}
 
@@ -240,6 +246,7 @@ def metric_absences_by_type(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_absences_by_type: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Días laborables"}
 
@@ -277,5 +284,6 @@ def metric_absences_by_person(
             for r in q.all()
         ]
     except Exception:
+        logging.getLogger(__name__).warning("metric_absences_by_person: excepcion ignorada", exc_info=True)
         rows = []
     return rows, {"y_label": "Días laborables"}

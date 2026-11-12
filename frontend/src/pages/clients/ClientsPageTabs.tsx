@@ -4,13 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
-import { clientExtApi, contractsApi, licensesApi, portalApi, wsApi } from '../../services/api'
+import { clientExtApi, contractsApi, licensesApi, portalApi, wsApi, apiWsUrl } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
 import { fmtCurrency, extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { resolveWsBase } from '../../utils/wsUtils'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -32,6 +31,150 @@ const MODULES = [
   { id: 'messages',    icon: '💬', label: 'Mensajes' },
 ]
 
+// ── Datos de las pestañas del cliente (campos según su uso aquí) ─────────────
+interface ClientProjectRow {
+  id: string
+  code?: string
+  name: string
+  status?: string
+  start_date?: string | null
+  end_date?: string | null
+  is_linked?: boolean
+}
+
+/** Proyecto del detalle del cliente que se pasa a las pestañas del portal. */
+interface ClientProjectRef {
+  id: string
+  code?: string
+  name?: string
+}
+
+/** Lo que las pestañas usan del detalle del cliente (`projects` llega sin tipar). */
+interface ClientDetail {
+  name?: string
+  projects?: unknown[]
+}
+
+interface ClientContact {
+  id: string
+  full_name: string
+  email?: string | null
+  phone?: string | null
+  job_title?: string | null
+  role: string
+  is_primary?: boolean
+}
+interface ContactForm { full_name: string; email: string; phone: string; job_title: string; role: string; is_primary: boolean }
+
+interface LinkedLicense {
+  link_id: string
+  license_id: string
+  name: string
+  status: string
+  total_seats?: number | null
+  expiry_date?: string | null
+  annual_cost?: number | null
+  notes?: string | null
+}
+interface License { id: string; name: string }
+
+interface LinkedContract {
+  link_id: string
+  contract_id: string
+  title: string
+  status: string
+  reference?: string | null
+  total_amount?: number | null
+  start_date?: string | null
+  end_date?: string | null
+}
+interface Contract { id: string; title?: string | null; client_name?: string | null; status: string }
+
+/** `uat_out` + `project_name` (list_uat_team). */
+interface TeamUatSession {
+  id: string
+  code?: string
+  title: string
+  description?: string | null
+  status: string
+  available_from?: string | null
+  deadline?: string | null
+  test_environment?: string | null
+  // `uat_out` no envía este campo (envía `issues`): el aviso de incidencias
+  // de esta pestaña no llega a pintarse nunca.
+  issues_count?: number
+}
+
+/** `fr_out` + `project_name`/`client_name` (list_all_feature_requests). */
+interface TeamFeatureRequest {
+  id: string
+  code?: string
+  title: string
+  description?: string | null
+  project_name?: string
+  priority?: string
+  status: string
+  pm_response?: string | null
+  estimated_cost?: number | null
+  estimated_delivery_weeks?: number | null
+  client_approved?: boolean | null
+  client_approved_at?: string | null
+  submitted_at?: string | null
+  cr_status?: string | null
+  cr_status_label?: string | null
+  cr_status_color?: string | null
+  // El modal de detalle de CR lee estos campos de la propia FR, pero `fr_out`
+  // no los envía: se muestran siempre como «—» (ver informe de tipos).
+  impact?: string | null
+  impact_label?: string | null
+  cost_impact?: number | null
+  schedule_impact_days?: number | null
+  resolution_notes?: string | null
+  approved_at?: string | null
+  implemented_at?: string | null
+}
+
+interface FeatureRequestResponseForm {
+  pm_response: string
+  estimated_hours: string
+  estimated_cost: string
+  estimated_delivery_weeks: string
+  status: string
+}
+
+/** `doc_out` (lo que pinta la pestaña). */
+interface TeamPortalDocument {
+  id: string
+  title: string
+  category?: string | null
+  file_name?: string | null
+  file_url?: string | null
+  requires_signature?: boolean
+  created_at?: string | null
+}
+
+interface PortalConfig {
+  enabled_modules?: string[]
+  sd_without_project?: boolean | null
+  sla_tier?: string | null
+  max_portal_users?: number | null
+  default_language?: string | null
+  allow_profile_edit?: boolean | null
+  allow_pwd_change?: boolean | null
+}
+
+interface PortalConfigPayload {
+  enabled_modules: string[]
+  sd_without_project: boolean
+  sla_tier: string | null
+  max_portal_users: number
+  default_language: string
+  allow_profile_edit: boolean
+  allow_pwd_change: boolean
+}
+
+const CR_FECHAS = ['submitted_at', 'approved_at', 'implemented_at'] as const
+
 const SLA_COLOR: Record<string, string> = {
   enterprise: 'var(--purple)',
   gold: 'var(--warning)',
@@ -45,7 +188,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
   const toast = useToast()
   const [showLink, setShowLink] = useState(false)
 
-  const { data: linked = [], isLoading: loadingLinked } = useQuery({
+  const { data: linked = [], isLoading: loadingLinked } = useQuery<ClientProjectRow[]>({
     queryKey: ['client-projects-linked', cid],
     queryFn: () => clientExtApi.projects(cid).then(r => r.data),
     staleTime: 0,
@@ -53,7 +196,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
     refetchOnMount: 'always',
   })
 
-  const { data: available = [], isLoading: loadingAvail, refetch: refetchAvailable } = useQuery({
+  const { data: available = [], isLoading: loadingAvail, refetch: refetchAvailable } = useQuery<ClientProjectRow[]>({
     queryKey: ['client-projects-available', cid],
     queryFn: () => clientExtApi.availableProjects(cid).then(r => r.data),
     staleTime: 0,
@@ -76,7 +219,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
   const statusColor: Record<string, string> = { active: 'var(--success)', planning: 'var(--accent)', on_hold: 'var(--warning)', completed: 'var(--text-2)', cancelled: 'var(--danger)' }
   const statusLabel: Record<string, string> = { active: 'Activo', planning: 'Planificación', on_hold: 'En espera', completed: 'Completado', cancelled: 'Cancelado' }
 
-  const unlinked = available.filter((p: any) => !p.is_linked)
+  const unlinked = available.filter(p => !p.is_linked)
 
   return (
     <div>
@@ -85,7 +228,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{linked.length} proyecto(s) vinculado(s)</div>
+        <div className="u-text2-base">{linked.length} proyecto(s) vinculado(s)</div>
         <Button onClick={() => { setShowLink(s => !s); refetchAvailable() }} size="sm">
           {showLink ? '✕ Cerrar' : '+ Vincular proyecto'}
         </Button>
@@ -97,11 +240,11 @@ export function ProjectsTab({ cid }: { cid: string }) {
           {loadingAvail ? <Spinner /> : unlinked.length === 0 ? (
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', padding: '10px 0' }}>{traducir('clients.no_hay_proyectos_disponibles_sin_cliente_asignado')}</div>
           ) : (
-            unlinked.map((p: any) => (
+            unlinked.map(p => (
               <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', marginBottom: 6, background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
                 <div>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginRight: 8 }}>{p.code}</span>
-                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{p.name}</span>
+                  <span className="u-base-600">{p.name}</span>
                   <span style={{ marginLeft: 10, fontSize: "var(--text-xs)", padding: '1px 6px', borderRadius: 4, background: alpha((statusColor[p.status] || 'var(--text-2)'), '20'), color: statusColor[p.status] || 'var(--text-2)' }}>
                     {statusLabel[p.status] || p.status}
                   </span>
@@ -118,18 +261,18 @@ export function ProjectsTab({ cid }: { cid: string }) {
       {loadingLinked ? <Spinner /> : linked.length === 0 ? (
         <EmptyState icon="⬡" title={traducir('clients.sin_proyectos_vinculados')} description="Vincula el primer proyecto a este cliente" />
       ) : (
-        linked.map((p: any) => (
+        linked.map(p => (
           <div key={p.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.code}</span>
-                  <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.name}</span>
+                  <span className="u-md-700">{p.name}</span>
                   <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusColor[p.status] || 'var(--text-2)'), '20'), color: statusColor[p.status] || 'var(--text-2)', fontWeight: 700 }}>
                     {statusLabel[p.status] || p.status}
                   </span>
                 </div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                <div className="u-text3-xs">
                   {p.start_date && `${p.start_date} → ${p.end_date || 'en curso'}`}
                 </div>
               </div>
@@ -149,14 +292,14 @@ export function ContactsTab({ cid }: { cid: string }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false })
+  const [form, setForm] = useState<ContactForm>({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false })
 
-  const { data: contacts = [], isLoading } = useQuery({
+  const { data: contacts = [], isLoading } = useQuery<ClientContact[]>({
     queryKey: ['client-contacts', cid],
     queryFn: () => clientExtApi.contacts(cid).then(r => r.data),
   })
   const { mutate: add } = useMutation({
-    mutationFn: (d: any) => clientExtApi.createContact(cid, d).then(r => r.data),
+    mutationFn: (d: ContactForm) => clientExtApi.createContact(cid, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contacts', cid] }); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -177,29 +320,29 @@ export function ContactsTab({ cid }: { cid: string }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{contacts.length} contacto(s)</div>
+        <div className="u-text2-base">{contacts.length} contacto(s)</div>
         <Button onClick={() => setShowAdd(true)} size="sm">{traducir('clients.anadir_contacto')}</Button>
       </div>
       {contacts.length === 0 ? (
         <EmptyState icon="👤" title={traducir('clients.sin_contactos')} description="Anade un contacto principal para este cliente" />
-      ) : contacts.map((ct: any) => (
+      ) : contacts.map(ct => (
         <div key={ct.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: alpha((roleColor[ct.role] || 'var(--text-2)'), '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: roleColor[ct.role] || 'var(--text-2)' }}>
               {ct.full_name?.charAt(0) || '?'}
             </div>
             <div>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{ct.full_name}
+              <div className="u-md-700">{ct.full_name}
                 {ct.is_primary && <span style={{ marginLeft: 6, fontSize: "var(--text-2xs)", background: 'var(--accent-glow)', color: 'var(--accent)', padding: '1px 6px', borderRadius: 4 }}>Principal</span>}
               </div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{ct.job_title} {ct.email && `· ${ct.email}`}</div>
+              <div className="u-text2-sm">{ct.job_title} {ct.email && `· ${ct.email}`}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="u-row-center-8">
             <span style={{ fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 20, background: alpha((roleColor[ct.role] || 'var(--text-2)'), '15'), color: roleColor[ct.role] || 'var(--text-2)', fontWeight: 700 }}>
               {roles.find(r => r.id === ct.role)?.label || ct.role}
             </span>
-            {ct.phone && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>📞 {ct.phone}</span>}
+            {ct.phone && <span className="u-text2-sm">📞 {ct.phone}</span>}
             <button onClick={() => remove(ct.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-md)" }}>🗑</button>
           </div>
         </div>
@@ -223,7 +366,7 @@ export function ContactsTab({ cid }: { cid: string }) {
               </label>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => add(form)} disabled={!form.full_name}>{traducir('clients.anadir')}</Button>
           </div>
@@ -241,11 +384,11 @@ export function LicensesTab({ cid }: { cid: string }) {
   const [selectedLic, setSelectedLic] = useState('')
   const [licNote, setLicNote] = useState('')
 
-  const { data: linked = [] } = useQuery({ queryKey: ['client-licenses', cid], queryFn: () => clientExtApi.licenses(cid).then(r => r.data) })
-  const { data: allLics = [] } = useQuery({ queryKey: ['alm-licenses'], queryFn: () => licensesApi.list(undefined).then(r => r.data) })
+  const { data: linked = [] } = useQuery<LinkedLicense[]>({ queryKey: ['client-licenses', cid], queryFn: () => clientExtApi.licenses(cid).then(r => r.data) })
+  const { data: allLics = [] } = useQuery<License[]>({ queryKey: ['alm-licenses'], queryFn: () => licensesApi.list(undefined).then(r => r.data) })
 
   const { mutate: link } = useMutation({
-    mutationFn: (d: any) => clientExtApi.linkLicense(cid, d),
+    mutationFn: (d: { license_id: string; notes: string }) => clientExtApi.linkLicense(cid, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-licenses', cid] }); qc.invalidateQueries({ queryKey: ['alm-licenses'] }); setShowLink(false); setSelectedLic(''); setLicNote('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -255,30 +398,30 @@ export function LicensesTab({ cid }: { cid: string }) {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const linkedIds = linked.map((l: any) => l.license_id)
-  const available = allLics.filter((l: any) => !linkedIds.includes(l.id))
+  const linkedIds = linked.map(l => l.license_id)
+  const available = allLics.filter(l => !linkedIds.includes(l.id))
   const statusCol: Record<string, string> = { active: 'var(--success)', expired: 'var(--danger)', cancelled: 'var(--text-2)' }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{linked.length} licencia(s) vinculada(s)</div>
+        <div className="u-text2-base">{linked.length} licencia(s) vinculada(s)</div>
         <Button onClick={() => setShowLink(true)} size="sm">+ Vincular licencia</Button>
       </div>
       {linked.length === 0 ? (
         <EmptyState icon="🔑" title={traducir('clients.sin_licencias_vinculadas')} description="Vincula una licencia para este cliente" />
-      ) : linked.map((l: any) => (
+      ) : linked.map(l => (
         <div key={l.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{l.name}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+            <div className="u-md-700">{l.name}</div>
+            <div className="u-text2-sm">
               {l.total_seats && `${l.total_seats} seats`}
               {l.expiry_date && ` · Vence ${l.expiry_date}`}
               {l.annual_cost && ` · ${fmtCurrency(l.annual_cost)}/año`}
             </div>
             {l.notes && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontStyle: 'italic', marginTop: 2 }}>{l.notes}</div>}
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="u-row-center-8">
             <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusCol[l.status] || 'var(--text-2)'), '15'), color: statusCol[l.status] || 'var(--text-2)', fontWeight: 700 }}>{l.status}</span>
             <button onClick={() => unlink(l.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
           </div>
@@ -290,14 +433,14 @@ export function LicensesTab({ cid }: { cid: string }) {
             <label style={lbl}>Licencia</label>
             <select value={selectedLic} onChange={e => setSelectedLic(e.target.value)} style={inp}>
               <option value="">Seleccionar...</option>
-              {available.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              {available.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           </div>
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <label style={lbl}>Notas (opcional)</label>
             <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} />
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => link({ license_id: selectedLic, notes: licNote })} disabled={!selectedLic}>Vincular</Button>
           </div>
@@ -314,11 +457,11 @@ export function ContractsTab({ cid }: { cid: string }) {
   const [showLink, setShowLink] = useState(false)
   const [selectedCon, setSelectedCon] = useState('')
 
-  const { data: linked = [] } = useQuery({ queryKey: ['client-contracts', cid], queryFn: () => clientExtApi.contracts(cid).then(r => r.data) })
-  const { data: allCons = [] } = useQuery({ queryKey: ['contracts'], queryFn: () => contractsApi.list(undefined).then(r => r.data?.items ?? r.data ?? []) })
+  const { data: linked = [] } = useQuery<LinkedContract[]>({ queryKey: ['client-contracts', cid], queryFn: () => clientExtApi.contracts(cid).then(r => r.data) })
+  const { data: allCons = [] } = useQuery<Contract[]>({ queryKey: ['contracts'], queryFn: () => contractsApi.list(undefined).then(r => r.data?.items ?? r.data ?? []) })
 
   const { mutate: link } = useMutation({
-    mutationFn: (d: any) => clientExtApi.linkContract(cid, d),
+    mutationFn: (d: { contract_id: string }) => clientExtApi.linkContract(cid, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contracts', cid] }); qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['alm-contracts'] }); setShowLink(false); setSelectedCon('') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -328,29 +471,29 @@ export function ContractsTab({ cid }: { cid: string }) {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const linkedIds = linked.map((l: any) => l.contract_id)
-  const available = allCons.filter((c: any) => !linkedIds.includes(c.id))
+  const linkedIds = linked.map(l => l.contract_id)
+  const available = allCons.filter(c => !linkedIds.includes(c.id))
   const statusCol: Record<string, string> = { active: 'var(--success)', draft: 'var(--text-2)', completed: 'var(--accent)', cancelled: 'var(--danger)' }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{linked.length} contrato(s) vinculado(s)</div>
+        <div className="u-text2-base">{linked.length} contrato(s) vinculado(s)</div>
         <Button onClick={() => setShowLink(true)} size="sm">+ Vincular contrato</Button>
       </div>
       {linked.length === 0 ? (
         <EmptyState icon="📄" title={traducir('clients.sin_contratos_vinculados')} description="Asocia un contrato activo a este cliente" />
-      ) : linked.map((c: any) => (
+      ) : linked.map(c => (
         <div key={c.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.title}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+            <div className="u-md-700">{c.title}</div>
+            <div className="u-text2-sm">
               {c.reference && `Ref: ${c.reference} · `}
               {c.total_amount && `${fmtCurrency(c.total_amount)} · `}
               {c.start_date && `${c.start_date} → ${c.end_date || '...'}`}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="u-row-center-8">
             <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusCol[c.status] || 'var(--text-2)'), '15'), color: statusCol[c.status] || 'var(--text-2)', fontWeight: 700 }}>{c.status}</span>
             <button onClick={() => unlink(c.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
           </div>
@@ -358,14 +501,14 @@ export function ContractsTab({ cid }: { cid: string }) {
       ))}
       {showLink && (
         <Modal open title="Vincular contrato" onClose={() => setShowLink(false)} width={440}>
-          <div style={{ marginBottom: 16 }}>
+          <div className="u-mb-16">
             <label style={lbl}>Contrato</label>
             <select value={selectedCon} onChange={e => setSelectedCon(e.target.value)} style={inp}>
               <option value="">Seleccionar...</option>
-              {available.map((c: any) => <option key={c.id} value={c.id}>{c.title || c.client_name} — {c.status}</option>)}
+              {available.map(c => <option key={c.id} value={c.id}>{c.title || c.client_name} — {c.status}</option>)}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div className="u-actions-8">
             <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => link({ contract_id: selectedCon })} disabled={!selectedCon}>Vincular</Button>
           </div>
@@ -375,8 +518,10 @@ export function ContractsTab({ cid }: { cid: string }) {
   )
 }
 
-export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDetail?: any }) {
+export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDetail?: ClientDetail | null }) {
   const [sub, setSub] = useState('accesos')
+  // Proyectos del detalle del cliente: aquí solo se usan id, código y nombre.
+  const proyectos = (clientDetail?.projects || []) as ClientProjectRef[]
 
   const subTabs = [
     { id: 'accesos', label: 'Accesos' },
@@ -402,20 +547,20 @@ export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDeta
       </div>
 
       {sub === 'accesos' && <PortalUsersTab cid={cid} clientName={clientDetail?.name} />}
-      {sub === 'uat' && <PortalUATTab _cid={cid} projects={clientDetail?.projects || []} />}
-      {sub === 'solicitudes' && <PortalSolicitudesTab cid={cid} projects={clientDetail?.projects || []} />}
-      {sub === 'mensajes' && <PortalMensajesTab cid={cid} projects={clientDetail?.projects || []} />}
-      {sub === 'documentos' && <PortalDocumentosTab cid={cid} projects={clientDetail?.projects || []} />}
+      {sub === 'uat' && <PortalUATTab _cid={cid} projects={proyectos} />}
+      {sub === 'solicitudes' && <PortalSolicitudesTab cid={cid} projects={proyectos} />}
+      {sub === 'mensajes' && <PortalMensajesTab cid={cid} projects={proyectos} />}
+      {sub === 'documentos' && <PortalDocumentosTab cid={cid} projects={proyectos} />}
       {sub === 'config' && <PortalSettingsTab cid={cid} />}
     </div>
   )
 }
 
-export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[] }) {
+export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: ClientProjectRef[] }) {
   const { t: traducir } = useAppLang()
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
 
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: sessions = [], isLoading } = useQuery<TeamUatSession[]>({
     queryKey: ['uat-team-client', selectedProject],
     queryFn: () => portalApi.uat({ project_id: selectedProject }).then(r => r.data).catch(() => []),
     enabled: !!selectedProject,
@@ -437,10 +582,10 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[
       ) : (
         <>
           {projects.length > 1 && (
-            <div style={{ marginBottom: 16 }}>
+            <div className="u-mb-16">
               <label style={lbl}>Proyecto</label>
               <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
-                {projects.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
             </div>
           )}
@@ -450,16 +595,16 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[
           ) : isLoading ? <Spinner /> : sessions.length === 0 ? (
             <EmptyState icon="🧪" title={traducir('clients.sin_sesiones_uat')} description="Todavia no hay sesiones UAT disponibles para este proyecto" />
           ) : (
-            sessions.map((s: any) => (
+            sessions.map(s => (
               <div key={s.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                   <div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{s.code}</span>
-                      <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{s.title}</span>
+                      <span className="u-md-700">{s.title}</span>
                     </div>
-                    {s.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{s.description.slice(0, 120)}</div>}
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>
+                    {s.description && <div className="u-text2-sm">{s.description.slice(0, 120)}</div>}
+                    <div className="u-hint">
                       {s.available_from && `Disponible: ${s.available_from}`}
                       {s.deadline && ` · Límite: ${s.deadline}`}
                     </div>
@@ -489,7 +634,7 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: any[
   )
 }
 
-export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] }) {
+export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientProjectRef[] }) {
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -501,9 +646,9 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
     let ws: WebSocket | undefined
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined
     function connectWS() {
-      wsApi.ticket().then((res: any) => {
+      wsApi.ticket().then((res: { data: { ticket: string } }) => {
         const ticket = res.data.ticket
-        ws = new window.WebSocket(`${resolveWsBase()}/api/v1/ws/notifications?ticket=${ticket}`)
+        ws = new window.WebSocket(apiWsUrl(`/ws/notifications?ticket=${ticket}`))
         ws.onclose = () => { reconnectTimer = setTimeout(connectWS, 5000) }
         ws.onerror = () => { ws!.close() }
         ws.onmessage = (ev) => {
@@ -523,19 +668,19 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
     return () => { if (ws) ws.close(); clearTimeout(reconnectTimer) }
   }, [cid, loading, qc, toast, user])
 
-  const [responding, setResponding] = useState<any>(null)
-  const [responseForm, setResponseForm] = useState({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
-  const [crDetail, setCrDetail] = useState<any>(null)
+  const [responding, setResponding] = useState<TeamFeatureRequest | null>(null)
+  const [responseForm, setResponseForm] = useState<FeatureRequestResponseForm>({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
+  const [crDetail, setCrDetail] = useState<TeamFeatureRequest | null>(null)
   const [crFilter, setCrFilter] = useState('all')
 
-  const { data: frs = [], isLoading } = useQuery({
+  const { data: frs = [], isLoading } = useQuery<TeamFeatureRequest[]>({
     queryKey: ['portal-frs-client', cid],
     queryFn: () => portalApi.featureRequests({ client_org_id: cid }).then(r => r.data).catch(() => []),
     enabled: !!cid,
   })
 
   const { mutate: respond, isPending } = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => portalApi.respondFeatureRequest(id, data),
+    mutationFn: ({ id, data }: { id: string; data: FeatureRequestResponseForm }) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client', cid] }); setResponding(null) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
@@ -563,7 +708,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
     { value: 'rejected', label: 'CR Rechazada' },
     { value: 'implemented', label: 'CR Implementada' },
   ]
-  const filteredFrs = frs.filter((fr: any) => {
+  const filteredFrs = frs.filter(fr => {
     if (crFilter === 'all') return true
     if (crFilter === 'none') return !fr.cr_status
     return fr.cr_status === crFilter
@@ -572,21 +717,21 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-        <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{filteredFrs.length} {traducir('clients.solicitud_es_del_cliente')}</span>
+        <span className="u-text2-base">{filteredFrs.length} {traducir('clients.solicitud_es_del_cliente')}</span>
         <select value={crFilter} onChange={e => setCrFilter(e.target.value)} style={{ ...inp, width: 160, fontSize: "var(--text-sm)", padding: '4px 8px' }}>
           {crStates.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
       </div>
       {filteredFrs.length === 0 ? (
         <EmptyState icon="💡" title={traducir('clients.sin_solicitudes')} description="No hay solicitudes funcionales del cliente" />
-      ) : filteredFrs.map((fr: any) => (
+      ) : filteredFrs.map(fr => (
         <div key={fr.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, borderLeft: fr.cr_status_color ? `6px solid ${fr.cr_status_color}` : '6px solid var(--text-3)', boxShadow: fr.cr_status ? '0 2px 8px #0001' : undefined, position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-            <div style={{ flex: 1 }}>
+            <div className="u-flex1">
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
                 <IconFR />
                 <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
-                <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{fr.title}</span>
+                <span className="u-md-700">{fr.title}</span>
               </div>
               {fr.project_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>📁 {fr.project_name}</div>}
             </div>
@@ -644,7 +789,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
 
       {responding && (
         <Modal open title={`Responder a: ${responding.title}`} onClose={() => setResponding(null)} width={520}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="u-stack-14">
             <div><label style={ls}>{traducir('clients.respuesta_analisis')}</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('clients.respuesta_del_equipo_2')} aria-label={traducir('clients.respuesta_del_equipo_2')} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               <div><label style={ls}>Horas estimadas</label><input type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" /></div>
@@ -657,7 +802,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
                 <option value="rejected">{traducir('clients.rechazada_no_factible')}</option>
               </select>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResponding(null)}>Cancelar</Button>
               <Button onClick={() => respond({ id: responding.id, data: responseForm })} disabled={isPending || !responseForm.pm_response}>Enviar respuesta</Button>
             </div>
@@ -668,7 +813,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
       {crDetail && (
         <Modal open title="Detalle Change Request" onClose={() => setCrDetail(null)} width={520}>
           {crDetail.cr_status ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="u-stack-12">
               <div style={{ fontWeight: 700, fontSize: "var(--text-md-em)", color: crDetail.cr_status_color }}>
                 <IconCR /> Estado: {crDetail.cr_status_label || crDetail.cr_status}
               </div>
@@ -678,7 +823,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
               <div><b>Coste impacto:</b> {crDetail.cost_impact != null ? crDetail.cost_impact + ' €' : '—'}</div>
               <div><b>Impacto en plazo:</b> {crDetail.schedule_impact_days != null ? crDetail.schedule_impact_days + ' días' : '—'}</div>
               <div><b>{traducir('clients.notas_resolucion')}</b> {crDetail.resolution_notes || '—'}</div>
-              <div><b>Fechas:</b> {['submitted_at', 'approved_at', 'implemented_at'].map(f => crDetail[f] && (<span key={f} style={{ marginRight: 10 }}>{f.replace('_at', '')}: {crDetail[f]}</span>))}</div>
+              <div><b>Fechas:</b> {CR_FECHAS.map(f => crDetail[f] && (<span key={f} style={{ marginRight: 10 }}>{f.replace('_at', '')}: {crDetail[f]}</span>))}</div>
             </div>
           ) : (
             <div>{traducir('clients.no_hay_change_request_vinculada_aun_se')}</div>
@@ -689,15 +834,15 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: any[] })
   )
 }
 
-export function PortalMensajesTab({ cid, projects }: { cid: string; projects: any[] }) {
+export function PortalMensajesTab({ cid, projects }: { cid: string; projects: ClientProjectRef[] }) {
   const { t: traducir } = useAppLang()
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       <TeamGovernedConversationInbox
         title={traducir('clients.conversaciones_del_cliente')}
         emptyTitle="Sin conversaciones"
         emptyDescription="Todavía no hay conversaciones del portal para este cliente."
-        projectOptions={projects.map((project: any) => ({ id: project.id, name: project.name || project.code || project.id, code: project.code || '' }))}
+        projectOptions={projects.map(project => ({ id: project.id, name: project.name || project.code || project.id, code: project.code || '' }))}
         initialProjectId={projects[0]?.id || ''}
         clientOrgId={cid}
       />
@@ -706,10 +851,10 @@ export function PortalMensajesTab({ cid, projects }: { cid: string; projects: an
   )
 }
 
-export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: any[] }) {
+export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: ClientProjectRef[] }) {
   const { t: traducir } = useAppLang()
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
-  const { data: docs = [], isLoading } = useQuery({
+  const { data: docs = [], isLoading } = useQuery<TeamPortalDocument[]>({
     queryKey: ['portal-docs-team', cid, selectedProject],
     queryFn: () => selectedProject
       ? portalApi.documents({ project_id: selectedProject }).then(r => r.data).catch(() => [])
@@ -721,10 +866,10 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
   return (
     <div>
       {projects.length > 1 && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="u-mb-16">
           <label style={lbl}>Proyecto</label>
           <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
-            {projects.map((p: any) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
       )}
@@ -733,13 +878,13 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
         : <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>{docs.length} documento(s) compartido(s)</div>}
       {docs.length === 0
         ? <EmptyState icon="📄" title={traducir('clients.sin_documentos')} description="No hay documentos compartidos en el portal para este proyecto" />
-        : docs.map((d: any) => (
+        : docs.map(d => (
           <div key={d.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <span style={{ fontSize: "var(--text-2xl)" }}>{catIcon[d.category] || '📄'}</span>
               <div>
-                <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{d.title}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                <div className="u-md-700">{d.title}</div>
+                <div className="u-text2-xs">
                   {d.file_name && `${d.file_name} · `}{d.created_at?.slice(0, 10)}
                   {d.requires_signature && <span style={{ marginLeft: 8, color: 'var(--warning)' }}>✍️ Requiere firma</span>}
                 </div>
@@ -760,7 +905,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: cfg, isLoading } = useQuery({
+  const { data: cfg, isLoading } = useQuery<PortalConfig>({
     queryKey: ['client-portal-cfg', cid],
     queryFn: () => clientExtApi.portalConfig(cid).then(r => r.data),
   })
@@ -785,7 +930,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
   }, [cfg])
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: (d: any) => clientExtApi.updatePortalConfig(cid, d),
+    mutationFn: (d: PortalConfigPayload) => clientExtApi.updatePortalConfig(cid, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-portal-cfg', cid] }); toast.success('✅ Configuración guardada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -802,7 +947,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
   if (isLoading) return <Spinner />
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         <div style={{ ...panel, padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>{traducir('clients.modulos_del_portal')}</div>
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 12 }}>{traducir('clients.que_secciones_puede_ver_el_cliente_en')}</div>
@@ -820,14 +965,14 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
           <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
             <input type="checkbox" checked={sdWithout} onChange={e => setSdWithout(e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', marginTop: 2 }} />
             <div>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{traducir('clients.acceso_sin_proyecto_vinculado')}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{traducir('clients.puede_abrir_tickets_aunque_no_tenga_proyectos')}</div>
+              <div className="u-base-600">{traducir('clients.acceso_sin_proyecto_vinculado')}</div>
+              <div className="u-text2-xs">{traducir('clients.puede_abrir_tickets_aunque_no_tenga_proyectos')}</div>
             </div>
           </label>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-stack-16">
         <div style={{ ...panel, padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>🌍 Idioma y SLA</div>
           <div style={{ marginBottom: 14 }}>
@@ -863,7 +1008,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
               <input type="checkbox" checked={opt.val} onChange={e => opt.set(e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: opt.val ? 'var(--text-1)' : 'var(--text-2)' }}>{opt.label}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{opt.desc}</div>
+                <div className="u-text3-xs">{opt.desc}</div>
               </div>
             </label>
           ))}

@@ -7,12 +7,14 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { m365Api } from '../services/api'
+import { m365Api, apiUrl } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { LayoutGrid } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { Table } from '../components/ui'
 import type { CSSProperties } from 'react'
+import DsBadge from '../components/ui/StatusBadge'
 
 interface M365Status {
   graph_configured?: boolean
@@ -49,16 +51,7 @@ const _TABS = ['calendar', 'teams', 'config']
 
 function StatusBadge({ ok, label }: { ok?: boolean; label: string }) {
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      background: ok ? 'var(--success-bg)' : 'var(--surface-2)',
-      border: `1px solid ${ok ? 'var(--success-border)' : 'var(--surface-5)'}`,
-      borderRadius: 8, padding: '4px 10px', fontSize: "var(--text-sm)",
-      color: ok ? 'var(--success)' : 'var(--text-2)',
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: ok ? 'var(--success)' : 'var(--surface-5)' }} />
-      {label}
-    </span>
+    <DsBadge kind={ok ? 'success' : 'neutral'} dot caps={false}>{label}</DsBadge>
   )
 }
 
@@ -152,7 +145,7 @@ function CalendarTab() {
         {msResult && !msResult.error && (
           <div style={{ marginTop: 10, fontSize: "var(--text-sm)" }}>
             <span style={{ color: 'var(--success)' }}>✓ {msResult.created} milestones sincronizados</span>
-            {(msResult.errors?.length ?? 0) > 0 && <span style={{ color: '#fb923c', marginLeft: 10 }}>⚠ {msResult.errors?.length} errores</span>}
+            {(msResult.errors?.length ?? 0) > 0 && <span style={{ color: 'var(--orange)', marginLeft: 10 }}>⚠ {msResult.errors?.length} errores</span>}
           </div>
         )}
         {msResult?.error && <div style={{ marginTop: 10, color: 'var(--danger)', fontSize: "var(--text-sm)" }}>⚠ {typeof msResult.error === 'string' ? msResult.error : JSON.stringify(msResult.error)}</div>}
@@ -188,10 +181,10 @@ function TeamsTab() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.enviar_notificacion_a_teams')}</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="u-stack-12">
           <div>
             <label style={ls}>{t('m365.titulo')}</label>
             <input value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder={t('m365.titulo_de_la_notificacion')} />
@@ -202,7 +195,7 @@ function TeamsTab() {
           </div>
           <div>
             <label style={ls}>{t('m365.color_hex_sin')}</label>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="u-row-center-8">
               <input value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
               {TEAMS_BRAND_PRESETS.map(c => (
                 <button key={c} onClick={() => setColor(c)} title={`Color de marca Teams #${c}`}
@@ -228,7 +221,7 @@ function TeamsTab() {
             <li>{t('m365.el_presupuesto_supera_el_90')}</li>
             <li>{t('m365.una_aprobacion_queda_pendiente_por_mas_de')}</li>
           </ul>
-          {t('m365.estas_se_activan_via_las')} <strong style={{ color: 'var(--info)' }}>Automatizaciones</strong> {t('m365.o_mediante_el_endpoint')} <code style={{ color: '#fb923c' }}>POST /api/v1/m365/teams/notify-project</code>.
+          {t('m365.estas_se_activan_via_las')} <strong style={{ color: 'var(--info)' }}>Automatizaciones</strong> {t('m365.o_mediante_el_endpoint')} <code style={{ color: 'var(--orange)' }}>POST {apiUrl('/m365/teams/notify-project')}</code>.
         </div>
       </div>
     </div>
@@ -253,11 +246,11 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-stack-16">
       {/* Status */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>{t('m365.estado_de_la_integracion')}</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div className="u-wrap-8">
           {envVars.map(v => (
             <StatusBadge key={v.key} ok={v.ok} label={v.label} />
           ))}
@@ -267,7 +260,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
       {/* Setup steps */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.guia_de_configuracion')}</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="u-stack-14">
           {steps.map(s => (
             <div key={s.n} style={{ display: 'flex', gap: 12 }}>
               <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent-glow)', color: 'var(--info)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, flexShrink: 0, marginTop: 2 }}>
@@ -277,7 +270,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>{s.title}</div>
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{s.desc}</div>
                 {s.code && (
-                  <pre style={{ background: '#0d1117', border: '1px solid var(--surface-5)', borderRadius: 6, padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6, overflow: 'auto' }}>{s.code}</pre>
+                  <pre style={{ background: 'var(--surface-0)', border: '1px solid var(--surface-5)', borderRadius: 6, padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6, overflow: 'auto' }}>{s.code}</pre>
                 )}
               </div>
             </div>
@@ -288,28 +281,18 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
       {/* Scopes reference */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
         <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>Permisos Graph requeridos</div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--text-2)', fontWeight: 700, borderBottom: '1px solid var(--surface-4)' }}>Permiso</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--text-2)', fontWeight: 700, borderBottom: '1px solid var(--surface-4)' }}>Tipo</th>
-              <th style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--text-2)', fontWeight: 700, borderBottom: '1px solid var(--surface-4)' }}>Funcionalidad</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ['Calendars.ReadWrite', 'Application', 'Leer/escribir calendarios de todos los usuarios'],
-              ['User.Read.All',        'Application', 'Leer perfiles de usuario para buscar por UPN'],
-              ['ChannelMessage.Send',  'Application', 'Enviar mensajes a canales de Teams'],
-            ].map(([perm, type, desc]) => (
-              <tr key={perm}>
-                <td style={{ padding: '6px 8px', color: '#fb923c', fontFamily: 'var(--font-mono)' }}>{perm}</td>
-                <td style={{ padding: '6px 8px', color: 'var(--text-2)' }}>{type}</td>
-                <td style={{ padding: '6px 8px', color: 'var(--text-2)' }}>{desc}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Table
+          data={[
+            { perm: 'Calendars.ReadWrite', type: 'Application', desc: 'Leer/escribir calendarios de todos los usuarios' },
+            { perm: 'User.Read.All',       type: 'Application', desc: 'Leer perfiles de usuario para buscar por UPN' },
+            { perm: 'ChannelMessage.Send', type: 'Application', desc: 'Enviar mensajes a canales de Teams' },
+          ]}
+          columns={[
+            { key: 'perm', label: 'Permiso', render: (_v, r) => <span style={{ color: 'var(--orange)', fontFamily: 'var(--font-mono)' }}>{r.perm}</span> },
+            { key: 'type', label: 'Tipo', render: (_v, r) => <span className="u-text2">{r.type}</span> },
+            { key: 'desc', label: 'Funcionalidad', render: (_v, r) => <span className="u-text2">{r.desc}</span> },
+          ]}
+        />
       </div>
     </div>
   )
