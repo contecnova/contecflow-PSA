@@ -971,7 +971,11 @@ def link_message(db: Session, user, message_id: str, *, kind: str, linked_id) ->
     kind = (kind or "").lower()
     if kind not in ENTIDADES_ANCLABLES:
         raise ErrorDeDominio(400, "kind debe ser task|ticket|deliverable|risk")
-    setattr(msg, f"linked_{kind}_id", linked_id)
+    # Auditoria 2026-11: el id se guardaba sin comprobar; un id de otra
+    # organizacion (o inventado) quedaba anclado. `None` desancla.
+    _exigir_enlaces_de_la_org(db, org, *[linked_id if k == kind else None
+                                         for k in ("task", "ticket", "deliverable", "risk")])
+    setattr(msg, f"linked_{kind}_id", linked_id or None)
     audit_log.write(
         db, organization_id=org, actor_user_id=user.id, actor_client_id=None,
         action="message.linked", entity_type="message", entity_id=message_id,
@@ -1020,5 +1024,25 @@ def link_candidates(db: Session, user, message_id: str, *, kind: str, q: str,
             consulta = consulta.filter(Ticket.title.ilike(f"%{q}%"))
         filas = consulta.order_by(Ticket.created_at.desc()).limit(limit).all()
         return [{"id": t.id, "label": f"{t.number} · {t.title}"} for t in filas]
+
+    if kind in ("deliverable", "risk"):
+        # Auditoria 2026-11: se podian anclar pero no se ofrecian candidatos.
+        from app.models.collaboration import CollaborationChannel
+        from app.models.pipeline import Risk
+        from app.models.resources import Deliverable
+
+        modelo, texto = (Deliverable, Deliverable.name) if kind == "deliverable" else (Risk, Risk.title)
+        canal = (
+            db.query(CollaborationChannel)
+            .filter(CollaborationChannel.conversation_id == msg.conversation_id)
+            .first()
+        )
+        consulta = db.query(modelo).filter(modelo.organization_id == org)
+        if canal and canal.project_id:
+            consulta = consulta.filter(modelo.project_id == canal.project_id)
+        if q:
+            consulta = consulta.filter(texto.ilike(f"%{q}%"))
+        filas = consulta.order_by(modelo.code).limit(limit).all()
+        return [{"id": f.id, "label": f"{f.code} · {getattr(f, 'name', None) or getattr(f, 'title', '')}"} for f in filas]
 
     return []

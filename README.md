@@ -149,7 +149,7 @@ The tab badges are refreshed every 60 s (`useNotificationBadges`).
 
 ### Chat (Teams) — `/chat`
 
-- **Message links (2026-11):** `POST` of a message accepts `linked_task_id`, `linked_ticket_id`, `linked_deliverable_id` and `linked_risk_id`; each must belong to the sender's organization (422 otherwise). The UI shows the chips but has no control to set them; they come from the API or bots.
+- **Message links (2026-11):** `POST` of a message accepts `linked_task_id`, `linked_ticket_id`, `linked_deliverable_id` and `linked_risk_id`; each must belong to the sender's organization (422 otherwise). Existing messages are anchored with `POST /collaboration/messages/{id}/link` (`kind` task|ticket|deliverable|risk, `id`; `null` unlinks): the message toolbar has a button per kind and `GET …/link/candidates` suggests items (scoped to the channel's project for tasks, deliverables and risks). Since 2026-11 the id must belong to the organization (422) and deliverables/risks have candidates and buttons.
 *Roles:* Menu: all five roles. Route: any authenticated user. `/chat/admin` redirects to `/settings/chat-admin` (admin only, documented elsewhere). `/chat/call/:callId` opens the call window.
 
 **Purpose.** A Teams-style internal chat:

@@ -1638,6 +1638,8 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
           <IconBtn onClick={onSave} title="Guardar"><Bookmark size={13} /></IconBtn>
           <IconBtn onClick={() => onLink && onLink('task')} title="Anclar a tarea"><ListChecks size={13} /></IconBtn>
           <IconBtn onClick={() => onLink && onLink('ticket')} title="Anclar a ticket"><Headphones size={13} /></IconBtn>
+          <IconBtn onClick={() => onLink && onLink('deliverable')} title="Anclar a entregable"><FileText size={13} /></IconBtn>
+          <IconBtn onClick={() => onLink && onLink('risk')} title="Anclar a riesgo"><AlertCircle size={13} /></IconBtn>
           {isMine && <IconBtn onClick={onEdit} title="Editar"><Pencil size={13} /></IconBtn>}
           {isMine && <IconBtn onClick={onDelete} title="Borrar" style={{ color: 'var(--danger)' }}><Trash2 size={13} /></IconBtn>}
         </div>
@@ -1891,7 +1893,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div className="u-md-700">
-            Anclar a {kind === 'task' ? 'tarea' : kind === 'ticket' ? 'ticket' : kind}
+            Anclar a {({ task: 'tarea', ticket: 'ticket', deliverable: 'entregable', risk: 'riesgo' } as Record<string, string>)[kind] ?? kind}
           </div>
           <button onClick={onClose} style={styles.iconCloseBtn}>
             <X size={14} />

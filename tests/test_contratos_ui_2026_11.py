@@ -302,3 +302,14 @@ def test_enlace_de_mensaje_a_otra_organizacion_es_422(db):
         _exigir_enlaces_de_la_org(db, "org-x", None, None, "no-existe", None)
     assert e.value.status_code == 422
     _exigir_enlaces_de_la_org(db, "org-x", None, None, None, None)  # sin enlaces: nada que comprobar
+
+
+def test_anclar_mensaje_a_entidad_de_otra_organizacion_es_422(db, monkeypatch):
+    """`POST /messages/{id}/link` guardaba cualquier id sin comprobar (auditoria 2026-11)."""
+    from app.core.errores import ErrorDeDominio
+    from app.services.collaboration import messages as m
+    monkeypatch.setattr(m, "_org", lambda u: "org-x")
+    monkeypatch.setattr(m, "_mensaje_accesible", lambda db, u, i: SimpleNamespace(id=i))
+    with pytest.raises(ErrorDeDominio) as e:
+        m.link_message(db, SimpleNamespace(id="u1"), "msg-1", kind="risk", linked_id="no-existe")
+    assert e.value.status_code == 422
