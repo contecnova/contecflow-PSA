@@ -31,7 +31,7 @@ def upgrade() -> None:
         # Dos filas con el mismo seq en una empresa serían una cadena bifurcada.
         op.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_audit_logs_cadena "
                    "ON audit_logs (COALESCE(organization_id, ''), seq) WHERE seq IS NOT NULL")
-    from app.services.cadena_auditoria import encadenar_existentes
+    from app.db.cadena_auditoria import encadenar_existentes  # 2026-11: movido a app/db
     encadenar_existentes(bind)
 
 

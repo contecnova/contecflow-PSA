@@ -536,7 +536,11 @@ def ml_forecast_prophet(
                 "upper_bound": round(max(0.0, float(row["yhat_upper"])), 2),
             })
         engine = "prophet"
-    except ImportError:
+    except Exception:
+        # Auditoria 2026-11: solo se cubria ImportError; un Prophet instalado sin
+        # backend de Stan (AttributeError 'stan_backend') daba 500 en vez de usar
+        # el respaldo. Cualquier fallo del motor cae a la regresion lineal.
+        logging.getLogger(__name__).warning("Prophet no disponible; regresion lineal", exc_info=True)
         # Fallback: enhanced linear regression
         pred = _linear_regression_forecast(values, periods)
         result_periods = []

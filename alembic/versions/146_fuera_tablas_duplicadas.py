@@ -24,8 +24,12 @@ def upgrade() -> None:
     con = op.get_bind()
     tablas = set(sa.inspect(con).get_table_names())
     if "ticket_internal_comments" in tablas:
+        # Auditoria 2026-11: sobre una base vacia la tabla aun no tiene
+        # organization_id en este punto de la cadena.
+        cols = {c["name"] for c in sa.inspect(con).get_columns("ticket_internal_comments")}
+        org = "organization_id" if "organization_id" in cols else "NULL AS organization_id"
         filas = con.execute(sa.text(
-            "SELECT id, organization_id, ticket_id, content, created_by, created_at FROM ticket_internal_comments")).fetchall()
+            f"SELECT id, {org}, ticket_id, content, created_by, created_at FROM ticket_internal_comments")).fetchall()  # noqa: S608
         for f in filas:
             con.execute(sa.text(
                 "INSERT INTO sd_ticket_comments (id, organization_id, ticket_id, body, is_public, is_solution, author_user_id, created_at) "

@@ -20,7 +20,7 @@ from tests.conftest import auth
 def _project(client, token, name="BL Project"):
     r = client.post("/api/v1/projects", json={
         "name": name, "code": name[:4].upper(), "status": "active",
-        "project_type": "development", "billing_type": "time_and_materials",
+        "project_type": "development", "billing_type": "time_material",
     }, headers=auth(token))
     assert r.status_code in (200, 201), r.text
     return r.json()["data"]["id"]

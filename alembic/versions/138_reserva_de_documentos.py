@@ -17,8 +17,12 @@ depends_on = None
 def upgrade() -> None:
     hay = {c["name"] for c in sa.inspect(op.get_bind()).get_columns("documents")}
     if "checked_out_by" not in hay:
-        op.add_column("documents", sa.Column("checked_out_by", sa.String(36),
-                                             sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True))
+        # Auditoria 2026-11: SQLite no admite ADD COLUMN con clave ajena fuera
+        # del modo batch (fallaba `alembic upgrade head` sobre una base vacia).
+        with op.batch_alter_table("documents") as tabla:
+            tabla.add_column(sa.Column("checked_out_by", sa.String(36),
+                                       sa.ForeignKey("users.id", name="fk_documents_checked_out_by",
+                                                     ondelete="SET NULL"), nullable=True))
         op.create_index("ix_documents_checked_out_by", "documents", ["checked_out_by"])
     if "checked_out_at" not in hay:
         op.add_column("documents", sa.Column("checked_out_at", sa.DateTime(timezone=True), nullable=True))

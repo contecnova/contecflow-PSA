@@ -23,7 +23,7 @@ def _create_project(client, token, name="Epics Test Project"):
             "code": "ETP",
             "status": "active",
             "project_type": "development",
-            "billing_type": "time_and_materials",
+            "billing_type": "time_material",
         },
         headers=auth(token),
     )

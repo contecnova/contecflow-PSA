@@ -131,7 +131,10 @@ def test_la_revision_del_hueco_declara_las_19_tablas():
     )
     # Todas deben seguir existiendo como modelo.
     modelos = _modelos()
-    huerfanas = [n for n in mod.MISSING_TABLES if n not in modelos]
+    # Retiradas del dominio por la revision 156 (un solo motor de ingresos); la
+    # 089 las omite si ya no son modelo (auditoria 2026-11).
+    retiradas = {"revenue_recognition_entries", "revenue_recognition_rules"}
+    huerfanas = [n for n in mod.MISSING_TABLES if n not in modelos and n not in retiradas]
     assert not huerfanas, (
         f"estas tablas de la revisión ya no tienen modelo: {huerfanas}"
     )

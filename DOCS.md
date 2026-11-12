@@ -158,6 +158,8 @@ modelos — faltaban 19, entre ellas `expenses`, `email_templates`,
 `webhook_triggers`. Un despliegue que hubiera pasado por Alembic se quedaba sin
 esas funcionalidades. Se cerró con la revisión `089_schema_gap_missing_tables`.
 
+Auditoría 2026-11: la cadena volvía a romperse sobre una base vacía (089 exigía dos modelos de ingresos ya retirados por la 156; 093 y 146 leían `organization_id` antes de que existiera; 138 hacía `ADD COLUMN` con clave ajena, que SQLite solo admite en modo batch; 137 importaba un módulo movido a `app/db/`). Corregidas sin cambiar lo que hacen sobre una base existente: `alembic upgrade head` llega a la 158 desde cero, y lo vigila `tests/test_alembic_schema_parity.py`. `setup.bat` mantiene su atajo para bases nuevas (`create_all` + `stamp head`); `setup.sh` no se ha tocado.
+
 Reglas que se derivan de eso:
 
 - **Nunca** `create_all` en el arranque ni en el despliegue. Cada modelo nuevo

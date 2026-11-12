@@ -75,13 +75,11 @@ def _tables_to_handle():
     from app.db.base import Base
     import app.models  # noqa: F401 — import con efecto: registra los modelos
 
-    faltan = [n for n in MISSING_TABLES if n not in Base.metadata.tables]
-    if faltan:
-        raise RuntimeError(
-            "Estas tablas están en MISSING_TABLES pero ya no existen como modelo: "
-            f"{faltan}. Si se han retirado del dominio, quítalas de esta revisión."
-        )
-    return [Base.metadata.tables[n] for n in MISSING_TABLES]
+    # Auditoria 2026-11: las dos tablas de `revenue_recognition_*` se retiraron
+    # del dominio (revision 156, un solo motor de ingresos, que ya contempla que
+    # no existan). Esta revision no puede depender de modelos que ya no estan:
+    # se crean las que siguen siendo modelo y se omiten las retiradas.
+    return [Base.metadata.tables[n] for n in MISSING_TABLES if n in Base.metadata.tables]
 
 
 def upgrade() -> None:

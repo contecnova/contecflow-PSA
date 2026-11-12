@@ -121,13 +121,16 @@ def upgrade() -> None:
     # salen de las dos listas de literales de arriba. No hay entrada de usuario,
     # y un `bindparam` no sirve para un identificador.
 
-    if not _existe("sd_tickets"):
+    # Auditoria 2026-11: sobre una base vacia algunas tablas aun no tienen
+    # `organization_id` en este punto de la cadena; sin la columna no hay nada
+    # que rellenar (en una base existente si la tienen y esto no cambia nada).
+    if not _existe("sd_tickets") or not _columna("sd_tickets", "organization_id"):
         return
 
     # 1. Los tickets, de su creador y de sus entidades padre.
     origenes = [
         (col, tabla) for col, tabla in ORIGENES_DEL_TICKET
-        if _existe(tabla) and _columna("sd_tickets", col)
+        if _existe(tabla) and _columna("sd_tickets", col) and _columna(tabla, "organization_id")
     ]
     if origenes:
         ramas = ",".join(
@@ -143,7 +146,7 @@ def upgrade() -> None:
 
     # 2. Las hijas, de su ticket.
     for hija in HIJAS_DEL_TICKET:
-        if not _existe(hija) or not _columna(hija, "ticket_id"):
+        if not _existe(hija) or not _columna(hija, "ticket_id") or not _columna(hija, "organization_id"):
             continue
         consulta = (
             f"UPDATE {hija} SET organization_id = ("  # noqa: S608
