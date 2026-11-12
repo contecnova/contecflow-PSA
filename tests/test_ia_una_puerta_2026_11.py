@@ -77,7 +77,8 @@ def test_los_modulos_no_caen_a_anthropic_directo(db, monkeypatch):
 def test_EL_HALLAZGO_nadie_llama_a_anthropic_por_su_cuenta():
     """Sólo la capa común y la de herramientas del agente (multiproveedor) hablan con su API."""
     raiz = Path(__file__).resolve().parents[1] / "app"
-    permitidos = {"services/ai_provider_service.py", "services/ai_tools.py", "services/integration_test_service.py"}
+    permitidos = {"services/ai_provider_service/catalogo.py", "services/ai_provider_service/clientes.py",
+                  "services/ai_tools.py", "services/integration_test_service.py"}
     fuera = []
     for f in raiz.rglob("*.py"):
         rel = f.relative_to(raiz).as_posix()

@@ -67,7 +67,7 @@ Cada regla tiene un test que falla si se rompe.
 | Llamadas salientes a URLs configurables | `abrir()` (urllib) o `cliente_httpx()` (`app/core/outbound_url.py`): validan URL, cada redirección y la IP real conectada; hosts internos legítimos en `OUTBOUND_PRIVATE_HOSTS_ALLOWED` | `tests/test_auditoria_2026_11_capas_y_stripe.py` |
 | Servicios de más de 1.000 líneas | paquete con `__init__` que reexporta todo (incluidos privados) | — |
 
-Sigue pendiente: `ai_provider_service.py` (1.542 líneas) sin partir.
+`ai_provider_service/` (9 módulos): su `__init__` propaga a los submódulos lo que se asigne al paquete (`monkeypatch.setattr(svc, ...)`), para que los parches de los tests sigan valiendo. Es un mecanismo poco habitual; si se quita, hay que apuntar los parches al submódulo.
 
 ## 3. Estructura del repositorio
 - `app/`: backend

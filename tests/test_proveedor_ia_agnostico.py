@@ -34,6 +34,9 @@ def _recargar(monkeypatch, **variables):
     for nombre, valor in variables.items():
         monkeypatch.setenv(nombre, valor)
     importlib.reload(config_mod)
+    # El paquete se partio (auditoria 2026-11, #24): `settings` lo lee `resolucion`.
+    import app.services.ai_provider_service.resolucion as resolucion
+    importlib.reload(resolucion)
     import app.services.ai_provider_service as servicio
     importlib.reload(servicio)
     return servicio
@@ -52,9 +55,12 @@ def _restaurar_configuracion():
     se restaura el contenido exacto del módulo, con el mismo objeto.
     """
     import app.services.ai_provider_service as servicio
+    import app.services.ai_provider_service.resolucion as resolucion
     antes_config, antes_servicio = dict(config_mod.__dict__), dict(servicio.__dict__)
+    antes_resolucion = dict(resolucion.__dict__)
     yield
-    for modulo, antes in ((config_mod, antes_config), (servicio, antes_servicio)):
+    for modulo, antes in ((config_mod, antes_config), (servicio, antes_servicio),
+                          (resolucion, antes_resolucion)):
         modulo.__dict__.clear()
         modulo.__dict__.update(antes)
 
