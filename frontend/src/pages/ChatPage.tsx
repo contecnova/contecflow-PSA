@@ -64,7 +64,7 @@ interface Msg {
   type: string; status: string; body: string | null; body_html: string | null
   metadata_json: BotMeta; has_attachments: boolean; attachments: Attachment[]; reactions: Reaction[]
   is_pinned: boolean; is_redacted: boolean; linked_task_id: string | null; linked_ticket_id: string | null
-  // El modelo los tiene, pero `_serialize_message` no los envía.
+  // `_serialize_message` los envía desde la auditoría 2026-11 (antes no llegaban nunca).
   linked_deliverable_id?: string | null; linked_risk_id?: string | null
   edited_at: string | null; deleted_at: string | null; sent_at: string
 }

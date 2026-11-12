@@ -816,6 +816,8 @@ def _serialize_message(db: Session, msg: CollaborationMessage) -> dict:
         "reactions": reactions,
         "is_pinned": msg.is_pinned, "is_redacted": msg.is_redacted,
         "linked_task_id": msg.linked_task_id, "linked_ticket_id": msg.linked_ticket_id,
+        # Auditoria 2026-11: las columnas existian y el chat pinta sus chips, pero no se mandaban.
+        "linked_deliverable_id": msg.linked_deliverable_id, "linked_risk_id": msg.linked_risk_id,
         "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
         "deleted_at": msg.deleted_at.isoformat() if msg.deleted_at else None,
         "sent_at": msg.sent_at.isoformat() if msg.sent_at else None,

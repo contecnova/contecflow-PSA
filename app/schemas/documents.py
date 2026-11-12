@@ -141,6 +141,10 @@ class DocumentListOut(BaseModel):
     updated_at: Optional[datetime] = Field(default=None, description="Fecha de la última actualización")
     latest_version: Optional[DocumentVersionOut] = Field(default=None, description="Última versión disponible del documento")
     checkout: Optional[dict] = Field(default=None, description="Reserva para editar vigente (quién y hasta cuándo)")
+    # Auditoria 2026-11: los serializadores del listado los calculaban y el esquema los
+    # descartaba, asi que las etiquetas, el filtro por etiqueta y la insignia «vN» no salian.
+    tags: List[str] = Field(default=[], description="Etiquetas asociadas al documento")
+    version_count: int = Field(default=0, description="Número de versiones del documento")
 
     class Config:
         from_attributes = True

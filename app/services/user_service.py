@@ -303,6 +303,20 @@ def create_user_record(payload, current_user, db: Session):
         current_user, db,
     )
 
+    # Auditoria 2026-11: la tarifa y el rol personalizado son de administrador. El
+    # endpoint ya exige `require_admin`; se repite aqui porque el servicio no sabe
+    # quien lo llama.
+    if current_user.role != UserRole.admin and (
+        user_data.get("hourly_rate") is not None or user_data.get("custom_role_id")
+    ):
+        raise ErrorDeDominio(403, "Solo un administrador puede fijar la tarifa o el rol personalizado")
+    if user_data.get("custom_role_id"):
+        _exigir_rol_personalizado(db, user_data["custom_role_id"], user_data.get("organization_id"))
+    else:
+        user_data["custom_role_id"] = None
+    if not user_data.get("timezone"):
+        user_data["timezone"] = None
+
     # Revision multitenant 2026-11: el limite de usuarios del plan.
     from app.services.organizations_service import exigir_cupo
     # Sin empresa explicita, el alta queda en la de quien la hace (el sellado).
@@ -487,10 +501,15 @@ def _validar_rol(payload, user: User, db: Session) -> None:
     if not enviados["custom_role_id"]:
         payload.custom_role_id = None
         return
+    _exigir_rol_personalizado(db, enviados["custom_role_id"], user.organization_id)
+
+
+def _exigir_rol_personalizado(db: Session, custom_role_id: str, organization_id) -> None:
+    """El rol personalizado existe, esta activo, no es de sistema y es de la organizacion."""
     from app.models.advanced_config import CustomRole
-    rol = db.query(CustomRole).filter(CustomRole.id == enviados["custom_role_id"],
+    rol = db.query(CustomRole).filter(CustomRole.id == custom_role_id,
                                       CustomRole.is_active.is_(True),
-                                      CustomRole.organization_id == user.organization_id).first()
+                                      CustomRole.organization_id == organization_id).first()
     if rol is None or rol.is_system:
         raise ErrorDeDominio(422, "Rol personalizado no encontrado en la organización del usuario")
 

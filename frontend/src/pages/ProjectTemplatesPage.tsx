@@ -413,7 +413,9 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
   const submit = () => {
     if (!projectName.trim()) { setError(t('project_templates.project_name_required')); return }
     mutation.mutate({
-      project_name: projectName.trim(),
+      // `instantiate_template` lee `name`; con `project_name` (auditoría 2026-11) el nombre
+      // escrito se perdía y el proyecto se llamaba como la plantilla y la fecha.
+      name: projectName.trim(),
       client_name: clientName.trim() || undefined,
       start_date: startDate || undefined,
     })

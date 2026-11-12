@@ -100,8 +100,7 @@ interface TeamUatSession {
   available_from?: string | null
   deadline?: string | null
   test_environment?: string | null
-  // `uat_out` no envía este campo (envía `issues`): el aviso de incidencias
-  // de esta pestaña no llega a pintarse nunca.
+  // `uat_out` lo envía desde la auditoría 2026-11 (antes el aviso no salía nunca).
   issues_count?: number
 }
 
@@ -123,8 +122,8 @@ interface TeamFeatureRequest {
   cr_status?: string | null
   cr_status_label?: string | null
   cr_status_color?: string | null
-  // El modal de detalle de CR lee estos campos de la propia FR, pero `fr_out`
-  // no los envía: se muestran siempre como «—» (ver informe de tipos).
+  // Datos de la CR enlazada: los añade `list_all_feature_requests` (`_detalle_de_cr`)
+  // desde la auditoría 2026-11; antes el modal los pintaba siempre como «—».
   impact?: string | null
   impact_label?: string | null
   cost_impact?: number | null

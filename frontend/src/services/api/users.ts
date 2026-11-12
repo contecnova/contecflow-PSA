@@ -40,6 +40,7 @@ export interface UserPublic {
   phone: string | null
   organizations: UserOrganization[] | null
   custom_role_id: string | null
+  timezone: string | null
   sso_provider: string | null
   blocked_routes: string[]
   impersonated_by: string | null
@@ -64,8 +65,8 @@ export interface UserListParams {
   page_size?: number
 }
 
-/** `UserCreate` (app/schemas/users.py). No admite `hourly_rate`, `manager_id`,
- *  `custom_role_id` ni `timezone`: si se mandan, pydantic los descarta. */
+/** `UserCreate` (app/schemas/users.py). No admite `manager_id`: si se manda, pydantic lo
+ *  descarta. `hourly_rate` y `custom_role_id` sólo los puede fijar un administrador. */
 export interface UserCreatePayload {
   username: string
   email: string
@@ -80,6 +81,9 @@ export interface UserCreatePayload {
   organization_id?: string | null
   organization_ids?: string[] | null
   password?: string | null
+  hourly_rate?: number | null
+  timezone?: string | null
+  custom_role_id?: string | null
 }
 
 /** `UserUpdate` (app/schemas/users.py). */

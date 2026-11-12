@@ -157,7 +157,7 @@ def list_entries(
     current_user: User = Depends(get_current_user),
 ):
     entries = svc.list_entries(db, contract_id=contract_id, year=year, month=month)
-    return APIListResponse.ok(items=[svc._serialize_entry(e) for e in entries])
+    return APIListResponse.ok(items=svc.serialize_entries(db, entries))
 
 
 @router.post("/entries/{entry_id}/reverse", summary="Revertir entrada contable")

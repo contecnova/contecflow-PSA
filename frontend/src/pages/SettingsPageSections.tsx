@@ -51,13 +51,22 @@ const styles: Record<string, CSSProperties> = {
 
 type Organizacion = { id: string; name: string; slug?: string | null; is_active?: boolean }
 
-/** Usuario del listado (`UserPublic`). Auditoría 2026-11 (#25): `GET /users` no manda
- *  `hourly_rate` (sólo `GET /users/{id}`, `UserWithRate`) ni `timezone` (no está en
- *  `UserPublic`), así que al editar desde el listado los dos llegan siempre vacíos. Se
- *  declaran opcionales porque el formulario los lee. */
+/** Usuario del listado (`UserPublic`). `GET /users` no manda `hourly_rate` (es
+ *  confidencial): la ficha de edición la completa con `GET /users/{id}` (`UserWithRate`). */
 type UserRow = UserListItem & {
   hourly_rate?: number | null
-  timezone?: string | null
+}
+
+/** Campos opcionales del formulario de usuario en los que '' significa «sin valor». */
+const CAMPOS_USUARIO_VACIABLES = ['hourly_rate', 'timezone', 'custom_role_id'] as const
+function limpiarUsuario(data: UserFormPayload, modo: 'omitir' | 'anular'): Record<string, unknown> {
+  const limpio: Record<string, unknown> = { ...data }
+  for (const campo of CAMPOS_USUARIO_VACIABLES) {
+    if (limpio[campo] !== '') continue
+    if (modo === 'omitir') delete limpio[campo]
+    else limpio[campo] = null
+  }
+  return limpio
 }
 
 type UserFormValues = {
@@ -286,11 +295,18 @@ function UsersSection() {
   const { data: organizations = [] } = useQuery<Organizacion[]>({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data), enabled: esSuperadmin })
   const roleMap = Object.fromEntries(roles.map(r => [r.name, r]))
   // El formulario envía los campos tal como los tiene (la tarifa y las horas como
-  // texto); `UserCreate`/`UserUpdate` los declaran numéricos. Además `UserCreate` no
-  // admite `hourly_rate`, `custom_role_id` ni `timezone`: en el alta se descartan
-  // (auditoría 2026-11, #25).
-  const { mutate: createUser, isPending: creating } = useMutation({ mutationFn: (data: UserFormPayload) => usersApi.create(data as UserCreatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: updateUser, isPending: updating } = useMutation({ mutationFn: ({ id, data }: { id: string; data: UserFormPayload }) => usersApi.update(id, data as UserUpdatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setEditUser(null) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  // texto; pydantic los convierte). Un '' en la tarifa o la zona horaria es «sin valor»:
+  // en el alta se omite y al editar viaja como null (un '' en la tarifa daba 422).
+  // Auditoría 2026-11 (#25).
+  const { mutate: createUser, isPending: creating } = useMutation({ mutationFn: (data: UserFormPayload) => usersApi.create(limpiarUsuario(data, 'omitir') as unknown as UserCreatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: updateUser, isPending: updating } = useMutation({ mutationFn: ({ id, data }: { id: string; data: UserFormPayload }) => usersApi.update(id, limpiarUsuario(data, 'anular') as UserUpdatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['user-detail'] }); setEditUser(null) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  // `GET /users` (`UserPublic`) no lleva la tarifa, que es confidencial: la ficha la
+  // pide a `GET /users/{id}` (`UserWithRate`) al abrirse.
+  const { data: editUserDetail, isFetched: editUserFetched } = useQuery({
+    queryKey: ['user-detail', editUser?.id],
+    queryFn: () => usersApi.get(editUser?.id ?? '').then(r => r.data),
+    enabled: !!editUser,
+  })
   const { mutate: deactivate } = useMutation({ mutationFn: usersApi.deactivate, onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: deletePermanent } = useMutation({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['users-settings'] }); qc.invalidateQueries({ queryKey: ['resources'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const filtered = users.filter(u => {
@@ -401,7 +417,7 @@ function UsersSection() {
         </div>
       )}
       <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
-      {editUser && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} user={editUser} onClose={() => setEditUser(null)} onSave={data => updateUser({ id: editUser.id, data })} isPending={updating} />}
+      {editUser && editUserFetched && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} user={editUserDetail ? { ...editUser, ...editUserDetail } : editUser} onClose={() => setEditUser(null)} onSave={data => updateUser({ id: editUser.id, data })} isPending={updating} />}
     </Section>
   )
 }
@@ -511,10 +527,10 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div><label style={ls}>Rol</label><select value={form.role} onChange={set('role')} style={validation.inputStyle(fs, 'role')}>
           {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>{errField('role')}</div>
-        {isEdit && <div><label style={ls}>Rol personalizado (cierra módulos)</label><select value={form.custom_role_id} onChange={set('custom_role_id')} style={fs}>
+        <div><label style={ls}>Rol personalizado (cierra módulos)</label><select value={form.custom_role_id} onChange={set('custom_role_id')} style={fs}>
           <option value="">Ninguno — el de su rol base</option>
           {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select></div>}
+        </select></div>
         <div><label style={ls}>Departamento</label><select value={form.department} onChange={set('department')} style={fs}>
           <option value="">{t('settings.sin_departamento')}</option>
           {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}

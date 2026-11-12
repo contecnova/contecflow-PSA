@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { imputationsApi, projectsApi, tasksApi, aiCopilotApi, type TaskListParams } from '../services/api'
+import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services/api'
 import { queueImputation } from '../services/offlineQueue'
 import { Button, Card, Drawer } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -260,10 +260,9 @@ export default function ImputarPage(): JSX.Element {
 
   const { data: tasks = [] } = useQuery<TaskOption[]>({
     queryKey: ['tasks-my', form.project_id],
-    // Auditoría 2026-11 (#25): `GET /tasks` no tiene filtro `assigned_to` (es `assignee_id`
-    // o `assigned_to_me`); el servidor lo ignora y salen todas las tareas del proyecto. Se
-    // deja como estaba para no cambiar el comportamiento: el `as` sólo admite la clave de más.
-    queryFn: () => tasksApi.list({ project_id: form.project_id, assigned_to: user?.id } as TaskListParams).then(r => {
+    // Auditoría 2026-11 (#25): `GET /tasks` no tiene filtro `assigned_to` (lo ignoraba y salían
+    // todas las tareas del proyecto); el suyo es `assigned_to_me`, como en TimerPage.
+    queryFn: () => tasksApi.list({ project_id: form.project_id, assigned_to_me: true }).then(r => {
       const d = r.data as unknown as { items?: TaskOption[] } | TaskOption[] | null | undefined
       return (Array.isArray(d) ? d : d?.items ?? []) as TaskOption[]
     }),

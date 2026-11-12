@@ -199,6 +199,8 @@ class MessageOut(BaseModel):
     is_redacted: bool = Field(False, description="Indica si ha sido redactado por compliance")
     linked_task_id: Optional[str] = Field(None, description="ID de tarea vinculada")
     linked_ticket_id: Optional[str] = Field(None, description="ID de ticket vinculado")
+    linked_deliverable_id: Optional[str] = Field(None, description="ID de entregable vinculado")
+    linked_risk_id: Optional[str] = Field(None, description="ID de riesgo vinculado")
     edited_at: Optional[datetime] = Field(None, description="Marca temporal de la última edición")
     deleted_at: Optional[datetime] = None
     sent_at: datetime = Field(..., description="Marca temporal de envío")

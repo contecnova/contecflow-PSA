@@ -98,7 +98,7 @@ export interface TaskCreatePayload {
   issue_type?: string | null
 }
 
-/** `TaskUpdate` (app/schemas/tasks.py). No admite `start_date` ni `project_id`. */
+/** `TaskUpdate` (app/schemas/tasks.py). No admite `project_id`. */
 export interface TaskUpdatePayload {
   title?: string | null
   description?: string | null
@@ -107,6 +107,7 @@ export interface TaskUpdatePayload {
   status?: TaskStatus | null
   priority?: TaskPriority | null
   estimated_hours?: number | null
+  start_date?: string | null
   due_date?: string | null
   blocked_reason?: string | null
   tags?: string | null

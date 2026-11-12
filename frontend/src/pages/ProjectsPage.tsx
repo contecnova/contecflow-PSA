@@ -6,7 +6,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, usersApi, portalApi, templatesApi, dependenciesApi } from '../services/api'
+import { projectsApi, usersApi, portalApi, templatesApi, dependenciesApi, tasksApi } from '../services/api'
 import type { MemberAddPayload, ProjectCreatePayload, ProjectStatus } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
@@ -66,9 +66,8 @@ type ProjectSummary = {
   end_date_planned?: string | null
 }
 type ProjectPhase = { id: string; name: string; start_date?: string | null; end_date?: string | null; status?: string }
-type ProjectTask = { id: string; code?: string; title: string; status: string; priority?: string; story_points?: number | null; created_at?: string; due_date?: string | null }
-/** `ProjectOut` (app/schemas/projects.py): el detalle. `billing_type`, `retainer_*` y `tasks` no los
- *  declara el esquema (ver informe de la auditoría); la pantalla los lee igualmente. */
+/** `ProjectOut` (app/schemas/projects.py): el detalle. No trae las tareas: el Gantt por proyecto
+ *  las pide aparte a `GET /tasks?project_id=`. */
 type ProjectDetail = ProjectSummary & {
   description?: string | null
   client_id?: string | null
@@ -79,7 +78,6 @@ type ProjectDetail = ProjectSummary & {
   phases?: ProjectPhase[]
   tasks_total?: number
   tasks_done?: number
-  tasks?: ProjectTask[]
 }
 type ProjectForm = {
   name: string
@@ -378,9 +376,9 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
         const clean: Partial<ProjectForm> = Object.fromEntries(
           Object.entries(data).filter(([, v]) => v !== '' && v !== null && v !== undefined)
         )
-        // `ProjectCreatePayload` sigue a `ProjectCreate`. El formulario guarda importes como
-        // texto y lleva además `status`, `risk_level`, `billing_type` y `retainer_*`, que
-        // `ProjectCreate` no admite y pydantic descarta (auditoría 2026-11, #25).
+        // `ProjectCreatePayload` sigue a `ProjectCreate`, que admite `status`, `risk_level`,
+        // `billing_type` y `retainer_*` (auditoría 2026-11, #25). El formulario guarda los
+        // importes como texto: pydantic los convierte a número.
         return projectsApi.create(clean as ProjectCreatePayload)
       }
     },
@@ -1051,6 +1049,14 @@ export default function ProjectsPage() {
     enabled: !!selected,
   })
 
+  // `ProjectOut` no trae tareas: el Gantt por proyecto las pide a `GET /tasks`.
+  const ganttProjectId = view === 'gantt' && ganttMode === 'project' ? selected?.id : undefined
+  const { data: ganttTasks = [] } = useQuery({
+    queryKey: ['tasks', 'gantt', ganttProjectId],
+    queryFn: () => tasksApi.list({ project_id: ganttProjectId }).then(r => r.data),
+    enabled: !!ganttProjectId,
+  })
+
   const { mutate: updateStatus } = useMutation({
     // `status` sale de un <select> con los valores de `ProjectStatus`.
     mutationFn: ({ id, status }: { id: string; status: string }) => projectsApi.update(id, { status: status as ProjectStatus }),
@@ -1217,14 +1223,14 @@ export default function ProjectsPage() {
               }))}
             />
           )}
-          {ganttMode === 'project' && selected && projectDetail && (
+          {ganttMode === 'project' && selected && (
             <GanttWithDeps
               projectId={selected.id}
-              tasks={(projectDetail.tasks || []).map(t => ({
+              tasks={ganttTasks.map(t => ({
                 id: t.id, code: t.code, title: t.title,
                 status: t.status, priority: t.priority,
                 story_points: t.story_points,
-                start_date: t.created_at?.slice(0,10),
+                start_date: t.start_date || t.created_at?.slice(0,10),
                 due_date: t.due_date,
                 progress_pct: t.status === 'done' ? 100 : t.status === 'in_progress' ? 50 : 0,
               }))}

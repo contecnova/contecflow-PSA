@@ -72,6 +72,10 @@ export interface ProjectDetail {
   jira_project_key: string | null
   pm_id: string | null
   project_manager: UserPublic | null
+  pm_name: string | null
+  billing_type: string | null
+  retainer_amount: number | null
+  retainer_day: number | null
   phases: ProjectPhase[]
   created_at: string
   total_hours_spent: number | null
@@ -104,7 +108,18 @@ export interface ProjectPhaseCreatePayload {
   status?: ProjectStatus
 }
 
-/** `ProjectCreate` (app/schemas/projects.py). `code` es opcional: si falta, lo pone el servidor. */
+/** `BillingType` (app/schemas/projects.py). */
+export type ProjectBillingType =
+  | 'time_material'
+  | 'fixed_price'
+  | 'hourly_bag'
+  | 'recurring_retainer'
+  | 'retainer'
+  | 'milestone'
+
+/** `ProjectCreate` (app/schemas/projects.py). `code` es opcional: si falta, lo pone el servidor.
+ *  Desde la auditoría 2026-11 (#25) admite también `status`, `risk_level`, `billing_type` y
+ *  `retainer_*`, que el formulario de alta ya mandaba. */
 export interface ProjectCreatePayload {
   name: string
   code?: string | null
@@ -123,6 +138,11 @@ export interface ProjectCreatePayload {
   jira_project_key?: string | null
   pm_id?: string | null
   phases?: ProjectPhaseCreatePayload[]
+  status?: ProjectStatus
+  risk_level?: ProjectRisk
+  billing_type?: ProjectBillingType
+  retainer_amount?: number | null
+  retainer_day?: number | null
 }
 
 /** `ProjectUpdate` (app/schemas/projects.py). */
@@ -144,6 +164,10 @@ export interface ProjectUpdatePayload {
   end_date_real?: string | null
   tags?: string | null
   jira_project_key?: string | null
+  is_billable?: boolean | null
+  billing_type?: ProjectBillingType | null
+  retainer_amount?: number | null
+  retainer_day?: number | null
 }
 
 export interface PhaseCreatePayload {

@@ -109,10 +109,22 @@ type DragStartHandler = (e: React.MouseEvent, task: Task, onStarted: () => void)
 // Tipos de la pantalla para lo que manda: los estados y prioridades salen de la URL y de
 // los <select> como `string` (el servidor los valida contra sus enums), así que la
 // adaptación al slice (`services/api/tasks.ts`, que sigue a app/schemas/tasks.py) es un
-// `as` acotado en un único sitio (`tareas`). Auditoría 2026-11 (#25): el formulario manda
-// '' en horas y fechas vacías y `start_date` al editar; `TaskUpdate` no admite ni lo uno
-// (422) ni lo otro (se descarta). Ver el informe de la auditoría.
+// `as` acotado en un único sitio (`tareas`). Auditoría 2026-11 (#25): el formulario guarda
+// '' en horas, fechas y asignado vacíos, y el servidor responde 422 a un '' en un número,
+// una fecha o un id. `tareas` los limpia: al crear los omite y al editar los manda como
+// null (así se puede borrar el valor).
 type TaskBody = Partial<Omit<TaskForm, 'issue_type'>> & { issue_type?: string | null; project_id?: string; move_reason?: string }
+/** Campos opcionales en los que '' significa «sin valor». */
+const CAMPOS_VACIABLES = ['estimated_hours', 'start_date', 'due_date', 'assignee_id'] as const
+function limpiarVacios(body: TaskBody, modo: 'omitir' | 'anular'): Record<string, unknown> {
+  const limpio: Record<string, unknown> = { ...body }
+  for (const campo of CAMPOS_VACIABLES) {
+    if (limpio[campo] !== '') continue
+    if (modo === 'omitir') delete limpio[campo]
+    else limpio[campo] = null
+  }
+  return limpio
+}
 type TaskListQuery = {
   project_id?: string
   status?: string
@@ -128,8 +140,8 @@ type BulkBody = { task_ids: string[]; status?: string; assignee_id?: string; pri
 type BulkResult = { updated?: number; skipped?: unknown[] }
 const tareas = {
   list:       (q: TaskListQuery) => tasksApi.list(q as TaskListParams),
-  create:     (body: TaskBody) => tasksApi.create(body as TaskCreatePayload),
-  update:     (id: string, body: TaskBody) => tasksApi.update(id, body as TaskUpdatePayload),
+  create:     (body: TaskBody) => tasksApi.create(limpiarVacios(body, 'omitir') as unknown as TaskCreatePayload),
+  update:     (id: string, body: TaskBody) => tasksApi.update(id, limpiarVacios(body, 'anular') as TaskUpdatePayload),
   comment:    (id: string, content: string) => tasksApi.comment(id, { content }),
   bulkUpdate: (body: BulkBody) => tasksApi.bulkUpdate(body as TaskBulkUpdatePayload),
 }

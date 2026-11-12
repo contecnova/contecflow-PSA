@@ -36,6 +36,9 @@ class TaskUpdate(BaseModel):
     status: Optional[TaskStatus] = Field(default=None, description="Estado actual de la tarea")
     priority: Optional[TaskPriority] = Field(default=None, description="Prioridad de la tarea")
     estimated_hours: Optional[float] = Field(None, gt=0, description="Horas estimadas (debe ser positivo)")
+    # Auditoria 2026-11: la columna Task.start_date existia y el alta la aceptaba, pero
+    # la edicion la descartaba en silencio.
+    start_date: Optional[date] = Field(default=None, description="Fecha de inicio planificada de la tarea")
     due_date: Optional[date] = Field(default=None, description="Fecha límite de la tarea")
     blocked_reason: Optional[str] = Field(default=None, description="Motivo por el cual la tarea está bloqueada")
     tags: Optional[str] = Field(default=None, description="Etiquetas asociadas a la tarea")

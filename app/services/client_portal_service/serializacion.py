@@ -140,6 +140,8 @@ def uat_out(s) -> dict:
         "client_notes": s.client_notes,
         "test_cases": _uat_test_cases_out(s.test_cases),
         "issues": _uat_issues_out(s.issues),
+        # Auditoria 2026-11: la pestana de UAT del equipo avisa con este contador.
+        "issues_count": len(s.issues),
         "stats": _uat_stats(s.test_cases),
         "overdue": s.deadline and timeutil.today() > s.deadline and s.status in ["pending", "in_progress"],
     }

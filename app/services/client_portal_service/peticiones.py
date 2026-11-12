@@ -67,13 +67,48 @@ def list_all_feature_requests(
     if status:
         q = q.filter(FeatureRequest.status == status)
     frs = q.order_by(FeatureRequest.submitted_at.desc()).all()
+    crs = _peticiones_de_cambio(db, frs)
     result = []
     for f in frs:
         d = fr_out(f)
         d["project_name"] = f.project.name if f.project else "—"
         d["client_name"] = f.client.full_name if f.client else "—"
+        d.update(_detalle_de_cr(crs.get(getattr(f, "change_request_id", None))))
         result.append(d)
     return result
+
+
+_CR_IMPACT_LABELS = {"low": "Bajo", "medium": "Medio", "high": "Alto", "critical": "Crítico"}
+
+
+def _peticiones_de_cambio(db: Session, frs) -> dict:
+    """Las CR enlazadas a `frs`, en una consulta, por id."""
+    ids = {f.change_request_id for f in frs if getattr(f, "change_request_id", None)}
+    if not ids:
+        return {}
+    return {cr.id: cr for cr in db.query(ChangeRequest).filter(ChangeRequest.id.in_(ids)).all()}
+
+
+def _detalle_de_cr(cr) -> dict:
+    """Lo que el modal de detalle de CR del equipo lee de la peticion.
+
+    Auditoria 2026-11: el modal pintaba impacto, coste, plazo, notas y fechas de
+    la CR y `fr_out` no los mandaba, asi que salian siempre como «—». Solo va en
+    el listado del equipo: las notas de resolucion son internas y `fr_out` lo
+    usa tambien el portal del cliente.
+    """
+    if cr is None:
+        return {}
+    impacto = getattr(cr.impact, "value", cr.impact)
+    return {
+        "impact": impacto,
+        "impact_label": _CR_IMPACT_LABELS.get(impacto, impacto),
+        "cost_impact": cr.cost_impact,
+        "schedule_impact_days": cr.schedule_impact_days,
+        "resolution_notes": cr.resolution_notes,
+        "approved_at": str(cr.approved_at) if cr.approved_at else None,
+        "implemented_at": str(cr.implemented_at) if cr.implemented_at else None,
+    }
 
 
 def create_feature_request(payload, current_client, db: Session) -> dict:

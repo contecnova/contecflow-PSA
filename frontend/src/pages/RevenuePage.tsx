@@ -44,11 +44,10 @@ interface Obligation {
   allocated_amount: number
   is_satisfied: boolean
   satisfied_date: string | null
-  // El serializador no los envía (ni el modelo los tiene): la pantalla los lee
-  // y los manda al crear, pero el backend no los guarda.
-  method?: string
-  standalone_price?: number
-  notes?: string
+  // Revisión 158 (auditoría 2026-11): antes el modelo no los tenía y el alta daba 500.
+  method: string | null
+  standalone_price: number | null
+  notes: string | null
 }
 
 type ObligationPayload = { name: string; method: string; standalone_price: number; notes: string }
@@ -84,15 +83,10 @@ interface RevenueEntry {
   reverses_entry_id: string | null
   created_by: string | null
   created_at: string | null
-  // Campos que la tabla lee pero `_serialize_entry` no envía.
-  method?: string
-  contract_id?: string
-  contract_name?: string
-  obligation_name?: string
-  recognized_amount?: number
-  deferred_amount?: number
-  is_reversed?: boolean
-  status?: string
+  // Los añade `serialize_entries` (auditoría 2026-11): antes la tabla los leía y no llegaban.
+  contract_name: string | null
+  method: string | null
+  is_reversed: boolean
 }
 
 /** `_serialize_period_close` (app/services/revenue_service.py). */
@@ -163,14 +157,14 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
         ) : (
           <div className="u-stack-8">
             {obs.map(ob => {
-              const mCfg = ASC_METHOD_CFG[ob.method] || { label: ob.method, icon:'•' }
+              const mCfg = ASC_METHOD_CFG[ob.method ?? ''] || { label: ob.method || '—', icon:'•' }
               return (
                 <div key={ob.id} style={{ background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'center', gap:12 }}>
                   <div className="u-flex1-min0">
                     <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{ob.name}</div>
                     <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2 }}>
                       {mCfg.icon} {mCfg.label}
-                      {ob.standalone_price > 0 && <span style={{ marginLeft:8 }}>{fmtEur(ob.standalone_price, currency)}</span>}
+                      {(ob.standalone_price ?? 0) > 0 && <span style={{ marginLeft:8 }}>{fmtEur(ob.standalone_price ?? 0, currency)}</span>}
                       {ob.is_satisfied && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Completada</span>}
                     </div>
                   </div>
@@ -534,13 +528,16 @@ export default function RevenuePage() {
                 </thead>
                 <tbody>
                   {entries.map((e, idx) => {
-                    const mCfg = ASC_METHOD_CFG[e.method] || { label:e.method||'—', icon:'•' }
-                    const isReversed = e.is_reversed || e.status === 'reversed'
+                    const mCfg = ASC_METHOD_CFG[e.method ?? ''] || { label:e.method||'—', icon:'•' }
+                    const isReversed = e.is_reversed
+                    // Una entrada de reversión no se revierte (el servidor responde 400).
+                    const esReversion = e.entry_type === 'reversal'
+                    const esDiferido = e.entry_type === 'deferred'
                     return (
                       <tr key={e.id} style={{ borderBottom:'1px solid var(--surface-4)', background: idx%2===0?'transparent':'rgba(255,255,255,0.02)', opacity: isReversed ? 0.5 : 1 }}>
                         <td style={{ padding:'10px 14px' }}>
-                          <div style={{ fontWeight:500 }}>{e.contract_name || e.contract_id}</div>
-                          {e.obligation_name && <div className="u-text3-xs">{e.obligation_name}</div>}
+                          <div style={{ fontWeight:500 }}>{e.contract_name || e.rev_contract_id}</div>
+                          {e.description && <div className="u-text3-xs">{e.description}</div>}
                         </td>
                         <td style={{ padding:'10px 14px', fontFamily:'var(--font-mono)', fontSize: "var(--text-sm)" }}>
                           {e.period_year}-{String(e.period_month).padStart(2,'0')}
@@ -549,18 +546,20 @@ export default function RevenuePage() {
                           <span className="u-xs">{mCfg.icon} {mCfg.label}</span>
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center', fontWeight:600, color:'var(--success)' }}>
-                          {fmt(e.recognized_amount ?? e.amount)}
+                          {fmt(esDiferido ? 0 : e.amount)}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center', color:'var(--warning)' }}>
-                          {fmt(e.deferred_amount ?? 0)}
+                          {fmt(esDiferido ? e.amount : 0)}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
                           {isReversed
                             ? <span style={{ fontSize: "var(--text-xs)", color:'var(--danger)' }}>Revertida</span>
+                            : esReversion
+                            ? <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>Reversión</span>
                             : <span style={{ fontSize: "var(--text-xs)", color:'var(--success)' }}>Activa</span>}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
-                          {!isReversed && (
+                          {!isReversed && !esReversion && (
                             <button onClick={() => { openConfirmGlobal({ message: '¿Revertir esta entrada? Esta acción no se puede deshacer.', onConfirm: () => reverseEntry(e.id), danger: true }) }}
                               style={{ fontSize: "var(--text-xs)", padding:'3px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'var(--danger)', cursor:'pointer', fontFamily:'inherit' }}>
                               ↩ Revertir

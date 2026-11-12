@@ -55,10 +55,12 @@ def get_contract(db: Session, contract_id: str) -> RevenueContract:
 
 
 def create_contract(db: Session, organization_id: str, data: dict) -> RevenueContract:
+    from app.core.asignacion import campos_asignables
+    # Auditoria 2026-11: el cuerpo crudo iba con **data (id, organization_id...).
     c = RevenueContract(
         id=str(uuid.uuid4()),
         organization_id=organization_id,
-        **data,
+        **campos_asignables(RevenueContract, data),
     )
     db.add(c)
     db.commit()
@@ -99,13 +101,51 @@ def list_obligations(db: Session, contract_id: str):
     )
 
 
+#: Campos de una obligacion que vienen del cliente (alta y edicion).
+_CAMPOS_DE_OBLIGACION = frozenset({
+    "name", "allocated_pct", "allocated_amount", "is_satisfied", "satisfied_date",
+    "milestone_id", "method", "standalone_price", "notes",
+})
+
+
+def _datos_de_obligacion(data: dict) -> dict:
+    """Los campos editables de `data`, con el metodo validado.
+
+    Auditoria 2026-11: el alta hacia `RevenueObligation(**data)` con el cuerpo
+    crudo; cualquier clave que no fuera columna (`method`, `standalone_price` y
+    `notes` los mandaba la pantalla) era un 500, y `organization_id` o `id`
+    llegaban hasta el constructor.
+    """
+    from app.core.asignacion import campos_asignables
+
+    datos = campos_asignables(RevenueObligation, data, protegidos={"contract_id"})
+    datos = {k: v for k, v in datos.items() if k in _CAMPOS_DE_OBLIGACION}
+    metodo = datos.get("method")
+    if metodo == "":
+        datos["method"] = None
+    elif metodo is not None and metodo not in {m.value for m in ASCMethod}:
+        raise ErrorDeDominio(422, f"Metodo de reconocimiento desconocido: {metodo}")
+    precio = datos.get("standalone_price")
+    if precio is not None:
+        try:
+            precio = datos["standalone_price"] = float(precio)
+        except (TypeError, ValueError):
+            raise ErrorDeDominio(422, "El precio de venta independiente debe ser un número")
+    if precio is not None and precio < 0:
+        raise ErrorDeDominio(422, "El precio de venta independiente no puede ser negativo")
+    return datos
+
+
 def create_obligation(db: Session, contract_id: str, data: dict) -> RevenueObligation:
     c = get_contract(db, contract_id)
+    datos = _datos_de_obligacion(data)
+    if not datos.get("name"):
+        raise ErrorDeDominio(422, "La obligacion necesita un nombre")
     ob = RevenueObligation(
         id=str(uuid.uuid4()),
         organization_id=c.organization_id,
         contract_id=contract_id,
-        **data,
+        **datos,
     )
     db.add(ob)
     db.commit()
@@ -117,10 +157,8 @@ def update_obligation(db: Session, obligation_id: str, data: dict) -> RevenueObl
     ob = db.query(RevenueObligation).filter(RevenueObligation.id == obligation_id).first()
     if not ob:
         raise ErrorDeDominio(404, "Obligación no encontrada")
-    allowed = {"name", "allocated_pct", "allocated_amount", "is_satisfied", "satisfied_date", "milestone_id"}
-    for k, v in data.items():
-        if k in allowed:
-            setattr(ob, k, v)
+    for k, v in _datos_de_obligacion(data).items():
+        setattr(ob, k, v)
     db.commit()
     return ob
 
@@ -240,6 +278,10 @@ def reverse_entry(db: Session, entry_id: str, user_id: str) -> RevenueEntry:
         raise ErrorDeDominio(404, "Entrada no encontrada")
     if orig.entry_type == EntryType.reversal:
         raise ErrorDeDominio(400, "No se puede revertir una entrada de tipo 'reversal'")
+    # Auditoria 2026-11: una entrada ya revertida se podia revertir otra vez, y cada
+    # reversion restaba de nuevo el importe.
+    if db.query(RevenueEntry.id).filter(RevenueEntry.reverses_entry_id == entry_id).first():
+        raise ErrorDeDominio(400, "La entrada ya está revertida")
     contract = get_contract(db, orig.rev_contract_id)
     if is_period_closed(db, orig.period_year, orig.period_month, contract.organization_id):
         raise ErrorDeDominio(400, "No se puede revertir una entrada de un período cerrado")
@@ -684,6 +726,9 @@ def _serialize_obligation(ob: RevenueObligation) -> dict:
         "allocated_amount": ob.allocated_amount,
         "is_satisfied": ob.is_satisfied,
         "satisfied_date": str(ob.satisfied_date) if ob.satisfied_date else None,
+        "method": ob.method,
+        "standalone_price": ob.standalone_price,
+        "notes": ob.notes,
     }
 
 
@@ -702,6 +747,33 @@ def _serialize_entry(e: RevenueEntry) -> dict:
         "created_by": e.created_by,
         "created_at": str(e.created_at)[:19] if e.created_at else None,
     }
+
+
+def serialize_entries(db: Session, entries: list) -> list[dict]:
+    """Entradas del diario con lo que la tabla necesita ademas de la fila.
+
+    Auditoria 2026-11: la tabla leia el nombre y el metodo del contrato y si la
+    entrada estaba revertida, y nada de eso venia; una entrada revertida seguia
+    ofreciendo «Revertir».
+    """
+    # Las reversiones son pocas: se leen todas en vez de un IN con cada id del listado.
+    revertidas: set[str] = {
+        fila[0] for fila in db.query(RevenueEntry.reverses_entry_id)
+        .filter(RevenueEntry.reverses_entry_id.isnot(None)).all()
+    } if entries else set()
+    contratos = {
+        c.id: c for c in db.query(RevenueContract)
+        .filter(RevenueContract.id.in_({e.rev_contract_id for e in entries})).all()
+    } if entries else {}
+    salida = []
+    for e in entries:
+        fila = _serialize_entry(e)
+        contrato = contratos.get(e.rev_contract_id)
+        fila["contract_name"] = contrato.name if contrato else None
+        fila["method"] = contrato.method.value if contrato and contrato.method else None
+        fila["is_reversed"] = e.id in revertidas
+        salida.append(fila)
+    return salida
 
 
 def _serialize_period_close(pc: RevenuePeriodClose) -> dict:

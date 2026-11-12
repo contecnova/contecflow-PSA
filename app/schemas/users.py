@@ -24,6 +24,11 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: Optional[str] = Field(default=None, description="Contraseña del usuario (opcional para usuarios LDAP)")
+    # Auditoria 2026-11: el formulario de alta los mandaba y pydantic los descartaba.
+    # El alta es solo de administradores (`require_admin` en el endpoint).
+    hourly_rate: Optional[float] = Field(default=None, ge=0, description="Tarifa horaria del usuario (solo admin)")
+    timezone: Optional[str] = Field(default=None, max_length=50, description="Zona horaria del usuario")
+    custom_role_id: Optional[str] = Field(default=None, description="Rol personalizado (restringe modulos)")
 
 
 class UserUpdate(BaseModel):
@@ -79,6 +84,8 @@ class UserPublic(UserBase):
     phone: Optional[str] = Field(default=None, description="Teléfono de contacto del usuario")
     organizations: Optional[list[UserOrganizationOut]] = Field(default=None, description="Organizaciones a las que pertenece el usuario")
     custom_role_id: Optional[str] = Field(default=None, description="Rol personalizado asignado")
+    # Auditoria 2026-11: la ficha de Ajustes > Usuarios la edita y el listado no la mandaba.
+    timezone: Optional[str] = Field(default=None, description="Zona horaria del usuario")
     # Auditoria 2026-11: el panel de perfil lo leia para ocultar el cambio de
     # contrasena a quien entra por SSO, y no venia nunca.
     sso_provider: Optional[str] = Field(default=None, description="Proveedor SSO con el que entra, si lo hay")

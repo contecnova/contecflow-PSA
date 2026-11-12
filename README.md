@@ -1596,6 +1596,8 @@ General notes that apply to every module here:
 
 **Purpose.** Recognized and deferred revenue, with one engine: ASC 606 / IFRS 15 contracts.
 
+**2026-11 contract fixes.** Obligations store `method`, `standalone_price` and `notes` (migration 158; before, «Add obligation» returned 500). Contract and obligation bodies go through `campos_asignables` (unknown keys, `id` and `organization_id` are ignored); the method is validated against `ASCMethod`. The journal returns `contract_name`, `method` and `is_reversed`; reversing an entry twice returns 400. Tests: `tests/test_contratos_ui_2026_11.py`, `tests/test_revenue_idempotency.py`.
+
 **How to use it.** The page has three tabs: **Contratos ASC 606**, **Entradas contables** and **ASC 606 / IFRS 15** (help). The cards at the top show the chosen year: recognized, deferred, active contracts and entries.
 - Create a `RevenueContract` for a project, with its value and method, and add performance obligations to it. Methods:
   - `over_time` (time and materials) and `consumption` (hour bank): approved hours × the billing rate (the rate cards when the company has them, else the project's `billing_rate`, see *Rate cards*);

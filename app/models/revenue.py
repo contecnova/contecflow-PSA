@@ -89,6 +89,13 @@ class RevenueObligation(Base):
     is_satisfied    = Column(Boolean, nullable=False, default=False)
     satisfied_date  = Column(Date, nullable=True)
 
+    # Revisión 158: metodo de reconocimiento de la obligacion (valores de ASCMethod),
+    # precio de venta independiente (ASC 606 paso 4) y notas. La pantalla los mandaba
+    # y el alta fallaba con 500 porque el modelo no los tenia.
+    method           = Column(String(32), nullable=True)
+    standalone_price = Column(Float, nullable=True)
+    notes            = Column(Text, nullable=True)
+
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     contract = relationship("RevenueContract", back_populates="obligations")

@@ -178,8 +178,8 @@ interface DocListItem {
   updated_at?: string | null
   latest_version?: DocVersion | null
   checkout?: Reserva
-  // `DocumentListOut` no declara `tags` ni `version_count`: el listado nunca
-  // los trae (el response_model los filtra). Se leen igualmente por si llegan.
+  // `DocumentListOut` los declara desde la auditoría 2026-11; antes el response_model
+  // los filtraba y las etiquetas, su filtro y la insignia «vN» no salían nunca.
   tags?: string[]
   version_count?: number
 }
