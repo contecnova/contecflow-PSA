@@ -680,7 +680,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             </div>
             {sugerencia && <ApoyoDeLaSugerencia s={sugerencia} />}
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 8 }}>
-              <input type="checkbox" checked={notaInterna} onChange={e => setNotaInterna(e.target.checked)} />
+              <input type="checkbox" aria-label={t('service_desk.internal_note')} checked={notaInterna} onChange={e => setNotaInterna(e.target.checked)} />
               {t('service_desk.internal_note')}
             </label>
             <Button onClick={() => addComment()} disabled={commenting || !commentText} loading={commenting} style={{ width: '100%' }}>

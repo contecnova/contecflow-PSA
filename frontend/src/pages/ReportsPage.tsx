@@ -743,13 +743,13 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* Color */}
           <div>
-            <label style={ls}>🎨 Color</label>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
+            <span id={`${idCampo}-eta746`} style={ls}>🎨 Color</span>
+            <div role="group" aria-labelledby={`${idCampo}-eta746`} style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
               {PALETTE.slice(0, 5).map(c => (
-                <button key={c} onClick={() => setColor(c)}
+                <button key={c} aria-label={`Color ${c}`} onClick={() => setColor(c)}
                   style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: c, border: color === c ? `2px solid #fff` : '2px solid transparent', cursor: 'pointer' }} />
               ))}
-              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : COLOR_DATO_POR_DEFECTO} onChange={e => setColor(e.target.value)} style={{ width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
+              <input type="color" aria-label="Color" value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : COLOR_DATO_POR_DEFECTO} onChange={e => setColor(e.target.value)} style={{ width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
             </div>
           </div>
         </div>
@@ -834,7 +834,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <div className="u-wrap-8">
               {onSave && (
                 <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
-                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} style={{ ...fs, width: 200, minWidth: 0, fontSize: "var(--text-sm)" }} />
+                  <input aria-label={traducir('reports.report_name')} value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} style={{ ...fs, width: 200, minWidth: 0, fontSize: "var(--text-sm)" }} />
                   <Button size="sm" onClick={() => onSave({ name: reportName || result.meta?.label, metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>💾 Guardar</Button>
                 </div>
               )}
@@ -1064,7 +1064,7 @@ function ScheduledReportsTab() {
           </div>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer',
             fontSize: "var(--text-sm)", color: form.include_pdf ? 'var(--text-1)' : 'var(--text-2)', marginBottom: 14 }}>
-            <input type="checkbox" checked={form.include_pdf}
+            <input type="checkbox" aria-label={traducir('reports.adjuntar_pdf_del_informe_al_email')} checked={form.include_pdf}
               onChange={e => setForm(f => ({ ...f, include_pdf: e.target.checked }))}
               style={{ accentColor: 'var(--accent)' }} />
             {traducir('reports.adjuntar_pdf_del_informe_al_email')}

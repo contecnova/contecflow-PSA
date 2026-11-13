@@ -130,11 +130,11 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
           </select>
         </div>
         <div>
-          <label style={LS}>Reporta a / Aprobador directo</label>
+          <label id={`${idCampo}-eta133`} htmlFor={`${idCampo}-a133`} style={LS}>Reporta a / Aprobador directo</label>
           <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginBottom:6, lineHeight:1.6 }}>
             {t('orgchart.esta_persona_aprobara_los')} <strong>gastos</strong>, <strong>ausencias</strong> e <strong>imputaciones</strong> {t('orgchart.de')} {user.full_name.split(' ')[0]}.
           </div>
-          <select value={managerId} onChange={e => setManagerId(e.target.value)} style={IS}>
+          <select id={`${idCampo}-a133`} aria-labelledby={`${idCampo}-eta133`} value={managerId} onChange={e => setManagerId(e.target.value)} style={IS}>
             <option value="">{t('orgchart.sin_manager_nivel_raiz_aprobacion_manual')}</option>
             {eligible.map(u => (
               <option key={u.id} value={u.id}>
@@ -410,7 +410,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
               return (
                 <tr key={u.id} style={{ borderBottom:'1px solid var(--surface-4)',
                   background: i%2===0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                  <td style={{ padding:'10px 14px' }}>
+                  <td style={{ padding:'10px 14px' }} aria-label={`${u.full_name ?? ''} · ${u.email ?? ''}`}>
                     <div style={{ display:'flex', alignItems:'center', gap:9 }}>
                       <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
                         background: ROLE_COLOR[u.role]||'#7a8aaa',

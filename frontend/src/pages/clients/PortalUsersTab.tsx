@@ -312,8 +312,8 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={editForm?.email ?? ''} onChange={e => setEditForm(f => f && ({ ...f, email: e.target.value }))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Cargo</label>
-              <input value={editForm?.job_title ?? ''} onChange={e => setEditForm(f => f && ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" />
+              <label id={`${idCampo}-cargo-edit-et`} htmlFor={`${idCampo}-cargo-edit`} style={lbl}>Cargo</label>
+              <input id={`${idCampo}-cargo-edit`} aria-labelledby={`${idCampo}-cargo-edit-et`} value={editForm?.job_title ?? ''} onChange={e => setEditForm(f => f && ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" />
             </div>
             <div>
               <label style={lbl}>{t('portalusers.telefono')}</label>
@@ -349,7 +349,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   border: `1px solid ${editForm[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`,
                   borderRadius: 8, padding: '8px 10px',
                 }}>
-                  <input type="checkbox" checked={!!editForm[p.key]}
+                  <input type="checkbox" aria-label={p.label} checked={!!editForm[p.key]}
                     onChange={e => setEditForm(f => f && ({ ...f, [p.key]: e.target.checked }))}
                     style={{ accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
                   <div>
@@ -400,7 +400,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div><label style={lbl}>{t('portalusers.email_sera_el_usuario_de_login')}</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} placeholder={t('portalusers.email_de_acceso')} aria-label={t('portalusers.email_de_acceso')} /></div>
             <div><label style={lbl}>{t('portalusers.contrasena_2')}</label><input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inp} placeholder="Contrasena temporal" aria-label="Contrasena temporal" /></div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>{t('portalusers.confirmar_contrasena')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Cargo</label><input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" /></div>
+            <div><label id={`${idCampo}-cargo-et`} htmlFor={`${idCampo}-cargo`} style={lbl}>Cargo</label><input id={`${idCampo}-cargo`} aria-labelledby={`${idCampo}-cargo-et`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" /></div>
             <div>
               <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={lbl}>Asociar a proyectos (opcional)</label>
               <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} multiple value={form.project_ids} onChange={e => {
@@ -418,7 +418,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 <label key={p.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
                   background: form[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`,
                   borderRadius: 8, padding: '8px 10px' }}>
-                  <input type="checkbox" checked={form[p.key]} onChange={e => setForm(f => ({ ...f, [p.key]: e.target.checked }))}
+                  <input type="checkbox" aria-label={p.label} checked={form[p.key]} onChange={e => setForm(f => ({ ...f, [p.key]: e.target.checked }))}
                     style={{ accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: form[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{p.label}</div>

@@ -231,8 +231,8 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
                 <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={skillForm.years_experience} onChange={e => setSkillForm(f => ({ ...f, years_experience: e.target.value }))} style={inp} min="0" step="0.5" />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1/-1', paddingTop: 4 }}>
-                <input type="checkbox" id="wsCert" checked={skillForm.certified} onChange={e => setSkillForm(f => ({ ...f, certified: e.target.checked }))} />
-                <label htmlFor="wsCert" style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', cursor: 'pointer' }}>{t('subcontractors.certified')}</label>
+                <input type="checkbox" id="wsCert" aria-labelledby="wsCert-etiqueta" checked={skillForm.certified} onChange={e => setSkillForm(f => ({ ...f, certified: e.target.checked }))} />
+                <label htmlFor="wsCert" id="wsCert-etiqueta" style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', cursor: 'pointer' }}>{t('subcontractors.certified')}</label>
                 {skillForm.certified && (
                   <input aria-label={t('subcontractors.placeholder_cert')} value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...inp, flex: 1 }} placeholder={t('subcontractors.placeholder_cert')} />
                 )}
@@ -596,8 +596,8 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={tlForm.hours} onChange={e => setTlForm(f=>({...f,hours:+e.target.value}))} style={inp} min="0.5" step="0.5" />
             </div>
             <div>
-              <label style={lbl}>Referencia tarea</label>
-              <input value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder={t('subcontractors.referencia_de_tarea')} aria-label={t('subcontractors.referencia_de_tarea')} />
+              <label id={`${idCampo}-eta599`} htmlFor={`${idCampo}-a599`} style={lbl}>Referencia tarea</label>
+              <input id={`${idCampo}-a599`} aria-labelledby={`${idCampo}-eta599`} value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder={t('subcontractors.referencia_de_tarea')} />
             </div>
             <div className="u-col-full">
               <label style={lbl}>{t('subcontractors.descripcion')}</label>
@@ -616,8 +616,8 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
         <Modal open title="Registrar factura" onClose={() => setShowInvoice(false)} width={480}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
-              <label style={lbl}>Nº Factura *</label>
-              <input value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder={t('subcontractors.numero_de_factura')} aria-label={t('subcontractors.numero_de_factura')} />
+              <label id={`${idCampo}-eta619`} htmlFor={`${idCampo}-a619`} style={lbl}>Nº Factura *</label>
+              <input id={`${idCampo}-a619`} aria-labelledby={`${idCampo}-eta619`} value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder={t('subcontractors.numero_de_factura')} />
             </div>
             <div>
               <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>{t('subcontractors.fecha_emision')}</label>
@@ -660,8 +660,8 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               </select>
             </div>
             <div>
-              <label style={lbl}>Nº Pedido (PO)</label>
-              <input value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder={t('subcontractors.numero_de_pedido')} aria-label={t('subcontractors.numero_de_pedido')} />
+              <label id={`${idCampo}-eta663`} htmlFor={`${idCampo}-a663`} style={lbl}>Nº Pedido (PO)</label>
+              <input id={`${idCampo}-a663`} aria-labelledby={`${idCampo}-eta663`} value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder={t('subcontractors.numero_de_pedido')} />
             </div>
             <div>
               <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={lbl}>Techo PO ({fmtMoneda.simbolo})</label>

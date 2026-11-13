@@ -261,7 +261,7 @@ export default function BiO365Panel() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer', color: 'var(--text-1)' }}>
-              <input type="checkbox" checked={configForm.enabled} onChange={e => setConfigForm(f => ({ ...f, enabled: e.target.checked }))} />
+              <input type="checkbox" aria-label={t('bio365.sincronizacion_habilitada')} checked={configForm.enabled} onChange={e => setConfigForm(f => ({ ...f, enabled: e.target.checked }))} />
               {t('bio365.sincronizacion_habilitada')}
             </label>
             <button

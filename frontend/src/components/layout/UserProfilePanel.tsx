@@ -502,7 +502,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                       <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                         textTransform: 'uppercase', letterSpacing: '0.07em',
                         display: 'block', marginBottom: 4 }}>{label}</label>
-                      <input type="password" value={pwForm[key]}
+                      <input type="password" aria-label={label} value={pwForm[key]}
                         onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
                         style={IS} placeholder={ph} />
                     </div>
@@ -621,7 +621,7 @@ function PreferenciasDeAviso() {
         </div>
       ))}
       <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, fontSize: 'var(--text-sm)' }}>
-        <input type="checkbox" checked={resumenActual} onChange={e => setResumen(e.target.checked)} />
+        <input type="checkbox" aria-label={traducir('userprofile.resumen_diario')} checked={resumenActual} onChange={e => setResumen(e.target.checked)} />
         {traducir('userprofile.resumen_diario')}
       </label>
       <div style={{ marginTop: 10 }}>

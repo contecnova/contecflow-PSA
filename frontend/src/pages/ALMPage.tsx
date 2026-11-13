@@ -371,21 +371,21 @@ function VendorModal({ vendor, onClose }: { vendor: Partial<Vendor> | null; onCl
   return (
     <Modal open onClose={onClose} title={isEdit ? t('alm.vendor_modal_edit') : t('alm.vendor_modal_new')} width={640}>
       <div className="u-grid2-14">
-        <div className="u-col-full"><label htmlFor={`${idPrefix}-name`} style={ls}>{t('alm.vendor_label_name')} *</label><input id={`${idPrefix}-name`} value={form.name} onChange={s('name')} style={fs} placeholder={t('alm.vendor_placeholder_name')} /></div>
+        <div className="u-col-full"><label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} style={ls}>{t('alm.vendor_label_name')} *</label><input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} style={fs} placeholder={t('alm.vendor_placeholder_name')} /></div>
         <div>
           <label htmlFor={`${idPrefix}-category`} style={ls}>{t('alm.vendor_label_category')}</label>
           <select id={`${idPrefix}-category`} value={form.category} onChange={s('category')} style={fs}>
             {Object.entries(VENDOR_CATS).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
-        <div><label htmlFor={`${idPrefix}-country`} style={ls}>{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} value={form.country} onChange={s('country')} style={fs} placeholder={t('alm.ej_espana')} /></div>
-        <div><label htmlFor={`${idPrefix}-website`} style={ls}>{t('alm.vendor_label_web')}</label><input id={`${idPrefix}-website`} value={form.website} onChange={s('website')} style={fs} placeholder={t('alm.vendor_placeholder_web')} /></div>
-        <div><label htmlFor={`${idPrefix}-support-email`} style={ls}>{t('alm.vendor_label_support_email')}</label><input id={`${idPrefix}-support-email`} value={form.support_email} onChange={s('support_email')} style={fs} /></div>
-        <div><label htmlFor={`${idPrefix}-support-phone`} style={ls}>{t('alm.vendor_label_support_phone')}</label><input id={`${idPrefix}-support-phone`} value={form.support_phone} onChange={s('support_phone')} style={fs} /></div>
-        <div><label htmlFor={`${idPrefix}-account-manager`} style={ls}>{t('alm.vendor_label_account_manager')}</label><input id={`${idPrefix}-account-manager`} value={form.account_manager} onChange={s('account_manager')} style={fs} /></div>
-        <div><label htmlFor={`${idPrefix}-account-number`} style={ls}>{t('alm.vendor_label_account_number')}</label><input id={`${idPrefix}-account-number`} value={form.account_number} onChange={s('account_number')} style={fs} /></div>
-        <div><label htmlFor={`${idPrefix}-tax-id`} style={ls}>{t('alm.vendor_label_tax_id')}</label><input id={`${idPrefix}-tax-id`} value={form.tax_id} onChange={s('tax_id')} style={fs} /></div>
-        <div className="u-col-full"><label htmlFor={`${idPrefix}-notes`} style={ls}>{t('alm.vendor_label_notes')}</label><textarea id={`${idPrefix}-notes`} value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div><label id={`${idPrefix}-country-et`} htmlFor={`${idPrefix}-country`} style={ls}>{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} aria-labelledby={`${idPrefix}-country-et`} value={form.country} onChange={s('country')} style={fs} placeholder={t('alm.ej_espana')} /></div>
+        <div><label id={`${idPrefix}-website-et`} htmlFor={`${idPrefix}-website`} style={ls}>{t('alm.vendor_label_web')}</label><input id={`${idPrefix}-website`} aria-labelledby={`${idPrefix}-website-et`} value={form.website} onChange={s('website')} style={fs} placeholder={t('alm.vendor_placeholder_web')} /></div>
+        <div><label id={`${idPrefix}-support-email-et`} htmlFor={`${idPrefix}-support-email`} style={ls}>{t('alm.vendor_label_support_email')}</label><input id={`${idPrefix}-support-email`} aria-labelledby={`${idPrefix}-support-email-et`} value={form.support_email} onChange={s('support_email')} style={fs} /></div>
+        <div><label id={`${idPrefix}-support-phone-et`} htmlFor={`${idPrefix}-support-phone`} style={ls}>{t('alm.vendor_label_support_phone')}</label><input id={`${idPrefix}-support-phone`} aria-labelledby={`${idPrefix}-support-phone-et`} value={form.support_phone} onChange={s('support_phone')} style={fs} /></div>
+        <div><label id={`${idPrefix}-account-manager-et`} htmlFor={`${idPrefix}-account-manager`} style={ls}>{t('alm.vendor_label_account_manager')}</label><input id={`${idPrefix}-account-manager`} aria-labelledby={`${idPrefix}-account-manager-et`} value={form.account_manager} onChange={s('account_manager')} style={fs} /></div>
+        <div><label id={`${idPrefix}-account-number-et`} htmlFor={`${idPrefix}-account-number`} style={ls}>{t('alm.vendor_label_account_number')}</label><input id={`${idPrefix}-account-number`} aria-labelledby={`${idPrefix}-account-number-et`} value={form.account_number} onChange={s('account_number')} style={fs} /></div>
+        <div><label id={`${idPrefix}-tax-id-et`} htmlFor={`${idPrefix}-tax-id`} style={ls}>{t('alm.vendor_label_tax_id')}</label><input id={`${idPrefix}-tax-id`} aria-labelledby={`${idPrefix}-tax-id-et`} value={form.tax_id} onChange={s('tax_id')} style={fs} /></div>
+        <div className="u-col-full"><label id={`${idPrefix}-notes-et`} htmlFor={`${idPrefix}-notes`} style={ls}>{t('alm.vendor_label_notes')}</label><textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-et`} value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -690,15 +690,15 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
           {validation.errors.notice_days && <p className="u-field-error">{validation.errors.notice_days}</p>}
         </div>
         <div>
-          <label style={ls} htmlFor="contract-uc">{t('alm.contracts_label_uc_hours')}</label>
-          <input id="contract-uc" type="number" min={0} step="0.5" value={form.resolution_hours} onChange={s('resolution_hours')} style={validation.inputStyle(fs, 'resolution_hours')} />
+          <label id="contract-uc-et" style={ls} htmlFor="contract-uc">{t('alm.contracts_label_uc_hours')}</label>
+          <input id="contract-uc" aria-labelledby="contract-uc-et" type="number" min={0} step="0.5" value={form.resolution_hours} onChange={s('resolution_hours')} style={validation.inputStyle(fs, 'resolution_hours')} />
           {validation.errors.resolution_hours
             ? <p className="u-field-error">{validation.errors.resolution_hours}</p>
             : <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('alm.contracts_uc_hint')}</p>}
         </div>
         <div>
-          <label style={ls} htmlFor="contract-uc-resp">{t('alm.contracts_label_uc_response')}</label>
-          <input id="contract-uc-resp" type="number" min={0} step="0.5" value={form.response_hours} onChange={s('response_hours')} style={validation.inputStyle(fs, 'response_hours')} />
+          <label id="contract-uc-resp-et" style={ls} htmlFor="contract-uc-resp">{t('alm.contracts_label_uc_response')}</label>
+          <input id="contract-uc-resp" aria-labelledby="contract-uc-resp-et" type="number" min={0} step="0.5" value={form.response_hours} onChange={s('response_hours')} style={validation.inputStyle(fs, 'response_hours')} />
           {validation.errors.response_hours && <p className="u-field-error">{validation.errors.response_hours}</p>}
         </div>
         <div>
@@ -1002,8 +1002,8 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
           </select>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20 }}>
-          <input type="checkbox" id="compliance" checked={form.is_compliance_req} onChange={e => setForm(f => ({ ...f, is_compliance_req: e.target.checked }))} />
-          <label htmlFor="compliance" style={{ fontSize: "var(--text-base)", cursor: 'pointer' }}>{t('alm.licenses_requires_compliance')}</label>
+          <input type="checkbox" id="compliance" aria-labelledby="compliance-et" checked={form.is_compliance_req} onChange={e => setForm(f => ({ ...f, is_compliance_req: e.target.checked }))} />
+          <label id="compliance-et" htmlFor="compliance" style={{ fontSize: "var(--text-base)", cursor: 'pointer' }}>{t('alm.licenses_requires_compliance')}</label>
         </div>
         <div className="u-col-full"><label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} style={ls}>{t('alm.licenses_label_key')}</label><input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.license_key} onChange={s('license_key')} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder={t('alm.licenses_placeholder_key')} /></div>
         <div className="u-col-full"><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} style={ls}>{t('alm.contracts_label_notes')}</label><textarea id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
@@ -1273,7 +1273,7 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> 
         <div><label style={ls} htmlFor="asset-eol">{t('alm.assets_label_eol')}</label><DateInput id="asset-eol" value={form.eol_date} onChange={s('eol_date')} style={fs} /></div>
         <div><label style={ls} htmlFor="asset-lease">{t('alm.assets_label_lease')}</label><DateInput id="asset-lease" value={form.lease_expiry} onChange={s('lease_expiry')} style={fs} /></div>
         <div><label style={ls} htmlFor="asset-maint">{t('alm.assets_label_maintenance')}</label><DateInput id="asset-maint" value={form.next_maintenance_date} onChange={s('next_maintenance_date')} style={fs} /></div>
-        <div><label style={ls} htmlFor="asset-maint-c">{t('alm.assets_label_maintenance_contract')}</label><input id="asset-maint-c" value={form.maintenance_contract} onChange={s('maintenance_contract')} style={fs} /></div>
+        <div><label id="asset-maint-c-et" style={ls} htmlFor="asset-maint-c">{t('alm.assets_label_maintenance_contract')}</label><input id="asset-maint-c" aria-labelledby="asset-maint-c-et" value={form.maintenance_contract} onChange={s('maintenance_contract')} style={fs} /></div>
         <div className="u-col-full"><label id={`${idCampo}-et22`} htmlFor={`${idCampo}-22`} style={ls}>{t('alm.assets_label_notes')}</label><textarea id={`${idCampo}-22`} aria-labelledby={`${idCampo}-et22`} value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>

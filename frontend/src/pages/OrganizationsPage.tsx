@@ -285,13 +285,13 @@ export default function OrganizationsPage() {
             <div data-export-table="organizations-list" className="u-stack-10">
               {orgs.map(o => (
                 <div key={o.id} onClick={() => setSelected(selected===o.id?null:o.id)}
-                  role="button" tabIndex={0}
+                  role="button" tabIndex={0} aria-labelledby={`${idCampo}-${o.id}-n`}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected===o.id?null:o.id) } }}
                   style={{ ...card, padding:'16px 20px', cursor:'pointer', opacity: o.is_active ? 1 : 0.6, border:selected===o.id?'.5px solid rgba(0,212,255,0.25)':'var(--surface-4) .5px solid' }}>
                   <div className="u-row-between">
                     <div>
                       <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
-                        <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{o.name}</span>
+                        <span id={`${idCampo}-${o.id}-n`} style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{o.name}</span>
                         <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: (o.plan && PLAN_COLORS[o.plan]) || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
                         {!o.is_active && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>{o.deletion_purge_after ? `Baja · se borra el ${o.deletion_purge_after.slice(0, 10)}` : 'Suspendida'}</span>}
                       </div>
@@ -387,8 +387,8 @@ export default function OrganizationsPage() {
                 {showAssignUser && detail && (
                   <Modal open title="Asignar usuario" onClose={() => setShowAssignUser(false)} width={420}>
                     <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
-                      <div>
-                        <label style={ls}>Usuario</label>
+                      <div role="group" aria-labelledby={`${idCampo}-usuario-et`}>
+                        <div id={`${idCampo}-usuario-et`} style={ls}>Usuario</div>
                         <UserSelect
                           value={assignUserId}
                           onChange={id => setAssignUserId(id)}
@@ -514,7 +514,7 @@ export default function OrganizationsPage() {
             </div>
             {/* Revisión 2026-11: la MFA obligatoria sólo se podía activar por API. */}
             <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize: "var(--text-sm)", cursor:'pointer' }}>
-              <input type="checkbox" checked={!!editForm?.require_mfa} onChange={e => setEditForm(f => f && ({ ...f, require_mfa: e.target.checked }))} style={{ marginTop:3 }} />
+              <input type="checkbox" aria-label={t('organizations.exigir_mfa')} checked={!!editForm?.require_mfa} onChange={e => setEditForm(f => f && ({ ...f, require_mfa: e.target.checked }))} style={{ marginTop:3 }} />
               <span>
                 <strong>{t('organizations.exigir_mfa')}</strong>
                 <span style={{ display:'block', color:'var(--text-3)', fontSize: "var(--text-xs)" }}>{t('organizations.exigir_mfa_ayuda')}</span>
@@ -539,8 +539,8 @@ export default function OrganizationsPage() {
               Nadie de la empresa podrá entrar, y las sesiones abiertas se cortan en su siguiente petición. Se puede reactivar.
             </div>
             <div>
-              <label style={ls} htmlFor="motivo_suspension">Motivo</label>
-              <textarea id="motivo_suspension" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
+              <label id="motivo_suspension-et" style={ls} htmlFor="motivo_suspension">Motivo</label>
+              <textarea id="motivo_suspension" aria-labelledby="motivo_suspension-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setSuspendiendo(null)}>Cancelar</Button>
@@ -561,8 +561,8 @@ export default function OrganizationsPage() {
                 : 'Entrarás con su sesión durante un tiempo limitado, sin poder tocar credenciales. Queda en la auditoría de su empresa. Para volver, «Salir» en el aviso superior.'}
             </div>
             <div>
-              <label style={ls} htmlFor="motivo_org">Motivo</label>
-              <textarea id="motivo_org" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
+              <label id="motivo_org-et" style={ls} htmlFor="motivo_org">Motivo</label>
+              <textarea id="motivo_org" aria-labelledby="motivo_org-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setPidiendoMotivo(null)}>Cancelar</Button>

@@ -297,7 +297,7 @@ export default function EVMPage(): JSX.Element {
                       <HIcon size={14} color={hc} />
                     </td>
                     <td style={{ padding: '12px 14px', fontWeight: 600 }}>{p.project_name}</td>
-                    <td style={{ padding: '12px 14px' }}>
+                    <td style={{ padding: '12px 14px' }} aria-label={`${p.pct_complete ?? 0}%`}>
                       <div className="u-row-center-8">
                         <div style={{ width: 60, background: 'var(--surface-4)', borderRadius: 3, height: 6 }}>
                           <div style={{ width: `${p.pct_complete ?? 0}%`, background: hc, height: '100%', borderRadius: 3 }} />

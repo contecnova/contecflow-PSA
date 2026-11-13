@@ -101,18 +101,18 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
       <div className="u-stack-12">
         <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('training.titulo')}</label>
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={IS} autoFocus /></div>
-        <div><label style={LS}>Proveedor</label>
-          <input value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} style={IS} placeholder={t('training.nombre_del_proveedor')} aria-label={t('training.nombre_del_proveedor')} /></div>
+        <div><label id={`${idCampo}-eta104`} htmlFor={`${idCampo}-a104`} style={LS}>Proveedor</label>
+          <input id={`${idCampo}-a104`} aria-labelledby={`${idCampo}-eta104`} value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} style={IS} placeholder={t('training.nombre_del_proveedor')} /></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
           <div><label style={LS}>{t('training.category')}</label>
             <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={IS} placeholder="Categoria" aria-label="Categoria" /></div>
-          <div><label style={LS}>Horas</label>
-            <input type="number" value={form.duration_h} onChange={e => setForm(f => ({ ...f, duration_h: e.target.value }))} style={IS} placeholder={t('training.horas_del_curso')} aria-label={t('training.horas_del_curso')} /></div>
+          <div><label id={`${idCampo}-eta109`} htmlFor={`${idCampo}-a109`} style={LS}>Horas</label>
+            <input id={`${idCampo}-a109`} aria-labelledby={`${idCampo}-eta109`} type="number" value={form.duration_h} onChange={e => setForm(f => ({ ...f, duration_h: e.target.value }))} style={IS} placeholder={t('training.horas_del_curso')} /></div>
           <div><label style={LS}>Coste ({fmtMoneda.simbolo})</label>
             <input type="number" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} style={IS} placeholder={t('training.coste_del_curso')} aria-label={t('training.coste_del_curso')} /></div>
         </div>
-        <div><label style={LS}>URL</label>
-          <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://proveedor.com/curso" aria-label={t('training.url_del_curso')} /></div>
+        <div><label id={`${idCampo}-eta114`} htmlFor={`${idCampo}-a114`} style={LS}>URL</label>
+          <input id={`${idCampo}-a114`} aria-labelledby={`${idCampo}-eta114`} value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://proveedor.com/curso" /></div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>{isEdit ? t('common.save') : 'Crear curso'}</Button>
@@ -159,8 +159,8 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('training.nombre_certificacion')}</label>
           <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={IS} autoFocus /></div>
         <div className="u-grid2-10">
-          <div><label style={LS}>Organismo emisor</label>
-            <input value={form.issuer} onChange={e => setForm(f => ({ ...f, issuer: e.target.value }))} style={IS} placeholder="Entidad emisora" aria-label="Entidad emisora" /></div>
+          <div><label id={`${idCampo}-eta162`} htmlFor={`${idCampo}-a162`} style={LS}>Organismo emisor</label>
+            <input id={`${idCampo}-a162`} aria-labelledby={`${idCampo}-eta162`} value={form.issuer} onChange={e => setForm(f => ({ ...f, issuer: e.target.value }))} style={IS} placeholder="Entidad emisora" /></div>
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>ID certificado</label>
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.cert_id} onChange={e => setForm(f => ({ ...f, cert_id: e.target.value }))} style={IS} /></div>
           <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>Obtenida</label>

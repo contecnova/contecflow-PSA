@@ -444,14 +444,14 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
           </p>
           <form onSubmit={e => { e.preventDefault(); handleLogin() }} className="u-stack-14">
             <div>
-              <label htmlFor={`${idPrefix}-email`} style={labelStyle}>{t('login_email')}</label>
-              <input id={`${idPrefix}-email`} type="email" autoComplete="email"
+              <label htmlFor={`${idPrefix}-email`} id={`${idPrefix}-email-etiqueta`} style={labelStyle}>{t('login_email')}</label>
+              <input id={`${idPrefix}-email`} aria-labelledby={`${idPrefix}-email-etiqueta`} type="email" autoComplete="email"
                 value={email} onChange={e => setEmail(e.target.value)}
                 style={fieldStyle} placeholder="tu@empresa.com" />
             </div>
             <div>
-              <label htmlFor={`${idPrefix}-password`} style={labelStyle}>{t('login_password')}</label>
-              <input id={`${idPrefix}-password`} type="password" autoComplete="current-password"
+              <label htmlFor={`${idPrefix}-password`} id={`${idPrefix}-password-etiqueta`} style={labelStyle}>{t('login_password')}</label>
+              <input id={`${idPrefix}-password`} aria-labelledby={`${idPrefix}-password-etiqueta`} type="password" autoComplete="current-password"
                 value={password} onChange={e => setPassword(e.target.value)}
                 style={fieldStyle} placeholder="••••••••" />
             </div>

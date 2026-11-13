@@ -40,7 +40,8 @@ export default function EstadoDelAlmacen() {
           })}
         {fallo && ` · ${t('dataexplorer.almacen_fallo', { error: String(data.last_run?.detail?.error ?? '') })}`}
       </span>
-      {user?.role === 'admin' && (
+      {/* 2026-11: la recarga es global (todas las empresas): solo superadmin. */}
+      {user?.is_superadmin && (
         <button type="button" onClick={() => cargar.mutate()} disabled={cargar.isPending}
           style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)' }}>
           {cargar.isPending ? '…' : t('dataexplorer.almacen_cargar')}

@@ -382,7 +382,7 @@ function SmartMatchTab() {
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 20 }}>{t('resources.encuentra_los_mejores_recursos_para_tu_proyecto')}</div>
 
           <div className="u-mb-14">
-            <label style={labelStyle}>Skills requeridos</label>
+            <label id={`${idCampo}-eta385`} htmlFor={`${idCampo}-a385`} style={labelStyle}>Skills requeridos</label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
               {form.skills.map(s => (
                 <span key={s} style={{ background: 'var(--accent-muted)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 20, padding: '3px 10px', fontSize: "var(--text-sm)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -392,7 +392,7 @@ function SmartMatchTab() {
               ))}
             </div>
             <div className="u-row-8">
-              <select value={skillInput} onChange={e => setSkillInput(e.target.value)} style={{ ...inputStyle, flex: 1 }}>
+              <select id={`${idCampo}-a385`} aria-labelledby={`${idCampo}-eta385`} value={skillInput} onChange={e => setSkillInput(e.target.value)} style={{ ...inputStyle, flex: 1 }}>
                 <option value="">Seleccionar skill...</option>
                 {allSkills.filter(s => !form.skills.includes(s.name)).map(s => <option key={s.id || s.name} value={s.name}>{s.name}</option>)}
               </select>

@@ -156,7 +156,7 @@ function StartModal({ onClose, onStart, isPending }: {
           </select>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
-          <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)}
+          <input type="checkbox" aria-label="Tiempo facturable" checked={billable} onChange={e => setBillable(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
           Tiempo facturable
         </label>
@@ -192,6 +192,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
   elapsed: number
 }) {
   const traducir = useAppT()
+  const idCampo = useId()
   const [description, setDescription] = useState('')
   const [billable, setBillable] = useState(true)
   const [taskId, setTaskId] = useState<string>(currentTimer?.task_id ? String(currentTimer.task_id) : '')
@@ -250,8 +251,8 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
             placeholder={traducir('timer.describe_el_trabajo_realizado')} aria-label={traducir('timer.descripcion_del_trabajo')} autoFocus />
         </div>
         <div className="u-mb-14">
-          <label style={LS}>Tarea final</label>
-          <select value={taskId} onChange={e => setTaskId(e.target.value)} style={FS} aria-label="Tarea final">
+          <label id={`${idCampo}-etfin`} htmlFor={`${idCampo}-fin`} style={LS}>Tarea final</label>
+          <select id={`${idCampo}-fin`} aria-labelledby={`${idCampo}-etfin`} value={taskId} onChange={e => setTaskId(e.target.value)} style={FS}>
             <option value="">{traducir('timer.sin_tarea')}</option>
             {tasks.map(task => <option key={task.id} value={task.id}>{task.title || (task as { name?: string }).name}</option>)}
           </select>
@@ -260,12 +261,12 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
           </div>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
-          <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)}
+          <input type="checkbox" aria-label={traducir('timer.marcar_como_facturable')} checked={billable} onChange={e => setBillable(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
           {traducir('timer.marcar_como_facturable')}
         </label>
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
-          <input type="checkbox" checked={forceDuplicate} onChange={e => setForceDuplicate(e.target.checked)}
+          <input type="checkbox" aria-label={traducir('timer.permitir_imputacion_duplicada_y_avisar_al_manager')} checked={forceDuplicate} onChange={e => setForceDuplicate(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--warning)', cursor: 'pointer', marginTop: 2 }} />
           <span>{traducir('timer.permitir_imputacion_duplicada_y_avisar_al_manager')}</span>
         </label>

@@ -183,8 +183,8 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
     <Modal open title={isEdit ? `Editar contrato` : 'Nuevo Contrato'} onClose={onClose} width={620}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder={traducir('contracts.nombre_del_contrato')} aria-label={traducir('contracts.nombre_del_contrato')} />
+          <label id={`${idCampo}-eta186`} htmlFor={`${idCampo}-a186`} style={ls}>Nombre *</label>
+          <input id={`${idCampo}-a186`} aria-labelledby={`${idCampo}-eta186`} value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder={traducir('contracts.nombre_del_contrato')} />
           {validation.errors.name && <p className="u-field-error">{validation.errors.name}</p>}
         </div>
         <div>
@@ -196,8 +196,8 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           {validation.errors.project_id && <p className="u-field-error">{validation.errors.project_id}</p>}
         </div>
         <div>
-          <label style={ls}>Cliente *</label>
-          <ClientSelect
+          <label id={`${idCampo}-eta199`} htmlFor={`${idCampo}-a199`} style={ls}>Cliente *</label>
+          <ClientSelect id={`${idCampo}-a199`} aria-labelledby={`${idCampo}-eta199`}
             value={String(form.client_id)}
             onChange={(id, client) => {
               setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))

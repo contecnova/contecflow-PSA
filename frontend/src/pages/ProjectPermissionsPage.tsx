@@ -125,16 +125,16 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
           <div style={{ padding: '14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Permisos adicionales</div>
             <div className="u-stack-8">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                <input type="checkbox" checked={form.can_see_financials} onChange={e => set('can_see_financials')(e.target.checked)} />
+              <label className="u-row-center-8-pointer">
+                <input type="checkbox" aria-label={t('projectpermissions.ver_datos_financieros_costes_presupuesto_facturacion')} checked={form.can_see_financials} onChange={e => set('can_see_financials')(e.target.checked)} />
                 <span>{t('projectpermissions.ver_datos_financieros_costes_presupuesto_facturacion')}</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                <input type="checkbox" checked={form.can_see_rates} onChange={e => set('can_see_rates')(e.target.checked)} />
+              <label className="u-row-center-8-pointer">
+                <input type="checkbox" aria-label={t('projectpermissions.ver_tarifas_hora_de_los_companeros')} checked={form.can_see_rates} onChange={e => set('can_see_rates')(e.target.checked)} />
                 <span>{t('projectpermissions.ver_tarifas_hora_de_los_companeros')}</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                <input type="checkbox" checked={form.can_export} onChange={e => set('can_export')(e.target.checked)} />
+              <label className="u-row-center-8-pointer">
+                <input type="checkbox" aria-label={t('projectpermissions.exportar_datos_del_proyecto')} checked={form.can_export} onChange={e => set('can_export')(e.target.checked)} />
                 <span>{t('projectpermissions.exportar_datos_del_proyecto')}</span>
               </label>
             </div>
@@ -286,7 +286,7 @@ export default function ProjectPermissionsPage() {
                           <span style={{ color: v ? 'var(--success)' : 'var(--danger)', fontSize: "var(--text-lg)" }}>{v ? '✓' : '✕'}</span>
                         </td>
                       ))}
-                      <td className="u-pad-10-12">
+                      <td className="u-pad-10-12" aria-label="Acciones">
                         <div className="u-row-8">
                           <button onClick={() => { setEditingPerm(perm); setShowForm(true) }}
                             style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>

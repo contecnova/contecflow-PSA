@@ -716,7 +716,7 @@ export function PortalSupportDesk() {
                     onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                   />
                   <datalist id={`portal-dyn-${f.id}-options`}>
-                    {contextSuggestionsForField(f).map((op, idx) => <option key={`${f.id}-${idx}`} value={op} />)}
+                    {contextSuggestionsForField(f).map((op, idx) => <option key={`${f.id}-${idx}`} value={op} aria-label={op} />)}
                   </datalist>
                 </>
               ) : (

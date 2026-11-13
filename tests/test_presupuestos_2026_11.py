@@ -129,6 +129,21 @@ def test_un_proyecto_previsto_no_tiene_real_hasta_vincularlo(client, db, admin_t
     assert d["project_id"] == "p-b1" and d["informe"]["total_real"] == 200
 
 
+def _segundo_admin(client, db):
+    """Otro administrador: quien crea el presupuesto no lo decide (SoD, segunda auditoría 2026-11)."""
+    from app.models.user import UserRole, UserStatus
+    from tests.conftest import HASH_DE_PRUEBA, _TEST_PASSWORD
+    if not db.query(User).filter(User.username == "admin2_test").first():
+        db.add(User(id="admin2-test-id", username="admin2_test", email="admin2@contecflow.com",
+                    full_name="Admin Dos", role=UserRole.admin, status=UserStatus.active, is_active=True,
+                    organization_id="1", hashed_password=HASH_DE_PRUEBA, weekly_capacity_hours=40.0,
+                    currency="EUR"))
+        db.commit()
+    r = client.post("/api/v1/auth/login", json={"username": "admin2_test", "password": _TEST_PASSWORD})
+    assert r.status_code == 200, r.text
+    return r.cookies.get("access_token")
+
+
 def test_EL_HALLAZGO_versiones_y_aprobacion(client, db, admin_token, pm_token, proyecto):
     b = _crear(client, admin_token)
     assert client.post(f"{URL}/{b['id']}/submit", headers=auth(admin_token)).status_code == 400   # sin partidas
@@ -137,15 +152,18 @@ def test_EL_HALLAZGO_versiones_y_aprobacion(client, db, admin_token, pm_token, p
     assert client.post(f"{URL}/{b['id']}/lines", headers=auth(admin_token),
                        json={"tipo": "otros", "descripcion": "y", "importe": 1}).status_code == 409
     assert client.post(f"{URL}/{b['id']}/decision", headers=auth(pm_token), json={"aprobado": True}).status_code == 403
-    assert client.post(f"{URL}/{b['id']}/decision", headers=auth(admin_token), json={"aprobado": False}).status_code == 400
-    v1 = client.post(f"{URL}/{b['id']}/decision", headers=auth(admin_token), json={"aprobado": True}).json()["data"]
+    # quien lo creó no lo decide (SoD); decide otro administrador
+    assert client.post(f"{URL}/{b['id']}/decision", headers=auth(admin_token), json={"aprobado": True}).status_code == 403
+    admin2_token = _segundo_admin(client, db)
+    assert client.post(f"{URL}/{b['id']}/decision", headers=auth(admin2_token), json={"aprobado": False}).status_code == 400
+    v1 = client.post(f"{URL}/{b['id']}/decision", headers=auth(admin2_token), json={"aprobado": True}).json()["data"]
     assert v1["estado"] == "aprobado"
     v2 = client.post(f"{URL}/{b['id']}/new-version", headers=auth(admin_token)).json()["data"]
     assert (v2["version"], v2["estado"], v2["total_plan"], v2["origen_id"]) == (2, "borrador", 300.0, b["id"])
     assert client.post(f"{URL}/{b['id']}/new-version", headers=auth(admin_token)).status_code == 409
     _linea(client, admin_token, v2["id"], tipo="otros", descripcion="reprevisión", importe=100)
     client.post(f"{URL}/{v2['id']}/submit", headers=auth(admin_token))
-    client.post(f"{URL}/{v2['id']}/decision", headers=auth(admin_token), json={"aprobado": True})
+    client.post(f"{URL}/{v2['id']}/decision", headers=auth(admin2_token), json={"aprobado": True})
     db.expire_all()
     assert db.get(Budget, b["id"]).estado == "sustituido"
     lista = client.get(URL, headers=auth(admin_token)).json()

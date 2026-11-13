@@ -336,6 +336,7 @@ def patch_ai_module_config(
     _gsvc.upsert_ai_module_config(db, _org_id(current_user), module, is_enabled, current_user.id)
     audit_log(db=db, user=current_user, action="UPDATE", resource="ai_module_config",
               resource_id=None, resource_name=module, new_values={"is_enabled": is_enabled})
+    db.commit()  # segunda auditoría 2026-11: el servicio ya había confirmado y la entrada se perdía
     return APIResponse.ok(data={"ok": True, "module": module, "is_enabled": is_enabled})
 
 

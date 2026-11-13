@@ -10,7 +10,7 @@
 //   node scripts/i18n_missing.mjs en --ns alm           # sólo ese namespace
 //   node scripts/i18n_missing.mjs en --ns alm --json    # JSON para traducir
 //   node scripts/i18n_missing.mjs en --json > todo.json # todas, en JSON
-import { APP_TRANSLATIONS } from '../src/i18n/appTranslations.mjs'
+import { APP_TRANSLATIONS } from '../src/i18n/todosLosIdiomas.mjs'
 
 const BASE = 'es'
 

@@ -210,16 +210,16 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
 
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label htmlFor={`${idPrefix}-name`} style={ls}>{t('ai.config_name')} *</label>
-          <input id={`${idPrefix}-name`} value={form.name} onChange={s('name')} style={fs} placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} />
+          <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} style={ls}>{t('ai.config_name')} *</label>
+          <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} style={fs} placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} />
         </div>
 
         {providerType !== 'ollama' && (
           <div className="u-col-full">
-            <label htmlFor={`${idPrefix}-api-key`} style={ls}>
+            <label id={`${idPrefix}-api-key-et`} htmlFor={`${idPrefix}-api-key`} style={ls}>
               API Key {catEntry.key_hint && <span style={{ color: 'var(--text-3)', fontWeight: 400, textTransform: 'none' }}>({catEntry.key_hint})</span>}
             </label>
-            <input id={`${idPrefix}-api-key`} type="password" value={form.api_key} onChange={s('api_key')} style={fs}
+            <input id={`${idPrefix}-api-key`} aria-labelledby={`${idPrefix}-api-key-et`} type="password" value={form.api_key} onChange={s('api_key')} style={fs}
               placeholder={isEdit ? t('ai.keep_api_key_placeholder') : t('ai.enter_api_key_placeholder')} />
             {catEntry.docs_url && (
               <a href={catEntry.docs_url} target="_blank" rel="noreferrer"
@@ -232,18 +232,18 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
 
         {(providerType === 'ollama' || providerType === 'azure') && (
           <div className="u-col-full">
-            <label htmlFor={`${idPrefix}-api-base-url`} style={ls}>{t('ai.base_url')} {providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</label>
-            <input id={`${idPrefix}-api-base-url`} value={form.api_base_url} onChange={s('api_base_url')} style={fs}
+            <label id={`${idPrefix}-api-base-url-et`} htmlFor={`${idPrefix}-api-base-url`} style={ls}>{t('ai.base_url')} {providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</label>
+            <input id={`${idPrefix}-api-base-url`} aria-labelledby={`${idPrefix}-api-base-url-et`} value={form.api_base_url} onChange={s('api_base_url')} style={fs}
               placeholder={catEntry.base_url || 'https://...'} />
           </div>
         )}
 
         <div>
-          <label htmlFor={`${idPrefix}-default-model`} style={ls}>{t('ai.default_model')}</label>
+          <label id={`${idPrefix}-default-model-et`} htmlFor={`${idPrefix}-default-model`} style={ls}>{t('ai.default_model')}</label>
           {models.length > 0 ? (
             <>
               <select
-                id={`${idPrefix}-default-model`}
+                id={`${idPrefix}-default-model`} aria-labelledby={`${idPrefix}-default-model-et`}
                 value={models.some(m => m.id === form.default_model) ? form.default_model : '__custom__'}
                 onChange={e => {
                   if (e.target.value === '__custom__') {
@@ -273,7 +273,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
               )}
             </>
           ) : (
-            <input id={`${idPrefix}-default-model`} value={form.default_model} onChange={s('default_model')} style={fs}
+            <input id={`${idPrefix}-default-model`} aria-labelledby={`${idPrefix}-default-model-et`} value={form.default_model} onChange={s('default_model')} style={fs}
               placeholder={t('ai.model_name_placeholder')} />
           )}
           {(!isEdit || form.api_key || providerType === 'ollama') && (
@@ -298,25 +298,25 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-max-tokens`} style={ls}>{t('ai.max_response_tokens')}</label>
-          <input id={`${idPrefix}-max-tokens`} type="number" value={form.max_tokens} onChange={s('max_tokens')} style={fs} />
+          <label id={`${idPrefix}-max-tokens-et`} htmlFor={`${idPrefix}-max-tokens`} style={ls}>{t('ai.max_response_tokens')}</label>
+          <input id={`${idPrefix}-max-tokens`} aria-labelledby={`${idPrefix}-max-tokens-et`} type="number" value={form.max_tokens} onChange={s('max_tokens')} style={fs} />
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-temperature`} style={ls}>{t('ai.temperature')}</label>
-          <input id={`${idPrefix}-temperature`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} style={fs} />
+          <label id={`${idPrefix}-temperature-et`} htmlFor={`${idPrefix}-temperature`} style={ls}>{t('ai.temperature')}</label>
+          <input id={`${idPrefix}-temperature`} aria-labelledby={`${idPrefix}-temperature-et`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} style={fs} />
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-priority`} style={ls}>Orden de respaldo</label>
-          <input id={`${idPrefix}-priority`} type="number" min="0" value={form.priority} onChange={s('priority')} style={fs}
+          <label id={`${idPrefix}-priority-et`} htmlFor={`${idPrefix}-priority`} style={ls}>Orden de respaldo</label>
+          <input id={`${idPrefix}-priority`} aria-labelledby={`${idPrefix}-priority-et`} type="number" min="0" value={form.priority} onChange={s('priority')} style={fs}
             title="Si el proveedor elegido falla, se prueban los demás de menor a mayor" />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20 }}>
-          <input type="checkbox" id={`${idPrefix}-is-default`} checked={form.is_default}
+          <input type="checkbox" id={`${idPrefix}-is-default`} aria-labelledby={`${idPrefix}-is-default-et`} checked={form.is_default}
             onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))} />
-          <label htmlFor={`${idPrefix}-is-default`} style={{ fontSize: "var(--text-base)", cursor: 'pointer' }}>
+          <label id={`${idPrefix}-is-default-et`} htmlFor={`${idPrefix}-is-default`} style={{ fontSize: "var(--text-base)", cursor: 'pointer' }}>
             {t('ai.set_global_default')}
           </label>
         </div>
@@ -1008,14 +1008,14 @@ function RoutingTab({ providers }: { providers: AiProvider[] }) {
           const lista = `modelos-${m.key}`
           return (
             <Fragment key={m.key}>
-              <label htmlFor={`ruta-${m.key}`} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', ...(isNarrow ? { gridColumn: '1 / -1', marginTop: 6 } : {}) }}>{m.label}</label>
-              <select id={`ruta-${m.key}`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} style={fs}>
+              <label id={`ruta-${m.key}-et`} htmlFor={`ruta-${m.key}`} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', ...(isNarrow ? { gridColumn: '1 / -1', marginTop: 6 } : {}) }}>{m.label}</label>
+              <select id={`ruta-${m.key}`} aria-labelledby={`ruta-${m.key}-et`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} style={fs}>
                 <option value="">Por defecto</option>
                 {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <input aria-label={`Modelo para ${m.label}`} list={lista} value={ruta.model || ''}
                 placeholder={prov?.default_model || 'Modelo por defecto'} onChange={e => cambiar(m.key, 'model', e.target.value)} style={fs} />
-              <datalist id={lista}>{(prov?.available_models || []).map((x: string) => <option key={x} value={x} />)}</datalist>
+              <datalist id={lista}>{(prov?.available_models || []).map((x: string) => <option key={x} value={x} aria-label={x} />)}</datalist>
             </Fragment>
           )
         })}

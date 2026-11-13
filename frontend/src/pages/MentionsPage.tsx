@@ -234,7 +234,7 @@ export default function MentionsPage() {
           <div className="u-row-between-mb16">
             <div className="u-row-center-8">
               <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize: "var(--text-base)"}}>
-                <input type="checkbox" checked={onlyUnread} onChange={e=>setOnlyUnread(e.target.checked)}/>
+                <input type="checkbox" aria-label={t('mentions.only_unread')} checked={onlyUnread} onChange={e=>setOnlyUnread(e.target.checked)}/>
                 {t('mentions.only_unread')}
               </label>
               {unreadCount>0&&<span style={{fontSize: "var(--text-sm)",padding:'2px 8px',borderRadius:20,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{unreadCount} {t('mentions.new_plural')}</span>}

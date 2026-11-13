@@ -117,8 +117,8 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar caso UAT' : 'Nuevo caso UAT'} width={640}>
       <div className="u-stack-14">
         <div>
-          <label htmlFor={`${idPrefix}-title`} style={ls}>{traducir('uat.titulo')}</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={s('title')} style={fs} placeholder={traducir('uat.titulo_del_caso_uat')} />
+          <label htmlFor={`${idPrefix}-title`} id={`${idPrefix}-title-etiqueta`} style={ls}>{traducir('uat.titulo')}</label>
+          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-etiqueta`} value={form.title} onChange={s('title')} style={fs} placeholder={traducir('uat.titulo_del_caso_uat')} />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
@@ -150,29 +150,29 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-description`} style={ls}>{traducir('uat.pasos_para_ejecutar_el_test')}</label>
-          <textarea id={`${idPrefix}-description`} value={form.description} onChange={s('description')} rows={3}
+          <label htmlFor={`${idPrefix}-description`} id={`${idPrefix}-description-etiqueta`} style={ls}>{traducir('uat.pasos_para_ejecutar_el_test')}</label>
+          <textarea id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-etiqueta`} value={form.description} onChange={s('description')} rows={3}
             style={{ ...fs, resize: 'vertical' }}
             placeholder={traducir('uat.pasos_para_ejecutar_el_test')} />
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-expected-result`} style={ls}>Resultado esperado *</label>
-          <textarea id={`${idPrefix}-expected-result`} value={form.expected_result} onChange={s('expected_result')} rows={2}
+          <label htmlFor={`${idPrefix}-expected-result`} id={`${idPrefix}-expected-result-etiqueta`} style={ls}>Resultado esperado *</label>
+          <textarea id={`${idPrefix}-expected-result`} aria-labelledby={`${idPrefix}-expected-result-etiqueta`} value={form.expected_result} onChange={s('expected_result')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
             placeholder="Resultado esperado" />
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-actual-result`} style={ls}>{traducir('uat.resultado_obtenido_rellenar_al_ejecutar')}</label>
-          <textarea id={`${idPrefix}-actual-result`} value={form.actual_result} onChange={s('actual_result')} rows={2}
+          <label htmlFor={`${idPrefix}-actual-result`} id={`${idPrefix}-actual-result-etiqueta`} style={ls}>{traducir('uat.resultado_obtenido_rellenar_al_ejecutar')}</label>
+          <textarea id={`${idPrefix}-actual-result`} aria-labelledby={`${idPrefix}-actual-result-etiqueta`} value={form.actual_result} onChange={s('actual_result')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
             placeholder="Resultado obtenido" />
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-notes`} style={ls}>Notas internas</label>
-          <textarea id={`${idPrefix}-notes`} value={form.notes} onChange={s('notes')} rows={2}
+          <label htmlFor={`${idPrefix}-notes`} id={`${idPrefix}-notes-etiqueta`} style={ls}>Notas internas</label>
+          <textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-etiqueta`} value={form.notes} onChange={s('notes')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
             placeholder="Notas internas" />
         </div>

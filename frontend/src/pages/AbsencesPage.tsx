@@ -172,8 +172,8 @@ function RequestModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div>
-          <label htmlFor={reasonId} style={ls}>{t('absences.label_reason_optional')}</label>
-          <textarea id={reasonId} value={form.reason} onChange={set('reason')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('absences.reason_placeholder')} />
+          <label htmlFor={reasonId} id={`${reasonId}-etiqueta`} style={ls}>{t('absences.label_reason_optional')}</label>
+          <textarea id={reasonId} aria-labelledby={`${reasonId}-etiqueta`} value={form.reason} onChange={set('reason')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('absences.reason_placeholder')} />
         </div>
         {error ? <div style={{ fontSize: "var(--text-base)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{errDetailText(error, t('absences.error_submit'))}</div> : null}
         <div className="u-actions-10">
@@ -215,8 +215,8 @@ function ReviewModal({ absence, onClose }: { absence: Absence; onClose: () => vo
       </div>
       {absence.reason && <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 16 }}>{absence.reason}</p>}
       <div className="u-mb-16">
-        <label htmlFor={`${idPrefix}-notes`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{t('absences.label_notes_rejection')}</label>
-        <textarea id={`${idPrefix}-notes`} value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+        <label htmlFor={`${idPrefix}-notes`} id={`${idPrefix}-notes-etiqueta`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{t('absences.label_notes_rejection')}</label>
+        <textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-etiqueta`} value={notes} onChange={e => setNotes(e.target.value)} rows={2}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div className="u-actions-10">
@@ -368,8 +368,8 @@ function EditAbsenceModal({ absence, onClose }: { absence: Absence; onClose: () 
         </div>
 
         <div>
-          <label htmlFor={reasonId} style={LS}>{t('absences.label_reason_optional')}</label>
-          <textarea id={reasonId} value={form.reason} onChange={setField('reason')}
+          <label htmlFor={reasonId} id={`${reasonId}-etiqueta`} style={LS}>{t('absences.label_reason_optional')}</label>
+          <textarea id={reasonId} aria-labelledby={`${reasonId}-etiqueta`} value={form.reason} onChange={setField('reason')}
             rows={3} placeholder={t('absences.reason_edit_placeholder')}
             style={{...IS, resize:'vertical'} as CSSProperties} />
         </div>

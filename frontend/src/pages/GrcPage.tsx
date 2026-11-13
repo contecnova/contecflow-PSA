@@ -170,7 +170,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
               ))}
             </tr>
             <tr className="u-border-b">
-              <th style={{ position: 'sticky', left: 0, background: 'var(--surface-2)' }} />
+              <th aria-hidden="true" style={{ position: 'sticky', left: 0, background: 'var(--surface-2)' }} />
               {displayRoles.map(r => ACTIONS.map(a => (
                 <th key={r.id + a} style={{ padding: '5px 3px', fontSize: "var(--text-3xs)", color: 'var(--text-3)', textAlign: 'center', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 42 }}>
                   {t(`grc.action_${a}`)}
@@ -787,7 +787,7 @@ function RetencionTab() {
         </div>
         <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('grc.retencion_intro', { min: data.min_days })}</p>
         <table className="u-table-sm">
-          <thead><tr><th style={th}>{t('grc.retencion_tipo')}</th><th style={th}>{t('grc.retencion_dias')}</th><th style={th}>{t('grc.retencion_previa')}</th><th style={th}>{t('grc.retencion_estado')}</th><th style={th} /></tr></thead>
+          <thead><tr><th style={th}>{t('grc.retencion_tipo')}</th><th style={th}>{t('grc.retencion_dias')}</th><th style={th}>{t('grc.retencion_previa')}</th><th style={th}>{t('grc.retencion_estado')}</th><th style={th}><span className="u-sr-only">Acciones</span></th></tr></thead>
           <tbody>
             {data.policies.map(p => {
               const v = previas[p.entity]
@@ -961,7 +961,7 @@ function ExplicarAccesoTab() {
         <input aria-label={t('grc.acceso_ruta')} list="grc-rutas" value={camino} onChange={e => setCamino(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') explicar() }} style={{ ...campo, flex: 1, minWidth: 280, fontFamily: 'var(--font-mono)' }} />
         <datalist id="grc-rutas">
-          {rutas.filter(r => r.method === metodo).slice(0, 3000).map(r => <option key={r.path} value={r.path} />)}
+          {rutas.filter(r => r.method === metodo).slice(0, 3000).map(r => <option key={r.path} value={r.path} aria-label={r.path} />)}
         </datalist>
         <Button onClick={explicar} disabled={!usuario || cargando}>{cargando ? '…' : t('grc.acceso_explicar')}</Button>
       </div>

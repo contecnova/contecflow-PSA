@@ -89,8 +89,8 @@ function CompleteModal({ step, onClose }: { step: InboxStep; onClose: () => void
             {Object.entries(step.variables).map(([k, v]) => <div key={k}>{k} = {String(v)}</div>)}
           </div>
         )}
-        <label htmlFor="bpm-vars" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)' }}>{t('bpm.variables_ayuda')}</label>
-        <textarea id="bpm-vars" value={vars} onChange={e => setVars(e.target.value)} rows={4} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder={'aprobada=true\nimporte=500'} />
+        <label htmlFor="bpm-vars" id="bpm-vars-etiqueta" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)' }}>{t('bpm.variables_ayuda')}</label>
+        <textarea id="bpm-vars" aria-labelledby="bpm-vars-etiqueta" value={vars} onChange={e => setVars(e.target.value)} rows={4} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder={'aprobada=true\nimporte=500'} />
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} loading={isPending} disabled={isPending}>{t('bpm.completar')}</Button>
@@ -156,7 +156,7 @@ export default function BpmRunPanel() {
           <EmptyState title={t('bpm.bandeja_vacia')} description={t('bpm.bandeja_vacia_desc')} />
         ) : (
           <table className="table">
-            <thead><tr><th>{t('bpm.paso')}</th><th>{t('bpm.proceso')}</th><th>{t('bpm.rol')}</th><th /></tr></thead>
+            <thead><tr><th>{t('bpm.paso')}</th><th>{t('bpm.proceso')}</th><th>{t('bpm.rol')}</th><th><span className="u-sr-only">Acciones</span></th></tr></thead>
             <tbody>
               {inbox.map(s => (
                 <tr key={s.id}>
@@ -176,7 +176,7 @@ export default function BpmRunPanel() {
           <EmptyState title={t('bpm.sin_instancias')} description={t('bpm.sin_instancias_desc')} />
         ) : (
           <table className="table">
-            <thead><tr><th>{t('bpm.proceso')}</th><th>{t('bpm.estado')}</th><th>{t('bpm.pendiente')}</th><th>{t('bpm.inicio')}</th><th /></tr></thead>
+            <thead><tr><th>{t('bpm.proceso')}</th><th>{t('bpm.estado')}</th><th>{t('bpm.pendiente')}</th><th>{t('bpm.inicio')}</th><th><span className="u-sr-only">Acciones</span></th></tr></thead>
             <tbody>
               {instances.map(i => (
                 <tr key={i.id}>

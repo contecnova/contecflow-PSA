@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.responses import APIResponse
 from app.core.secret_utils import decrypt_config_secrets
 from app.db.session import get_db
-from app.core.deps import require_any_manager
+from app.core.deps import require_any_manager, require_admin
 from app.models.user import User
 from app.core.errores import ErrorDeDominio
 from app.services.settings_service import outbound_http_timeout
@@ -34,12 +34,21 @@ class TeamsTestIn(BaseModel):
     message:     str = f"✅ {NOMBRE_DEL_PRODUCTO} conectado correctamente con Teams"
 
 class JiraTestIn(BaseModel):
-    base_url:  str
-    email:     str
-    api_token: str
+    # Segunda auditoria 2026-11 (#23): sin datos se prueba la conexion guardada
+    # de la organizacion; sin token, el guardado con la URL/email del cuerpo.
+    base_url:  Optional[str] = None
+    email:     Optional[str] = None
+    api_token: Optional[str] = None
+
+class JiraConfigHubIn(BaseModel):
+    name:        Optional[str] = None
+    base_url:    str
+    email:       str
+    api_token:   Optional[str] = None   # vacio = conservar el guardado
+    project_key: Optional[str] = None
 
 class JiraIssueIn(BaseModel):
-    integration_id: str
+    integration_id: Optional[str] = None  # obsoleto (#23): se usa la conexion de la organizacion
     project_key:    str
     summary:        str
     description:    str = ""
@@ -104,13 +113,86 @@ def test_teams(
 
 
 # ── Jira endpoints ─────────────────────────────────────────────────────────────
+# Segunda auditoria 2026-11 (#23): todo el hub usa la `JiraConfig` de tareas de
+# la organizacion (`jira_service`), no filas `integration_configs` de tipo jira.
+
+@router.get("/jira/config", summary="Conexión de Jira de la organización (sin token)")
+def get_jira_hub_config(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services import jira_service
+    return APIResponse.ok(data=jira_service.config_del_hub(
+        jira_service.configuracion_de_tareas(db, current_user.organization_id)))
+
+
+@router.put("/jira/config", summary="Guardar la conexión de Jira de la organización")
+def put_jira_hub_config(
+    payload: JiraConfigHubIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from app.services import jira_service
+    from app.services.audit import audit_log
+    try:
+        config = jira_service.guardar_desde_hub(
+            db, current_user.organization_id, base_url=payload.base_url, email=payload.email,
+            api_token=payload.api_token or None, project_key=payload.project_key,
+            name=payload.name, user_id=current_user.id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    audit_log(db, current_user, "UPDATE", "jira_config", config.id, config.name,
+              new_values={"base_url": config.jira_base_url, "email": config.jira_email,
+                          "token_changed": bool(payload.api_token)})
+    db.commit()
+    return APIResponse.ok(data=jira_service.config_del_hub(config))
+
+
+@router.delete("/jira/config", summary="Desactivar la conexión de Jira (borra el token)")
+def delete_jira_hub_config(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from app.services import jira_service
+    if not jira_service.desactivar_desde_hub(db, current_user.organization_id):
+        raise HTTPException(404, "Jira no está configurado en esta organización")
+    return APIResponse.ok(data={"ok": True, "deactivated": True})
+
+
+@router.post("/jira/sync", summary="Jira → tareas: trae el estado de las incidencias enlazadas")
+def sync_jira_hub(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from datetime import timezone
+    from app.services import jira_service
+    from app.services.cab_service.integraciones import sincronizar_tareas_con_jira
+    cfg = jira_service.credenciales_del_hub(db, current_user.organization_id)
+    synced, errors = sincronizar_tareas_con_jira(db, cfg)
+    config = jira_service.configuracion_de_tareas(db, current_user.organization_id)
+    config.last_full_sync_at = datetime.now(timezone.utc)
+    db.commit()
+    if errors and not synced:
+        raise HTTPException(400, errors[0])
+    return APIResponse.ok(data={"ok": True, "synced": synced, "errors": errors[:5]})
+
+
 @router.post("/jira/test", summary="Verificar conexión con Jira")
 def test_jira(
     payload: JiraTestIn,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     from app.services.integrations import get_jira_projects
-    cfg = {"base_url": payload.base_url, "email": payload.email, "api_token": payload.api_token}
+    from app.services import jira_service
+    if payload.base_url and payload.email and payload.api_token:
+        cfg = {"base_url": payload.base_url, "email": payload.email, "api_token": payload.api_token}
+    else:
+        cfg = jira_service.credenciales_del_hub(db, current_user.organization_id)
+        if payload.base_url:
+            cfg["base_url"] = payload.base_url
+        if payload.email:
+            cfg["email"] = payload.email
     result = get_jira_projects(cfg)
     if not result["ok"]:
         raise HTTPException(400, f"Error Jira: {result.get('error')}")
@@ -128,13 +210,10 @@ def create_jira_issue(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.integrations import create_jira_issue as _create_issue, get_active_integration, link_jira_to_task
-    import json
+    from app.services.integrations import create_jira_issue as _create_issue, link_jira_to_task
+    from app.services import jira_service
 
-    cfg = get_active_integration(db, payload.integration_id)
-    if not cfg: raise HTTPException(404, "Integración Jira no encontrada")
-
-    cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
+    cfg_dict = jira_service.credenciales_del_hub(db, current_user.organization_id)
     result = _create_issue(
         cfg_dict,
         project_key=payload.project_key,
@@ -155,18 +234,16 @@ def create_jira_issue(
 
 @router.get("/jira/search", summary="Buscar issues en Jira via JQL")
 def search_jira(
-    integration_id: str = Query(...),
+    integration_id: Optional[str] = Query(None, description="Obsoleto (#23): se ignora"),
     jql:            str = Query("project = NEXUS ORDER BY created DESC"),
     max_results:    int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.integrations import search_jira_issues, get_active_integration
-    import json
+    from app.services.integrations import search_jira_issues
+    from app.services import jira_service
 
-    cfg = get_active_integration(db, integration_id)
-    if not cfg: raise HTTPException(404)
-    cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
+    cfg_dict = jira_service.credenciales_del_hub(db, current_user.organization_id)
     result = search_jira_issues(cfg_dict, jql, max_results)
     if not result["ok"]: raise HTTPException(400, result.get("error"))
     issues = result["data"].get("issues", [])
@@ -188,12 +265,10 @@ def transition_jira(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.integrations import transition_jira_issue, get_active_integration
-    import json
+    from app.services.integrations import transition_jira_issue
+    from app.services import jira_service
 
-    cfg = get_active_integration(db, payload.get("integration_id"))
-    if not cfg: raise HTTPException(404)
-    cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
+    cfg_dict = jira_service.credenciales_del_hub(db, current_user.organization_id)
     result = transition_jira_issue(cfg_dict, payload.get("issue_key"), payload.get("transition"))
     if not result["ok"]: raise HTTPException(400, result.get("error"))
     return APIResponse.ok(data={"ok": True})
@@ -217,7 +292,7 @@ def manual_event_notify(
 
 
 # ── Inbound bot — la autenticación de cada plataforma ─────────────────────────
-async def _verificar_firma_de_slack(request: Request) -> bytes:
+async def _verificar_firma_de_slack(request: Request, db=None) -> bytes:
     """Comprueba la firma de Slack y devuelve el cuerpo crudo.
 
     Auditoría 2026-08 (hallazgo 18). Vivía dentro del manejador, que por esto y
@@ -241,8 +316,25 @@ async def _verificar_firma_de_slack(request: Request) -> bytes:
     import hashlib
     import hmac
 
-    signing_secret = settings.SLACK_SIGNING_SECRET
     body_bytes = await request.body()
+    signing_secret = settings.SLACK_SIGNING_SECRET
+    if db is not None:
+        # Segunda auditoría 2026-11 (#8): si el `team_id` está vinculado a una
+        # organización, se verifica con SU secreto (o el global si no tiene).
+        # Vinculado a varias: se rechaza, sin caer a la búsqueda global. El
+        # `team_id` se lee antes de verificar porque solo elige el secreto: un
+        # `team_id` falso lleva a un secreto que el atacante no conoce.
+        from urllib.parse import parse_qs
+        from app.core.async_db import run_db
+        from app.services.integrations import (
+            VinculoAmbiguo, organizacion_del_workspace_de_slack, secreto_de_firma_de_slack,
+        )
+        team_id = (parse_qs(body_bytes.decode(errors="replace")).get("team_id") or [None])[0]
+        try:
+            org = await run_db(organizacion_del_workspace_de_slack, db, team_id)
+        except VinculoAmbiguo:
+            raise HTTPException(403, "Slack workspace linked to several organizations")
+        signing_secret = await run_db(secreto_de_firma_de_slack, db, org)
     if not signing_secret:
         if not en_pruebas():
             raise HTTPException(503, "Slack inbound commands are not configured")
@@ -387,7 +479,7 @@ async def slack_inbound_command(
       /contecflow ayuda                       → lista de comandos
     Security: validates X-Slack-Signature (HMAC-SHA256) when SLACK_SIGNING_SECRET is set.
     """
-    body_bytes = await _verificar_firma_de_slack(request)
+    body_bytes = await _verificar_firma_de_slack(request, db)
 
     from urllib.parse import parse_qs
     params = {k: v[0] for k, v in parse_qs(body_bytes.decode()).items()}

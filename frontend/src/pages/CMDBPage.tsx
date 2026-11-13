@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react'
+import { useState, lazy, Suspense, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo } from '../utils/helpers'
@@ -151,11 +151,11 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
       <div className="u-stack-14">
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>
           <div>
-            <label style={ls} htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
-            <input id={id('name')} style={is} value={form.name} onChange={e => set('name')(e.target.value)} />
+            <label id={`${id('name')}-et`} style={ls} htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
+            <input id={id('name')} aria-labelledby={`${id('name')}-et`} style={is} value={form.name} onChange={e => set('name')(e.target.value)} />
           </div>
           <div>
-            <label style={ls} htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
+            <label id={`${id('type')}-et`} style={ls} htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
             <select id={id('type')} style={is} value={form.ci_type} onChange={e => set('ci_type')(e.target.value)}>
               {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
             </select>
@@ -163,19 +163,19 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12}}>
           <div>
-            <label style={ls} htmlFor={id('status')}>{t('cmdb.status')}</label>
+            <label id={`${id('status')}-et`} style={ls} htmlFor={id('status')}>{t('cmdb.status')}</label>
             <select id={id('status')} style={is} value={form.status} onChange={e => set('status')(e.target.value)}>
               {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls} htmlFor={id('env')}>{t('cmdb.environment')}</label>
+            <label id={`${id('env')}-et`} style={ls} htmlFor={id('env')}>{t('cmdb.environment')}</label>
             <select id={id('env')} style={is} value={form.environment} onChange={e => set('environment')(e.target.value)}>
               {Object.keys(ENV_COLOR).map(v => <option key={v} value={v}>{etiqueta('env_', v)}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls} htmlFor={id('crit')}>{t('cmdb.criticality')}</label>
+            <label id={`${id('crit')}-et`} style={ls} htmlFor={id('crit')}>{t('cmdb.criticality')}</label>
             <select id={id('crit')} style={is} value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
               {CRITICALITIES.map(v => <option key={v} value={v}>{etiqueta('crit_', v)}</option>)}
             </select>
@@ -184,8 +184,8 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12}}>
           {(['hostname','ip_address','version'] as const).map(k => (
             <div key={k}>
-              <label style={ls} htmlFor={id(k)}>{t(`cmdb.f_${k}`)}</label>
-              <input id={id(k)} style={is} value={form[k]} onChange={e => set(k)(e.target.value)} />
+              <label id={`${id(k)}-et`} style={ls} htmlFor={id(k)}>{t(`cmdb.f_${k}`)}</label>
+              <input id={id(k)} aria-labelledby={`${id(k)}-et`} style={is} value={form[k]} onChange={e => set(k)(e.target.value)} />
             </div>
           ))}
         </div>
@@ -196,16 +196,16 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
             {campos.map(c => (
               <div key={c.key}>
-                <label style={ls} htmlFor={id(c.key)}>{etiquetaDeCampo(c)}</label>
-                <input id={id(c.key)} style={is} type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
+                <label id={`${id(c.key)}-et`} style={ls} htmlFor={id(c.key)}>{etiquetaDeCampo(c)}</label>
+                <input id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} style={is} type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
                   onChange={e => setAttrs(a => ({ ...a, [c.key]: e.target.value }))} />
               </div>
             ))}
           </div>
         </div>
         <div>
-          <label style={ls} htmlFor={id('descr')}>{t('cmdb.descripcion')}</label>
-          <textarea id={id('descr')} style={{...is, height:70, resize:'vertical'}} value={form.description} onChange={e => set('description')(e.target.value)} />
+          <label id={`${id('descr')}-et`} style={ls} htmlFor={id('descr')}>{t('cmdb.descripcion')}</label>
+          <textarea id={id('descr')} aria-labelledby={`${id('descr')}-et`} style={{...is, height:70, resize:'vertical'}} value={form.description} onChange={e => set('description')(e.target.value)} />
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
           <Button variant="secondary" onClick={onClose}>{t('cmdb.cancel')}</Button>
@@ -436,8 +436,8 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 12, alignItems: 'flex-end' }}>
           <div>
-            <label style={ls} htmlFor="agent-name">{t('cmdb.nombre_del_agente')}</label>
-            <input id="agent-name" value={agentName} onChange={e => setAgentName(e.target.value)} style={is} placeholder="agent-datacenter-01" />
+            <label id="agent-name-et" style={ls} htmlFor="agent-name">{t('cmdb.nombre_del_agente')}</label>
+            <input id="agent-name" aria-labelledby="agent-name-et" value={agentName} onChange={e => setAgentName(e.target.value)} style={is} placeholder="agent-datacenter-01" />
           </div>
           <div>
             <label style={ls} htmlFor="agent-os">{t('cmdb.platform')}</label>
@@ -593,6 +593,7 @@ function Red({ item }: { item: CI }) {
 }
 
 export default function CMDBPage(): JSX.Element {
+  const idFila = useId()
   const t = useAppT()
   const etiqueta = useEtiqueta()
   const { data: deClase } = useCamposDeClase()
@@ -813,8 +814,8 @@ export default function CMDBPage(): JSX.Element {
       <div style={{...ps,marginBottom:20}}>
         <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end'}}>
           <div style={{flex:'1 1 240px'}}>
-            <label style={ls} htmlFor="cmdb-q">{t('cmdb.search')}</label>
-            <input id="cmdb-q" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={t('cmdb.search_ph')} style={is} />
+            <label id="cmdb-q-et" style={ls} htmlFor="cmdb-q">{t('cmdb.search')}</label>
+            <input id="cmdb-q" aria-labelledby="cmdb-q-et" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={t('cmdb.search_ph')} style={is} />
           </div>
           <div>
             <label style={ls} htmlFor="cmdb-type">{t('cmdb.ci_type')}</label>
@@ -865,12 +866,12 @@ export default function CMDBPage(): JSX.Element {
             <tbody>
               {sortedItems.map(item => (
                   <tr key={item.id} className="u-border-b">
-                    <td className="u-pad-10-12">
+                    <td className="u-pad-10-12" aria-labelledby={`${idFila}-${item.id}-n ${idFila}-${item.id}-c`}>
                       <div className="u-row-center-8">
                         <span style={{fontSize: "var(--text-lg)"}} aria-hidden>{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
                         <div className="u-min0">
-                          <div className="u-600">{item.name}</div>
-                          <div className="u-text2-xs">
+                          <div id={`${idFila}-${item.id}-n`} className="u-600">{item.name}</div>
+                          <div id={`${idFila}-${item.id}-c`} className="u-text2-xs">
                             {item.code}{item.is_discovered ? ` · ${t('cmdb.discovered', { provider: item.discovery_provider ?? '' })}` : ''}
                           </div>
                         </div>

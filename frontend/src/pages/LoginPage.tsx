@@ -234,13 +234,18 @@ export default function LoginPage(): JSX.Element {
     authApi.entryConfig().then(({ data }) => setEntrada(data)).catch(() => undefined)
   }, [])
 
+  // Segunda auditoría 2026-11 (#11): en modo email_selector los botones SSO
+  // dependen del dominio del correo escrito; se piden de nuevo al cambiarlo.
+  const dominioDelCorreo = username.includes('@') ? username.split('@').pop()?.trim().toLowerCase() ?? '' : ''
   useEffect(() => {
     let mounted = true
-    authApi.listSsoProviders()
-      .then(({ data }) => { if (mounted) setSsoProviders(Array.isArray(data) ? data : []) })
-      .catch(() => undefined)
-    return () => { mounted = false }
-  }, [])
+    const temporizador = setTimeout(() => {
+      authApi.listSsoProviders(dominioDelCorreo ? `@${dominioDelCorreo}` : undefined)
+        .then(({ data }) => { if (mounted) setSsoProviders(Array.isArray(data) ? data : []) })
+        .catch(() => undefined)
+    }, dominioDelCorreo ? 300 : 0)
+    return () => { mounted = false; clearTimeout(temporizador) }
+  }, [dominioDelCorreo])
 
   // ── navigation helper ──────────────────────────────────────────────────────
   function navAfterLogin(user: User) {
@@ -471,11 +476,11 @@ export default function LoginPage(): JSX.Element {
               {t('login.mfa_prompt')}
             </p>
             <div>
-              <label style={st.label} htmlFor="mfa_code">
+              <label id="mfa_code-et" style={st.label} htmlFor="mfa_code">
                 {t('login.mfa_code_placeholder')}
               </label>
               <input
-                id="mfa_code"
+                id="mfa_code" aria-labelledby="mfa_code-et"
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
@@ -522,11 +527,11 @@ export default function LoginPage(): JSX.Element {
           /* ── Forgot password step ────────────────────────────── */
           <form onSubmit={handleForgotPassword} style={st.form} noValidate>
             <div>
-              <label style={st.label} htmlFor="forgot_input">
+              <label id="forgot_input-et" style={st.label} htmlFor="forgot_input">
                 {t('login.username_label')}
               </label>
               <input
-                id="forgot_input"
+                id="forgot_input" aria-labelledby="forgot_input-et"
                 type="text"
                 autoFocus
                 autoComplete="email"
@@ -596,6 +601,7 @@ export default function LoginPage(): JSX.Element {
               {/* Honeypot — hidden from humans, catches bots */}
               <div aria-hidden="true" style={{ position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden' }}>
                 <input
+                  aria-label="No rellenar"
                   tabIndex={-1}
                   autoComplete="off"
                   data-1p-ignore="true"
@@ -609,9 +615,9 @@ export default function LoginPage(): JSX.Element {
               {/* Empresa (modo org_field) */}
               {entrada?.mode === 'org_field' && (
                 <div>
-                  <label style={st.label} htmlFor="login_org">{t('login.org_label')}</label>
+                  <label id="login_org-et" style={st.label} htmlFor="login_org">{t('login.org_label')}</label>
                   <input
-                    id="login_org"
+                    id="login_org" aria-labelledby="login_org-et"
                     type="text"
                     autoComplete="organization"
                     value={orgCode}
@@ -626,11 +632,11 @@ export default function LoginPage(): JSX.Element {
 
               {/* Username */}
               <div>
-                <label style={st.label} htmlFor="login_username">
+                <label id="login_username-et" style={st.label} htmlFor="login_username">
                   {t('login.username_label')}
                 </label>
                 <input
-                  id="login_username"
+                  id="login_username" aria-labelledby="login_username-et"
                   type="text"
                   autoFocus
                   autoComplete="username"
@@ -646,7 +652,7 @@ export default function LoginPage(): JSX.Element {
               {/* Password */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label style={{ ...st.label, marginBottom: 0 }} htmlFor="login_password">
+                  <label id="login_password-et" style={{ ...st.label, marginBottom: 0 }} htmlFor="login_password">
                     {t('login.password_label')}
                   </label>
                   <button
@@ -659,7 +665,7 @@ export default function LoginPage(): JSX.Element {
                 </div>
                 <div style={{ position: 'relative' }}>
                   <input
-                    id="login_password"
+                    id="login_password" aria-labelledby="login_password-et"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     value={password}

@@ -168,8 +168,13 @@ from app.services.jira_service import JIRA_STATUS_MAP as _ESTADO_DESDE_JIRA  # n
 
 
 def sync_jira(db: Session, config, payload: dict):
+    """Jira → Contecflow con la conexion de la organizacion (segunda auditoria 2026-11, #23)."""
+    from app.services.jira_service import credenciales_del_hub
+    return sincronizar_tareas_con_jira(db, credenciales_del_hub(db, config.organization_id))
+
+
+def sincronizar_tareas_con_jira(db: Session, cfg_dict: dict):
     """Jira → Contecflow: el estado de cada incidencia enlazada pasa a su tarea."""
-    cfg_dict = _config_de(config)
     synced, errors = 0, []
     for task in db.query(Task).filter(Task.jira_issue_key != None).limit(200).all():
         result = get_jira_issue(cfg_dict, task.jira_issue_key)
@@ -188,9 +193,10 @@ def sync_jira(db: Session, config, payload: dict):
 # ─── Integrations ─────────────────────────────────────────────────────────────
 
 def list_integrations(db: Session) -> list:
+    # Jira ya no vive aqui (segunda auditoria 2026-11, #23): `/integrations-hub/jira/config`.
     configs = db.query(IntegrationConfig).options(
         joinedload(IntegrationConfig.creator)
-    ).all()
+    ).filter(IntegrationConfig.integration_type != "jira").all()
     return [{
         "id": c.id, "integration_type": c.integration_type,
         "name": c.name, "is_active": c.is_active,
@@ -203,7 +209,16 @@ def list_integrations(db: Session) -> list:
     } for c in configs]
 
 
-def create_integration(payload, current_user_id: str, db: Session) -> dict:
+def create_integration(payload, current_user_id: str, db: Session, organization_id: Optional[str] = None) -> dict:
+    if payload.integration_type == "jira":
+        # Segunda auditoria 2026-11 (#23): Jira se guarda en la `JiraConfig` de la organizacion.
+        from app.services.jira_service import guardar_desde_hub
+        cfg = payload.config or {}
+        config = guardar_desde_hub(
+            db, organization_id, base_url=cfg.get("base_url") or "", email=cfg.get("email") or "",
+            api_token=cfg.get("api_token") or payload.access_token or None,
+            project_key=cfg.get("project_key"), name=payload.name, user_id=current_user_id)
+        return {"ok": True, "id": config.id, "updated": True, "jira_config": True}
     existing = db.query(IntegrationConfig).filter(
         IntegrationConfig.integration_type == payload.integration_type
     ).first()

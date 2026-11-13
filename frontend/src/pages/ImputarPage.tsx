@@ -537,6 +537,7 @@ export default function ImputarPage(): JSX.Element {
             <input
               type="checkbox"
               checked={form.is_billable}
+              aria-label={t('imputa_page.billable_label')}
               onChange={e => set('is_billable')(e.target.checked)}
               style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
             />
@@ -578,6 +579,7 @@ export default function ImputarPage(): JSX.Element {
               <input
                 type="checkbox"
                 checked={forceDuplicate}
+                aria-label={traducir('imputar.permitir_imputacion_duplicada_y_avisar_al_manager')}
                 onChange={e => setForceDuplicate(e.target.checked)}
                 style={{ width: 16, height: 16, accentColor: 'var(--warning)', cursor: 'pointer', marginTop: 2, flexShrink: 0 }}
               />
@@ -615,6 +617,7 @@ export default function ImputarPage(): JSX.Element {
                     <input
                       type="number" step="0.25" min="0.25" max="24"
                       value={editForm.hours}
+                      aria-label={t('imputa_page.hours_edit')}
                       onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
                       style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)',
                         padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}
@@ -624,6 +627,7 @@ export default function ImputarPage(): JSX.Element {
                     <label style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'block', marginBottom: 3 }}>{t('imputa_page.description_edit').toUpperCase()}</label>
                     <input
                       value={editForm.description}
+                      aria-label={t('imputa_page.description_edit')}
                       onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                       style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)',
                         padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
@@ -634,6 +638,7 @@ export default function ImputarPage(): JSX.Element {
                       <input
                         type="checkbox"
                         checked={editForm.is_billable}
+                        aria-label={t('imputa_page.billable_label')}
                         onChange={e => setEditForm(f => ({ ...f, is_billable: e.target.checked }))}
                         style={{ accentColor: 'var(--accent)', width: 14, height: 14, cursor: 'pointer' }}
                       />

@@ -348,7 +348,7 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
       {cmp && (
         <div style={tablaConScroll}>
           <table className="cabe u-table">
-            <thead><tr><th style={th} />{cmp.presupuestos.map(x => <th key={x.id} style={{ ...th, textAlign: 'right' }}>{x.escenario} · v{x.version}</th>)}</tr></thead>
+            <thead><tr><th style={th}><span className="u-sr-only">{t('pres.tipo')}</span></th>{cmp.presupuestos.map(x => <th key={x.id} style={{ ...th, textAlign: 'right' }}>{x.escenario} · v{x.version}</th>)}</tr></thead>
             <tbody>
               {tipos.map(tp => <tr key={tp}><td style={td}>{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={num}>{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}
               {(['gasto', 'ingreso', 'margen'] as const).map(k => <tr key={k}><td style={{ ...td, fontWeight: 700 }}>{t(`pres.${k}`)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={{ ...num, fontWeight: 700 }}>{dinero(x[k])}</td>)}</tr>)}

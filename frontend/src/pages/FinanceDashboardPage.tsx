@@ -383,13 +383,13 @@ export default function FinanceDashboardPage(): JSX.Element {
             {([['from_currency', 'De', 'EUR'], ['to_currency', 'A', 'USD']] as const).map(([k, l, ph]) => (
               <div key={k} style={{ flex: '0 0 90px' }}>
                 <div className="ds-eyebrow" style={{ marginBottom: 4 }}>{l}</div>
-                <input maxLength={3} value={rateForm[k]} onChange={e => setRateForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}
+                <input maxLength={3} aria-label={l} value={rateForm[k]} onChange={e => setRateForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}
                   className="ds-input" placeholder={ph} />
               </div>
             ))}
             <div style={{ flex: '0 0 110px' }}>
               <div className="ds-eyebrow" style={{ marginBottom: 4 }}>Tasa</div>
-              <input type="number" step="0.0001" min="0" value={rateForm.rate}
+              <input type="number" step="0.0001" min="0" aria-label="Tasa" value={rateForm.rate}
                 onChange={e => setRateForm(f => ({ ...f, rate: e.target.value }))}
                 className="ds-input" placeholder="1.0850" />
             </div>

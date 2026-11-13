@@ -294,7 +294,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
             <div style={{ marginBottom: 12, color: 'var(--success)', fontWeight: 600 }}>
               ✓ Audio grabado ({Math.round(audioBlob.size / 1024)} KB)
             </div>
-            <audio src={URL.createObjectURL(audioBlob)} controls
+            <audio src={URL.createObjectURL(audioBlob)} controls aria-label="Audio grabado"
               style={{ width: '100%', marginBottom: 14 }} />
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <button onClick={() => { setAudioBlob(null); chunksRef.current = [] }}

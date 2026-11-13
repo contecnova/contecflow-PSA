@@ -101,11 +101,13 @@ export default function ResetPasswordPage() {
         <div className="u-stack-16">
           {/* New password */}
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <label id={`${idCampo}-etpwd`} htmlFor={`${idCampo}-pwd`} style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {t('reset_password.new_password_placeholder')}
             </label>
             <div style={{ position: 'relative' }}>
               <input
+                id={`${idCampo}-pwd`}
+                aria-labelledby={`${idCampo}-etpwd`}
                 type={showPwd ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}

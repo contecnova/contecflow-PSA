@@ -241,8 +241,8 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
     <Modal open title={t('milestonebilling.nuevo_milestone')} onClose={onClose} width={500}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         <div>
-          <label style={lbl}>Nombre *</label>
-          <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('milestonebilling.nombre_del_milestone')} aria-label={t('milestonebilling.nombre_del_milestone')} />
+          <label id={`${idCampo}-eta244`} htmlFor={`${idCampo}-a244`} style={lbl}>Nombre *</label>
+          <input id={`${idCampo}-a244`} aria-labelledby={`${idCampo}-eta244`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('milestonebilling.nombre_del_milestone')} />
         </div>
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{t('milestonebilling.fecha_limite')}</label>

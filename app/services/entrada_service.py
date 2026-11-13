@@ -55,9 +55,14 @@ def _de_ficha(user):
 
 def organizaciones_del_usuario(db: Session, user) -> list:
     """Empresas ACTIVAS a las que pertenece: la de su ficha y las de sus pertenencias."""
+    from app.db.session import sin_filtro_de_tenant
     ids = {_de_ficha(user)} if _de_ficha(user) else set()
-    ids |= {o for (o,) in db.query(UserOrganizationMembership.organization_id).filter(
-        UserOrganizationMembership.user_id == user.id).all() if o}
+    # Segunda auditoria 2026-11 (#26): en una sesion ya abierta el filtro de
+    # tenant dejaba ver solo la pertenencia de la empresa activa, y cambiar a
+    # otra empresa de la que se es miembro daba 401. Son las del propio usuario.
+    with sin_filtro_de_tenant(db):
+        ids |= {o for (o,) in db.query(UserOrganizationMembership.organization_id).filter(
+            UserOrganizationMembership.user_id == user.id).all() if o}
     if not ids:
         return []
     return (db.query(Organization).filter(Organization.id.in_(ids), Organization.is_active == True)  # noqa: E712
@@ -141,6 +146,19 @@ def decidir(db: Session, user, request, *, codigo: Optional[str] = None,
 def pertenece_a_activa(db: Session, organization_id: str) -> bool:
     org = db.get(Organization, organization_id)
     return bool(org and org.is_active)
+
+
+def organizacion_desactivada(db: Session, organization_id: Optional[str]) -> bool:
+    """True si la fila es de una organizacion que existe y esta desactivada.
+
+    Segunda auditoria 2026-11 (#10): los trabajos de fondo que recorren filas
+    de todas las organizaciones (eventos de ticket, automatizaciones, BPMN)
+    saltan las de una organizacion desactivada. Sin organizacion, no se salta.
+    """
+    if not organization_id:
+        return False
+    org = db.get(Organization, organization_id)
+    return org is not None and not org.is_active
 
 
 def resumen(org) -> dict:

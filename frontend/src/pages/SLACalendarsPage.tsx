@@ -5,7 +5,7 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { slaCalendarsApi } from '../services/api'
+import { slaCalendarsApi, type SlaCalendar } from '../services/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -14,16 +14,6 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { timezoneOptions } from '../constants/timezones'
 import DateInput from '../components/ui/DateInput'
-
-interface SlaCalendar {
-  id: string | number
-  name: string
-  timezone: string
-  work_start: string
-  work_end: string
-  work_days: string
-  holiday_count?: number
-}
 
 interface HolidayItem {
   id: string | number
@@ -269,11 +259,11 @@ export default function SLACalendarsPage() {
   const [editing, setEditing] = useState<SlaCalendar | null>(null)
   const [holidaysCal, setHolidaysCal] = useState<SlaCalendar | null>(null)
 
-  const { data: calendarsRaw = [], isLoading } = useQuery({
+  // #24b: la lista llega tipada y ya desenvuelta por el interceptor.
+  const { data: calendars = [], isLoading } = useQuery({
     queryKey: ['sla-calendars'],
-    queryFn: () => slaCalendarsApi.list().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+    queryFn: () => slaCalendarsApi.list().then(r => r.data ?? []).catch((): SlaCalendar[] => []),
   })
-  const calendars = calendarsRaw as SlaCalendar[]
 
   const { mutate: deleteCal } = useMutation({
     mutationFn: (id: string | number) => slaCalendarsApi.delete(id),

@@ -412,6 +412,9 @@ def execute_erasure(db: Session, *, subject_id: str, org_id: Optional[str]) -> d
     else:
         user = user_q.filter(User.id == subject_id).first()
 
+    if user:   # segunda auditoría 2026-11: bajo bloqueo legal no se reescribe nada (409)
+        from app.services.supresion_service import exigir_sin_bloqueo_legal
+        exigir_sin_bloqueo_legal(db, user)
     user_id_for_tickets = user.id if user else subject_id
     original_email = user.email if user else subject_id
     # ── Anonymise ticket requester fields ─────────────────────────────────────

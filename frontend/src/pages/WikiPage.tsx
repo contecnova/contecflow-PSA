@@ -113,7 +113,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
               : <div style={{display:'flex',alignItems:'flex-start',gap:6}}>
                   {block.type==='bullet'    && <span style={{color:'var(--purple)',marginTop:4,flexShrink:0}}>•</span>}
                   {block.type==='numbered'  && <span style={{color:'var(--purple)',marginTop:4,flexShrink:0,fontSize: "var(--text-sm)"}}>{i+1}.</span>}
-                  {block.type==='task_list' && <input type="checkbox" style={{marginTop:6,flexShrink:0}}/>}
+                  {block.type==='task_list' && <input type="checkbox" aria-label={`Tarea ${i+1}`} style={{marginTop:6,flexShrink:0}}/>}
                   <div style={{flex:1,display:'flex',flexDirection:'column',gap:3}}>
                     {['paragraph','heading1','heading2','heading3','quote','callout'].includes(block.type) && (
                       <div style={{display:'flex',gap:3}}>
@@ -158,7 +158,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                         </button>
                       </div>
                     )}
-                    <textarea value={block.content||''} onChange={e=>update(i,'content',e.target.value)}
+                    <textarea aria-label={`Bloque ${i+1}`} value={block.content||''} onChange={e=>update(i,'content',e.target.value)}
                       className="wiki-ta"
                       rows={block.type==='code'?4:1}
                       style={{...styleForType(block.type)}}
@@ -201,7 +201,7 @@ function renderBlocks(blocks: Block[], traducir: (clave: string) => string) {
       case 'quote':     return <blockquote key={i} style={{...st,borderLeft:'3px solid var(--accent)',paddingLeft:14,color:'var(--text-2)',fontStyle:'italic'}}>{text}</blockquote>
       case 'bullet':    return <div key={i} style={{...st,display:'flex',gap:10}}><span style={{color:'var(--purple)'}}>•</span><span>{text}</span></div>
       case 'numbered':  return <div key={i} style={{...st,display:'flex',gap:10}}><span style={{color:'var(--purple)',minWidth:20,fontSize: "var(--text-sm)"}}>{i+1}.</span><span>{text}</span></div>
-      case 'task_list': return <div key={i} style={{...st,display:'flex',gap:10,alignItems:'center'}}><input type="checkbox" readOnly/><span>{text}</span></div>
+      case 'task_list': return <div key={i} style={{...st,display:'flex',gap:10,alignItems:'center'}}><input type="checkbox" readOnly aria-label={text || 'Tarea'}/><span>{text}</span></div>
       case 'divider':   return <hr  key={i} style={{border:'none',borderTop:'1px solid var(--surface-4)',margin:'16px 0'}}/>
       case 'callout':   return <div key={i} style={{...st,background:'var(--accent-muted)',border:'1px solid var(--accent-border-soft)',borderRadius:8,padding:'12px 16px'}}>💡 {text}</div>
       default:          return <p   key={i} style={{...st,color:text?'var(--text-1)':'var(--text-3)'}}>{text||<em>{traducir('wiki.parrafo_vacio')}</em>}</p>
@@ -258,8 +258,8 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
       <div className="u-stack-14">
         {tplStep && !isEdit && (
           <div>
-            <label style={ls}>Empezar desde plantilla</label>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+            <div id={`${idCampo}-plantilla-et`} style={ls}>Empezar desde plantilla</div>
+            <div role="group" aria-labelledby={`${idCampo}-plantilla-et`} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
               {TEMPLATES.map(t=>(
                 <button key={t.id} onClick={()=>{setBlocks(t.blocks);if(!title)setTitle(t.name.replace(/^.\s/,''));setTplStep(false)}}
                   style={{padding:'10px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:'var(--surface-3)',color:'var(--text-1)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)",textAlign:'left'}}>
@@ -287,16 +287,16 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
             <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={{...is,fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}} value={slug} onChange={e=>setSlug(e.target.value)}/>
           </div>
           <div>
-            <label style={ls}>Contenido</label>
-            <div style={{background:'var(--surface-1)',border:'1px solid var(--surface-4)',borderRadius:8,padding:16}}>
+            <div id={`${idCampo}-contenido-et`} style={ls}>Contenido</div>
+            <div role="group" aria-labelledby={`${idCampo}-contenido-et`} style={{background:'var(--surface-1)',border:'1px solid var(--surface-4)',borderRadius:8,padding:16}}>
               <BlockEditor blocks={blocks} onChange={setBlocks}/>
             </div>
           </div>
           <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
             <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <div>
-            <label style={ls}>Visibilidad</label>
-            <div className="u-row-8">
+            <div id={`${idCampo}-visibilidad-et`} style={ls}>Visibilidad</div>
+            <div className="u-row-8" role="group" aria-labelledby={`${idCampo}-visibilidad-et`}>
               {VIS_OPTS.map(o=>(
                 <button key={o.value} onClick={()=>setVisibility(o.value)}
                   style={{flex:1,padding:'8px 10px',borderRadius:8,border:`1px solid ${visibility===o.value?'var(--accent-glow)':'var(--surface-4)'}`,background:visibility===o.value?'var(--accent-muted)':'transparent',color:visibility===o.value?'var(--accent)':'var(--text-2)',fontSize: "var(--text-sm)",cursor:'pointer',fontFamily:'inherit'}}>
@@ -354,6 +354,7 @@ function CollabIndicator({ docId }: { docId: string }) {
 }
 
 function WikiTagsInline() {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -407,16 +408,16 @@ function WikiTagsInline() {
           <div style={{fontSize: "var(--text-base)",fontWeight:700,marginBottom:14}}>{editing?'Editar':'Nueva'} etiqueta</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:14}}>
             <div style={{flex:'1 1 200px',minWidth:0}}>
-              <label style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Nombre</label>
-              <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
+              <label id={`${idCampo}-nombre-et`} htmlFor={`${idCampo}-nombre`} style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Nombre</label>
+              <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
                 style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding: '9px 13px',color:'var(--text-1)',fontSize: "var(--text-base)",outline:'none',fontFamily:'inherit',width:'100%',boxSizing:'border-box'}}
                 placeholder={traducir('wiki.nombre_de_la_etiqueta')} aria-label={traducir('wiki.nombre_de_la_etiqueta')} autoFocus />
             </div>
             <div>
-              <label style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Color</label>
-              <div className="u-wrap-6">
+              <div id={`${idCampo}-color-et`} style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Color</div>
+              <div className="u-wrap-6" role="group" aria-labelledby={`${idCampo}-color-et`}>
                 {COLORS.map(c=>(
-                  <button key={c} onClick={()=>setForm(f=>({...f,color:c}))}
+                  <button key={c} aria-label={`Color ${c}`} aria-pressed={form.color===c} onClick={()=>setForm(f=>({...f,color:c}))}
                     style={{width:28,height:28,borderRadius:'var(--radius-sm)',background:c,border:form.color===c?'2px solid #fff':'2px solid transparent',cursor:'pointer'}} />
                 ))}
               </div>

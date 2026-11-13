@@ -77,14 +77,36 @@ def _warn_redis_fallback_once(key: str, template: str, exc: Exception) -> None:
         log.debug(template, exc)
 
 
-async def _issue_ws_ticket(user_id: str) -> str:
+#: Separa el usuario de la organización activa dentro del valor del ticket.
+_SEPARADOR_DE_ORG = "|"
+
+
+def separar_identidad(identidad: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """(user_id, organización activa) de lo que guarda el ticket WS.
+
+    Segunda auditoría 2026-11 (#7): el ticket lleva la empresa ACTIVA de la
+    sesión que lo pidió; un ticket sin ella (emitido antes) da `None` y la
+    conexión usa la de ficha, como siempre.
+    """
+    if not identidad:
+        return None, None
+    usuario, _, org = identidad.partition(_SEPARADOR_DE_ORG)
+    return usuario or None, org or None
+
+
+async def _issue_ws_ticket(user_id: str, organization_id: Optional[str] = None) -> str:
     """Emit a one-time WS ticket.
 
     When REDIS_URL is configured and Redis is reachable, the ticket is stored
     in Redis so any worker can consume it.  If Redis is unreachable (e.g. local
     dev without a running Redis), falls back to the in-memory store — safe for
     single-worker deployments.
+
+    `organization_id` es la empresa activa de la petición (claim `org`); el
+    socket la publica al abrirse, revalidando la pertenencia.
     """
+    if organization_id:
+        user_id = f"{user_id}{_SEPARADOR_DE_ORG}{organization_id}"
     ticket = secrets.token_urlsafe(24)
     if _REDIS_URL:
         try:
@@ -205,7 +227,21 @@ async def _validate_jwt(token: str, db) -> str:
     user = await run_db(_ws_svc.get_active_user_by_id, db, user_id)
     if not user:
         return None
-    return user_id
+    org = payload.get("org")
+    return f"{user_id}{_SEPARADOR_DE_ORG}{org}" if org else user_id
+
+
+def usuario_en_su_organizacion_activa(db, user, org: Optional[str]):
+    """Fija en memoria la empresa activa del ticket si sigue perteneciendo.
+
+    Segunda auditoría 2026-11 (#7). Sin pertenencia vigente vuelve a la de
+    ficha (igual que una petición HTTP con un `org` retirado).
+    """
+    from app.services.entrada_service import fijar_organizacion_activa
+
+    if user is not None and org:
+        fijar_organizacion_activa(db, user, org)
+    return user
 
 
 async def _en_sesion(cerrojo: Optional[asyncio.Lock], fn, *args):
@@ -321,7 +357,10 @@ async def get_ws_ticket(
     parámetro ?ticket= al abrir la conexión WebSocket.  Esto evita exponer el
     access token JWT en JavaScript (el token está sólo en una httpOnly cookie)."""
     try:
-        ticket = await _issue_ws_ticket(str(current_user.id))
+        # `get_current_user` ya dejó en `organization_id` la empresa ACTIVA
+        # (claim `org`, validada): es la que viaja en el ticket.
+        ticket = await _issue_ws_ticket(
+            str(current_user.id), getattr(current_user, "organization_id", None))
     except Exception as exc:
         log.error("No se pudo emitir WS ticket (Redis error): %s", exc)
         raise HTTPException(503, "Servicio no disponible temporalmente")
@@ -445,8 +484,8 @@ async def ws_notifications(
     user_id: Optional[str] = None
     with SessionLocal() as db:
         try:
-            user_id = await _identidad_de_la_conexion(
-                websocket, db, ticket=ticket, token=token)
+            user_id, org_activa = separar_identidad(await _identidad_de_la_conexion(
+                websocket, db, ticket=ticket, token=token))
             if not user_id:
                 return
 
@@ -463,6 +502,7 @@ async def ws_notifications(
             if not usuario:
                 await websocket.close(code=4001, reason="Usuario no encontrado")
                 return
+            await run_db(usuario_en_su_organizacion_activa, db, usuario, org_activa)
             publicar_contexto_de_tenant(db, usuario)
 
             await manager.connect(websocket, user_id)
@@ -719,13 +759,14 @@ async def ws_doc_collab(
     user_id: Optional[str] = None
     with SessionLocal() as db:
         try:
-            user_id = await _identidad_de_la_conexion(
-                websocket, db, ticket=ticket, token=token)
+            user_id, org_activa = separar_identidad(await _identidad_de_la_conexion(
+                websocket, db, ticket=ticket, token=token))
             if not user_id:
                 return
 
             # Obtener usuario y documento
             user = await run_db(_ws_svc.get_active_user_by_id, db, user_id)
+            await run_db(usuario_en_su_organizacion_activa, db, user, org_activa)
             # Auditoria 2026-08 (hallazgo 22): el contexto va **entre** las dos
             # llamadas, y no es casualidad. `get_active_user_by_id` busca por id
             # sin saber todavia de que organizacion es, asi que tiene que correr

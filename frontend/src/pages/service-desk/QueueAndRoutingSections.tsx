@@ -154,7 +154,7 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
       <div data-export-table="service-desk-export" className="u-scroll-x">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
+            <tr aria-label="Columnas" style={{ borderBottom: '2px solid var(--surface-4)' }}>
               <th aria-sort={ariaSort(ticketSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
               <th aria-sort={ariaSort(ticketSort, 'title')} className="u-cell-nowrap"><SortableTH col="title" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_title')}</SortableTH></th>
               <th aria-sort={ariaSort(ticketSort, 'priority')} className="u-cell-nowrap"><SortableTH col="priority" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_priority')}</SortableTH></th>
@@ -226,7 +226,7 @@ export function MajorIncidents() {
         <div data-export-table="service-desk-export" className="u-scroll-x">
           <table className="u-table">
             <thead>
-              <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
+              <tr aria-label="Columnas" style={{ borderBottom: '2px solid var(--surface-4)' }}>
                 <th aria-sort={ariaSort(miSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={miSort} onSort={setMiSort}>{t('service_desk.col_number')}</SortableTH></th>
                 <th aria-sort={ariaSort(miSort, 'title')} className="u-cell-nowrap"><SortableTH col="title" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_title')}</SortableTH></th>
                 <th aria-sort={ariaSort(miSort, 'severity')} className="u-cell-nowrap"><SortableTH col="severity" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_severity')}</SortableTH></th>
@@ -293,8 +293,8 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     <Modal open title={`🚨 ${t('service_desk.mi_declare_btn')}`} onClose={onClose}>
       <div className="u-stack-16">
         <div>
-          <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.mi_title_lbl')} *</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} />
+          <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.mi_title_lbl')} *</label>
+          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} style={IS} />
         </div>
         <div>
           <label htmlFor={`${idPrefix}-severity`} style={LS}>{t('service_desk.mi_severity_lbl')}</label>
@@ -304,8 +304,8 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
           </select>
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-impact`} style={LS}>{t('service_desk.mi_impact_lbl')}</label>
-          <textarea id={`${idPrefix}-impact`} value={form.impact_statement} onChange={set('impact_statement')} rows={3}
+          <label id={`${idPrefix}-impact-et`} htmlFor={`${idPrefix}-impact`} style={LS}>{t('service_desk.mi_impact_lbl')}</label>
+          <textarea id={`${idPrefix}-impact`} aria-labelledby={`${idPrefix}-impact-et`} value={form.impact_statement} onChange={set('impact_statement')} rows={3}
             style={{ ...IS, resize: 'vertical' }} />
         </div>
         <div className="u-actions-10">
@@ -523,20 +523,20 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   const renderCondValue = (cond: Entry, i: number) => {
     const upd = (v: string) => updateCond(i, { value: v })
     if (cond.key === 'ticket_type') return (
-      <select value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.cond_any_type')}</option>
         {[['incident', 'Incidencia'], ['service_request', 'Solicitud'], ['change', 'Cambio'], ['problem', 'Problema']].map(([v, l]) =>
           <option key={v} value={v}>{l}</option>)}
       </select>
     )
     if (cond.key === 'priority') return (
-      <select value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.cond_any_priority')}</option>
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     )
     if (cond.key === 'sla_policy_id') return (
-      <select value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.cond_any_policy')}</option>
         {slaPolices.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
@@ -563,7 +563,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
       )
     }
     return (
-      <input value={cond.value} onChange={e => upd(e.target.value)} style={IS}
+      <input id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} style={IS}
         placeholder={
           cond.key === 'keyword_in_title' ? 'urgente, VIP, bloqueado...' :
           cond.key === 'requester_domain' ? 'acme.com, acorp.es...' :
@@ -577,30 +577,30 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   const renderActValue = (act: Entry, i: number) => {
     const upd = (v: string) => updateAct(i, { value: v })
     if (act.key === 'assign_group') return (
-      <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.act_no_group')}</option>
         {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
       </select>
     )
     if (act.key === 'assign_user') return (
-      <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.act_no_agent')}</option>
         {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
       </select>
     )
     if (act.key === 'set_support_level') return (
-      <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.act_no_change')}</option>
         {[['l1', 'L1 — Básico'], ['l2', 'L2 — Técnico'], ['l3', 'L3 — Experto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     )
     if (act.key === 'set_priority') return (
-      <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('queueandrouting.no_cambiar')}</option>
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     )
-    return <input value={act.value} onChange={e => upd(e.target.value)} style={IS} />
+    return <input id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS} />
   }
 
   const handleSave = () => {
@@ -674,7 +674,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
                 </select>
               </div>
               <div>
-                <label style={LS}>{t('service_desk.cond_value')}</label>
+                <label id={`${idCampo}-cv-${i}-et`} htmlFor={`${idCampo}-cv-${i}`} style={LS}>{t('service_desk.cond_value')}</label>
                 {renderCondValue(cond, i)}
               </div>
               <div style={{ paddingTop: 20 }}>
@@ -712,7 +712,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
                 </select>
               </div>
               <div>
-                <label style={LS}>{t('service_desk.cond_value')}</label>
+                <label id={`${idCampo}-av-${i}-et`} htmlFor={`${idCampo}-av-${i}`} style={LS}>{t('service_desk.cond_value')}</label>
                 {renderActValue(act, i)}
               </div>
               <div style={{ paddingTop: 20 }}>

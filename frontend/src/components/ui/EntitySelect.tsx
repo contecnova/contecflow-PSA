@@ -111,9 +111,12 @@ export interface ClientSelectProps {
   placeholder?: string
   required?: boolean
   style?: CSSProperties
+  /** Id del <select>, para asociarlo con una <label htmlFor>. */
+  id?: string
+  'aria-labelledby'?: string
 }
 
-export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar cliente…', required = false, style }: ClientSelectProps) {
+export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar cliente…', required = false, style, id, 'aria-labelledby': ariaLabelledby }: ClientSelectProps) {
   const { data: clients = [], isLoading } = useQuery<ClientEntity[]>({
     queryKey: ['clients'],
     queryFn: () => clientsApi.list(undefined).then((r: { data: { items?: ClientEntity[] } | ClientEntity[] }) => {
@@ -132,6 +135,8 @@ export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar 
 
   return (
     <select
+      id={id}
+      aria-labelledby={ariaLabelledby}
       value={value}
       onChange={handleChange}
       required={required}

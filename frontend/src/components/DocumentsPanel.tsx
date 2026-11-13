@@ -193,7 +193,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           style={{ padding: 12, borderBottom: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button type="button" onClick={() => fileRef.current?.click()}
             style={{ border: `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 10px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-            <input ref={fileRef} type="file" style={{ display: 'none' }}
+            <input ref={fileRef} type="file" aria-label={t('documents_panel.click_or_drag')} style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
             {file
               ? <span className="u-text1-sm-600">{file.name}</span>

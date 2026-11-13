@@ -68,7 +68,5 @@ def enviar(db: Session, ahora: datetime | None = None) -> int:
     return enviados
 
 
-def enviar_job() -> None:
-    from app.db.session import worker_db_session
-    with worker_db_session() as db:
-        logger.info("resumen diario de avisos: %s enviados", enviar(db))
+# Segunda auditoría 2026-11 (#19): `enviar_job` (sesión propia SIN contexto de
+# tenant, sin llamadas) se borró; el worker llama a `enviar` por organización.

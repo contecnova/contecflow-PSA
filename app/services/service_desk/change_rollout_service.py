@@ -152,10 +152,21 @@ def list_plans(db: Session, *, org_id: Optional[str], change_request_id: Optiona
     return sorted(plans, key=lambda p: p["created_at"], reverse=True)
 
 
-def approve_plan(db: Session, *, org_id: Optional[str], plan_id: str, approver_user_id: str) -> dict:
+def approve_plan(db: Session, *, org_id: Optional[str], plan_id: str, approver_user_id: str,
+                 approver=None) -> dict:
     plans = _get(db, org_id)
     if plan_id not in plans:
         raise ValueError(f"Plan '{plan_id}' not found")
+    # Segunda auditoría 2026-11: quien crea el plan no lo aprueba (SoD).
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    if approver is None:
+        from app.models.user import User
+        approver = db.get(User, approver_user_id)
+    if approver is not None:
+        exigir_que_no_sea_suyo(db, plans[plan_id].get("created_by"), approver, "rollout_plan", plan_id)
+    elif plans[plan_id].get("created_by") == approver_user_id:
+        from app.core.errores import ErrorDeDominio
+        raise ErrorDeDominio(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
     plans[plan_id]["status"] = "approved"
     if plans[plan_id].get("rollout_phases"):
         plans[plan_id]["rollout_phases"][0]["status"] = "ready"

@@ -304,8 +304,8 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
             <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.additional_projects_access')}</label>
             <div style={{ maxHeight: 140, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-2) var(--space-3)' }}>
               {allProjects.filter(p => p.id !== projectId).map(p => (
-                <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                  <input type="checkbox" checked={extraProjectIds.includes(p.id)}
+                <label key={p.id} className="u-row-center-8-pointer">
+                  <input type="checkbox" aria-label={`${p.code} ${p.name}`} checked={extraProjectIds.includes(p.id)}
                     onChange={e => setExtraProjectIds(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))} />
                   <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{p.code}</span>
                   <span className="u-text2-sm">{p.name}</span>
@@ -319,7 +319,7 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
           <div className="u-stack-8">
             {([['can_approve_deliverables', t('client_portal.perm_approve_desc')],['can_request_changes', t('client_portal.perm_request_desc')],['can_view_budget', t('client_portal.perm_budget_desc')],['can_view_team', t('client_portal.perm_team_desc')]] as Array<[PermisoCliente, string]>).map(([k, label]) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                <input type="checkbox" checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
+                <input type="checkbox" aria-label={label} checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
                 {label}
               </label>
             ))}
@@ -424,7 +424,7 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
               ['can_view_team', t('client_portal.perm_team_desc')],
             ] as Array<[PermisoCliente, string]>).map(([k, label]) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                <input type="checkbox" checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
+                <input type="checkbox" aria-label={label} checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
                 {label}
               </label>
             ))}
@@ -573,7 +573,7 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 10 }}>{t('client_portal.uat_test_cases')}</div>
           {testCases.map((tc, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 30px', gap: 8, marginBottom: 8, padding: 10, background: 'var(--surface-3)', borderRadius: 8 }}>
-              <input value={tc.title} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, title: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_title_placeholder').replace('{index}', String(i + 1))} />
+              <input aria-label={t('client_portal.uat_test_case_title_placeholder').replace('{index}', String(i + 1))} value={tc.title} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, title: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_title_placeholder').replace('{index}', String(i + 1))} />
               <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, steps: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
               <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, expected_result: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
               <button onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)" }}>×</button>
@@ -906,8 +906,8 @@ function DocumentsTab({ projectId }: { projectId: string }) {
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.docs_label_file_url')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} style={fs} placeholder="https://..." /></div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.docs_label_file_name')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} style={fs} placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-              <input type="checkbox" checked={docForm.requires_signature} onChange={e => setDocForm(f => ({ ...f, requires_signature: e.target.checked }))} />
+            <label className="u-row-center-8-pointer">
+              <input type="checkbox" aria-label={t('client_portal.docs_requires_signature')} checked={docForm.requires_signature} onChange={e => setDocForm(f => ({ ...f, requires_signature: e.target.checked }))} />
               {t('client_portal.docs_requires_signature')}
             </label>
             <div className="u-actions-10">

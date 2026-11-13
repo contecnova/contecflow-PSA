@@ -2022,3 +2022,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* "Card armada inline" (surface-2 + borde + radio 12 + overflow hidden) sin
    el padding ni el flex de .ds-card: se ve como el estilo en linea que sustituye. */
 .ds-card.ds-card--plano { display: block; padding: 0; gap: 0; border-radius: 12px; overflow: hidden; }
+/* Tercera tanda (auditoria 2026-11, #24d): el unico patron con >= 15 apariciones. */
+.u-row-center-8-pointer { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--text-base); }
+/* Texto solo para lectores de pantalla (#24c): p. ej. la cabecera de una
+   columna de acciones que visualmente va vacia. No ocupa sitio ni se ve. */
+.u-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

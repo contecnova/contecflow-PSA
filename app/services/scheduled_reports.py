@@ -309,15 +309,9 @@ def ejecutar_informes_vencidos(db, now: datetime | None = None) -> dict:
     return {"enviados": enviados, "fallidos": fallidos}
 
 
-def run_due_reports() -> dict:
-    """Todos los informes vencidos, en una sesion propia (uso manual y pruebas).
-
-    Antes atrapaba cualquier error («crashed») y lo dejaba en el log: el
-    programador lo daba por bueno. Ahora se propaga.
-    """
-    from app.db.session import worker_db_session
-    with worker_db_session() as db:
-        return ejecutar_informes_vencidos(db)
+# Segunda auditoría 2026-11 (#19): `run_due_reports` (sesión propia SIN
+# contexto de tenant, sin llamadas) se borró; el worker llama a
+# `ejecutar_informes_vencidos` por organización.
 
 
 def destinatarios_del_informe(report_id: str, db) -> Optional[list]:

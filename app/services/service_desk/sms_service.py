@@ -72,7 +72,27 @@ def send_sms(to: str, body: str) -> bool:
         return False
 
 
-def validate_twilio_signature(url: str, params: dict, signature: Optional[str]) -> bool:
+def twilio_auth_token_para(db, to_phone: Optional[str]) -> Optional[str]:
+    """El auth token con el que se verifica un SMS que llego a `to_phone`.
+
+    Segunda auditoria 2026-11 (#9): la organizacion sale del numero receptor
+    (credencial `twilio.from_number`); se usa su token propio (credencial
+    cifrada `twilio.auth_token` o ajuste `TWILIO_AUTH_TOKEN` de esa
+    organizacion) y, si no tiene, el global `TWILIO_AUTH_TOKEN`.
+    """
+    _, global_token, _ = _get_twilio_config()
+    if db is None:
+        return global_token
+    from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
+    from app.services.service_desk.multichannel_service import _organizacion_por_numero
+
+    org_id = _organizacion_por_numero(db, to_phone)
+    propio = secreto_propio_de_la_organizacion(
+        db, "twilio", "auth_token", "TWILIO_AUTH_TOKEN", org_id) if org_id else None
+    return propio or global_token
+
+
+def validate_twilio_signature(url: str, params: dict, signature: Optional[str], db=None) -> bool:
     """Si la peticion viene de Twilio de verdad.
 
     Auditoria 2026-11: fallaba ABIERTA —sin la libreria de Twilio, sin token o
@@ -80,8 +100,10 @@ def validate_twilio_signature(url: str, params: dict, signature: Optional[str]) 
     por SMS. Ahora sin token o sin firma se rechaza. El algoritmo es el
     documentado por Twilio (HMAC-SHA1 de la URL y los parametros ordenados, en
     base64) y no necesita la libreria.
+
+    Con `db`, el token es el de la organizacion del numero receptor (`To`).
     """
-    _, token, _ = _get_twilio_config()
+    token = twilio_auth_token_para(db, (params or {}).get("To"))
     if not token or not signature:
         return False
     datos = url + "".join(f"{k}{params[k]}" for k in sorted(params))

@@ -596,6 +596,11 @@ def decidir(db: Session, u, budget_id: str, aprobado: bool, motivo: Optional[str
         raise ErrorDeDominio(403, "Aprobar presupuestos es de los roles de BUDGET_APPROVER_ROLES")
     if b.estado != "enviado":
         raise ErrorDeDominio(409, "Sólo se decide un presupuesto enviado")
+    if not desde_bandeja:
+        # Segunda auditoría 2026-11: quien crea el presupuesto no lo decide
+        # (SoD). La bandeja ya lo impide con su propio registrador.
+        from app.services.approval_engine._base import exigir_que_no_sea_suyo
+        exigir_que_no_sea_suyo(db, b.created_by, u, "budget", b.id)
     if aprobado:
         for previa in db.query(Budget).filter(Budget.origen_id == (b.origen_id or b.id), Budget.id != b.id,
                                               Budget.estado == "aprobado").all():

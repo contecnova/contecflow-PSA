@@ -234,7 +234,7 @@ function SettingField({ setting, label, onSave }: { setting: SettingOut; label: 
       <label style={ls}>{label}</label>
       {editing ? (
         <div className="u-row-8">
-          <input value={val} onChange={e => setVal(e.target.value)} style={{ ...fs, flex: 1, minWidth: 0 }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
+          <input aria-label={label} value={val} onChange={e => setVal(e.target.value)} style={{ ...fs, flex: 1, minWidth: 0 }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
           <button onClick={() => { onSave(val); setEditing(false) }} style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 12px', color: 'var(--surface-0)', cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>✓</button>
           <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>✕</button>
         </div>
@@ -610,7 +610,7 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
       <div style={styles.colGap14}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
           <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} disabled={role?.is_system} /></div>
-          <div><label style={ls}>Color</label><div className="u-row-8"><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
+          <div><label id={`${idCampo}-etc613`} htmlFor={`${idCampo}-c613`} style={ls}>Color</label><div className="u-row-8"><input id={`${idCampo}-c613`} aria-labelledby={`${idCampo}-etc613`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input aria-labelledby={`${idCampo}-etc613`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
         </div>
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} /></div>
         <div>
@@ -623,7 +623,7 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
             {modules.map(m => (
               <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: form.module_access[m.id] ? 'var(--accent-muted)' : 'var(--surface-3)', borderRadius: 'var(--radius-sm)', border: `1px solid ${form.module_access[m.id] ? 'var(--accent)' : 'var(--surface-4)'}`, fontSize: "var(--text-sm)" }}>
-                <input type="checkbox" checked={!!form.module_access[m.id]} onChange={() => toggleModule(m.id)} />
+                <input type="checkbox" aria-label={m.label} checked={!!form.module_access[m.id]} onChange={() => toggleModule(m.id)} />
                 {m.label}
               </label>
             ))}
@@ -712,7 +712,7 @@ function AlertConfigSection() {
                   {cfg.description && <div className="u-text2-sm">{cfg.description}</div>}
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={cfg.is_enabled} onChange={e => update({ type: cfg.alert_type, data: { is_enabled: e.target.checked } })} />
+                  <input type="checkbox" aria-label={cfg.label} checked={cfg.is_enabled} onChange={e => update({ type: cfg.alert_type, data: { is_enabled: e.target.checked } })} />
                   <span className="u-text2-sm">{cfg.is_enabled ? 'Activa' : 'Inactiva'}</span>
                 </label>
               </div>
@@ -720,8 +720,8 @@ function AlertConfigSection() {
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                   {cfg.threshold_value !== null && (
                     <div className="u-row-center-8">
-                      <label className="u-text2-xs">Umbral:</label>
-                      <input type="number" defaultValue={cfg.threshold_value} onBlur={e => update({ type: cfg.alert_type, data: { threshold_value: +e.target.value } })}
+                      <label id={`${idCampo}-${cfg.alert_type}-etc723`} htmlFor={`${idCampo}-${cfg.alert_type}-c723`} className="u-text2-xs">Umbral:</label>
+                      <input id={`${idCampo}-${cfg.alert_type}-c723`} aria-labelledby={`${idCampo}-${cfg.alert_type}-etc723`} type="number" defaultValue={cfg.threshold_value} onBlur={e => update({ type: cfg.alert_type, data: { threshold_value: +e.target.value } })}
                         style={{ width: 70, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', textAlign: 'center' }} />
                       <span className="u-text2-xs">{cfg.threshold_unit}</span>
                     </div>
@@ -729,7 +729,7 @@ function AlertConfigSection() {
                   <div className="u-wrap-10">
                     {NOTIFY_FIELDS.map(([key, label]) => (
                       <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: "var(--text-xs)", color: cfg[key] ? 'var(--text-1)' : 'var(--text-2)' }}>
-                        <input type="checkbox" checked={!!cfg[key]} onChange={e => update({ type: cfg.alert_type, data: { [key]: e.target.checked } })} />
+                        <input type="checkbox" aria-label={label} checked={!!cfg[key]} onChange={e => update({ type: cfg.alert_type, data: { [key]: e.target.checked } })} />
                         {label}
                       </label>
                     ))}
@@ -767,7 +767,7 @@ function AlertConfigSection() {
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                    <input type="checkbox" checked={!!rule.enabled} onChange={e => toggleRule({ id: rule.id, enabled: e.target.checked })} />
+                    <input type="checkbox" aria-label={rule.name} checked={!!rule.enabled} onChange={e => toggleRule({ id: rule.id, enabled: e.target.checked })} />
                     {rule.enabled ? 'Activa' : 'Inactiva'}
                   </label>
                   <Button variant="danger" style={{ padding: '4px 10px', fontSize: "var(--text-xs)" }} onClick={() => openConfirmGlobal({ title: 'Eliminar regla', message: `¿Eliminar "${rule.name}"?`, onConfirm: () => deleteRule(rule.id) })}>Eliminar</Button>
@@ -890,7 +890,7 @@ function RateTablesSection() {
                 {(tabla.entries || []).map(e => (
                   editingEntryId === e.id ? (
                     <React.Fragment key={e.id}>
-                      <input value={editEntryForm.label} onChange={ev => setEditEntryForm(f=>({...f,label:ev.target.value}))} style={{...fs,padding:'5px 8px'}} autoFocus />
+                      <input aria-label="Etiqueta" value={editEntryForm.label} onChange={ev => setEditEntryForm(f=>({...f,label:ev.target.value}))} style={{...fs,padding:'5px 8px'}} autoFocus />
                       <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm(f=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
                       <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm(f=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                       <div style={{display:'flex',gap:4}}>
@@ -925,7 +925,7 @@ function RateTablesSection() {
             </div>
           ))}
           <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)', alignItems: 'flex-end' }}>
-            <div style={{ flex: 2 }}><label style={ls}>Nombre tabla</label><input value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_tabla')} aria-label={t('settings.nombre_de_la_tabla')} /></div>
+            <div style={{ flex: 2 }}><label htmlFor={`${idCampo}-c928`} style={ls}>Nombre tabla</label><input id={`${idCampo}-c928`} value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_tabla')} aria-label={t('settings.nombre_de_la_tabla')} /></div>
             <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Aplica a</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
             <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>Crear tabla</Button>
           </div>
@@ -974,10 +974,10 @@ function VacationSection() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 12, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: 2 }}><label style={ls}>Nombre</label><input value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_politica')} aria-label={t('settings.nombre_de_la_politica')} /></div>
+          <div style={{ flex: 2 }}><label htmlFor={`${idCampo}-c977`} style={ls}>Nombre</label><input id={`${idCampo}-c977`} value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_politica')} aria-label={t('settings.nombre_de_la_politica')} /></div>
           <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('settings.dias_ano_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
           <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.max_acumulacion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-sm)" }}><input type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy(f => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-sm)" }}><input type="checkbox" aria-label={t('settings.por_defecto')} checked={newPolicy.is_default} onChange={e => setNewPolicy(f => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
           <Button onClick={() => { createPolicy(newPolicy); setNewPolicy({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false }) }} disabled={!newPolicy.name}>Crear</Button>
         </div>
       </div>
@@ -1004,7 +1004,7 @@ function VacationSection() {
               <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{b.days_taken}d</span>
               <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{b.days_pending}d</span>
               <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: b.days_remaining <= 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>{b.days_remaining}d</span>
-              <input type="number" defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
+              <input type="number" aria-label={`Días asignados ${b.user_name}`} defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
                 style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', textAlign: 'center' }} />
             </div>
           ))}
@@ -1016,6 +1016,7 @@ function VacationSection() {
 
 // ── Numbering section ─────────────────────────────────────────────────────────
 function NumberingSection() {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1035,11 +1036,11 @@ function NumberingSection() {
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{s.next_preview}</div>
               </div>
               <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div><label style={{ ...ls, fontSize: "var(--text-2xs)" }}>Prefijo</label><input defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} style={{ ...fs, width: 70 }} placeholder="Prefijo" aria-label="Prefijo" /></div>
-                <div><label style={{ ...ls, fontSize: "var(--text-2xs)" }}>Sep.</label><input defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} style={{ ...fs, width: 40 }} /></div>
-                <div><label style={{ ...ls, fontSize: "var(--text-2xs)" }}>{t('settings.digitos')}</label><input type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} style={{ ...fs, width: 60 }} /></div>
+                <div><label htmlFor={`${idCampo}-${s.entity}-c1038`} style={{ ...ls, fontSize: "var(--text-2xs)" }}>Prefijo</label><input id={`${idCampo}-${s.entity}-c1038`} defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} style={{ ...fs, width: 70 }} placeholder="Prefijo" aria-label="Prefijo" /></div>
+                <div><label id={`${idCampo}-${s.entity}-etc1039`} htmlFor={`${idCampo}-${s.entity}-c1039`} style={{ ...ls, fontSize: "var(--text-2xs)" }}>Sep.</label><input id={`${idCampo}-${s.entity}-c1039`} aria-labelledby={`${idCampo}-${s.entity}-etc1039`} defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} style={{ ...fs, width: 40 }} /></div>
+                <div><label id={`${idCampo}-${s.entity}-etc1040`} htmlFor={`${idCampo}-${s.entity}-c1040`} style={{ ...ls, fontSize: "var(--text-2xs)" }}>{t('settings.digitos')}</label><input id={`${idCampo}-${s.entity}-c1040`} aria-labelledby={`${idCampo}-${s.entity}-etc1040`} type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} style={{ ...fs, width: 60 }} /></div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)', paddingBottom: 4 }}>
-                  <input type="checkbox" defaultChecked={s.include_year} onChange={e => update({ entity: s.entity, data: { ...s, include_year: e.target.checked } })} />
+                  <input type="checkbox" aria-label={t('settings.incluir_ano')} defaultChecked={s.include_year} onChange={e => update({ entity: s.entity, data: { ...s, include_year: e.target.checked } })} />
                   {t('settings.incluir_ano')}
                 </label>
               </div>
@@ -1126,7 +1127,7 @@ function CustomFieldsSection() {
                         <input value={editFieldForm.placeholder} onChange={e=>setEditFieldForm(f=>({...f,placeholder:e.target.value}))}
                           style={{...fs,flex:2}} placeholder={t('settings.placeholder_del_campo')} aria-label={t('settings.placeholder_del_campo')} />
                         <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",whiteSpace:'nowrap'}}>
-                          <input type="checkbox" checked={editFieldForm.is_required}
+                          <input type="checkbox" aria-label="Obligatorio" checked={editFieldForm.is_required}
                             onChange={e=>setEditFieldForm(f=>({...f,is_required:e.target.checked}))} />Obligatorio
                         </label>
                         <button onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name}
@@ -1147,8 +1148,8 @@ function CustomFieldsSection() {
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12 }}>{t('settings.anadir_campo_personalizado')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
           <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Entidad</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={fs}>{ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></div>
-          <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} /></div>
-          <div><label style={ls}>Clave</label><input value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} style={fs} placeholder="Clave interna" aria-label="Clave interna" /></div>
+          <div><label htmlFor={`${idCampo}-c1150`} style={ls}>Nombre</label><input id={`${idCampo}-c1150`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} /></div>
+          <div><label htmlFor={`${idCampo}-c1151`} style={ls}>Clave</label><input id={`${idCampo}-c1151`} value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} style={fs} placeholder="Clave interna" aria-label="Clave interna" /></div>
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Tipo</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} style={fs}>{TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
           <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>{t('settings.anadir')}</Button>
         </div>
@@ -1322,7 +1323,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
     <Modal open title={t('settings.nueva_plantilla')} onClose={onClose} width={760}>
       <div style={styles.colGap16}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12 }}>
-          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder={t('settings.nombre_de_la_plantilla')} aria-label={t('settings.nombre_de_la_plantilla')} /></div>
+          <div><label htmlFor={`${idCampo}-c1325`} style={ls}>Nombre *</label><input id={`${idCampo}-c1325`} value={form.name} onChange={set('name')} style={fs} placeholder={t('settings.nombre_de_la_plantilla')} aria-label={t('settings.nombre_de_la_plantilla')} /></div>
           <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Tipo proyecto</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')} style={fs}><option value="consulting">consulting</option><option value="development">development</option><option value="maintenance">maintenance</option><option value="internal">internal</option><option value="rd">rd</option></select></div>
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Semanas estimadas</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} style={fs} /></div>
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Horas estimadas</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} /></div>
@@ -1454,14 +1455,14 @@ function OfficesSection() {
             {editingId === o.id ? (
               <div style={{ display: 'flex', gap: 8, padding: '10px 12px', background: 'var(--accent-muted)',
                 border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div style={{ flex: 2, minWidth: 120 }}><label style={ls}>Nombre *</label>
-                  <input value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={fs} autoFocus /></div>
-                <div style={{ flex: 1, minWidth: 90 }}><label style={ls}>{t('settings.pais')}</label>
-                  <input value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} style={fs} /></div>
-                <div style={{ flex: 1, minWidth: 90 }}><label style={ls}>Ciudad</label>
-                  <input value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} style={fs} /></div>
-                <div style={{ flex: 1, minWidth: 160 }}><label style={ls}>Zona horaria</label>
-                  <select value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} style={fs}>
+                <div style={{ flex: 2, minWidth: 120 }}><label id={`${idCampo}-${o.id}-etc1457`} htmlFor={`${idCampo}-${o.id}-c1457`} style={ls}>Nombre *</label>
+                  <input id={`${idCampo}-${o.id}-c1457`} aria-labelledby={`${idCampo}-${o.id}-etc1457`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={fs} autoFocus /></div>
+                <div style={{ flex: 1, minWidth: 90 }}><label id={`${idCampo}-${o.id}-etc1459`} htmlFor={`${idCampo}-${o.id}-c1459`} style={ls}>{t('settings.pais')}</label>
+                  <input id={`${idCampo}-${o.id}-c1459`} aria-labelledby={`${idCampo}-${o.id}-etc1459`} value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} style={fs} /></div>
+                <div style={{ flex: 1, minWidth: 90 }}><label id={`${idCampo}-${o.id}-etc1461`} htmlFor={`${idCampo}-${o.id}-c1461`} style={ls}>Ciudad</label>
+                  <input id={`${idCampo}-${o.id}-c1461`} aria-labelledby={`${idCampo}-${o.id}-etc1461`} value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} style={fs} /></div>
+                <div style={{ flex: 1, minWidth: 160 }}><label id={`${idCampo}-${o.id}-etc1463`} htmlFor={`${idCampo}-${o.id}-c1463`} style={ls}>Zona horaria</label>
+                  <select id={`${idCampo}-${o.id}-c1463`} aria-labelledby={`${idCampo}-${o.id}-etc1463`} value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} style={fs}>
                     {timezoneOptions(editForm.timezone).map(t => <option key={t} value={t}>{t}</option>)}
                   </select></div>
                 <div style={{ display: 'flex', gap: 6, paddingBottom: 1 }}>
@@ -1488,7 +1489,7 @@ function OfficesSection() {
         {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title={t('settings.sin_sedes_registradas')} description="Añade la primera sede para tu organización" />}
       </div>
       <div style={styles.addPanel10}>
-        <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_sede')} aria-label={t('settings.nombre_de_la_sede')} /></div>
+        <div style={{ flex: 2 }}><label htmlFor={`${idCampo}-c1491`} style={ls}>Nombre *</label><input id={`${idCampo}-c1491`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_sede')} aria-label={t('settings.nombre_de_la_sede')} /></div>
         <div className="u-flex1"><label style={ls}>{t('settings.pais')}</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
         <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Ciudad</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
         <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Zona horaria</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{timezoneOptions(form.timezone).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
@@ -1542,17 +1543,17 @@ function TaskTypesSection() {
           <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={{...fs,width:130}} autoFocus /></div>
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Icono</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} style={{...fs,width:55}} /></div>
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Color</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:COLOR_DATO_POR_DEFECTO} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
-          <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",paddingBottom:4}}><input type="checkbox" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />Facturable</label>
+          <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",paddingBottom:4}}><input type="checkbox" aria-label="Facturable" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />Facturable</label>
           <button onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} style={styles.saveBtn}>✓ Guardar</button>
           <button onClick={() => setEditingId(null)} style={styles.cancelBtnSm}>Cancelar</button>
         </div>
       )}
       <div style={styles.addPanel10}>
-        <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder="Nombre" aria-label="Nombre" /></div>
-        <div><label style={ls}>Clave</label><input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder="Clave" aria-label="Clave" /></div>
-        <div><label style={ls}>Icono</label><input value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
-        <div><label style={ls}>Color</label><div className="u-row-6"><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", paddingBottom: 4 }}><input type="checkbox" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
+        <div><label htmlFor={`${idCampo}-c1551`} style={ls}>Nombre *</label><input id={`${idCampo}-c1551`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder="Nombre" aria-label="Nombre" /></div>
+        <div><label htmlFor={`${idCampo}-c1552`} style={ls}>Clave</label><input id={`${idCampo}-c1552`} value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder="Clave" aria-label="Clave" /></div>
+        <div><label htmlFor={`${idCampo}-c1553`} style={ls}>Icono</label><input id={`${idCampo}-c1553`} value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
+        <div><label id={`${idCampo}-etc1554`} htmlFor={`${idCampo}-c1554`} style={ls}>Color</label><div className="u-row-6"><input id={`${idCampo}-c1554`} aria-labelledby={`${idCampo}-etc1554`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input aria-labelledby={`${idCampo}-etc1554`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", paddingBottom: 4 }}><input type="checkbox" aria-label="Facturable" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
         <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>
@@ -1822,14 +1823,14 @@ function MetricsSection() {
               </div>
               <div className="u-grid2-10">
                 <div>
-                  <label style={ls}>{form.operand_b_type === 'metric' ? 'Métrica B' : 'Valor constante'}</label>
+                  <label id={`${idCampo}-etopb`} htmlFor={`${idCampo}-opb`} style={ls}>{form.operand_b_type === 'metric' ? 'Métrica B' : 'Valor constante'}</label>
                   {form.operand_b_type === 'metric' ? (
-                    <select value={form.operand_b} onChange={setF('operand_b')} style={fs}>
+                    <select id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} value={form.operand_b} onChange={setF('operand_b')} style={fs}>
                       <option value="">— Selecciona —</option>
                       {builtinMetrics.filter(m => m.key !== form.operand_a).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                     </select>
                   ) : (
-                    <input type="number" value={form.operand_b} onChange={setF('operand_b')} style={fs} placeholder="0" />
+                    <input id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} type="number" value={form.operand_b} onChange={setF('operand_b')} style={fs} placeholder="0" />
                   )}
                 </div>
                 <div>
@@ -1906,6 +1907,7 @@ interface ProviderCardProps {
 }
 
 function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: ProviderCardProps) {
+  const idCampo = React.useId()
   const isConfigured = config?.[provider.configKey]
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -1931,8 +1933,8 @@ function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: Pr
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
         {provider.fields.map(f => (
           <div key={f.key}>
-            <label style={ls}>{f.label}</label>
-            <input
+            <label id={`${idCampo}-${f.key}-etc1934`} htmlFor={`${idCampo}-${f.key}-c1934`} style={ls}>{f.label}</label>
+            <input id={`${idCampo}-${f.key}-c1934`} aria-labelledby={`${idCampo}-${f.key}-etc1934`}
               type={f.secret ? 'password' : 'text'}
               value={form[f.key] ?? ''}
               onChange={e => onChange(f.key, e.target.value)}
@@ -2070,6 +2072,7 @@ function SessionSecuritySection() {
           <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, flexShrink: 0, cursor: 'pointer' }}>
             <input
               type="checkbox"
+              aria-label={t('settings.cierre_de_sesion_por_inactividad')}
               checked={idleEnabled}
               onChange={e => update({ key: 'idle_timeout_enabled', value: e.target.checked ? 'true' : 'false' })}
               style={{ opacity: 0, width: 0, height: 0 }}

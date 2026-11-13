@@ -178,7 +178,8 @@ def approve_rollout_plan(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return APIResponse.ok(data=approve_plan(db, org_id=org_id, plan_id=plan_id, approver_user_id=current_user.id))
+        return APIResponse.ok(data=approve_plan(db, org_id=org_id, plan_id=plan_id, approver_user_id=current_user.id,
+                                                  approver=current_user))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 

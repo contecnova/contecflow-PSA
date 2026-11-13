@@ -5,7 +5,7 @@
  * Right panel: live preview table + export button + save template
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useId } from 'react'
 import type { CSSProperties, ChangeEvent, DragEvent, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -169,6 +169,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
             <input
               type="checkbox"
               checked={selected.includes(key)}
+              aria-label={col.label}
               onChange={() => onToggle(key)}
               style={{ accentColor: 'var(--info)', width: 13, height: 13, flexShrink: 0 }}
             />
@@ -245,6 +246,7 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: 
       </select>
       {needsValue ? (
         <input
+          aria-label={traducir('reportbuilder.valor_del_filtro')}
           value={filter.value}
           onChange={set('value')}
           placeholder={traducir('reportbuilder.valor_del_filtro')}
@@ -386,6 +388,7 @@ function BiPresetsTab() {
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function ReportBuilderPage() {
   const traducir = useAppT()
+  const idGrupo = useId()
   const toast = useToast()
   const narrow = useMediaQuery('(max-width: 900px)')
   const t = useAppT()
@@ -577,8 +580,8 @@ export default function ReportBuilderPage() {
             {entityDef && (
               <>
                 {/* Column selector */}
-                <div>
-                  <label style={ls}>Campos a incluir</label>
+                <div role="group" aria-labelledby={`${idGrupo}-campos`}>
+                  <span id={`${idGrupo}-campos`} style={ls}>Campos a incluir</span>
                   <ColumnPanel
                     entityDef={entityDef}
                     selected={columns}
@@ -590,9 +593,9 @@ export default function ReportBuilderPage() {
                 </div>
 
                 {/* Filters */}
-                <div>
+                <div role="group" aria-labelledby={`${idGrupo}-filtros`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <label style={{ ...ls, marginBottom: 0 }}>Filtros</label>
+                    <span id={`${idGrupo}-filtros`} style={{ ...ls, marginBottom: 0 }}>Filtros</span>
                     <button onClick={addFilter}
                       style={{ background: 'none', border: 'none', color: 'var(--info)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                       {traducir('reportbuilder.anadir')}
@@ -671,6 +674,7 @@ export default function ReportBuilderPage() {
                 ⬇ Exportar CSV
               </button>
               <input
+                aria-label={traducir('reportbuilder.nombre_de_la_plantilla')}
                 value={tplName}
                 onChange={e => setTplName(e.target.value)}
                 placeholder={traducir('reportbuilder.nombre_de_la_plantilla')}

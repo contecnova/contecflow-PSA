@@ -136,12 +136,12 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
     <Modal open title={isEdit ? `Editar entregable` : 'Nuevo Entregable'} onClose={onClose} width={560}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={fs} placeholder={t('deliverables.nombre_del_entregable')} aria-label={t('deliverables.nombre_del_entregable')} />
+          <label id={`${idCampo}-eta139`} htmlFor={`${idCampo}-a139`} style={ls}>Nombre *</label>
+          <input id={`${idCampo}-a139`} aria-labelledby={`${idCampo}-eta139`} value={form.name} onChange={set('name')} style={fs} placeholder={t('deliverables.nombre_del_entregable')} />
         </div>
         <div>
-          <label style={ls}>Formato</label>
-          <input value={form.format} onChange={set('format')} style={fs} placeholder={t('deliverables.formato_de_entrega')} aria-label={t('deliverables.formato_de_entrega')} />
+          <label id={`${idCampo}-eta143`} htmlFor={`${idCampo}-a143`} style={ls}>Formato</label>
+          <input id={`${idCampo}-a143`} aria-labelledby={`${idCampo}-eta143`} value={form.format} onChange={set('format')} style={fs} placeholder={t('deliverables.formato_de_entrega')} />
         </div>
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Fecha planificada</label>
@@ -155,8 +155,8 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
           </select>
         </div>
         <div>
-          <label style={ls}>Contacto cliente</label>
-          <input value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder={t('deliverables.contacto_del_cliente')} aria-label={t('deliverables.contacto_del_cliente')} />
+          <label id={`${idCampo}-eta158`} htmlFor={`${idCampo}-a158`} style={ls}>Contacto cliente</label>
+          <input id={`${idCampo}-a158`} aria-labelledby={`${idCampo}-eta158`} value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder={t('deliverables.contacto_del_cliente')} />
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('deliverables.descripcion')}</label>

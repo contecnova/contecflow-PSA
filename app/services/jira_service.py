@@ -341,6 +341,75 @@ def save_jira_config(
     return config
 
 
+# ── Hub de integraciones (`/integrations-hub/jira/*`) ─────────────────────────
+# Segunda auditoria 2026-11 (#23): el hub guardaba sus credenciales en
+# `integration_configs` (tipo jira), aparte de la conexion de las tareas. Ahora
+# lee y escribe la misma `JiraConfig` (`usar_para_tareas`) de la organizacion.
+
+def config_del_hub(config: Optional[JiraConfig]) -> dict:
+    """La conexion como la ve el formulario del hub, sin el token."""
+    if config is None:
+        return {"configured": False}
+    return {
+        "configured": True, "id": config.id, "name": config.name,
+        "base_url": config.jira_base_url or "", "email": config.jira_email or "",
+        "project_key": config.jira_project_key or "", "has_token": bool(config.jira_api_token_enc),
+        "is_active": config.is_active is not False,
+        "last_sync_at": str(config.last_full_sync_at)[:16] if config.last_full_sync_at else None,
+    }
+
+
+def credenciales_del_hub(db: Session, org_id: Optional[str]) -> dict:
+    """`{base_url, email, api_token}` de la conexion activa de la organizacion (404 si no hay)."""
+    config = configuracion_de_tareas(db, org_id)
+    if config is None or config.is_active is False:
+        raise ErrorDeDominio(404, "Jira no está configurado en esta organización")
+    c = credenciales(config)
+    return {"base_url": c["jira_url"] or "", "email": c["jira_email"] or "",
+            "api_token": c["jira_api_token"] or "", "project_key": c["jira_project_key"] or ""}
+
+
+def guardar_desde_hub(db: Session, org_id: Optional[str], *, base_url: str, email: str,
+                      api_token: Optional[str] = None, project_key: Optional[str] = None,
+                      name: Optional[str] = None, user_id: Optional[str] = None) -> JiraConfig:
+    """Crea o actualiza la conexion de la organizacion. Sin `api_token`, conserva el guardado."""
+    from app.core.outbound_url import validate_outbound_url
+
+    validate_outbound_url(base_url or "", field="base_url")
+    if not org_id:
+        raise ErrorDeDominio(400, "La configuración de Jira es de una organización")
+    config = configuracion_de_tareas(db, org_id)
+    if config is None:
+        if not api_token:
+            raise ErrorDeDominio(422, "Falta el API token de Jira")
+        config = JiraConfig(name=name or NOMBRE_DE_LA_CONEXION_DE_TAREAS, organization_id=org_id,
+                            usar_para_tareas=True, created_by_user_id=user_id,
+                            jira_project_key=project_key or "")
+        db.add(config)
+    if name:
+        config.name = name
+    config.jira_base_url = (base_url or "").rstrip("/")
+    config.jira_email = email
+    if api_token:
+        config.jira_api_token_enc = encrypt_value(api_token)
+    if project_key is not None:
+        config.jira_project_key = project_key
+    config.is_active = True
+    db.commit()
+    return config
+
+
+def desactivar_desde_hub(db: Session, org_id: Optional[str]) -> bool:
+    """Para la conexion y borra el token (lo que hacia el borrado de `integration_configs`)."""
+    config = configuracion_de_tareas(db, org_id)
+    if config is None:
+        return False
+    config.is_active = False
+    config.jira_api_token_enc = ""
+    db.commit()
+    return True
+
+
 # ── Task helpers ───────────────────────────────────────────────────────────────
 
 def get_task_by_jira_key(db: Session, jira_key: str, org_id: Optional[str]) -> Optional[Task]:

@@ -170,7 +170,7 @@ class AutomationEvent(Base):
     trigger_type    = Column(String(64), nullable=False)
     context         = Column(Text, nullable=True)       # JSON
     depth           = Column(Integer, nullable=False, default=0)
-    status          = Column(String(20), nullable=False, default="pending", index=True)  # pending | done | failed
+    status          = Column(String(20), nullable=False, default="pending", index=True)  # pending | done | failed | skipped (org desactivada)
     attempts        = Column(Integer, nullable=False, default=0)
     error           = Column(String(500), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), index=True)

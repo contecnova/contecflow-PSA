@@ -81,6 +81,10 @@ def decidir(db: Session, ticket: Ticket, usuario: User, decision: str, comentari
     es_admin = getattr(usuario.role, "value", usuario.role) == UserRole.admin.value or usuario.is_superadmin
     if aprobacion.approver_user_id != usuario.id and not es_admin:
         raise ErrorDeDominio(403, "Solo el aprobador puede decidir")
+    # Segunda auditoría 2026-11: quien pide el servicio no se lo aprueba (SoD),
+    # tampoco un administrador.
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, ticket.requester_user_id, usuario, "catalog_request", ticket.id)
     if decision == RECHAZADO and not (comentario or "").strip():
         raise ErrorDeDominio(422, "Rechazar pide el motivo: es lo que recibe el solicitante")
 

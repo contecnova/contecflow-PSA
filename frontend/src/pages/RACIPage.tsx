@@ -252,7 +252,7 @@ export default function RACIPage() {
                     </div>
                   </th>
                 ))}
-                <th style={{ width: 40, borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)' }} />
+                <th aria-hidden="true" style={{ width: 40, borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)' }} />
               </tr>
             </thead>
             <tbody>
@@ -290,7 +290,7 @@ export default function RACIPage() {
                         </td>
                       )
                     })}
-                    <td style={{ padding: '8px', borderBottom: '1px solid var(--surface-4)' }} />
+                    <td aria-hidden="true" style={{ padding: '8px', borderBottom: '1px solid var(--surface-4)' }} />
                   </tr>
                 )
               })}

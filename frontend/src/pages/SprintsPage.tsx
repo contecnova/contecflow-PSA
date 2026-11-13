@@ -564,7 +564,7 @@ export default function SprintsPage() {
                     role="button" tabIndex={0}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id]) } }}
                     style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 80px 80px 120px', gap: 12, padding: '10px 16px', background: selected ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, alignItems: 'center', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={selected} readOnly style={{ cursor: 'pointer' }} />
+                    <input type="checkbox" aria-label={task.title} checked={selected} readOnly style={{ cursor: 'pointer' }} />
                     <span className="u-text3-mono-xs">{task.code}</span>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 500 }}>{task.title}</span>
                     <span style={{ fontSize: "var(--text-xs)", padding: '2px 6px', borderRadius: 4, background: alpha((PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)'), '20'), color: PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)', textAlign: 'center' }}>{task.priority}</span>
@@ -683,7 +683,7 @@ export default function SprintsPage() {
                     const sel = selectedBacklogTasks.includes(task.id)
                     return (
                       <label key={task.id} style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 60px 100px', gap: 10, padding: '8px 12px', background: sel ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, cursor: 'pointer', alignItems: 'center' }}>
-                        <input type="checkbox" checked={sel} onChange={e => setSelectedBacklogTasks(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))} />
+                        <input type="checkbox" aria-label={task.title} checked={sel} onChange={e => setSelectedBacklogTasks(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))} />
                         <span className="u-text3-mono-xs">{task.code}</span>
                         <span className="u-sm">{task.title}</span>
                         <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'}pt</span>

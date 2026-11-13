@@ -9,7 +9,7 @@ import logging
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.core.deps import require_admin, require_admin_or_pm, get_current_user, require_internal_user
+from app.core.deps import require_admin, require_admin_or_pm, get_current_user, require_internal_user, require_superadmin
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 # Legacy metrics fully migrated to MODULAR_METRICS_REGISTRY — see #109/#104.
@@ -1089,8 +1089,10 @@ def olap_status(current_user: User = Depends(require_internal_user)):
                                       plataforma=bool(getattr(current_user, "is_superadmin", False))))
 
 
-@router.post("/olap/refresh", summary="Recargar ya el almacén analítico desde la base (admin)")
-def olap_refresh(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+@router.post("/olap/refresh", summary="Recargar ya el almacén analítico desde la base (superadmin)")
+def olap_refresh(db: Session = Depends(get_db), current_user: User = Depends(require_superadmin)):
+    # Segunda auditoría 2026-11 (#11): recarga TODAS las empresas → solo
+    # superadmin de plataforma (antes, el admin de cualquier empresa).
     from app.db.session import sin_filtro_de_tenant
     from app.services.olap.etl import resumen_de_carga, run_full_etl
     # La carga es de TODAS las empresas (el almacén es uno; cada consulta lleva

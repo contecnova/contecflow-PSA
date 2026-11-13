@@ -120,10 +120,10 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
             <label style={ls}>{t('issue_types.color')}</label>
             <div style={{display:'flex',gap:8,flexWrap:'wrap',paddingTop:4}}>
               {COLORS.map(c => (
-                <button key={c} onClick={() => set('color')(c)}
+                <button key={c} aria-label={`${t('issue_types.color')} ${c}`} aria-pressed={form.color===c} onClick={() => set('color')(c)}
                   style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}} />
               ))}
-              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
+              <input type="color" aria-label={t('issue_types.color')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
                 style={{width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',padding:0}} />
             </div>
           </div>
@@ -132,8 +132,8 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('issue_types.description')}</label>
           <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} style={is} value={form.description} onChange={e => set('description')(e.target.value)} />
         </div>
-        <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize: "var(--text-base)"}}>
-          <input type="checkbox" checked={form.is_subtask} onChange={e => set('is_subtask')(e.target.checked)} />
+        <label className="u-row-center-8-pointer">
+          <input type="checkbox" aria-label={t('issue_types.subtask_checkbox')} checked={form.is_subtask} onChange={e => set('is_subtask')(e.target.checked)} />
           {t('issue_types.subtask_checkbox')}
         </label>
         {customFields.length > 0 && (
@@ -144,7 +144,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
                 <label key={f.field_key} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',
                   padding:'4px 10px',borderRadius:'var(--radius-sm)',border:`1px solid ${form.field_keys.includes(f.field_key)?'var(--accent-glow)':'var(--surface-4)'}`,
                   background:form.field_keys.includes(f.field_key)?'var(--accent-muted)':'transparent',fontSize: "var(--text-sm)"}}>
-                  <input type="checkbox" checked={form.field_keys.includes(f.field_key)}
+                  <input type="checkbox" aria-label={f.name} checked={form.field_keys.includes(f.field_key)}
                     onChange={() => toggleField(f.field_key)} style={{margin:0}} />
                   {f.name}
                 </label>
@@ -273,13 +273,13 @@ export default function IssueTypesPage(): JSX.Element {
               <tbody>
                 {types.map((typeItem, i) => (
                   <tr key={typeItem.id} style={{borderBottom:'1px solid #1e2d45', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
-                    <td className="u-pad-10-12">
+                    <td className="u-pad-10-12" aria-labelledby={`${idCampo}-${typeItem.id}-n`}>
                       <div className="u-row-center-10">
                         <div style={{width:32, height:32, borderRadius:8, background:alpha(typeItem.color, '20'),
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)"}}>
                           {typeItem.icon || '📌'}
                         </div>
-                        <span style={{fontWeight:600, color:typeItem.color}}>{typeItem.name}</span>
+                        <span id={`${idCampo}-${typeItem.id}-n`} style={{fontWeight:600, color:typeItem.color}}>{typeItem.name}</span>
                       </div>
                     </td>
                     <td style={{padding:'10px 12px', fontFamily:'var(--font-mono)', fontSize: "var(--text-xs)", color:'var(--text-2)'}}>{typeItem.value}</td>
@@ -294,7 +294,7 @@ export default function IssueTypesPage(): JSX.Element {
                     <td style={{padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--text-2)'}}>
                       {typeItem.field_keys && typeItem.field_keys.length > 0 ? typeItem.field_keys.join(', ') : '—'}
                     </td>
-                    <td className="u-pad-10-12">
+                    <td className="u-pad-10-12" aria-label={t('issue_types.actions')}>
                       <div className="u-row-8">
                         <button onClick={() => { setEditing(typeItem); setShowForm(true) }}
                           style={{background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)',

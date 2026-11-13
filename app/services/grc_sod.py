@@ -89,9 +89,39 @@ MODULO_GRC_DE_ENTIDAD: dict[str, str] = {
     "milestone": "milestones",
     "imputation": "imputations",
     "itsm_change": "sd",
+    "catalog_request": "sd",     # segunda auditoría 2026-11
+    "rollout_plan": "sd",        # segunda auditoría 2026-11
     "contract": "contracts",
     "mcp_action": "mcp",
 }
+
+
+DEFAULT_SOD_RULES = [
+    {"module_a":"invoices","action_a":"crear","module_b":"invoices","action_b":"aprobar","risk":"high","description":"Quien crea facturas no debe aprobarlas (riesgo de fraude)","roles_conflict":["pm"]},
+    {"module_a":"expenses","action_a":"crear","module_b":"expenses","action_b":"aprobar","risk":"high","description":"Quien registra gastos no debe aprobarlos","roles_conflict":[]},
+    {"module_a":"contracts","action_a":"crear","module_b":"contracts","action_b":"aprobar","risk":"high","description":"Quien crea contratos no debe aprobarlos sin supervisión","roles_conflict":["pm"]},
+    {"module_a":"resources","action_a":"editar","module_b":"timesheets","action_b":"aprobar","risk":"medium","description":"Gestión de recursos y aprobación de horas puede generar conflicto","roles_conflict":[]},
+    {"module_a":"absences","action_a":"editar","module_b":"absences","action_b":"aprobar","risk":"high","description":"Gestión de RRHH y aprobación de ausencias","roles_conflict":["hr"]},
+    {"module_a":"settings","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"Quien configura el sistema no debe aprobar solicitudes críticas sin doble validación","roles_conflict":["admin"]},
+    {"module_a":"timesheets","action_a":"crear","module_b":"timesheets","action_b":"aprobar","risk":"high","description":"El empleado no debe aprobar sus propios timesheets","roles_conflict":["pm","team_lead"]},
+    {"module_a":"grc","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"Quien modifica la matriz GRC no debe poder auto-aprobar sus propias solicitudes","roles_conflict":["admin"]},
+    # Segunda auditoría 2026-11: presupuestos y Service Desk (servicios del
+    # catálogo, planes de despliegue de cambios) también bloquean la autoaprobación.
+    {"module_a":"budgets","action_a":"crear","module_b":"budgets","action_b":"aprobar","risk":"high","description":"Quien crea un presupuesto no debe aprobarlo","roles_conflict":[]},
+    {"module_a":"sd","action_a":"crear","module_b":"sd","action_b":"aprobar","risk":"high","description":"Quien pide un servicio o crea un plan de cambio no debe aprobarlo","roles_conflict":[]},
+]
+
+
+def sembrar_reglas_por_defecto(db: Session, organization_id: Optional[str], commit: bool = True) -> None:
+    """Siembra las reglas SoD por defecto en esa empresa si no tiene ninguna. Idempotente.
+
+    Segunda auditoría 2026-11: antes sólo se sembraban al abrir la pestaña SoD,
+    así que en una empresa donde nadie la había abierto ninguna autoaprobación
+    quedaba registrada (el 403 sí se daba). Se llama al crear la empresa y,
+    sin commit, en la primera comprobación de autoaprobación.
+    """
+    from app.services.grc_service import ensure_sod_seeded
+    ensure_sod_seeded(db, DEFAULT_SOD_RULES, organization_id, commit=commit)
 
 
 def regla_de_autoaprobacion(db: Session, entity_type: str, organization_id: Optional[str]):
@@ -100,6 +130,8 @@ def regla_de_autoaprobacion(db: Session, entity_type: str, organization_id: Opti
     Coincide con el nombre de la entidad o con su módulo GRC, misma entidad en
     los dos lados y `aprobar` en el segundo; prefiere `crear` en el primero.
     """
+    if organization_id:
+        sembrar_reglas_por_defecto(db, organization_id, commit=False)
     candidatos = {entity_type, MODULO_GRC_DE_ENTIDAD.get(entity_type, entity_type)}
     q = db.query(SodRule).filter(
         SodRule.module_a.in_(candidatos),

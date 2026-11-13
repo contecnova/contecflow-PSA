@@ -69,6 +69,7 @@ const ROLES: ProjectRole[] = ['admin', 'pm', 'team_lead', 'employee', 'hr']
 const COLORS = CHART_COLORS_EXTENDED
 
 function StateForm({ projectId, state, onClose }: { projectId: string; state: WorkflowState | null; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -104,35 +105,35 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
             }} placeholder={t('workflows.nombre_visible_del_estado')} aria-label={t('workflows.nombre_del_estado')} />
         </div>
         <div>
-          <label style={labelStyle}>Valor interno</label>
-          <input style={{ ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }}
+          <label id={`${idCampo}-valor-et`} htmlFor={`${idCampo}-valor`} style={labelStyle}>Valor interno</label>
+          <input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} style={{ ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }}
             value={form.value} disabled={isEdit}
             onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
             placeholder="valor_interno" aria-label="Valor interno" />
         </div>
         <div>
-          <label style={labelStyle}>Icono (emoji)</label>
-          <input style={{ ...inputStyle, width: 80, textAlign: 'center', fontSize: "var(--text-xl)" }}
+          <label id={`${idCampo}-icono-et`} htmlFor={`${idCampo}-icono`} style={labelStyle}>Icono (emoji)</label>
+          <input id={`${idCampo}-icono`} aria-labelledby={`${idCampo}-icono-et`} style={{ ...inputStyle, width: 80, textAlign: 'center', fontSize: "var(--text-xl)" }}
             value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder="📝" aria-label={t('workflows.icono_del_estado')} />
         </div>
         <div>
-          <label style={labelStyle}>Color</label>
-          <div className="u-wrap-8">
+          <div id={`${idCampo}-color-et`} style={labelStyle}>Color</div>
+          <div className="u-wrap-8" role="group" aria-labelledby={`${idCampo}-color-et`}>
             {COLORS.map(c => (
-              <button key={c} onClick={() => set('color')(c)}
+              <button key={c} aria-label={`Color ${c}`} aria-pressed={form.color === c} onClick={() => set('color')(c)}
                 style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: form.color === c ? '3px solid #fff' : '2px solid transparent', cursor: 'pointer' }} />
             ))}
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
+            <input type="color" aria-label="Color personalizado" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
               style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0 }} />
           </div>
         </div>
         <div className="u-grid2-12">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-            <input type="checkbox" checked={form.is_initial} onChange={e => set('is_initial')(e.target.checked)} />
+          <label className="u-row-center-8-pointer">
+            <input type="checkbox" aria-label={t('workflows.estado_inicial_punto_de_entrada')} checked={form.is_initial} onChange={e => set('is_initial')(e.target.checked)} />
             {t('workflows.estado_inicial_punto_de_entrada')}
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-            <input type="checkbox" checked={form.is_final} onChange={e => set('is_final')(e.target.checked)} />
+          <label className="u-row-center-8-pointer">
+            <input type="checkbox" aria-label={t('workflows.estado_final_cuenta_como_completado')} checked={form.is_final} onChange={e => set('is_final')(e.target.checked)} />
             {t('workflows.estado_final_cuenta_como_completado')}
           </label>
         </div>
@@ -199,8 +200,8 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-          <input type="checkbox" checked={form.requires_comment} onChange={e => set('requires_comment')(e.target.checked)} />
+        <label className="u-row-center-8-pointer">
+          <input type="checkbox" aria-label={t('workflows.requiere_comentario_obligatorio_al_ejecutar')} checked={form.requires_comment} onChange={e => set('requires_comment')(e.target.checked)} />
           {t('workflows.requiere_comentario_obligatorio_al_ejecutar')}
         </label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>

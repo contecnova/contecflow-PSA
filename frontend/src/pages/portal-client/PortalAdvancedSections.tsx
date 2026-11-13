@@ -814,7 +814,7 @@ export function PortalMessages() {
                 ))}
               </div>
               <div style={{ padding: 12, borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 8 }}>
-                <textarea value={draft} onChange={e => setDraft(e.target.value)}
+                <textarea aria-label={traducir('portaladvanced.escribe_un_mensaje')} value={draft} onChange={e => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (draft.trim()) send.mutate() } }}
                   placeholder={traducir('portaladvanced.escribe_un_mensaje')} rows={1}
                   style={{

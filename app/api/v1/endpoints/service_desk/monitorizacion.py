@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import require_admin
 from app.core.responses import APIListResponse, APIResponse
-from app.db.session import get_db
+from app.db.session import exigir_organizacion_activa, get_db
 from app.models.user import User
 from app.services.service_desk import monitoring_ingest as svc
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
@@ -24,6 +24,8 @@ def recibir(
 ):
     """Sin sesion: autentica el token de la organizacion (Credenciales > «Monitoring alerts»)."""
     org_id = svc.organizacion_del_token(db, x_contecflow_event_token)
+    # Segunda auditoría 2026-11 (#10): una organización desactivada no recibe alertas.
+    exigir_organizacion_activa(db, org_id)
     cuenta = svc.procesar(db, org_id, source[:50], svc.leer(payload))
     _commit_or_rollback(db)
     return APIResponse.ok(data=cuenta)

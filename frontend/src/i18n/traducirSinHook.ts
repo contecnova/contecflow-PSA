@@ -1,4 +1,4 @@
-import { APP_TRANSLATIONS } from './appTranslations.mjs'
+import { APP_TRANSLATIONS, respaldoIngles } from './appTranslations.ts'
 import { resolveTranslation } from './translationRuntime.mjs'
 import { idiomaActivo } from '../utils/helpers'
 
@@ -34,9 +34,9 @@ export function traducirSinHook(claveCompleta: string): string {
     moduleName: modulo,
     keyPath: resto,
     runtimeTranslations: {},
-    baseTranslations: APP_TRANSLATIONS[lang as keyof typeof APP_TRANSLATIONS]
-      ?? APP_TRANSLATIONS.es,
-    englishTranslations: APP_TRANSLATIONS.en,
+    // Solo lo ya cargado: un boundary no espera descargas (#24a).
+    baseTranslations: APP_TRANSLATIONS[lang] ?? APP_TRANSLATIONS.es,
+    englishTranslations: respaldoIngles(),
     spanishTranslations: APP_TRANSLATIONS.es,
   })
 }

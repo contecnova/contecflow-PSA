@@ -126,8 +126,8 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
           <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={f.success_message} onChange={set('success_message')} style={{ ...FS, resize: 'vertical' }} rows={2}
             placeholder={t('public_forms.success_message_placeholder')} />
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
-          <input type="checkbox" checked={f.is_active} onChange={setCheck('is_active')} />
+        <label className="u-row-center-8-pointer">
+          <input type="checkbox" aria-label={t('public_forms.active_form_label')} checked={f.is_active} onChange={setCheck('is_active')} />
           <span>{t('public_forms.active_form_label')}</span>
         </label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>

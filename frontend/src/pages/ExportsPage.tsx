@@ -157,8 +157,8 @@ export default function ExportsPage(): JSX.Element {
             ))}
           </div>
           {hasRole('admin', 'hr') && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
-              <input type="checkbox" checked={imputForm.include_costs}
+            <label className="u-row-center-8-pointer">
+              <input type="checkbox" aria-label="Incluir costes (confidencial)" checked={imputForm.include_costs}
                 onChange={e => setImputForm(f => ({ ...f, include_costs: e.target.checked }))} />
               Incluir costes (confidencial)
             </label>
@@ -192,8 +192,8 @@ export default function ExportsPage(): JSX.Element {
             ))}
           </div>
           {hasRole('admin') && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
-              <input type="checkbox" checked={projForm.include_costs}
+            <label className="u-row-center-8-pointer">
+              <input type="checkbox" aria-label={t('exports.incluir_costes_y_margenes_confidencial')} checked={projForm.include_costs}
                 onChange={e => setProjForm(f => ({ ...f, include_costs: e.target.checked }))} />
               {t('exports.incluir_costes_y_margenes_confidencial')}
             </label>

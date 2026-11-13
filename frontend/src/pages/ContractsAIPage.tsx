@@ -400,6 +400,7 @@ export default function ContractsAIPage(): JSX.Element {
             <input
               type="file"
               accept=".pdf,application/pdf"
+              aria-label="PDF"
               onChange={e => setPdfFile(e.target.files?.[0] || null)}
               style={{ display: 'block', margin: '0 auto' }}
             />

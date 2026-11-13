@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -129,6 +129,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
                       background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
                       borderRadius: 8 }}>
                       <input type="number" min="0.25" max="24" step="0.25"
+                        aria-label="Horas"
                         value={editForm.hours}
                         onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
                         style={{ ...IS, width: 65 }} />
@@ -200,6 +201,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
 
 function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose: () => void }) {
   const t = useAppT()
+  const idCampo = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const [notes, setNotes] = useState('')
@@ -223,8 +225,8 @@ function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose
             </div>
           ))}
         </div>
-        <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (opcional)</label>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('timesheets.notas_de_revision')} aria-label={t('timesheets.notas_de_revision')}
+        <label id={`${idCampo}-etnotas`} htmlFor={`${idCampo}-notas`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (opcional)</label>
+        <textarea id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-etnotas`} value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('timesheets.notas_de_revision')}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div className="u-actions-10">

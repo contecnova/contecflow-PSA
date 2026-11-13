@@ -72,9 +72,11 @@ def _entrar(client, cid, estado, **claims):
 
 
 def test_EL_HALLAZGO_el_proveedor_activo_sale_en_el_login(client, admin_token, db):
-    _proveedor(client, admin_token)
-    r = client.get("/api/v1/auth/sso/providers")
+    _proveedor(client, admin_token, allowed_domains="empresa.com")
+    # Segunda auditoría 2026-11 (#11): en modo email_selector, solo con el dominio.
+    r = client.get("/api/v1/auth/sso/providers", params={"email": "ana@empresa.com"})
     assert [p["name"] for p in r.json()] == ["Mi IdP"]
+    assert client.get("/api/v1/auth/sso/providers").json() == []
 
 
 def test_SAML_no_se_ofrece_porque_no_esta_implementado(client, admin_token, db):
@@ -83,10 +85,10 @@ def test_SAML_no_se_ofrece_porque_no_esta_implementado(client, admin_token, db):
 
 
 def test_EL_HALLAZGO_el_proveedor_se_activa_con_un_PATCH_parcial(client, admin_token, db):
-    cid = _proveedor(client, admin_token, is_active=False)
+    cid = _proveedor(client, admin_token, is_active=False, allowed_domains="empresa.com")
     r = client.patch(f"/api/v1/enterprise/sso/{cid}", headers=auth(admin_token), json={"is_active": True})
     assert r.status_code == 200, r.text
-    assert len(client.get("/api/v1/auth/sso/providers").json()) == 1
+    assert len(client.get("/api/v1/auth/sso/providers", params={"domain": "empresa.com"}).json()) == 1
 
 
 def test_EL_HALLAZGO_entrar_por_SSO_crea_al_usuario_con_el_rol_de_su_grupo(client, admin_token, idp, db):

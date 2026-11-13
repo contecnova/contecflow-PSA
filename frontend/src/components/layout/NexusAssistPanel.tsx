@@ -334,7 +334,7 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
           <textarea aria-label={t('nexusassist.corregir')} value={respuesta} onChange={e => setRespuesta(e.target.value)} rows={4}
             style={{ background: 'var(--surface-1)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 8, fontSize: 'var(--text-sm)', fontFamily: 'inherit', resize: 'vertical' }} />
           <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
-            <input type="checkbox" checked={publica} onChange={e => setPublica(e.target.checked)} /> {t('nexusassist.tambien_clientes')}
+            <input type="checkbox" aria-label={t('nexusassist.tambien_clientes')} checked={publica} onChange={e => setPublica(e.target.checked)} /> {t('nexusassist.tambien_clientes')}
           </label>
           {estado === 'denegado' && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{t('nexusassist.correccion_sin_permiso')}</div>}
           {estado === 'error' && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{t('nexusassist.correccion_error')}</div>}

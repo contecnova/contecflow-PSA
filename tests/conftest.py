@@ -448,10 +448,8 @@ def _force_tfidf_embeddings():
     """
     import app.services.semantic_classifier as sc
 
-    encoder = sc.TFIDFEncoder()
-
     def _tfidf_only(model_name="all-MiniLM-L6-v2", backend_override=None):
-        return encoder, False
+        return _ENCODER_DEL_TEST[0], False
 
     original = sc._get_model
     sc._get_model_real = original  # para probar la carga de verdad
@@ -460,6 +458,30 @@ def _force_tfidf_embeddings():
         yield
     finally:
         sc._get_model = original
+
+
+#: El encoder TF-IDF del test en curso. Segunda auditoría 2026-11 (#27a): era
+#: uno por sesión, y el vocabulario que fijaba un test (`fit_global` / el
+#: primer `encode`) lo heredaba el siguiente del mismo proceso: un texto con
+#: palabras fuera de ese vocabulario daba un vector nulo y el test fallaba
+#: según el orden de xdist.
+_ENCODER_DEL_TEST: list = [None]
+
+
+@pytest.fixture(autouse=True)
+def _estado_de_modulo_limpio():
+    """Estado de módulo que sobrevivía entre tests (#27a): encoder TF-IDF,
+    caché de la política de bloqueo de login y su respaldo en memoria."""
+    import sys
+    import app.services.semantic_classifier as sc
+    _ENCODER_DEL_TEST[0] = sc.TFIDFEncoder()
+    ee = sys.modules.get("app.services.auth_service.estado_efimero")
+    if ee is not None:
+        ee._POLITICA_CACHE.clear()
+        ee._POLITICA_CACHE.update(hasta=0.0, valor=None)
+        with ee._sso_states_lock:
+            ee._login_fail_fallback.clear()
+    yield
 
 
 @pytest.fixture(scope="function")

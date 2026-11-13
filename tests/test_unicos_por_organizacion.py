@@ -42,7 +42,6 @@ GLOBALES_A_PROPOSITO = {
     ("integration_connectors", ("name",)): "catálogo global de la plataforma (NULL = global)",
     ("integration_connectors", ("slug",)): "catálogo global de la plataforma (NULL = global)",
     ("onboarding_states", ("user_id",)): _DEL_PADRE,
-    ("sem_profiles", ("user_id",)): _DEL_PADRE,
     ("user_preferences", ("user_id",)): _DEL_PADRE,
     ("collaboration_presence_states", ("user_id",)): _DEL_PADRE,
     ("collaboration_presence_states", ("client_user_id",)): _DEL_PADRE,

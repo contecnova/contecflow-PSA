@@ -86,11 +86,15 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     if req.status == GDPRRequestStatus.completed:
         raise ValueError("Solicitud ya procesada")
 
+    user = db.query(UserModel).filter(UserModel.id == req.subject_user_id).first() if req.subject_user_id else None
+    if req.request_type == GDPRRequestType.erasure and user:
+        # Segunda auditoría 2026-11: bajo bloqueo legal, 409 antes de marcarla en curso.
+        from app.services.supresion_service import exigir_sin_bloqueo_legal
+        exigir_sin_bloqueo_legal(db, user)
+
     req.status = GDPRRequestStatus.processing
     req.processed_by = current_user.id
     db.commit()
-
-    user = db.query(UserModel).filter(UserModel.id == req.subject_user_id).first() if req.subject_user_id else None
     export_data: dict = {}
 
     if req.request_type == GDPRRequestType.erasure and user:

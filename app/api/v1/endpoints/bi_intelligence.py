@@ -324,15 +324,18 @@ async def _autorizar_flujo_de_bi(websocket: WebSocket, ticket: Optional[str], to
         return await _identidad_de_la_conexion(websocket, db, ticket=ticket, token=token)
 
 
-async def _organizacion_del_usuario(user_id: str) -> Optional[str]:
-    """La organización del usuario, con una sesión que se abre y se cierra aquí."""
+async def _organizacion_del_usuario(user_id: str, org_activa: Optional[str] = None) -> Optional[str]:
+    """La organización ACTIVA del usuario (la del ticket, revalidada), con una
+    sesión que se abre y se cierra aquí."""
     from app.core.async_db import run_db
+    from app.api.v1.endpoints.ws import usuario_en_su_organizacion_activa
 
     db = SessionLocal()
     try:
         user = await run_db(_usuario_activo, db, user_id)
         if not user:
             return None
+        await run_db(usuario_en_su_organizacion_activa, db, user, org_activa)
         # Auditoría 2026-08 (hallazgo 22): esta sesión es un `SessionLocal()`
         # creado a mano, y sin esto `TenantSession` la trata como «no
         # inicializada» y **no filtra nada**. Va después de resolver al usuario:
@@ -393,9 +396,10 @@ async def _instantanea_de_bi(db, org_id: Optional[str]) -> dict:
     return await run_db(svc.instantanea_kpi, db, org_id)
 
 
-async def _emitir_por_sondeo(websocket: WebSocket, user_id: str) -> None:
+async def _emitir_por_sondeo(websocket: WebSocket, user_id: str, org_activa: Optional[str] = None) -> None:
     """Respaldo sin Redis: una instantánea cada ocho segundos."""
     from app.core.async_db import run_db
+    from app.api.v1.endpoints.ws import usuario_en_su_organizacion_activa
 
     db = SessionLocal()
     try:
@@ -404,6 +408,9 @@ async def _emitir_por_sondeo(websocket: WebSocket, user_id: str) -> None:
             if not user:
                 await websocket.send_text(json.dumps({"type": "error", "detail": "user_not_found"}))
                 return
+            # Segunda auditoría 2026-11 (#7): la empresa activa del ticket,
+            # revalidada en cada tic.
+            await run_db(usuario_en_su_organizacion_activa, db, user, org_activa)
             # Se republica en cada tic: el bucle llama a tres servicios que leen
             # datos de negocio, y la sesión es de larga vida.
             publicar_contexto_de_tenant(db, user)
@@ -430,16 +437,18 @@ async def phase2_realtime_stream(websocket: WebSocket, ticket: Optional[str] = Q
     partido por partir: cada trozo tiene un nombre que dice qué hace y ninguno
     necesita mirar a los otros.
     """
-    user_id = await _autorizar_flujo_de_bi(websocket, ticket, token)
+    from app.api.v1.endpoints.ws import separar_identidad
+
+    user_id, org_activa = separar_identidad(await _autorizar_flujo_de_bi(websocket, ticket, token))
     if not user_id:
         return
 
     await websocket.accept()
-    org_id = await _organizacion_del_usuario(user_id)
+    org_id = await _organizacion_del_usuario(user_id, org_activa)
 
     if await _emitir_desde_redis(websocket, org_id):
         return
-    await _emitir_por_sondeo(websocket, user_id)
+    await _emitir_por_sondeo(websocket, user_id, org_activa)
 
 
 # ── BI Phase 2: Scheduled delivery management ──────────────────────────────────

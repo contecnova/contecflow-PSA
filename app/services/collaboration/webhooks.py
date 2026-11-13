@@ -148,6 +148,9 @@ def deliver_incoming(db: Session, token: str, payload: dict) -> None:
     )
     if not fila or fila.direction != "incoming" or not fila.target_channel_id:
         raise ErrorDeDominio(404, "Webhook inválido")
+    # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
+    from app.db.session import exigir_organizacion_activa
+    exigir_organizacion_activa(db, fila.organization_id)
 
     cuota = consume_quota(
         db, scope="collab.webhook.incoming", tenant_id=fila.organization_id,

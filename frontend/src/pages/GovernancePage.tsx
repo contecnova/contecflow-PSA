@@ -153,7 +153,7 @@ export default function GovernancePage(): JSX.Element {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 10 }}>
                     {usage && <span className="u-text2-xs">{usage.calls || 0} calls</span>}
-                    <button onClick={() => toggle({ module: key, is_enabled: !isEnabled })}
+                    <button aria-label={t(meta.labelKey)} aria-pressed={isEnabled} onClick={() => toggle({ module: key, is_enabled: !isEnabled })}
                       style={{ width: 44, height: 24, borderRadius: 12, background: isEnabled ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${isEnabled ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
                       <div style={{ width: 18, height: 18, borderRadius: 9, background: isEnabled ? 'var(--success)' : 'var(--text-2)', position: 'absolute', top: 2, left: isEnabled ? 22 : 2, transition: 'all 0.2s' }} />
                     </button>

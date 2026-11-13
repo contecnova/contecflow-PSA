@@ -238,6 +238,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...', style 
     <div style={{ position: 'relative', ...style }}>
       <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 'var(--text-base)', pointerEvents: 'none' }}>🔍</span>
       <input value={value} onChange={(e) => onChange(e.target.value)}
+        aria-label={placeholder}
         placeholder={placeholder}
         style={{
           width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)',

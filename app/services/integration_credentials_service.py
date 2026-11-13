@@ -262,6 +262,39 @@ def get_credential(db: Session, provider: str, key: str, org_id: Optional[str] =
     return value
 
 
+def secreto_propio_de_la_organizacion(
+    db: Session, provider: str, key: str, setting_key: str, org_id: Optional[str],
+) -> Optional[str]:
+    """El secreto declarado por ESA organizacion, sin caer al global ni al entorno.
+
+    Segunda auditoria 2026-11 (#8, #9): los webhooks entrantes (Slack, Twilio)
+    verifican con el secreto de la organizacion destinataria. Primero la
+    credencial cifrada `provider.key`; si no, el ajuste de ejecucion
+    `setting_key` de esa organizacion. `None` si no tiene propio: quien llama
+    usa entonces el global. Sin cache: se lee una vez por peticion entrante y un
+    secreto rotado tiene que valer al instante.
+    """
+    if not org_id:
+        return None
+    from app.db.session import sin_filtro_de_tenant
+    from app.models.settings import AppSetting
+
+    with sin_filtro_de_tenant(db):
+        fila = db.query(IntegrationCredential).filter(
+            IntegrationCredential.provider == provider,
+            IntegrationCredential.key == key,
+            IntegrationCredential.organization_id == org_id,
+        ).first()
+        if fila is not None:
+            valor = decrypt_value(fila.value_encrypted) if fila.value_encrypted else fila.value
+            if valor:
+                return str(valor)
+        ajuste = db.query(AppSetting).filter(
+            AppSetting.key == setting_key, AppSetting.organization_id == org_id,
+        ).first()
+    return (ajuste.value or None) if ajuste is not None else None
+
+
 def get_provider_config(db: Session, provider: str, org_id: Optional[str] = None) -> dict[str, Any]:
     """Bulk-load every key of a provider as ``{key: value}``."""
     spec = PROVIDER_REGISTRY.get(provider)

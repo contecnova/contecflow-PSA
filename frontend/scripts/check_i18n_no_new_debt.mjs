@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { APP_TRANSLATIONS, getAllKeys } from '../src/i18n/appTranslations.mjs'
+import { APP_TRANSLATIONS, getAllKeys } from '../src/i18n/todosLosIdiomas.mjs'
 
 const baselinePath = path.resolve(process.cwd(), 'scripts/i18n_baseline.json')
 

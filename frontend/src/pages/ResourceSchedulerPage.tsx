@@ -767,6 +767,7 @@ export default function ResourceSchedulerPage() {
                           tabIndex={0}
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCellMouseDown(e, user.user_id, colIdx) } }}
                           title={weekData ? `${weekData.week} · ${loadPct}% ${t('dashboard.load_label').toLowerCase()} · ${weekData.available_hours}h ${t('resources.available').toLowerCase()}` : ''}
+                          aria-label={weekData ? `${weekData.week} · ${loadPct}% ${t('dashboard.load_label').toLowerCase()} · ${weekData.available_hours}h ${t('resources.available').toLowerCase()}` : undefined}
                           style={{
                             width: CELL_W, flexShrink: 0, height: '100%',
                             borderLeft: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',

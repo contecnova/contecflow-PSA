@@ -99,10 +99,12 @@ def test_un_fallo_deja_lo_que_habia_y_queda_apuntado(db, almacen, datos, monkeyp
     assert e["last_ok"]["status"] == "ok" and e["company_rows"]["fact_imputations"] == antes[0]
 
 
-def test_estado_y_recarga_por_la_api(client, db, almacen, datos, admin_token, pm_token):
+def test_estado_y_recarga_por_la_api(client, db, almacen, datos, admin_token, pm_token, superadmin_token):
     assert client.get("/api/v1/analytics/olap/status", headers=auth(pm_token)).json()["data"]["last_run"] is None
     assert client.post("/api/v1/analytics/olap/refresh", headers=auth(pm_token)).status_code == 403
-    r = client.post("/api/v1/analytics/olap/refresh", headers=auth(admin_token))
+    # Segunda auditoría 2026-11 (#11): recarga todas las empresas → solo superadmin.
+    assert client.post("/api/v1/analytics/olap/refresh", headers=auth(admin_token)).status_code == 403
+    r = client.post("/api/v1/analytics/olap/refresh", headers=auth(superadmin_token))
     assert r.status_code == 200 and r.json()["data"]["status"] == "ok"
     e = client.get("/api/v1/analytics/olap/status", headers=auth(pm_token)).json()["data"]
     assert e["last_ok"]["status"] == "ok" and e["company_rows"]["fact_tickets"] >= 1

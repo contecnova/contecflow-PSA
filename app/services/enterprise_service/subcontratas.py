@@ -570,6 +570,7 @@ def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) ->
         ).update({"is_invoiced": True, "invoice_id": inv.id}, synchronize_session=False)
     db.commit()
     audit_log(db, current_user, "CREATE", "subcontractor_invoices", inv.id, sub.name)
+    db.commit()  # segunda auditoría 2026-11: el servicio ya había confirmado y la entrada se perdía
     return {"ok": True, "id": inv.id, "total": total}
 
 

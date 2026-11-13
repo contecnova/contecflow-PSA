@@ -7,7 +7,7 @@ from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.project import ProjectMember
 from app.models.semantic_engine import SemConfig
 from app.models.semantic_engine import SemEmbeddingCache
-from app.models.semantic_engine import SemProfile
+from app.models.semantic_engine import SemProfile, perfil_semantico
 from app.models.semantic_engine import SemAssignment, SemFeedback
 from app.models.service_desk import Ticket
 from app.models.task import Task
@@ -168,10 +168,9 @@ def auto_generate_profiles(db: Session, *, organization_id=None, is_superadmin: 
         if not profile_text.strip():
             continue
 
-        profile = db.query(SemProfile).filter(SemProfile.user_id == u.id).first()
+        profile = perfil_semantico(db, u.id)
         if not profile:
-            profile = SemProfile(user_id=u.id)
-            db.add(profile)
+            profile = perfil_semantico(db, u.id, crear=True)
             created += 1
         else:
             updated += 1
@@ -235,13 +234,10 @@ def list_profiles_with_users(db: Session) -> list:
         # Non-superadmins without an organisation must see zero rows (not all rows)
         if not org_id:
             return []
-        from sqlalchemy import select as sa_select
-        user_ids_sq = (
-            sa_select(User.id)
-            .where(User.organization_id == org_id)
-            .scalar_subquery()
-        )
-        query = query.filter(SemProfile.user_id.in_(user_ids_sq))
+        # Segunda auditoría 2026-11 (#11): el perfil es por (usuario,
+        # organización); se listan los de ESTA organización (incluye a los
+        # miembros por pertenencia, que antes quedaban fuera por su ficha).
+        query = query.filter(SemProfile.organization_id == org_id)
     profiles = query.all()
     result = []
     for p in profiles:
@@ -284,10 +280,7 @@ def upsert_profile(db: Session, user_id, profile_text: str,
                 and target.organization_id != getattr(current_user, "organization_id", None)):
             raise PermissionError("Solo puedes modificar perfiles de tu organización")
 
-    profile = db.query(SemProfile).filter(SemProfile.user_id == user_id).first()
-    if not profile:
-        profile = SemProfile(user_id=user_id)
-        db.add(profile)
+    profile = perfil_semantico(db, user_id, crear=True)
     profile.profile_text = profile_text
     profile.max_load     = max_load if max_load is not None else (profile.max_load or 10)
     profile.is_available = is_available
@@ -351,8 +344,7 @@ def record_assignment(db: Session, data: dict, created_by_id) -> dict:
     )
     db.add(sa)
     if data.get("accepted_user_id"):
-        p = db.query(SemProfile).filter(
-            SemProfile.user_id == data["accepted_user_id"]).first()
+        p = perfil_semantico(db, data["accepted_user_id"])
         if p:
             if data.get("item_type") == "ticket":
                 p.open_tickets = max(0, (p.open_tickets or 0) + 1)

@@ -103,11 +103,11 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
         </div>
 
         <div>
-          <label style={labelStyle}>Clave (field_key)</label>
-          <input style={{ ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }}
+          <label id={`${idCampo}-eta106`} htmlFor={`${idCampo}-a106`} style={labelStyle}>Clave (field_key)</label>
+          <input id={`${idCampo}-a106`} aria-labelledby={`${idCampo}-eta106`} style={{ ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }}
             value={form.field_key}
             onChange={e => set('field_key')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-            placeholder="clave_del_campo" aria-label={traducir('customfields.clave_del_campo')} disabled={isEdit} />
+            placeholder="clave_del_campo" disabled={isEdit} />
           {isEdit && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3 }}>{traducir('customfields.la_clave_no_se_puede_cambiar_una')}</div>}
         </div>
 
@@ -147,12 +147,12 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
         )}
 
         <div className="u-grid2-12">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-            <input type="checkbox" checked={form.is_required} onChange={e => set('is_required')(e.target.checked)} />
+          <label className="u-row-center-8-pointer">
+            <input type="checkbox" aria-label="Campo obligatorio" checked={form.is_required} onChange={e => set('is_required')(e.target.checked)} />
             <span>Campo obligatorio</span>
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
-            <input type="checkbox" checked={form.show_in_list} onChange={e => set('show_in_list')(e.target.checked)} />
+          <label className="u-row-center-8-pointer">
+            <input type="checkbox" aria-label={traducir('customfields.visible_en_lista_de_tareas')} checked={form.show_in_list} onChange={e => set('show_in_list')(e.target.checked)} />
             <span>{traducir('customfields.visible_en_lista_de_tareas')}</span>
           </label>
         </div>
@@ -283,7 +283,7 @@ export default function CustomFieldsPage(): JSX.Element {
                         {f.show_in_list ? 'Sí' : 'No'}
                       </span>
                     </td>
-                    <td className="u-pad-10-12">
+                    <td className="u-pad-10-12" aria-label="Acciones">
                       <div className="u-row-8">
                         <button onClick={() => { setEditing(f); setShowForm(true) }}
                           style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>

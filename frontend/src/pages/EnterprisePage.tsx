@@ -57,6 +57,12 @@ interface OAuthIntegration {
   config?: string | Record<string, string> | null
 }
 interface IntegrationForm { name: string; access_token?: string; config: Record<string, string>; integration_type?: string }
+/** `GET /integrations-hub/jira/config` (segunda auditoría 2026-11, #23). */
+interface JiraHubConfig {
+  configured: boolean; id?: string; name?: string; base_url?: string; email?: string
+  project_key?: string; has_token?: boolean; is_active?: boolean; last_sync_at?: string | null
+}
+const JIRA_ID = 'jira-config'
 
 /** Detalle de error de FastAPI cuando es una lista de validación. */
 interface ValidationDetail { msg?: string }
@@ -391,26 +397,53 @@ function IntegrationsTab() {
   const [testResult, setTestResult]   = useState<{ok:boolean;message:string}|null>(null)
   const [form, setForm] = useState<IntegrationForm>({ name:'', access_token:'', config:{} })
 
-  const { data: integrations = [] } = useQuery<OAuthIntegration[]>({
+  const { data: otras = [] } = useQuery<OAuthIntegration[]>({
     queryKey: ['integrations'],
     queryFn: () => oauthIntegrationsApi.list().then(r => r.data),
   })
 
+  // Segunda auditoría 2026-11 (#23): Jira es la conexión única de la organización
+  // (`/integrations-hub/jira/config`), no una fila de `integration_configs`.
+  const { data: jira } = useQuery<JiraHubConfig>({
+    queryKey: ['jira-hub-config'],
+    queryFn: () => integrationsHubApi.jiraConfig().then(r => r.data as JiraHubConfig),
+  })
+  const integrations: OAuthIntegration[] = [
+    ...(Array.isArray(otras) ? otras : []).filter(i => i.integration_type !== 'jira'),
+    ...(jira?.configured && jira.is_active ? [{
+      id: JIRA_ID, name: jira.name, integration_type: 'jira', is_active: true,
+      last_sync_at: jira.last_sync_at ?? null,
+    }] : []),
+  ]
+  const invalidar = () => {
+    qc.invalidateQueries({ queryKey: ['integrations'] })
+    qc.invalidateQueries({ queryKey: ['jira-hub-config'] })
+  }
+
   const { mutate: create, isPending } = useMutation({
-    mutationFn: (d: Omit<IntegrationForm, 'config'> & { config: string }) => oauthIntegrationsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); setConfiguring(null); toast.success('Integración guardada') },
+    mutationFn: (d: Omit<IntegrationForm, 'config'> & { config: string }): Promise<unknown> => {
+      if (d.integration_type === 'jira') {
+        const cfg = JSON.parse(d.config || '{}') as Record<string, string>
+        return integrationsHubApi.saveJiraConfig({
+          name: d.name, base_url: cfg.base_url || '', email: cfg.email || '',
+          api_token: cfg.api_token || undefined, project_key: cfg.project_key ?? undefined,
+        })
+      }
+      return oauthIntegrationsApi.create(d)
+    },
+    onSuccess: () => { invalidar(); setConfiguring(null); toast.success('Integración guardada') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: (id: string) => oauthIntegrationsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success('Integración eliminada') },
+    mutationFn: (id: string) => id === JIRA_ID ? integrationsHubApi.deleteJiraConfig() : oauthIntegrationsApi.delete(id),
+    onSuccess: () => { invalidar(); toast.success('Integración eliminada') },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: sync } = useMutation({
-    mutationFn: (id: string) => oauthIntegrationsApi.sync(id, {}),
+    mutationFn: (id: string) => id === JIRA_ID ? integrationsHubApi.syncJira() : oauthIntegrationsApi.sync(id, {}),
     onSuccess: (r: { data?: { synced?: number; errors?: unknown[] } }) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? ` · ${r.data.errors.length} con error` : ''}`) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -427,9 +460,8 @@ function IntegrationsTab() {
         const res = await integrationsHubApi.testTeams({ webhook_url: cfg.webhook_url || '' })
         setTestResult({ ok: true, message: res.data.message })
       } else if (integ.integration_type === 'jira') {
-        const res = await integrationsHubApi.testJira({
-          base_url: cfg.base_url || '', email: cfg.email || '', api_token: cfg.api_token || ''
-        })
+        // Sin datos: el servidor prueba la conexión guardada (el token no viaja al navegador).
+        const res = await integrationsHubApi.testJira({})
         setTestResult({ ok: true, message: `Conectado: ${res.data.total} proyectos Jira disponibles` })
       } else {
         const res = await oauthIntegrationsApi.sync(integ.id, {})
@@ -505,7 +537,13 @@ function IntegrationsTab() {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
         {CATALOG.map((cat) => (
-          <button key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} }) }}
+          <button key={cat.type} onClick={() => {
+            setConfiguring(cat)
+            // Jira: se precarga la conexión guardada; el token vacío conserva el actual.
+            const previa = cat.type === 'jira' && jira?.configured
+              ? { base_url: jira.base_url || '', email: jira.email || '', project_key: jira.project_key || '' } : {}
+            setForm({ name: (cat.type === 'jira' && jira?.configured && jira.name) || cat.label, integration_type: cat.type, config: previa })
+          }}
             type="button"
             style={{ background: 'var(--surface-1)', border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}

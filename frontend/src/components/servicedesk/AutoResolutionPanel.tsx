@@ -325,6 +325,7 @@ export default function AutoResolutionPanel() {
               <div>
                 <div style={fieldLabel}>Umbral auto-resolver</div>
                 <input
+                  aria-label="Umbral auto-resolver"
                   type="range"
                   min="0"
                   max="1"
@@ -339,6 +340,7 @@ export default function AutoResolutionPanel() {
               <div>
                 <div style={fieldLabel}>Umbral sugerencia</div>
                 <input
+                  aria-label="Umbral sugerencia"
                   type="range"
                   min="0"
                   max="1"
@@ -353,6 +355,7 @@ export default function AutoResolutionPanel() {
               <div>
                 <div style={fieldLabel}>{t('autoresolution.horas_para_auto_cierre')}</div>
                 <input
+                  aria-label={t('autoresolution.horas_para_auto_cierre')}
                   type="number"
                   min="1"
                   max="720"
@@ -365,6 +368,7 @@ export default function AutoResolutionPanel() {
               <div>
                 <div style={fieldLabel}>{t('autoresolution.ventana_validacion_horas')}</div>
                 <input
+                  aria-label={t('autoresolution.ventana_validacion_horas')}
                   type="number"
                   min="1"
                   max="720"
@@ -377,6 +381,7 @@ export default function AutoResolutionPanel() {
               <div>
                 <div style={fieldLabel}>{t('autoresolution.lote_por_ejecucion_manual')}</div>
                 <input
+                  aria-label={t('autoresolution.lote_por_ejecucion_manual')}
                   type="number"
                   min="1"
                   max="500"

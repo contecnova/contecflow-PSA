@@ -287,7 +287,7 @@ function ConversationComposer({ mode, value, onChange, onSend, sending, canInter
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <label style={{ display: canInternalNotes ? 'flex' : 'none', gap: 8, alignItems: 'center', fontSize: "var(--text-sm)", color: 'var(--text-2)', cursor: 'pointer' }}>
-          <input type="checkbox" checked={isInternalNote} onChange={(event) => onToggleInternalNote(event.target.checked)} />
+          <input type="checkbox" aria-label={t('governedconversations.enviar_como_nota_interna')} checked={isInternalNote} onChange={(event) => onToggleInternalNote(event.target.checked)} />
           {t('governedconversations.enviar_como_nota_interna')}
         </label>
         <button
@@ -718,6 +718,7 @@ export function GovernedConversationInbox({
 }
 
 export function ConversationPoliciesPanel() {
+  const idCampo = useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -798,34 +799,34 @@ export function ConversationPoliciesPanel() {
                 <input aria-label="admin, manager, pm..." value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} style={inputStyle} placeholder="admin, manager, pm..." />
               </div>
               <div>
-                <label style={labelStyle}>{t('governedconversations.pool_de_asignacion')}</label>
-                <select value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))} style={inputStyle}>
+                <label id={`${idCampo}-${policy.id}-et-pool`} htmlFor={`${idCampo}-${policy.id}-pool`} style={labelStyle}>{t('governedconversations.pool_de_asignacion')}</label>
+                <select id={`${idCampo}-${policy.id}-pool`} aria-labelledby={`${idCampo}-${policy.id}-et-pool`} value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))} style={inputStyle}>
                   <option value="">{t('governedconversations.sin_pool')}</option>
                   {agentGroups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Primera respuesta SLA (h)</label>
-                <input type="number" min={0} value={draft.first_response_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], first_response_hours: Number(event.target.value) } }))} style={inputStyle} />
+                <label id={`${idCampo}-${policy.id}-et-fr`} htmlFor={`${idCampo}-${policy.id}-fr`} style={labelStyle}>Primera respuesta SLA (h)</label>
+                <input id={`${idCampo}-${policy.id}-fr`} aria-labelledby={`${idCampo}-${policy.id}-et-fr`} type="number" min={0} value={draft.first_response_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], first_response_hours: Number(event.target.value) } }))} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Escalado SLA (h)</label>
-                <input type="number" min={0} value={draft.escalation_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], escalation_hours: Number(event.target.value) } }))} style={inputStyle} />
+                <label id={`${idCampo}-${policy.id}-et-esc`} htmlFor={`${idCampo}-${policy.id}-esc`} style={labelStyle}>Escalado SLA (h)</label>
+                <input id={`${idCampo}-${policy.id}-esc`} aria-labelledby={`${idCampo}-${policy.id}-et-esc`} type="number" min={0} value={draft.escalation_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], escalation_hours: Number(event.target.value) } }))} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Rol aprobador</label>
-                <input aria-label="admin" value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} style={inputStyle} placeholder="admin" />
+                <label id={`${idCampo}-${policy.id}-et-apr`} htmlFor={`${idCampo}-${policy.id}-apr`} style={labelStyle}>Rol aprobador</label>
+                <input id={`${idCampo}-${policy.id}-apr`} aria-labelledby={`${idCampo}-${policy.id}-et-apr`} value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} style={inputStyle} placeholder="admin" />
               </div>
               <div>
-                <label style={labelStyle}>Keywords sensibles</label>
-                <input aria-label="password, token, iban" value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} style={inputStyle} placeholder="password, token, iban" />
+                <label id={`${idCampo}-${policy.id}-et-kw`} htmlFor={`${idCampo}-${policy.id}-kw`} style={labelStyle}>Keywords sensibles</label>
+                <input id={`${idCampo}-${policy.id}-kw`} aria-labelledby={`${idCampo}-${policy.id}-et-kw`} value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} style={inputStyle} placeholder="password, token, iban" />
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginTop: 14 }}>
               {POLICY_FLAGS.map(([key, label]) => (
                 <label key={key} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: "var(--text-sm)", color: 'var(--text-2)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={Boolean(draft[key])} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], [key]: event.target.checked } }))} />
+                  <input type="checkbox" aria-label={label} checked={Boolean(draft[key])} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], [key]: event.target.checked } }))} />
                   {label}
                 </label>
               ))}

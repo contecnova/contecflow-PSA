@@ -8,8 +8,8 @@
  *   t('tasks.new_task', 'es')    → fuerza español independientemente
  */
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
-import { APP_LANGUAGES, APP_TRANSLATIONS, loadLanguage } from './appTranslations'
-import { deepMergeTranslations, resolveTranslation, getByPath } from './translationRuntime.mjs'
+import { APP_LANGUAGES, APP_TRANSLATIONS, diccionarioCargado, loadLanguage, respaldoIngles } from './appTranslations.ts'
+import { resolveTranslation, getByPath } from './translationRuntime.mjs'
 
 // TODO type: translations come from .mjs runtime with deep dynamic shape; keep loose
 type TranslationModule = Record<string, unknown>
@@ -54,12 +54,13 @@ function mergeCustom(base: Translations, custom: TranslationModule | null | unde
   return merged
 }
 
-function mergeWithEnglishFallback(targetLang: string): Translations {
-  const safeLang = APP_TRANSLATIONS[targetLang] ? targetLang : 'es'
-  const target = APP_TRANSLATIONS[safeLang] || APP_TRANSLATIONS.es || {}
-  if (safeLang === 'en') return target
-  const english = APP_TRANSLATIONS.en || target
-  return deepMergeTranslations(english, target)
+/**
+ * Diccionario del idioma si ya está cargado (el castellano lo está siempre: va
+ * en el chunk inicial). En tests no se espera a ninguna descarga —dispararía
+ * avisos de act(...)— y se usa el castellano mientras tanto.
+ */
+function diccionarioInmediato(lang: string, inTest: boolean): Translations | undefined {
+  return diccionarioCargado(lang) ?? (inTest ? diccionarioCargado('es') : undefined)
 }
 
 function isTestEnvironment(): boolean {
@@ -74,7 +75,8 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
     if (stored) return stored
     // Detectar idioma navegador (primer acceso)
     const navLang = (navigator.language || 'es').slice(0,2)
-    return navLang in APP_LANGUAGES ? navLang : 'es'
+    // 2026-11: `in` sobre un array miraba los índices ("0","1"…), así que siempre caía en 'es'.
+    return APP_LANGUAGES.some(l => l.code === navLang) ? navLang : 'es'
   })
   const inTest = isTestEnvironment()
 
@@ -84,14 +86,15 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
       return stored ? JSON.parse(stored) : {}
     } catch { return {} }
   })
-  const [baseTranslations, setBaseTranslations] = useState<Translations>(() => inTest ? mergeWithEnglishFallback(lang) : {})
+  // Auditoría 2026-11 (#24a): si el idioma ya está cargado (castellano, o el
+  // que se cargó antes) se pinta sin esperar; si no, la aplicación no se monta
+  // hasta tenerlo —nunca se ven claves sin traducir—.
+  const [baseTranslations, setBaseTranslations] = useState<Translations>(() => diccionarioInmediato(lang, inTest) ?? {})
   const [translations, setTranslations] = useState<Translations>(() => {
-    if (!inTest) return {}
-    const base = mergeWithEnglishFallback(lang)
-    const custom = customTrans[lang] || {}
-    return mergeCustom(base, custom)
+    const base = diccionarioInmediato(lang, inTest)
+    return base ? mergeCustom(base, customTrans[lang] || {}) : {}
   })
-  const [loading, setLoading] = useState<boolean>(() => !inTest)
+  const [loading, setLoading] = useState<boolean>(() => !diccionarioInmediato(lang, inTest))
 
   const resolveRawByFullKey = useCallback((fullKey: string): string | undefined => {
     if (!fullKey || typeof fullKey !== 'string' || !fullKey.includes('.')) return undefined
@@ -104,7 +107,7 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
     const candidates = [
       getByPath(translations, moduleName, keyPath),
       getByPath(baseTranslations, moduleName, keyPath),
-      getByPath(APP_TRANSLATIONS.en, moduleName, keyPath),
+      getByPath(respaldoIngles(), moduleName, keyPath),
       getByPath(APP_TRANSLATIONS.es, moduleName, keyPath),
     ]
 
@@ -117,31 +120,19 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
     return undefined
   }, [translations, baseTranslations])
 
-  // Carga asíncrona del idioma activo
+  // Idioma activo: inmediato si ya está cargado; si no, se descarga su chunk.
   useEffect(() => {
-    if (inTest) return
+    const aplicar = (base: Translations) => {
+      setBaseTranslations(base)
+      setTranslations(mergeCustom(base, customTrans[lang] || {}))
+      setLoading(false)
+    }
+    const inmediato = diccionarioInmediato(lang, inTest)
+    if (inmediato) { aplicar(inmediato); return }
     let cancelled = false
     setLoading(true)
-    loadLanguage(lang).then(base => {
-      if (!cancelled) {
-        setBaseTranslations(base)
-        const custom = customTrans[lang] || {}
-        setTranslations(mergeCustom(base, custom))
-        setLoading(false)
-      }
-    })
+    loadLanguage(lang).then(base => { if (!cancelled) aplicar(base) })
     return () => { cancelled = true }
-     
-  }, [inTest, lang, customTrans])
-
-  // En tests evitamos carga async para no disparar warnings de act(...)
-  useEffect(() => {
-    if (!inTest) return
-    const base = mergeWithEnglishFallback(lang)
-    const custom = customTrans[lang] || {}
-    setBaseTranslations(base)
-    setTranslations(mergeCustom(base, custom))
-    setLoading(false)
   }, [inTest, lang, customTrans])
 
   // Revisión 2026-11: este proveedor está por fuera del de sesión, así que el
@@ -216,7 +207,7 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
       keyPath,
       runtimeTranslations: translations,
       baseTranslations,
-      englishTranslations: APP_TRANSLATIONS.en,
+      englishTranslations: respaldoIngles(),
       spanishTranslations: APP_TRANSLATIONS.es,
     })
 
@@ -230,11 +221,15 @@ export function AppLangProvider({ children }: { children?: ReactNode }) {
     return trans
   }, [translations, baseTranslations, lang, resolveRawByFullKey])
 
+  // Lo cargado hasta ahora; el inglés, entero o solo el respaldo del castellano.
+  // (El `value` del proveedor ya se crea en cada render: memorizar esto no ahorra nada.)
+  const allTranslations: Record<string, Translations> = { ...APP_TRANSLATIONS, en: respaldoIngles() }
+
   // Solo se espera a la primera carga. Antes esperaba también al cambiar de
   // idioma: desmontaba la aplicación entera (y con ella el guardado pendiente).
   if (loading && Object.keys(translations).length === 0) return null
   return (
-    <AppLangContext.Provider value={{ lang, setLang, t, translations, baseTranslations, setCustomTranslations, customTrans, loading, allTranslations: APP_TRANSLATIONS }}>
+    <AppLangContext.Provider value={{ lang, setLang, t, translations, baseTranslations, setCustomTranslations, customTrans, loading, allTranslations }}>
       {children}
     </AppLangContext.Provider>
   )

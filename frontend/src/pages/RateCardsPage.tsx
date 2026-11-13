@@ -129,8 +129,8 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
     <Modal open title={isEdit ? '✏️ Editar tarifa' : '+ Nueva tarifa'} onClose={onClose} width={500}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div className="u-col-full">
-          <label style={lbl}>Rol / Perfil *</label>
-          <input value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} style={inp} placeholder="Rol o perfil" aria-label="Rol o perfil" />
+          <label id={`${idCampo}-rol-et`} htmlFor={`${idCampo}-rol`} style={lbl}>Rol / Perfil *</label>
+          <input id={`${idCampo}-rol`} aria-labelledby={`${idCampo}-rol-et`} value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} style={inp} placeholder="Rol o perfil" aria-label="Rol o perfil" />
         </div>
         <div>
           <label style={lbl}>{traducir('ratecards.tarifa_facturacion_h')}</label>
@@ -141,8 +141,8 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
           <input type="number" value={form.cost_rate} onChange={e => setForm(f=>({...f,cost_rate:e.target.value}))} style={inp} placeholder="Coste interno" aria-label="Coste interno" />
         </div>
         <div>
-          <label style={lbl}>Escalado anual (%)</label>
-          <input type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} style={inp} placeholder="% anual" aria-label="Escalado anual" min="0" max="20" step="0.5" />
+          <label id={`${idCampo}-escalado-et`} htmlFor={`${idCampo}-escalado`} style={lbl}>Escalado anual (%)</label>
+          <input id={`${idCampo}-escalado`} aria-labelledby={`${idCampo}-escalado-et`} type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} style={inp} placeholder="% anual" aria-label="Escalado anual" min="0" max="20" step="0.5" />
         </div>
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{traducir('ratecards.valido_desde')}</label>
@@ -153,8 +153,8 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
           <DateInput id={`${idCampo}-2`} value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} style={inp} />
         </div>
         <div className="u-col-full">
-          <label style={lbl}>Notas</label>
-          <input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Notas internas" aria-label="Notas internas" />
+          <label id={`${idCampo}-notas-et`} htmlFor={`${idCampo}-notas`} style={lbl}>Notas</label>
+          <input id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-notas-et`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Notas internas" aria-label="Notas internas" />
         </div>
       </div>
 
@@ -278,8 +278,8 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
                     </td>
                     <td style={{ padding: '10px 16px' }}>
                       <div className="u-row-6">
-                        <button onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
-                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                        <button aria-label="Editar" onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
+                        <button aria-label="Eliminar" onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                       </div>
                     </td>
                   </tr>
@@ -418,8 +418,8 @@ export default function RateCardsPage() {
         <Modal open title={traducir('ratecards.nueva_tabla_de_tarifas_2')} onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={lbl}>Nombre *</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={traducir('ratecards.nombre_de_la_tabla')} aria-label={traducir('ratecards.nombre_de_la_tabla')} />
+              <label id={`${idCampo}-nombre-et`} htmlFor={`${idCampo}-nombre`} style={lbl}>Nombre *</label>
+              <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={traducir('ratecards.nombre_de_la_tabla')} aria-label={traducir('ratecards.nombre_de_la_tabla')} />
             </div>
             <div>
               <label style={lbl}>{traducir('ratecards.descripcion')}</label>
@@ -434,7 +434,7 @@ export default function RateCardsPage() {
               </select>
             </div>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-              <input type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+              <input type="checkbox" aria-label={traducir('ratecards.tabla_por_defecto_se_usa_cuando_no')} checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
               {traducir('ratecards.tabla_por_defecto_se_usa_cuando_no')}
             </label>
           </div>

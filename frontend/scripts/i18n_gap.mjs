@@ -5,7 +5,7 @@
 // falta exactamente en cada uno.
 //
 // Uso: node scripts/i18n_gap.mjs [--keys en]
-import { APP_TRANSLATIONS } from '../src/i18n/appTranslations.mjs'
+import { APP_TRANSLATIONS } from '../src/i18n/todosLosIdiomas.mjs'
 
 const BASE = 'es'
 

@@ -318,7 +318,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                             {p.project_name}
                           </span>
                         </td>
-                        <td style={{ padding: '11px 14px' }}>
+                        <td style={{ padding: '11px 14px' }} aria-label={`${p.pct_complete}%`}>
                           <div className="u-row-center-8">
                             <div style={{ width: 50, background: 'var(--surface-4)', borderRadius: 3, height: 5 }}>
                               <div style={{ width: `${p.pct_complete}%`, background: RAG[p.rag]?.color || 'var(--text-3)', height: '100%', borderRadius: 3 }} />

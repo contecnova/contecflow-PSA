@@ -1,6 +1,8 @@
 """
 Auth SSO Router — OAuth2 / OIDC single sign-on providers (Google, Azure AD, Okta, generic OIDC).
 """
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Response, Body, Request, Query
 from sqlalchemy.orm import Session
 
@@ -125,10 +127,20 @@ def _is_allowed_redirect_uri(redirect_uri: str, allowed_origins: list[str]) -> b
 
 
 @router.get("/sso/providers", summary="Proveedores SSO activos (para mostrar en login)")
-def list_sso_providers(request: Request, db: Session = Depends(get_db)):
-    """Devuelve los proveedores SSO activos para mostrar botones en el login."""
+def list_sso_providers(
+    request: Request,
+    email: Optional[str] = Query(None, max_length=320),
+    domain: Optional[str] = Query(None, max_length=255),
+    db: Session = Depends(get_db),
+):
+    """Devuelve los proveedores SSO activos para mostrar botones en el login.
+
+    Segunda auditoría 2026-11 (#11): en modo `email_selector` hace falta
+    `email` o `domain` y solo salen los proveedores de ese dominio; sin él,
+    ninguno (la lista completa enumeraba los proveedores de todas las empresas).
+    """
     try:
-        return _svc.get_active_sso_providers(db, request)
+        return _svc.get_active_sso_providers(db, request, dominio=domain or email)
     except Exception:
         logger.warning("Failed to load SSO providers", exc_info=True)
         return []

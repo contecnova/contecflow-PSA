@@ -46,24 +46,27 @@ def test_list_rollout_plans(client, admin_token, db):
     assert "items" in data
 
 
-def test_approve_plan(client, admin_token, db):
+def test_approve_plan(client, admin_token, pm_token, db):
     cr = _create_change_request(client, admin_token, db)
     res = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans", json={"name": "plan-approve"}, headers=auth(admin_token))
     plan_id = res.json()["data"]["id"]
+    # SoD (segunda auditoria 2026-11): quien crea el plan no lo aprueba
     r = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans/{plan_id}/approve", headers=auth(admin_token))
+    assert r.status_code == 403
+    r = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans/{plan_id}/approve", headers=auth(pm_token))
     assert r.status_code == 200
     assert r.json()["data"]["status"] in ("approved", "active")
 
 
-def test_advance_phase(client, admin_token, db):
+def test_advance_phase(client, admin_token, pm_token, db):
     cr = _create_change_request(client, admin_token, db)
     res = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans", json={
         "name": "plan-phases",
         "phases": [{"name": "P1", "steps": []}, {"name": "P2", "steps": []}]
     }, headers=auth(admin_token))
     plan_id = res.json()["data"]["id"]
-    # Approve first
-    client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans/{plan_id}/approve", headers=auth(admin_token))
+    # Approve first (otro usuario: SoD)
+    client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans/{plan_id}/approve", headers=auth(pm_token))
     # Advance phase
     r = client.post(f"/api/v1/sd/changes/{cr.id}/rollout-plans/{plan_id}/advance-phase", headers=auth(admin_token))
     assert r.status_code == 200

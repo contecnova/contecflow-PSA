@@ -153,19 +153,28 @@ DEFAULT_MATRIX = {
     # administrador puede cerrarlas. El antiguo rol `client` se quitó: el
     # cliente entra por el portal (`ClientUser`, exento de GRC) y sus filas no
     # gobernaban nada.
-    "subcontractor": {},
+    #
+    # Segunda auditoría 2026-11: el subcontratado nace SIN acceso a los módulos
+    # financieros y de administración (todas sus acciones en False). En
+    # `settings` y `users` sólo se le quita escribir/crear/borrar: la interfaz
+    # lee `/settings/app-translations`, los estados de tarea y
+    # `/users/me/preferences`, y edita su perfil con `PATCH /users/me`. `sd` y
+    # `absences` siguen permitidos. Sólo cambia las casillas globales que se
+    # siembran de nuevo (instalación nueva o «Resetear matriz» del
+    # superadministrador): las ya sembradas no se tocan.
+    "subcontractor": {
+        **{m: {a: False for a in ["ver", "crear", "editar", "eliminar", "aprobar", "exportar"]}
+           for m in ["budgets", "invoices", "revenue-recognition", "accounting", "user-costs", "rate-cards",
+                     "profitability", "organizations", "grc", "gdpr"]},
+        "settings": {"crear": False, "editar": False, "eliminar": False},
+        "users": {"crear": False, "eliminar": False},
+    },
 }
 
-DEFAULT_SOD_RULES = [
-    {"module_a":"invoices","action_a":"crear","module_b":"invoices","action_b":"aprobar","risk":"high","description":"Quien crea facturas no debe aprobarlas (riesgo de fraude)","roles_conflict":["pm"]},
-    {"module_a":"expenses","action_a":"crear","module_b":"expenses","action_b":"aprobar","risk":"high","description":"Quien registra gastos no debe aprobarlos","roles_conflict":[]},
-    {"module_a":"contracts","action_a":"crear","module_b":"contracts","action_b":"aprobar","risk":"high","description":"Quien crea contratos no debe aprobarlos sin supervisión","roles_conflict":["pm"]},
-    {"module_a":"resources","action_a":"editar","module_b":"timesheets","action_b":"aprobar","risk":"medium","description":"Gestión de recursos y aprobación de horas puede generar conflicto","roles_conflict":[]},
-    {"module_a":"absences","action_a":"editar","module_b":"absences","action_b":"aprobar","risk":"high","description":"Gestión de RRHH y aprobación de ausencias","roles_conflict":["hr"]},
-    {"module_a":"settings","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"Quien configura el sistema no debe aprobar solicitudes críticas sin doble validación","roles_conflict":["admin"]},
-    {"module_a":"timesheets","action_a":"crear","module_b":"timesheets","action_b":"aprobar","risk":"high","description":"El empleado no debe aprobar sus propios timesheets","roles_conflict":["pm","team_lead"]},
-    {"module_a":"grc","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"Quien modifica la matriz GRC no debe poder auto-aprobar sus propias solicitudes","roles_conflict":["admin"]},
-]
+# Segunda auditoría 2026-11: las reglas SoD por defecto viven en el servicio
+# (`grc_sod`), que las siembra al crear la empresa y, en las que ya existían,
+# la primera vez que se comprueba una autoaprobación. Se reexportan aquí.
+from app.services.grc_sod import DEFAULT_SOD_RULES  # noqa: E402
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -343,7 +352,7 @@ def update_sod_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    rule = grc_svc.get_sod_rule_or_404(db, rule_id)
+    rule = grc_svc.get_sod_rule_or_404(db, rule_id, _org(current_user))
     # Revisión GRC 2026-11b: editar o borrar una regla SoD no dejaba rastro.
     _log_grc(db, current_user.id, "sod_rule_updated", "sod_rule", rule.id,
              {k: v for k, v in payload.items() if k in ("risk", "description", "is_active", "roles_conflict",
@@ -360,7 +369,7 @@ def delete_sod_rule(
     current_user: User = Depends(require_admin),
 ):
     enforce_abac(db, current_user, "grc_sod_rule", rule_id, action="delete")
-    rule = grc_svc.get_sod_rule_or_404(db, rule_id)
+    rule = grc_svc.get_sod_rule_or_404(db, rule_id, _org(current_user))
     _log_grc(db, current_user.id, "sod_rule_deleted", "sod_rule", rule.id,
              {"module_a": rule.module_a, "action_a": rule.action_a, "module_b": rule.module_b,
               "action_b": rule.action_b}, severity="critical")
@@ -412,7 +421,7 @@ def list_violations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    rows = grc_svc.list_violations_db(db, resolved, limit)
+    rows = grc_svc.list_violations_db(db, resolved, limit, _org(current_user))
     items = [_violation_out(v) for v in rows]
     return APIListResponse.ok(items=items, total=len(items))
 
@@ -427,7 +436,7 @@ def resolve_violation(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    v = grc_svc.get_violation_or_404(db, violation_id)
+    v = grc_svc.get_violation_or_404(db, violation_id, _org(current_user))
     _log_grc(db, current_user.id, "sod_violation_resolved", "sod_violation", violation_id,
              {"note": payload.resolution_note}, severity="info")
     grc_svc.resolve_violation_db(db, v, payload.resolution_note)
@@ -444,7 +453,7 @@ def get_audit_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    rows = grc_svc.list_audit_log_db(db, severity, action_type, limit)
+    rows = grc_svc.list_audit_log_db(db, severity, action_type, limit, _org(current_user))
     items = [
         {
             "id": e.id,

@@ -573,7 +573,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                 backgroundColor: dragOver ? 'var(--surface-2)' : 'transparent', transition: 'all 0.15s',
                 minHeight: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
               }}>
-              <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
+              <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
               {file ? (
                 <>
                   <FileIcon mime={undefined} name={file.name} size={56} />
@@ -623,11 +623,11 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
               </div>
             </div>
             <div>
-              <label style={ls}>Etiquetas</label>
-              <input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} style={fs} placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
+              <label id={`${idCampo}-etiquetas-et`} htmlFor={`${idCampo}-etiquetas`} style={ls}>Etiquetas</label>
+              <input id={`${idCampo}-etiquetas`} aria-labelledby={`${idCampo}-etiquetas-et`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} style={fs} placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <input type="checkbox" checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
+              <input type="checkbox" aria-label={t('documents.requiere_aprobacion_antes_de_usar')} checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
                 style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
               <span className="u-text2-base">{t('documents.requiere_aprobacion_antes_de_usar')}</span>
             </label>
@@ -790,7 +790,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
               list="departments-list" placeholder="ej. Finance"
               style={inputStyle} />
             <datalist id="departments-list">
-              {departments.map(d => <option key={d} value={d} />)}
+              {departments.map(d => <option key={d} value={d} aria-label={d} />)}
             </datalist>
           </div>
         )}
@@ -1194,7 +1194,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                       <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 16px', textAlign: 'center', cursor: 'pointer' }}>
                         {file ? <span className="u-text1-base-600">{file.name}</span>
                           : <span className="u-text3-sm"><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />{t('documents.clic_para_seleccionar_archivo')}</span>}
-                        <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] ?? null)} />
+                        <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] ?? null)} />
                       </div>
                       <input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} aria-label={t('documents.nota_del_cambio')} />
                       <div className="u-row-8">
@@ -1357,8 +1357,8 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                     </select>
                   </div>
                   <div className="u-row-center-10">
-                    <input type="checkbox" id="meta-req-approval" checked={metaForm.requires_approval} onChange={e => setMetaForm(f => f && ({ ...f, requires_approval: e.target.checked }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-                    <label htmlFor="meta-req-approval" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{t('documents.requiere_aprobacion')}</label>
+                    <input type="checkbox" id="meta-req-approval" aria-labelledby="meta-req-approval-et" checked={metaForm.requires_approval} onChange={e => setMetaForm(f => f && ({ ...f, requires_approval: e.target.checked }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                    <label id="meta-req-approval-et" htmlFor="meta-req-approval" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{t('documents.requiere_aprobacion')}</label>
                   </div>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 6, borderTop: '1px solid var(--surface-4)' }}>
                     <button onClick={() => setIsEditingMeta(false)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
@@ -1628,7 +1628,7 @@ export default function DocumentsPage(): JSX.Element {
                     {selectedIds.size === docs.length && docs.length > 0 && <Check size={9} color="white" strokeWidth={3} />}
                   </button>
                 </th>
-                <th style={{ padding: '10px 6px', width: 40 }} />
+                <th aria-hidden="true" style={{ padding: '10px 6px', width: 40 }} />
                 {['Documento', 'Categoría', 'Aprobación', 'Tamaño', 'Fecha', 'Autor', ''].map(h => (
                   <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}

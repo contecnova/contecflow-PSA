@@ -186,6 +186,7 @@ export default function BiAnomalyPanel() {
               <label style={S.label}>{k.replace(/_/g, ' ')}</label>
               <input
                 type="number"
+                aria-label={k.replace(/_/g, ' ')}
                 value={v}
                 onChange={e => setChurnFeatures(f => ({ ...f, [k]: Number(e.target.value) }))}
                 style={S.input}

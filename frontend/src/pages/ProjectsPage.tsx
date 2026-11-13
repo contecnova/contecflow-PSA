@@ -426,8 +426,8 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${project.name}` : 'Nuevo Proyecto'} width={600}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={fs} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
+          <label htmlFor={`${idCampo}-nombre`} style={ls}>Nombre *</label>
+          <input id={`${idCampo}-nombre`} value={form.name} onChange={set('name')} style={fs} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
           {errors.name && <div className="u-field-error">{errors.name}</div>}
         </div>
         <div>
@@ -451,8 +451,10 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
           </select>
         </div>
         <div>
-          <label style={ls}>Cliente</label>
+          <label id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`} style={ls}>Cliente</label>
           <ClientSelect
+            id={`${idCampo}-cliente`}
+            aria-labelledby={`${idCampo}-etcliente`}
             value={form.client_id}
             onChange={(id, client) => setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))}
             placeholder={traducir('projects.selecciona_un_cliente')}
@@ -825,25 +827,25 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{traducir('projects.respuesta_del_pm')}</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                           <div>
-                            <label style={{ ...ls }}>Coste estimado ({fmtMoneda.simbolo})</label>
-                            <input type="number" min="0" value={respondForm.estimated_cost} onChange={e => setRespondForm(f => ({ ...f, estimated_cost: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                            <label id={`${idCampo}-${fr.id}-etresp828`} htmlFor={`${idCampo}-${fr.id}-resp828`} style={{ ...ls }}>Coste estimado ({fmtMoneda.simbolo})</label>
+                            <input id={`${idCampo}-${fr.id}-resp828`} aria-labelledby={`${idCampo}-${fr.id}-etresp828`} type="number" min="0" value={respondForm.estimated_cost} onChange={e => setRespondForm(f => ({ ...f, estimated_cost: e.target.value }))} style={{ ...fs }} placeholder="0" />
                           </div>
                           <div>
-                            <label style={{ ...ls }}>Horas estimadas</label>
-                            <input type="number" min="0" value={respondForm.estimated_hours} onChange={e => setRespondForm(f => ({ ...f, estimated_hours: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                            <label id={`${idCampo}-${fr.id}-etresp832`} htmlFor={`${idCampo}-${fr.id}-resp832`} style={{ ...ls }}>Horas estimadas</label>
+                            <input id={`${idCampo}-${fr.id}-resp832`} aria-labelledby={`${idCampo}-${fr.id}-etresp832`} type="number" min="0" value={respondForm.estimated_hours} onChange={e => setRespondForm(f => ({ ...f, estimated_hours: e.target.value }))} style={{ ...fs }} placeholder="0" />
                           </div>
                           <div>
-                            <label style={{ ...ls }}>Semanas entrega</label>
-                            <input type="number" min="0" max="104" value={respondForm.estimated_delivery_weeks} onChange={e => setRespondForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                            <label id={`${idCampo}-${fr.id}-etresp836`} htmlFor={`${idCampo}-${fr.id}-resp836`} style={{ ...ls }}>Semanas entrega</label>
+                            <input id={`${idCampo}-${fr.id}-resp836`} aria-labelledby={`${idCampo}-${fr.id}-etresp836`} type="number" min="0" max="104" value={respondForm.estimated_delivery_weeks} onChange={e => setRespondForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={{ ...fs }} placeholder="0" />
                           </div>
                         </div>
                         <div className="u-mb-10">
-                          <label style={{ ...ls }}>{traducir('projects.mensaje_al_cliente')}</label>
-                          <textarea rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} />
+                          <label id={`${idCampo}-${fr.id}-etresp841`} htmlFor={`${idCampo}-${fr.id}-resp841`} style={{ ...ls }}>{traducir('projects.mensaje_al_cliente')}</label>
+                          <textarea id={`${idCampo}-${fr.id}-resp841`} aria-labelledby={`${idCampo}-${fr.id}-etresp841`} rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} />
                         </div>
                         <div className="u-row-center-10">
-                          <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estado</label>
-                          <select value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))} style={{ ...fs, width: 'auto' }}>
+                          <label id={`${idCampo}-${fr.id}-etresp845`} htmlFor={`${idCampo}-${fr.id}-resp845`} style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estado</label>
+                          <select id={`${idCampo}-${fr.id}-resp845`} aria-labelledby={`${idCampo}-${fr.id}-etresp845`} value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))} style={{ ...fs, width: 'auto' }}>
                             <option value="estimated">Estimada</option>
                             <option value="approved">Aprobar</option>
                             <option value="rejected">Rechazar</option>
@@ -965,7 +967,7 @@ function TemplatesTab() {
             </div>
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('projects.nombre_del_proyecto_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
             <div className="u-grid2-14">
-              <div><label style={ls}>Cliente</label><ClientSelect value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
+              <div><label id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`} style={ls}>Cliente</label><ClientSelect id={`${idCampo}-cliente`} aria-labelledby={`${idCampo}-etcliente`} value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
               <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('projects.label_start_date')}</label><DateInput id={`${idCampo}-2`} value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
               <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Presupuesto ({fmtMoneda.simbolo})</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} style={fs} /></div>
               <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Project Manager</label>
@@ -988,7 +990,7 @@ function TemplatesTab() {
       {showCreate && (
         <Modal open title={traducir('projects.nueva_plantilla_2')} onClose={() => setShowCreate(false)} width={580}>
           <div className="u-stack-14">
-            <div><label style={ls}>Nombre *</label><input value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
+            <div><label htmlFor={`${idCampo}-nombre`} style={ls}>Nombre *</label><input id={`${idCampo}-nombre`} value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{traducir('projects.label_description')}</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
               <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Tipo</label>
@@ -1136,6 +1138,7 @@ export default function ProjectsPage() {
             color: 'var(--text-3)', pointerEvents: 'none',
           }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
+            aria-label={traducir('projects.buscar_proyecto_por_nombre_o_codigo')}
             placeholder={traducir('projects.buscar_proyecto_por_nombre_o_codigo')}
             className="ds-input"
             style={{ paddingLeft: 32 }} />

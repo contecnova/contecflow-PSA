@@ -12,7 +12,7 @@ Tablas:
 """
 import uuid
 import enum
-from sqlalchemy import Index, Column, String, Text, Float, Boolean, Integer, DateTime, ForeignKey, Enum
+from sqlalchemy import Index, Column, String, Text, Float, Boolean, Integer, DateTime, ForeignKey, Enum, UniqueConstraint
 from sqlalchemy.sql import func
 from app.db.base import Base
 from app.core.config import settings
@@ -32,12 +32,20 @@ class SemAssignmentType(str, enum.Enum):
 
 
 class SemProfile(Base):
-    """Perfil semántico de un agente/usuario para recibir asignaciones."""
+    """Perfil semántico de un agente/usuario para recibir asignaciones.
+
+    Segunda auditoría 2026-11 (#11): uno por (usuario, organización). Un
+    usuario con pertenencia en varias empresas tiene un perfil en cada una
+    (historial, carga y disponibilidad son de esa empresa).
+    """
     __tablename__ = "sem_profiles"
+    __table_args__ = (
+        UniqueConstraint("user_id", "organization_id", name="uq_sem_profiles_user_org"),
+    )
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     # Texto libre que describe las capacidades: job_title + skills + departamento + historial
     profile_text= Column(Text, nullable=False, default="")
     # Embedding serializado como JSON (lista de floats)
@@ -51,6 +59,23 @@ class SemProfile(Base):
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     is_active   = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
+
+
+def perfil_semantico(db, user_id, *, crear: bool = False):
+    """El perfil de `user_id` en la organización de la sesión (y lo crea si `crear`).
+
+    Segunda auditoría 2026-11 (#11): el perfil es por (usuario, organización);
+    la organización es la publicada en `db.info` (petición o `como_organizacion`).
+    """
+    org = db.info.get("organization_id") if hasattr(db, "info") else None
+    q = db.query(SemProfile).filter(SemProfile.user_id == user_id)
+    if org:
+        q = q.filter(SemProfile.organization_id == org)
+    perfil = q.first()
+    if perfil is None and crear:
+        perfil = SemProfile(user_id=user_id, organization_id=org)
+        db.add(perfil)
+    return perfil
 
 
 class SemEmbeddingCache(Base):

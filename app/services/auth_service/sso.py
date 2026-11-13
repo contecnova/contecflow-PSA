@@ -7,6 +7,7 @@ import logging
 import ipaddress
 import socket
 import uuid
+from typing import Optional
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 from app.models.mfa import Organization
@@ -96,8 +97,30 @@ def validate_https_discovery_url(discovery_url: str) -> str:
 
 # ── SSO helpers ───────────────────────────────────────────────────────────────
 
-def get_active_sso_providers(db: Session, request=None):
-    """Return list of active SSO provider dicts."""
+def _dominio_de(valor: Optional[str]) -> str:
+    """`ana@acme.com` o `acme.com` -> `acme.com` (minusculas); vacio si no hay."""
+    return (valor or "").strip().rsplit("@", 1)[-1].strip().lower().lstrip("@")
+
+
+def _ofrece_el_dominio(config, dominio: str) -> bool:
+    """Si el proveedor sirve para correos de `dominio` en la pantalla de login.
+
+    Segunda auditoria 2026-11 (#11): el de una empresa tiene que listar el
+    dominio en `allowed_domains`; uno global (sin empresa) y sin restriccion de
+    dominios no es de nadie y se ofrece igual.
+    """
+    dominios = [d.strip().lower().lstrip("@") for d in (config.allowed_domains or "").split(",") if d.strip()]
+    if not dominios:
+        return config.organization_id is None
+    return dominio in dominios
+
+
+def get_active_sso_providers(db: Session, request=None, dominio: Optional[str] = None):
+    """Return list of active SSO provider dicts.
+
+    En modo `email_selector` (con `request`) solo los del dominio de `dominio`
+    (correo o dominio); sin dominio, ninguno.
+    """
     # Auditoria 2026-11: leia `c.name`, que no existia, y la excepcion dejaba
     # el login sin botones. SAML no esta implementado: no se ofrece.
     from sqlalchemy import or_, select
@@ -116,6 +139,11 @@ def get_active_sso_providers(db: Session, request=None):
                 consulta = consulta.filter(or_(SSOConfig.organization_id.is_(None),
                                                SSOConfig.organization_id == del_host.id))
     configs = consulta.all()
+    if request is not None:
+        from app.services import entrada_service as _entrada
+        if _entrada.modo() == "email_selector":
+            dominio = _dominio_de(dominio)
+            configs = [c for c in configs if dominio and _ofrece_el_dominio(c, dominio)]
     return [
         {
             "id":       c.id,

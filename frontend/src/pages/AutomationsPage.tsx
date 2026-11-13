@@ -287,12 +287,12 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
         {/* Basic info */}
         <div className="u-grid2-14">
           <div className="u-col-full">
-            <label htmlFor={`${idPrefix}-name`} style={ls}>{t('automations.rule_name_lbl')}</label>
-            <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('automations.rule_name_lbl')} />
+            <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} style={ls}>{t('automations.rule_name_lbl')}</label>
+            <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('automations.rule_name_lbl')} />
           </div>
           <div>
-            <label htmlFor={`${idPrefix}-description`} style={ls}>{t('automations.description')}</label>
-            <input id={`${idPrefix}-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} />
+            <label id={`${idPrefix}-description-et`} htmlFor={`${idPrefix}-description`} style={ls}>{t('automations.description')}</label>
+            <input id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-et`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} />
           </div>
           <div>
             <label htmlFor={`${idPrefix}-project`} style={ls}>{t('automations.project_lbl')}</label>
@@ -326,16 +326,16 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
 
             {/* Condition */}
             <div>
-              <label htmlFor={`${idPrefix}-has-condition`} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-                <input id={`${idPrefix}-has-condition`} type="checkbox" checked={hasCondition} onChange={e => setHasCondition(e.target.checked)} />
+              <label id={`${idPrefix}-has-condition-et`} htmlFor={`${idPrefix}-has-condition`} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
+                <input id={`${idPrefix}-has-condition`} aria-labelledby={`${idPrefix}-has-condition-et`} type="checkbox" checked={hasCondition} onChange={e => setHasCondition(e.target.checked)} />
                 {t('automations.add_condition')}
               </label>
             </div>
             {isSchedule && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '10px 14px', background: 'var(--surface-3)', borderRadius: 8 }}>
                 <div>
-                  <label htmlFor={`${idPrefix}-cron`} style={ls}>{t('automations.cron_lbl')}</label>
-                  <input id={`${idPrefix}-cron`} value={cron} onChange={e => setCron(e.target.value)} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder="0 9 * * 1-5" />
+                  <label id={`${idPrefix}-cron-et`} htmlFor={`${idPrefix}-cron`} style={ls}>{t('automations.cron_lbl')}</label>
+                  <input id={`${idPrefix}-cron`} aria-labelledby={`${idPrefix}-cron-et`} value={cron} onChange={e => setCron(e.target.value)} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder="0 9 * * 1-5" />
                 </div>
                 <div>
                   <label htmlFor={`${idPrefix}-cron-preset`} style={ls}>{t('automations.cron_preset')}</label>
@@ -353,7 +353,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
                   <div role="radiogroup" aria-label={t('automations.match_lbl')} style={{ display: 'flex', gap: 14, fontSize: 'var(--text-sm)' }}>
                     {(['all', 'any'] as const).map(m => (
                       <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                        <input type="radio" name={`${idPrefix}-match`} checked={match === m} onChange={() => setMatch(m)} />
+                        <input type="radio" aria-label={t('automations.match_' + m)} name={`${idPrefix}-match`} checked={match === m} onChange={() => setMatch(m)} />
                         {t('automations.match_' + m)}
                       </label>
                     ))}
@@ -377,8 +377,8 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
                       </select>
                     </div>
                     <div>
-                      <label htmlFor={`${idPrefix}-condition-value-${i}`} style={ls}>{t('automations.value_lbl')}</label>
-                      <input id={`${idPrefix}-condition-value-${i}`} value={c.value || ''} onChange={e => cambiarCondicion(i, 'value', e.target.value)} style={fs} placeholder={t('automations.value_lbl')} />
+                      <label id={`${idPrefix}-condition-value-${i}-et`} htmlFor={`${idPrefix}-condition-value-${i}`} style={ls}>{t('automations.value_lbl')}</label>
+                      <input id={`${idPrefix}-condition-value-${i}`} aria-labelledby={`${idPrefix}-condition-value-${i}-et`} value={c.value || ''} onChange={e => cambiarCondicion(i, 'value', e.target.value)} style={fs} placeholder={t('automations.value_lbl')} />
                     </div>
                     <button type="button" aria-label={t('automations.remove_condition')} disabled={condiciones.length === 1}
                       onClick={() => setCondiciones(cs => cs.filter((_, j) => j !== i))}

@@ -423,6 +423,11 @@ def vencer_temporizadores(db: Session) -> dict:
         inst = db.query(BPMNInstance).filter(BPMNInstance.id == paso.instance_id).first()
         if inst is None or inst.status != "running":
             continue
+        # Segunda auditoría 2026-11 (#10): organización desactivada → se salta;
+        # el temporizador sigue vencido y salta si se reactiva.
+        from app.services.entrada_service import organizacion_desactivada
+        if organizacion_desactivada(db, inst.organization_id):
+            continue
         with como_organizacion(db, inst.organization_id):
             paso.status = "completed"
             paso.completed_at = _ahora()

@@ -450,6 +450,10 @@ async def dashboard_updates_ws(websocket: WebSocket, dashboard_key: str, token: 
             await websocket.close(code=4004, reason='Usuario no encontrado')
             return
 
+        # Segunda auditoría 2026-11 (#7): la empresa ACTIVA del token (claim
+        # `org`), revalidando la pertenencia; no la de ficha.
+        from app.api.v1.endpoints.ws import usuario_en_su_organizacion_activa
+        await run_db(usuario_en_su_organizacion_activa, db, user, payload.get('org'))
         org_id = getattr(user, 'organization_id', None)
         # Auditoria 2026-08 (hallazgo 22): sesion creada a mano sin contexto de
         # tenant. Ver `publicar_contexto_de_tenant`.

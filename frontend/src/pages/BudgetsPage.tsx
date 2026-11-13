@@ -114,7 +114,7 @@ export default function BudgetsPage() {
               <span style={{ textAlign: 'right' }}>{t('pres.desv_hoy')}</span><span style={{ textAlign: 'right' }}>{t('pres.prevision')}</span>
             </div>}
             {lista.data!.map(b => estrecho ? (
-              <button key={b.id} type="button" onClick={() => setAbierto(b.id)} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>
+              <button key={b.id} type="button" onClick={() => setAbierto(b.id)} aria-label={`${b.name} · ${dinero(b.total_plan)} · ${t(`pres.estado_${b.estado}`)}`} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>
                 <span style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
                   <strong style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</strong>
                   <span className="u-mono">{dinero(b.total_plan)}</span>
@@ -245,7 +245,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
           <div role="radiogroup" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 'var(--text-sm)' }}>
             {(['vacio', 'plantilla', 'copia'] as const).map(o => (
               <label key={o} style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }}>
-                <input type="radio" name="origen" checked={f.origen === o} onChange={() => setF(v => ({ ...v, origen: o }))} />{t(`pres.empezar_${o}`)}
+                <input type="radio" name="origen" checked={f.origen === o} aria-label={t(`pres.empezar_${o}`)} onChange={() => setF(v => ({ ...v, origen: o }))} />{t(`pres.empezar_${o}`)}
               </label>))}
           </div>
           {f.origen === 'plantilla' && (

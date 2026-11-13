@@ -30,6 +30,10 @@ const RAIZ = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace
 const SRC = path.join(RAIZ, 'src')
 const dry = process.argv.includes('--dry-run')
 const medir = process.argv.includes('--medir')
+// --excluir a.tsx,b.tsx: nombres de fichero que no se tocan (p. ej. los que
+// otra persona esta editando a la vez).
+const iExcl = process.argv.indexOf('--excluir')
+const EXCLUIDOS = new Set(iExcl > -1 ? process.argv[iExcl + 1].split(',') : [])
 
 // Los 40 patrones mas repetidos medidos en 2026-11 (todos con >= 25 apariciones).
 // [clase, estilo]. La regla CSS de cada uno esta en src/index.css (bloque
@@ -118,6 +122,9 @@ export const PATRONES = [
   ['u-mb-12', { marginBottom: 12 }],
   ['u-text2-2xs', { color: 'var(--text-2)', fontSize: 'var(--text-2xs)' }],
   ['u-success', { color: 'var(--success)' }],
+  // Tercera tanda (2026-11, #24d): con --medir tras la segunda solo UN patron
+  // llega a 15 apariciones; el siguiente ya baja a 14. Umbral pedido: >= 15.
+  ['u-row-center-8-pointer', { alignItems: 'center', cursor: 'pointer', display: 'flex', fontSize: 'var(--text-base)', gap: 8 }],
 ]
 
 // borderRadius numerico que coincide EXACTAMENTE con un token -> var(--radius-*).
@@ -168,6 +175,7 @@ let ficheros = 0
 let radios = 0
 const conteo = new Map()
 for (const fichero of recorrer(SRC)) {
+  if (EXCLUIDOS.has(path.basename(fichero))) continue
   const texto = fs.readFileSync(fichero, 'utf8')
   if (!texto.includes('style={{') && !texto.includes('borderRadius')) continue
   const ast = parse(texto, { sourceType: 'module', plugins: ['jsx', 'typescript'] })

@@ -186,21 +186,5 @@ def _sellar(db, org) -> None:
             obj.organization_id = org
 
 
-def aplicar_job() -> None:
-    """Trabajo diario: las políticas activas de todas las empresas."""
-    from app.db.session import SessionLocal
-    from app.models.governance import RetentionPolicy
-    db = SessionLocal()
-    try:
-        with _sin_filtro(db):
-            orgs = {o for (o,) in db.query(RetentionPolicy.organization_id).filter(
-                RetentionPolicy.is_active.is_(True)).distinct()}
-        for org in orgs:
-            try:
-                informe = aplicar(db, org)
-                logger.info("retención %s: %s", org, informe)
-            except Exception:
-                db.rollback()
-                logger.exception("retención: falló la empresa %s", org)
-    finally:
-        db.close()
+# Segunda auditoría 2026-11 (#19): `aplicar_job` (sesión propia SIN contexto de
+# tenant, sin llamadas) se borró; el worker llama a `aplicar` por organización.

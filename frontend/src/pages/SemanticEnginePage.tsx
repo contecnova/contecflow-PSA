@@ -460,9 +460,9 @@ export default function SemanticEnginePage() {
               </div>
 
               <div className="u-mb-10">
-                <label style={ls}>Modelo Hugging Face</label>
+                <label id={`${idCampo}-eta463`} htmlFor={`${idCampo}-a463`} style={ls}>Modelo Hugging Face</label>
                 <div className="u-row-8">
-                  <input aria-label="all-MiniLM-L6-v2 o sentence-transformers/all-MiniLM-L6-v2"
+                  <input id={`${idCampo}-a463`} aria-labelledby={`${idCampo}-eta463`}
                     value={hfModelDraft}
                     onChange={e => setHfModelDraft(e.target.value)}
                     placeholder="all-MiniLM-L6-v2 o sentence-transformers/all-MiniLM-L6-v2"
@@ -498,7 +498,7 @@ export default function SemanticEnginePage() {
                     <label style={{ ...ls, marginBottom: 0 }}>{f.label}</label>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{f.val}</span>
                   </div>
-                  <input type="range" min={f.key === 'load_balance_weight' ? '0.0' : '0.3'} max="0.99" step="0.01"
+                  <input type="range" aria-label={f.label} min={f.key === 'load_balance_weight' ? '0.0' : '0.3'} max="0.99" step="0.01"
                     value={f.val || 0.6}
                     onChange={e => saveConfig({ [f.key]: parseFloat(e.target.value) })}
                     style={{ width: '100%', accentColor: 'var(--accent)' }} />
@@ -514,7 +514,7 @@ export default function SemanticEnginePage() {
               ].map(f => (
                 <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' }}>
                   <span style={{ fontSize: "var(--text-base)" }}>{f.label}</span>
-                  <button onClick={() => saveConfig({ [f.key]: !f.val })} disabled={!puedeEditar}
+                  <button aria-label={f.label} aria-pressed={!!f.val} onClick={() => saveConfig({ [f.key]: !f.val })} disabled={!puedeEditar}
                     style={{ width: 44, height: 24, borderRadius: 12, background: f.val ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${f.val ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
                     <div style={{ width: 18, height: 18, borderRadius: 9, background: f.val ? 'var(--success)' : 'var(--text-2)', position: 'absolute', top: 2, left: f.val ? 22 : 2, transition: 'all 0.2s' }} />
                   </button>

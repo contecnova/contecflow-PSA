@@ -463,6 +463,8 @@ interface InputProps {
   error?: React.ReactNode
   /** Id del control; si no se pasa se genera uno. */
   id?: string
+  /** Nombre accesible cuando no hay `label` visible. */
+  'aria-label'?: string
 }
 
 /** Ids del control y de sus textos de apoyo (ayuda, error). */
@@ -477,17 +479,19 @@ function useIdsDeCampo(id: string | undefined, hint: unknown, error: unknown) {
 
 const ESTILO_ETIQUETA: React.CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }
 
-export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint, error, id }: InputProps) {
+export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint, error, id, 'aria-label': ariaLabel }: InputProps) {
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label htmlFor={base} style={ESTILO_ETIQUETA}>
+        <label htmlFor={base} id={`${base}-etiqueta`} style={ESTILO_ETIQUETA}>
           {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
         </label>
       )}
       <input
         id={base}
+        aria-labelledby={label ? `${base}-etiqueta` : undefined}
+        aria-label={label ? undefined : ariaLabel}
         type={type} value={value} onChange={onChange} placeholder={placeholder}
         required={required || undefined}
         aria-invalid={error ? true : undefined}
@@ -571,6 +575,13 @@ export function Spinner({ size = 22, color = 'var(--accent)', label = 'Cargando.
       animation: 'spin 0.65s linear infinite', flexShrink: 0,
     }} />
   )
+}
+
+/** Spinner centrado en su contenedor (celda de carga de DataTable). Como
+ *  componente propio, la regla control-has-associated-label ve su nombre
+ *  accesible (el role="status" del Spinner) sin tener que bajar niveles. */
+function SpinnerCentrado() {
+  return <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div>
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
@@ -812,7 +823,7 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
           <tbody>
             {loading ? (
               <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: 32 }}>
-                <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div>
+                <SpinnerCentrado />
               </td></tr>
             ) : pageData.length === 0 ? (
               <tr><td colSpan={columns.length}>

@@ -521,7 +521,8 @@ def create_integration(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    return APIResponse.ok(data=_svc.create_integration(payload, current_user.id, db))
+    return APIResponse.ok(data=_svc.create_integration(payload, current_user.id, db,
+                                                       organization_id=current_user.organization_id))
 
 
 @router.delete("/oauth-integrations/{integration_id}", summary="Desactivar integración")

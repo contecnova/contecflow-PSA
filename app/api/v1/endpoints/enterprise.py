@@ -131,6 +131,18 @@ def list_webhook_events(current_user: User = Depends(get_current_user)):
     return APIListResponse.ok(items=[{"value": e.value, "label": e.value.replace(".", " › ").replace("_", " ").title()} for e in WebhookEvent])
 
 
+@router.get("/webhooks/deliveries", summary="Entregas de todos los webhooks de la empresa (paginado)")
+def list_all_deliveries(
+    webhook_id: Optional[str] = None, event: Optional[str] = None, success: Optional[bool] = None,
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
+    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+):
+    # Segunda auditoria 2026-11 (#22): una consulta en vez de una por webhook.
+    r = _svc.list_all_webhook_deliveries(db, webhook_id=webhook_id, event=event, success=success,
+                                         page=page, page_size=page_size)
+    return APIListResponse.ok(items=r["items"], total=r["total"], page=page, page_size=page_size)
+
+
 @router.post("/webhooks", summary="Crear webhook")
 def create_webhook(
     payload: WebhookCreate, db: Session = Depends(get_db),

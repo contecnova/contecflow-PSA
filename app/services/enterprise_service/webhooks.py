@@ -247,5 +247,35 @@ def get_webhook_deliveries(hook_id: str, limit: int, db: Session) -> list:
     } for d in deliveries]
 
 
+def list_all_webhook_deliveries(
+    db: Session, *, webhook_id: str | None = None, event: str | None = None,
+    success: bool | None = None, page: int = 1, page_size: int = 50,
+) -> dict:
+    """Entregas de todos los webhooks de la empresa en una sola consulta (segunda auditoria 2026-11, #22).
+
+    Sustituye a la pagina que pedia `/webhooks/{id}/...` una vez por webhook (N+1).
+    El aislamiento por empresa lo pone la sesion; el join solo trae nombre y URL.
+    """
+    q = (db.query(WebhookDelivery, Webhook.name, Webhook.url)
+         .join(Webhook, Webhook.id == WebhookDelivery.webhook_id))
+    if webhook_id:
+        q = q.filter(WebhookDelivery.webhook_id == webhook_id)
+    if event:
+        q = q.filter(WebhookDelivery.event == event)
+    if success is not None:
+        q = q.filter(WebhookDelivery.success == success)
+    total = q.count()
+    filas = (q.order_by(WebhookDelivery.created_at.desc(), WebhookDelivery.id)
+              .offset((page - 1) * page_size).limit(page_size).all())
+    items = [{
+        "id": d.id, "webhook_id": d.webhook_id, "webhook_name": nombre, "webhook_url": url,
+        "event": d.event, "status_code": d.status_code, "success": bool(d.success),
+        "error": d.error, "duration_ms": d.duration_ms, "attempt": d.attempt,
+        "payload": d.payload, "response": (d.response or "")[:500] or None,
+        "created_at": str(d.created_at)[:19] if d.created_at else None,
+    } for d, nombre, url in filas]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
 def get_webhook_for_test(hook_id: str, db: Session):
     return db.query(Webhook).filter(Webhook.id == hook_id, Webhook.is_active == True).first()

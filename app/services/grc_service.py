@@ -138,11 +138,14 @@ def celdas_vivas(fastapi_app, roles) -> set:
             for a in acciones for r in roles}
 
 
-def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Optional[str] = None) -> None:
+def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Optional[str] = None,
+                      commit: bool = True) -> None:
     """Siembra las reglas SoD por defecto EN ESA EMPRESA si no tiene ninguna.
 
     Revisión 2026-11: contaba con el filtro de la sesión y sembraba sin empresa.
     Cada empresa tiene su copia, así que editar una regla no toca a las demás.
+    `commit=False` (segunda auditoría 2026-11): sólo `flush`, para sembrar
+    dentro de la transacción de quien comprueba la autoaprobación.
     """
     from app.db.session import sin_filtro_de_tenant
     with sin_filtro_de_tenant(db):
@@ -150,6 +153,7 @@ def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Opt
         q = q.filter(SodRule.organization_id == organization_id) if organization_id \
             else q.filter(SodRule.organization_id.is_(None))
         if q.count():
+            _anadir_reglas_nuevas_una_vez(db, default_sod_rules, organization_id, commit)
             return
         db.bulk_save_objects([
             SodRule(id=str(uuid.uuid4()), organization_id=organization_id,
@@ -158,7 +162,37 @@ def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Opt
                     risk=r["risk"], description=r["description"],
                     roles_conflict=json.dumps(r["roles_conflict"]))
             for r in default_sod_rules])
-        db.commit()
+        if commit:
+            db.commit()
+        else:
+            db.flush()
+
+
+#: Reglas por defecto añadidas en la segunda auditoría 2026-11. Las empresas que
+#: ya tenían reglas las reciben UNA vez (marca en app_settings), para no volver a
+#: crear una regla que un administrador haya borrado a propósito.
+_REGLAS_NUEVAS_2026_11 = {("budgets", "crear", "budgets", "aprobar"), ("sd", "crear", "sd", "aprobar")}
+_MARCA_REGLAS_2026_11 = "grc.sod.reglas_2026_11"
+
+
+def _anadir_reglas_nuevas_una_vez(db: Session, default_sod_rules: list, organization_id, commit: bool) -> None:
+    from app.models.settings import AppSetting
+    marca = db.query(AppSetting).filter(AppSetting.key == _MARCA_REGLAS_2026_11,
+                                        AppSetting.organization_id == organization_id).first()
+    if marca is not None:
+        return
+    existentes = {(r.module_a, r.action_a, r.module_b, r.action_b) for r in db.query(SodRule).filter(
+        SodRule.organization_id == organization_id if organization_id else SodRule.organization_id.is_(None))}
+    for r in default_sod_rules:
+        clave = (r["module_a"], r["action_a"], r["module_b"], r["action_b"])
+        if clave in _REGLAS_NUEVAS_2026_11 and clave not in existentes:
+            db.add(SodRule(id=str(uuid.uuid4()), organization_id=organization_id,
+                           module_a=r["module_a"], action_a=r["action_a"],
+                           module_b=r["module_b"], action_b=r["action_b"],
+                           risk=r["risk"], description=r["description"],
+                           roles_conflict=json.dumps(r["roles_conflict"])))
+    db.add(AppSetting(key=_MARCA_REGLAS_2026_11, value="1", organization_id=organization_id))
+    db.commit() if commit else db.flush()
 
 
 class _Casilla:
@@ -269,9 +303,21 @@ def create_sod_rule_db(
     return rule
 
 
-def get_sod_rule_or_404(db: Session, rule_id: str):
-    """Return SodRule by id or raise HTTP 404."""
-    rule = db.query(SodRule).filter(SodRule.id == rule_id).first()
+def _de_la_empresa(db: Session, modelo, organization_id: Optional[str]):
+    """Consulta de `modelo` acotada a la empresa nombrada explícitamente.
+
+    Segunda auditoría 2026-11: las lecturas de reglas, infracciones y auditoría
+    GRC dependían sólo del filtro de tenant de la sesión; un superadministrador
+    (filtro apagado) o un trabajo sin empresa veía las de todas. Ahora nombran
+    la empresa; sin empresa se mantiene el comportamiento anterior.
+    """
+    q = db.query(modelo)
+    return q.filter(modelo.organization_id == organization_id) if organization_id else q
+
+
+def get_sod_rule_or_404(db: Session, rule_id: str, organization_id: Optional[str] = None):
+    """Return SodRule by id (de esa empresa) or raise HTTP 404."""
+    rule = _de_la_empresa(db, SodRule, organization_id).filter(SodRule.id == rule_id).first()
     if not rule:
         raise ErrorDeDominio(status_code=404)
     return rule
@@ -303,17 +349,18 @@ def get_active_sod_rules(db: Session, organization_id: Optional[str] = None):
 
 # ── SoD Violations ────────────────────────────────────────────────────────────
 
-def list_violations_db(db: Session, resolved: Optional[bool], limit: int):
-    """Return SodViolation rows, optionally filtered by resolved status."""
-    q = db.query(SodViolation)
+def list_violations_db(db: Session, resolved: Optional[bool], limit: int,
+                       organization_id: Optional[str] = None):
+    """Return SodViolation rows (de esa empresa), optionally filtered by resolved status."""
+    q = _de_la_empresa(db, SodViolation, organization_id)
     if resolved is not None:
         q = q.filter(SodViolation.resolved == resolved)
     return q.order_by(SodViolation.detected_at.desc()).limit(limit).all()
 
 
-def get_violation_or_404(db: Session, violation_id: str):
-    """Return SodViolation by id or raise HTTP 404."""
-    v = db.query(SodViolation).filter(SodViolation.id == violation_id).first()
+def get_violation_or_404(db: Session, violation_id: str, organization_id: Optional[str] = None):
+    """Return SodViolation by id (de esa empresa) or raise HTTP 404."""
+    v = _de_la_empresa(db, SodViolation, organization_id).filter(SodViolation.id == violation_id).first()
     if not v:
         raise ErrorDeDominio(status_code=404)
     return v
@@ -334,9 +381,10 @@ def list_audit_log_db(
     severity: Optional[str],
     action_type: Optional[str],
     limit: int,
+    organization_id: Optional[str] = None,
 ):
-    """Return GrcAuditLog rows with optional filters."""
-    q = db.query(GrcAuditLog)
+    """Return GrcAuditLog rows (de esa empresa) with optional filters."""
+    q = _de_la_empresa(db, GrcAuditLog, organization_id)
     if severity:
         q = q.filter(GrcAuditLog.severity == severity)
     if action_type:

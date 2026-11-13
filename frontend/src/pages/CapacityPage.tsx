@@ -180,8 +180,8 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
           </div>
         </div>
         <div>
-          <label style={ls}>Notas</label>
-          <input value={form.notes} onChange={setField('notes')} style={fs} placeholder={t('capacity.notas_de_la_asignacion')} aria-label={t('capacity.notas_de_la_asignacion')} />
+          <label id={`${idCampo}-eta183`} htmlFor={`${idCampo}-a183`} style={ls}>Notas</label>
+          <input id={`${idCampo}-a183`} aria-labelledby={`${idCampo}-eta183`} value={form.notes} onChange={setField('notes')} style={fs} placeholder={t('capacity.notas_de_la_asignacion')} />
         </div>
       </div>
       <div className="u-actions-8">

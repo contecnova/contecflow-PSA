@@ -49,13 +49,13 @@ export default function MarcaSection() {
       <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('marca.intro')}</p>
       <label style={{ display: 'grid', gap: 4, fontSize: 'var(--text-sm)' }}>
         {t('marca.nombre')}
-        <input value={form.app_name || ''} onChange={e => setForm(f => ({ ...f, app_name: e.target.value }))} style={campo} />
+        <input aria-label={t('marca.nombre')} value={form.app_name || ''} onChange={e => setForm(f => ({ ...f, app_name: e.target.value }))} style={campo} />
       </label>
       {(['primary_color', 'accent_color', 'text_color'] as const).map(c => (
         <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 'var(--text-sm)' }}>
           <input type="color" aria-label={t(`marca.${c}`)} value={/^#[0-9a-f]{6}$/i.test(form[c] || '') ? form[c] : '#000000'}
             onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} style={{ width: 40, height: 30, border: 'none', background: 'none' }} />
-          <input value={form[c] || ''} placeholder="#RRGGBB" onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} style={{ ...campo, width: 110, fontFamily: 'var(--font-mono)' }} />
+          <input aria-label={t(`marca.${c}`)} value={form[c] || ''} placeholder="#RRGGBB" onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} style={{ ...campo, width: 110, fontFamily: 'var(--font-mono)' }} />
           {t(`marca.${c}`)}
         </label>
       ))}

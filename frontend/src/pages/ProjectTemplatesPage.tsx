@@ -441,6 +441,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
             {t('project_templates.project_name_label')}
           </div>
           <input
+            aria-label={t('project_templates.project_name_label')}
             value={projectName}
             onChange={e => setProjectName(e.target.value)}
             placeholder={t('project_templates.project_name_placeholder')}
@@ -457,6 +458,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
             {t('project_templates.client_label')}
           </div>
           <input
+            aria-label={t('project_templates.client_label')}
             value={clientName}
             onChange={e => setClientName(e.target.value)}
             placeholder={t('project_templates.client_placeholder')}

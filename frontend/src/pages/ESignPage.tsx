@@ -222,7 +222,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
                 placeholder={t('esign.signer_name_ph')} style={{ ...fs, flex: 1 }} />
               <input aria-label={t('esign.signer_email_ph')} value={s.email} onChange={e => setSigner(i, 'email', e.target.value)}
                 placeholder={t('esign.signer_email_ph')} type="email" style={{ ...fs, flex: 1 }} />
-              <input value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
+              <input aria-label={t('esign.signer_order_ph')} value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
                 type="number" min={1} style={{ ...fs, width: 56 }} title={t('esign.signer_order_ph')} />
               {signers.length > 1 && (
                 <button onClick={() => removeSigner(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)" }}>✕</button>

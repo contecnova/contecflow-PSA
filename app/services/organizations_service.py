@@ -62,6 +62,9 @@ def create_organization(payload_dict: dict, current_user: User, db: Session) -> 
     # Revision multitenant 2026-11: sin un primer admin nadie podia entrar en
     # la empresa nueva. Si se da su correo, se crea con una contrasena inicial.
     inicial = crear_primer_admin(db, org, org.admin_email, admin_name) if org.admin_email else None
+    # Segunda auditoría 2026-11: la empresa nace con sus reglas SoD por defecto.
+    from app.services.grc_sod import sembrar_reglas_por_defecto
+    sembrar_reglas_por_defecto(db, org.id, commit=False)
     db.commit(); db.refresh(org)
     audit_log(db, current_user, "ORG_CREATED", "organizations", org.id, org.name)
     db.commit()
@@ -167,6 +170,7 @@ def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
         user.organization_id = org_id
     db.commit()
     audit_log(db, user, "ORG_ASSIGN", "organizations", org.id, f"Asignado a organización {org.name}")
+    db.commit()  # segunda auditoría 2026-11: el servicio ya había confirmado y la entrada se perdía
     from app.core.events import emit_event, EventType
     emit_event(db, EventType.ORG_USER_ADDED, {"org_id": org.id, "user_id": user.id, "user_name": user.full_name},
                org_id=org.id, resource_type="organization", resource_id=org.id)
@@ -205,6 +209,7 @@ def remove_user_from_org(org_id: str, user_id: str, db: Session) -> dict:
         user.organization_id = fallback.organization_id if fallback else None
     db.commit()
     audit_log(db, user, "ORG_REMOVE", "organizations", org.id, f"Desvinculado de organización {org.name}")
+    db.commit()  # segunda auditoría 2026-11: el servicio ya había confirmado y la entrada se perdía
     from app.core.events import emit_event, EventType
     emit_event(db, EventType.ORG_USER_REMOVED, {"org_id": org.id, "user_id": user.id, "user_name": user_name},
                org_id=org.id, resource_type="organization", resource_id=org.id)

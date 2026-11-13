@@ -115,8 +115,10 @@ export const authApi = {
   finishPasskeyAuth: (payload: PasskeyFinishPayload): Promise<AxiosResponse<LoginResponse>> =>
     api.post('/auth/mfa/webauthn/authenticate/finish', payload),
 
-  listSsoProviders: (): Promise<AxiosResponse<SsoProvider[]>> =>
-    api.get('/auth/sso/providers'),
+  // Segunda auditoría 2026-11 (#11): en modo email_selector el backend solo
+  // devuelve los proveedores del dominio del correo (ninguno sin él).
+  listSsoProviders: (email?: string): Promise<AxiosResponse<SsoProvider[]>> =>
+    api.get('/auth/sso/providers', email ? { params: { email } } : undefined),
 
   authorizeSso: (providerId: string, redirectUri: string): Promise<AxiosResponse<{ authorization_url?: string }>> =>
     api.get(`/auth/sso/${providerId}/authorize`, { params: { redirect_uri: redirectUri } }),

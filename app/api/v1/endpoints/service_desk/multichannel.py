@@ -133,7 +133,9 @@ async def inbound_sms(
 
     # Auditoria 2026-11: la firma solo se miraba si venia la cabecera, asi que
     # sin ella cualquiera abria tickets. Ahora es obligatoria.
-    if not validate_twilio_signature(str(request.url), form, x_twilio_signature):
+    # Segunda auditoría 2026-11 (#9): con el token de la organización del
+    # número receptor (`To`), o el global si no tiene propio.
+    if not await run_db(validate_twilio_signature, str(request.url), form, x_twilio_signature, db):
         from fastapi import HTTPException
         raise HTTPException(403, "Firma de Twilio ausente o inválida")
 

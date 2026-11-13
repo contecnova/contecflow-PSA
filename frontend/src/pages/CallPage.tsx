@@ -485,7 +485,7 @@ function Tile({ name, hasVideo, videoRef, raised, quality }: {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       {hasVideo ? (
-        <video ref={videoRef} autoPlay muted playsInline
+        <video ref={videoRef} aria-label={name} autoPlay muted playsInline
           style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       ) : (
         <div style={{

@@ -95,3 +95,19 @@ export interface Sprint {
   end_date?: string | null
   [extra: string]: unknown
 }
+
+/** cmdb_service.list_sla_calendars (`GET /cmdb/sla-calendars`, lista desenvuelta).
+ *  Columnas con valor por defecto (09:00, 18:00, "1,2,3,4,5"): llegan siempre. */
+export interface SlaCalendar {
+  id: string
+  name: string
+  timezone: string
+  work_start: string
+  work_end: string
+  /** CSV: 1=lunes ... 7=domingo. */
+  work_days: string
+  holiday_count?: number
+}
+
+/** cmdb_service.create_sla_calendar. */
+export interface SlaCalendarCreado { id: string; name: string }

@@ -308,18 +308,18 @@ export default function BiGovernancePanel() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-sm)' }}>
                 {t('bigovernance.horas_max_olap')}
-                <input type="number" min={1} max={240} value={reglas.olap_max_staleness_hours ?? ''}
+                <input type="number" aria-label={t('bigovernance.horas_max_olap')} min={1} max={240} value={reglas.olap_max_staleness_hours ?? ''}
                   onChange={e => setReglas(r => ({ ...r, olap_max_staleness_hours: e.target.value === '' ? undefined : Number(e.target.value) }))}
                   style={inputBase} />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-sm)' }}>
                 {t('bigovernance.informes_en_error_max')}
-                <input type="number" min={0} max={100} value={reglas.max_error_reports ?? ''}
+                <input type="number" aria-label={t('bigovernance.informes_en_error_max')} min={0} max={100} value={reglas.max_error_reports ?? ''}
                   onChange={e => setReglas(r => ({ ...r, max_error_reports: e.target.value === '' ? undefined : Number(e.target.value) }))}
                   style={inputBase} />
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-sm)' }}>
-                <input type="checkbox" checked={!!reglas.require_active_schedules}
+                <input type="checkbox" aria-label={t('bigovernance.exigir_informes_activos')} checked={!!reglas.require_active_schedules}
                   onChange={e => setReglas(r => ({ ...r, require_active_schedules: e.target.checked }))} />
                 {t('bigovernance.exigir_informes_activos')}
               </label>

@@ -44,61 +44,20 @@ export const APP_LANGUAGES = [
 // soportados— pero se mantiene la indirección para no romper a sus llamadores.
 export const AVAILABLE_LANGUAGES = APP_LANGUAGES.filter(l => l.enabled !== false);
 
-// Carga dinámica de traducciones por idioma
-const langFiles = {
-	es: () => import('./langs/es.mjs'),
+// ── Carga de idiomas (auditoría 2026-11, #24a) ────────────────────────────────
+// Antes se importaban los tres diccionarios de forma estática (~1 MB de fuente)
+// y acababan los tres en el chunk inicial aunque el usuario solo usa uno. Ahora
+// solo el castellano —idioma por defecto y último respaldo— va en el chunk
+// inicial; inglés y chino se piden con import() cuando hacen falta. El registro
+// de lo ya cargado, la mezcla con el respaldo y la carga viven en
+// appTranslations.ts (solo navegador). Los scripts de Node que necesitan los
+// tres idiomas a la vez importan ./todosLosIdiomas.mjs.
+import es from './langs/es.mjs';
+
+export { es };
+
+/** Cargadores de los idiomas que no van en el chunk inicial. */
+export const CARGADORES_DE_IDIOMA = {
 	en: () => import('./langs/en.mjs'),
 	zh: () => import('./langs/zh.mjs'),
 };
-
-// ─── DEFINICIONES DE CONSTANTES DE IDIOMA ─────────────────────────────
-// Copiado automáticamente desde appTranslations.js
-import es from './langs/es.mjs';
-import en from './langs/en.mjs';
-import zh from './langs/zh.mjs';
-import { deepMergeTranslations } from './translationRuntime.mjs';
-
-export { es, en, zh };
-
-export const APP_TRANSLATIONS = { es, en, zh };
-
-/**
- * Deep merge by namespace and nested keys.
- * Keys present in base but absent in override keep their fallback value.
- */
-function mergeWithFallback(base, override) {
-	return deepMergeTranslations(base || {}, override || {});
-}
-
-/**
- * Carga automática del idioma detectado o forzado.
- * For partial languages (everything except 'en') English is used as the base
- * so missing keys always show English text rather than raw key names.
- * @param {string} lang Código de idioma (es, en, ...)
- * @returns {Promise<Object>} Objeto de traducciones
- */
-export async function loadLanguage(lang) {
-	if (!langFiles[lang]) lang = 'es';
-	try {
-		const [targetMod, enMod] = await Promise.all([
-			langFiles[lang](),
-			lang !== 'en' ? langFiles['en']() : Promise.resolve(null),
-		]);
-		const target = targetMod.default;
-		if (!enMod) return target; // 'en' needs no fallback
-		return mergeWithFallback(enMod.default, target);
-	} catch {
-		// Fallback a inglés si el fichero del idioma falla
-		const mod = await langFiles['en']();
-		return mod.default;
-	}
-}
-
-/**
- * Carga automática según el idioma del navegador, con fallback a español.
- * @returns {Promise<Object>} Objeto de traducciones
- */
-export async function loadAutoLanguage() {
-	const navLang = (globalThis.navigator?.language || 'es').slice(0,2);
-	return await loadLanguage(navLang);
-}

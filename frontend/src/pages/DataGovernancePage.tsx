@@ -411,7 +411,7 @@ export default function DataGovernancePage(): JSX.Element {
                 </select>
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-xs)', color: 'var(--text-2)', cursor: 'pointer' }}>
-                <input type="checkbox" checked={showInactiveSharedViews} onChange={e => setShowInactiveSharedViews(e.target.checked)} />
+                <input type="checkbox" aria-label="Mostrar inactivas" checked={showInactiveSharedViews} onChange={e => setShowInactiveSharedViews(e.target.checked)} />
                 Mostrar inactivas ({activeSharedViews} activas{showInactiveSharedViews ? ` · ${inactiveSharedViews} inactivas` : ''})
               </label>
               <div style={{ display: 'grid', gap: 6, maxHeight: 260, overflowY: 'auto' }}>

@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { APP_LANGUAGES, AVAILABLE_LANGUAGES, loadLanguage, getAllKeys, es } from '../../i18n/appTranslations.mjs'
+import { APP_LANGUAGES, AVAILABLE_LANGUAGES, loadLanguage, getAllKeys, es } from '../../i18n/appTranslations.ts'
 import { PORTAL_TRANSLATIONS, PORTAL_LANGUAGES, getPortalKeys } from '../../i18n/portalTranslations'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
@@ -62,9 +62,10 @@ export function IdiomasSection() {
   useEffect(() => {
     let cancelled = false
     setLoadingAppLang(true)
-    loadLanguage(appLang).then((tr: TextosPorModulo) => {
+    loadLanguage(appLang).then((tr) => {
       if (!cancelled) {
-        setAppTranslations(tr)
+        // Los diccionarios son de texto; el tipo general admite anidamiento.
+        setAppTranslations(tr as TextosPorModulo)
         setLoadingAppLang(false)
       }
     })
@@ -222,7 +223,7 @@ export function IdiomasSection() {
               <div className="u-text2-xs-mb4">IMPORTAR JSON</div>
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📥 Importar JSON
-                <input type="file" accept="application/json" style={{ display: 'none' }} onChange={importJSON} />
+                <input type="file" accept="application/json" aria-label="Importar JSON" style={{ display: 'none' }} onChange={importJSON} />
               </label>
             </div>
             <div>
@@ -254,6 +255,7 @@ export function IdiomasSection() {
                     {item.base_es}
                   </div>
                   <input
+                    aria-label={item.full_key}
                     value={currentVal}
                     onChange={e => setAppVal(appLang, item.module, item.key, e.target.value)}
                     style={{ ...fs, padding: '4px 8px', borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
@@ -306,7 +308,7 @@ export function IdiomasSection() {
               <div className="u-text2-xs-mb4">IMPORTAR JSON</div>
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📥 Importar JSON
-                <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
+                <input type="file" accept="application/json" aria-label="Importar JSON" style={{ display: 'none' }} onChange={e => {
                   const file = e.target.files?.[0]
                   if (!file) return
                   const reader = new FileReader()
@@ -362,6 +364,7 @@ export function IdiomasSection() {
                     <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{key}</span>
                     <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base_es}</span>
                     <input
+                      aria-label={key}
                       value={currentVal}
                       onChange={e => {
                         setPortalEdits(prev => ({ ...prev, [key]: { ...(prev[key] || {}), [portalLang]: e.target.value } }))
@@ -892,6 +895,7 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
           </select>
         ) : (
           <input
+            aria-label={item.label}
             type={item.type === 'int' || item.type === 'float' ? 'number' : 'text'}
             step={item.type === 'float' ? 'any' : (item.type === 'int' ? '1' : undefined)}
             value={current}
@@ -1019,6 +1023,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
               </div>
               <div>
                 <input
+                  aria-label={it.label}
                   type={it.is_secret ? 'password' : (it.type === 'int' ? 'number' : 'text')}
                   step={it.type === 'int' ? '1' : undefined}
                   value={current}

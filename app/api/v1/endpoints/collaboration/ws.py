@@ -25,7 +25,11 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal, publicar_contexto_de_tenant
 from app.services.ws_service import get_active_user_by_id
-from app.api.v1.endpoints.ws import _consume_ws_ticket
+from app.api.v1.endpoints.ws import (
+    _consume_ws_ticket,
+    separar_identidad,
+    usuario_en_su_organizacion_activa,
+)
 from app.services.collaboration._bus import (
     bus, conv_channel, org_channel, user_channel, workspace_channel,
 )
@@ -129,7 +133,7 @@ async def _msg_typing(ses: "_ConexionColab", payload: dict) -> None:
 async def _msg_presence(ses: "_ConexionColab", payload: dict) -> None:
     """Cambio de disponibilidad, difundido a toda la organización."""
     status = payload.get("status", "online")
-    await bus.publish(org_channel(ses.user.organization_id), {
+    await bus.publish(org_channel(ses.org), {
         "type": "presence.updated",
         "payload": {"user_id": ses.user.id, "status": status},
     })
@@ -206,13 +210,17 @@ class _ConexionColab:
     Reúne lo que las seis corrutinas del endpoint compartían por cierre.
     """
 
-    __slots__ = ("websocket", "db", "user", "ws_obj", "sub", "channels", "cerrojo")
+    __slots__ = ("websocket", "db", "user", "ws_obj", "sub", "channels", "cerrojo", "org")
 
-    def __init__(self, websocket, db, user, ws_obj):
+    def __init__(self, websocket, db, user, ws_obj, org=None):
         self.websocket = websocket
         self.db = db
         self.user = user
         self.ws_obj = ws_obj
+        # Segunda auditoría 2026-11 (#7): la empresa activa resuelta al abrir.
+        # Se guarda aparte porque un `commit` expira `user` y al recargarlo
+        # `organization_id` vuelve a ser la de ficha.
+        self.org = org or getattr(user, "organization_id", None)
         self.sub = None
         self.channels: list[str] = []
         self.cerrojo = asyncio.Lock()
@@ -239,9 +247,11 @@ class _ConexionColab:
         Se recalcula en cada `resync` porque la lista de conversaciones cambia
         mientras la conexión está abierta.
         """
+        if self.db is not None:
+            usuario_en_su_organizacion_activa(self.db, self.user, self.org)
         conv_list = list_conversations_for_user(self.db, self.user)
         return [
-            org_channel(self.user.organization_id),
+            org_channel(self.org),
             workspace_channel(self.ws_obj.id),
             user_channel(self.user.id),
         ] + [conv_channel(c["id"]) for c in conv_list]
@@ -294,6 +304,12 @@ class _ConexionColab:
         esté inactivo.
         """
         revalidado = await self.en_bd(get_active_user_by_id, self.db, self.user.id)
+        if revalidado is not None and revalidado.is_active and self.org:
+            # Segunda auditoría 2026-11 (#7): la pertenencia a la empresa activa
+            # también se revalida; si se la han retirado, se corta.
+            await self.en_bd(usuario_en_su_organizacion_activa, self.db, revalidado, self.org)
+            if getattr(revalidado, "organization_id", None) != self.org:
+                revalidado = None
         if not revalidado or not revalidado.is_active:
             log.warning("collab ws closing user=%s: access revoked", self.user.id)
             try:
@@ -379,7 +395,7 @@ async def _abrir_conexion(websocket: WebSocket, ticket: Optional[str], db: Sessi
     if not ticket:
         await websocket.close(code=4401)
         return None
-    user_id = await _consume_ws_ticket(ticket)
+    user_id, org_activa = separar_identidad(await _consume_ws_ticket(ticket))
     if not user_id:
         await websocket.close(code=4401)
         return None
@@ -388,6 +404,8 @@ async def _abrir_conexion(websocket: WebSocket, ticket: Optional[str], db: Sessi
     if not user:
         await websocket.close(code=4403)
         return None
+    # Segunda auditoría 2026-11 (#7): la empresa ACTIVA del ticket, no la de ficha.
+    await run_db(usuario_en_su_organizacion_activa, db, user, org_activa)
 
     # Sin organización —por ejemplo un superadmin de plataforma— no hay ámbito de
     # chat. Se cierra con 4403 tras aceptar, en lugar de propagar una
@@ -412,6 +430,7 @@ async def _abrir_conexion(websocket: WebSocket, ticket: Optional[str], db: Sessi
     # busca por id sin saber todavía de qué organización es, así que tiene que
     # correr sin filtrar. A partir de aquí ya se conoce, y se acota.
     publicar_contexto_de_tenant(db, user)
+    org_resuelta = user.organization_id
 
     try:
         ws_obj = await run_db(get_or_create_workspace, db, user)
@@ -422,7 +441,7 @@ async def _abrir_conexion(websocket: WebSocket, ticket: Optional[str], db: Sessi
         return None
 
     await websocket.accept()
-    conexion = _ConexionColab(websocket, db, user, ws_obj)
+    conexion = _ConexionColab(websocket, db, user, ws_obj, org=org_resuelta)
     await conexion.suscribir()
     return conexion
 

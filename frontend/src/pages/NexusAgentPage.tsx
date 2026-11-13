@@ -323,6 +323,7 @@ export default function ContecflowAgentPage() {
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{traducir('nexusagent.instruccion')}</div>
             <textarea
               ref={textareaRef}
+              aria-label={traducir('nexusagent.instruccion')}
               value={instruction}
               onChange={e => setInstruction(e.target.value)}
               onKeyDown={handleKey}
@@ -334,14 +335,14 @@ export default function ContecflowAgentPage() {
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <span className="u-text3-xs">{traducir('nexusagent.enter_para_ejecutar')}</span>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  <button type="button" onClick={() => setStreaming(s => !s)}
+                  <button type="button" aria-label={traducir('nexusagent.streaming')} aria-pressed={streaming} onClick={() => setStreaming(s => !s)}
                     style={{ width: 28, height: 16, minHeight: 16, flexShrink: 0, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', border: 'none', padding: 0 }}>
                     <div style={{ position: 'absolute', top: 2, left: streaming ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
                   </button>
                   {traducir('nexusagent.streaming')}
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  <input type="checkbox" checked={permitirEscritura} onChange={e => setPermitirEscritura(e.target.checked)} />
+                  <input type="checkbox" aria-label={traducir('nexusagent.permitir_escritura')} checked={permitirEscritura} onChange={e => setPermitirEscritura(e.target.checked)} />
                   {traducir('nexusagent.permitir_escritura')}
                 </label>
               </div>

@@ -49,6 +49,28 @@ def _aviso():
     return Notification
 
 
+# Segunda auditoría 2026-11: registros técnicos con datos personales que
+# también tienen que poder retenerse (y bloquearse).
+def _llamada_conector():
+    from app.models.conectores import ConectorLlamada
+    return ConectorLlamada
+
+
+def _entrega_webhook():
+    from app.models.enterprise import WebhookDelivery
+    return WebhookDelivery
+
+
+def _correo():
+    from app.models.cab import EmailLog
+    return EmailLog
+
+
+def _actividad():
+    from app.models.activity import ActivityEvent
+    return ActivityEvent
+
+
 TIPOS: dict[str, Tipo] = {
     # Sólo tickets cerrados, contando desde el cierre.
     "tickets": Tipo(_ticket, lambda M: M.closed_at, lambda M: M.closed_at.isnot(None),
@@ -59,6 +81,14 @@ TIPOS: dict[str, Tipo] = {
     "ai_conversations": Tipo(_conversacion, lambda M: func.coalesce(M.updated_at, M.created_at), None, ("id", "user_id")),
     "ai_usage_logs": Tipo(_uso_ia, lambda M: M.created_at, None, ("id", "user_id")),
     "notifications": Tipo(_aviso, lambda M: M.created_at, None, ("id", "user_id")),
+    # Segunda auditoría 2026-11.
+    "connector_calls": Tipo(_llamada_conector, lambda M: M.created_at, None, ("id", "user_id", "producto")),
+    "webhook_deliveries": Tipo(_entrega_webhook, lambda M: M.created_at, None, ("id", "webhook_id", "event")),
+    # Desde el envío; si no llegó a enviarse, desde que se encoló.
+    "email_logs": Tipo(_correo, lambda M: func.coalesce(M.sent_at, M.created_at), None,
+                       ("id", "to_address", "source", "source_id")),
+    "activity_events": Tipo(_actividad, lambda M: M.created_at, None,
+                            ("id", "actor_id", "entity_type", "entity_id", "target_id")),
 }
 
 

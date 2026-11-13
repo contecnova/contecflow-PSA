@@ -318,6 +318,7 @@ export default function ChangeRolloutPanel() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1 / -1' }}>
               <span className="u-text2-xs">Fases:</span>
               <input
+                aria-label="Fases"
                 type="number" min={1} max={10}
                 value={form.phases}
                 onChange={e => setForm(f => ({ ...f, phases: Number(e.target.value) }))}

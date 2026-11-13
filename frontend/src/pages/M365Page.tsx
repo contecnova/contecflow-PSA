@@ -200,7 +200,7 @@ function TeamsTab() {
           <div>
             <label style={ls}>{t('m365.color_hex_sin')}</label>
             <div className="u-row-center-8">
-              <input value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
+              <input aria-label={t('m365.color_hex_sin')} value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
               {TEAMS_BRAND_PRESETS.map(c => (
                 <button aria-label={`Color de marca Teams #${c}`} key={c} onClick={() => setColor(c)} title={`Color de marca Teams #${c}`}
                   style={{ width: 22, height: 22, background: `#${c}`, border: color === c ? '2px solid var(--text-1)' : '2px solid transparent', borderRadius: 4, cursor: 'pointer' }} />

@@ -157,7 +157,7 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: m.is_completed ? 'var(--success-bg)' : 'var(--surface-2)', border: `1px solid ${m.is_completed ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
-      <input type="checkbox" checked={m.is_completed} onChange={e => update({ is_completed: e.target.checked, completed_date: e.target.checked ? new Date().toISOString().split('T')[0] : null })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+      <input type="checkbox" aria-label={m.name} checked={m.is_completed} onChange={e => update({ is_completed: e.target.checked, completed_date: e.target.checked ? new Date().toISOString().split('T')[0] : null })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
       <div className="u-flex1">
         <div style={{ fontSize: "var(--text-base)", fontWeight: 600, textDecoration: m.is_completed ? 'line-through' : 'none', color: m.is_completed ? 'var(--text-2)' : 'var(--text-1)' }}>{m.name}</div>
         {m.due_date && <div style={{ fontSize: "var(--text-xs)", color: new Date(m.due_date) < new Date() && !m.is_completed ? 'var(--danger)' : 'var(--text-2)' }}>📅 {fmtDate(m.due_date)}</div>}
@@ -353,10 +353,10 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
         {showAddMilestone && (
           <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div><label style={ls}>Nombre</label><input value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('profitability.nombre_del_hito')} aria-label={t('profitability.nombre_del_hito')} /></div>
+              <div><label id={`${idCampo}-eta356`} htmlFor={`${idCampo}-a356`} style={ls}>Nombre</label><input id={`${idCampo}-a356`} aria-labelledby={`${idCampo}-eta356`} value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('profitability.nombre_del_hito')} /></div>
               <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Fecha</label><DateInput id={`${idCampo}-1`} value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
               <div><label style={ls}>Importe ({fmtMoneda.simbolo})</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder={t('profitability.importe_del_hito')} aria-label={t('profitability.importe_del_hito')} /></div>
-              <div><label style={ls}>% Contrato</label><input type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('profitability.porcentaje_del_contrato')} aria-label={t('profitability.porcentaje_del_contrato')} /></div>
+              <div><label id={`${idCampo}-eta359`} htmlFor={`${idCampo}-a359`} style={ls}>% Contrato</label><input id={`${idCampo}-a359`} aria-labelledby={`${idCampo}-eta359`} type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('profitability.porcentaje_del_contrato')} /></div>
             </div>
             <div className="u-row-8">
               <Button size="sm" onClick={() => addMilestone(msForm)} disabled={!msForm.name}>{t('profitability.anadir')}</Button>

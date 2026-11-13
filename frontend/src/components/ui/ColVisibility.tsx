@@ -110,6 +110,7 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
                   <input
                     type="checkbox"
                     checked={isChecked}
+                    aria-label={col.label}
                     disabled={isFirst}
                     onChange={() => toggle(col.id)}
                     style={{ accentColor: 'var(--accent)', cursor: isFirst ? 'not-allowed' : 'pointer' }}

@@ -686,6 +686,9 @@ def process_agent_checkin(
     reg = resolve_agent_by_token(db, raw_token)
     if not reg:
         raise ErrorDeDominio(status_code=401, detail="Invalid or revoked agent token")
+    # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
+    from app.db.session import exigir_organizacion_activa
+    exigir_organizacion_activa(db, reg.organization_id)
 
     ci_dict = normalize_agent_payload(payload, reg.id)
 

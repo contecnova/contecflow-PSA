@@ -451,8 +451,13 @@ def tick_waiting(db: Session) -> int:
         .all()
     )
     n = 0
+    from app.services.entrada_service import organizacion_desactivada
     from app.services.service_desk.ticket_events import como_organizacion
     for r in rows:
+        # Segunda auditoría 2026-11 (#10): organización desactivada → se salta;
+        # el run sigue esperando y se despierta si se reactiva.
+        if organizacion_desactivada(db, r.organization_id):
+            continue
         try:
             # Revision multitenant 2026-11b: cada run sigue en SU empresa. Sin
             # esto los pasos nuevos quedaban con organizacion NULL (invisibles

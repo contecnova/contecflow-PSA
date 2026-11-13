@@ -90,7 +90,7 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: CatalogS
             ))}
           </tr>
           <tr>
-            <th style={{ position: 'sticky', left: 0, background: 'var(--surface-0)', zIndex: 2 }}></th>
+            <th aria-hidden="true" style={{ position: 'sticky', left: 0, background: 'var(--surface-0)', zIndex: 2 }}></th>
             {cats.map(cat => (
               skills.filter(s => s.category === cat).map(s => (
                 <th key={s.id + '-cat'} style={{ padding: '2px 4px', textAlign: 'center' }}>
@@ -263,7 +263,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
-            <input type="checkbox" checked={form.certified} onChange={e => setForm(f => ({ ...f, certified: e.target.checked }))} />
+            <input type="checkbox" aria-label={t('skills.tiene_certificacion')} checked={form.certified} onChange={e => setForm(f => ({ ...f, certified: e.target.checked }))} />
             {t('skills.tiene_certificacion')}
           </label>
           {form.certified && (

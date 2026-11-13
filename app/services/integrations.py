@@ -583,6 +583,10 @@ def _uno_solo(candidatos):
     return candidatos[0] if len(candidatos) == 1 else None
 
 
+class VinculoAmbiguo(Exception):
+    """El workspace de Slack / tenant de Teams esta vinculado a varias organizaciones."""
+
+
 def _organizacion_vinculada(db, clave: str, valor: Optional[str], canal: str) -> Optional[str]:
     """La organizacion que declara `clave = valor` (workspace de Slack o tenant de Teams).
 
@@ -591,20 +595,46 @@ def _organizacion_vinculada(db, clave: str, valor: Optional[str], canal: str) ->
     se busca dentro de la organizacion duena del workspace/tenant. Sin vinculo
     se mantiene la busqueda global (decision: no cortar los bots ya en uso) y
     se avisa en el log para que se configure.
+
+    Segunda auditoria 2026-11 (#8): vinculado a MAS de una organizacion ya no
+    cae a la busqueda global — lanza `VinculoAmbiguo` y la peticion se rechaza.
     """
+    from app.db.session import sin_filtro_de_tenant
     from app.models.settings import AppSetting
 
     if valor:
-        orgs = {o for (o,) in db.query(AppSetting.organization_id).filter(
-            AppSetting.key == clave, AppSetting.value == valor,
-            AppSetting.organization_id.isnot(None)).all()}
+        with sin_filtro_de_tenant(db):
+            orgs = {o for (o,) in db.query(AppSetting.organization_id).filter(
+                AppSetting.key == clave, AppSetting.value == valor,
+                AppSetting.organization_id.isnot(None)).all()}
         if len(orgs) == 1:
             return orgs.pop()
         if len(orgs) > 1:
-            logger.error("%s: %s=%s esta vinculado a varias organizaciones; se ignora", canal, clave, valor)
+            logger.error("%s: %s=%s esta vinculado a varias organizaciones; se rechaza", canal, clave, valor)
+            raise VinculoAmbiguo(f"{clave}={valor}")
     logger.warning("%s: %s=%r sin organizacion vinculada; el usuario se busca en todas. "
                    "Configura %s en la organizacion.", canal, clave, valor, clave)
     return None
+
+
+def organizacion_del_workspace_de_slack(db, team_id: Optional[str]) -> Optional[str]:
+    """La organizacion vinculada al workspace (`SLACK_TEAM_ID`); lanza `VinculoAmbiguo`."""
+    return _organizacion_vinculada(db, "SLACK_TEAM_ID", team_id, "Slack")
+
+
+def secreto_de_firma_de_slack(db, org_id: Optional[str]) -> Optional[str]:
+    """El signing secret con el que se verifica una peticion de Slack.
+
+    Segunda auditoria 2026-11 (#8): el de la organizacion duena del workspace
+    (credencial cifrada `slack.signing_secret` o ajuste `SLACK_SIGNING_SECRET`
+    de esa organizacion) y, si no tiene, el global.
+    """
+    from app.core.config import settings as _settings
+    from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
+
+    propio = secreto_propio_de_la_organizacion(
+        db, "slack", "signing_secret", "SLACK_SIGNING_SECRET", org_id) if org_id else None
+    return propio or _settings.SLACK_SIGNING_SECRET
 
 
 def find_user_by_slack_name(db, user_name: str, team_id: Optional[str] = None):
@@ -617,7 +647,10 @@ def find_user_by_slack_name(db, user_name: str, team_id: Optional[str] = None):
         User.is_active == True,  # noqa: E712
         (func.lower(User.username) == nombre) | (func.lower(User.email).like(f"{nombre}@%")),
     )
-    org = _organizacion_vinculada(db, "SLACK_TEAM_ID", team_id, "Slack")
+    try:
+        org = _organizacion_vinculada(db, "SLACK_TEAM_ID", team_id, "Slack")
+    except VinculoAmbiguo:
+        return None
     if org:
         consulta = consulta.filter(User.organization_id == org)
     return _uno_solo(consulta.limit(2).all())
@@ -633,7 +666,10 @@ def find_user_by_teams_name(db, teams_name: str, tenant_id: Optional[str] = None
         User.is_active == True,  # noqa: E712
         func.lower(User.full_name) == nombre,
     )
-    org = _organizacion_vinculada(db, "TEAMS_TENANT_ID", tenant_id, "Teams")
+    try:
+        org = _organizacion_vinculada(db, "TEAMS_TENANT_ID", tenant_id, "Teams")
+    except VinculoAmbiguo:
+        return None
     if org:
         consulta = consulta.filter(User.organization_id == org)
     return _uno_solo(consulta.limit(2).all())

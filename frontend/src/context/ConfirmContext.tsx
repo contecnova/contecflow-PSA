@@ -222,13 +222,14 @@ function DialogoConfirmacion({ peticion, onResultado }: {
         {necesitaCampo && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 24 }}>
             {etiquetaCampo && (
-              <label htmlFor={idCampo} style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)' }}>
+              <label htmlFor={idCampo} id={`${idCampo}-etiqueta`} style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)' }}>
                 {etiquetaCampo}
               </label>
             )}
             {peticion.tipo === 'prompt' && peticion.opts.multiline ? (
               <textarea
                 id={idCampo}
+                aria-labelledby={etiquetaCampo ? `${idCampo}-etiqueta` : undefined}
                 autoFocus
                 rows={3}
                 value={texto}
@@ -241,6 +242,7 @@ function DialogoConfirmacion({ peticion, onResultado }: {
             ) : (
               <input
                 id={idCampo}
+                aria-labelledby={etiquetaCampo ? `${idCampo}-etiqueta` : undefined}
                 autoFocus
                 type={peticion.tipo === 'prompt' ? (peticion.opts.inputType ?? 'text') : 'text'}
                 value={texto}

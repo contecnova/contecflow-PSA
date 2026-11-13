@@ -124,10 +124,10 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
         <div><label style={ls}>{t('epics.color_label')}</label>
           <div className="u-wrap-8">
             {COLORS.map(c=>(
-              <button key={c} onClick={()=>set('color')(c)}
+              <button key={c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
                 style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}}/>
             ))}
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR.purple} onChange={e=>set('color')(e.target.value)}
+            <input type="color" aria-label={t('epics.color_label')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR.purple} onChange={e=>set('color')(e.target.value)}
               style={{width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',padding:0}}/>
           </div>
         </div>

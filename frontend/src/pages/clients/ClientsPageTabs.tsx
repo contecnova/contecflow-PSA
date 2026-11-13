@@ -354,8 +354,8 @@ export function ContactsTab({ cid }: { cid: string }) {
               </select>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-base)" }}>
-                <input type="checkbox" checked={form.is_primary} onChange={e => setForm(f => ({ ...f, is_primary: e.target.checked }))} />
+              <label className="u-row-center-8-pointer">
+                <input type="checkbox" aria-label="Contacto principal" checked={form.is_primary} onChange={e => setForm(f => ({ ...f, is_primary: e.target.checked }))} />
                 Contacto principal
               </label>
             </div>
@@ -432,8 +432,8 @@ export function LicensesTab({ cid }: { cid: string }) {
             </select>
           </div>
           <div className="u-mb-16">
-            <label style={lbl}>Notas (opcional)</label>
-            <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} />
+            <label id={`${idCampo}-notas-et`} htmlFor={`${idCampo}-notas`} style={lbl}>Notas (opcional)</label>
+            <input id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-notas-et`} value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} />
           </div>
           <div className="u-actions-8">
             <button onClick={() => setShowLink(false)} className="u-btn-outline-sm">Cancelar</button>
@@ -791,9 +791,9 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
           <div className="u-stack-14">
             <div><label style={ls}>{traducir('clients.respuesta_analisis')}</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('clients.respuesta_del_equipo_2')} aria-label={traducir('clients.respuesta_del_equipo_2')} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div><label style={ls}>Horas estimadas</label><input type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" /></div>
-              <div><label style={ls}>Coste estimado ({fmtMoneda.simbolo})</label><input type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Coste" aria-label="Coste estimado" /></div>
-              <div><label style={ls}>Semanas entrega</label><input type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label={traducir('clients.semanas_de_entrega')} /></div>
+              <div><label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} style={ls}>Horas estimadas</label><input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" /></div>
+              <div><label id={`${idCampo}-coste-et`} htmlFor={`${idCampo}-coste`} style={ls}>Coste estimado ({fmtMoneda.simbolo})</label><input id={`${idCampo}-coste`} aria-labelledby={`${idCampo}-coste-et`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Coste" aria-label="Coste estimado" /></div>
+              <div><label id={`${idCampo}-semanas-et`} htmlFor={`${idCampo}-semanas`} style={ls}>Semanas entrega</label><input id={`${idCampo}-semanas`} aria-labelledby={`${idCampo}-semanas-et`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label={traducir('clients.semanas_de_entrega')} /></div>
             </div>
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Estado</label>
               <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} style={fs}>
@@ -954,7 +954,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 12 }}>{traducir('clients.que_secciones_puede_ver_el_cliente_en')}</div>
           {MODULES.map(m => (
             <label key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10, cursor: 'pointer' }}>
-              <input type="checkbox" checked={modules.includes(m.id)} onChange={() => toggleModule(m.id)} style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+              <input type="checkbox" aria-label={m.label} checked={modules.includes(m.id)} onChange={() => toggleModule(m.id)} style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
               <span style={{ fontSize: "var(--text-md-em)" }}>{m.icon}</span>
               <span style={{ fontSize: "var(--text-base)", color: modules.includes(m.id) ? 'var(--text-1)' : 'var(--text-2)', fontWeight: modules.includes(m.id) ? 600 : 400 }}>{m.label}</span>
             </label>
@@ -964,7 +964,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
         <div style={{ ...panel, padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>🎫 Service Desk</div>
           <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
-            <input type="checkbox" checked={sdWithout} onChange={e => setSdWithout(e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', marginTop: 2 }} />
+            <input type="checkbox" aria-label={traducir('clients.acceso_sin_proyecto_vinculado')} checked={sdWithout} onChange={e => setSdWithout(e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', marginTop: 2 }} />
             <div>
               <div className="u-base-600">{traducir('clients.acceso_sin_proyecto_vinculado')}</div>
               <div className="u-text2-xs">{traducir('clients.puede_abrir_tickets_aunque_no_tenga_proyectos')}</div>
@@ -1006,7 +1006,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             { key: 'allowPwd', val: allowPwd, set: setAllowPwd, label: 'Puede cambiar su contraseña', desc: 'El cliente puede actualizar su contraseña de acceso' },
           ].map(opt => (
             <label key={opt.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', marginBottom: 14, background: opt.val ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${opt.val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '10px 12px' }}>
-              <input type="checkbox" checked={opt.val} onChange={e => opt.set(e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+              <input type="checkbox" aria-label={opt.label} checked={opt.val} onChange={e => opt.set(e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: opt.val ? 'var(--text-1)' : 'var(--text-2)' }}>{opt.label}</div>
                 <div className="u-text3-xs">{opt.desc}</div>

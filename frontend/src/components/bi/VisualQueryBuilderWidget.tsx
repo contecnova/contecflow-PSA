@@ -290,7 +290,7 @@ export default function VisualQueryBuilderWidget() {
               <div style={{ display: 'grid', gap: 4 }}>
                 {allColumns.map((col) => (
                   <label key={col} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <input type="checkbox" checked={selectedColumns.includes(col)} onChange={() => toggleColumn(col)} />
+                    <input type="checkbox" aria-label={entityDef.columns?.[col]?.label || col} checked={selectedColumns.includes(col)} onChange={() => toggleColumn(col)} />
                     {entityDef.columns?.[col]?.label || col}
                   </label>
                 ))}
@@ -318,6 +318,7 @@ export default function VisualQueryBuilderWidget() {
                     {(Object.entries(operators) as Array<[string, OperatorDef]>).map(([k, op]) => <option key={k} value={k}>{op?.label || k}</option>)}
                   </select>
                   <input
+                    aria-label={t('visual_query_builder.value_placeholder')}
                     value={f.value}
                     disabled={NULL_OPS.has(f.operator)}
                     onChange={(e) => patchFilter(i, { value: e.target.value })}

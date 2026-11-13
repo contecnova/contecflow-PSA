@@ -331,22 +331,9 @@ def run_alert_engine(db: Session) -> dict:
     return {"alerts_generated": count}
 
 
-def run_alert_engine_job() -> dict:
-    """Entrada de los programadores (APScheduler y Celery beat), con su propia sesion.
-
-    Auditoria 2026-11 (hallazgo 23): vivia sola en `alert_jobs.py` (21 lineas)
-    y `app.worker.run_alert_engine` repetia lo mismo a mano; ahora los dos
-    llaman aqui.
-    """
-    from app.db.session import worker_db_session
-    try:
-        with worker_db_session() as db:
-            result = run_alert_engine(db)
-    except Exception:
-        logger.exception("Scheduled alert engine failed")
-        raise
-    logger.info("Scheduled alert engine finished: %s", result)
-    return result
+# Segunda auditoría 2026-11 (#19): `run_alert_engine_job` (sesión propia SIN
+# contexto de tenant, sin llamadas) se borró; el worker usa `run_alert_engine`
+# por organización.
 
 
 def get_alerts_query(db: Session, resolved: bool, severity, current_user: User):

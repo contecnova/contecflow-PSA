@@ -116,6 +116,9 @@ def view_public_project_status(token: str, db: Session) -> dict:
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
+    # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
+    from app.db.session import exigir_organizacion_activa
+    exigir_organizacion_activa(db, getattr(project, "organization_id", None))
     milestones = db.query(ProjectMilestone).filter(
         ProjectMilestone.project_id == project.id
     ).order_by(ProjectMilestone.sort_order).all()

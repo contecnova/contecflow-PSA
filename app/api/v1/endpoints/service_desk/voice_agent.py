@@ -174,7 +174,12 @@ def create_ticket(
 # ── Twilio Webhook (no auth — validated by Twilio signature) ──────────────────
 
 def _rechazo_si_no_es_twilio(request: Request, form: dict):
-    """Respuesta 403 en TwiML si la peticion no trae una firma de Twilio valida."""
+    """Respuesta 403 en TwiML si la peticion no trae una firma de Twilio valida.
+
+    Segunda auditoria 2026-11 (#9): la voz es MONO-ORGANIZACION por diseno —se
+    verifica solo con el `TWILIO_AUTH_TOKEN` global y la sesion se crea sin
+    organizacion—. El token por organizacion vale solo para el SMS entrante.
+    """
     from fastapi import Response
 
     from app.services.service_desk.sms_service import validate_twilio_signature
@@ -228,7 +233,7 @@ async def twilio_ivr_webhook(
     form_data = dict(form_body)
     caller_id = form_data.get("From", "unknown")
     call_sid  = form_data.get("CallSid", "")
-    org_id    = None  # Single-tenant: override with org resolution logic if multi-tenant
+    org_id    = None  # Mono-organización por diseño (segunda auditoría 2026-11, #9)
 
     # Create a tracking session
     session = await run_db(create_session, db, org_id, caller_id, channel="phone")

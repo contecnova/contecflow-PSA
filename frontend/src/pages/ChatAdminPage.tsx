@@ -302,7 +302,7 @@ function RetentionTab() {
       <Card>
         <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_policy')}</h4>
         <div className="u-stack-10">
-          <Field label={t('chat_admin.col_name')}><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label={t('chat_admin.col_name')}><input aria-label={t('chat_admin.col_name')} style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label={t('chat_admin.col_scope')}>
             <select style={inputStyle} value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value as RetentionScope })}>
               <option value="workspace">{t('chat_admin.scope_workspace')}</option>
@@ -318,7 +318,7 @@ function RetentionTab() {
               <option value="calls">{t('chat_admin.apply_calls')}</option>
             </select>
           </Field>
-          <Field label={t('chat_admin.retention_months_label')}><input type="number" min={1} max={120} style={inputStyle} value={form.retention_months} onChange={(e) => setForm({ ...form, retention_months: parseInt(e.target.value, 10) || 24 })} /></Field>
+          <Field label={t('chat_admin.retention_months_label')}><input aria-label={t('chat_admin.retention_months_label')} type="number" min={1} max={120} style={inputStyle} value={form.retention_months} onChange={(e) => setForm({ ...form, retention_months: parseInt(e.target.value, 10) || 24 })} /></Field>
           <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create_policy')}</Btn>
         </div>
       </Card>
@@ -379,9 +379,9 @@ function LegalHoldTab() {
         <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_case')}</h4>
         <div className="u-stack-10">
           <Field label={t('chat_admin.case_reference_label')}><input aria-label="CASO-2026-001" style={inputStyle} value={form.case_reference} onChange={(e) => setForm({ ...form, case_reference: e.target.value })} placeholder="CASO-2026-001" /></Field>
-          <Field label={t('chat_admin.description_label')}><textarea rows={2} style={inputStyle} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
-          <Field label={t('chat_admin.custodians_label')}><input style={inputStyle} value={form.custodian_user_ids} onChange={(e) => setForm({ ...form, custodian_user_ids: e.target.value })} /></Field>
-          <Field label={t('chat_admin.channels_label')}><input style={inputStyle} value={form.channel_ids} onChange={(e) => setForm({ ...form, channel_ids: e.target.value })} /></Field>
+          <Field label={t('chat_admin.description_label')}><textarea aria-label={t('chat_admin.description_label')} rows={2} style={inputStyle} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
+          <Field label={t('chat_admin.custodians_label')}><input aria-label={t('chat_admin.custodians_label')} style={inputStyle} value={form.custodian_user_ids} onChange={(e) => setForm({ ...form, custodian_user_ids: e.target.value })} /></Field>
+          <Field label={t('chat_admin.channels_label')}><input aria-label={t('chat_admin.channels_label')} style={inputStyle} value={form.channel_ids} onChange={(e) => setForm({ ...form, channel_ids: e.target.value })} /></Field>
           <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.case_reference}>{t('chat_admin.create_hold')}</Btn>
         </div>
       </Card>
@@ -442,8 +442,8 @@ function IntegrationsTab() {
               <option value="custom_webhook">{t('chat_admin.custom_webhook')}</option>
             </select>
           </Field>
-          <Field label={t('chat_admin.col_name')}><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label={t('chat_admin.config_json_label')}><textarea rows={3} style={inputStyle} value={form.config} onChange={(e) => setForm({ ...form, config: e.target.value })} /></Field>
+          <Field label={t('chat_admin.col_name')}><input aria-label={t('chat_admin.col_name')} style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label={t('chat_admin.config_json_label')}><textarea aria-label={t('chat_admin.config_json_label')} rows={3} style={inputStyle} value={form.config} onChange={(e) => setForm({ ...form, config: e.target.value })} /></Field>
           <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create')}</Btn>
         </div>
       </Card>
@@ -499,9 +499,9 @@ function WebhooksTab() {
               <option value="outgoing">{t('chat_admin.direction_outgoing')}</option>
             </select>
           </Field>
-          <Field label={t('chat_admin.col_name')}><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          {form.direction === 'outgoing' && <Field label={t('chat_admin.target_url_label')}><input style={inputStyle} value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></Field>}
-          <Field label={t('chat_admin.target_channel_label')}><input style={inputStyle} value={form.target_channel_id} onChange={(e) => setForm({ ...form, target_channel_id: e.target.value })} /></Field>
+          <Field label={t('chat_admin.col_name')}><input aria-label={t('chat_admin.col_name')} style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          {form.direction === 'outgoing' && <Field label={t('chat_admin.target_url_label')}><input aria-label={t('chat_admin.target_url_label')} style={inputStyle} value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></Field>}
+          <Field label={t('chat_admin.target_channel_label')}><input aria-label={t('chat_admin.target_channel_label')} style={inputStyle} value={form.target_channel_id} onChange={(e) => setForm({ ...form, target_channel_id: e.target.value })} /></Field>
           <Field label={t('chat_admin.events_input_label')}><input aria-label="message.created,channel.created" style={inputStyle} value={form.events} onChange={(e) => setForm({ ...form, events: e.target.value })} placeholder="message.created,channel.created" /></Field>
           <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create')}</Btn>
         </div>
@@ -570,9 +570,9 @@ function EdiscoveryTab() {
     <Card>
       <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{t('chat_admin.ediscovery_title')}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        <Field label={t('chat_admin.case_short_label')}><input style={inputStyle} value={form.case_reference} onChange={(e) => setForm({ ...form, case_reference: e.target.value })} /></Field>
-        <Field label={t('chat_admin.custodians_label')}><input style={inputStyle} value={form.user_ids} onChange={(e) => setForm({ ...form, user_ids: e.target.value })} /></Field>
-        <Field label={t('chat_admin.keywords_label')}><input style={inputStyle} value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} /></Field>
+        <Field label={t('chat_admin.case_short_label')}><input aria-label={t('chat_admin.case_short_label')} style={inputStyle} value={form.case_reference} onChange={(e) => setForm({ ...form, case_reference: e.target.value })} /></Field>
+        <Field label={t('chat_admin.custodians_label')}><input aria-label={t('chat_admin.custodians_label')} style={inputStyle} value={form.user_ids} onChange={(e) => setForm({ ...form, user_ids: e.target.value })} /></Field>
+        <Field label={t('chat_admin.keywords_label')}><input aria-label={t('chat_admin.keywords_label')} style={inputStyle} value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} /></Field>
         <div />
         <Field label={t('chat_admin.from_label')}><DateInput withTime style={inputStyle} value={form.date_from} onChange={(e) => setForm({ ...form, date_from: e.target.value })} /></Field>
         <Field label={t('chat_admin.to_label')}><DateInput withTime style={inputStyle} value={form.date_to} onChange={(e) => setForm({ ...form, date_to: e.target.value })} /></Field>

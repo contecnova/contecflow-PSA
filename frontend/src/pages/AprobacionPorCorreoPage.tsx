@@ -55,8 +55,8 @@ export default function AprobacionPorCorreoPage() {
           <p style={{ margin: '0 0 16px', color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>
             Paso {resumen.step} · decides como {resumen.approver}
           </p>
-          <label htmlFor="nota" className="u-text2-sm">Nota (obligatoria para rechazar)</label>
-          <textarea id="nota" rows={3} value={nota} onChange={e => setNota(e.target.value)}
+          <label htmlFor="nota" id="nota-etiqueta" className="u-text2-sm">Nota (obligatoria para rechazar)</label>
+          <textarea id="nota" aria-labelledby="nota-etiqueta" rows={3} value={nota} onChange={e => setNota(e.target.value)}
             style={{ width: '100%', boxSizing: 'border-box', margin: '6px 0 16px', padding: 10, borderRadius: 8,
               background: 'var(--surface-2)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', fontFamily: 'inherit' }} />
           <div className="u-row-10">

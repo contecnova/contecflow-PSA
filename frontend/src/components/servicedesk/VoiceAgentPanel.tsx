@@ -412,6 +412,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
       <div>
         <div style={fieldLabel}>{t('sd.voice.greeting', 'Saludo (greeting)')}</div>
         <textarea
+          aria-label={t('sd.voice.greeting', 'Saludo (greeting)')}
           rows={2}
           value={draft.greeting}
           onChange={e => setField('greeting', e.target.value)}
@@ -433,6 +434,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
         <div>
           <div style={fieldLabel}>{t('voiceagent.silencio_maximo_segundos')}</div>
           <input
+            aria-label={t('voiceagent.silencio_maximo_segundos')}
             type="number" min={1} max={120}
             value={draft.max_silence_seconds}
             onChange={e => setField('max_silence_seconds', Number(e.target.value))}
@@ -464,6 +466,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
                 minWidth: 28, textAlign: 'center',
               }}>{key}</span>
               <input
+                aria-label={`DTMF ${key}`}
                 type="text"
                 value={val.label}
                 onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, label: e.target.value } } }))}
@@ -795,6 +798,7 @@ export default function VoiceAgentPanel() {
             <div style={fieldLabel}>{t('sd.voice.new_session', 'Iniciar sesión manual')}</div>
             <div className="u-wrap-8">
               <input
+                aria-label="Caller ID"
                 type="text"
                 placeholder="+34600000000"
                 value={callerInput}

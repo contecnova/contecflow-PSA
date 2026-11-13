@@ -333,8 +333,8 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
           </select>
         </div>
         <div className="u-col-full">
-          <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.ticket_title')} *</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')}
+          <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.ticket_title')} *</label>
+          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')}
             style={validation.inputStyle(IS, 'title')} placeholder={t('service_desk.ticket_title')} />
           {validation.errors.title && <div className="u-field-error">{validation.errors.title}</div>}
         </div>
@@ -394,10 +394,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
         {visibleDynamicFields.map((f) => (
           <div key={f.id} style={{ gridColumn: f.type === 'textarea' ? '1/-1' : 'auto' }}>
-            <label htmlFor={`${idPrefix}-${f.id}`} style={LS}>{f.label}{f.required ? ' *' : ''}</label>
+            <label id={`${idPrefix}-${f.id}-et`} htmlFor={`${idPrefix}-${f.id}`} style={LS}>{f.label}{f.required ? ' *' : ''}</label>
             {f.type === 'select' ? (
               <select
                 id={`${idPrefix}-${f.id}`}
+                aria-labelledby={`${idPrefix}-${f.id}-et`}
                 value={String(dynamicValues[f.id] ?? '')}
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 style={IS}
@@ -408,6 +409,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             ) : f.type === 'textarea' ? (
               <textarea
                 id={`${idPrefix}-${f.id}`}
+                aria-labelledby={`${idPrefix}-${f.id}-et`}
                 value={String(dynamicValues[f.id] ?? '')}
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 style={{ ...IS, resize: 'vertical', minHeight: 88 }}
@@ -416,6 +418,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               <>
                 <input
                   id={`${idPrefix}-${f.id}`}
+                  aria-labelledby={`${idPrefix}-${f.id}-et`}
                   type="text"
                   list={`${idPrefix}-${f.id}-options`}
                   value={String(dynamicValues[f.id] ?? '')}
@@ -423,12 +426,13 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                   style={IS}
                 />
                 <datalist id={`${idPrefix}-${f.id}-options`}>
-                  {contextSuggestionsForField(f).map((op, idx) => <option key={`${f.id}-${idx}`} value={op} />)}
+                  {contextSuggestionsForField(f).map((op, idx) => <option key={`${f.id}-${idx}`} value={op} aria-label={op} />)}
                 </datalist>
               </>
             ) : (
               <input
                 id={`${idPrefix}-${f.id}`}
+                aria-labelledby={`${idPrefix}-${f.id}-et`}
                 type={f.type === 'date' ? 'date' : 'text'}
                   value={String(dynamicValues[f.id] ?? '')}
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
@@ -519,7 +523,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
               {generatedFields.map((f, idx) => (
                 <div key={`${f.id}-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 8, padding: '8px 10px', borderBottom: '1px solid var(--surface-4)' }}>
-                  <input value={f.label || ''} onChange={(e) => {
+                  <input aria-label={`Etiqueta del campo ${idx + 1}`} value={f.label || ''} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], label: e.target.value }
                     setGeneratedFields(v)
@@ -534,7 +538,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                     <option value="select">select</option>
                     <option value="date">date</option>
                   </select>
-                  <input value={f.id || ''} onChange={(e) => {
+                  <input aria-label={`Identificador del campo ${idx + 1}`} value={f.id || ''} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], id: e.target.value }
                     setGeneratedFields(v)

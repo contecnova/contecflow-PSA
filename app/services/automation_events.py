@@ -316,8 +316,18 @@ def _tras_deshacer(session) -> None:
 def procesar_evento(db, ev) -> dict:
     """Ejecuta las reglas del evento y lo marca como hecho (o fallido)."""
     from app.services import automations_service
+    from app.services.entrada_service import organizacion_desactivada
     from app.services.service_desk.ticket_events import como_organizacion
 
+    if organizacion_desactivada(db, ev.organization_id):
+        # Segunda auditoría 2026-11 (#10): no se ejecutan reglas de una
+        # organización desactivada; el evento sale de la bandeja como `skipped`
+        # para no ocupar el lote de las demás.
+        ev.status = "skipped"
+        ev.error = "organizacion desactivada"
+        ev.processed_at = datetime.now(timezone.utc)
+        db.commit()
+        return {"omitido": "organizacion desactivada"}
     ev.attempts = (ev.attempts or 0) + 1
     with como_organizacion(db, ev.organization_id):
         try:

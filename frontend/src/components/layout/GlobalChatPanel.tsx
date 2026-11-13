@@ -598,7 +598,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
             <option value="none">Silencio</option>
           </select>
           <label style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-            <input type="checkbox" checked={dndEnabled} onChange={(e) => updateDnd(e.target.checked)} />
+            <input type="checkbox" aria-label={t('globalchat.no_molestar_22_00_08_00')} checked={dndEnabled} onChange={(e) => updateDnd(e.target.checked)} />
             {t('globalchat.no_molestar_22_00_08_00')}
           </label>
         </div>
@@ -742,6 +742,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               )}
               <textarea
                 ref={composerRef}
+                aria-label={activeConvId ? 'Escribe un mensaje...' : 'Selecciona una conversación'}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {

@@ -306,6 +306,7 @@ function ScoreBar({ value, max = 5 }: { value: number | null | undefined; max?: 
 
 // ── ReviewForm: rellenar una evaluación dinámica según preguntas del ciclo ─
 function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -449,16 +450,16 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
             const isLong = q.kind === 'text_long'
             return (
               <div key={q.id} className="ds-field">
-                <label className="ds-field__label">
+                <label id={`${idCampo}-${q.id}-et`} htmlFor={`${idCampo}-${q.id}`} className="ds-field__label">
                   {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                 </label>
                 {q.hint && <div className="ds-field__hint">{q.hint}</div>}
                 {isLong ? (
-                  <textarea value={answers[q.key] || ''}
+                  <textarea id={`${idCampo}-${q.id}`} aria-labelledby={`${idCampo}-${q.id}-et`} value={answers[q.key] || ''}
                     onChange={e => setAnswers(s => ({ ...s, [q.key]: e.target.value }))}
                     rows={3} className="ds-input" style={{ resize: 'vertical' }} />
                 ) : (
-                  <input type="text" value={answers[q.key] || ''}
+                  <input id={`${idCampo}-${q.id}`} aria-labelledby={`${idCampo}-${q.id}-et`} type="text" value={answers[q.key] || ''}
                     onChange={e => setAnswers(s => ({ ...s, [q.key]: e.target.value }))}
                     className="ds-input" />
                 )}
@@ -566,8 +567,8 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
         </div>
 
         {/* Tipo de evaluación */}
-        <div className="ds-field">
-          <label className="ds-field__label">Tipo</label>
+        <div className="ds-field" role="group" aria-labelledby={`${idCampo}-tipo-et`}>
+          <div id={`${idCampo}-tipo-et`} className="ds-field__label">Tipo</div>
           <div className="ds-row-wrap">
             {REVIEW_TYPES.map(({ id, Icon, label }) => {
               const active = form.review_type === id
@@ -793,7 +794,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
           </div>
           <div className="ds-field" style={{ alignSelf: 'end' }}>
             <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
-              <input type="checkbox" checked={form.required}
+              <input type="checkbox" aria-label="Obligatoria" checked={form.required}
                 onChange={e => setForm(f => ({ ...f, required: e.target.checked }))} />
               Obligatoria
             </label>
@@ -947,9 +948,9 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
           <>
             {/* Self */}
             <div className="ds-card--inset" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              <input type="checkbox" id="self-review-cb"
+              <input type="checkbox" id="self-review-cb" aria-labelledby="self-review-cb-et"
                 checked={selfReview} onChange={e => setSelfReview(e.target.checked)} />
-              <label htmlFor="self-review-cb" style={{ cursor: 'pointer', flex: 1 }}>
+              <label id="self-review-cb-et" htmlFor="self-review-cb" style={{ cursor: 'pointer', flex: 1 }}>
                 <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                   <User size={12} style={{ verticalAlign: 'middle' }} /> {traducir('performancereviews.autoevaluacion')}
                 </div>
@@ -961,7 +962,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
 
             {/* Manager */}
             <div className="ds-field">
-              <label className="ds-field__label">
+              <label id={`${idCampo}-manager-et`} htmlFor={`${idCampo}-manager`} className="ds-field__label">
                 <Crown size={11} style={{ verticalAlign: 'middle' }} /> Manager
               </label>
               {managerData?.reason_blocked ? (
@@ -969,7 +970,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                   <AlertCircle size={12} /> {managerData.reason_blocked}
                 </div>
               ) : (
-                <select value={managerId} onChange={e => setManagerId(e.target.value)}
+                <select id={`${idCampo}-manager`} aria-labelledby={`${idCampo}-manager-et`} value={managerId} onChange={e => setManagerId(e.target.value)}
                   className="ds-input">
                   <option value="">{traducir('performancereviews.sin_manager')}</option>
                   {managerOptions.map(u => (
@@ -2059,13 +2060,13 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
               className="ds-input" />
           </div>
         </div>
-        <div className="ds-field">
-          <label className="ds-field__label">
+        <div className="ds-field" role="group" aria-labelledby={`${idCampo}-objetivos-et`}>
+          <div id={`${idCampo}-objetivos-et`} className="ds-field__label">
             <Flag size={11} style={{ verticalAlign: 'middle' }} /> Objetivos iniciales
-          </label>
+          </div>
           {form.goals.map((g, idx) => (
             <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-              <input value={g.title}
+              <input aria-label={`Objetivo ${idx + 1}`} value={g.title}
                 onChange={e => setGoal(idx, 'title', e.target.value)}
                 className="ds-input u-flex1" placeholder={`Objetivo ${idx + 1}`}
                  />
@@ -2211,7 +2212,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
             </div>
           )}
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-            <input value={newGoal}
+            <input aria-label={traducir('performancereviews.anadir_nuevo_objetivo_y_pulsar_enter')} value={newGoal}
               onChange={e => setNewGoal(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && newGoal.trim() && addG(newGoal.trim())}
               className="ds-input u-flex1"

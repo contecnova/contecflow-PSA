@@ -57,6 +57,10 @@ def _leer(db: Session, token: str):
     from app.services.entrada_service import pertenece
     if not usuario.is_superadmin and req.organization_id and not pertenece(db, usuario, req.organization_id):
         raise ErrorDeDominio(410, "El enlace ya no es válido")
+    # Segunda auditoría 2026-11 (#10): la empresa de la SOLICITUD desactivada → 403
+    # (antes solo se miraba la de ficha del aprobador).
+    from app.db.session import exigir_organizacion_activa
+    exigir_organizacion_activa(db, req.organization_id)
     publicar_contexto_de_tenant(db, usuario)
     if req.organization_id and not usuario.is_superadmin:
         from sqlalchemy.orm.attributes import set_committed_value

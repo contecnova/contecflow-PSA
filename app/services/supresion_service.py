@@ -17,6 +17,16 @@ Uno solo, y genérico (sin lista de tablas a mano):
 3. Sus credenciales: las filas suyas de las tablas de sesiones, MFA, passkeys,
    tokens, claves de API y suscripciones push.
 4. `dim_user` del almacén analítico. Si no se puede, el informe lo dice.
+
+Segunda auditoría 2026-11:
+
+- `audit_logs` queda fuera A PROPÓSITO (RGPD art. 17.3.b/e: obligación legal y
+  defensa de reclamaciones; además `user_name` entra en la huella encadenada y
+  reescribirlo rompería la cadena de la empresa). Es una decisión, no un olvido.
+- Bloqueo legal: si hay un bloqueo legal activo sobre la persona (un
+  `LegalHold` de alguna de sus empresas cuyo valor es su id, su correo o su
+  usuario), la supresión se rechaza con 409 y la lista de casos, ANTES de
+  reescribir nada (`exigir_sin_bloqueo_legal`).
 """
 from __future__ import annotations
 
@@ -37,23 +47,48 @@ def _seudonimo(valor: str) -> str:
     return hashlib.sha256((valor or "").encode()).hexdigest()[:16]
 
 
-def suprimir_persona(db: Session, user) -> dict:
-    """Borra los datos personales de `user`. Devuelve qué se tocó, tabla a tabla. No hace commit."""
-    from app.db.base import Base
-    from app.db.session import sin_filtro_de_tenant
-
-    originales = {}
-    if user.email:
-        originales[user.email] = _seudonimo(user.email) + "@erased.invalid"
-    for v in (user.full_name, user.username):
-        if v and len(v.strip()) >= 3:
-            originales.setdefault(v, BORRADO)
+def _empresas_de(db: Session, user) -> set:
     empresas = {user.organization_id} if user.organization_id else set()
     try:
         from app.services.entrada_service import organizaciones_del_usuario
         empresas |= {o.id for o in organizaciones_del_usuario(db, user)}
     except Exception:   # sin membresías: su empresa de ficha
         logger.debug("sin membresías para %s", user.id, exc_info=True)
+    return empresas
+
+
+def bloqueos_de_la_persona(db: Session, user) -> list:
+    """Bloqueos legales activos, en sus empresas, cuyo valor la identifica (id, correo o usuario)."""
+    from app.db.bloqueo_legal import bloqueos_activos
+    valores = {str(v) for v in (user.id, user.email, user.username) if v}
+    return [b for org in sorted(_empresas_de(db, user)) for b in bloqueos_activos(db, org)
+            if b.value in valores]
+
+
+def exigir_sin_bloqueo_legal(db: Session, user) -> None:
+    """409 con los casos si la persona está bajo bloqueo legal: no se suprime nada."""
+    from app.core.errores import ErrorDeDominio
+    casos = sorted({b.case_reference for b in bloqueos_de_la_persona(db, user)})
+    if casos:
+        raise ErrorDeDominio(409, "La persona está bajo bloqueo legal y no se puede suprimir: " + ", ".join(casos))
+
+
+def suprimir_persona(db: Session, user) -> dict:
+    """Borra los datos personales de `user`. Devuelve qué se tocó, tabla a tabla. No hace commit.
+
+    Bajo bloqueo legal activo lanza 409 sin tocar nada.
+    """
+    from app.db.base import Base
+    from app.db.session import sin_filtro_de_tenant
+
+    exigir_sin_bloqueo_legal(db, user)
+    originales = {}
+    if user.email:
+        originales[user.email] = _seudonimo(user.email) + "@erased.invalid"
+    for v in (user.full_name, user.username):
+        if v and len(v.strip()) >= 3:
+            originales.setdefault(v, BORRADO)
+    empresas = _empresas_de(db, user)
 
     informe: dict = {"user_id": user.id, "tablas": {}, "credenciales": {}, "almacen": None}
     # 1. La ficha.

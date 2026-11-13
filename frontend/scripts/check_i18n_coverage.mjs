@@ -14,7 +14,7 @@
 // Uso:
 //   node scripts/check_i18n_coverage.mjs           # gate (sale 1 si baja)
 //   node scripts/check_i18n_coverage.mjs --report  # sólo informe, sale 0
-import { APP_LANGUAGES, APP_TRANSLATIONS } from '../src/i18n/appTranslations.mjs'
+import { APP_LANGUAGES, APP_TRANSLATIONS } from '../src/i18n/todosLosIdiomas.mjs'
 
 const BASE = 'es'
 

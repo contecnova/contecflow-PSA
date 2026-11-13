@@ -455,22 +455,22 @@ export default function ClientsPage(): JSX.Element {
               </select>
             </div>
             <div>
-              <label style={lbl}>{traducir('clients.pais')}</label>
-              <input value={editClientForm.country}
+              <label id={`${idCampo}-etpais`} htmlFor={`${idCampo}-pais`} style={lbl}>{traducir('clients.pais')}</label>
+              <input id={`${idCampo}-pais`} aria-labelledby={`${idCampo}-etpais`} value={editClientForm.country}
                 onChange={e => setEditClientForm(f => ({ ...f, country: e.target.value }))}
-                style={inp} placeholder="Pais" aria-label="Pais" />
+                style={inp} placeholder="Pais" />
             </div>
             <div>
-              <label style={lbl}>Ciudad</label>
-              <input value={editClientForm.city}
+              <label id={`${idCampo}-etciudad`} htmlFor={`${idCampo}-ciudad`} style={lbl}>Ciudad</label>
+              <input id={`${idCampo}-ciudad`} aria-labelledby={`${idCampo}-etciudad`} value={editClientForm.city}
                 onChange={e => setEditClientForm(f => ({ ...f, city: e.target.value }))}
-                style={inp} placeholder="Ciudad" aria-label="Ciudad" />
+                style={inp} placeholder="Ciudad" />
             </div>
             <div className="u-col-full">
-              <label style={lbl}>Website</label>
-              <input value={editClientForm.website}
+              <label id={`${idCampo}-etweb`} htmlFor={`${idCampo}-web`} style={lbl}>Website</label>
+              <input id={`${idCampo}-web`} aria-labelledby={`${idCampo}-etweb`} value={editClientForm.website}
                 onChange={e => setEditClientForm(f => ({ ...f, website: e.target.value }))}
-                style={inp} placeholder="https://cliente.com" aria-label="Sitio web" />
+                style={inp} placeholder="https://cliente.com" />
             </div>
           </div>
           <div className="u-mb-16">
@@ -512,24 +512,24 @@ export default function ClientsPage(): JSX.Element {
         return (
         <Modal open title={traducir('clients.new_client')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div><label style={lbl}>Nombre *</label><input value={newForm.name} onChange={setCreateField('name')} style={createValidation.inputStyle(inp, 'name')} />{errField('name')}</div>
-            <div><label style={lbl}>Nombre corto</label><input value={newForm.short_name} onChange={setCreateField('short_name')} style={createValidation.inputStyle(inp, 'short_name')} />{errField('short_name')}</div>
-            <div><label style={lbl}>CIF / NIF / VAT</label><input value={newForm.tax_id} onChange={setCreateField('tax_id')} style={createValidation.inputStyle(inp, 'tax_id')} />{errField('tax_id')}</div>
-            <div><label style={lbl}>Sector</label>
-              <select value={newForm.industry} onChange={setCreateField('industry')} style={inp}>
+            <div><label id={`${idCampo}-etnuevo515`} htmlFor={`${idCampo}-nuevo515`} style={lbl}>Nombre *</label><input id={`${idCampo}-nuevo515`} aria-labelledby={`${idCampo}-etnuevo515`} value={newForm.name} onChange={setCreateField('name')} style={createValidation.inputStyle(inp, 'name')} />{errField('name')}</div>
+            <div><label id={`${idCampo}-etnuevo516`} htmlFor={`${idCampo}-nuevo516`} style={lbl}>Nombre corto</label><input id={`${idCampo}-nuevo516`} aria-labelledby={`${idCampo}-etnuevo516`} value={newForm.short_name} onChange={setCreateField('short_name')} style={createValidation.inputStyle(inp, 'short_name')} />{errField('short_name')}</div>
+            <div><label id={`${idCampo}-etnuevo517`} htmlFor={`${idCampo}-nuevo517`} style={lbl}>CIF / NIF / VAT</label><input id={`${idCampo}-nuevo517`} aria-labelledby={`${idCampo}-etnuevo517`} value={newForm.tax_id} onChange={setCreateField('tax_id')} style={createValidation.inputStyle(inp, 'tax_id')} />{errField('tax_id')}</div>
+            <div><label id={`${idCampo}-etnuevo518`} htmlFor={`${idCampo}-nuevo518`} style={lbl}>Sector</label>
+              <select id={`${idCampo}-nuevo518`} aria-labelledby={`${idCampo}-etnuevo518`} value={newForm.industry} onChange={setCreateField('industry')} style={inp}>
                 {INDUSTRIES.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase() + i.slice(1)}</option>)}
               </select>
             </div>
-            <div><label style={lbl}>Contacto principal</label><input value={newForm.contact_name} onChange={setCreateField('contact_name')} style={createValidation.inputStyle(inp, 'contact_name')} />{errField('contact_name')}</div>
-            <div><label style={lbl}>Email contacto</label><input type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} style={createValidation.inputStyle(inp, 'contact_email')} />{errField('contact_email')}</div>
-            <div><label style={lbl}>{traducir('clients.telefono')}</label><input value={newForm.contact_phone} onChange={setCreateField('contact_phone')} style={createValidation.inputStyle(inp, 'contact_phone')} />{errField('contact_phone')}</div>
-            <div><label style={lbl}>Estado</label>
-              <select value={newForm.status} onChange={setCreateField('status')} style={inp}>
+            <div><label id={`${idCampo}-etnuevo523`} htmlFor={`${idCampo}-nuevo523`} style={lbl}>Contacto principal</label><input id={`${idCampo}-nuevo523`} aria-labelledby={`${idCampo}-etnuevo523`} value={newForm.contact_name} onChange={setCreateField('contact_name')} style={createValidation.inputStyle(inp, 'contact_name')} />{errField('contact_name')}</div>
+            <div><label id={`${idCampo}-etnuevo524`} htmlFor={`${idCampo}-nuevo524`} style={lbl}>Email contacto</label><input id={`${idCampo}-nuevo524`} aria-labelledby={`${idCampo}-etnuevo524`} type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} style={createValidation.inputStyle(inp, 'contact_email')} />{errField('contact_email')}</div>
+            <div><label id={`${idCampo}-etnuevo525`} htmlFor={`${idCampo}-nuevo525`} style={lbl}>{traducir('clients.telefono')}</label><input id={`${idCampo}-nuevo525`} aria-labelledby={`${idCampo}-etnuevo525`} value={newForm.contact_phone} onChange={setCreateField('contact_phone')} style={createValidation.inputStyle(inp, 'contact_phone')} />{errField('contact_phone')}</div>
+            <div><label id={`${idCampo}-etnuevo526`} htmlFor={`${idCampo}-nuevo526`} style={lbl}>Estado</label>
+              <select id={`${idCampo}-nuevo526`} aria-labelledby={`${idCampo}-etnuevo526`} value={newForm.status} onChange={setCreateField('status')} style={inp}>
                 {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
           </div>
-          <div className="u-mb-16"><label style={lbl}>Notas</label><textarea value={newForm.notes} onChange={setCreateField('notes')} style={{ ...createValidation.inputStyle(inp, 'notes'), minHeight: 70, resize: 'vertical' }} />{errField('notes')}</div>
+          <div className="u-mb-16"><label id={`${idCampo}-etnuevo532`} htmlFor={`${idCampo}-nuevo532`} style={lbl}>Notas</label><textarea id={`${idCampo}-nuevo532`} aria-labelledby={`${idCampo}-etnuevo532`} value={newForm.notes} onChange={setCreateField('notes')} style={{ ...createValidation.inputStyle(inp, 'notes'), minHeight: 70, resize: 'vertical' }} />{errField('notes')}</div>
           <div className="u-actions-8">
             <button onClick={() => { setShowCreate(false); createValidation.setErrors({}) }} className="u-btn-outline-sm">Cancelar</button>
             <Button onClick={submitCreate} disabled={creating}>

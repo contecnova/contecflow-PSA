@@ -28,13 +28,17 @@ def abril(monkeypatch):
     monkeypatch.setattr(budgets_service, "_mes_actual", lambda: "2026-04")
 
 
-def _aprobado(client, token):
-    """Proyecto p-b1, enero a junio: licencias 100/mes y viajes 100/mes."""
+def _aprobado(client, token, db):
+    """Proyecto p-b1, enero a junio: licencias 100/mes y viajes 100/mes.
+
+    Lo decide otro administrador: quien crea no decide (SoD, segunda auditoría 2026-11).
+    """
+    from tests.test_presupuestos_2026_11 import _segundo_admin
     b = _crear(client, token, periodo_hasta="2026-06-01")
     _linea(client, token, b["id"], tipo="licencias", descripcion="Licencias", importe=600)
     _linea(client, token, b["id"], tipo="viajes", descripcion="Viajes", importe=600)
     client.post(f"{URL}/{b['id']}/submit", headers=auth(token))
-    r = client.post(f"{URL}/{b['id']}/decision", headers=auth(token), json={"aprobado": True})
+    r = client.post(f"{URL}/{b['id']}/decision", headers=auth(_segundo_admin(client, db)), json={"aprobado": True})
     assert r.status_code == 200, r.text
     return r.json()["data"]
 
@@ -64,7 +68,7 @@ def test_comprometido_de_alm_y_pedidos_y_el_disponible(client, db, admin_token, 
     db.add(ALMLicense(name="Suelta", type=LicenseType.named, annual_cost=240, expiry_date=date(2026, 5, 31),
                       project_id="p-b1", organization_id="1"))
     db.commit()
-    b = _aprobado(client, admin_token)
+    b = _aprobado(client, admin_token, db)
     r = client.post(f"{URL}/{b['id']}/commitments", headers=auth(admin_token),
                     json={"tipo": "viajes", "descripcion": "Billetes", "proveedor": "Agencia", "importe": 150, "mes": "2026-05"})
     assert r.status_code == 200, r.text
@@ -83,7 +87,7 @@ def test_comprometido_de_alm_y_pedidos_y_el_disponible(client, db, admin_token, 
 
 def test_control_al_aprobar_un_gasto_avisa_o_bloquea(client, db, admin_token, proyecto, abril):
     from app.services.approval_engine import fuentes
-    _aprobado(client, admin_token)
+    _aprobado(client, admin_token, db)
     g = _gasto(db, 700, date(2026, 4, 2), estado=ExpenseStatus.submitted)
     settings_service.set_runtime_value(db, "presupuestos", "BUDGET_CONTROL_POLICY", "bloquear", "1")
     r = client.post(f"/api/v1/expenses/{g.id}/review", headers=auth(admin_token), json={"approved": True})
@@ -100,7 +104,7 @@ def test_control_al_aprobar_un_gasto_avisa_o_bloquea(client, db, admin_token, pr
 
 
 def test_cierre_mensual_exige_explicar_y_congela_el_real(client, db, admin_token, pm_token, proyecto, abril):
-    b = _aprobado(client, admin_token)
+    b = _aprobado(client, admin_token, db)
     settings_service.set_runtime_value(db, "presupuestos", "BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT", 250, "1")   # sólo el +300 de febrero
     _gasto(db, 400, date(2026, 2, 10))
     r = client.post(f"{URL}/{b['id']}/close", headers=auth(admin_token), json={"mes": "2026-02"})
@@ -121,7 +125,7 @@ def test_cierre_mensual_exige_explicar_y_congela_el_real(client, db, admin_token
 
 
 def test_reprevision_por_tipo_plan_ritmo_y_a_mano(client, db, admin_token, proyecto, abril):
-    b = _aprobado(client, admin_token)
+    b = _aprobado(client, admin_token, db)
     _gasto(db, 400, date(2026, 2, 10))
     d = client.get(f"{URL}/{b['id']}", headers=auth(admin_token)).json()["data"]
     assert _fila(d, "viajes")["prevision"] == 700          # 400 real hasta marzo + plan de abril a junio
@@ -136,7 +140,7 @@ def test_reprevision_por_tipo_plan_ritmo_y_a_mano(client, db, admin_token, proye
 
 
 def test_traspaso_con_aprobacion_y_sin_aprobarse_el_suyo(client, db, admin_token, pm_token, proyecto, abril):
-    b = _aprobado(client, admin_token)
+    b = _aprobado(client, admin_token, db)
     lic, via = (next(l["id"] for l in b["lineas"] if l["tipo"] == t) for t in ("licencias", "viajes"))
     r = client.post(f"{URL}/{b['id']}/transfers", headers=auth(pm_token),
                     json={"desde_linea_id": lic, "hacia_linea_id": via, "importe": 400, "motivo": "más viajes"})
@@ -160,7 +164,7 @@ def test_traspaso_con_aprobacion_y_sin_aprobarse_el_suyo(client, db, admin_token
 
 
 def test_el_presupuesto_aprobado_es_la_base_del_proyecto(client, db, admin_token, proyecto, abril):
-    _aprobado(client, admin_token)
+    _aprobado(client, admin_token, db)
     db.expire_all()
     assert db.get(Project, "p-b1").budget_amount == 1200
 
@@ -168,7 +172,7 @@ def test_el_presupuesto_aprobado_es_la_base_del_proyecto(client, db, admin_token
 def test_alertas_de_consumo_y_prevision(client, db, admin_token, proyecto, abril):
     from app.models.alert import Alert, AlertType
     from app.services.alert_service import AlertEngine
-    _aprobado(client, admin_token)
+    _aprobado(client, admin_token, db)
     pm = db.query(User).filter(User.username == "pm_test").one()
     db.add(Imputation(id=str(uuid.uuid4()), user_id=pm.id, project_id="p-b1", date=date(2026, 2, 3), hours=20,
                       cost_amount=1100, organization_id="1", description="x"))    # 92 % (aviso al 90 %, crítica al 100 %)
@@ -181,7 +185,7 @@ def test_alertas_de_consumo_y_prevision(client, db, admin_token, proyecto, abril
 
 
 def test_detalle_hasta_la_imputacion_y_csv(client, db, admin_token, proyecto, abril):
-    b = _aprobado(client, admin_token)
+    b = _aprobado(client, admin_token, db)
     pm = db.query(User).filter(User.username == "pm_test").one()
     db.add(Imputation(id=str(uuid.uuid4()), user_id=pm.id, project_id="p-b1", date=date(2026, 3, 3), hours=2,
                       cost_amount=80, organization_id="1", description="reunión"))
@@ -199,7 +203,7 @@ def test_detalle_hasta_la_imputacion_y_csv(client, db, admin_token, proyecto, ab
 
 
 def test_cuadro_de_control_con_semaforo(client, db, admin_token, proyecto, abril):
-    b = _aprobado(client, admin_token)
+    b = _aprobado(client, admin_token, db)
     r = client.get(f"{URL}/control-board", params={"year": 2026}, headers=auth(admin_token)).json()["items"]
     assert [(x["id"], x["semaforo"]) for x in r] == [(b["id"], "ambar")]    # quedan meses por cerrar
     _gasto(db, 1300, date(2026, 2, 10))

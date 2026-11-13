@@ -280,12 +280,12 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
     <Modal open title={isEdit ? t('approvals.step_modal_edit_title') : t('approvals.step_modal_new_title')} onClose={onClose} width={520}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div>
-          <label htmlFor={`${idPrefix}-name`} style={lbl}>{t('approvals.step_name_required')}</label>
-          <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('approvals.step_name_placeholder')} />
+          <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} style={lbl}>{t('approvals.step_name_required')}</label>
+          <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('approvals.step_name_placeholder')} />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-order`} style={lbl}>{t('approvals.order')}</label>
-          <input id={`${idPrefix}-order`} type="number" value={form.step_order} onChange={e => setForm(f=>({...f,step_order:+e.target.value}))} style={inp} min="1" max="10" />
+          <label id={`${idPrefix}-order-et`} htmlFor={`${idPrefix}-order`} style={lbl}>{t('approvals.order')}</label>
+          <input id={`${idPrefix}-order`} aria-labelledby={`${idPrefix}-order-et`} type="number" value={form.step_order} onChange={e => setForm(f=>({...f,step_order:+e.target.value}))} style={inp} min="1" max="10" />
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-approver-type`} style={lbl}>{t('approvals.approver_type')}</label>
@@ -325,8 +325,8 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
         )}
 
         <div>
-          <label htmlFor={`${idPrefix}-timeout-hours`} style={lbl}>{t('approvals.timeout_hours')}</label>
-          <input id={`${idPrefix}-timeout-hours`} type="number" value={form.timeout_hours} onChange={e => setForm(f=>({...f,timeout_hours:+e.target.value}))} style={inp} min="1" />
+          <label id={`${idPrefix}-timeout-hours-et`} htmlFor={`${idPrefix}-timeout-hours`} style={lbl}>{t('approvals.timeout_hours')}</label>
+          <input id={`${idPrefix}-timeout-hours`} aria-labelledby={`${idPrefix}-timeout-hours-et`} type="number" value={form.timeout_hours} onChange={e => setForm(f=>({...f,timeout_hours:+e.target.value}))} style={inp} min="1" />
         </div>
         <div>
           <label htmlFor={`${idPrefix}-on-timeout`} style={lbl}>{t('approvals.on_timeout')}</label>
@@ -337,8 +337,8 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
           </select>
         </div>
         <div className="u-col-full">
-          <label htmlFor={`${idPrefix}-is-optional`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-            <input id={`${idPrefix}-is-optional`} type="checkbox" checked={form.is_optional} onChange={e => setForm(f=>({...f,is_optional:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+          <label id={`${idPrefix}-is-optional-et`} htmlFor={`${idPrefix}-is-optional`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+            <input id={`${idPrefix}-is-optional`} aria-labelledby={`${idPrefix}-is-optional-et`} type="checkbox" checked={form.is_optional} onChange={e => setForm(f=>({...f,is_optional:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
             {t('approvals.optional_step_label')}
           </label>
         </div>
@@ -356,35 +356,35 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
 
         <div className="u-col-full">
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-            <input type="checkbox" checked={form.parallel_quorum} onChange={e => setForm(f=>({...f,parallel_quorum:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+            <input type="checkbox" aria-label={traducir('approvals.quorum_paralelo_varios_aprobadores_simultaneos')} checked={form.parallel_quorum} onChange={e => setForm(f=>({...f,parallel_quorum:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
             {traducir('approvals.quorum_paralelo_varios_aprobadores_simultaneos')}
           </label>
         </div>
 
         {form.parallel_quorum && (
           <div>
-            <label htmlFor={`${idPrefix}-req-approvals`} style={lbl}>Aprobaciones requeridas</label>
-            <input id={`${idPrefix}-req-approvals`} type="number" min="1" value={form.required_approvals}
+            <label id={`${idPrefix}-req-approvals-et`} htmlFor={`${idPrefix}-req-approvals`} style={lbl}>Aprobaciones requeridas</label>
+            <input id={`${idPrefix}-req-approvals`} aria-labelledby={`${idPrefix}-req-approvals-et`} type="number" min="1" value={form.required_approvals}
               onChange={e => setForm(f=>({...f,required_approvals:+e.target.value}))} style={inp} />
           </div>
         )}
 
         <div>
-          <label htmlFor={`${idPrefix}-reminder`} style={lbl}>Recordatorio (horas, opcional)</label>
-          <input id={`${idPrefix}-reminder`} type="number" min="1" value={form.reminder_hours}
+          <label id={`${idPrefix}-reminder-et`} htmlFor={`${idPrefix}-reminder`} style={lbl}>Recordatorio (horas, opcional)</label>
+          <input id={`${idPrefix}-reminder`} aria-labelledby={`${idPrefix}-reminder-et`} type="number" min="1" value={form.reminder_hours}
             onChange={e => setForm(f=>({...f,reminder_hours:e.target.value ? +e.target.value : ''}))} style={inp} placeholder="p.e. 24" />
         </div>
 
         <div className="u-col-full">
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-            <input type="checkbox" checked={form.requires_attachment} onChange={e => setForm(f=>({...f,requires_attachment:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+            <input type="checkbox" aria-label={traducir('approvals.requiere_adjunto_obligatorio_para_aprobar')} checked={form.requires_attachment} onChange={e => setForm(f=>({...f,requires_attachment:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
             {traducir('approvals.requiere_adjunto_obligatorio_para_aprobar')}
           </label>
         </div>
 
         <div className="u-col-full">
-          <label htmlFor={`${idPrefix}-condition`} style={lbl}>{traducir('approvals.condicion_de_paso_json_opcional')}</label>
-          <textarea id={`${idPrefix}-condition`} value={form.step_condition} rows={2}
+          <label id={`${idPrefix}-condition-et`} htmlFor={`${idPrefix}-condition`} style={lbl}>{traducir('approvals.condicion_de_paso_json_opcional')}</label>
+          <textarea id={`${idPrefix}-condition`} aria-labelledby={`${idPrefix}-condition-et`} value={form.step_condition} rows={2}
             onChange={e => setForm(f=>({...f,step_condition:e.target.value}))}
             style={{...inp, resize:'vertical', fontFamily:'monospace', fontSize:'var(--text-xs)'}}
             placeholder='{"amount_gt": 5000, "department": "finance"}' />
@@ -584,6 +584,7 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
 // Mientras dura, los avisos de mis aprobaciones llegan también al delegado y
 // este puede decidir los pasos que me tocarían.
 function FueraDeLaOficina() {
+  const idCampo = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const { data } = useQuery<{ delegate_id?: string | null; away_from?: string | null; away_until?: string | null }>({
@@ -607,10 +608,10 @@ function FueraDeLaOficina() {
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 4 }}>Delegar en</div>
           <UserSelect value={actual.delegate_id} onChange={id => setForm({ ...actual, delegate_id: id })} placeholder="Elige a quién" />
         </div>
-        <label className="u-text3-xs">Desde<br />
-          <DateInput value={actual.away_from} onChange={e => setForm({ ...actual, away_from: e.target.value })} style={campo} /></label>
-        <label className="u-text3-xs">Hasta<br />
-          <DateInput value={actual.away_until} onChange={e => setForm({ ...actual, away_until: e.target.value })} style={campo} /></label>
+        <label htmlFor={`${idCampo}-desde`} className="u-text3-xs">Desde<br />
+          <DateInput id={`${idCampo}-desde`} value={actual.away_from} onChange={e => setForm({ ...actual, away_from: e.target.value })} style={campo} /></label>
+        <label htmlFor={`${idCampo}-hasta`} className="u-text3-xs">Hasta<br />
+          <DateInput id={`${idCampo}-hasta`} value={actual.away_until} onChange={e => setForm({ ...actual, away_until: e.target.value })} style={campo} /></label>
         <Button size="sm" disabled={isPending || !actual.delegate_id || !actual.away_from || !actual.away_until} onClick={() => guardar(actual)}>Guardar</Button>
         {data?.delegate_id && <Button size="sm" variant="secondary" disabled={isPending} onClick={() => guardar({ delegate_id: '', away_from: '', away_until: '' })}>Quitar</Button>}
       </div>
@@ -996,8 +997,8 @@ function WorkflowTemplatesTab() {
         <Modal open title="Crear flujo desde cero" onClose={() => setShowCreateScratch(false)} width={760}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
-              <label htmlFor={`${idPrefix}-scratch-name`} style={lbl}>Nombre</label>
-              <input id={`${idPrefix}-scratch-name`} value={scratch.name} onChange={e => setScratch(s => ({ ...s, name: e.target.value }))} style={inp} placeholder="Ej: Aprobacion legal express" />
+              <label id={`${idPrefix}-scratch-name-et`} htmlFor={`${idPrefix}-scratch-name`} style={lbl}>Nombre</label>
+              <input id={`${idPrefix}-scratch-name`} aria-labelledby={`${idPrefix}-scratch-name-et`} value={scratch.name} onChange={e => setScratch(s => ({ ...s, name: e.target.value }))} style={inp} placeholder="Ej: Aprobacion legal express" />
             </div>
             <div>
               <label htmlFor={`${idPrefix}-scratch-entity`} style={lbl}>Entidad</label>
@@ -1007,16 +1008,16 @@ function WorkflowTemplatesTab() {
             </div>
             {scratch.entity_type === 'document' && (
               <div className="u-col-full">
-                <label htmlFor={`${idPrefix}-scratch-category`} style={lbl}>Categoria documento (opcional)</label>
-                <input id={`${idPrefix}-scratch-category`} value={scratch.document_category} onChange={e => setScratch(s => ({ ...s, document_category: e.target.value }))} style={inp} placeholder="legal, deliverable, proposal..." />
+                <label id={`${idPrefix}-scratch-category-et`} htmlFor={`${idPrefix}-scratch-category`} style={lbl}>Categoria documento (opcional)</label>
+                <input id={`${idPrefix}-scratch-category`} aria-labelledby={`${idPrefix}-scratch-category-et`} value={scratch.document_category} onChange={e => setScratch(s => ({ ...s, document_category: e.target.value }))} style={inp} placeholder="legal, deliverable, proposal..." />
               </div>
             )}
             <div className="u-col-full">
-              <label htmlFor={`${idPrefix}-scratch-description`} style={lbl}>Descripcion</label>
-              <input id={`${idPrefix}-scratch-description`} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} style={inp} placeholder="Flujo creado manualmente desde plantillas" />
+              <label id={`${idPrefix}-scratch-description-et`} htmlFor={`${idPrefix}-scratch-description`} style={lbl}>Descripcion</label>
+              <input id={`${idPrefix}-scratch-description`} aria-labelledby={`${idPrefix}-scratch-description-et`} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} style={inp} placeholder="Flujo creado manualmente desde plantillas" />
             </div>
-            <label htmlFor={`${idPrefix}-scratch-default`} style={{ gridColumn: '1/-1', display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-              <input id={`${idPrefix}-scratch-default`} type="checkbox" checked={scratch.is_default} onChange={e => setScratch(s => ({ ...s, is_default: e.target.checked }))} style={{ accentColor: 'var(--accent)' }} />
+            <label id={`${idPrefix}-scratch-default-et`} htmlFor={`${idPrefix}-scratch-default`} style={{ gridColumn: '1/-1', display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+              <input id={`${idPrefix}-scratch-default`} aria-labelledby={`${idPrefix}-scratch-default-et`} type="checkbox" checked={scratch.is_default} onChange={e => setScratch(s => ({ ...s, is_default: e.target.checked }))} style={{ accentColor: 'var(--accent)' }} />
               {traducir('approvals.marcar_como_flujo_por_defecto')}
             </label>
           </div>
@@ -1031,8 +1032,8 @@ function WorkflowTemplatesTab() {
               <div key={`${idx}-${step.name}`} style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 10, background: 'var(--surface-3)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.7fr 0.9fr auto', gap: 8, alignItems: 'end' }}>
                   <div>
-                    <label htmlFor={`${idPrefix}-step-name-${idx}`} style={lbl}>Paso {idx + 1}</label>
-                    <input id={`${idPrefix}-step-name-${idx}`} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} style={inp} placeholder={traducir('approvals.nombre_del_paso')} />
+                    <label id={`${idPrefix}-step-name-${idx}-et`} htmlFor={`${idPrefix}-step-name-${idx}`} style={lbl}>Paso {idx + 1}</label>
+                    <input id={`${idPrefix}-step-name-${idx}`} aria-labelledby={`${idPrefix}-step-name-${idx}-et`} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} style={inp} placeholder={traducir('approvals.nombre_del_paso')} />
                   </div>
                   <div>
                     <label htmlFor={`${idPrefix}-step-type-${idx}`} style={lbl}>Aprobador</label>
@@ -1043,8 +1044,8 @@ function WorkflowTemplatesTab() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor={`${idPrefix}-step-timeout-${idx}`} style={lbl}>Timeout(h)</label>
-                    <input id={`${idPrefix}-step-timeout-${idx}`} type="number" min="1" value={step.timeout_hours} onChange={e => updateScratchStep(idx, 'timeout_hours', e.target.value)} style={inp} />
+                    <label id={`${idPrefix}-step-timeout-${idx}-et`} htmlFor={`${idPrefix}-step-timeout-${idx}`} style={lbl}>Timeout(h)</label>
+                    <input id={`${idPrefix}-step-timeout-${idx}`} aria-labelledby={`${idPrefix}-step-timeout-${idx}-et`} type="number" min="1" value={step.timeout_hours} onChange={e => updateScratchStep(idx, 'timeout_hours', e.target.value)} style={inp} />
                   </div>
                   <div>
                     <label htmlFor={`${idPrefix}-step-ontimeout-${idx}`} style={lbl}>On timeout</label>
@@ -1457,11 +1458,11 @@ function ApprovalGroupsTab() {
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Miembros</label>
-              <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 8 }}>
+              <div id={`${idCampo}-miembros`} style={lbl}>Miembros</div>
+              <div role="group" aria-labelledby={`${idCampo}-miembros`} style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 8 }}>
                 {users.map(u => (
                   <label key={u.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0', cursor: 'pointer', fontSize: 'var(--text-sm)' }}>
-                    <input type="checkbox" checked={form.member_ids.includes(u.id)} onChange={() => toggleMember(u.id)} style={{ accentColor: 'var(--accent)' }} />
+                    <input type="checkbox" aria-label={u.full_name} checked={form.member_ids.includes(u.id)} onChange={() => toggleMember(u.id)} style={{ accentColor: 'var(--accent)' }} />
                     {u.full_name} <span className="u-text3-xs">({u.role})</span>
                   </label>
                 ))}
@@ -1824,8 +1825,8 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
         <Modal open title={t('approvals.new_workflow_title')} onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
-              <label htmlFor={`${createIdPrefix}-name`} style={lbl}>{t('approvals.name_required')}</label>
-              <input id={`${createIdPrefix}-name`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('approvals.workflow_name_placeholder')} />
+              <label id={`${createIdPrefix}-name-et`} htmlFor={`${createIdPrefix}-name`} style={lbl}>{t('approvals.name_required')}</label>
+              <input id={`${createIdPrefix}-name`} aria-labelledby={`${createIdPrefix}-name-et`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('approvals.workflow_name_placeholder')} />
             </div>
             <div>
               <label htmlFor={`${createIdPrefix}-entity-type`} style={lbl}>{t('approvals.entity_type')}</label>
@@ -1851,11 +1852,11 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
               </div>
             )}
             <div>
-              <label htmlFor={`${createIdPrefix}-description`} style={lbl}>{t('approvals.description')}</label>
-              <input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t('approvals.description_placeholder')} />
+              <label id={`${createIdPrefix}-description-et`} htmlFor={`${createIdPrefix}-description`} style={lbl}>{t('approvals.description')}</label>
+              <input id={`${createIdPrefix}-description`} aria-labelledby={`${createIdPrefix}-description-et`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t('approvals.description_placeholder')} />
             </div>
-            <label htmlFor={`${createIdPrefix}-is-default`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-              <input id={`${createIdPrefix}-is-default`} type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+            <label id={`${createIdPrefix}-is-default-et`} htmlFor={`${createIdPrefix}-is-default`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+              <input id={`${createIdPrefix}-is-default`} aria-labelledby={`${createIdPrefix}-is-default-et`} type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
               {t('approvals.default_flow_label')}
             </label>
             {/* v2 enterprise */}
@@ -1868,12 +1869,12 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
               </select>
             </div>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-              <input type="checkbox" checked={form.sla_block_on_breach} onChange={e => setForm(f=>({...f,sla_block_on_breach:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+              <input type="checkbox" aria-label={traducir('approvals.bloquear_entidad_si_se_supera_el_sla')} checked={form.sla_block_on_breach} onChange={e => setForm(f=>({...f,sla_block_on_breach:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
               {traducir('approvals.bloquear_entidad_si_se_supera_el_sla')}
             </label>
             <div>
-              <label htmlFor={`${createIdPrefix}-auto-rules`} style={lbl}>{traducir('approvals.reglas_de_auto_aprobacion_json_opcional')}</label>
-              <textarea id={`${createIdPrefix}-auto-rules`} value={form.auto_approval_rules} rows={2}
+              <label id={`${createIdPrefix}-auto-rules-et`} htmlFor={`${createIdPrefix}-auto-rules`} style={lbl}>{traducir('approvals.reglas_de_auto_aprobacion_json_opcional')}</label>
+              <textarea id={`${createIdPrefix}-auto-rules`} aria-labelledby={`${createIdPrefix}-auto-rules-et`} value={form.auto_approval_rules} rows={2}
                 onChange={e => setForm(f=>({...f,auto_approval_rules:e.target.value}))}
                 style={{...inp, resize:'vertical', fontFamily:'monospace', fontSize:'var(--text-xs)'}}
                 placeholder='[{"condition":"amount_lt","value":100,"action":"auto_approve"}]' />

@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR, COLOR_DATO_POR_DEFECTO, alpha } from '../../constants/theme'
-import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi, clientsApi, contractsApi } from '../../services/api'
+import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
 import ConfigCorreoEntrante from './ConfigCorreoEntrante'
 import { GuardiasConfig, MonitorizacionConfig } from './ConfigGuardiasYMonitor'
@@ -23,10 +23,11 @@ type Svc = { [k: string]: unknown; id: string; name: string; category_id?: strin
 type Cat = { [k: string]: unknown; id: string; name: string; description?: string; icon?: string; color?: string; services?: Svc[] }
 type Asignada = { id: string; name: string }
 type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean; clients?: Asignada[]; contracts?: Asignada[]; business_start?: number; business_end?: number; business_days?: string; timezone?: string | null; calendar_id?: string | null }
-type Calendario = { id: string; name: string; timezone?: string; work_start?: string; work_end?: string; work_days?: string }
+type Calendario = SlaCalendar
 type Member = { [k: string]: unknown; id: string; full_name?: string; is_lead?: boolean }
 type Group = { [k: string]: unknown; id: string; name: string; description?: string; support_level?: string; ola_hours?: number | null; members?: Member[] }
-type User = { [k: string]: unknown; id: string; full_name?: string }
+// #24b: la lista de usuarios ya llega tipada desde usersApi (UserPublic).
+type User = UserListItem
 type Template = { [k: string]: unknown; id: string; name: string; ticket_type?: string; default_priority?: string; description_template?: string; is_active?: boolean }
 type Canned = { [k: string]: unknown; id: string; title?: string; body?: string; category?: string; shortcut?: string }
 type CannedForm = { title: string; body: string; category: string; shortcut: string }
@@ -126,9 +127,9 @@ function CatalogConfig() {
                       <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{svc.requires_approval ? '🔐' : ''}</td>
                       <td style={{ padding:'6px 12px' }}>
                         <div className="u-row-6">
-                          <button onClick={() => setEditingSvc({...svc, category_id: cat.id})}
+                          <button aria-label={`${t('common.edit')} ${svc.name}`} onClick={() => setEditingSvc({...svc, category_id: cat.id})}
                             style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏</button>
-                          <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar servicio?', onConfirm: () => deleteSvc(svc.id), danger: true }) }}
+                          <button aria-label={`${t('common.delete')} ${svc.name}`} onClick={() => { openConfirmGlobal({ message: '¿Eliminar servicio?', onConfirm: () => deleteSvc(svc.id), danger: true }) }}
                             style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
                         </div>
                       </td>
@@ -197,7 +198,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
   const t = useAppT()
   const { data: usuarios = [] } = useQuery<User[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data as unknown as User[]),
+    queryFn: () => usersApi.list().then(r => r.data),
   })
   const [form, setForm] = useState({
     name: initial?.name || '',
@@ -248,8 +249,8 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
           <label htmlFor="svc_visible" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('sd_cfg.svc_visible')}</label>
         </div>
         <div className="u-row-center-10">
-          <input type="checkbox" id="req_appr" checked={form.requires_approval} onChange={set('requires_approval')} />
-          <label htmlFor="req_appr" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.svc_requires_approval')}</label>
+          <input type="checkbox" id="req_appr" aria-labelledby="req_appr-et" checked={form.requires_approval} onChange={set('requires_approval')} />
+          <label id="req_appr-et" htmlFor="req_appr" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.svc_requires_approval')}</label>
         </div>
         {form.requires_approval && (
           <div className="u-col-full">
@@ -301,7 +302,7 @@ function SLAConfig() {
   })
   const { data: calendarios = [] } = useQuery<Calendario[]>({
     queryKey: ['sla-calendars'],
-    queryFn: () => slaCalendarsApi.list().then(r => r.data as Calendario[]),
+    queryFn: () => slaCalendarsApi.list().then(r => r.data),
   })
   const [editing, setEditing] = useState<Policy | null>(null)
   const [asignando, setAsignando] = useState<Policy | null>(null)
@@ -442,7 +443,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
   const t = useAppT()
   const { data: calendarios = [] } = useQuery<Calendario[]>({
     queryKey: ['sla-calendars'],
-    queryFn: () => slaCalendarsApi.list().then(r => r.data as Calendario[]),
+    queryFn: () => slaCalendarsApi.list().then(r => r.data),
   })
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
@@ -485,8 +486,8 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
         <div key={key} style={{ background:'var(--surface-1)', borderRadius:'var(--radius-md)', padding:14 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" min={0} step="0.25" value={formRec[`${key}_response_hours`] as number} onChange={set(`${key}_response_hours`)} style={IS} /></div>
-            <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" min={0} step="0.25" value={formRec[`${key}_resolution_hours`] as number} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
+            <div><label id={`${idCampo}-et${key}-resp`} htmlFor={`${idCampo}-${key}-resp`} style={LS}>{t('service_desk.sla_response_h')}</label><input id={`${idCampo}-${key}-resp`} aria-labelledby={`${idCampo}-et${key}-resp`} type="number" min={0} step="0.25" value={formRec[`${key}_response_hours`] as number} onChange={set(`${key}_response_hours`)} style={IS} /></div>
+            <div><label id={`${idCampo}-et${key}-resol`} htmlFor={`${idCampo}-${key}-resol`} style={LS}>{t('service_desk.sla_resolution_h')}</label><input id={`${idCampo}-${key}-resol`} aria-labelledby={`${idCampo}-et${key}-resol`} type="number" min={0} step="0.25" value={formRec[`${key}_resolution_hours`] as number} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
           </div>
         </div>
       ))}
@@ -508,13 +509,13 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
         </div>
         {propio && (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10 }}>
-            <div><label style={LS} htmlFor="sla-ini">{t('sd_cfg.start_hour')}</label>
-              <input id="sla-ini" type="number" min={0} max={23} value={form.business_start} onChange={set('business_start')} style={IS} /></div>
-            <div><label style={LS} htmlFor="sla-fin">{t('sd_cfg.end_hour')}</label>
-              <input id="sla-fin" type="number" min={1} max={24} value={form.business_end} onChange={set('business_end')} style={IS} /></div>
-            <div style={{ gridColumn:'span 2' }}><label style={LS} htmlFor="sla-zona">{t('sd_cfg.timezone')}</label>
-              <input id="sla-zona" list="sla-zonas" value={form.timezone} placeholder={t('sd_cfg.timezone_org')} onChange={set('timezone')} style={IS} />
-              <datalist id="sla-zonas">{ZONAS.map(z => <option key={z} value={z} />)}</datalist></div>
+            <div><label id="sla-ini-et" style={LS} htmlFor="sla-ini">{t('sd_cfg.start_hour')}</label>
+              <input id="sla-ini" aria-labelledby="sla-ini-et" type="number" min={0} max={23} value={form.business_start} onChange={set('business_start')} style={IS} /></div>
+            <div><label id="sla-fin-et" style={LS} htmlFor="sla-fin">{t('sd_cfg.end_hour')}</label>
+              <input id="sla-fin" aria-labelledby="sla-fin-et" type="number" min={1} max={24} value={form.business_end} onChange={set('business_end')} style={IS} /></div>
+            <div style={{ gridColumn:'span 2' }}><label id="sla-zona-et" style={LS} htmlFor="sla-zona">{t('sd_cfg.timezone')}</label>
+              <input id="sla-zona" aria-labelledby="sla-zona-et" list="sla-zonas" value={form.timezone} placeholder={t('sd_cfg.timezone_org')} onChange={set('timezone')} style={IS} />
+              <datalist id="sla-zonas">{ZONAS.map(z => <option key={z} value={z} aria-label={z} />)}</datalist></div>
             <div className="u-col-full">
               <span style={LS}>{t('sd_cfg.workdays')}</span>
               <div className="u-wrap-6">
@@ -536,7 +537,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
       </div>
       <div style={{ gridColumn:'1/-1', display:'flex', gap:20, alignItems:'center' }}>
         <label style={{ display:'flex', gap:8, alignItems:'center', fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>
-          <input type="checkbox" checked={form.is_default} onChange={set('is_default')} />
+          <input type="checkbox" aria-label={t('service_desk.sla_default_policy')} checked={form.is_default} onChange={set('is_default')} />
           {t('service_desk.sla_default_policy')}
         </label>
       </div>
@@ -561,7 +562,7 @@ function GroupsConfig() {
   })
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data as unknown as User[]),
+    queryFn: () => usersApi.list().then(r => r.data),
   })
   const [editing, setEditing] = useState<Group | null>(null)
   const { mutate: createGroup, isPending } = useMutation({
@@ -690,8 +691,8 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSS
         </select>
       </div>
       <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('common.description')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} style={IS} /></div>
-      <div><label style={LS} htmlFor="grp-ola">{t('sd_cfg.ola_hours')}</label>
-        <input id="grp-ola" type="number" min={0} step={0.5} value={form.ola_hours} onChange={set('ola_hours')} style={IS}
+      <div><label id="grp-ola-et" style={LS} htmlFor="grp-ola">{t('sd_cfg.ola_hours')}</label>
+        <input id="grp-ola" aria-labelledby="grp-ola-et" type="number" min={0} step={0.5} value={form.ola_hours} onChange={set('ola_hours')} style={IS}
           aria-invalid={!olaValido} aria-describedby="grp-ola-hint" />
         <div id="grp-ola-hint" style={{ fontSize: "var(--text-xs)", color: olaValido ? 'var(--text-3)' : COLOR.danger, marginTop: 4 }}>{t('sd_cfg.ola_hint')}</div>
       </div>
@@ -892,15 +893,15 @@ function CannedResponsesManager() {
             <div key={r.id} style={{ padding:'12px 14px', background:'var(--accent-muted)',
               border:'1px solid var(--accent-glow)', borderRadius:'var(--radius-md)' }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-          <div><label style={LS}>{t('common.name')} *</label>
-            <input value={editForm.title||''} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
-          <div><label style={LS}>{t('service_desk.routing_name_lbl')}</label>
-            <input value={editForm.category||''} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))} style={IS} /></div>
+          <div><label id={`${idCampo}-${r.id}-etedit895`} htmlFor={`${idCampo}-${r.id}-edit895`} style={LS}>{t('common.name')} *</label>
+            <input id={`${idCampo}-${r.id}-edit895`} aria-labelledby={`${idCampo}-${r.id}-etedit895`} value={editForm.title||''} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
+          <div><label id={`${idCampo}-${r.id}-etedit897`} htmlFor={`${idCampo}-${r.id}-edit897`} style={LS}>{t('service_desk.routing_name_lbl')}</label>
+            <input id={`${idCampo}-${r.id}-edit897`} aria-labelledby={`${idCampo}-${r.id}-etedit897`} value={editForm.category||''} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))} style={IS} /></div>
         </div>
-        <div style={{marginBottom:8}}><label style={LS}>{t('service_desk.canned_shortcut')}</label>
-          <input value={editForm.shortcut||''} onChange={e=>setEditForm(f=>({...f,shortcut:e.target.value}))} style={{...IS}} /></div>
-        <div className="u-mb-10"><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
-                <textarea value={editForm.body||''} onChange={e=>setEditForm(f=>({...f,body:e.target.value}))} rows={4}
+        <div style={{marginBottom:8}}><label id={`${idCampo}-${r.id}-etedit900`} htmlFor={`${idCampo}-${r.id}-edit900`} style={LS}>{t('service_desk.canned_shortcut')}</label>
+          <input id={`${idCampo}-${r.id}-edit900`} aria-labelledby={`${idCampo}-${r.id}-etedit900`} value={editForm.shortcut||''} onChange={e=>setEditForm(f=>({...f,shortcut:e.target.value}))} style={{...IS}} /></div>
+        <div className="u-mb-10"><label id={`${idCampo}-${r.id}-etedit902`} htmlFor={`${idCampo}-${r.id}-edit902`} style={LS}>{t('service_desk.canned_body_lbl')} *</label>
+                <textarea id={`${idCampo}-${r.id}-edit902`} aria-labelledby={`${idCampo}-${r.id}-etedit902`} value={editForm.body||''} onChange={e=>setEditForm(f=>({...f,body:e.target.value}))} rows={4}
                   style={{...IS, resize:'vertical'}} /></div>
               <div className="u-row-8">
                 <button onClick={() => update({ id:r.id, data:editForm })} disabled={!editForm.title||!editForm.body}
@@ -1028,8 +1029,8 @@ export function AnnouncementsConfig() {
               </select>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:18 }}>
-              <input type="checkbox" id="showCl" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
-              <label htmlFor="showCl" style={{ fontSize: "var(--text-sm)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.ann_visible_clients')}</label>
+              <input type="checkbox" id="showCl" aria-labelledby="showCl-et" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
+              <label id="showCl-et" htmlFor="showCl" style={{ fontSize: "var(--text-sm)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.ann_visible_clients')}</label>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.ann_starts')}</label><DateInput id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.ann_ends')}</label><DateInput id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>

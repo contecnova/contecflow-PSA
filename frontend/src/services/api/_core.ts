@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
-import type { Client, ClientContact, Contract, Epic, RiesgosDelProyecto, Risk, Sprint } from './tipos'
+import type { Client, ClientContact, Contract, Epic, RiesgosDelProyecto, Risk, SlaCalendar, SlaCalendarCreado, Sprint } from './tipos'
 import { API_BASE_URL } from './urls'
 import { ESCALATION_LOGS_LIMIT, GOVERNANCE_LOGS_LIMIT, INBOUND_MESSAGES_LIMIT, MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
@@ -1409,12 +1409,23 @@ export const enterpriseApi = {
   ssoUpdate:               (id: PathId, data: unknown) => api.patch(`/enterprise/sso/${id}`, data),
   ssoDelete:               (id: PathId)     => api.delete(`/enterprise/sso/${id}`),
   ssoTest:                 (id: PathId)     => api.post(`/enterprise/sso/${id}/test`),
+  // Segunda auditoría 2026-11 (#22): webhooks salientes y sus entregas en una sola llamada.
+  outboundWebhooks:        ()       => api.get('/enterprise/webhooks'),
+  outboundWebhookEvents:   ()       => api.get('/enterprise/webhooks/events'),
+  webhookDeliveries:       (params?: { webhook_id?: string; event?: string; success?: boolean; page?: number; page_size?: number }) =>
+                             api.get('/enterprise/webhooks/deliveries', { params }),
 }
 
 export const integrationsHubApi = {
   testSlack:  (data: unknown) => api.post('/integrations-hub/slack/test', data),
   testTeams:  (data: unknown) => api.post('/integrations-hub/teams/test', data),
   testJira:   (data: unknown) => api.post('/integrations-hub/jira/test', data),
+  // Segunda auditoría 2026-11 (#23): Jira usa la conexión única de la organización.
+  jiraConfig:       () => api.get('/integrations-hub/jira/config'),
+  saveJiraConfig:   (data: { name?: string; base_url: string; email: string; api_token?: string; project_key?: string }) =>
+                      api.put('/integrations-hub/jira/config', data),
+  deleteJiraConfig: () => api.delete('/integrations-hub/jira/config'),
+  syncJira:         () => api.post('/integrations-hub/jira/sync'),
 }
 
 export const apiKeysApi = {
@@ -1458,8 +1469,8 @@ export const clientExtApi = {
 
 // ── SLA Calendars ─────────────────────────────────────────────────────────────
 export const slaCalendarsApi = {
-  list:          () => api.get('/cmdb/sla-calendars'),
-  create:        (data: unknown) => api.post('/cmdb/sla-calendars', data),
+  list:          (): Promise<AxiosResponse<SlaCalendar[]>> => api.get('/cmdb/sla-calendars'),
+  create:        (data: unknown): Promise<AxiosResponse<SlaCalendarCreado>> => api.post('/cmdb/sla-calendars', data),
   update:        (id: PathId, data: unknown) => api.patch(`/cmdb/sla-calendars/${id}`, data),
   delete:        (id: PathId) => api.delete(`/cmdb/sla-calendars/${id}`),
   holidays:      (calId: PathId) => api.get(`/cmdb/sla-calendars/${calId}/holidays`),

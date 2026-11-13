@@ -467,6 +467,11 @@ def _avisar(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> dict:
 def procesar_evento(db: Session, ev: TicketEvent) -> dict:
     """Avisa y emite el webhook de un evento. No confirma la transaccion."""
     data = json.loads(ev.data or "{}")
+    from app.services.entrada_service import organizacion_desactivada
+    if organizacion_desactivada(db, ev.organization_id):
+        # Segunda auditoría 2026-11 (#10): sin avisos, webhooks ni flujos para
+        # una organización desactivada; el evento se da por tratado.
+        return {"omitido": "organizacion desactivada"}
     with _como_organizacion(db, ev.organization_id):
         ticket = db.get(Ticket, ev.ticket_id)
         if ticket is None:

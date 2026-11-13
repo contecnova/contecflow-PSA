@@ -187,7 +187,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
             <div className="u-text2-xs">{traducir('expenses.sube_una_foto_o_pdf_y_el')}</div>
           </div>
           <label style={{ cursor: 'pointer' }}>
-            <input type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={async e => {
+            <input type="file" accept="image/*,.pdf" aria-label={traducir('expenses.escanear_recibo_con_ia')} style={{ display: 'none' }} onChange={async e => {
               const file = e.target.files?.[0]
               if (!file) return
               setOcrLoading(true)
@@ -236,9 +236,9 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           </select>
         </div>
         <div>
-          <label style={ls}>Importe *</label>
-          <input type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} style={fs}
-            placeholder={form.km ? traducir('gas.importe_por_km') : 'Importe'} aria-label="Importe" />
+          <label id={`${idCampo}-eta239`} htmlFor={`${idCampo}-a239`} style={ls}>Importe *</label>
+          <input id={`${idCampo}-a239`} aria-labelledby={`${idCampo}-eta239`} type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} style={fs}
+            placeholder={form.km ? traducir('gas.importe_por_km') : 'Importe'} />
         </div>
         <div>
           <label style={ls}>{traducir('gas.km')}</label>
@@ -255,12 +255,12 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <DateInput id={`${idCampo}-4`} value={form.expense_date} onChange={set('expense_date')} style={fs} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 24 }}>
-          <input type="checkbox" id="billable" checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
-          <label htmlFor="billable" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{traducir('expenses.gasto_facturable_al_cliente')}</label>
+          <input type="checkbox" id="billable" aria-labelledby="billable-etiqueta" checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
+          <label htmlFor="billable" id="billable-etiqueta" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{traducir('expenses.gasto_facturable_al_cliente')}</label>
         </div>
         <div className="u-col-full">
-          <label style={ls}>Notas adicionales</label>
-          <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Notas adicionales" aria-label="Notas adicionales" />
+          <label id={`${idCampo}-eta262`} htmlFor={`${idCampo}-a262`} style={ls}>Notas adicionales</label>
+          <textarea id={`${idCampo}-a262`} aria-labelledby={`${idCampo}-eta262`} value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Notas adicionales" />
         </div>
         <div style={{ gridColumn: '1/-1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('gas.justificantes_en_el_detalle')}</div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>

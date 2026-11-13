@@ -259,23 +259,6 @@ def org_perf_kpis(db: Session) -> dict:
     }
 
 
-# ── APScheduler hook ─────────────────────────────────────────────────────────
-
-def run_perf_reminders_job() -> None:
-    """Punto de entrada para APScheduler. Abre su propia sesión."""
-    from app.db.session import SessionLocal
-    db = SessionLocal()
-    try:
-        logger.info("perf-reminders job: start")
-        result = send_pending_review_reminders(db)
-        logger.info(
-            "perf-reminders job: end cycles=%s sent=%s skipped=%s",
-            result.get("cycles_processed"),
-            result.get("reminders_sent"),
-            result.get("reminders_skipped_dedup"),
-        )
-    except Exception:
-        logger.exception("perf-reminders job: failed")
-        raise
-    finally:
-        db.close()
+# Segunda auditoría 2026-11 (#19): `run_perf_reminders_job` (sesión propia SIN
+# contexto de tenant, sin llamadas) se borró; el worker llama a
+# `send_pending_review_reminders` por organización.

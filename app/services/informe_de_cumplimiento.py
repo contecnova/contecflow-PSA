@@ -94,6 +94,36 @@ def generar(db, org: str) -> dict:
         sso = db.query(SSOConfig).filter(SSOConfig.organization_id == org, SSOConfig.is_active.is_(True),
                                          SSOConfig.is_deleted.is_(False)).count()
         controles.append(_control("sso", "info", {"active_providers": sso}, "sso_configs", ("ISO27001 A.5.16",)))
+        # Segunda auditoría 2026-11: la política SSO de la empresa. Un proveedor
+        # activo que da de alta usuarios sin limitar dominios deja entrar a
+        # cualquiera con cuenta en ese IdP: eso pide atención.
+        proveedores = db.query(SSOConfig).filter(SSOConfig.organization_id == org, SSOConfig.is_active.is_(True),
+                                                 SSOConfig.is_deleted.is_(False)).all()
+        dominios = sorted({d.strip().lower() for p in proveedores for d in (p.allowed_domains or "").split(",")
+                           if d.strip()})
+        abiertos = [p.name or getattr(p.provider, "value", p.provider) for p in proveedores
+                    if p.auto_create_users and not (p.allowed_domains or "").strip()]
+        controles.append(_control(
+            "sso_policy", "info" if not proveedores else ("attention" if abiertos else "pass"),
+            {"sso_configured": bool(proveedores), "require_mfa": exige, "allowed_domains": dominios,
+             "providers_auto_create_without_domains": abiertos},
+            "sso_configs activas (allowed_domains, auto_create_users) + organizations.require_mfa",
+            ("ISO27001 A.5.16", "ISO27001 A.8.5", "SOC2 CC6.1")))
+        # Segunda auditoría 2026-11: cambiar o restablecer la contraseña revoca
+        # los refrescos (auth_service.revocar_sesiones_del_usuario, llamado por
+        # `POST /auth/change-password` y `complete_password_reset`). Es un
+        # control del código; la cifra es la evidencia de uso en la empresa.
+        from app.models.sessions import UserSession
+        from app.services.auth_service import tokens_y_cookies as _tokens
+        mecanismo = hasattr(_tokens, "revocar_sesiones_del_usuario")
+        revocadas = db.query(UserSession).filter(
+            UserSession.user_id.in_(ids or [""]),
+            UserSession.revoke_reason.in_(("password_change", "password_reset"))).count()
+        controles.append(_control("session_revocation", "pass" if mecanismo else "attention",
+                                  {"on_password_change": mecanismo, "on_password_reset": mecanismo,
+                                   "sessions_revoked_by_password_events": revocadas},
+                                  "auth_service.revocar_sesiones_del_usuario + user_sessions.revoke_reason",
+                                  ("ISO27001 A.8.5", "SOC2 CC6.1", "ENS op.acc.5")))
         longitud = int(get_runtime_int(db, "MIN_PASSWORD_LENGTH", org) or settings.MIN_PASSWORD_LENGTH)
         exigida = int(_umbral(db, "COMPLIANCE_MIN_PASSWORD_LENGTH", org))
         controles.append(_control("password_policy", "pass" if longitud >= exigida else "attention",

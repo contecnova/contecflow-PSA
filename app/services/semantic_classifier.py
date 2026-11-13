@@ -475,10 +475,9 @@ class SemanticAssigner(ServiceBase):
         if not profile_text.strip():
             return False
 
-        profile = self.db.query(SemProfile).filter(SemProfile.user_id == user_id).first()
-        if not profile:
-            profile = SemProfile(user_id=user_id)
-            self.db.add(profile)
+        from app.models.semantic_engine import perfil_semantico
+        # Segunda auditoría 2026-11 (#11): perfil por (usuario, organización).
+        profile = perfil_semantico(self.db, user_id, crear=True)
 
         profile.profile_text = profile_text
         profile.embedding = json.dumps(self._encode_single(profile_text))

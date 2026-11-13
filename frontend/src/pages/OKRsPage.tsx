@@ -138,7 +138,7 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
           background:'var(--accent-muted)', border:'1px dashed var(--accent-border)',
           borderRadius:8, alignItems:'center' }}>
           <div style={{ flex:'1 1 120px', minWidth:0 }}>
-            <input type="number" value={checkinVal}
+            <input type="number" aria-label={`Nuevo valor (actual: ${kr.current_value})`} value={checkinVal}
               onChange={e => setCheckinVal(e.target.value)}
               style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
                 borderRadius:'var(--radius-sm)', padding:'6px 10px', color:'var(--text-1)',

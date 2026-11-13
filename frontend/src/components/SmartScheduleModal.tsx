@@ -251,6 +251,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
               }}>
                 <input
                   type="checkbox" checked={allSelected}
+                  aria-label={traducir('smartschedulemodal.seleccionar_deseleccionar_todas')}
                   onChange={_toggleAll}
                   title={traducir('smartschedulemodal.seleccionar_deseleccionar_todas')}
                 />
@@ -267,6 +268,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                 }}>
                   <input
                     type="checkbox" checked={!!s._selected}
+                    aria-label={s._title}
                     onChange={() => _toggle(idx)}
                     disabled={isApplying}
                   />

@@ -49,7 +49,7 @@ function Campos({ ficha, valores, puestos, onChange }: { ficha: Ficha; valores: 
       {ficha.campos.map(c => (
         <label key={c.clave} style={{ display: 'grid', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
           <span className="u-mono">{c.clave}</span>
-          <input type={c.secreto ? 'password' : 'text'} autoComplete="off" style={campo} value={valores[c.clave] ?? ''}
+          <input type={c.secreto ? 'password' : 'text'} aria-label={c.clave} autoComplete="off" style={campo} value={valores[c.clave] ?? ''}
             placeholder={c.secreto && puestos.includes(c.clave) ? t('etl.secreto_puesto') : ''}
             onChange={e => onChange(c.clave, e.target.value)} />
         </label>
@@ -116,7 +116,7 @@ function NuevaFuente({ ficha, onClose }: { ficha: Ficha; onClose: () => void }) 
       <div style={{ display: 'grid', gap: 14 }}>
         <label style={{ display: 'grid', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
           {t('etl.nombre')}
-          <input style={campo} value={nombre} onChange={e => setNombre(e.target.value)} />
+          <input aria-label={t('etl.nombre')} style={campo} value={nombre} onChange={e => setNombre(e.target.value)} />
         </label>
         <Campos ficha={ficha} valores={valores} puestos={[]} onChange={(k, v) => setValores(x => ({ ...x, [k]: v }))} />
         <div className="u-actions-8">
