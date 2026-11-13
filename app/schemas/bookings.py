@@ -6,13 +6,6 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 
 
-class DependencyCreate(BaseModel):
-    predecessor_id: str = Field(..., description="ID de la tarea predecesora")
-    successor_id: str = Field(..., description="ID de la tarea sucesora")
-    dependency_type: str = Field("FS", description="Tipo de dependencia (FS, SS, FF, SF)")
-    lag_days: int = Field(0, description="Días de desfase entre predecesora y sucesora")
-
-
 class BookingCreate(BaseModel):
     user_id: str = Field(..., description="ID del usuario reservado")
     project_id: Optional[str] = Field(None, description="ID del proyecto al que se asigna la reserva")

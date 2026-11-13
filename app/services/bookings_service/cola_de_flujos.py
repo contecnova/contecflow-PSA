@@ -20,6 +20,7 @@ from app.services.bookings_service.aprovisionamiento import (
     _validate_provision_url,
 )
 from app.services.bookings_service._comun import logger
+from app.services.settings_service import outbound_http_timeout
 
 
 def paso_de_workflow_propio(db, current_user, wf_id: str, step_id: str):
@@ -260,7 +261,7 @@ def _ejecutar_webhook(config: dict, context: dict, step_result: dict, item) -> N
             config.get("payload") or {"event": config.get("event"), "context": context},
             context,
         )
-        with _httpx.Client(timeout=5.0) as client:
+        with _httpx.Client(timeout=outbound_http_timeout(default=5.0)) as client:
             resp = client.request(method, url, headers=headers, json=payload_wh)
         step_result["http_status"] = resp.status_code
         step_result["response"] = resp.text[:1000]

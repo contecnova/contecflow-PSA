@@ -21,8 +21,17 @@ export interface UseSortResult<T> {
   sortedData: T[]
 }
 
+/** Valor de una clave en una fila cualquiera (la fila es generica). */
+function campo(fila: unknown, clave: string): unknown {
+  return fila && typeof fila === 'object' ? (fila as Record<string, unknown>)[clave] : undefined
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
-export function useSort<T extends Record<string, unknown>>(
+// Auditoria 2026-11 (#39): exigia `T extends Record<string, unknown>` y las
+// interfaces del dominio no tienen indice implicito, asi que cada pantalla
+// pasaba los datos con `as unknown as Record<...>[]` y los recuperaba con otro
+// cast. La fila es generica; el acceso dinamico por clave se resuelve aqui.
+export function useSort<T>(
   data: T[] = [],
   defaultKey: string = '',
   defaultDir: SortDir = 'asc',
@@ -40,13 +49,13 @@ export function useSort<T extends Record<string, unknown>>(
   const sortedData = useMemo<T[]>(() => {
     if (!sort.key || !Array.isArray(data)) return data
     return [...data].sort((a, b) => {
-      let av: unknown = a[sort.key]
-      let bv: unknown = b[sort.key]
+      let av: unknown = campo(a, sort.key)
+      let bv: unknown = campo(b, sort.key)
       // handle nested e.g. "assignee.full_name"
       if (sort.key.includes('.')) {
         const parts = sort.key.split('.')
-        av = parts.reduce<unknown>((o, k) => (o as Record<string, unknown> | null | undefined)?.[k], a)
-        bv = parts.reduce<unknown>((o, k) => (o as Record<string, unknown> | null | undefined)?.[k], b)
+        av = parts.reduce<unknown>((o, k) => campo(o, k), a)
+        bv = parts.reduce<unknown>((o, k) => campo(o, k), b)
       }
       if (av == null) return 1
       if (bv == null) return -1
@@ -69,7 +78,19 @@ export interface SortableTHProps {
   align?: 'left' | 'right'
 }
 
+/**
+ * Valor de `aria-sort` para la cabecera `<th>` que envuelve a `SortableTH`.
+ * Auditoria 2026-11 (#45): aria-sort solo vale en columnheader/rowheader; en el
+ * <button> era invalido y los lectores lo ignoraban. Va en la <th>.
+ */
+export function ariaSort(sort: SortState | undefined, col: string): 'ascending' | 'descending' | 'none' {
+  return sort?.key === col ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'
+}
+
 // ── SortableTH ────────────────────────────────────────────────────────────────
+// Es el BOTON de ordenar; si la tabla es una <table>, envuelvelo en
+// <th aria-sort={ariaSort(sort, col)}>. En las tablas hechas con <div> en grid no
+// hay cabecera de columna a la que ponerselo: el estado va en el aria-label.
 export function SortableTH({ col, sort, onSort, children, style = {}, align = 'left' }: SortableTHProps) {
   const isActive = sort?.key === col
   const dir: SortDir = sort?.dir ?? 'asc'
@@ -77,8 +98,7 @@ export function SortableTH({ col, sort, onSort, children, style = {}, align = 'l
     <button
       type="button"
       onClick={() => onSort(col)}
-      aria-sort={isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-      aria-label={`${typeof children === 'string' ? children : col}, ordenar ${isActive ? (dir === 'asc' ? 'descendente' : 'ascendente') : 'ascendente'}`}
+      aria-label={`${typeof children === 'string' ? children : col}, ${isActive ? `orden ${dir === 'asc' ? 'ascendente' : 'descendente'}; ` : ''}ordenar ${isActive ? (dir === 'asc' ? 'descendente' : 'ascendente') : 'ascendente'}`}
       style={{
         display: 'flex', alignItems: 'center', gap: 4,
         justifyContent: align === 'right' ? 'flex-end' : 'flex-start',

@@ -252,60 +252,65 @@ def _should_retrain(meta: dict, evaluation: dict, *, max_age_days: int, attentio
     return stale or evaluation.get("status") == attention_status
 
 
+def evaluar_y_reentrenar_organizacion(db: Session, org_id) -> dict[str, Any]:
+    """Evalua los modelos de una organizacion y reentrena los que lo necesitan.
+
+    Segunda auditoria 2026-11 (#33): el worker la llama una vez por
+    organizacion con su contexto de tenant publicado.
+    """
+    itsm_eval = evaluate_itsm_model_health(db, organization_id=org_id)
+    bi_eval = evaluate_bi_model_health(db, organization_id=org_id)
+
+    itsm_meta = _get_json(db, ITSM_META_KEY, org_id, default={})
+    bi_meta = _get_json(db, BI_META_KEY, org_id, default={})
+
+    itsm_trigger = _should_retrain(itsm_meta, itsm_eval, max_age_days=7)
+    bi_trigger = _should_retrain(bi_meta, bi_eval, max_age_days=14)
+
+    if itsm_trigger:
+        baseline = predictive_analytics_service.recompute_predictive_baselines(db, organization_id=org_id)
+        itsm_meta = {
+            "last_retrained_at": _iso_now(),
+            "reason": "attention_or_stale",
+            "baseline_samples": baseline.get("samples", 0),
+        }
+        _set_json(db, ITSM_META_KEY, org_id, itsm_meta, "ITSM predictive retraining metadata")
+
+    if bi_trigger:
+        bi_intelligence_service.ml_detect_anomalies_multivariate(db, organization_id=org_id)
+        bi_intelligence_service.ml_predict_project_overrun_lgbm(db, organization_id=org_id)
+        bi_meta = {
+            "last_retrained_at": _iso_now(),
+            "reason": "attention_or_stale",
+            "forecast_engine": bi_eval.get("forecast_engine"),
+            "overrun_engine": bi_eval.get("overrun_engine"),
+        }
+        _set_json(db, BI_META_KEY, org_id, bi_meta, "BI predictive retraining metadata")
+
+    return {
+        "organization_id": org_id,
+        "itsm": {"evaluation": itsm_eval, "triggered": itsm_trigger},
+        "bi": {"evaluation": bi_eval, "triggered": bi_trigger},
+    }
+
+
+def guardar_resumen_de_evaluacion(db: Session, resultados: list[dict]) -> dict[str, Any]:
+    """Resumen global del ciclo (`LAST_EVAL_KEY`, lo lee la observabilidad)."""
+    summary = {
+        "evaluated_at": _iso_now(),
+        "organizations": len(resultados),
+        "itsm_retrained": sum(1 for r in resultados if r["itsm"]["triggered"]),
+        "bi_retrained": sum(1 for r in resultados if r["bi"]["triggered"]),
+        "results": resultados,
+    }
+    _set_json(db, LAST_EVAL_KEY, None, summary, "Predictive evaluation cycle summary")
+    db.commit()
+    return summary
+
+
 def run_periodic_evaluation_and_retraining(db: Session) -> dict[str, Any]:
+    """Todas las organizaciones en la misma sesion (uso manual desde la API y pruebas)."""
     orgs = [r[0] for r in db.query(User.organization_id).filter(User.organization_id.isnot(None)).distinct().all()]
     if not orgs:
         orgs = [None]
-
-    summary = {
-        "evaluated_at": _iso_now(),
-        "organizations": 0,
-        "itsm_retrained": 0,
-        "bi_retrained": 0,
-        "results": [],
-    }
-
-    for org_id in orgs:
-        itsm_eval = evaluate_itsm_model_health(db, organization_id=org_id)
-        bi_eval = evaluate_bi_model_health(db, organization_id=org_id)
-
-        itsm_meta = _get_json(db, ITSM_META_KEY, org_id, default={})
-        bi_meta = _get_json(db, BI_META_KEY, org_id, default={})
-
-        itsm_trigger = _should_retrain(itsm_meta, itsm_eval, max_age_days=7)
-        bi_trigger = _should_retrain(bi_meta, bi_eval, max_age_days=14)
-
-        if itsm_trigger:
-            baseline = predictive_analytics_service.recompute_predictive_baselines(db, organization_id=org_id)
-            itsm_meta = {
-                "last_retrained_at": _iso_now(),
-                "reason": "attention_or_stale",
-                "baseline_samples": baseline.get("samples", 0),
-            }
-            _set_json(db, ITSM_META_KEY, org_id, itsm_meta, "ITSM predictive retraining metadata")
-            summary["itsm_retrained"] += 1
-
-        if bi_trigger:
-            bi_intelligence_service.ml_detect_anomalies_multivariate(db, organization_id=org_id)
-            bi_intelligence_service.ml_predict_project_overrun_lgbm(db, organization_id=org_id)
-            bi_meta = {
-                "last_retrained_at": _iso_now(),
-                "reason": "attention_or_stale",
-                "forecast_engine": bi_eval.get("forecast_engine"),
-                "overrun_engine": bi_eval.get("overrun_engine"),
-            }
-            _set_json(db, BI_META_KEY, org_id, bi_meta, "BI predictive retraining metadata")
-            summary["bi_retrained"] += 1
-
-        summary["results"].append(
-            {
-                "organization_id": org_id,
-                "itsm": {"evaluation": itsm_eval, "triggered": itsm_trigger},
-                "bi": {"evaluation": bi_eval, "triggered": bi_trigger},
-            }
-        )
-
-    _set_json(db, LAST_EVAL_KEY, None, summary, "Predictive evaluation cycle summary")
-    db.commit()
-    summary["organizations"] = len(summary["results"])
-    return summary
+    return guardar_resumen_de_evaluacion(db, [evaluar_y_reentrenar_organizacion(db, o) for o in orgs])

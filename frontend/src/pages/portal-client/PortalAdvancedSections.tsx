@@ -27,7 +27,7 @@ import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
   PortalBadge, PortalButton, PortalModal, PortalField, PortalInput,
   PortalSelect, PortalTextarea, PortalProgress, PortalBanner,
-  formatMoney, metaItems,
+  formatMoney, metaItems, MONEDA_PORTAL_POR_DEFECTO,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
@@ -295,7 +295,7 @@ export function PortalUAT() {
                 {selected.test_environment && (
                   <a href={selected.test_environment} target="_blank" rel="noopener noreferrer" style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                    background: 'var(--accent-muted)', border: '1px solid var(--accent-border, rgba(79,142,247,0.25))',
+                    background: 'var(--accent-muted)', border: '1px solid var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))',
                     borderRadius: 8, padding: '8px 14px', color: 'var(--accent)',
                     textDecoration: 'none', fontSize: 'var(--text-sm)', fontWeight: 700,
                   }}>
@@ -322,7 +322,7 @@ export function PortalUAT() {
             <div className="u-stack-10">
               {selected.test_cases.map(tc => (
                 <PortalCard key={tc.id}>
-                  <div style={{ marginBottom: 10 }}>
+                  <div className="u-mb-10">
                     <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{tc.title}</div>
                     {tc.steps && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 4 }}>📋 {tc.steps}</div>}
                     {tc.expected_result && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--success)' }}>✓ {tc.expected_result}</div>}
@@ -357,7 +357,7 @@ export function PortalUAT() {
                 <PortalCard key={issue.id} padding={14}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{issue.title}</div>
+                      <div className="u-sm-700">{issue.title}</div>
                       <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '4px 0 0' }}>{issue.description}</p>
                     </div>
                     <PortalBadge tone={issue.status === 'fixed' ? 'success' : 'danger'}>{issue.status === 'fixed' ? 'Corregido' : 'Abierto'}</PortalBadge>
@@ -374,7 +374,7 @@ export function PortalUAT() {
           </PortalField>
         </PortalCard>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="u-wrap-10">
           <PortalButton variant="secondary" icon={<Bug size={14} />} onClick={() => setReportingIssue(true)}>
             Reportar incidencia
           </PortalButton>
@@ -470,7 +470,7 @@ export function PortalUAT() {
                   {s.stats?.total > 0 && (
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'flex', gap: 12 }}>
                       <span>{s.stats.total} casos</span>
-                      <span style={{ color: 'var(--success)' }}>✓ {s.stats.passed}</span>
+                      <span className="u-success">✓ {s.stats.passed}</span>
                       <span className="u-danger">✗ {s.stats.failed}</span>
                     </div>
                   )}
@@ -577,7 +577,7 @@ export function PortalFeatureRequests() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 8, flexWrap: 'wrap' }}>
                 <div className="u-flex1-min0">
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
+                    <span className="u-text3-mono-xs">{fr.code}</span>
                     <span style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{fr.title}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>
@@ -589,15 +589,15 @@ export function PortalFeatureRequests() {
                   {fr.pm_response && (
                     <div style={{
                       background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                      borderRadius: 10, padding: '12px 14px', marginTop: 10,
+                      borderRadius: 'var(--radius-md)', padding: '12px 14px', marginTop: 10,
                     }}>
                       <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                         {traducir('portaladvanced.respuesta_del_pm')}
                       </div>
                       <p style={{ fontSize: 'var(--text-sm)', margin: '0 0 8px' }}>{fr.pm_response}</p>
                       <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-xs)', flexWrap: 'wrap' }}>
-                        {fr.estimated_cost && <span style={{ color: 'var(--warning)', fontWeight: 700 }}>💶 {Number(fr.estimated_cost).toLocaleString(localeActivo())}€</span>}
-                        {fr.estimated_hours && <span style={{ color: 'var(--accent)' }}>⏱ {fr.estimated_hours}h</span>}
+                        {fr.estimated_cost && <span style={{ color: 'var(--warning)', fontWeight: 700 }}>💶 {formatMoney(fr.estimated_cost)}</span>}
+                        {fr.estimated_hours && <span className="u-accent">⏱ {fr.estimated_hours}h</span>}
                         {fr.estimated_delivery_weeks && <span className="u-text2">📅 ~{fr.estimated_delivery_weeks} semanas</span>}
                       </div>
                     </div>
@@ -804,7 +804,7 @@ export function PortalMessages() {
             <PortalCard padding={0} style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px' }}>
                 {messages.map(m => (
-                  <div key={m.id} style={{ marginBottom: 10 }}>
+                  <div key={m.id} className="u-mb-10">
                     <div className="u-text3-xs">
                       {m.author_name || (m.client_user_id === client?.id ? 'Tú' : 'Equipo')} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
                     </div>
@@ -852,7 +852,7 @@ export function PortalInvoices() {
   const toast = useToast()
   const qc = useQueryClient()
   const [reasonByInvoice, setReasonByInvoice] = useState<Record<string, string>>({})
-  const defaultCurrency = 'EUR'
+  const defaultCurrency = MONEDA_PORTAL_POR_DEFECTO
 
   const { data: invoices = [], isLoading } = useQuery<ClientInvoice[]>({
     queryKey: ['portal-invoices'],
@@ -906,7 +906,7 @@ export function PortalInvoices() {
               <PortalCard key={inv.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>#{inv.number || inv.id}</div>
+                    <div className="u-text3-mono-xs">#{inv.number || inv.id}</div>
                     <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{inv.client_name || 'Factura'}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'flex', gap: 12, marginTop: 4 }}>
                       <span>Emitida: {inv.issue_date || '—'}</span>
@@ -1049,7 +1049,7 @@ export function PortalRoadmap() {
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '10px 12px',
                       background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                      borderRadius: 10,
+                      borderRadius: 'var(--radius-md)',
                     }}>
                       <Package size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                       <div className="u-flex1-min0">
@@ -1144,8 +1144,8 @@ export function PortalDocuments() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}><FileText size={18} /></div>
                 <div className="u-flex1-min0">
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{doc.title}</div>
-                  {doc.description && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 2 }}>{doc.description}</div>}
+                  <div className="u-sm-700">{doc.title}</div>
+                  {doc.description && <div className="u-text2-xs-mt2">{doc.description}</div>}
                   <div className="u-hint">
                     {doc.file_name || doc.category} · {doc.created_at}
                   </div>
@@ -1259,9 +1259,9 @@ export function PortalWiki() {
               if (block.type === 'heading3') return <h3 key={i} style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, margin: '14px 0 6px' }}>{block.content}</h3>
               if (block.type === 'bullet') return <li key={i} style={{ marginLeft: 20, marginBottom: 4 }}>{block.content}</li>
               if (block.type === 'code') return <pre key={i} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '12px 16px', fontSize: 'var(--text-sm)', overflow: 'auto', marginBottom: 12 }}>{block.content}</pre>
-              if (block.type === 'callout') return <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border, rgba(79,142,247,0.25))', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>{block.content}</div>
+              if (block.type === 'callout') return <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>{block.content}</div>
               if (block.type === 'separator') return <hr key={i} style={{ border: 'none', borderTop: '1px solid var(--surface-4)', margin: '16px 0' }} />
-              return <p key={i} style={{ marginBottom: 10 }}>{block.content}</p>
+              return <p key={i} className="u-mb-10">{block.content}</p>
             })}
           </div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 20 }}>
@@ -1344,7 +1344,7 @@ export function PortalWiki() {
               {kbArticles.map(a => (
                 <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{a.title}</div>
+                    <div className="u-sm-700">{a.title}</div>
                     <div className="u-text3-xs">👁 {a.view_count} · ✓ {a.helpful_count}</div>
                   </div>
                   {a.summary && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 8px' }}>{a.summary}</p>}

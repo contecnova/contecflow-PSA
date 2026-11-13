@@ -293,7 +293,7 @@ class TestEVMCalculations:
 # 4. BURNOUT MODEL SCORING
 # ═══════════════════════════════════════════════════════════════════════════════
 
-from app.api.v1.endpoints.ai_modules import _burnout_score
+from app.services.ai_modules_service import burnout_score as _burnout_score
 
 
 class TestBurnoutModel:
@@ -404,7 +404,7 @@ class TestResourceBookingOverlapDetection:
 # 6. AI OVERRUN PREDICTION MODEL
 # ═══════════════════════════════════════════════════════════════════════════════
 
-from app.api.v1.endpoints.ai_modules import _predict_overrun_ml
+from app.services.ai_modules_service import predict_overrun_ml as _predict_overrun_ml
 
 
 def _make_project_data(

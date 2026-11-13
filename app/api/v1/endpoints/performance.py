@@ -33,6 +33,8 @@ from app.schemas.performance import (
     Campaign360In,
     DevPlanIn, DevPlanUpdate, DevGoalIn, DevGoalUpdate,
 )
+from app.models.user import UserRole
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(tags=["Performance Reviews"])
 
@@ -40,7 +42,7 @@ router = APIRouter(tags=["Performance Reviews"])
 def _is_perf_privileged_viewer(user: User) -> bool:
     if getattr(user, "is_superadmin", False):
         return True
-    return user.role in ("admin", "hr")
+    return user.role in (UserRole.admin, UserRole.hr)
 
 
 def _can_view_subject(current_user: User, target_user: User) -> bool:
@@ -79,7 +81,7 @@ def _can_view_campaign(current_user: User, camp, db: Session) -> bool:
 def list_cycles(
     response: Response,
     db: Session = Depends(get_db), cu: User = Depends(get_current_user),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     offset: int = Query(0, ge=0),
 ):
     cycles, total = performance_service.list_cycles(db, limit=limit, offset=offset)
@@ -419,7 +421,7 @@ def user_360_history(user_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(get_current_user)):
     # El propio interesado puede consultar su histórico; managers/HR/admin
     # pueden consultar el de cualquiera.
-    is_priv = cu.is_superadmin or cu.role in ("admin", "hr", "pm", "team_lead")
+    is_priv = cu.is_superadmin or cu.role in (UserRole.admin, UserRole.hr, UserRole.pm, UserRole.team_lead)
     if not is_priv and cu.id != user_id:
         raise HTTPException(403, "Solo puedes consultar tu propio histórico")
     return APIResponse.ok(data=performance_service.history_360_for_subject(db, user_id))
@@ -459,7 +461,7 @@ def admin_run_reminders(db: Session = Depends(get_db),
 def list_user_plans(user_id: str, db: Session = Depends(get_db),
                     cu: User = Depends(get_current_user)):
     from app.services import dev_plan_service
-    is_priv = cu.is_superadmin or cu.role in ("admin", "hr")
+    is_priv = cu.is_superadmin or cu.role in (UserRole.admin, UserRole.hr)
     if not is_priv and cu.id != user_id:
         # Manager? lo permitimos si es manager directo
         target = performance_service.usuario_de_la_organizacion(db, cu, user_id)
@@ -487,7 +489,7 @@ def create_dev_plan(payload: DevPlanIn, db: Session = Depends(get_db),
     from app.services import dev_plan_service
     # Solo el subject, su manager o admin/HR pueden crear
     target = performance_service.usuario_propio(db, cu, payload.subject_id)
-    is_priv = cu.is_superadmin or cu.role in ("admin", "hr")
+    is_priv = cu.is_superadmin or cu.role in (UserRole.admin, UserRole.hr)
     if not is_priv and cu.id != payload.subject_id and target.manager_id != cu.id:
         raise HTTPException(403, "Solo puedes crear planes propios o de tus reportes directos")
     plan = dev_plan_service.create_plan(

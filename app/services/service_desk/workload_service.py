@@ -98,23 +98,9 @@ def apply_auto_assignment(ticket: Ticket, best_agent_id: str):
     return old_assignee
 
 
-def prepare_auto_assignment(db: Session, ticket_id: str):
-    ticket = get_ticket_for_auto_assign_or_404(db, ticket_id)
-    members = get_group_members_or_400(db, ticket.assigned_group_id)
-    best_agent_id = select_best_agent_id_by_open_load(db, members)
-    old_assignee = apply_auto_assignment(ticket, best_agent_id)
-    return ticket, old_assignee, best_agent_id
-
-
 def get_user_name_by_id(db: Session, user_id: str):
     user = db.query(User).filter(User.id == user_id).first()
     return user.full_name if user else None
-
-
-def auto_assign_ticket_command(db: Session, ticket_id: str, current_user_id: str) -> dict:
-    ticket, old_assignee, best_agent_id = prepare_auto_assignment(db, ticket_id)
-    log_history(db, ticket.id, "assigned_to_user_id", old_assignee, best_agent_id, current_user_id)
-    return {"ok": True, "assigned_to": best_agent_id, "agent_name": get_user_name_by_id(db, best_agent_id)}
 
 
 # ── ML-enhanced routing ───────────────────────────────────────────────────────

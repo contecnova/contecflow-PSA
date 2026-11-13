@@ -22,7 +22,7 @@ import socket
 import urllib.request
 from urllib.parse import urlparse
 
-from fastapi import HTTPException
+from app.core.errores import ErrorDeDominio
 
 ALLOWED_SCHEMES = frozenset({"http", "https"})
 
@@ -53,16 +53,16 @@ def validate_outbound_url(url: str, field: str = "url", *, require_https: bool =
 
     if require_https:
         if scheme != "https":
-            raise HTTPException(400, f"{field} debe ser una URL HTTPS")
+            raise ErrorDeDominio(400, f"{field} debe ser una URL HTTPS")
     elif scheme not in ALLOWED_SCHEMES:
-        raise HTTPException(400, f"{field} debe usar http o https, no {scheme or 'ningún esquema'}")
+        raise ErrorDeDominio(400, f"{field} debe usar http o https, no {scheme or 'ningún esquema'}")
 
     hostname = (parsed.hostname or "").strip().lower()
     if not hostname:
-        raise HTTPException(400, f"{field} debe incluir hostname")
+        raise ErrorDeDominio(400, f"{field} debe incluir hostname")
 
     if hostname in _LOCAL_HOSTNAMES or hostname.endswith(".local"):
-        raise HTTPException(400, f"{field} no puede apuntar a hosts locales")
+        raise ErrorDeDominio(400, f"{field} no puede apuntar a hosts locales")
 
     if hostname in _hosts_privados_permitidos():
         return url
@@ -74,11 +74,11 @@ def validate_outbound_url(url: str, field: str = "url", *, require_https: bool =
 
     if ip_obj is not None:
         if _es_red_prohibida(ip_obj):
-            raise HTTPException(400, f"{field} apunta a una red no permitida")
+            raise ErrorDeDominio(400, f"{field} apunta a una red no permitida")
         return url
 
     if any(_es_red_prohibida(ip) for ip in _resolver(hostname)):
-        raise HTTPException(400, f"{field} apunta a una red no permitida")
+        raise ErrorDeDominio(400, f"{field} apunta a una red no permitida")
 
     return url
 

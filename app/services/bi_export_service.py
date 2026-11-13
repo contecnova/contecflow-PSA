@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 from app.core.errores import ErrorDeDominio
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,7 @@ def export_dashboard_excel(
     db: Session,
     org_id: str,
     period_days: int = 180,
-    report_title: str = "Informe BI Contecflow",
+    report_title: str = f"Informe BI {NOMBRE_DEL_PRODUCTO}",
 ) -> bytes:
     """Libro de Excel con tablas con nombre, fórmulas y gráficos.
 
@@ -217,7 +218,7 @@ def export_dashboard_pptx(
     db: Session,
     org_id: str,
     period_days: int = 180,
-    report_title: str = "Informe BI Contecflow",
+    report_title: str = f"Informe BI {NOMBRE_DEL_PRODUCTO}",
 ) -> bytes:
     """Generate a PowerPoint presentation with KPI slides and embedded charts.
 

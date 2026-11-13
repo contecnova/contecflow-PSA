@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useId } from 'react'
 import type { CSSProperties, RefObject } from 'react'
 import type BaseViewer from 'bpmn-js/lib/BaseViewer'
 import type { BaseViewerOptions } from 'bpmn-js/lib/BaseViewer'
@@ -1891,7 +1891,7 @@ const diagramContainer: CSSProperties = {
   width: '100%',
   height: '100%',
   border: '1px solid var(--surface-4)',
-  borderRadius: 10,
+  borderRadius: 'var(--radius-md)',
   background: 'var(--on-accent-light)',
   overflow: 'hidden',
 }
@@ -1942,6 +1942,7 @@ type Process = {
 type NewProcess = { name: string; category: string; description: string; owner: string; sla: string }
 
 export default function BPMPage(): JSX.Element {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const [selectedCat, setSelectedCat]         = useState('all')
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
@@ -2172,7 +2173,7 @@ export default function BPMPage(): JSX.Element {
               position: 'absolute', left: 22, top: '50%', transform: 'translateY(-50%)',
               color: 'var(--text-3)', pointerEvents: 'none',
             }} />
-            <input
+            <input aria-label="Buscar proceso..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar proceso..."
@@ -2202,7 +2203,7 @@ export default function BPMPage(): JSX.Element {
                   <span>{cat.label}</span>
                   <span style={{
                     fontSize: 'var(--text-xs)', background: 'var(--surface-4)',
-                    color: 'var(--text-2)', borderRadius: 10, padding: '1px 7px',
+                    color: 'var(--text-2)', borderRadius: 'var(--radius-md)', padding: '1px 7px',
                   }}>{count}</span>
                 </button>
               )
@@ -2227,27 +2228,27 @@ export default function BPMPage(): JSX.Element {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div>
-                  <label style={lbl}>{traducir('bpm.nombre_del_proceso')}</label>
-                  <input value={newProcess.name} onChange={e => setNewProcess(p => ({ ...p, name: e.target.value }))} placeholder={traducir('bpm.ej_gestion_de_proveedores')} style={inp} />
+                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{traducir('bpm.nombre_del_proceso')}</label>
+                  <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newProcess.name} onChange={e => setNewProcess(p => ({ ...p, name: e.target.value }))} placeholder={traducir('bpm.ej_gestion_de_proveedores')} style={inp} />
                 </div>
                 <div>
-                  <label style={lbl}>{traducir('bpm.categoria')}</label>
-                  <select value={newProcess.category} onChange={e => setNewProcess(p => ({ ...p, category: e.target.value }))} style={inp}>
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{traducir('bpm.categoria')}</label>
+                  <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={newProcess.category} onChange={e => setNewProcess(p => ({ ...p, category: e.target.value }))} style={inp}>
                     {CATEGORIES.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={lbl}>Responsable</label>
-                  <input value={newProcess.owner} onChange={e => setNewProcess(p => ({ ...p, owner: e.target.value }))} placeholder="Ej: PM" style={inp} />
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>Responsable</label>
+                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={newProcess.owner} onChange={e => setNewProcess(p => ({ ...p, owner: e.target.value }))} placeholder="Ej: PM" style={inp} />
                 </div>
                 <div>
-                  <label style={lbl}>SLA</label>
-                  <input value={newProcess.sla} onChange={e => setNewProcess(p => ({ ...p, sla: e.target.value }))} placeholder={traducir('bpm.ej_3_dias')} style={inp} />
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>SLA</label>
+                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newProcess.sla} onChange={e => setNewProcess(p => ({ ...p, sla: e.target.value }))} placeholder={traducir('bpm.ej_3_dias')} style={inp} />
                 </div>
               </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={lbl}>{traducir('bpm.descripcion')}</label>
-                <input value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder={traducir('bpm.describe_brevemente_el_proceso')} style={inp} />
+              <div className="u-mb-12">
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>{traducir('bpm.descripcion')}</label>
+                <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder={traducir('bpm.describe_brevemente_el_proceso')} style={inp} />
               </div>
               <div className="u-row-8">
                 <Button disabled={!newProcess.name.trim()} onClick={handleAddProcess}>{traducir('bpm.crear_y_disenar')}</Button>
@@ -2269,7 +2270,7 @@ export default function BPMPage(): JSX.Element {
                 </button>
                 <div style={{ ...tag(catColor) }}>{CATEGORIES.find(c => c.id === selectedProcess.category)?.label}</div>
                 <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{selectedProcess.name}</div>
-                {selectedProcess.isCustom && <div style={{ ...tag('#f59e0b') }}>Personalizado</div>}
+                {selectedProcess.isCustom && <div style={{ ...tag('var(--warning)') }}>Personalizado</div>}
                 <div className="u-flex1" />
                 <button
                   onClick={handleExport}
@@ -2378,7 +2379,7 @@ export default function BPMPage(): JSX.Element {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                           <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, lineHeight: 1.3 }}>{proc.name}</div>
-                          {proc.isCustom && <div style={{ ...tag('#f59e0b'), flexShrink: 0, marginLeft: 6 }}>Custom</div>}
+                          {proc.isCustom && <div style={{ ...tag('var(--warning)'), flexShrink: 0, marginLeft: 6 }}>Custom</div>}
                         </div>
                         <div style={{ marginBottom: 8 }}>
                           <span style={tag(color)}>{catLabel}</span>

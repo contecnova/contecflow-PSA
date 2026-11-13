@@ -151,9 +151,10 @@ def test_el_modo_dual_aborta_el_arranque(monkeypatch):
     """
     from app.main import _enforce_scheduler_mode_safety
 
-    monkeypatch.setenv("ENABLE_APSCHEDULER", "1")
-    monkeypatch.setenv("ENABLE_CELERY_BEAT", "1")
-    monkeypatch.delenv("FAIL_ON_DUAL_SCHEDULER", raising=False)
+    from app.core.config import Settings, settings
+    monkeypatch.setattr(settings, "ENABLE_APSCHEDULER", True)
+    monkeypatch.setattr(settings, "ENABLE_CELERY_BEAT", True)
+    monkeypatch.setattr(settings, "FAIL_ON_DUAL_SCHEDULER", Settings.model_fields["FAIL_ON_DUAL_SCHEDULER"].default)
 
     with pytest.raises(RuntimeError, match="Dual scheduler"):
         _enforce_scheduler_mode_safety()
@@ -163,9 +164,10 @@ def test_el_modo_dual_se_puede_permitir_explicitamente(monkeypatch):
     """La salida de emergencia existe, pero hay que pedirla a mano."""
     from app.main import _enforce_scheduler_mode_safety
 
-    monkeypatch.setenv("ENABLE_APSCHEDULER", "1")
-    monkeypatch.setenv("ENABLE_CELERY_BEAT", "1")
-    monkeypatch.setenv("FAIL_ON_DUAL_SCHEDULER", "0")
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "ENABLE_APSCHEDULER", True)
+    monkeypatch.setattr(settings, "ENABLE_CELERY_BEAT", True)
+    monkeypatch.setattr(settings, "FAIL_ON_DUAL_SCHEDULER", False)
     _enforce_scheduler_mode_safety()   # no debe lanzar
 
 
@@ -177,9 +179,10 @@ def test_el_modo_dual_se_puede_permitir_explicitamente(monkeypatch):
 def test_el_modo_de_planificador_se_resuelve_de_los_flags(monkeypatch, aps, beat, modo):
     from app.main import _scheduler_mode
 
-    monkeypatch.setenv("ENABLE_APSCHEDULER", aps)
-    monkeypatch.setenv("ENABLE_CELERY_BEAT", beat)
-    monkeypatch.delenv("CELERY_BEAT", raising=False)
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "ENABLE_APSCHEDULER", aps == "1")
+    monkeypatch.setattr(settings, "ENABLE_CELERY_BEAT", beat == "1")
+    monkeypatch.setattr(settings, "CELERY_BEAT", False)
     assert _scheduler_mode() == modo
 
 

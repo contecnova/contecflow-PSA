@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { enterpriseSubsApi, projectsApi, skillsApi } from '../services/api'
+import { enterpriseSubsApi, subcontractorsApi, projectsApi, skillsApi } from '../services/api'
 import type { ProjectListItem } from '../services/api/projects'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -16,6 +16,7 @@ import { useOrgSettings } from '../hooks/useOrgSettings'
 import { STALE_5_MIN_MS } from '../constants/timings'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -47,6 +48,7 @@ function onKeyboardActivate(event: ReactKeyboardEvent, action: () => void) {
 
 // ── Worker Modal ──────────────────────────────────────────────────────────────
 function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worker?: Worker; onClose: () => void; onSaved?: () => void }) {
+  const idCampo = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const { currency: defaultCurrency } = useOrgSettings()
@@ -119,9 +121,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
         <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
           <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>🎉</div>
           <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 4 }}>{t('subcontractors.person_added')}</div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>{t('subcontractors.person_created_user')}</div>
+          <div className="u-text2-base-mb20">{t('subcontractors.person_created_user')}</div>
           <div style={{ background: 'var(--surface-1)', border: '1px solid var(--accent-glow)', borderRadius: 12, padding: '16px 20px', textAlign: 'left', marginBottom: 16 }}>
-            <div style={{ marginBottom: 10 }}>
+            <div className="u-mb-10">
               <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('subcontractors.username')}</div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-md)", color: 'var(--accent)', userSelect: 'all' }}>{credsInfo.username}</div>
             </div>
@@ -143,36 +145,36 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
     <Modal open title={isEdit ? `${t('subcontractors.edit_person', { name: worker?.name })}` : t('subcontractors.new_person')} onClose={onClose} width={560}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div className="u-col-full">
-          <label style={lbl}>{t('subcontractors.placeholder_name')} *</label>
-          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_name')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{t('subcontractors.placeholder_name')} *</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_name')} />
         </div>
         <div>
-          <label style={lbl}>{t('subcontractors.placeholder_role')}</label>
-          <input value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_role')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{t('subcontractors.placeholder_role')}</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_role')} />
         </div>
         <div>
-          <label style={lbl}>Email</label>
-          <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>Email</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} />
         </div>
         <div>
-          <label style={lbl}>{t('subcontractors.cost_rate')}</label>
-          <input type="number" value={form.cost_rate} onChange={e => setForm(f => ({ ...f, cost_rate: e.target.value }))} style={inp} min="0" step="0.5" />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>{t('subcontractors.cost_rate')}</label>
+          <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.cost_rate} onChange={e => setForm(f => ({ ...f, cost_rate: e.target.value }))} style={inp} min="0" step="0.5" />
         </div>
         <div>
-          <label style={lbl}>{t('subcontractors.sell_rate')}</label>
-          <input type="number" value={form.sell_rate} onChange={e => setForm(f => ({ ...f, sell_rate: e.target.value }))} style={inp} min="0" step="0.5" />
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>{t('subcontractors.sell_rate')}</label>
+          <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.sell_rate} onChange={e => setForm(f => ({ ...f, sell_rate: e.target.value }))} style={inp} min="0" step="0.5" />
         </div>
         <div>
-          <label style={lbl}>{t('subcontractors.available_from')}</label>
-          <DateInput value={form.available_from} onChange={e => setForm(f => ({ ...f, available_from: e.target.value }))} style={inp} />
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={lbl}>{t('subcontractors.available_from')}</label>
+          <DateInput id={`${idCampo}-6`} value={form.available_from} onChange={e => setForm(f => ({ ...f, available_from: e.target.value }))} style={inp} />
         </div>
         <div>
-          <label style={lbl}>{t('subcontractors.available_until')}</label>
-          <DateInput value={form.available_until} onChange={e => setForm(f => ({ ...f, available_until: e.target.value }))} style={inp} />
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={lbl}>{t('subcontractors.available_until')}</label>
+          <DateInput id={`${idCampo}-7`} value={form.available_until} onChange={e => setForm(f => ({ ...f, available_until: e.target.value }))} style={inp} />
         </div>
         <div className="u-col-full">
-          <label style={lbl}>{t('subcontractors.notes')}</label>
-          <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 52, resize: 'vertical' }} />
+          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={lbl}>{t('subcontractors.notes')}</label>
+          <textarea id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 52, resize: 'vertical' }} />
         </div>
       </div>
 
@@ -180,9 +182,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
       {isEdit && (
         <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 14, marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{t('subcontractors.skills')}</div>
+            <div className="u-text1-sm-600">{t('subcontractors.skills')}</div>
             <button onClick={() => setShowSkillForm(s => !s)}
-              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 6, border: '1px solid var(--accent-glow)', background: 'var(--accent-muted)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-glow)', background: 'var(--accent-muted)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
               {showSkillForm ? t('subcontractors.cancel_skill') : t('subcontractors.add_skill')}
             </button>
           </div>
@@ -208,8 +210,8 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
           {showSkillForm && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '12px', background: 'var(--surface-3)', borderRadius: 8 }}>
               <div className="u-col-full">
-                <label style={lbl}>{t('subcontractors.add_skill')} *</label>
-                <select value={skillForm.skill_id} onChange={e => setSkillForm(f => ({ ...f, skill_id: e.target.value }))} style={inp}>
+                <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={lbl}>{t('subcontractors.add_skill')} *</label>
+                <select id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={skillForm.skill_id} onChange={e => setSkillForm(f => ({ ...f, skill_id: e.target.value }))} style={inp}>
                   <option value="">{t('subcontractors.select_skill')}</option>
                   {Object.entries(byCategory).map(([cat, skills]) => (
                     <optgroup key={cat} label={cat.charAt(0).toUpperCase() + cat.slice(1)}>
@@ -219,20 +221,20 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
                 </select>
               </div>
               <div>
-                <label style={lbl}>{t('subcontractors.level')}</label>
-                <select value={skillForm.level} onChange={e => setSkillForm(f => ({ ...f, level: e.target.value }))} style={inp}>
+                <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={lbl}>{t('subcontractors.level')}</label>
+                <select id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={skillForm.level} onChange={e => setSkillForm(f => ({ ...f, level: e.target.value }))} style={inp}>
                   {['basic','intermediate','advanced','expert'].map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               <div>
-                <label style={lbl}>{t('subcontractors.years_experience')}</label>
-                <input type="number" value={skillForm.years_experience} onChange={e => setSkillForm(f => ({ ...f, years_experience: e.target.value }))} style={inp} min="0" step="0.5" />
+                <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={lbl}>{t('subcontractors.years_experience')}</label>
+                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={skillForm.years_experience} onChange={e => setSkillForm(f => ({ ...f, years_experience: e.target.value }))} style={inp} min="0" step="0.5" />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1/-1', paddingTop: 4 }}>
                 <input type="checkbox" id="wsCert" checked={skillForm.certified} onChange={e => setSkillForm(f => ({ ...f, certified: e.target.checked }))} />
                 <label htmlFor="wsCert" style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', cursor: 'pointer' }}>{t('subcontractors.certified')}</label>
                 {skillForm.certified && (
-                  <input value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...inp, flex: 1 }} placeholder={t('subcontractors.placeholder_cert')} />
+                  <input aria-label={t('subcontractors.placeholder_cert')} value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...inp, flex: 1 }} placeholder={t('subcontractors.placeholder_cert')} />
                 )}
               </div>
               <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end' }}>
@@ -244,7 +246,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
       )}
 
       <div className="u-actions-8">
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+        <button onClick={onClose} className="u-btn-outline-sm">
           {isEdit ? t('subcontractors.close') : t('subcontractors.cancel')}
         </button>
         <Button onClick={() => save(form)} loading={saving} disabled={!form.name || saving}>{isEdit ? t('subcontractors.save_changes') : t('subcontractors.add_person')}</Button>
@@ -298,7 +300,7 @@ function WorkersPanel({ subId }: { subId: string }) {
                     {w.role && <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{w.role}</span>}
                     {!w.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--danger-bg, var(--danger-border))', color: 'var(--danger)' }}>{t('subcontractors.inactivo')}</span>}
                   </div>
-                  {w.email && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>📧 {w.email}</div>}
+                  {w.email && <div className="u-text2-xs-mb4">📧 {w.email}</div>}
                   {(w.cost_rate || w.sell_rate) && (
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 8 }}>
                       {w.cost_rate && t('subcontractors.cost', { rate: w.cost_rate })}
@@ -328,12 +330,12 @@ function WorkersPanel({ subId }: { subId: string }) {
                     </div>
                   )}
                     <button onClick={() => setEditWorker(w)}
-                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                      style={{ padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                       {t('subcontractors.edit')}
                     </button>
                   {w.is_active && (
                     <button onClick={() => setDeactivateTarget(w)}
-                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                      style={{ padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                       🗑
                     </button>
                   )}
@@ -361,6 +363,8 @@ function WorkersPanel({ subId }: { subId: string }) {
   )
 }
 function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const t = useAppT()
@@ -437,7 +441,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           { label: 'Coste acumulado', value: `${totalCost.toLocaleString(localeActivo(), {style:'currency',currency})}`, color: 'var(--warning)' },
           { label: 'Facturas pendientes', value: `${pendingAmount.toLocaleString(localeActivo(), {style:'currency',currency})}`, color: pendingAmount > 0 ? 'var(--danger)' : 'var(--text-2)' },
         ].map(k => (
-          <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
+          <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', textAlign: 'center' }}>
             <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 3 }}>{k.label}</div>
           </div>
@@ -471,8 +475,8 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             <div key={a.id} style={{ ...panel, padding: '14px 18px', marginBottom: 8 }}>
               <div className="u-row-between">
                 <div>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{a.project_code} — {a.project_name}</div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
+                  <div className="u-base-700">{a.project_code} — {a.project_name}</div>
+                  <div className="u-text2-sm-mt2">
                     {a.po_number && `PO: ${a.po_number}`}
                     {a.po_amount && ` · Techo: ${a.po_amount.toLocaleString(localeActivo(), {style:'currency',currency})}`}
                     {a.hours_contracted && ` · ${a.hours_contracted}h contratadas`}
@@ -533,9 +537,9 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             <EmptyState icon="🧾" title={t('subcontractors.empty_invoices_title')} description={t('subcontractors.empty_invoices_desc')} />
           ) : (
             <div style={{ ...panel, overflow: 'hidden' }}>
-              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+              <table className="u-table">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                  <tr className="u-border-b">
                     {['Nº Factura', 'Fecha', 'Importe', 'Total c/IVA', 'Estado', 'Acciones'].map(h => (
                       <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
@@ -556,10 +560,10 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                       <td style={{ padding: '9px 14px' }}>
                         <div className="u-row-6">
                           {inv.status === 'received' && (
-                            <button onClick={() => updateInvStatus({ id: inv.id, status: 'approved' })} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Aprobar</button>
+                            <button onClick={() => updateInvStatus({ id: inv.id, status: 'approved' })} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Aprobar</button>
                           )}
                           {inv.status === 'approved' && (
-                            <button onClick={() => updateInvStatus({ id: inv.id, status: 'paid' })} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Marcar pagada</button>
+                            <button onClick={() => updateInvStatus({ id: inv.id, status: 'paid' })} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Marcar pagada</button>
                           )}
                         </div>
                       </td>
@@ -577,19 +581,19 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
         <Modal open title="Registrar horas" onClose={() => setShowTimelog(false)} width={480}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
-              <label style={lbl}>{t('subcontractors.asignacion')}</label>
-              <select value={tlForm.assignment_id} onChange={e => setTlForm(f=>({...f,assignment_id:e.target.value}))} style={inp}>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{t('subcontractors.asignacion')}</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={tlForm.assignment_id} onChange={e => setTlForm(f=>({...f,assignment_id:e.target.value}))} style={inp}>
                 <option value="">{t('subcontractors.sin_asignacion')}</option>
                 {assignments.map(a => <option key={a.id} value={a.id}>{a.project_code} — {a.project_name}</option>)}
               </select>
             </div>
             <div>
-              <label style={lbl}>Fecha</label>
-              <DateInput value={tlForm.log_date} onChange={e => setTlForm(f=>({...f,log_date:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Fecha</label>
+              <DateInput id={`${idCampo}-2`} value={tlForm.log_date} onChange={e => setTlForm(f=>({...f,log_date:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Horas *</label>
-              <input type="number" value={tlForm.hours} onChange={e => setTlForm(f=>({...f,hours:+e.target.value}))} style={inp} min="0.5" step="0.5" />
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>Horas *</label>
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={tlForm.hours} onChange={e => setTlForm(f=>({...f,hours:+e.target.value}))} style={inp} min="0.5" step="0.5" />
             </div>
             <div>
               <label style={lbl}>Referencia tarea</label>
@@ -601,7 +605,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowTimelog(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <button onClick={() => setShowTimelog(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
             <Button onClick={() => logHours(tlForm)} loading={logging} disabled={!tlForm.hours || logging}>Registrar horas</Button>
           </div>
         </Modal>
@@ -616,16 +620,16 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               <input value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder={t('subcontractors.numero_de_factura')} aria-label={t('subcontractors.numero_de_factura')} />
             </div>
             <div>
-              <label style={lbl}>{t('subcontractors.fecha_emision')}</label>
-              <DateInput value={invForm.issue_date} onChange={e => setInvForm(f=>({...f,issue_date:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>{t('subcontractors.fecha_emision')}</label>
+              <DateInput id={`${idCampo}-4`} value={invForm.issue_date} onChange={e => setInvForm(f=>({...f,issue_date:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Importe base (€) *</label>
-              <input type="number" value={invForm.amount} onChange={e => setInvForm(f=>({...f,amount:e.target.value}))} style={inp} min="0" step="0.01" />
+              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>Importe base ({fmtMoneda.simbolo}) *</label>
+              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={invForm.amount} onChange={e => setInvForm(f=>({...f,amount:e.target.value}))} style={inp} min="0" step="0.01" />
             </div>
             <div>
-              <label style={lbl}>IVA (%)</label>
-              <input type="number" value={invForm.tax_pct} onChange={e => setInvForm(f=>({...f,tax_pct:+e.target.value}))} style={inp} min="0" max="30" />
+              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={lbl}>IVA (%)</label>
+              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={invForm.tax_pct} onChange={e => setInvForm(f=>({...f,tax_pct:+e.target.value}))} style={inp} min="0" max="30" />
             </div>
             {invForm.amount && (
               <div style={{ gridColumn: '1/-1', background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
@@ -633,12 +637,12 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               </div>
             )}
             <div className="u-col-full">
-              <label style={lbl}>{t('subcontractors.descripcion')}</label>
-              <input value={invForm.description} onChange={e => setInvForm(f=>({...f,description:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={lbl}>{t('subcontractors.descripcion')}</label>
+              <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={invForm.description} onChange={e => setInvForm(f=>({...f,description:e.target.value}))} style={inp} />
             </div>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowInvoice(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <button onClick={() => setShowInvoice(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
             <Button onClick={() => createInv(invForm)} loading={invoicing} disabled={!invForm.invoice_number || !invForm.amount || invoicing}>Registrar factura</Button>
           </div>
         </Modal>
@@ -649,8 +653,8 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
         <Modal open title={t('subcontractors.nueva_asignacion_2')} onClose={() => setShowAssign(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div className="u-col-full">
-              <label style={lbl}>Proyecto *</label>
-              <select value={asgForm.project_id} onChange={e => setAsgForm(f=>({...f,project_id:e.target.value}))} style={inp}>
+              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={lbl}>Proyecto *</label>
+              <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={asgForm.project_id} onChange={e => setAsgForm(f=>({...f,project_id:e.target.value}))} style={inp}>
                 <option value="">Seleccionar...</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
@@ -660,20 +664,20 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               <input value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder={t('subcontractors.numero_de_pedido')} aria-label={t('subcontractors.numero_de_pedido')} />
             </div>
             <div>
-              <label style={lbl}>Techo PO (€)</label>
-              <input type="number" value={asgForm.po_amount} onChange={e => setAsgForm(f=>({...f,po_amount:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={lbl}>Techo PO ({fmtMoneda.simbolo})</label>
+              <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={asgForm.po_amount} onChange={e => setAsgForm(f=>({...f,po_amount:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Horas contratadas</label>
-              <input type="number" value={asgForm.hours_contracted} onChange={e => setAsgForm(f=>({...f,hours_contracted:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={lbl}>Horas contratadas</label>
+              <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={asgForm.hours_contracted} onChange={e => setAsgForm(f=>({...f,hours_contracted:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Fecha inicio</label>
-              <DateInput value={asgForm.start_date} onChange={e => setAsgForm(f=>({...f,start_date:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={lbl}>Fecha inicio</label>
+              <DateInput id={`${idCampo}-11`} value={asgForm.start_date} onChange={e => setAsgForm(f=>({...f,start_date:e.target.value}))} style={inp} />
             </div>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <button onClick={() => setShowAssign(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
             <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>{t('subcontractors.crear_asignacion')}</Button>
           </div>
         </Modal>
@@ -684,6 +688,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function SubcontractorsPage() {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -698,7 +703,7 @@ export default function SubcontractorsPage() {
   })
   const { data: subs = [], isLoading } = useQuery<Sub[]>({
     queryKey: ['subcontractors'],
-    queryFn: () => enterpriseSubsApi.list().then(r => r.data as Sub[]),
+    queryFn: () => subcontractorsApi.list().then(r => r.data as Sub[]),
   })
 
   const [showEdit, setShowEdit] = useState(false)
@@ -708,7 +713,7 @@ export default function SubcontractorsPage() {
   const { sort: subSort, setSort: setSubSort, sortedData: sortedSubs } = useSort<Sub>(subs, 'name')
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: (d: Record<string, unknown>) => enterpriseSubsApi.create(d),
+    mutationFn: (d: Record<string, unknown>) => subcontractorsApi.create(d),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['subcontractors'] })
       setShowCreate(false)
@@ -719,7 +724,7 @@ export default function SubcontractorsPage() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: update, isPending: updating } = useMutation({
-    mutationFn: ({ id, ...d }: { id: string; [k: string]: unknown }) => enterpriseSubsApi.update(id, d),
+    mutationFn: ({ id, ...d }: { id: string; [k: string]: unknown }) => subcontractorsApi.update(id, d),
     onSuccess: (_res) => {
       qc.invalidateQueries({ queryKey: ['subcontractors'] })
       setShowEdit(false)
@@ -729,7 +734,7 @@ export default function SubcontractorsPage() {
     onError: e => toast.error(extractErr(e, t('common.error_update'))),
   })
   const { mutate: remove } = useMutation({
-    mutationFn: (id: string) => enterpriseSubsApi.delete(id),
+    mutationFn: (id: string) => subcontractorsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['subcontractors'] })
       qc.invalidateQueries({ queryKey: ['sub-dashboard'] })
@@ -752,7 +757,7 @@ export default function SubcontractorsPage() {
             { label: 'Horas registradas', value: `${dashboard.total_hours_logged}h`, color: 'var(--success)' },
             { label: 'Facturas pendientes', value: dashboard.pending_invoices as number,       color: (dashboard.pending_invoices as number) > 0 ? 'var(--warning)' : 'var(--text-2)' },
           ].map(k => (
-            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px', textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 3 }}>{k.label}</div>
             </div>
@@ -795,11 +800,11 @@ export default function SubcontractorsPage() {
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
                 <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name||'', company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||currency, vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
-                  style={{ flex:1, padding: '4px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex:1, padding: '4px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                   ✏ Editar
                 </button>
                 <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar a "${s.name}"?`,onConfirm:()=>remove(s.id),danger:true}) }}
-                  style={{ flex:1, padding: '4px 0', borderRadius: 6, border: '1px solid var(--danger-border, var(--danger-border))', background: 'transparent', color: 'var(--danger)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex:1, padding: '4px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--danger-border, var(--danger-border))', background: 'transparent', color: 'var(--danger)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                   🗑 Eliminar
                 </button>
               </div>
@@ -807,7 +812,7 @@ export default function SubcontractorsPage() {
           ))}
         </div>
       ) : (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="ds-card ds-card--plano">
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="name" sort={subSort} onSort={setSubSort}>Empresa / Nombre</SortableTH>
             <SortableTH col="code" sort={subSort} onSort={setSubSort}>{t('subcontractors.codigo')}</SortableTH>
@@ -829,7 +834,7 @@ export default function SubcontractorsPage() {
                 <div className="u-base-600">{s.name}</div>
                 {s.company && <div className="u-text2-xs">{s.company}</div>}
               </div>
-              <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{s.code || '—'}</span>
+              <span className="u-text2-mono-xs">{s.code || '—'}</span>
               <span className="u-text2-sm">{s.email || '—'}</span>
               <span className="u-sm">{s.worker_count || 0}</span>
               <span className="u-sm">{s.assignment_count || 0}</span>
@@ -855,34 +860,34 @@ export default function SubcontractorsPage() {
               <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Nombre o razon social" aria-label="Nombre o razon social" />
             </div>
             <div>
-              <label style={lbl}>{t('subcontractors.empresa_si_es_persona_fisica')}</label>
-              <input value={form.company} onChange={e => setForm(f=>({...f,company:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{t('subcontractors.empresa_si_es_persona_fisica')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.company} onChange={e => setForm(f=>({...f,company:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Email</label>
-              <input type="email" value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Email</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>{t('subcontractors.telefono')}</label>
-              <input value={form.phone} onChange={e => setForm(f=>({...f,phone:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>{t('subcontractors.telefono')}</label>
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => setForm(f=>({...f,phone:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>NIF / VAT</label>
-              <input value={form.vat_number} onChange={e => setForm(f=>({...f,vat_number:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>NIF / VAT</label>
+              <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.vat_number} onChange={e => setForm(f=>({...f,vat_number:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Moneda</label>
-              <select value={form.currency} onChange={e => setForm(f=>({...f,currency:e.target.value}))} style={inp}>
+              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>Moneda</label>
+              <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.currency} onChange={e => setForm(f=>({...f,currency:e.target.value}))} style={inp}>
                 {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
           <div className="u-mb-16">
-            <label style={lbl}>Notas</label>
-            <textarea value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
+            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={lbl}>Notas</label>
+            <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <button onClick={() => setShowCreate(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
             <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>Crear subcontratista</Button>
           </div>
         </Modal>
@@ -892,38 +897,38 @@ export default function SubcontractorsPage() {
         <Modal open title="Editar subcontratista" onClose={() => { setShowEdit(false); setEditTarget(null) }} width={520}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={lbl}>{t('subcontractors.nombre_razon_social')}</label>
-              <input value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={lbl}>{t('subcontractors.nombre_razon_social')}</label>
+              <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Empresa</label>
-              <input value={editForm.company} onChange={e => setEditForm(f=>({...f,company:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={lbl}>Empresa</label>
+              <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={editForm.company} onChange={e => setEditForm(f=>({...f,company:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Email</label>
-              <input type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={lbl}>Email</label>
+              <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>{t('subcontractors.telefono')}</label>
-              <input value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={lbl}>{t('subcontractors.telefono')}</label>
+              <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>NIF / VAT</label>
-              <input value={editForm.vat_number} onChange={e => setEditForm(f=>({...f,vat_number:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={lbl}>NIF / VAT</label>
+              <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={editForm.vat_number} onChange={e => setEditForm(f=>({...f,vat_number:e.target.value}))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Moneda</label>
-              <select value={editForm.currency} onChange={e => setEditForm(f=>({...f,currency:e.target.value}))} style={inp}>
+              <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={lbl}>Moneda</label>
+              <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={editForm.currency} onChange={e => setEditForm(f=>({...f,currency:e.target.value}))} style={inp}>
                 {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
           <div className="u-mb-16">
-            <label style={lbl}>Notas</label>
-            <textarea value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
+            <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={lbl}>Notas</label>
+            <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
           <div className="u-actions-8">
-            <button onClick={() => { setShowEdit(false); setEditTarget(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <button onClick={() => { setShowEdit(false); setEditTarget(null) }} className="u-btn-outline-sm">{t('common.cancel')}</button>
             <Button onClick={() => update({id: editTarget.id, ...editForm})} loading={updating} disabled={!editForm.name || updating}>Guardar cambios</Button>
           </div>
         </Modal>

@@ -44,11 +44,6 @@ def test_EL_HALLAZGO_las_metricas_por_proyecto_cuentan_su_parte(db, proyecto):
     assert filas == [{"label": "2026-03", "value": 400.0}, {"label": "2026-04", "value": 50.0}]
 
 
-def test_las_listas_de_un_proyecto_incluyen_los_repartidos(db, proyecto):
-    _gastos(db)
-    assert {g.id for g in expense_service.list_project_expenses(db, "p-b2")} == {"g-rep", "g-reem"}
-
-
 def test_la_herramienta_del_asistente_no_revienta(db, proyecto):
     from datetime import datetime
 

@@ -1,14 +1,19 @@
 /**
  * MFAPage — Configuración de autenticación en dos pasos (TOTP)
+ *
+ * Auditoria 2026-11: usa /auth/mfa/*, el TOTP que exige el login. Antes usaba
+ * /mfa/*, que guardaba otra tabla y el login no la miraba.
  */
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
+import { useConfirm } from '../context/ConfirmContext'
+import { pedirReautenticacion, esFalloDeReautenticacion } from '../components/security/reautenticacion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mfaApi } from '../services/api'
-import { Button, Spinner } from '../components/ui'
+import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Lock } from 'lucide-react'
@@ -16,6 +21,8 @@ import { useAppT } from '../i18n/AppLangContext'
 
 interface MfaStatus {
   enabled?: boolean
+  /** Con cualquier segundo factor (TOTP o passkey) el alta pide contrasena o codigo. */
+  reauth_required?: boolean
   verified_at?: string
   backup_codes_remaining?: number
 }
@@ -36,6 +43,7 @@ export default function MFAPage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
+  const { pedirTexto } = useConfirm()
   const [step, setStep] = useState<'status' | 'setup' | 'verify' | 'done'>('status')
   const [setupData, setSetupData] = useState<MfaSetupData | null>(null)
   const [code, setCode] = useState('')
@@ -49,9 +57,20 @@ export default function MFAPage() {
   })
 
   const { mutate: setup, isPending: setting } = useMutation({
-    mutationFn: () => mfaApi.setup().then(r => r.data),
-    onSuccess: (data: MfaSetupData) => { setSetupData(data); setStep('setup') },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    mutationFn: async (): Promise<MfaSetupData | null> => {
+      // Con una passkey ya registrada, el servidor pide contrasena o codigo.
+      // Cancelar el dialogo no es un error.
+      let reauth
+      if (status?.reauth_required) {
+        reauth = await pedirReautenticacion(pedirTexto)
+        if (!reauth) return null
+      }
+      return mfaApi.setup(reauth).then(r => r.data)
+    },
+    onSuccess: (data: MfaSetupData | null) => { if (!data) return; setSetupData(data); setStep('setup') },
+    onError: (e: unknown) => toast.error(esFalloDeReautenticacion(e)
+      ? 'Contraseña o código incorrectos: no se ha empezado el alta.'
+      : extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: verify, isPending: verifying, isError: verifyError } = useMutation({
     mutationFn: (codeValue: string) => mfaApi.verify(codeValue),
@@ -119,7 +138,7 @@ export default function MFAPage() {
             </div>
           </div>
           <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:10 }}>{t('mfa.step2')}</div>
-          <input
+          <input aria-label={t('mfa.code_placeholder')}
             value={code}
             onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             style={fs}
@@ -146,7 +165,7 @@ export default function MFAPage() {
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
             {backupCodes.map((c, i) => (
-              <code key={i} style={{ background:'var(--surface-1)', padding:'6px 10px', borderRadius:6, fontSize: "var(--text-base)", textAlign:'center', border:'.5px solid rgba(52,211,153,0.25)' }}>{c}</code>
+              <code key={i} style={{ background:'var(--surface-1)', padding:'6px 10px', borderRadius:'var(--radius-sm)', fontSize: "var(--text-base)", textAlign:'center', border:'.5px solid rgba(52,211,153,0.25)' }}>{c}</code>
             ))}
           </div>
           <Button onClick={() => { setStep('status'); setBackupCodes([]) }}>{t('mfa.understood')}</Button>
@@ -175,14 +194,10 @@ export default function MFAPage() {
       )}
 
       {/* Disable modal */}
-      {showDisable && (
-        <div role="presentation" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.45)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center' }}
-          onMouseDown={() => setShowDisable(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="mfa-disable-title" style={{ background:'var(--surface-1)', borderRadius:14, padding:24, width:400, border:'.5px solid var(--surface-4)' }}
-            onMouseDown={e => e.stopPropagation()}>
-            <div id="mfa-disable-title" style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:14 }}>{t('mfa.disable_title')}</div>
+      {/* Auditoria 2026-11 (#41): overlay propio sin trampa de foco ni Esc -> Modal del kit. */}
+      <Modal open={showDisable} onClose={() => setShowDisable(false)} title={t('mfa.disable_title')} size="sm">
             <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginBottom:16 }}>{t('mfa.disable_desc')}</div>
-            <input value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder={t('mfa.code_placeholder')} autoFocus />
+            <input aria-label={t('mfa.code_placeholder')} value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder={t('mfa.code_placeholder')} autoFocus />
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:16 }}>
               <Button variant="secondary" onClick={() => setShowDisable(false)}>{t('mfa.cancel')}</Button>
               <button onClick={() => disable(disableCode)} disabled={disableCode.length !== 6 || disabling}
@@ -190,9 +205,7 @@ export default function MFAPage() {
                 {disabling ? t('mfa.disabling') : t('mfa.confirm_disable')}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </PageShell>
   )
 }

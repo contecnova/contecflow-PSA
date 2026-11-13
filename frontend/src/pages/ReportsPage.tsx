@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useId } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { analyticsApi, scheduledReportsApi, apiUrl } from '../services/api'
-import { Card, Button, Spinner, EmptyState } from '../components/ui'
+import { Card, Button, Spinner, EmptyState, Table, type ColumnaDeTabla } from '../components/ui'
 import { Page } from '../components/ui'
 import {
   BarChart2, Grid3X3, Search, Zap, Pin, Calendar,
@@ -23,6 +23,14 @@ import {
 } from 'recharts'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+
+/** El eje es de importes si su etiqueta (la pone el servidor) lleva el simbolo o
+ *  el codigo de la moneda de la empresa, o el '€' con el que la escribe hoy. */
+function esEjeDeMoneda(etiqueta: string | null | undefined, m: { moneda: string; simbolo: string }): boolean {
+  if (!etiqueta) return false
+  return etiqueta.includes('€') || etiqueta.includes(m.simbolo) || etiqueta.includes(m.moneda)
+}
 // ── Colours ───────────────────────────────────────────────────────────────────
 const PALETTE = CHART_COLORS_EXTENDED
 
@@ -292,7 +300,9 @@ interface ScheduledReportCreate {
 /** `ScheduledReportRunOut` (app/schemas/billing_reports.py). */
 interface ScheduledReportRun {
   ok: boolean
-  recipients: string[]
+  /** Con cola (broker) el envio va al worker: 202 `{status: 'queued'}`. */
+  status?: string
+  recipients?: string[]
 }
 
 interface TooltipEntry {
@@ -387,57 +397,50 @@ function HeatmapChart({ data, meta }: { data: MetricRow[]; meta?: MetricMeta }) 
   )
 }
 
-// ── Data table ────────────────────────────────────────────────────────────────
-function DataTable({ data, isCurrency, isPercent }: { data: MetricRow[]; isCurrency?: boolean; isPercent?: boolean }) {
+// ── Tabla de la metrica ───────────────────────────────────────────────────────
+// Auditoria 2026-11 (#41): era un `DataTable` propio que tapaba el del kit. Las
+// columnas salen de la fila (la metrica decide cuales hay), asi que se monta
+// sobre <Table> del kit; los numeros a la derecha y en mono como antes.
+function TablaDeMetrica({ data, isCurrency, isPercent }: { data: MetricRow[]; isCurrency?: boolean; isPercent?: boolean }) {
   const traducir = useAppT()
+  const fmtMoneda = useFormatoMoneda()
   if (!data.length) return <EmptyState svgIcon={<TableIcon size={36} />} title={traducir('reports.sin_datos_disponibles')} />
   const keys = Object.keys(data[0]).filter(k => k !== 'status')
   const fmt = (v: MetricCell) => {
     if (typeof v !== 'number') return v
-    if (isCurrency) return fmtCurrency(v)
+    if (isCurrency) return fmtMoneda(v, { decimales: 0 })
     if (isPercent) return `${v.toFixed(1)}%`
     return v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
   }
-  return (
-    <div className="u-scroll-x">
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
-            {keys.map(k => <th key={k} style={{ padding: '8px 12px', textAlign: k === 'label' ? 'left' : 'right', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k === 'label' ? '' : k}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' }}>
-              {keys.map(k => (
-                <td key={k} style={{ padding: '10px 12px', textAlign: k === 'label' ? 'left' : 'right', fontFamily: k !== 'label' ? 'var(--font-mono)' : 'inherit', fontWeight: k === 'value' ? 700 : 400, color: k === 'value' ? (row.status ? STATUS_COLORS[row.status] : 'var(--text-1)') : 'var(--text-1)' }}>
-                  {fmt(row[k])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+  const columnas: ColumnaDeTabla<MetricRow>[] = keys.map(k => ({
+    key: k,
+    label: k === 'label' ? '' : <span style={{ display: 'block', textAlign: 'right' }}>{k}</span>,
+    render: (v: MetricCell, row: MetricRow) => (
+      <span style={{ display: 'block', textAlign: k === 'label' ? 'left' : 'right', fontFamily: k !== 'label' ? 'var(--font-mono)' : 'inherit', fontWeight: k === 'value' ? 700 : 400, color: k === 'value' && row.status ? STATUS_COLORS[row.status] : 'var(--text-1)' }}>
+        {fmt(v)}
+      </span>
+    ),
+  }))
+  return <Table columns={columnas} data={data} />
 }
 
 // ── Chart renderer ────────────────────────────────────────────────────────────
 function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }: { data: MetricRow[]; chartType?: string; meta?: MetricMeta; color?: string; height?: number }) {
+  const fmtMoneda = useFormatoMoneda()
   const traducir = useAppT()
   // Revisión 2026-11: un cálculo que falla lo dice; antes salía como «sin datos».
   if (meta?.error) return <EmptyState svgIcon={<BarChartBig size={36} />} title={meta.error} />
   if (!data || data.length === 0) return <EmptyState svgIcon={<BarChartBig size={36} />} title={traducir('reports.sin_datos')} description="No hay datos disponibles para este gráfico" />
 
-  const isCurrency = meta?.y_label?.includes('€')
+  const isCurrency = esEjeDeMoneda(meta?.y_label, fmtMoneda)
   const isPercent = meta?.y_label?.includes('%')
   const fmtY = (v: number | string) => {
     const n = Number(v) || 0
-    return isCurrency ? `${(n / 1000).toFixed(0)}k€` : isPercent ? `${n}%` : String(n)
+    return isCurrency ? fmtMoneda(n, { compacto: true }) : isPercent ? `${n}%` : String(n)
   }
 
   if (chartType === 'heatmap') return <HeatmapChart data={data} meta={meta} />
-  if (chartType === 'table') return <DataTable data={data} isCurrency={isCurrency} isPercent={isPercent} />
+  if (chartType === 'table') return <TablaDeMetrica data={data} isCurrency={isCurrency} isPercent={isPercent} />
 
   if (chartType === 'pie' || chartType === 'donut') {
     return (
@@ -572,11 +575,12 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
 function SummaryBar({ summary, meta, prevSummary }: { summary?: MetricSummary; meta?: MetricMeta; prevSummary?: MetricSummary }) {
+  const fmtMoneda = useFormatoMoneda()
   const traducir = useAppT()
   if (!summary || !summary.total) return null
-  const isCurrency = meta?.y_label?.includes('€')
+  const isCurrency = esEjeDeMoneda(meta?.y_label, fmtMoneda)
   const isPercent  = meta?.y_label?.includes('%')
-  const fmt = (v: number) => isCurrency ? fmtCurrency(v) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
+  const fmt = (v: number) => isCurrency ? fmtMoneda(v, { decimales: 0 }) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
 
   const trend = (curr: number, prev: number | undefined) => {
     if (!prev || prev === 0) return null
@@ -597,8 +601,8 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: MetricSummary; m
       {kpis.map(({ label, value, prev, raw }) => {
         const t = trend(value, prev)
         return (
-          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', flex: 1, minWidth: 110 }}>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{label}</div>
+          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', flex: 1, minWidth: 110 }}>
+            <div className="u-text2-xs-mb4">{label}</div>
             <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
               {raw ? value : fmt(value)}
             </div>
@@ -616,6 +620,8 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: MetricSummary; m
 
 // ── Report panel ──────────────────────────────────────────────────────────────
 function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: string; initialChart?: string; onSave?: (config: ReportConfig) => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const traducir = useAppT()
   const narrow = useMediaQuery('(max-width: 900px)')
   const today = new Date().toISOString().split('T')[0]
@@ -690,8 +696,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'repeat(2, minmax(0, 1fr))' : '2fr 1.5fr 1.5fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
           {/* Metric selector */}
           <div style={narrow ? { gridColumn: '1 / -1' } : undefined}>
-            <label style={ls}>{traducir('reports.metrica')}</label>
-            <select value={metric} onChange={e => handleMetricChange(e.target.value)} style={fs}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('reports.metrica')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => handleMetricChange(e.target.value)} style={fs}>
               <option value="">{traducir('reports.seleccionar_metrica')}</option>
               {catalogue && Object.entries(catalogue).map(([cat, items]) => (
                 <optgroup key={cat} label={`${CAT_ICONS[cat] || '📊'} ${cat}`}>
@@ -703,8 +709,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* Project filter */}
           <div>
-            <label style={ls}>📁 Proyecto</label>
-            <select value={projectId} onChange={e => setProjectId(e.target.value)} style={fs}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>📁 Proyecto</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={projectId} onChange={e => setProjectId(e.target.value)} style={fs}>
               <option value="">{traducir('reports.todos_los_proyectos')}</option>
               {filters?.projects?.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
@@ -712,8 +718,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* User filter */}
           <div>
-            <label style={ls}>👤 Persona</label>
-            <select value={userId} onChange={e => setUserId(e.target.value)} style={fs}>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>👤 Persona</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={userId} onChange={e => setUserId(e.target.value)} style={fs}>
               <option value="">{traducir('reports.todas_las_personas')}</option>
               {filters?.users?.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
@@ -721,8 +727,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* Dept filter */}
           <div>
-            <label style={ls}>🏢 Departamento</label>
-            <select value={department} onChange={e => setDepartment(e.target.value)} style={fs}>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>🏢 Departamento</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={department} onChange={e => setDepartment(e.target.value)} style={fs}>
               <option value="">{traducir('reports.todos')}</option>
               {filters?.departments?.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
@@ -730,8 +736,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* Top N */}
           <div>
-            <label style={ls}>Top N</label>
-            <input type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} style={fs} />
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Top N</label>
+            <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} style={fs} />
           </div>
 
           {/* Color */}
@@ -740,7 +746,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
               {PALETTE.slice(0, 5).map(c => (
                 <button key={c} onClick={() => setColor(c)}
-                  style={{ width: 24, height: 24, borderRadius: 6, background: c, border: color === c ? `2px solid #fff` : '2px solid transparent', cursor: 'pointer' }} />
+                  style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: c, border: color === c ? `2px solid #fff` : '2px solid transparent', cursor: 'pointer' }} />
               ))}
               <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : COLOR_DATO_POR_DEFECTO} onChange={e => setColor(e.target.value)} style={{ width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
             </div>
@@ -749,18 +755,18 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Date range */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-            <label style={{ ...ls, marginBottom: 0 }}>📅 Desde</label>
-            <DateInput value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
-            <label style={{ ...ls, marginBottom: 0 }}>Hasta</label>
-            <DateInput value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
+          <div className="u-wrap-center-8">
+            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={{ ...ls, marginBottom: 0 }}>📅 Desde</label>
+            <DateInput id={`${idCampo}-6`} value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
+            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={{ ...ls, marginBottom: 0 }}>Hasta</label>
+            <DateInput id={`${idCampo}-7`} value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
           </div>
 
           {/* Presets */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {DATE_PRESETS.map(p => (
               <button key={p.label} onClick={() => setDatePreset(p.days)}
-                style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                style={{ padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
                 {p.label}
               </button>
             ))}
@@ -770,7 +776,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginLeft: 'auto' }}>
             {CHART_TYPES.map(ct => (
               <button key={ct.id} onClick={() => setChartType(ct.id)} title={ct.label}
-                style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${chartType === ct.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: chartType === ct.id ? 'var(--accent-glow)' : 'var(--surface-2)', color: chartType === ct.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${chartType === ct.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: chartType === ct.id ? 'var(--accent-glow)' : 'var(--surface-2)', color: chartType === ct.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {ct.icon}
               </button>
             ))}
@@ -803,7 +809,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.background = 'var(--accent-muted)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.background = 'var(--surface-2)' }}>
                 <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 6 }}>{m.icon}</div>
-                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{m.label}</div>
+                <div className="u-text1-sm-600">{m.label}</div>
                 <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 3 }}>{m.cat}</div>
               </button>
             ))}
@@ -815,7 +821,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
             <div className="u-min0">
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              <div className="u-wrap-center-8">
                 <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, margin: 0 }}>{result.meta?.label}</h3>
                 <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 700, textTransform: 'uppercase' }}>
                   {result.meta?.category}
@@ -856,7 +862,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {chartType !== 'table' && result.rows.length > 0 && result.rows.length <= 30 && (
             <div style={{ marginTop: 20 }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Datos</div>
-              <DataTable data={result.rows} isCurrency={result.meta?.y_label?.includes('€')} isPercent={result.meta?.y_label?.includes('%')} />
+              <TablaDeMetrica data={result.rows} isCurrency={esEjeDeMoneda(result.meta?.y_label, fmtMoneda)} isPercent={result.meta?.y_label?.includes('%')} />
             </div>
           )}
         </div>
@@ -883,8 +889,8 @@ function ReportsDashboard({ saved, onRemove, onOpen }: { saved: SavedReport[]; o
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div className="u-md-700">{r.name}</div>
             <div className="u-row-6">
-              <button onClick={() => onOpen(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️ Editar</button>
-              <button onClick={() => onRemove(r.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+              <button onClick={() => onOpen(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️ Editar</button>
+              <button onClick={() => onRemove(r.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
             </div>
           </div>
           <MiniPanel config={r} />
@@ -895,6 +901,7 @@ function ReportsDashboard({ saved, onRemove, onOpen }: { saved: SavedReport[]; o
 }
 
 function MiniPanel({ config }: { config: SavedReport }) {
+  const fmtMoneda = useFormatoMoneda()
   const { data: result, isLoading } = useQuery<MetricResult | null>({
     queryKey: ['analytics-mini', config.metric, config.dateFrom, config.dateTo, config.projectId, config.userId],
     queryFn: () => analyticsApi.query(config.metric, { date_from: config.dateFrom, date_to: config.dateTo, project_id: config.projectId || undefined, user_id: config.userId || undefined, top_n: 10 }).then(r => r.data).catch(() => null),
@@ -907,7 +914,7 @@ function MiniPanel({ config }: { config: SavedReport }) {
     <div>
       {result.summary?.total > 0 && (
         <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: config.color || 'var(--accent)', marginBottom: 8 }}>
-          {result.meta?.y_label?.includes('€') ? fmtCurrency(result.summary.total) : result.summary.total.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })}
+          {esEjeDeMoneda(result.meta?.y_label, fmtMoneda) ? fmtMoneda(result.summary.total, { decimales: 0 }) : result.summary.total.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })}
           <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', fontFamily: 'inherit', marginLeft: 6 }}>total</span>
         </div>
       )}
@@ -920,6 +927,7 @@ function MiniPanel({ config }: { config: SavedReport }) {
 
 // ── ScheduledReportsTab ────────────────────────────────────────────────────────
 function ScheduledReportsTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -959,7 +967,7 @@ function ScheduledReportsTab() {
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       const to = data.recipients?.join(', ') || '—'
-      toast.success(`Informe enviado a: ${to}`)
+      toast.success(data.status === 'queued' ? `Envío en curso a: ${to}` : `Informe enviado a: ${to}`)
     },
     onError: e => toast.error(extractErr(e, 'Error al ejecutar')),
   })
@@ -1001,7 +1009,7 @@ function ScheduledReportsTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="u-row-between-mb16">
         <div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>Informes programados</div>
           <div className="u-text2-sm">
@@ -1031,25 +1039,25 @@ function ScheduledReportsTab() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
-              <label style={ls}>Nombre *</label>
-              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder={traducir('reports.report_name')} style={is} />
             </div>
             <div>
-              <label style={ls}>{traducir('reports.metrica_2')}</label>
-              <select value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))} style={is}>
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('reports.metrica_2')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))} style={is}>
                 {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </div>
             <div>
-              <label style={ls}>Frecuencia</label>
-              <select value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))} style={is}>
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Frecuencia</label>
+              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))} style={is}>
                 {Object.entries(FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{FREQ_ICONS[k]} {v}</option>)}
               </select>
             </div>
             <div>
-              <label style={ls}>{traducir('reports.destinatarios_emails_separados_por_coma')}</label>
-              <input value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
+              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{traducir('reports.destinatarios_emails_separados_por_coma')}</label>
+              <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
                 placeholder="email1@empresa.com, email2@empresa.com" style={is} />
             </div>
           </div>
@@ -1062,8 +1070,7 @@ function ScheduledReportsTab() {
           </label>
           <div className="u-actions-8">
             <button onClick={() => setShowCreate(false)}
-              style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
-                padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+              className="u-btn-outline-sm">
               Cancelar
             </button>
             <Button onClick={submitForm} loading={creating}
@@ -1177,8 +1184,8 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <input
+      <div className="u-mb-12">
+        <input aria-label="Buscar plantilla..."
           value={searchQ}
           onChange={e => setSearchQ(e.target.value)}
           placeholder="Buscar plantilla..."

@@ -20,3 +20,6 @@ class SemanticSettingsMixin:
     SEM_WEIGHT_HISTORY: float = Field(default=0.60, env="SEM_WEIGHT_HISTORY")
     SEM_TOP_K_HISTORY: int = Field(default=3, env="SEM_TOP_K_HISTORY")
     SEM_MULTI_ROLE_FACTOR: float = Field(default=0.70, env="SEM_MULTI_ROLE_FACTOR")
+    # Modelo de sentence-transformers del backend «transformer» cuando la
+    # configuracion semantica de la empresa no fija otro (`SemConfig.local_model_name`).
+    EMBEDDING_MODEL_NAME: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL_NAME")

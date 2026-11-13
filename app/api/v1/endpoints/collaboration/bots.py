@@ -47,10 +47,27 @@ def _integration_out(r) -> IntegrationOut:
     )
 
 
-def _webhook_out(w) -> WebhookOut:
+def _puede_ver_secretos(user) -> bool:
+    return bool(getattr(user, "is_superadmin", False)) or getattr(
+        getattr(user, "role", None), "value", getattr(user, "role", None)) == "admin"
+
+
+def _secreto_visible(secreto: str, user) -> str:
+    """El secreto entero para administradores; para el resto, enmascarado.
+
+    Auditoria 2026-11 (#24): `GET /webhooks` lo devolvia a cualquier usuario,
+    y el secreto de un webhook entrante es la credencial para publicar en el
+    canal en nombre de la integracion.
+    """
+    if _puede_ver_secretos(user):
+        return secreto
+    return "••••" + (secreto or "")[-4:] if secreto and len(secreto) > 8 else "••••"
+
+
+def _webhook_out(w, user=None) -> WebhookOut:
     return WebhookOut(
         id=w.id, direction=w.direction, name=w.name, url=w.url,
-        secret_token=w.secret_token, target_channel_id=w.target_channel_id,
+        secret_token=_secreto_visible(w.secret_token, user), target_channel_id=w.target_channel_id,
         events=w.events or [], is_active=w.is_active,
         last_called_at=w.last_called_at, failure_count=w.failure_count,
     )
@@ -139,7 +156,7 @@ def integration_rotation_status(current_user: User = Depends(get_current_user), 
 # ── Webhooks ────────────────────────────────────────────────────────────────
 @router.get("/webhooks", response_model=APIListResponse[WebhookOut], summary="Listar webhooks")
 def list_webhooks(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    items = [_webhook_out(w) for w in svc.list_webhooks(db, current_user)]
+    items = [_webhook_out(w, current_user) for w in svc.list_webhooks(db, current_user)]
     return APIListResponse.ok(items=items, total=len(items))
 
 
@@ -152,7 +169,7 @@ def create_webhook(payload: WebhookCreate, current_user: User = Depends(get_curr
         direction=payload.direction, name=payload.name, url=payload.url,
         target_channel_id=payload.target_channel_id, events=payload.events,
     )
-    return APIResponse.ok(data=_webhook_out(row))
+    return APIResponse.ok(data=_webhook_out(row, current_user))
 
 
 @router.post("/webhooks/incoming/{token}", summary="Hook entrante (push externo a canal)")

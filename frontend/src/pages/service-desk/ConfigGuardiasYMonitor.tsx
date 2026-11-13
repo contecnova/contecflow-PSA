@@ -62,7 +62,7 @@ export function GuardiasConfig() {
             </div>
           ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={() => setNuevo(true)}>+ {t('sd_cfg.oc_new')}</Button></div>
+      <div className="u-row-end"><Button onClick={() => setNuevo(true)}>+ {t('sd_cfg.oc_new')}</Button></div>
       {isLoading ? <Spinner /> : calendarios.length === 0 ? <EmptyState icon="🌙" title={t('sd_cfg.oc_empty')} description={t('sd_cfg.oc_help')} /> : calendarios.map(c => (
         <div key={c.id} className="ds-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -129,7 +129,7 @@ function FormTurno({ personas, pendiente, onCancelar, onGuardar }: { personas: P
         <select id="oc-person" aria-label={t('sd_cfg.oc_person')} value={persona} onChange={e => setPersona(e.target.value)} style={IS}>
           {personas.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
         </select></div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="u-grid2-10">
         <div><label style={LS} htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><DateInput id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} style={IS} /></div>
         <div><label style={LS} htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><DateInput id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} style={IS} /></div>
       </div>
@@ -160,17 +160,17 @@ export function MonitorizacionConfig() {
         </div>
         <div className="u-text2-sm">{t('sd_cfg.mon_url_help')}</div>
         <div className="u-text2-sm">
-          {t('sd_cfg.mon_token')} <a href="/settings?tab=integrations" style={{ color: 'var(--accent)' }}>{t('sd_cfg.mail_credentials')}</a>
+          {t('sd_cfg.mon_token')} <a href="/settings?tab=integrations" className="u-accent">{t('sd_cfg.mail_credentials')}</a>
         </div>
       </div>
       <div>
         <span style={LS}>{t('sd_cfg.mon_log')}</span>
         {isLoading ? <Spinner /> : alertas.length === 0 ? <div className="u-text3-sm">{t('sd_cfg.mon_empty')}</div> : (
           <div className="u-scroll-x">
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+            <table className="u-table-sm">
               <tbody>
                 {alertas.map(a => (
-                  <tr key={a.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                  <tr key={a.id} className="u-border-b">
                     <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{fecha(a.last_seen_at)}</td>
                     <td style={{ padding: '7px 8px', fontWeight: 600, color: a.status === 'firing' ? COLOR.danger : COLOR.success, whiteSpace: 'nowrap' }}>
                       {t(a.status === 'firing' ? 'sd_cfg.mon_firing' : 'sd_cfg.mon_resolved')}

@@ -10,7 +10,6 @@ Funciones:
   - notify_event(event_type, entity, db) → despacha a todas las integraciones activas
 """
 from app.core.config import settings
-from app.core.network import assert_safe_outbound_url, UnsafeURLError
 import json
 import logging
 import urllib.request
@@ -19,6 +18,7 @@ from app.core.outbound_url import abrir, validate_outbound_url
 import urllib.parse
 from typing import Optional
 from app.core import timeutil
+from app.services.settings_service import outbound_http_timeout
 
 logger = logging.getLogger(__name__)
 from app.models.cab import IntegrationConfig
@@ -40,34 +40,14 @@ def send_slack_message(
     username: str = "Contecflow",
     icon_emoji: str = ":triangular_ruler:",
 ) -> dict:
-    """Envía un mensaje a Slack via Incoming Webhook."""
-    payload = {
-        "username": username,
-        "icon_emoji": icon_emoji,
-        "text": text,
-    }
-    if blocks:
-        payload["blocks"] = blocks
+    """Envía un mensaje a Slack via Incoming Webhook (`entrega_saliente.enviar_a_webhook`)."""
+    from app.services.entrega_saliente import enviar_a_webhook, mensaje_de_slack
 
-    try:
-        assert_safe_outbound_url(webhook_url)
-    except UnsafeURLError as e:
-        logger.warning("Slack webhook_url rechazado por SSRF guard: %s", e)
-        return {"ok": False, "error": f"webhook_url no permitido: {e}"}
-
-    data = json.dumps(payload).encode("utf-8")
-    req  = urllib.request.Request(  # noqa: S310
-        validate_outbound_url(webhook_url, field="webhook_url"),
-        data=data,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with abrir(req, timeout=10) as resp:  # noqa: S310
-            body = resp.read().decode()
-        return {"ok": True, "response": body}
-    except Exception as e:
-        logger.warning("Fallo enviando mensaje a Slack: %s", e)
-        return {"ok": False, "error": str(e)}
+    r = enviar_a_webhook(webhook_url, mensaje_de_slack(text, blocks, username=username, icon_emoji=icon_emoji))
+    if r.ok:
+        return {"ok": True, "response": r.texto}
+    logger.warning("Fallo enviando mensaje a Slack: %s", r.error)
+    return {"ok": False, "error": r.error}
 
 
 def build_slack_blocks(title: str, fields: list, color: str = "#00d4ff", url: str = None) -> list:
@@ -101,51 +81,27 @@ def send_teams_message(
     facts: Optional[list] = None,
     url: Optional[str] = None,
 ) -> dict:
-    """Envía un mensaje a Microsoft Teams via Incoming Webhook (Adaptive Card)."""
-    payload = {
-        "@type":      "MessageCard",
-        "@context":   "http://schema.org/extensions",
-        "themeColor": color.lstrip("#"),
-        "summary":    title,
-        "sections": [{
-            "activityTitle":    f"**{title}**",
-            "activitySubtitle": text,
-            "facts":            [{"name": k, "value": str(v)} for k, v in (facts or [])],
-            "markdown":         True,
-        }],
-    }
-    if url:
-        payload["potentialAction"] = [{
-            "@type": "OpenUri",
-            "name":  "Ver en Contecflow",
-            "targets": [{"os": "default", "uri": url}]
-        }]
+    """Envía un mensaje a Microsoft Teams via Incoming Webhook (`entrega_saliente`)."""
+    from app.services.entrega_saliente import enviar_a_webhook, tarjeta_de_teams
 
-    try:
-        assert_safe_outbound_url(webhook_url)
-    except UnsafeURLError as e:
-        logger.warning("Teams webhook_url rechazado por SSRF guard: %s", e)
-        return {"ok": False, "error": f"webhook_url no permitido: {e}"}
-
-    data = json.dumps(payload).encode("utf-8")
-    req  = urllib.request.Request(  # noqa: S310
-        validate_outbound_url(webhook_url, field="webhook_url"),
-        data=data,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with abrir(req, timeout=10) as resp:  # noqa: S310
-            body = resp.read().decode()
-        return {"ok": True, "response": body}
-    except Exception as e:
-        logger.warning("Fallo enviando mensaje a Microsoft Teams: %s", e)
-        return {"ok": False, "error": str(e)}
+    r = enviar_a_webhook(webhook_url, tarjeta_de_teams(title, text, url=url, hechos=facts, color=color))
+    if r.ok:
+        return {"ok": True, "response": r.texto}
+    logger.warning("Fallo enviando mensaje a Microsoft Teams: %s", r.error)
+    return {"ok": False, "error": r.error}
 
 
 # ── Jira ───────────────────────────────────────────────────────────────────────
 
 def _jira_request(config_dict: dict, method: str, path: str, body: Optional[dict] = None) -> dict:
-    """Ejecuta una petición a la API REST de Jira."""
+    """Ejecuta una petición a la API REST de Jira por el cliente de `jira_service`.
+
+    Auditoria 2026-11 (#34): tenia su propio cliente (urllib + Basic armado a
+    mano) y devolvia hasta 300 caracteres del cuerpo de la respuesta remota.
+    """
+    import httpx
+    from app.services import jira_service
+
     base_url   = config_dict.get("base_url", "").rstrip("/")
     email      = config_dict.get("email", "")
     api_token  = config_dict.get("api_token", "")
@@ -153,28 +109,15 @@ def _jira_request(config_dict: dict, method: str, path: str, body: Optional[dict
     if not base_url or not api_token:
         return {"ok": False, "error": "Jira no configurado (falta base_url o api_token)"}
 
-    import base64
-    credentials = base64.b64encode(f"{email}:{api_token}".encode()).decode()
-    url = f"{base_url}/rest/api/3{path}"
-
-    data = json.dumps(body).encode("utf-8") if body else None
-    req  = urllib.request.Request(  # noqa: S310
-        validate_outbound_url(url, field="URL de integración"), data=data, method=method,
-        headers={
-            "Authorization": f"Basic {credentials}",
-            "Content-Type":  "application/json",
-            "Accept":        "application/json",
-        },
-    )
+    validate_outbound_url(base_url, field="URL de integración")
+    cfg = {"jira_url": base_url, "jira_email": email, "jira_api_token": api_token}
     try:
-        with abrir(req, timeout=15) as resp:  # noqa: S310
-            return {"ok": True, "data": json.loads(resp.read())}
-    except urllib.error.HTTPError as e:
-        body_err = e.read().decode()[:300]
-        return {"ok": False, "error": f"HTTP {e.code}: {body_err}"}
+        return {"ok": True, "data": jira_service.llamar_a_jira_crudo(cfg, method, f"/rest/api/3{path}", json=body)}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": f"HTTP {e.response.status_code}"}
     except Exception as e:
         logger.warning("Fallo en petición Jira %s %s: %s", method, path, e)
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": "No se pudo conectar con Jira"}
 
 
 def create_jira_issue(
@@ -308,13 +251,24 @@ def notify_event(
     entity: dict,
     db,
     app_base_url: str = settings.FRONTEND_URL,
+    *,
+    organization_id: Optional[str] = None,
 ) -> list:
     """
-    Despacha un evento a todas las integraciones activas de Slack/Teams
-    que tienen el event_type suscrito.
+    Despacha un evento a las integraciones activas de Slack/Teams DE LA
+    ORGANIZACION que tienen el event_type suscrito.
 
     entity debe tener: title, id, y campos según el template.
+
+    Auditoria 2026-11 (#29): la consulta no acotaba por organizacion y confiaba
+    en el filtro de la sesion; desde un job o un superadmin (sesion sin filtro)
+    el aviso de una aprobacion salia por el Slack/Teams de TODAS las
+    organizaciones. `organization_id` (o la de la sesion) es obligatoria: sin
+    ella no se envia nada.
     """
+    org_id = organization_id or (getattr(db, "info", {}) or {}).get("organization_id")
+    if not org_id:
+        return []
     try:
         from app.models.cab import IntegrationConfig
     except ImportError:
@@ -330,6 +284,7 @@ def notify_event(
 
     configs = db.query(IntegrationConfig).filter(
         IntegrationConfig.is_active == True,
+        IntegrationConfig.organization_id == org_id,
         IntegrationConfig.integration_type.in_(["slack", "teams"]),
     ).all()
 
@@ -410,7 +365,7 @@ def _xero_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         },
     )
     try:
-        with abrir(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
             return {"ok": True, "data": _json.loads(resp.read())}
     except urllib.error.HTTPError as e:
         err = e.read().decode()[:300]
@@ -442,7 +397,7 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         },
     )
     try:
-        with abrir(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
             return {"ok": True, "data": _json.loads(resp.read())}
     except urllib.error.HTTPError as e:
         err = e.read().decode()[:300]

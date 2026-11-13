@@ -50,7 +50,7 @@ interface SupportedMetrics {
 }
 
 const S: Record<string, React.CSSProperties> = {
-  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' },
+  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
   cardPad:     { padding: '20px 24px' },
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
   btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' },
@@ -114,7 +114,7 @@ export default function SmartAlertsPanel() {
         </div>
         <div style={S.cardPad}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')}
+            <input aria-label={t('smartalerts.nombre_de_la_regla')} value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')}
               style={{ ...S.input, flex: 1, minWidth: 120 }} />
             <select value={metric} onChange={e => setMetric(e.target.value)} style={{ ...S.input, width: 'auto' }}>
               {(supported?.metrics || [{ key: 'revenue', label: 'Revenue' }]).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
@@ -131,10 +131,10 @@ export default function SmartAlertsPanel() {
             <div key={rule.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--surface-4)' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: rule.severity === 'critical' ? COLOR.danger : rule.severity === 'warning' ? COLOR.warning : COLOR.success, flexShrink: 0 }} />
               <div className="u-flex1">
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{rule.name}</div>
+                <div className="u-text1-sm-600">{rule.name}</div>
                 <div className="u-text3-2xs">{rule.metric_key} · {String(rule.condition || '').replace(/_/g, ' ')}</div>
               </div>
-              <span style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 10, background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)', fontWeight: 700 }}>
+              <span style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 'var(--radius-md)', background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)', fontWeight: 700 }}>
                 {rule.enabled ? 'activa' : 'pausada'}
               </span>
               <button onClick={() => deleteRule(rule.id)}
@@ -164,7 +164,7 @@ export default function SmartAlertsPanel() {
             <div key={entry.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 4, background: entry.severity === 'critical' ? COLOR.danger : entry.severity === 'warning' ? COLOR.warning : COLOR.success, flexShrink: 0 }} />
               <div className="u-flex1">
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{entry.rule_name}</div>
+                <div className="u-text1-sm-600">{entry.rule_name}</div>
                 <div className="u-text3-2xs">
                   {entry.metric_key} · {String(entry.condition || '').replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
                 </div>
@@ -176,7 +176,7 @@ export default function SmartAlertsPanel() {
               </div>
               {!entry.acknowledged
                 ? <button onClick={() => ack(entry.id)}
-                    style={{ padding: '3px 10px', borderRadius: 6, border: `1px solid ${COLOR.accent}`, background: 'transparent', color: COLOR.accent, cursor: 'pointer', fontSize: 'var(--text-2xs)', fontWeight: 600, flexShrink: 0, fontFamily: 'inherit' }}>ACK</button>
+                    style={{ padding: '3px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${COLOR.accent}`, background: 'transparent', color: COLOR.accent, cursor: 'pointer', fontSize: 'var(--text-2xs)', fontWeight: 600, flexShrink: 0, fontFamily: 'inherit' }}>ACK</button>
                 : <span style={{ fontSize: 'var(--text-2xs)', color: COLOR.success, fontWeight: 600, flexShrink: 0 }}>✓</span>
               }
             </div>

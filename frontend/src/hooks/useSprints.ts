@@ -5,13 +5,9 @@ import { sprintsApi } from '../services/api'
 
 const STALE = 2 * 60 * 1000
 
-export interface Sprint {
-  id: string
-  project_id?: string
-  name?: string
-  status?: string
-  [extra: string]: unknown
-}
+// Tipo de respuesta del cliente de API (services/api/tipos.ts, auditoria 2026-11 #39).
+import type { Sprint } from '../services/api/tipos'
+export type { Sprint }
 
 export type SprintListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }

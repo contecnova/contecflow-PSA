@@ -14,11 +14,11 @@ Soporta operadores avanzados (`from:`, `in:`, `before:`, `after:`, `has:`,
 from __future__ import annotations
 
 import logging
-import os
 from typing import Optional, Protocol
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.services.collaboration._search_query import parse as parse_query
 
 logger = logging.getLogger(__name__)
@@ -239,11 +239,9 @@ class OpenSearchSearch:
     def __init__(self):
         try:
             from opensearchpy import OpenSearch
-            # env-driven: OpenSearch is an optional pluggable backend; config kept out
-            # of Settings to avoid coupling core config to an optional dependency.
-            url = os.environ.get("OPENSEARCH_URL", "http://localhost:9200")
-            user = os.environ.get("OPENSEARCH_USER")
-            pwd = os.environ.get("OPENSEARCH_PASSWORD")
+            url = settings.OPENSEARCH_URL
+            user = settings.OPENSEARCH_USER
+            pwd = settings.OPENSEARCH_PASSWORD
             kwargs = {"hosts": [url], "timeout": 5}
             if user:
                 kwargs["http_auth"] = (user, pwd)
@@ -444,14 +442,14 @@ class OpenSearchSearch:
 
 
 def _build_search() -> MessageSearch:
-    backend = os.environ.get("COLLAB_SEARCH_BACKEND", "auto").lower()
+    backend = (settings.COLLAB_SEARCH_BACKEND or "auto").lower()
     if backend == "pg":
         return PgFtsSearch()
     if backend == "opensearch":
         return OpenSearchSearch()
     if backend == "simple":
         return SimpleSqlSearch()
-    db_url = os.environ.get("DATABASE_URL", "")
+    db_url = settings.DATABASE_URL or ""
     if db_url.startswith("postgres"):
         return PgFtsSearch()
     return SimpleSqlSearch()

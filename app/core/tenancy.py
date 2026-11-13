@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
+from app.core.errores import ErrorDeDominio
 
 
 def organizacion_existe(db, org_id) -> bool:
@@ -54,9 +55,9 @@ def org_scoped_or_404(
     """
     obj = db.query(model).filter(getattr(model, id_attr) == obj_id).first()
     if obj is None:
-        raise HTTPException(404, detail)
+        raise ErrorDeDominio(404, detail)
     if not _can_access(current_user, getattr(obj, org_attr, None)):
-        raise HTTPException(404, detail)
+        raise ErrorDeDominio(404, detail)
     return obj
 
 
@@ -67,7 +68,7 @@ def assert_same_org(current_user, row_org_id: Optional[str], *, detail: str = "N
     isolation gate. Superadmins and NULL-org rows pass.
     """
     if not _can_access(current_user, row_org_id):
-        raise HTTPException(404, detail)
+        raise ErrorDeDominio(404, detail)
 
 
 def assert_org_id_is_own(current_user, org_id: Optional[str], *, detail: str = "Not found") -> None:
@@ -90,7 +91,7 @@ def assert_org_id_is_own(current_user, org_id: Optional[str], *, detail: str = "
         return
     user_org = getattr(current_user, "organization_id", None)
     if not org_id or not user_org or str(org_id) != str(user_org):
-        raise HTTPException(404, detail)
+        raise ErrorDeDominio(404, detail)
 
 
 def _can_access(current_user, row_org_id: Optional[str]) -> bool:

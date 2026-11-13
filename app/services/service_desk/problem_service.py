@@ -197,6 +197,9 @@ def suggest_rca_from_ai(db: Session, problem: Problem) -> dict:
             messages=[{"role": "user", "content": prompt}],
             system="You are an ITIL problem manager. Respond only with valid JSON.",
             max_tokens=512,
+            # Segunda auditoria 2026-11 (#33): desde el worker no hay usuario;
+            # sin la organizacion no aplicaban su tope de gasto ni su proveedor.
+            organization_id=getattr(problem, "organization_id", None),
         )
         provider_used = result.get("provider", "unknown")
         raw = (result.get("content") or "").strip()

@@ -3011,7 +3011,8 @@ If the chosen provider fails, every other active provider is tried once. If none
   - `GET/POST /api/v1/billing-reports/scheduled-reports`
   - `PATCH/DELETE .../{id}`
   - `POST .../{id}/run`
-- Worker `run_scheduled_reports` runs hourly at :00 and calls `scheduled_reports.run_due_reports`. PDFs use reportlab; email uses smtplib with STARTTLS.
+- Worker `run_scheduled_reports` runs hourly at :00 and calls `scheduled_reports.run_due_reports`. PDFs come from `report_pdf_service` (typed reports) or `report_pdf` (a metric). Delivery goes through `app/services/entrega_saliente.py`: one email per recipient via `notification_service`, Slack through the validated outbound sender.
+- A second scheduler, BI delivery (`bi_report_delivery_service`, `app_settings` key `bi.delivery.schedules`, worker `bi_scheduled_delivery_run` at :45), sends Report Builder presets as data (xlsx/csv/json/pdf) to email/Slack/Teams, optionally only when the data changed. It stays separate because it schedules a different thing, but shares the same delivery layer and the tabular PDF of `report_pdf`.
 
 **Limitations (measured).**
 - **Saved reports** are kept per user on the server (preferences, `extra.informes_guardados`), so they survive a reload and follow the user to another device.
@@ -4183,7 +4184,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 239 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 244 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4408,6 +4409,9 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | risk | RISK_DELAY_MAX_PCT | float | 95.0 | Delay probability — maximum (%) | rt |
 | risk | RISK_DELAY_PCT_PER_WEEK | float | 20.0 | Predicted delay — probability % per week | rt |
 | risk | RISK_HISTORY_POINTS | int | 12 | Detail — history points shown | rt |
+| risk | RISK_PROBABILITY_CRITICAL | float | 0.75 | Predicted probability (0-1) — critical from (ML, oracle, ticket severity) | rt (`app/core/escalas.py`) |
+| risk | RISK_PROBABILITY_HIGH | float | 0.5 | Predicted probability (0-1) — high from | rt (`app/core/escalas.py`) |
+| risk | RISK_PROBABILITY_MEDIUM | float | 0.25 | Predicted probability (0-1) — medium from | rt (`app/core/escalas.py`) |
 | risk | RISK_LEVEL_CRITICAL | float | 75.0 | Risk score — critical from (0-100) | rt |
 | risk | RISK_LEVEL_HIGH | float | 50.0 | Risk score — high from (0-100) | rt |
 | risk | RISK_LEVEL_MEDIUM | float | 25.0 | Risk score — medium from (0-100) | rt |
@@ -4421,6 +4425,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | service_desk | SD_AUTONOMOUS_AGENT_ENABLED | bool | false | Autonomous agent — scan new tickets every 5 min (comments and may resolve) | rt |
 | service_desk | SD_AUTONOMY_RESOLVE_THRESHOLD | float | 0.8 | Autonomous agent — confidence to resolve on its own (0-1) | rt |
 | service_desk | SD_AUTONOMY_SUGGEST_THRESHOLD | float | 0.5 | Autonomous agent — confidence to comment a playbook (0-1) | rt |
+| service_desk | ALERT_CORRELATION_PROBLEM_SCORE | float | 0.65 | Alert correlation — score (0-1) to suggest/create a problem (with 3+ tickets) | rt (`app/core/escalas.py`) |
+| service_desk | ALERT_CORRELATION_REVIEW_SCORE | float | 0.35 | Alert correlation — score (0-1) to suggest a review | rt (`app/core/escalas.py`) |
 | tenants | IMPERSONATION_ENABLED | bool | true | Platform support may sign in as a company user (with a reason, audited) | rt |
 | tenants | IMPERSONATION_MAX_MINUTES | int | 30 | Sign in as — maximum session length (minutes) | rt |
 | tenants | TENANT_DELETION_QUARANTINE_DAYS | int | 30 | Company deletion — quarantine before its data is erased (days) | rt |
@@ -4668,17 +4674,16 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 **What happens at sign-in.** Once verified, every sign-in with the password asks for a 6-digit code. A backup code can be typed instead of the code; each backup code works once. **Disable** removes the factor and sign-in no longer asks for it (unless the user has passkeys).
 
-**Technical notes.** `GET /api/v1/mfa/status`, `POST /mfa/setup`, `POST /mfa/verify`, `POST /mfa/validate`, `DELETE /mfa/disable`. Tables `mfa_configs` (`totp_secret` encrypted) and `mfa_backup_codes`. Requires `pyotp` and `qrcode`. The QR is a local `data:image/png` (nothing is sent to a third party).
-- Sign-in (`routers/auth_core.py`) checks `users.mfa_enabled AND users.mfa_secret`, or passkeys. `mfa_service.verify_and_activate_mfa` copies the encrypted secret to `users.mfa_secret` and sets `users.mfa_enabled`; `disable_mfa` clears it (keeping `mfa_enabled` if passkeys exist). `/auth/mfa/validate` also accepts unused `mfa_backup_codes`. `/auth/mfa/disable` also turns `mfa_configs.is_enabled` off. Test: `tests/test_mfa_pantalla_protege_login.py`.
+**Technical notes.** One TOTP system, the one sign-in enforces: `GET /api/v1/auth/mfa/status`, `POST /auth/mfa/setup` (with a second factor already active — TOTP or passkey — it needs `{"password"}` or `{"code"}`; the page asks for it), `POST /auth/mfa/verify-setup` (returns 8 `backup_codes`), `POST /auth/mfa/validate` (sign-in), `POST /auth/mfa/disable`. Secret in `users.mfa_secret` (`encrypt_value`), `users.mfa_enabled`, `users.mfa_verified_at`; backup codes in `mfa_backup_codes` (bcrypt, by `user_id`). Requires `pyotp` and `qrcode`. The QR is a local `data:image/png` (nothing is sent to a third party).
+- Sign-in (`routers/auth_core.py`) checks `users.mfa_enabled AND users.mfa_secret`, or passkeys. The compliance report (`mfa_coverage`) counts the same.
+- Audit 2026-11: the older `/api/v1/mfa/*` family (table `mfa_configs`, which sign-in did not read) was removed. Migration `160_mfa_un_solo_sistema` copied each enabled `mfa_configs` secret to `users.mfa_secret` (unless the user already had TOTP there), moved its unused backup codes to the user and dropped the table. Test: `tests/test_mfa_un_solo_sistema.py`.
 
 **Limitations (measured).**
-- Two endpoint families still exist (`/mfa/*` for this page and `/auth/mfa/*`); they write the same fields, but enrolling through `/auth/mfa/setup` creates no backup codes and leaves this page showing "not enabled".
 - **Passkeys.** Profile → Seguridad → *Passkeys*: add one (browser prompt: fingerprint, Face ID, security key), rename ✏ or remove 🗑. Registration asks for a discoverable credential when the authenticator can (`residentKey: preferred`) and always requires user verification.
   - **Sign in with a passkey alone:** *Entrar con passkey* on the login page (`POST /auth/passkey/login/start|finish`) needs no user name or password; the passkey identifies the user. Because user verification is required it counts as two factors, so no TOTP follows. It can be switched off with `PASSKEY_PASSWORDLESS_ENABLED` (Settings → Tokens).
   - **Passkey as second factor:** after the password or SSO, the second-factor step shows *Usar mi passkey* when the user has one. Backup codes (8 characters) can be typed there.
   - Endpoints: `/auth/mfa/webauthn/register/start|finish`, `GET /auth/mfa/webauthn/credentials`, `PATCH|DELETE /auth/mfa/webauthn/credentials/{id}`.
   - Not verified with a physical authenticator: the browser ceremony was checked with mocks (`frontend/src/__tests__/LoginSsoPasskey.test.tsx`); the server checks with a simulated credential.
-- The front end still has no screen for `/auth/mfa/setup` / `/auth/mfa/verify-setup` (the `/mfa` page uses the older `/mfa/*` endpoints).
 - If an organization sets `require_mfa=true`, **which is API-only** (`PATCH /organizations/{id}`), users without a TOTP factor or passkey are refused at login with 403.
 
 ---
@@ -4869,7 +4874,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
   - `read`: GET/HEAD/OPTIONS only; `write` or `admin`: also writes;
   - area scopes `projects`, `tasks`, `timesheets`, `billing`, `expenses`: read and write inside `/api/v1/<area>` (timesheets also `/imputations`; billing `/invoices` and `/billing-reports`) and nothing else.
   - Unknown scopes are rejected with 422.
-- **Never valid for managing credentials:** `/auth/*` (except `GET /auth/me`), `/mfa`, `/bookings/api-keys`, `/developer/apps`, `/enterprise/sso`, `/bookings/sso` → 403.
+- **Never valid for managing credentials:** `/auth/*` (except `GET /auth/me`), `/bookings/api-keys`, `/developer/apps`, `/enterprise/sso`, `/bookings/sso` → 403.
 - Per-key limits `rate_limit_per_hour` / `rate_limit_per_day` return 429; the counters reset each hour and each day (before, they never reset). Expired or revoked keys → 401.
 - Keys created before migration 119 get their digest the first time they are used (one bcrypt check by prefix).
 - To check a key, call `GET /auth/me` with it (the unauthenticated `POST /bookings/api-keys/verify` was removed in the 2026-11 audit: it was a key oracle).
@@ -4927,19 +4932,19 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 3. **Browse issues.**
 4. Run **Sync** (Jira → tasks: create or update by `jira_issue_key`).
 5. Run **Push** for a project (creates missing issues).
-6. Optionally register the Jira webhook → `POST /api/v1/jira/webhook`. It is verified with env `JIRA_WEBHOOK_SECRET`.
+6. Optionally register the Jira webhook → `POST /api/v1/jira/webhook?org=<org id>`. Generate its secret with `POST /api/v1/jira/webhook-secret` (admin, shown once); Jira sends it in `X-Atlassian-Webhook-Token`.
 
 **Technical notes.**
-- `GET|POST /api/v1/jira/config`, `GET /jira/test`, `GET /jira/issues`, `POST /jira/sync`, `POST /jira/push?project_id=`, `GET /jira/linked`, `POST /jira/webhook`.
-- Config is stored in `app_settings` (`jira_url`, `jira_email`, `jira_api_token` (encrypted), `jira_project_key`), per organization with a global fallback.
+- `GET|POST /api/v1/jira/config`, `GET /jira/test`, `GET /jira/issues`, `POST /jira/sync`, `POST /jira/push?project_id=`, `GET /jira/linked`, `POST /jira/webhook-secret`, `POST /jira/webhook`.
+- One service layer, `app/services/jira_service.py`: config, HTTP client (validated URL, `cliente_httpx`), status/priority maps and the connection test. All Jira routes and the worker delegate to it.
+- Config is one table, `sd_jira_configs`. The row with `usar_para_tareas` (one per organization) is the one this page reads and writes; the token is encrypted. No global fallback. Migration `159_jira_una_sola_configuracion` moved the old `app_settings` keys there. The webhook secret stays in `app_settings` (`jira_webhook_secret`, per organization).
 
 **Limitations (measured).**
-- **Three separate Jira integrations exist, with separate configuration:**
-  1. this page (`/jira/*`, `app_settings`);
-  2. Service Desk `/api/v1/integrations/jira/configs[/{id}[/test|/sync-log]]`, `/integrations/jira/sync/{config_id}`, `/integrations/jira/tickets/{id}/push`, with tables `sd_jira_configs`, `sd_jira_field_map`, `sd_jira_sync_map` and `sd_jira_sync_log`;
-  3. `/api/v1/integrations-hub/jira/{test,issues,search,transition}`, which uses `integration_configs`.
+- **Three route groups share the Jira service layer:**
+  1. this page (`/jira/*`, the `usar_para_tareas` connection);
+  2. Service Desk `/api/v1/integrations/jira/configs[/{id}[/test|/sync-log]]`, `/integrations/jira/sync/{config_id}`, `/integrations/jira/tickets/{id}/push`, with tables `sd_jira_configs` (the same table; `usar_para_tareas` is listed and editable there), `sd_jira_field_map`, `sd_jira_sync_map` and `sd_jira_sync_log`;
+  3. `/api/v1/integrations-hub/jira/{test,issues,search,transition}`, which still keeps its credentials in `integration_configs` (Enterprise → Integraciones) but calls Jira through the same client.
 - The Exports page uses `POST /jira/sync` with `project_id`; `POST /integrations/jira/sync/{config_id}` is the manual poll of one configuration.
-- The module docstring mentions `GET /jira/sync-log`, but that route does not exist.
 - A real Jira round trip is **Not verified**.
 
 ---
@@ -5138,7 +5143,7 @@ This section is for developers and operators who install, run, configure, extend
    │ middlewares: ExceptionHandler · CORS · CSRF · security headers · req logger │
    │ router guards (every /api/v1 route, HTTP and WebSocket):                    │
    │   bind_request_timezone → apply_abac_for_route → enforce_grc_matrix         │
-   │ /api/v1 (2,125 routes) · /health · /ready · /status · /metrics              │
+   │ /api/v1 (2,114 routes) · /health · /ready · /status · /metrics              │
    │ endpoints (app/api) ──► services (app/services) ──► ORM models (app/models) │
    │ TenantSession + do_orm_execute tenant filter + before_flush org stamping    │
    │ APScheduler in-process when ENABLE_APSCHEDULER=1 (default): mirrors beat     │
@@ -5166,7 +5171,7 @@ This section is for developers and operators who install, run, configure, extend
 | PostgreSQL driver | psycopg2-binary 2.9.11 (image `postgres:16-alpine`) |
 | Celery / redis-py | 5.6.3 / 6.4.0 (image `redis:7-alpine`) |
 | APScheduler | 3.11.2 (in-process alternative to beat) |
-| Auth libs | python-jose 3.5.0, PyJWT 2.13.0, bcrypt 4.0.1, passlib 1.7.4, pyotp 2.9.0, webauthn 2.7.0 |
+| Auth libs | python-jose 3.5.0, PyJWT 2.13.0, bcrypt 4.0.1, pyotp 2.9.0, webauthn 2.7.0 |
 | Rate limiting | slowapi 0.1.9 |
 | Observability | prometheus-client 0.21.1, prometheus-fastapi-instrumentator 8.1.0, sentry-sdk 2.57.0, OpenTelemetry (optional import) |
 | Storage | boto3 1.42.83 |
@@ -5347,11 +5352,11 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 379)
+#### 4.2 Settings fields (`Settings`, 460)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
-**Core (`app/core/config.py`) — 149 variables**
+**Core (`app/core/config.py`) — 150 variables**
 
 | Name | Default | Meaning |
 |---|---|---|
@@ -5399,7 +5404,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `ADOBE_SIGN_BASE_URL` | `'https://api.na1.adobesign.com/api/rest/v6'` | Adobe Sign API base. |
 | `PROVISIONING_ENABLED` | `False` | Enable Terraform/Ansible runners. |
 | `PROVISIONING_ROOT_DIR` | `''` | Working dir for provisioning runners. |
-| `MICROSOFT_OAUTH_BASE` | `'https://login.microsoftonline.com'` | Microsoft identity endpoint (SSO). |
+| `MICROSOFT_OAUTH_BASE` | `'https://login.microsoftonline.com'` | Microsoft identity endpoint (SSO, Graph client credentials, M365 OAuth). |
+| `MICROSOFT_GRAPH_BASE` | `'https://graph.microsoft.com'` | Microsoft Graph base (without `/v1.0`); also the token scope `<base>/.default`. Sovereign clouds: `https://graph.microsoft.us`… |
 | `GOOGLE_OAUTH_BASE` | `'https://accounts.google.com'` | Google OAuth endpoint. |
 | `GOOGLE_TOKEN_URL` | `'https://oauth2.googleapis.com/token'` | Google token endpoint. |
 | `WEBAUTHN_RP_ID` | `'localhost'` | Passkey relying-party id; real domain required in staging/production. |
@@ -5595,7 +5601,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `EVM_INDEX_GREEN_MIN` | `0.9` | EVM traffic light: CPI/SPI green from this value (TCPI by its inverse). |
 | `EVM_INDEX_RED_BELOW` | `0.85` | EVM traffic light: CPI/SPI red below this value (TCPI by its inverse). |
 
-**Semantic engine (`config_groups/semantic_config.py`) — 9 variables**
+**Semantic engine (`config_groups/semantic_config.py`) — 10 variables**
 
 | Name | Default | Meaning |
 |---|---|---|
@@ -5608,6 +5614,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SEM_WEIGHT_HISTORY` | `0.6` | Semantic classifier thresholds/weights. |
 | `SEM_TOP_K_HISTORY` | `3` | Semantic classifier thresholds/weights. |
 | `SEM_MULTI_ROLE_FACTOR` | `0.7` | Semantic classifier thresholds/weights. |
+| `EMBEDDING_MODEL_NAME` | `'all-MiniLM-L6-v2'` | sentence-transformers model of the `transformer` backend when the organization's semantic config sets none. |
 
 **Service desk (`config_groups/service_desk_config.py`) — 22 variables**
 
@@ -5766,38 +5773,109 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT` | `1000.0` | Budgets — …and of this amount or more (both must be met) |
 | `BUDGET_ALM_LINE_TYPE` | `'licencias'` | Budgets — line type where ALM contracts and licences count as committed |
 
+**Process, infrastructure and optional backends (`config_groups/proceso_config.py`) — 74 variables**
+
+Until the second 2026-11 audit (finding 16) these were read with `os.getenv`/`os.environ` in 36 modules (95 reads). Same env names and defaults; booleans now accept `1/true/yes/on` (before, only `1` counted) and an empty value means the default. **Boot refuses `DISABLE_CSRF_MIDDLEWARE=1` in staging/production** (and `ENABLE_SUPERADMIN_BYPASS=1` outside development, as before); `TENANT_AUTO_*=0` there logs CRITICAL. Values in `.env` now apply even when the file is not exported to the process.
+
+| Name | Default | Meaning |
+|---|---|---|
+| `ENABLE_APSCHEDULER` | `True` | Run the in-process APScheduler. |
+| `ENABLE_CELERY_BEAT` | `False` | Declares that Celery beat runs. |
+| `CELERY_BEAT` | `False` | Legacy alias of ENABLE_CELERY_BEAT (either one on = beat). |
+| `FAIL_ON_DUAL_SCHEDULER` | `True` | Refuse to boot with both schedulers on. |
+| `FAIL_ON_SCHEMA_DRIFT` | `None` | Abort boot on Alembic drift; unset = on in staging/production, off elsewhere. |
+| `EXPECTED_ALEMBIC_REVISION` | `''` | Extra pinned Alembic revision checked at boot. |
+| `EXPOSE_API_DOCS` | `False` | Expose Swagger/ReDoc/OpenAPI in production. |
+| `CSRF_DOUBLE_SUBMIT` | `False` | Also require X-CSRF-Token == csrf_token cookie. |
+| `DISABLE_CSRF_MIDDLEWARE` | `False` | Disable CSRF checks (refused in staging/production). |
+| `ENABLE_SUPERADMIN_BYPASS` | `False` | Dev-only login bypass (development + SQLite only). |
+| `TENANT_AUTO_FILTER_GLOBAL` | `True` | Global ORM tenant filter (read at import). |
+| `TENANT_AUTO_STAMP_ON_INSERT` | `True` | Stamp organization_id on new rows (read at import). |
+| `REDIS_RECONNECT_BACKOFF_SECONDS` | `30.0` | Wait before retrying Redis after a failure. |
+| `PREDICTIVE_STATS_MAX_TICKETS` | `200` | Tickets analysed per predictive-stats request. |
+| `CHANGE_BATCH_SCORE_MAX` | `100` | Changes scored per CAB batch pass. |
+| `DUCKDB_PATH` | `''` | OLAP DuckDB file; empty = /var/contecflow/olap.duckdb or a temp dir. |
+| `AI_MODELS_CATALOG_PATH` | `''` | AI model/price catalogue JSON; empty = app/core/ai_models.json. |
+| `APP_DB_USER` | `''` | Non-owner DB role created by `python -m app.db.rls`. |
+| `APP_DB_PASSWORD` | `''` | Password of APP_DB_USER. |
+| `SEED_USERS_DATA_PATH` | `'seed_users_data.json'` | Seed — users JSON. |
+| `SEED_CLIENTS_DATA_PATH` | `'seed_clients_data.json'` | Seed — clients JSON. |
+| `SEED_EMAIL_TEMPLATES_PATH` | `'seed_email_templates.json'` | Seed — email templates JSON. |
+| `SEED_API_KEY_DEMO` | `'nxpm_demo_integration_key_1234'` | Seed — demo API key (hashed on insert). |
+| `UPLOADS_DIR` | `'uploads'` | Collaboration uploads root (distinct from UPLOAD_DIR). |
+| `COLLAB_SIGNED_MAX_ENTRIES` | `20000` | Max in-memory signed download tokens. |
+| `COLLAB_STORAGE_BACKEND` | `'local'` | local | s3 | minio. |
+| `COLLAB_S3_BUCKET` | `None` | Collaboration S3 bucket. |
+| `COLLAB_S3_PREFIX` | `'collaboration/'` | Collaboration S3 key prefix. |
+| `COLLAB_S3_REGION` | `'eu-west-1'` | Collaboration S3 region. |
+| `COLLAB_S3_ENDPOINT` | `None` | S3-compatible endpoint (MinIO, versitygw). |
+| `CLAMAV_ENABLED` | `False` | Scan collaboration uploads with clamd. |
+| `CLAMAV_HOST` | `'localhost'` | clamd host. |
+| `CLAMAV_PORT` | `3310` | clamd port. |
+| `CLAMAV_SOCKET` | `None` | clamd UNIX socket (wins over host/port). |
+| `CLAMAV_TIMEOUT` | `30.0` | clamd timeout (s). |
+| `COLLAB_SEARCH_BACKEND` | `'auto'` | auto | simple | pg | opensearch. |
+| `OPENSEARCH_URL` | `'http://localhost:9200'` | OpenSearch URL. |
+| `OPENSEARCH_USER` | `None` | OpenSearch user. |
+| `OPENSEARCH_PASSWORD` | `None` | OpenSearch password. |
+| `COLLAB_BUS_BACKEND` | `'memory'` | memory | redis | nats. |
+| `NATS_URL` | `'nats://localhost:4222'` | NATS URL for the nats bus. |
+| `COLLAB_QUEUE_WORKERS` | `4` | Collaboration in-process queue workers. |
+| `LIVEKIT_URL` | `'wss://livekit.local'` | LiveKit URL. |
+| `LIVEKIT_API_KEY` | `None` | LiveKit API key. |
+| `LIVEKIT_API_SECRET` | `None` | LiveKit API secret. |
+| `VAPID_CONTACT` | `'mailto:noreply@contecflow.local'` | Web push contact. |
+| `VAPID_PUBLIC_KEY` | `None` | Web push public key. |
+| `VAPID_PRIVATE_KEY` | `None` | Web push private key. |
+| `APP_PUBLIC_URL` | `'http://localhost:3000'` | Link base in the chat email digest. |
+| `MS365_TENANT_ID` | `'common'` | Microsoft 365 tenant for collaboration OAuth. |
+| `MS365_CLIENT_ID` | `None` | Collaboration OAuth — Microsoft 365 client id. |
+| `MS365_CLIENT_SECRET` | `None` | Collaboration OAuth — Microsoft 365 secret. |
+| `MS365_REDIRECT_URI` | `None` | Collaboration OAuth — Microsoft 365 redirect. |
+| `JIRA_CLIENT_ID` | `None` | Collaboration OAuth — Jira client id. |
+| `JIRA_CLIENT_SECRET` | `None` | Collaboration OAuth — Jira secret. |
+| `JIRA_REDIRECT_URI` | `None` | Collaboration OAuth — Jira redirect. |
+| `GITHUB_CLIENT_ID` | `None` | Collaboration OAuth — GitHub client id. |
+| `GITHUB_CLIENT_SECRET` | `None` | Collaboration OAuth — GitHub secret. |
+| `GITHUB_REDIRECT_URI` | `None` | Collaboration OAuth — GitHub redirect. |
+| `GITLAB_CLIENT_ID` | `None` | Collaboration OAuth — GitLab client id. |
+| `GITLAB_CLIENT_SECRET` | `None` | Collaboration OAuth — GitLab secret. |
+| `GITLAB_REDIRECT_URI` | `None` | Collaboration OAuth — GitLab redirect. |
+| `GOOGLE_CLIENT_ID` | `None` | Collaboration OAuth — Google client id. |
+| `GOOGLE_CLIENT_SECRET` | `None` | Collaboration OAuth — Google secret. |
+| `GOOGLE_REDIRECT_URI` | `None` | Collaboration OAuth — Google redirect. |
+| `WHISPER_LOCAL` | `False` | Chat captions fall back to local whisper. |
+| `WHISPER_BIN` | `'whisper'` | whisper binary. |
+| `WHISPER_MODEL` | `'base'` | whisper model. |
+| `WHISPER_LOCAL_BIN` | `''` | STT provider binary (wins over WHISPER_BIN). |
+| `WHISPER_LOCAL_MODEL` | `''` | STT provider model (wins over WHISPER_MODEL). |
+| `WHISPER_LOCAL_LANGUAGE` | `'es'` | STT provider default language. |
+| `GEOIP_LOOKUP_ENABLED` | `False` | Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (off: privacy). |
+| `GEOIP_LOOKUP_URL` | `'https://ipapi.co/{ip}/json/'` | Geo-IP service; `{ip}` is replaced. |
+| `GEOIP_CACHE_TTL_SECONDS` | `86400` | Per-IP cache of geo-IP answers (s). |
+
+**Shared scales (`config_groups/escalas_config.py`, applied by `app/core/escalas.py`) — 5 variables**
+
+Runtime-overridable (groups `risk` and `service_desk`).
+
+| Name | Default | Meaning |
+|---|---|---|
+| `RISK_PROBABILITY_CRITICAL` | `0.75` | Predicted probability (0-1) — critical from. |
+| `RISK_PROBABILITY_HIGH` | `0.5` | Predicted probability (0-1) — high from. |
+| `RISK_PROBABILITY_MEDIUM` | `0.25` | Predicted probability (0-1) — medium from. |
+| `ALERT_CORRELATION_PROBLEM_SCORE` | `0.65` | Alert correlation — suggest/create a problem from this score (and ≥3 tickets). |
+| `ALERT_CORRELATION_REVIEW_SCORE` | `0.35` | Alert correlation — suggest review from this score. |
+
 #### 4.3 Variables read directly with `os.getenv` (not in `Settings`)
 
-| Name | Default | Where / meaning |
+Only these remain; `tests/test_auditoria_2026_11_config_2.py` fails on any other `os.environ`/`os.getenv` read in `app/`.
+
+| Name | Where | Why it stays outside `Settings` |
 |---|---|---|
-| `TESTING` | `0` | `1` disables CSRF, uses a per-request rate-limit key, skips the schema preflight and the collab scheduler. Set by `tests/conftest.py`. |
-| `ENABLE_APSCHEDULER` | `1` | Run the in-process APScheduler (4 jobs). `setup.sh`/`setup.bat`/Docker set it to `0` and run Celery beat instead. |
-| `ENABLE_CELERY_BEAT` / `CELERY_BEAT` | `0` | Declares that Celery beat runs; with APScheduler also on, boot fails. |
-| `FAIL_ON_DUAL_SCHEDULER` | `1` | `0` lets the app boot with both schedulers (every job would run twice). |
-| `FAIL_ON_SCHEMA_DRIFT` | `1` in staging/production, else `0` | Abort boot if the DB's Alembic revisions ≠ script heads. |
-| `EXPECTED_ALEMBIC_REVISION` | — | Additional pinned revision to check at boot. |
-| `EXPOSE_API_DOCS` | `0` | `1` exposes Swagger/ReDoc/OpenAPI in production. |
-| `CSRF_DOUBLE_SUBMIT` | `0` | `1` also requires `X-CSRF-Token` = `csrf_token` cookie. |
-| `DISABLE_CSRF_MIDDLEWARE` | `0` | `1` disables CSRF entirely. |
-| `ENABLE_SUPERADMIN_BYPASS` | `0` | Dev-only login bypass (development + SQLite enforced at boot). |
-| `TENANT_AUTO_FILTER_GLOBAL` | `1` | Global `do_orm_execute` tenant filter (`app/db/session.py:380`). |
-| `TENANT_AUTO_STAMP_ON_INSERT` | `1` | `before_flush` stamping of `organization_id` on new rows. |
-| `REDIS_RECONNECT_BACKOFF_SECONDS` | — | Redis reconnect backoff. |
-| `PREDICTIVE_STATS_MAX_TICKETS`, `CHANGE_BATCH_SCORE_MAX` | — | Service-desk batch caps. |
-| `DUCKDB_PATH` | — | OLAP DuckDB file. |
-| `COLLAB_STORAGE_BACKEND` | `local` | Collaboration file store (`local`/S3 via `COLLAB_S3_BUCKET`, `COLLAB_S3_ENDPOINT`, `COLLAB_S3_REGION`, `COLLAB_S3_PREFIX`). |
-| `COLLAB_SEARCH_BACKEND` | `auto` | `auto|simple|pg|opensearch`; `OPENSEARCH_URL` (`http://localhost:9200`), `OPENSEARCH_USER`, `OPENSEARCH_PASSWORD`. |
-| `COLLAB_BUS_BACKEND`, `NATS_URL` | —, `nats://localhost:4222` | Collaboration event bus. |
-| `COLLAB_QUEUE_WORKERS`, `COLLAB_SIGNED_MAX_ENTRIES` | — | Collaboration internals. |
-| `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | `wss://livekit.local` | Video calls. |
-| `CLAMAV_ENABLED`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_SOCKET`, `CLAMAV_TIMEOUT` | `0` | Antivirus scan of collaboration uploads. |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_CONTACT` | — | Web push. |
-| `WHISPER_LOCAL`, `WHISPER_LOCAL_BIN`, `WHISPER_BIN`, `WHISPER_LOCAL_MODEL`, `WHISPER_MODEL`, `WHISPER_LOCAL_LANGUAGE` | — | Local Whisper STT. |
-| `OPENAI_MODEL` | — | OpenAI model override in one path. |
-| `MS365_TENANT_ID` | — | M365 tenant (read directly in one module). |
-| `APP_PUBLIC_URL`, `UPLOADS_DIR` | — | Read in single modules. |
-| `SEED_USERS_DATA_PATH`, `SEED_CLIENTS_DATA_PATH`, `SEED_EMAIL_TEMPLATES_PATH`, `SEED_API_KEY_DEMO` | `seed_users_data.json`, … | Seed inputs. |
-| `PROMETHEUS_MULTIPROC_DIR` | — | Set from `METRICS_MULTIPROC_DIR`. |
+| `TESTING` | `app/core/entorno.py` (`en_pruebas()`) | Test-harness signal set by `tests/conftest.py`; tests flip it with `monkeypatch.setenv` after `Settings` is built, so it is read on each call. `1` disables CSRF, uses a per-request rate-limit key, skips the schema preflight and the collab scheduler. |
+| `PYTEST_CURRENT_TEST` | `app/core/entorno.py` (`ejecutando_pytest()`) | Set by pytest itself, per test. |
+| `PROMETHEUS_MULTIPROC_DIR` | `app/core/metrics.py` | Consumed by `prometheus_client` from the process environment; set from `METRICS_MULTIPROC_DIR` (`setdefault`) or by the process manager. |
+| `DATABASE_URL` | `app/db/migrate_to_pg.py` (`--pg-url` default) | Stand-alone CLI that must run without the rest of `Settings` (no `SECRET_KEY` etc.). |
 
 Compose-only variables (consumed by `docker-compose.yml`, not by Python): `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`, `REDIS_PORT`, `REDIS_MAXMEMORY`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_BUCKET`, `MINIO_PORT`, `API_WORKERS`, `WORKER_CONCURRENCY`, `WEB_PORT`, `PROMETHEUS_PORT`, `CONTECFLOW_APP_IMAGE`, `CONTECFLOW_WEB_IMAGE`. Frontend (Vite): `VITE_API_URL`, `VITE_WS_URL`, `VITE_PORT`, `API_URL` (proxy target fallback).
 
@@ -5835,7 +5913,7 @@ It also sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN
 
 #### 6.1 Surface (measured by importing `app.main:app`)
 
-2,131 HTTP routes: 2,125 under `/api/v1`, 6 outside (`/health`, `/ready`, `/status`, `/status/page.js`, `/status/embed.js`, `/widget/ticket.js`). By method: GET 913 · POST 783 · DELETE 209 · PATCH 183 · PUT 43 (measured with `app.openapi()` on 2026-11-09). 6 WebSockets: `/api/v1/ws/notifications`, `/api/v1/ws/portal-notifications`, `/api/v1/ws/doc/{doc_id}`, `/api/v1/collaboration/ws`, `/api/v1/bi/collaboration/dashboards/{dashboard_key}/updates`, `/api/v1/bi/intelligence/realtime/stream`. `/metrics` is added only with `METRICS_ENABLED=1`.
+2,120 HTTP routes: 2,114 under `/api/v1`, 6 outside (`/health`, `/ready`, `/status`, `/status/page.js`, `/status/embed.js`, `/widget/ticket.js`). By method: GET 894 · POST 788 · DELETE 210 · PATCH 185 · PUT 43 (measured with `app.openapi()` on 2026-11-13). 6 WebSockets: `/api/v1/ws/notifications`, `/api/v1/ws/portal-notifications`, `/api/v1/ws/doc/{doc_id}`, `/api/v1/collaboration/ws`, `/api/v1/bi/collaboration/dashboards/{dashboard_key}/updates`, `/api/v1/bi/intelligence/realtime/stream`. `/metrics` is added only with `METRICS_ENABLED=1`.
 
 Routes per first path segment under `/api/v1` (122 segments; top 30):
 
@@ -5864,7 +5942,7 @@ The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-
 - **Cookies** (set by `auth_service.set_auth_cookies`): `access_token` (httpOnly, SameSite=Lax, `max_age` = `ACCESS_TOKEN_EXPIRE_MINUTES`); `refresh_token` (httpOnly, SameSite=**Strict**, `path=/api/v1/auth/refresh`); `csrf_token` (JS-readable). `Secure` is set in staging/production.
 - **CSRF** (`app/core/csrf.py`): for POST/PUT/PATCH/DELETE **that use cookie auth and no `Authorization` header**, `Origin` (or `Referer`) must be in `ALLOWED_ORIGINS`, otherwise 403. A missing Origin is also rejected. `CSRF_DOUBLE_SUBMIT=1` adds a header/cookie match (constant-time). Exempt prefixes: webhooks, SCIM, `/health`, `/status`, `/metrics`. API clients that send a Bearer token are unaffected. Three of those prefixes do not match real routes (`/api/v1/integrations_hub/…`, while the real path is `integrations-hub`; `/api/v1/esign/docusign/webhook`, while the real path is `/api/v1/esign/webhooks/docusign`; `/api/v1/service-desk/…`, while the real path is `/api/v1/sd/…`). Webhook callers do not send cookies, so the practical effect is nil.
 - **Login endpoints:** `POST /api/v1/auth/login` (5/min), `/auth/refresh`, `/auth/logout`, `/auth/me`; SSO (`auth_sso`: OIDC with JWKS, PKCE S256, one-time HMAC `state`, `nonce`, issuer and clock skew — see Enterprise → SSO); passkey sign-in without password (`/auth/passkey/login/*`); `auth_saml` only serves a metadata stub, SAML sign-in is not implemented; session management (`auth_sessions`).
-- **MFA:** TOTP and WebAuthn under `/api/v1/auth/mfa/*` (QR returned as a `data:` PNG), plus a second, older set at `/api/v1/mfa/*` that the SPA's MFA page uses (see §7.6). Per-org enforcement exists (`074_org_require_mfa`).
+- **MFA:** TOTP and WebAuthn under `/api/v1/auth/mfa/*` (QR returned as a `data:` PNG); the SPA's MFA page uses them (the older `/api/v1/mfa/*` set was removed in 2026-11). Per-org enforcement exists (`074_org_require_mfa`).
 - **Roles:** `UserRole` = `admin` (tenant admin), `pm`, `team_lead`, `hr`, `employee`, `subcontractor`; `is_superadmin` is a separate platform flag. Shortcuts: `require_admin`, `require_admin_or_hr`, `require_admin_or_pm`, `require_any_manager`, `require_internal_user`, `require_superadmin`.
 - **Client portal:** separate JWTs (`CLIENT_PORTAL_SECRET`, `JWT_ALGORITHM`, cookie `portal_access_token`, `get_current_client`).
 - **API keys:** `X-API-Key` (keys from `/api/v1/bookings/api-keys`) and developer-portal bearer tokens authenticate on the whole API as their owner, cut down by scope (see Enterprise → API Keys). Other domain-specific tokens: BI embed tokens, the SCIM bearer (`SCIM_BEARER_TOKEN`, `/api/v1/scim/v2/{org_id}/…`), OAuth apps in the developer portal (`MAX_APPS_PER_USER`), and the client-portal widget token (`/widget/ticket.js`).

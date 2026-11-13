@@ -393,7 +393,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
         </div>
       </div>
       <div className="u-actions-8">
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+        <button onClick={onClose} className="u-btn-outline-sm">{t('common.cancel')}</button>
         <Button onClick={() => mutate(form)} loading={isPending} disabled={!form.name || isPending}>
           {isEdit ? t('approvals.save_step') : t('approvals.add_step')}
         </Button>
@@ -550,8 +550,8 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
                       </div>
                     </div>
                     <div className="u-row-6">
-                      <button aria-label={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
-                      <button aria-label={t('approvals.delete_step_aria', { name: step.name })} onClick={() => { openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                      <button aria-label={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
+                      <button aria-label={t('approvals.delete_step_aria', { name: step.name })} onClick={() => { openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                     </div>
                   </div>
                 </div>
@@ -566,7 +566,7 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
             </div>
             <div style={{ ...panel, padding: '12px 18px', flex: 1, borderColor: 'var(--success-border)' }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--success)' }}>{t('approvals.approved_auto_title')}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{t('approvals.approved_auto_desc')}</div>
+              <div className="u-text2-xs-mt2">{t('approvals.approved_auto_desc')}</div>
             </div>
           </div>
         </div>
@@ -1021,13 +1021,13 @@ function WorkflowTemplatesTab() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{traducir('approvals.pasos_de_aprobacion')}</div>
+            <div className="u-sm-700">{traducir('approvals.pasos_de_aprobacion')}</div>
             <button onClick={addScratchStep} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>+ Anadir paso</button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 330, overflowY: 'auto', paddingRight: 4 }}>
             {scratch.steps.map((step, idx) => (
-              <div key={`${idx}-${step.name}`} style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 10, background: 'var(--surface-3)' }}>
+              <div key={`${idx}-${step.name}`} style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 10, background: 'var(--surface-3)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.7fr 0.9fr auto', gap: 8, alignItems: 'end' }}>
                   <div>
                     <label htmlFor={`${idPrefix}-step-name-${idx}`} style={lbl}>Paso {idx + 1}</label>
@@ -1090,6 +1090,7 @@ function WorkflowTemplatesTab() {
 }
 
 function WorkflowSimulatorTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const [entityType, setEntityType] = useState('document')
   const [category, setCategory] = useState('')
@@ -1115,8 +1116,8 @@ function WorkflowSimulatorTab() {
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>{traducir('approvals.simula_antes_de_publicar_para_validar_ruta')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(180px,1fr))', gap: 10 }}>
           <div>
-            <label style={lbl}>Entity Type</label>
-            <select value={entityType} onChange={e => setEntityType(e.target.value)} style={inp}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Entity Type</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entityType} onChange={e => setEntityType(e.target.value)} style={inp}>
               <option value="document">document</option>
               <option value="expense">expense</option>
               <option value="timesheet">timesheet</option>
@@ -1125,23 +1126,23 @@ function WorkflowSimulatorTab() {
             </select>
           </div>
           <div>
-            <label style={lbl}>Category</label>
-            <input value={category} onChange={e => setCategory(e.target.value)} style={inp} placeholder="legal, deliverable..." />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Category</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={category} onChange={e => setCategory(e.target.value)} style={inp} placeholder="legal, deliverable..." />
           </div>
           <div>
-            <label style={lbl}>Department</label>
-            <select value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>Department</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
               <option value="">{traducir('approvals.sin_departamento')}</option>
               {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Amount</label>
-            <input value={amount} onChange={e => setAmount(e.target.value)} style={inp} type="number" placeholder="1000" />
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>Amount</label>
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={amount} onChange={e => setAmount(e.target.value)} style={inp} type="number" placeholder="1000" />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={lbl}>Requested by user id (opcional)</label>
-            <input value={requestedByUserId} onChange={e => setRequestedByUserId(e.target.value)} style={inp} placeholder={traducir('approvals.uuid_del_solicitante')} />
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>Requested by user id (opcional)</label>
+            <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={requestedByUserId} onChange={e => setRequestedByUserId(e.target.value)} style={inp} placeholder={traducir('approvals.uuid_del_solicitante')} />
           </div>
         </div>
         <div style={{ marginTop: 10 }}>
@@ -1160,7 +1161,7 @@ function WorkflowSimulatorTab() {
               <div className="u-stack-8">
                 {(result.route || []).map(step => (
                   <div key={step.step_order} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', background: 'var(--surface-3)' }}>
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>Paso {step.step_order}: {step.step_name}</div>
+                    <div className="u-sm-700">Paso {step.step_order}: {step.step_name}</div>
                     <div className="u-text2-xs">Aprobador: {step.resolved_approver || 'No resoluble'} · Timeout: {step.timeout_hours}h · On timeout: {step.on_timeout}</div>
                   </div>
                 ))}
@@ -1296,7 +1297,7 @@ function WorkflowBottlenecksTab() {
                 <div className="u-stack-8">
                   {topWorkflows.map((wf, idx) => (
                     <div key={wf.workflow_id || idx} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, alignItems: 'center', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', background: 'var(--surface-3)' }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{wf.workflow_name}</span>
+                      <span className="u-sm-700">{wf.workflow_name}</span>
                       <span className="u-text2-xs">Score {wf.avg_bottleneck_score}</span>
                       <span style={{ fontSize: 'var(--text-xs)', color: wf.max_sla_risk_pct >= 80 ? 'var(--danger)' : wf.max_sla_risk_pct >= 50 ? 'var(--warning)' : 'var(--success)' }}>SLA {wf.max_sla_risk_pct}%</span>
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>Pend {wf.pending_total}</span>
@@ -1313,8 +1314,8 @@ function WorkflowBottlenecksTab() {
                   <div className="u-stack-6">
                     {weeklyTrend.slice(-8).map(row => (
                       <div key={row.week} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 52px', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{row.week}</span>
-                        <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-4)', overflow: 'hidden' }}>
+                        <span className="u-text2-mono-xs">{row.week}</span>
+                        <div style={{ height: 8, borderRadius: 'var(--radius-full)', background: 'var(--surface-4)', overflow: 'hidden' }}>
                           <div style={{ width: `${Math.min(100, row.rejection_rate_pct)}%`, height: '100%', background: row.rejection_rate_pct >= 25 ? 'var(--danger)' : row.rejection_rate_pct >= 10 ? 'var(--warning)' : 'var(--success)' }} />
                         </div>
                         <span className="u-text2-xs">{row.rejection_rate_pct}%</span>
@@ -1334,10 +1335,10 @@ function WorkflowBottlenecksTab() {
                   <div key={`${rec.title}-${idx}`} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, background: 'var(--surface-3)', padding: '10px 12px' }}>
                     <div className="u-row-center-8">
                       <span style={{ fontSize: 'var(--text-xs)', color: rec.priority === 'high' ? 'var(--danger)' : 'var(--warning)', textTransform: 'uppercase', fontWeight: 700 }}>{rec.priority}</span>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{rec.title}</span>
+                      <span className="u-sm-700">{rec.title}</span>
                     </div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 4 }}>{rec.action}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{rec.why}</div>
+                    <div className="u-text3-xs-mt2">{rec.why}</div>
                   </div>
                 ))}
               </div>
@@ -1357,7 +1358,7 @@ function WorkflowBottlenecksTab() {
             {items.slice(0, 30).map((it) => (
               <div key={`${it.workflow_id}-${it.step_order}`} style={{ display: 'grid', gridTemplateColumns: '1.5fr 70px 90px 90px 90px 90px 90px', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{it.workflow_name}</div>
+                  <div className="u-sm-700">{it.workflow_name}</div>
                   <div className="u-text3-xs">Paso {it.step_order}: {it.step_name}</div>
                 </div>
                 <span className="u-sm">{it.decisions_total}</span>
@@ -1365,7 +1366,7 @@ function WorkflowBottlenecksTab() {
                 <span style={{ fontSize: 'var(--text-sm)', color: it.rejection_rate_pct >= 20 ? 'var(--danger)' : 'var(--text-2)' }}>{it.rejection_rate_pct}%</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: it.pending_count > 0 ? 'var(--warning)' : 'var(--text-2)' }}>{it.pending_count}</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: it.sla_risk_pct >= 80 ? 'var(--danger)' : it.sla_risk_pct >= 50 ? 'var(--warning)' : 'var(--success)' }}>{it.sla_risk_pct}%</span>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{it.bottleneck_score}</span>
+                <span className="u-sm-700">{it.bottleneck_score}</span>
               </div>
             ))}
           </div>
@@ -1377,6 +1378,7 @@ function WorkflowBottlenecksTab() {
 
 // ── Grupos de aprobadores ─────────────────────────────────────────────────────
 function ApprovalGroupsTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -1434,8 +1436,8 @@ function ApprovalGroupsTab() {
                 {g.description && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 8 }}>{g.description}</div>}
                 <div className="u-text3-xs">{members.length} miembro{members.length !== 1 ? 's' : ''}</div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
-                  <button onClick={() => openEdit(g)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>Editar</button>
-                  <button onClick={() => openConfirmGlobal({ message: `¿Eliminar grupo "${g.name}"?`, onConfirm: () => del(g.id), danger: true })} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>🗑</button>
+                  <button onClick={() => openEdit(g)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>Editar</button>
+                  <button onClick={() => openConfirmGlobal({ message: `¿Eliminar grupo "${g.name}"?`, onConfirm: () => del(g.id), danger: true })} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>🗑</button>
                 </div>
               </div>
             )
@@ -1446,12 +1448,12 @@ function ApprovalGroupsTab() {
         <Modal open title={editGroup ? 'Editar grupo' : 'Nuevo grupo de aprobadores'} onClose={() => { setShowCreate(false); setEditGroup(null) }} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={lbl}>Nombre *</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={traducir('approvals.ej_comite_financiero')} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Nombre *</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={traducir('approvals.ej_comite_financiero')} />
             </div>
             <div>
-              <label style={lbl}>{traducir('approvals.description')}</label>
-              <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{traducir('approvals.description')}</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} />
             </div>
             <div>
               <label style={lbl}>Miembros</label>
@@ -1466,7 +1468,7 @@ function ApprovalGroupsTab() {
             </div>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => { setShowCreate(false); setEditGroup(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => { setShowCreate(false); setEditGroup(null) }} className="u-btn-outline-sm">Cancelar</button>
             <Button onClick={() => save(form)} loading={isPending} disabled={!form.name || isPending}>Guardar</Button>
           </div>
         </Modal>
@@ -1490,7 +1492,7 @@ function ApproverLoadTab() {
         <span className="u-text2-sm">{traducir('approvals.periodo')}</span>
         {[30, 60, 90, 180].map(d => (
           <button key={d} onClick={() => setDays(d)}
-            style={{ background: days === d ? 'var(--accent)' : 'var(--surface-3)', border: 'none', borderRadius: 6, padding: '4px 12px', color: days === d ? '#fff' : 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
+            style={{ background: days === d ? 'var(--accent)' : 'var(--surface-3)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '4px 12px', color: days === d ? '#fff' : 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
             {d}d
           </button>
         ))}
@@ -1500,7 +1502,7 @@ function ApproverLoadTab() {
       ) : !data ? null : (
         <>
           {(data.overloaded_approvers || []).length > 0 && (
-            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16 }}>
               <strong className="u-danger">⚠ Aprobadores sobrecargados:</strong>
               <span style={{ marginLeft: 8, fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{data.overloaded_approvers.join(', ')}</span>
             </div>
@@ -1509,7 +1511,7 @@ function ApproverLoadTab() {
             <Table
               data={data.load || []}
               columns={[
-                { key: 'user_name', label: 'Aprobador', render: (_v, row) => <span style={{ fontWeight: 600 }}>{row.user_name}</span> },
+                { key: 'user_name', label: 'Aprobador', render: (_v, row) => <span className="u-600">{row.user_name}</span> },
                 { key: 'pending_count', label: 'Pendientes' },
                 { key: 'avg_response_hours', label: 'Tiempo Resp. (h)', render: (_v, row) => (row.avg_response_hours != null ? row.avg_response_hours.toFixed(1) : '—') },
                 { key: 'rejection_rate', label: 'Tasa Rechazo', render: (_v, row) => (row.rejection_rate != null ? (row.rejection_rate * 100).toFixed(0) + '%' : '—') },
@@ -1558,7 +1560,7 @@ function ApprovalMatrixTab({ workflows = [] }: { workflows?: ApprovalWorkflow[] 
             {entityTypes.map(et => {
               const cfg = entityMap[et]
               return (
-                <tr key={et} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                <tr key={et} className="u-border-b">
                   <td style={{ padding: '8px 12px', fontWeight: 600 }}>
                     {cfg.icon} {cfg.label}
                   </td>
@@ -1780,9 +1782,9 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
                         {wf.description && ` · ${wf.description}`}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap' }}>
-                        <button onClick={(e) => runValidate(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Validar</button>
-                        <button onClick={(e) => runPublish(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Publicar</button>
-                        <button onClick={(e) => runClone(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Clonar v</button>
+                        <button onClick={(e) => runValidate(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Validar</button>
+                        <button onClick={(e) => runPublish(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Publicar</button>
+                        <button onClick={(e) => runClone(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Clonar v</button>
                         <button aria-label={t('approvals.workflow_delete_aria', { name: wf.name })}
                           onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('approvals.workflow_delete_confirm', { name: wf.name }), onConfirm: () => del(wf.id), danger: true }) }}
                           style={{
@@ -1877,7 +1879,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
             </div>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <button onClick={() => setShowCreate(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
             <Button onClick={() => {
               const { document_category, ...rest } = form
               const trigger_conditions = (form.entity_type === 'document' && document_category)

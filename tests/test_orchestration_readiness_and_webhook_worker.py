@@ -25,9 +25,9 @@ def test_enforce_scheduler_mode_safety_raises_on_dual_in_production(monkeypatch)
     from app import main as main_mod
 
     monkeypatch.setattr(main_mod.settings, "ENVIRONMENT", "production", raising=False)
-    monkeypatch.setenv("ENABLE_APSCHEDULER", "1")
-    monkeypatch.setenv("ENABLE_CELERY_BEAT", "1")
-    monkeypatch.setenv("FAIL_ON_DUAL_SCHEDULER", "1")
+    monkeypatch.setattr(main_mod.settings, "ENABLE_APSCHEDULER", True)
+    monkeypatch.setattr(main_mod.settings, "ENABLE_CELERY_BEAT", True)
+    monkeypatch.setattr(main_mod.settings, "FAIL_ON_DUAL_SCHEDULER", True)
 
     with pytest.raises(RuntimeError):
         main_mod._enforce_scheduler_mode_safety()
@@ -101,7 +101,8 @@ def test_deliver_webhook_task_suspends_on_threshold_without_retry(db, monkeypatc
         last_triggered_at=None,
     )
 
-    monkeypatch.setattr("app.worker.settings", SimpleNamespace(WEBHOOK_CB_THRESHOLD=1))
+    # Segunda auditoria 2026-11 (#37): la entrega vive en `entrega_de_webhooks`.
+    monkeypatch.setattr("app.services.entrega_de_webhooks.settings", SimpleNamespace(WEBHOOK_CB_THRESHOLD=1))
 
     fake_db = MagicMock()
     fake_db.query.return_value.filter.return_value.first.return_value = hook

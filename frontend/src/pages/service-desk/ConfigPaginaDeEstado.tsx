@@ -58,12 +58,12 @@ export default function ConfigPaginaDeEstado() {
           <code style={{ fontSize: 'var(--text-xs)', wordBreak: 'break-all', color: 'var(--text-2)' }}>{enlace.embed}</code>
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={() => setNuevo(true)}>+ {t('sd_cfg.sp_new')}</Button></div>
+      <div className="u-row-end"><Button onClick={() => setNuevo(true)}>+ {t('sd_cfg.sp_new')}</Button></div>
       {isLoading ? <Spinner /> : componentes.length === 0 ? <EmptyState icon="🟢" title={t('sd_cfg.sp_empty')} description={t('sd_cfg.sp_intro')} /> : (
         <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
           {componentes.map((c, i) => (
             <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: i ? '1px solid var(--surface-4)' : 'none', flexWrap: 'wrap' }}>
-              <span aria-hidden style={{ width: 10, height: 10, borderRadius: 999, background: COLOR_ESTADO[c.status] ?? 'var(--text-3)' }} />
+              <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--radius-full)', background: COLOR_ESTADO[c.status] ?? 'var(--text-3)' }} />
               <strong style={{ flex: '1 1 160px' }}>{c.name}</strong>
               <span className="u-text3-xs">{c.group_name}</span>
               <select aria-label={c.name} value={c.status} onChange={e => cambiar.mutate({ c, status: e.target.value })} style={{ ...IS, width: 200 }}>

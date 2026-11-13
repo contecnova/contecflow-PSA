@@ -6,6 +6,7 @@
  */
 import _React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import type { CSSProperties, ReactNode, DragEvent } from 'react';
+import { useId } from 'react'
 import type { AxiosError } from 'axios';
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -53,11 +54,11 @@ function relTime(d: string | null | undefined) {
 }
 
 const FILE_COLORS: Record<string, { c: string; bg: string; label: string }> = {
-  pdf:          { c: 'var(--danger)', bg: '#f8717118', label: 'PDF' },
-  image:        { c: 'var(--accent)', bg: '#4f8ef718', label: 'IMG' },
-  spreadsheet:  { c: 'var(--success)', bg: '#34d39918', label: 'XLS' },
+  pdf:          { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 9%, transparent)', label: 'PDF' },
+  image:        { c: 'var(--accent)', bg: 'color-mix(in srgb, var(--accent) 9%, transparent)', label: 'IMG' },
+  spreadsheet:  { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 9%, transparent)', label: 'XLS' },
   word:         { c: 'var(--accent)', bg: '#6366f118', label: 'DOC' },
-  presentation: { c: '#f59e0b', bg: '#f59e0b18', label: 'PPT' },
+  presentation: { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 9%, transparent)', label: 'PPT' },
   archive:      { c: 'var(--purple)', bg: '#8b5cf618', label: 'ZIP' },
   text:         { c: '#64748b', bg: '#64748b18', label: 'TXT' },
   other:        { c: 'var(--text-3)', bg: '#6b728018', label: 'FILE' },
@@ -92,22 +93,22 @@ function FileIcon({ mime, name, size = 36 }: { mime?: string | null; name?: stri
 }
 
 const CAT_STYLE: Record<string, { c: string; bg: string }> = {
-  contract:     { c: 'var(--accent)', bg: '#4f8ef715' },
-  deliverable:  { c: 'var(--success)', bg: '#34d39915' },
+  contract:     { c: 'var(--accent)', bg: 'color-mix(in srgb, var(--accent) 8%, transparent)' },
+  deliverable:  { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)' },
   proposal:     { c: 'var(--purple)', bg: '#8b5cf615' },
-  sop:          { c: '#f59e0b', bg: '#f59e0b15' },
-  legal:        { c: 'var(--danger)', bg: '#f8717115' },
-  requirements: { c: '#2dd4bf', bg: '#06b6d415' },
+  sop:          { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)' },
+  legal:        { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)' },
+  requirements: { c: 'var(--chart-teal)', bg: '#06b6d415' },
   report:       { c: 'var(--orange)', bg: '#f9731615' },
-  presentation: { c: '#ec4899', bg: '#ec489915' },
+  presentation: { c: 'var(--chart-pink)', bg: 'color-mix(in srgb, var(--chart-pink) 8%, transparent)' },
   meeting_notes:{ c: 'var(--sky-blue)', bg: '#0ea5e915' },
   other:        { c: 'var(--text-3)', bg: '#6b728015' },
 };
 
 const APPROVAL_STYLE: Record<string, { c: string; bg: string; icon: string; label: string }> = {
-  approved: { c: 'var(--success)', bg: '#34d39915', icon: '\u2713', label: 'Aprobado' },
-  rejected: { c: 'var(--danger)', bg: '#f8717115', icon: '\u2715', label: 'Rechazado' },
-  pending:  { c: '#f59e0b', bg: '#f59e0b15', icon: '\u25f7', label: 'Pendiente' },
+  approved: { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)', icon: '\u2713', label: 'Aprobado' },
+  rejected: { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)', icon: '\u2715', label: 'Rechazado' },
+  pending:  { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)', icon: '\u25f7', label: 'Pendiente' },
 };
 
 function Chip({ text, color, bg }: { text: ReactNode; color?: string; bg?: string }) {
@@ -361,7 +362,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
         {doc.tags?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
             {doc.tags.slice(0, 3).map(t => (
-              <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>
+              <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>
                 #{t}
               </span>
             ))}
@@ -387,11 +388,11 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
               <Download size={11} />
             </a>
           )}
-          <button onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title="Generar resumen IA"
+          <button aria-label="Generar resumen IA" onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title="Generar resumen IA"
             style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
             <Sparkles size={11} />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title="Eliminar documento"
+          <button aria-label="Eliminar documento" onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title="Eliminar documento"
             style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
             <Trash2 size={11} />
           </button>
@@ -422,7 +423,7 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
         }
       }}
       style={{
-        backgroundColor: selected ? '#4f8ef710' : hover ? 'var(--surface-2)' : 'transparent',
+        backgroundColor: selected ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : hover ? 'var(--surface-2)' : 'transparent',
         cursor: 'pointer', transition: 'background 0.1s',
         borderBottom: '1px solid var(--surface-4)',
       }}>
@@ -445,10 +446,10 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
         <ReservaChip reserva={doc.checkout} />
         {lv?.file_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lv.file_name}</div>}
       </td>
-      <td style={{ padding: '10px 12px' }}>
+      <td className="u-pad-10-12">
         <Chip text={doc.category} color={catS.c} bg={catS.bg} />
       </td>
-      <td style={{ padding: '10px 12px' }}>
+      <td className="u-pad-10-12">
         {doc.requires_approval ? (() => {
           const a = APPROVAL_STYLE[doc.approval_status || 'pending'];
           return <Chip text={`${a.icon} ${a.label}`} color={a.c} bg={a.bg} />;
@@ -463,16 +464,16 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
         <div style={{ display: 'flex', gap: 3, opacity: hover ? 1 : 0, transition: 'opacity 0.1s' }}>
           {lv?.download_url && (
             <a href={lv.download_url} target="_blank" rel="noreferrer"
-              style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
+              style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
               <Download size={11} />
             </a>
           )}
           <button onClick={() => onSummary(doc.id)}
-            style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
+            style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
             <Sparkles size={11} />
           </button>
           <button onClick={() => onDelete(doc)}
-            style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
+            style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
             <Trash2 size={11} />
           </button>
         </div>
@@ -486,6 +487,7 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
 const CATS = ['contract','deliverable','proposal','sop','legal','requirements','report','presentation','meeting_notes','other'];
 
 function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -532,7 +534,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
   const fileFt = fileType ? FILE_COLORS[fileType] : null;
 
   return (
-    <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onMouseDown={onClose}>
+    <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onMouseDown={onClose}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="upload-dialog-title" style={{ background: 'var(--surface-1)', borderRadius: 16, width: '100%', maxWidth: 740, border: '1px solid var(--surface-4)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -574,7 +576,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                 <>
                   <FileIcon mime={undefined} name={file.name} size={56} />
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', wordBreak: 'break-all', maxWidth: 200 }}>{file.name}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{fmtBytes(file.size)}</div>
+                  <div className="u-text3-mono-xs">{fmtBytes(file.size)}</div>
                   <button onClick={e => { e.stopPropagation(); setFile(null); }}
                     style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 4 }}>
                     Cambiar archivo 
@@ -582,7 +584,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                 </>
               ) : (
                 <>
-                  <div style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Upload size={22} style={{ color: 'var(--text-3)' }} />
                   </div>
                   <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)' }}>Arrastra aqutu archivo</div>
@@ -596,23 +598,23 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
           {/* Derecha: metadatos */}
           <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 13 }}>
             <div>
-              <label style={ls}>{t('documents.titulo')}</label>
-              <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={fs} placeholder={file?.name || 'Título del documento'} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('documents.titulo')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={fs} placeholder={file?.name || 'Título del documento'} />
             </div>
             <div>
               <label style={ls}>{t('documents.descripcion')}</label>
               <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} style={{ ...fs, resize: 'none' }} placeholder={t('documents.descripcion_del_documento')} aria-label={t('documents.descripcion_del_documento')} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="u-grid2-10">
               <div>
-                <label style={ls}>{t('documents.categoria')}</label>
-                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={fs}>
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('documents.categoria')}</label>
+                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={fs}>
                   {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                 </select>
               </div>
               <div>
-                <label style={ls}>Proyecto</label>
-                <select value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} style={fs}>
+                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Proyecto</label>
+                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} style={fs}>
                   <option value="">{t('documents.sin_proyecto')}</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
                 </select>
@@ -656,6 +658,7 @@ const ACCESS_LEVELS = [
 ];
 
 function SharePanel({ documentId }: { documentId: PathId }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast();
   const qc = useQueryClient();
@@ -732,12 +735,12 @@ function SharePanel({ documentId }: { documentId: PathId }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
         <strong>{t('documents.por_defecto')}</strong>{t('documents.el_creador_del_documento_y_los_miembros')}
       </div>
 
       {/* Add grant */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14 }}>
         <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Share2 size={14} /> Conceder acceso
         </div>
@@ -762,26 +765,26 @@ function SharePanel({ documentId }: { documentId: PathId }) {
         </div>
 
         {subjectType === 'user' && (
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Usuario</label>
-            <select value={userId} onChange={e => setUserId(e.target.value)} style={inputStyle}>
+          <div className="u-mb-12">
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Usuario</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={userId} onChange={e => setUserId(e.target.value)} style={inputStyle}>
               <option value="">{t('documents.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
             </select>
           </div>
         )}
         {subjectType === 'role' && (
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Rol</label>
-            <select value={roleVal} onChange={e => setRoleVal(e.target.value)} style={inputStyle}>
+          <div className="u-mb-12">
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>Rol</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} style={inputStyle}>
               {ROLES_AVAILABLE.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
         )}
         {subjectType === 'department' && (
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Departamento</label>
-            <input type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)}
+          <div className="u-mb-12">
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Departamento</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)}
               list="departments-list" placeholder="ej. Finance"
               style={inputStyle} />
             <datalist id="departments-list">
@@ -792,14 +795,14 @@ function SharePanel({ documentId }: { documentId: PathId }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div>
-            <label style={labelStyle}>{t('documents.nivel_de_acceso')}</label>
-            <select value={accessLevel} onChange={e => setAccessLevel(e.target.value)} style={inputStyle}>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>{t('documents.nivel_de_acceso')}</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={accessLevel} onChange={e => setAccessLevel(e.target.value)} style={inputStyle}>
               {ACCESS_LEVELS.map(a => <option key={a.v} value={a.v}>{a.l}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Caducidad (opcional)</label>
-            <DateInput withTime value={expiresAt} onChange={e => setExpiresAt(e.target.value)} style={inputStyle} />
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={labelStyle}>Caducidad (opcional)</label>
+            <DateInput id={`${idCampo}-5`} withTime value={expiresAt} onChange={e => setExpiresAt(e.target.value)} style={inputStyle} />
           </div>
         </div>
 
@@ -815,15 +818,15 @@ function SharePanel({ documentId }: { documentId: PathId }) {
           Permisos actuales <span style={{ color: 'var(--text-3)', fontWeight: 400, fontSize: 'var(--text-xs)' }}>({perms.length})</span>
         </div>
         {perms.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', border: '1px dashed var(--surface-4)', borderRadius: 10 }}>
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', border: '1px dashed var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
             {t('documents.sin_permisos_explicitos_solo_el_creador_y')}
           </div>
         ) : (
           <div className="u-stack-6">
             {perms.map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
                 <div className="u-flex1-min0">
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{subjectLabel(p)}</div>
+                  <div className="u-text1-sm-600">{subjectLabel(p)}</div>
                   <div className="u-text3-2xs">
                     {ACCESS_LEVELS.find(a => a.v === p.access_level)?.l || p.access_level}
                     {p.granted_by_name && ` · concedido por ${p.granted_by_name}`}
@@ -831,7 +834,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
                   </div>
                 </div>
                 <button onClick={() => revokeMutation.mutate(p.id)} disabled={revokeMutation.isPending}
-                  style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--danger)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  style={{ padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--danger)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <Trash2 size={11} /> Revocar
                 </button>
               </div>
@@ -844,6 +847,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
 }
 
 function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string; onClose: () => void; onRefresh: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast();
   const qc = useQueryClient();
@@ -991,7 +995,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                       return <Chip text={`${a.icon} ${a.label}`} color={a.c} bg={a.bg} />;
                     })()}
                     {doc.tags?.map(t => (
-                      <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 10, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>#{t}</span>
+                      <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>#{t}</span>
                     ))}
                   </div>
                 </div>
@@ -1064,7 +1068,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                   {t('documents.reserva_aviso', { nombre: reserva?.user_name || '—', fecha: reserva?.expires_at ? new Date(reserva.expires_at).toLocaleString() : '—' })}
                 </span>
                 <button onClick={() => reservaMutation.mutate('force')} disabled={reservaMutation.isPending}
-                  style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                   {t('documents.reserva_forzar')}
                 </button>
               </div>
@@ -1092,7 +1096,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
 
               {/* Preview */}
               {tab === 'preview' && activeVer?.download_url && (
-                <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
+                <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
                   <div style={{ padding: '8px 14px', backgroundColor: 'var(--surface-2)', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span className="u-text3-xs">{activeVer.file_name} · {fmtBytes(activeVer.file_size)}</span>
                     <a href={activeVer.download_url} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
@@ -1152,7 +1156,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                           }
                         }}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
                           backgroundColor: activeVer?.id === v.id ? 'var(--surface-3)' : 'var(--surface-2)',
                           border: `1px solid ${activeVer?.id === v.id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
                           transition: 'all 0.12s',
@@ -1165,7 +1169,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                           {v.change_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.change_note}</div>}
                           <div className="u-text3-2xs">{v.uploader_name} · {fmtDate(v.created_at)} · {fmtBytes(v.file_size)}</div>
                         </div>
-                        {i === 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 10, backgroundColor: 'color-mix(in srgb, var(--accent) 13%, transparent)', color: 'var(--accent)', fontWeight: 700 }}>Actual</span>}
+                        {i === 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 'var(--radius-md)', backgroundColor: 'color-mix(in srgb, var(--accent) 13%, transparent)', color: 'var(--accent)', fontWeight: 700 }}>Actual</span>}
                         {v.download_url && (
                           <a href={v.download_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                             style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none', flexShrink: 0 }}>
@@ -1184,9 +1188,9 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                       <Upload size={14} /> {t('documents.subir_nueva_version')}
                     </button>
                   ) : (
-                    <div style={{ padding: 14, borderRadius: 10, border: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ padding: 14, borderRadius: 'var(--radius-md)', border: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 16px', textAlign: 'center', cursor: 'pointer' }}>
-                        {file ? <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
+                        {file ? <span className="u-text1-base-600">{file.name}</span>
                           : <span className="u-text3-sm"><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />{t('documents.clic_para_seleccionar_archivo')}</span>}
                         <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] ?? null)} />
                       </div>
@@ -1211,7 +1215,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                 <div>
                   {/* AI Summary card */}
                   {doc.ai_summary && (
-                    <div style={{ background: 'color-mix(in srgb, var(--purple) 7%, transparent)', border: '1px solid color-mix(in srgb, var(--purple) 19%, transparent)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+                    <div style={{ background: 'color-mix(in srgb, var(--purple) 7%, transparent)', border: '1px solid color-mix(in srgb, var(--purple) 19%, transparent)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16 }}>
                       <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
                         <Sparkles size={12} /> Resumen IA
                       </div>
@@ -1231,7 +1235,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                     ] as Array<[string, ReactNode] | null | undefined | ''>).filter((x): x is [string, ReactNode] => Boolean(x)).map(([k, v]) => (
                       <div key={k} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
                         <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{k}</div>
-                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{v}</div>
+                        <div className="u-text1-base-600">{v}</div>
                       </div>
                     ))}
                     {doc.description && (
@@ -1261,7 +1265,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
               )}
                     {/* Approval workflow panel */}
                     {doc.approval_request && (
-                      <div style={{ marginTop: 16, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
+                      <div style={{ marginTop: 16, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
                         <div style={{ fontWeight: 700, fontSize: "var(--text-sm)", color: 'var(--text-1)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <FileClock size={14} style={{ color: 'var(--warning)' }} />
                           {t('documents.flujo_de_aprobacion')} {doc.approval_request.workflow_name}
@@ -1294,10 +1298,10 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>
                             <span style={{ fontWeight: 700 }}>{doc.approval_request.current_step_name}</span>
                             {doc.approval_request.current_approver_name && (
-                              <> {t('documents.pendiente_de')} <span style={{ color: 'var(--accent)' }}>{doc.approval_request.current_approver_name}</span></>
+                              <> {t('documents.pendiente_de')} <span className="u-accent">{doc.approval_request.current_approver_name}</span></>
                             )}
                             {!doc.approval_request.current_approver_name && doc.approval_request.current_approver_role && (
-                              <> {t('documents.pendiente_de_rol')} <span style={{ color: 'var(--accent)' }}>{doc.approval_request.current_approver_role}</span></>
+                              <> {t('documents.pendiente_de_rol')} <span className="u-accent">{doc.approval_request.current_approver_role}</span></>
                             )}
                           </div>
                         )}
@@ -1313,7 +1317,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{t('documents.historial_de_decisiones')}</div>
                             {doc.approval_request.decisions.map((d, idx) => (
                               <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                                <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: d.decision === 'approved' ? '#34d39920' : '#f8717120', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: d.decision === 'approved' ? 'color-mix(in srgb, var(--success) 13%, transparent)' : 'color-mix(in srgb, var(--danger) 13%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                   <span style={{ fontSize: 10, color: d.decision === 'approved' ? 'var(--success)' : 'var(--danger)' }}>{d.decision === 'approved' ? '✓' : '✗'}</span>
                                 </div>
                                 <div>
@@ -1330,16 +1334,16 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
               {tab === 'meta' && isEditingMeta && metaForm && (
                 <div className="u-stack-14">
                   <div>
-                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.titulo')}</label>
-                    <input value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} style={fs} />
+                    <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.titulo')}</label>
+                    <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} style={fs} />
                   </div>
                   <div>
-                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.descripcion')}</label>
-                    <textarea value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
+                    <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.descripcion')}</label>
+                    <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.categoria')}</label>
-                    <select value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} style={fs}>
+                    <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.categoria')}</label>
+                    <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} style={fs}>
                       <option value="contract">Contrato</option>
                       <option value="deliverable">Entregable</option>
                       <option value="proposal">Propuesta</option>
@@ -1521,10 +1525,10 @@ export default function DocumentsPage(): JSX.Element {
         </select>
         <div className="ds-toolbar__spacer" />
         <div className="ds-segmented" role="group" aria-label="Vista">
-          <button type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Tarjetas">
+          <button aria-label="Tarjetas" type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Tarjetas">
             <Grid3X3 size={12} />
           </button>
-          <button type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title="Lista">
+          <button aria-label="Lista" type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title="Lista">
             <List size={12} />
           </button>
         </div>
@@ -1613,7 +1617,7 @@ export default function DocumentsPage(): JSX.Element {
         </div>
       ) : (
         <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="u-table">
             <thead>
               <tr style={{ backgroundColor: 'var(--surface-3)', borderBottom: '1px solid var(--surface-4)' }}>
                 <th style={{ padding: '10px 14px', width: 36 }}>

@@ -164,21 +164,21 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
           <button aria-pressed={rule.is_active} aria-label={`${rule.is_active ? t('automations.pause_btn') : t('automations.activate_btn')} ${rule.name}`} onClick={() => onToggle(rule)}
-            style={{ background: rule.is_active ? 'var(--warning-bg)' : 'var(--success-bg)', border: `1px solid ${rule.is_active ? 'rgba(245,158,11,0.25)' : 'rgba(52,211,153,0.25)'}`, borderRadius: 6, padding: '4px 10px', color: rule.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+            style={{ background: rule.is_active ? 'var(--warning-bg)' : 'var(--success-bg)', border: `1px solid ${rule.is_active ? 'rgba(245,158,11,0.25)' : 'rgba(52,211,153,0.25)'}`, borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: rule.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
             {rule.is_active ? t('automations.pause_btn') : t('automations.activate_btn')}
           </button>
           <button aria-label={`${t('automations.try_btn')} ${rule.name}`} onClick={() => onTest(rule)}
-            style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-strong)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+            style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-strong)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
             {t('automations.try_btn')}
           </button>
           <button aria-label={`${t('automations.history_btn')} ${rule.name}`} onClick={() => onHistory(rule)}
-            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
             {t('automations.history_btn')}
           </button>
           <button aria-label={`${t('common.edit')} ${rule.name}`} onClick={() => onEdit(rule)}
-            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
+            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
           <button aria-label={`${t('common.delete')} ${rule.name}`} onClick={() => { openConfirmGlobal({ message: t('common.are_you_sure'), onConfirm: () => onDelete(rule.id), danger: true }) }}
-            style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+            style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
         </div>
       </div>
 
@@ -284,7 +284,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
     <Modal open title={isEdit ? t('automations.edit_rule_title') : t('automations.new_rule_title')} onClose={onClose} width={680}>
       <div className="u-stack-16">
         {/* Basic info */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="u-grid2-14">
           <div className="u-col-full">
             <label htmlFor={`${idPrefix}-name`} style={ls}>{t('automations.rule_name_lbl')}</label>
             <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('automations.rule_name_lbl')} />
@@ -303,7 +303,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
         </div>
 
         {/* TRIGGER */}
-        <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 10, padding: '14px 16px' }}>
+        <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--purple)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {t('automations.si_label')}
           </div>
@@ -394,7 +394,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
         </div>
 
         {/* ACTIONS */}
-        <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 10, padding: '14px 16px' }}>
+        <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {t('automations.entonces_label')}
           </div>
@@ -431,7 +431,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
                             {param.options?.map((o: string) => <option key={o} value={o}>{t('automations.opt_' + o.replace('.', '_'), o)}</option>)}
                           </select>
                         ) : (
-                          <input type={param.type === 'number' ? 'number' : 'text'} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs} placeholder={t('automations.param_' + param.key, param.key)} />
+                          <input aria-label={t('automations.param_' + param.key, param.key)} type={param.type === 'number' ? 'number' : 'text'} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} style={fs} placeholder={t('automations.param_' + param.key, param.key)} />
                         )}
                       </div>
                     ))}
@@ -688,7 +688,7 @@ export default function AutomationsPage(): JSX.Element {
             {templates.map(tpl => {
               const trigger = { icon: TRIGGER_ICONS[tpl.trigger_type] || '⚙️', label: tpl.trigger_type }
               return (
-                <div key={tpl.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
+                <div key={tpl.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
                   <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{tpl.name}</div>
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>
                     {trigger.icon} {t('automations.trig_' + tpl.trigger_type, trigger.label)}
@@ -701,7 +701,7 @@ export default function AutomationsPage(): JSX.Element {
                     })}
                   </div>
                   <button aria-label={t('automations.use_template_aria', { name: tpl.name })} onClick={() => createFromTemplate(tpl)}
-                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600, width: '100%' }}>
+                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 14px', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600, width: '100%' }}>
                     {t('automations.use_template_btn')}
                   </button>
                 </div>

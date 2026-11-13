@@ -21,7 +21,8 @@ def test_m365_calendar_sync_does_not_leak_graph_response(monkeypatch, client, ad
 
     res = client.post(
         "/api/v1/m365/calendar/sync",
-        params={"user_upn": "alice@example.com"},
+        # Auditoria 2026-11 (#15): solo buzones de usuarios de la organizacion.
+        params={"user_upn": "pm@contecflow.com"},
         headers=auth(admin_token),
     )
 
@@ -39,16 +40,18 @@ def test_m365_teams_notify_does_not_leak_webhook_response(monkeypatch, client, a
         text = "upstream secret: teams-hook-token"
 
     class _Client:
-        async def __aenter__(self):
+        def __enter__(self):
             return self
 
-        async def __aexit__(self, exc_type, exc, tb):
+        def __exit__(self, exc_type, exc, tb):
             return False
 
-        async def post(self, *args, **kwargs):
+        def post(self, *args, **kwargs):
             return _Resp()
 
-    monkeypatch.setattr(m365_ep.httpx, "AsyncClient", lambda **kwargs: _Client())
+    # Auditoria 2026-11 (#25): la URL se valida y la peticion sale por `cliente_httpx`.
+    import app.core.outbound_url as outbound
+    monkeypatch.setattr(outbound, "cliente_httpx", lambda **kwargs: _Client())
 
     res = client.post(
         "/api/v1/m365/teams/notify",

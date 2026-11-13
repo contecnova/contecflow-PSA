@@ -1,7 +1,7 @@
 /**
  * InvoicesPage — Facturación: crear, gestionar y hacer seguimiento de facturas
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -17,6 +17,7 @@ import FichaDeFactura from '../components/invoices/FichaDeFactura'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 interface InvoiceLine {
   description: string
   quantity: number
@@ -98,6 +99,8 @@ const card: CSSProperties = { background:'var(--surface-2)', border:'1px solid v
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
 function InvoicesTab() {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -190,10 +193,9 @@ function InvoicesTab() {
     overdue: { label: t('invoices.status_overdue'), color: 'var(--danger)' },
     cancelled: { label: t('invoices.status_cancelled'), color: 'var(--text-3)' }
   }
-  const { sort: invSort, setSort: setInvSort, sortedData: sortedInvoicesRaw } = useSort(invoices as unknown as Record<string, unknown>[], 'number')
-  const sortedInvoices = sortedInvoicesRaw as unknown as InvoiceItem[]
+  const { sort: invSort, setSort: setInvSort, sortedData: sortedInvoices } = useSort(invoices, 'number')
 
-  const compacto = (n?: number) => (n ?? 0).toLocaleString(localeActivo(), { style: 'currency', currency: summary?.currency || 'EUR', notation: 'compact', maximumFractionDigits: 1 })
+  const compacto = (n?: number) => fmtMoneda(n ?? 0, { moneda: summary?.currency, compacto: true })
 
   return (
     <div>
@@ -298,15 +300,15 @@ function InvoicesTab() {
                 </div>
                 <span className="u-text2-sm">{inv.issue_date}</span>
                 <span style={{fontSize: "var(--text-sm)",color:isOverdue?'var(--danger)':'var(--text-2)'}}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
-                <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{(inv.total||0).toLocaleString(localeActivo(),{style:'currency',currency:inv.currency||'EUR'})}</span>
+                <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{fmtMoneda(inv.total||0, { moneda: inv.currency })}</span>
                 <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 8px',borderRadius:20,background:alpha(cfg.color, '20'),color:cfg.color}}>{cfg.label}</span>
                 <div className="u-row-6">
-                  {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border-strong)',borderRadius:6,padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.send')}</button>}
-                  {inv.status === 'draft' && <button onClick={() => setAbierta(String(inv.id))} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.ficha_editar')}</button>}
-                  {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:6,padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
+                  {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border-strong)',borderRadius:'var(--radius-sm)',padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.send')}</button>}
+                  {inv.status === 'draft' && <button onClick={() => setAbierta(String(inv.id))} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'3px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.ficha_editar')}</button>}
+                  {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:'var(--radius-sm)',padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
                 </div>
                 <button onClick={() => downloadPdf(inv)} title={t('invoices.download_pdf')} disabled={pdfLoadingId === inv.id}
-                  style={{display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'1px solid var(--surface-4)',borderRadius:6,width:30,height:26,cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer',color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)'}}>
+                  style={{display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',width:30,height:26,cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer',color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)'}}>
                   {pdfLoadingId === inv.id ? '⏳' : <Download size={13} />}
                 </button>
               </div>
@@ -322,8 +324,8 @@ function InvoicesTab() {
             <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'12px 16px'}}>
               <div style={{fontSize: "var(--text-sm)",fontWeight:700,color:'var(--accent)',marginBottom:8}}>{t('invoices.generate_from_timesheets')}</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:10,alignItems:'flex-end'}}>
-                <div><label style={ls}>{t('invoices.project_label')}</label>
-                  <select value={form.project_id} onChange={e => {
+                <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('invoices.project_label')}</label>
+                  <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_id} onChange={e => {
                     const proj = projects.find(p => p.id === e.target.value)
                     const client = proj?.client_id ? clients.find(c => c.id === proj.client_id) : null
                     setForm(f => ({...f, project_id: e.target.value,
@@ -335,8 +337,8 @@ function InvoicesTab() {
                     {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
                   </select>
                 </div>
-                <div><label style={ls}>{t('invoices.period_from')}</label><DateInput value={form.period_from} onChange={e => setForm(f=>({...f,period_from:e.target.value}))} style={fs} /></div>
-                <div><label style={ls}>{t('invoices.period_to')}</label><DateInput value={form.period_to} onChange={e => setForm(f=>({...f,period_to:e.target.value}))} style={fs} /></div>
+                <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('invoices.period_from')}</label><DateInput id={`${idCampo}-2`} value={form.period_from} onChange={e => setForm(f=>({...f,period_from:e.target.value}))} style={fs} /></div>
+                <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('invoices.period_to')}</label><DateInput id={`${idCampo}-3`} value={form.period_to} onChange={e => setForm(f=>({...f,period_to:e.target.value}))} style={fs} /></div>
                 <Button onClick={() => generatePreview({ project_id: form.project_id, date_from: form.period_from, date_to: form.period_to, tax_rate: form.tax_rate })} disabled={!form.project_id}>
                   {t('invoices.generate_lines')}
                 </Button>
@@ -344,7 +346,7 @@ function InvoicesTab() {
               {previewData && <div style={{marginTop:8,fontSize: "var(--text-sm)",color:'var(--success)'}}>{t('invoices.preview_success', { count: previewData.imputation_count, subtotal: previewData.subtotal, total: previewData.total })}</div>}
             </div>
 
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+            <div className="u-grid2-14">
               <div><label style={ls}>{t('invoices.client_label')}</label>
                 <ClientSelect
                   value={form.client_id}
@@ -352,13 +354,13 @@ function InvoicesTab() {
                   style={fs}
                 />
               </div>
-              <div><label style={ls}>{t('invoices.client_email')}</label><input value={form.client_email} onChange={e => setForm(f=>({...f,client_email:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>{t('invoices.client_vat')}</label><input value={form.client_vat} onChange={e => setForm(f=>({...f,client_vat:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>{t('invoices.po_reference')}</label><input value={form.po_reference||''} onChange={e => setForm(f=>({...f,po_reference:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>{t('invoices.issue_date_label')}</label><DateInput value={form.issue_date} onChange={e => setForm(f=>({...f,issue_date:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>{t('invoices.due_date_label')}</label><DateInput value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>{t('invoices.tax_rate')}</label><input type="number" value={form.tax_rate} onChange={e => setForm(f=>({...f,tax_rate:+e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>{t('invoices.notes')}</label><input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('invoices.client_email')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.client_email} onChange={e => setForm(f=>({...f,client_email:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('invoices.client_vat')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.client_vat} onChange={e => setForm(f=>({...f,client_vat:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('invoices.po_reference')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.po_reference||''} onChange={e => setForm(f=>({...f,po_reference:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('invoices.issue_date_label')}</label><DateInput id={`${idCampo}-7`} value={form.issue_date} onChange={e => setForm(f=>({...f,issue_date:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>{t('invoices.due_date_label')}</label><DateInput id={`${idCampo}-8`} value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>{t('invoices.tax_rate')}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.tax_rate} onChange={e => setForm(f=>({...f,tax_rate:+e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>{t('invoices.notes')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={fs} /></div>
             </div>
 
             {/* Lines preview */}
@@ -369,8 +371,8 @@ function InvoicesTab() {
                   <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',fontSize: "var(--text-sm)"}}>
                     <span>{l.description}</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.quantity} h</span>
-                    <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.unit_price.toLocaleString(localeActivo(),{style:'currency',currency:previewData?.currency||summary?.currency||'EUR'})}/h</span>
-                    <span style={{textAlign:'right',fontWeight:700}}>{l.amount.toLocaleString(localeActivo(),{style:'currency',currency:previewData?.currency||summary?.currency||'EUR'})}</span>
+                    <span style={{textAlign:'right',color:'var(--text-2)'}}>{fmtMoneda(l.unit_price, { moneda: previewData?.currency||summary?.currency })}/h</span>
+                    <span style={{textAlign:'right',fontWeight:700}}>{fmtMoneda(l.amount, { moneda: previewData?.currency||summary?.currency })}</span>
                   </div>
                 ))}
               </div>

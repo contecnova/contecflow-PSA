@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useId } from 'react'
 import LeccionesQueAplican from '../components/lecciones/LeccionesQueAplican'
 import type { CSSProperties, ComponentProps } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -31,6 +31,7 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 const PROJ_COLS = [
   { id: 'name',     label: 'Proyecto',     width: '2fr',   sortKey: 'name' },
   { id: 'type',     label: 'Tipo',         width: '1fr',   sortKey: 'project_type' },
@@ -217,7 +218,7 @@ function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, '
             style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
           <div style={{
             position: 'absolute', top: '110%', left: 0, zIndex: 20,
-            background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10,
+            background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
             padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060',
           }}>
             {PROJECT_STATUSES.map(s => (
@@ -225,7 +226,7 @@ function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, '
                 style={{
                   display: 'block', width: '100%', textAlign: 'left',
                   background: project.status === s.value ? 'var(--accent-muted)' : 'transparent',
-                  border: 'none', borderRadius: 6, padding: '8px 12px',
+                  border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 12px',
                   color: project.status === s.value ? 'var(--accent)' : 'var(--text-1)',
                   fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit',
                 }}
@@ -305,6 +306,8 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: Pr
 }
 
 function ProjectFormModal({ open, onClose, project = null }: { open: boolean; onClose: () => void; project?: ProjectSummary | null }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -421,29 +424,29 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${project.name}` : 'Nuevo Proyecto'} width={600}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1 / -1' }}>
+      <div className="u-grid2-14">
+        <div className="u-col-full">
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={fs} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
           {errors.name && <div className="u-field-error">{errors.name}</div>}
         </div>
         <div>
-          <label style={ls}>Tipo *</label>
-          <select value={form.project_type} onChange={set('project_type')} style={fs}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Tipo *</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')} style={fs}>
             <option value="">Seleccionar...</option>
             {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           {errors.project_type && <div className="u-field-error">{errors.project_type}</div>}
         </div>
         <div>
-          <label style={ls}>Estado</label>
-          <select value={form.status} onChange={set('status')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Estado</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={set('status')} style={fs}>
             {PROJECT_STATUSES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>Riesgo</label>
-          <select value={form.risk_level} onChange={set('risk_level')} style={fs}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Riesgo</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.risk_level} onChange={set('risk_level')} style={fs}>
             {RISK_LEVELS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
@@ -457,28 +460,28 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
           />
         </div>
         <div>
-          <label style={ls}>Departamento</label>
-          <select value={form.department} onChange={set('department')} style={fs}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Departamento</label>
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.department} onChange={set('department')} style={fs}>
             <option value="">{traducir('projects.no_department')}</option>
             {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{traducir('projects.label_billing')}</label>
-          <select value={form.billing_type} onChange={set('billing_type')} style={fs}>
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{traducir('projects.label_billing')}</label>
+          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.billing_type} onChange={set('billing_type')} style={fs}>
             <option value="">{traducir('projects.no_billing')}</option>
             {(BILLING_TYPES as { value: string; label: string }[]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>Presupuesto (€)</label>
+          <label style={ls}>Presupuesto ({fmtMoneda.simbolo})</label>
           <input type="number" value={form.budget_amount} onChange={set('budget_amount')} style={fs} placeholder="Presupuesto total" aria-label="Presupuesto total" />
           {errors.budget_amount && <div className="u-field-error">{errors.budget_amount}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
             <div>
-              <label style={ls}>Importe retainer (€/mes)</label>
+              <label style={ls}>Importe retainer ({fmtMoneda.simbolo}/mes)</label>
               <input type="number" value={form.retainer_amount} onChange={set('retainer_amount')} style={fs} placeholder="Importe mensual" aria-label="Importe mensual" />
             </div>
             <div>
@@ -489,22 +492,22 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
           </>
         )}
         <div>
-          <label style={ls}>Fecha inicio</label>
-          <DateInput value={form.start_date} onChange={set('start_date')} style={fs} />
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Fecha inicio</label>
+          <DateInput id={`${idCampo}-6`} value={form.start_date} onChange={set('start_date')} style={fs} />
         </div>
         <div>
-          <label style={ls}>Fecha fin planificada</label>
-          <DateInput value={form.end_date_planned} onChange={set('end_date_planned')} style={fs} />
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Fecha fin planificada</label>
+          <DateInput id={`${idCampo}-7`} value={form.end_date_planned} onChange={set('end_date_planned')} style={fs} />
           {errors.end_date_planned && <div className="u-field-error">{errors.end_date_planned}</div>}
         </div>
-        <div style={{ gridColumn: '1 / -1' }}>
+        <div className="u-col-full">
           <label style={ls}>{traducir('projects.label_description')}</label>
           <textarea value={form.description} onChange={set('description')} rows={3}
             style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
         </div>
         {/* Revisión 2026-11: antes de crear, lo que aprendimos en proyectos parecidos. */}
         {!isEdit && (form.client_id || form.project_type) && (
-          <div style={{ gridColumn: '1 / -1' }}>
+          <div className="u-col-full">
             <LeccionesQueAplican contexto="nuevo_proyecto" campos={{ cliente_id: form.client_id || null, tipo_proyecto: form.project_type || null, nombre: form.name, descripcion: form.description }} />
           </div>
         )}
@@ -526,6 +529,8 @@ const MEMBER_ROLES: Record<string, string> = {
 }
 
 function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { project: ProjectSummary | null; detail: ProjectDetail | undefined; open: boolean; onClose: () => void; onEdit: (p: ProjectSummary) => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -615,7 +620,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}
@@ -641,7 +646,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
             ].map(({ label, value }) => (
               <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px' }}>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-                <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{value}</div>
+                <div className="u-md-600">{value}</div>
               </div>
             ))}
           </div>
@@ -651,7 +656,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
       {/* TEAM TAB */}
       {tab === 'team' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="u-row-between-mb16">
             <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", margin: 0 }}>
               {traducir('projects.personas_asignadas_explicitamente_a_este_proyecto')}
             </p>
@@ -662,11 +667,11 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
 
           {/* Formulario añadir */}
           {showAdd && (
-            <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+            <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px', gap: 10, marginBottom: 10 }}>
                 <div>
-                  <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>PERSONA *</label>
-                  <select value={addForm.user_id} onChange={setAddField('user_id')}
+                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>PERSONA *</label>
+                  <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={addForm.user_id} onChange={setAddField('user_id')}
                     style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'user_id')}>
                     <option value="">Seleccionar persona...</option>
                     {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
@@ -674,21 +679,21 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                   {addValidation.errors.user_id && <div className="u-field-error">{addValidation.errors.user_id}</div>}
                 </div>
                 <div>
-                  <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>ROL</label>
-                  <select value={addForm.role} onChange={setAddField('role')}
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>ROL</label>
+                  <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={addForm.role} onChange={setAddField('role')}
                     style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }}>
                     {Object.entries(MEMBER_ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>% DEDIC.</label>
-                  <input type="number" min="1" max="100" value={addForm.allocation_pct}
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>% DEDIC.</label>
+                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="1" max="100" value={addForm.allocation_pct}
                     onChange={setAddField('allocation_pct')}
                     style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
                   {addValidation.errors.allocation_pct && <div className="u-field-error">{addValidation.errors.allocation_pct}</div>}
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div className="u-row-end">
                 <Button
                   onClick={submitAddMember}
                   disabled={adding}
@@ -709,15 +714,15 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
           ) : (
             <div className="u-stack-8">
               {members.map(m => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-border), var(--purple-border))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0, color: 'var(--accent)' }}>
                     {m.avatar_initials}
                   </div>
                   <div className="u-flex1">
-                    <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{m.full_name}</div>
+                    <div className="u-md-600">{m.full_name}</div>
                     <div className="u-text2-sm">{m.email}</div>
                   </div>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '3px 9px' }}>
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '3px 9px' }}>
                     {MEMBER_ROLES[m.role] || m.role}
                   </span>
                   <span style={{ fontSize: "var(--text-sm)", color: m.allocation_pct >= 100 ? 'var(--success)' : m.allocation_pct >= 50 ? 'var(--warning)' : 'var(--text-2)', fontWeight: 700, minWidth: 38, textAlign: 'right' }}>
@@ -737,11 +742,11 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
         detail.phases?.length > 0 ? (
           <div>
             {detail.phases.map(ph => (
-              <div key={ph.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, marginBottom: 8, fontSize: "var(--text-base)" }}>
+              <div key={ph.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', marginBottom: 8, fontSize: "var(--text-base)" }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{ph.name}</div>
+                  <div className="u-600">{ph.name}</div>
                   {(ph.start_date || ph.end_date) && (
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
+                    <div className="u-text2-xs-mt2">
                       {fmtDate(ph.start_date)} → {fmtDate(ph.end_date)}
                     </div>
                   )}
@@ -781,7 +786,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                 const isResponding = respondingFr === fr.id
                 const canRespond = ['new', 'reviewing', 'estimated'].includes(fr.status)
                 return (
-                  <div key={fr.id} style={{ background: 'var(--surface-1)', border: `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px' }}>
+                  <div key={fr.id} style={{ background: 'var(--surface-1)', border: `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                       <div className="u-flex1-min0">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -801,7 +806,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                             {fr.estimated_delivery_weeks != null && <span className="u-text2-sm">📅 {fr.estimated_delivery_weeks} sem.</span>}
                           </div>
                         )}
-                        {fr.pm_response && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 6, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6, borderLeft: '3px solid var(--accent-glow)' }}>💬 {fr.pm_response}</div>}
+                        {fr.pm_response && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 6, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--accent-glow)' }}>💬 {fr.pm_response}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
                         {canRespond && (
@@ -820,7 +825,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{traducir('projects.respuesta_del_pm')}</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                           <div>
-                            <label style={{ ...ls }}>Coste estimado (€)</label>
+                            <label style={{ ...ls }}>Coste estimado ({fmtMoneda.simbolo})</label>
                             <input type="number" min="0" value={respondForm.estimated_cost} onChange={e => setRespondForm(f => ({ ...f, estimated_cost: e.target.value }))} style={{ ...fs }} placeholder="0" />
                           </div>
                           <div>
@@ -832,7 +837,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                             <input type="number" min="0" max="104" value={respondForm.estimated_delivery_weeks} onChange={e => setRespondForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={{ ...fs }} placeholder="0" />
                           </div>
                         </div>
-                        <div style={{ marginBottom: 10 }}>
+                        <div className="u-mb-10">
                           <label style={{ ...ls }}>{traducir('projects.mensaje_al_cliente')}</label>
                           <textarea rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} />
                         </div>
@@ -872,6 +877,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
  
  
 function TemplatesTab() {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -923,7 +930,7 @@ function TemplatesTab() {
                 <span style={{fontSize: "var(--text-2xl)"}}>{TPL_ICONS[t.project_type]||'📋'}</span>
                 <div className="u-flex1">
                   <div className="u-md-700">{t.name}</div>
-                  {t.description && <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginTop:2}}>{t.description}</div>}
+                  {t.description && <div className="u-text2-sm-mt2">{t.description}</div>}
                 </div>
               </div>
 
@@ -956,13 +963,13 @@ function TemplatesTab() {
             <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'10px 14px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
               {traducir('projects.esta_plantilla_creara')} <strong className="u-text1">{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong className="u-text1">{instantiating.phases?.reduce((s: number, p)=>s+(p.tasks?.length||0),0)||0} tareas</strong> {traducir('projects.automaticamente')}
             </div>
-            <div><label style={ls}>{traducir('projects.nombre_del_proyecto_2')}</label><input value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('projects.nombre_del_proyecto_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
+            <div className="u-grid2-14">
               <div><label style={ls}>Cliente</label><ClientSelect value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
-              <div><label style={ls}>{traducir('projects.label_start_date')}</label><DateInput value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Presupuesto €</label><input type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Project Manager</label>
-                <select value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))} style={fs}>
+              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('projects.label_start_date')}</label><DateInput id={`${idCampo}-2`} value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Presupuesto ({fmtMoneda.simbolo})</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Project Manager</label>
+                <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))} style={fs}>
                   <option value="">{traducir('projects.sin_asignar')}</option>
                   {pms.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                 </select>
@@ -982,15 +989,15 @@ function TemplatesTab() {
         <Modal open title={traducir('projects.nueva_plantilla_2')} onClose={() => setShowCreate(false)} width={580}>
           <div className="u-stack-14">
             <div><label style={ls}>Nombre *</label><input value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
-            <div><label style={ls}>{traducir('projects.label_description')}</label><textarea value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{traducir('projects.label_description')}</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-              <div><label style={ls}>Tipo</label>
-                <select value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))} style={fs}>
+              <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Tipo</label>
+                <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))} style={fs}>
                   {['consulting','development','maintenance','rd','internal'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              <div><label style={ls}>Semanas estimadas</label><input type="number" value={newTpl.estimated_weeks} onChange={e => setNewTpl(f=>({...f,estimated_weeks:+e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Horas estimadas</label><input type="number" value={newTpl.estimated_hours||''} onChange={e => setNewTpl(f=>({...f,estimated_hours:+e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Semanas estimadas</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={newTpl.estimated_weeks} onChange={e => setNewTpl(f=>({...f,estimated_weeks:+e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>Horas estimadas</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={newTpl.estimated_hours||''} onChange={e => setNewTpl(f=>({...f,estimated_hours:+e.target.value}))} style={fs} /></div>
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
@@ -1091,7 +1098,7 @@ export default function ProjectsPage() {
                 { v: 'gantt',     label: 'Gantt',     icon: Calendar },
                 { v: 'templates', label: 'Plantillas',icon: FileStack },
               ].map(({ v, label, icon: Icon }) => (
-                <button key={v} type="button" aria-pressed={view === v}
+                <button aria-label={label} key={v} type="button" aria-pressed={view === v}
                   onClick={() => setView(v)} title={label}>
                   <Icon size={12} />
                 </button>
@@ -1178,7 +1185,7 @@ export default function ProjectsPage() {
               {visCols.includes('name') && (
                 <button type="button" style={{ cursor: 'pointer', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => setSelected(p)}>
                   <div className="u-base-600">{p.name}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{p.code}</div>
+                  <div className="u-text2-mono-xs">{p.code}</div>
                 </button>
               )}
               {visCols.includes('type') && <span className="u-text2-sm">{TYPE_LABELS[p.project_type] || p.project_type}</span>}
@@ -1201,7 +1208,7 @@ export default function ProjectsPage() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
             {[['portfolio','📊 Portfolio (todos)'],['project','📁 Por proyecto']].map(([m, label]) => (
               <button key={m} onClick={() => setGanttMode(m)}
-                style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${ganttMode === m ? 'var(--accent)' : 'var(--surface-4)'}`, background: ganttMode === m ? 'var(--accent-muted)' : 'transparent', color: ganttMode === m ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${ganttMode === m ? 'var(--accent)' : 'var(--surface-4)'}`, background: ganttMode === m ? 'var(--accent-muted)' : 'transparent', color: ganttMode === m ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {label}
               </button>
             ))}

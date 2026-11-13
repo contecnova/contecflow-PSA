@@ -1,16 +1,16 @@
 import json
+from typing import Optional
 
-from fastapi import Response
 from sqlalchemy.orm import Session
 
 from app.models.billing_reports import ImportJob, WorkflowExecution
-from app.services.pagination_service import paginate_query
+from app.services.pagination_service import ConCabeceras, paginate_query
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def get_import_jobs(db: Session, page: int, page_size: int, response: Response = None) -> list[dict]:
+def get_import_jobs(db: Session, page: int, page_size: int, response: Optional[ConCabeceras] = None) -> list[dict]:
     q = db.query(ImportJob).order_by(ImportJob.started_at.desc())
     jobs, _, _ = paginate_query(q, page, page_size, response)
     return [{
@@ -31,7 +31,7 @@ def get_workflow_executions(
     wf_id: str,
     page: int,
     page_size: int,
-    response: Response = None,
+    response: Optional[ConCabeceras] = None,
 ) -> list[dict]:
     q = db.query(WorkflowExecution).filter(
         WorkflowExecution.workflow_id == wf_id

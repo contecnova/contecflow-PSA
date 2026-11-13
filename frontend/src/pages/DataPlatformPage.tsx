@@ -41,7 +41,7 @@ interface StreamFrame {
 }
 
 const S = {
-  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' },
+  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
   cardPad:     { padding: '20px 24px' },
   sectionTitle:{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', margin: 0 },
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
@@ -147,7 +147,7 @@ export default function DataPlatformPage(): JSX.Element {
         showListExport={false}
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="u-stack-20">
         <BiEtlPanel />
         <BiO365Panel />
 

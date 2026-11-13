@@ -17,6 +17,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.cmdb_service as svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 logger = logging.getLogger(__name__)
 
@@ -139,11 +140,6 @@ def export_wiki_page(page_id: str, db: Session = Depends(get_db),
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                      cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.create_wiki_export_job(page_id, cu.id, db))
-
-
-@router.get("/wiki-export/jobs")
-def list_export_jobs(db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return APIListResponse.ok(items=svc.list_wiki_export_jobs(cu.id, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -312,7 +308,7 @@ class SLAHolidayIn(BaseModel):
 @router.get("/sla-calendars", response_model=APIListResponse[dict])
 def list_sla_calendars(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
@@ -344,7 +340,7 @@ def delete_sla_calendar(cal_id: str, db: Session = Depends(get_db),
 def list_holidays(
     cal_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):

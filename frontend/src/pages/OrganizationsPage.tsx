@@ -1,7 +1,7 @@
 /**
  * OrganizationsPage — Gestión multi-tenant de organizaciones
  */
-import { CSSProperties, useState } from 'react'
+import { CSSProperties, useState, useId } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -118,6 +118,7 @@ type OrgUpdateForm = z.infer<typeof organizationUpdateSchema>
 
 export default function OrganizationsPage() {
   // ...existing code...
+  const idCampo = useId()
   const [removingUserId, setRemovingUserId] = useState<string | number | null>(null)
     // Mutación para eliminar usuario de la organización
     const { mutate: removeUser, isPending: isRemoving } = useMutation({
@@ -269,7 +270,7 @@ export default function OrganizationsPage() {
         exportTargetSelector='[data-export-table="organizations-list"]'
         exportFilePrefix='organizations'
       />
-      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize: "var(--text-base)", color:'var(--accent)' }}>
+      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:'var(--radius-md)', padding:'12px 16px', marginBottom:24, fontSize: "var(--text-base)", color:'var(--accent)' }}>
         {t('organizations.cada_organizacion_tiene_sus_propios_usuarios_proyectos')}
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
@@ -312,7 +313,7 @@ export default function OrganizationsPage() {
                     <div className="u-row-8">
                       <span className="u-text2-sm">{o.created_at}</span>
                       <button onClick={e => { e.stopPropagation(); if (o.is_active) { setSuspendiendo(o); setMotivo('') } else toggle({ id:o.id, is_active:true }) }}
-                        style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
+                        style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
                         {o.is_active ? 'Suspender' : 'Activar'}
                       </button>
                     </div>
@@ -423,50 +424,50 @@ export default function OrganizationsPage() {
           <div className="u-stack-14">
             <div className="u-grid2-12">
               <div>
-                <label style={ls}>Nombre</label>
-                <input value={form.name} onChange={e=>{ setForm(f=>({...f,name:e.target.value})); createValidation.clearFieldError('name') }} style={createValidation.inputStyle(fs, 'name')} />
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
+                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>{ setForm(f=>({...f,name:e.target.value})); createValidation.clearFieldError('name') }} style={createValidation.inputStyle(fs, 'name')} />
                 {createValidation.errors.name && <div className="u-field-error">{createValidation.errors.name}</div>}
               </div>
               <div>
-                <label style={ls}>{t('organizations.slug_identificador_unico')}</label>
-                <input value={form.slug} onChange={e=>{ setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')})); createValidation.clearFieldError('slug') }} style={createValidation.inputStyle(fs, 'slug')} />
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('organizations.slug_identificador_unico')}</label>
+                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.slug} onChange={e=>{ setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')})); createValidation.clearFieldError('slug') }} style={createValidation.inputStyle(fs, 'slug')} />
                 {createValidation.errors.slug && <div className="u-field-error">{createValidation.errors.slug}</div>}
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-              <div><label style={ls}>Plan</label>
-                <select value={form.plan} onChange={e=>setForm(f=>({...f,plan:e.target.value}))} style={fs}>
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Plan</label>
+                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.plan} onChange={e=>setForm(f=>({...f,plan:e.target.value}))} style={fs}>
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
-                <label style={ls}>{t('organizations.max_usuarios')}</label>
-                <input type="number" value={form.max_users} onChange={e=>{ setForm(f=>({...f,max_users:+e.target.value})); createValidation.clearFieldError('max_users') }} style={createValidation.inputStyle(fs, 'max_users')} />
+                <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('organizations.max_usuarios')}</label>
+                <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.max_users} onChange={e=>{ setForm(f=>({...f,max_users:+e.target.value})); createValidation.clearFieldError('max_users') }} style={createValidation.inputStyle(fs, 'max_users')} />
                 {createValidation.errors.max_users && <div className="u-field-error">{createValidation.errors.max_users}</div>}
               </div>
               <div>
-                <label style={ls}>{t('organizations.max_proyectos')}</label>
-                <input type="number" value={form.max_projects} onChange={e=>{ setForm(f=>({...f,max_projects:+e.target.value})); createValidation.clearFieldError('max_projects') }} style={createValidation.inputStyle(fs, 'max_projects')} />
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('organizations.max_proyectos')}</label>
+                <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_projects} onChange={e=>{ setForm(f=>({...f,max_projects:+e.target.value})); createValidation.clearFieldError('max_projects') }} style={createValidation.inputStyle(fs, 'max_projects')} />
                 {createValidation.errors.max_projects && <div className="u-field-error">{createValidation.errors.max_projects}</div>}
               </div>
             </div>
             <div className="u-grid2-12">
               <div>
-                <label style={ls}>{t('organizations.email_del_admin')}</label>
-                <input value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} style={createValidation.inputStyle(fs, 'admin_email')} />
+                <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('organizations.email_del_admin')}</label>
+                <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} style={createValidation.inputStyle(fs, 'admin_email')} />
                 {createValidation.errors.admin_email && <div className="u-field-error">{createValidation.errors.admin_email}</div>}
               </div>
               <div>
-                <label style={ls}>Nombre del admin</label>
-                <input value={form.admin_name} onChange={e=>setForm(f=>({...f,admin_name:e.target.value}))} style={fs} />
+                <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Nombre del admin</label>
+                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.admin_name} onChange={e=>setForm(f=>({...f,admin_name:e.target.value}))} style={fs} />
               </div>
             </div>
             <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:-6 }}>
               Con el correo se crea el primer administrador de la empresa; su contraseña inicial se enseña una sola vez.
             </div>
             <div>
-              <label style={ls}>Dominio propio (opcional)</label>
-              <input value={form.domain} placeholder="app.cliente.com" onChange={e=>{ setForm(f=>({...f,domain:e.target.value})); createValidation.clearFieldError('domain') }} style={createValidation.inputStyle(fs, 'domain')} />
+              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>Dominio propio (opcional)</label>
+              <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.domain} placeholder="app.cliente.com" onChange={e=>{ setForm(f=>({...f,domain:e.target.value})); createValidation.clearFieldError('domain') }} style={createValidation.inputStyle(fs, 'domain')} />
               {createValidation.errors.domain && <div className="u-field-error">{createValidation.errors.domain}</div>}
             </div>
             <div className="u-actions-10">
@@ -482,33 +483,33 @@ export default function OrganizationsPage() {
           <div className="u-stack-14">
             <div className="u-grid2-12">
               <div>
-                <label style={ls}>Nombre</label>
-                <input value={editForm?.name ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,name:e.target.value})); editValidation.clearFieldError('name') }} style={editValidation.inputStyle(fs, 'name')} />
+                <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>Nombre</label>
+                <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editForm?.name ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,name:e.target.value})); editValidation.clearFieldError('name') }} style={editValidation.inputStyle(fs, 'name')} />
                 {editValidation.errors.name && <div className="u-field-error">{editValidation.errors.name}</div>}
               </div>
               {/* El slug no se puede editar */}
-              <div><label style={ls}>Slug</label><input value={detail?.slug ?? ''} disabled style={{...fs, background:'var(--surface-1)'}} /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>Slug</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={detail?.slug ?? ''} disabled style={{...fs, background:'var(--surface-1)'}} /></div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-              <div><label style={ls}>Plan</label>
-                <select value={editForm?.plan ?? ''} onChange={e=>setEditForm(f => f && ({...f,plan:e.target.value}))} style={fs}>
+              <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={ls}>Plan</label>
+                <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={editForm?.plan ?? ''} onChange={e=>setEditForm(f => f && ({...f,plan:e.target.value}))} style={fs}>
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
-                <label style={ls}>{t('organizations.max_usuarios')}</label>
-                <input type="number" value={editForm?.max_users ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} style={editValidation.inputStyle(fs, 'max_users')} />
+                <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={ls}>{t('organizations.max_usuarios')}</label>
+                <input id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} type="number" value={editForm?.max_users ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} style={editValidation.inputStyle(fs, 'max_users')} />
                 {editValidation.errors.max_users && <div className="u-field-error">{editValidation.errors.max_users}</div>}
               </div>
               <div>
-                <label style={ls}>{t('organizations.max_proyectos')}</label>
-                <input type="number" value={editForm?.max_projects ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} style={editValidation.inputStyle(fs, 'max_projects')} />
+                <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={ls}>{t('organizations.max_proyectos')}</label>
+                <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={editForm?.max_projects ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} style={editValidation.inputStyle(fs, 'max_projects')} />
                 {editValidation.errors.max_projects && <div className="u-field-error">{editValidation.errors.max_projects}</div>}
               </div>
             </div>
             <div>
-              <label style={ls}>Dominio propio (opcional)</label>
-              <input value={editForm?.domain ?? ''} placeholder="app.cliente.com" onChange={e=>{ setEditForm(f => f && ({...f,domain:e.target.value})); editValidation.clearFieldError('domain') }} style={editValidation.inputStyle(fs, 'domain')} />
+              <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} style={ls}>Dominio propio (opcional)</label>
+              <input id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={editForm?.domain ?? ''} placeholder="app.cliente.com" onChange={e=>{ setEditForm(f => f && ({...f,domain:e.target.value})); editValidation.clearFieldError('domain') }} style={editValidation.inputStyle(fs, 'domain')} />
               {editValidation.errors.domain && <div className="u-field-error">{editValidation.errors.domain}</div>}
             </div>
             {/* Revisión 2026-11: la MFA obligatoria sólo se podía activar por API. */}
@@ -520,8 +521,8 @@ export default function OrganizationsPage() {
               </span>
             </label>
             <div>
-              <label style={ls}>{t('organizations.email_del_admin')}</label>
-              <input value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />
+              <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} style={ls}>{t('organizations.email_del_admin')}</label>
+              <input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} style={editValidation.inputStyle(fs, 'admin_email')} />
               {editValidation.errors.admin_email && <div className="u-field-error">{editValidation.errors.admin_email}</div>}
             </div>
             <div className="u-actions-10">
@@ -582,7 +583,7 @@ export default function OrganizationsPage() {
             <div>Primer administrador: <strong>{altaHecha.email}</strong></div>
             <div>Contraseña inicial (solo se enseña ahora; pídele que la cambie al entrar):</div>
             <code style={{ ...fs, userSelect:'all', fontFamily:'monospace' }}>{altaHecha.password}</code>
-            <div style={{ display:'flex', justifyContent:'flex-end' }}>
+            <div className="u-row-end">
               <Button onClick={() => setAltaHecha(null)}>Hecho</Button>
             </div>
           </div>

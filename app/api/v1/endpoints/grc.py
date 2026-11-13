@@ -66,6 +66,7 @@ from app.core.abac_enforce import enforce_abac
 from app.services.grc_sod import record_sod_violation as _record_sod_violation
 import app.services.grc_service as grc_svc
 from app.core.responses import APIListResponse, APIResponse
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(tags=["GRC"])
 
@@ -182,13 +183,13 @@ def _org(user) -> Optional[str]:
     return getattr(user, "organization_id", None)
 
 
-def _ensure_matrix_seeded(db: Session):
+def _ensure_matrix_seeded(db: Session, request: Request):
     grc_svc.ensure_matrix_seeded(db, DEFAULT_MATRIX)
     # Completa la matriz para los 109 módulos que expone la API, derivados del
     # router (auditoría 2026-08, hallazgo 28). DEFAULT_MATRIX sólo opina sobre 15,
     # así que sin esto un administrador no tenía ni una casilla que configurar en
     # budgets, revenue, profitability, accounting, gdpr… Es idempotente.
-    grc_svc.ensure_matrix_covers_all_modules(db, DEFAULT_MATRIX)
+    grc_svc.ensure_matrix_covers_all_modules(db, DEFAULT_MATRIX, request.app)
 
 
 def _ensure_sod_seeded(db: Session, organization_id: Optional[str] = None):
@@ -243,10 +244,11 @@ def access_explainer_routes(request: Request, current_user: User = Depends(requi
 
 @router.get("/permissions", summary="Obtener matriz de permisos completa")
 def get_permissions(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    _ensure_matrix_seeded(db)
+    _ensure_matrix_seeded(db, request)
     rows = grc_svc.get_all_permissions(db, _org(current_user))
 
     # Build nested dict: role -> module -> action -> allowed
@@ -264,7 +266,7 @@ def update_permission(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    _ensure_matrix_seeded(db)
+    _ensure_matrix_seeded(db, request)
     row, old_val = grc_svc.upsert_permission(db, role, module, action, body.allowed, current_user.id,
                                              _org(current_user))
     _log_grc(db, current_user.id, "permission_changed", "role_permission",
@@ -356,6 +358,7 @@ def delete_sod_rule(
 
 @router.get("/sod-check", summary="Verificar violaciones SoD activas por rol")
 def sod_check(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -363,7 +366,7 @@ def sod_check(
     Para cada regla SoD activa, determina qué roles tienen AMBAS acciones permitidas
     (es decir, tienen el conflicto potencial) y lo devuelve como lista de violaciones.
     """
-    _ensure_matrix_seeded(db)
+    _ensure_matrix_seeded(db, request)
     _ensure_sod_seeded(db, _org(current_user))
 
     rules = grc_svc.get_active_sod_rules(db, _org(current_user))
@@ -391,7 +394,7 @@ def sod_check(
 @router.get("/violations", summary="Listar violaciones SoD detectadas")
 def list_violations(
     resolved: Optional[bool] = Query(None),
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):

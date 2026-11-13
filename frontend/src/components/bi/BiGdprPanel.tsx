@@ -89,16 +89,16 @@ interface GdprStats {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
-  card:     { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' } as CSSProperties,
-  innerCard:{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' } as CSSProperties,
+  card:     { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' } as CSSProperties,
+  innerCard:{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' } as CSSProperties,
   input:    { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' } as CSSProperties,
   select:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%' } as CSSProperties,
   btn:      { padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
   btnRed:   { padding: '6px 12px', borderRadius: 8, background: 'var(--danger)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
   btnGreen: { padding: '6px 12px', borderRadius: 8, background: 'var(--success)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
   btnGhost: { padding: '6px 12px', borderRadius: 8, background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' } as CSSProperties,
-  row:      { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } as CSSProperties,
-  badge:    (color: string): CSSProperties => ({ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: `color-mix(in srgb, ${color} 13%, transparent)`, color }),
+  row:      { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } as CSSProperties,
+  badge:    (color: string): CSSProperties => ({ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 'var(--radius-md)', fontWeight: 600, background: `color-mix(in srgb, ${color} 13%, transparent)`, color }),
   sectionTitle: { fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } as CSSProperties,
 }
 
@@ -128,12 +128,12 @@ interface StatCardProps {
 function StatCard({ icon, label, value, color = 'var(--accent)' }: StatCardProps) {
   return (
     <div style={{ ...S.innerCard, display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', flex: 1, minWidth: 130 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: `color-mix(in srgb, ${color} 13%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
+      <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: `color-mix(in srgb, ${color} 13%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
         {icon}
       </div>
       <div>
         <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--text-1)', lineHeight: 1 }}>{value ?? '—'}</div>
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>{label}</div>
+        <div className="u-text3-xs-mt2">{label}</div>
       </div>
     </div>
   )
@@ -194,11 +194,11 @@ function DsrTab() {
     <div>
       {/* Create form */}
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 160px 1fr auto', gap: 8, marginBottom: 16 }}>
-        <input placeholder="subject-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
+        <input aria-label="subject-id o email" placeholder="subject-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
         <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} style={S.select}>
           {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{rt}</option>)}
         </select>
-        <input placeholder="Notas (opcional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={S.input} />
+        <input aria-label="Notas (opcional)" placeholder="Notas (opcional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={S.input} />
         <button onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || '' })}
           disabled={createMut.isPending || !form.user_id}
           style={{ ...S.btn, opacity: (createMut.isPending || !form.user_id) ? 0.5 : 1 }}>
@@ -231,8 +231,8 @@ function DsrTab() {
               <div key={dsr.id} style={{ ...S.innerCard }}>
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: isNarrow ? 'wrap' : undefined, gap: 10 }}>
                   <div className="u-flex1-min0">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{dsr.subject_id ?? dsr.user_id}</span>
+                    <div className="u-wrap-center-8">
+                      <span className="u-text1-base-600">{dsr.subject_id ?? dsr.user_id}</span>
                       <span style={S.badge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{dsr.request_type}</span>
                       <span style={S.badge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
                       {overdue && <span style={S.badge('var(--danger)')}><AlertTriangle size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />SLA vencido</span>}
@@ -242,7 +242,7 @@ function DsrTab() {
                       {dsr.deadline && <span>{t('bigdpr.limite')} {fmt(dsr.deadline)}</span>}
                       {dsr.resolved_at && <span>Resuelto: {fmt(dsr.resolved_at)}</span>}
                     </div>
-                    {dsr.notes && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>{dsr.notes}</div>}
+                    {dsr.notes && <div className="u-text3-xs-mt2">{dsr.notes}</div>}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     {dsr.status === 'pending' && (
@@ -337,7 +337,7 @@ function ConsentTab() {
       <div style={{ ...S.innerCard, marginBottom: 16 }}>
         <div style={{ ...S.sectionTitle }}>Registrar consentimiento</div>
         <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 130px 130px auto', gap: 8 }}>
-          <input placeholder="user-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
+          <input aria-label="user-id o email" placeholder="user-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
           <select value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} style={S.select}>
             {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
@@ -358,8 +358,8 @@ function ConsentTab() {
           {consents.map((c, i) => (
             <div key={c.user_id ?? i} style={S.row}>
               <div className="u-flex1-min0">
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{c.user_id}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>
+                <div className="u-text1-base-600">{c.user_id}</div>
+                <div className="u-text3-xs-mt2">
                   {c.purpose && <span style={{ marginRight: 8 }}>{c.purpose}</span>}
                   {c.channel && <span style={{ marginRight: 8 }}>{c.channel}</span>}
                   {c.updated_at && <span>Actualizado: {fmt(c.updated_at)}</span>}
@@ -371,7 +371,7 @@ function ConsentTab() {
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.consented ? 'var(--danger)' : 'var(--success)', padding: 4, display: 'flex' }}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
               </button>
-              <button onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
+              <button aria-label="Ver historial" onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
                 title="Ver historial"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 4, display: 'flex' }}>
                 <Clock size={14} />
@@ -437,8 +437,8 @@ function MasksTab() {
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr 160px auto', gap: 8, marginBottom: 16 }}>
-        <input placeholder="entidad (ej: user)" value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={S.input} />
-        <input placeholder="campo (ej: email)" value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} style={S.input} />
+        <input aria-label="entidad (ej: user)" placeholder="entidad (ej: user)" value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={S.input} />
+        <input aria-label="campo (ej: email)" placeholder="campo (ej: email)" value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} style={S.input} />
         <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} style={S.select}>
           {['hash', 'redact', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{mt}</option>)}
         </select>
@@ -496,7 +496,7 @@ function StatsTab() {
           <div style={S.sectionTitle}>{t('bigdpr.dsrs_por_tipo')}</div>
           <div className="u-stack-8">
             {byType.map(({ type, count }) => (
-              <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div key={type} className="u-row-center-12">
                 <span style={{ ...S.badge(TYPE_COLOR[type] ?? 'var(--text-3)'), minWidth: 110, display: 'inline-block' }}>{type}</span>
                 <div style={{ flex: 1, height: 8, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${Math.min(100, (count / (data?.total_dsrs || 1)) * 100)}%`, background: TYPE_COLOR[type] ?? 'var(--accent)', borderRadius: 4 }} />
@@ -514,7 +514,7 @@ function StatsTab() {
             <AlertTriangle size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
             {data?.overdue} DSR{data?.overdue !== 1 ? 's' : ''} ha{data?.overdue !== 1 ? 'n' : ''} {t('bigdpr.superado_el_plazo_gdpr_30_dias')}
           </div>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+          <div className="u-text3-mono-xs">
             {(data?.overdue_ids ?? []).join(', ')}
           </div>
         </div>

@@ -28,10 +28,6 @@ _cache_set   = _svc.cache_set
 _analytics_cache_key = _svc.build_cache_key
 
 
-def _get_redis_cache_client():
-    return _svc._get_redis_client()
-
-
 def _cache_get(key: str) -> Optional[dict]:
     return _svc.cache_get(key)
 

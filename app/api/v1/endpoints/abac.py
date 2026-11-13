@@ -13,6 +13,7 @@ from app.schemas.abac import (
     AttributeDefinitionSchema, UserAttributeAssignSchema, UserAttributeSchema, ABACPolicyCreateSchema, ABACPolicySchema, AccessEvaluationRequestSchema, AccessEvaluationResponseSchema
 )
 from app.core.responses import APIListResponse, APIResponse
+from app.models.user import UserRole
 
 
 # ============================================================================
@@ -111,7 +112,7 @@ def get_user_attributes(
 ):
     """Get all attributes for a user (non-expired)."""
     # Check permission: user can view their own, admins can view others
-    if current_user.id != user_id and current_user.role != "admin":
+    if current_user.id != user_id and current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Cannot view other user's attributes")
     org_id = current_user.organization_id
     if not org_id:

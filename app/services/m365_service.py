@@ -10,8 +10,9 @@ from app.core.config import settings
 from app.models.financial import ProjectMilestone
 from app.models.task import Task
 from app.core.errores import ErrorDeDominio
+from app.services.settings_service import outbound_http_timeout
 
-GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+GRAPH_BASE = f"{settings.MICROSOFT_GRAPH_BASE}/v1.0"
 
 
 def m365_configured() -> bool:
@@ -28,14 +29,14 @@ def require_m365() -> None:
 
 
 async def get_graph_token() -> str:
-    url = f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
+    url = f"{settings.MICROSOFT_OAUTH_BASE}/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
     data = {
         "grant_type": "client_credentials",
         "client_id": settings.AZURE_CLIENT_ID,
         "client_secret": settings.AZURE_CLIENT_SECRET,
-        "scope": "https://graph.microsoft.com/.default",
+        "scope": f"{settings.MICROSOFT_GRAPH_BASE}/.default",
     }
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as client:
         resp = await client.post(url, data=data)
     if resp.status_code != 200:
         raise ErrorDeDominio(502, "Error obteniendo token de Azure AD")
@@ -43,14 +44,14 @@ async def get_graph_token() -> str:
 
 
 def get_graph_token_sync() -> str:
-    url = f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
+    url = f"{settings.MICROSOFT_OAUTH_BASE}/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
     data = {
         "grant_type": "client_credentials",
         "client_id": settings.AZURE_CLIENT_ID,
         "client_secret": settings.AZURE_CLIENT_SECRET,
-        "scope": "https://graph.microsoft.com/.default",
+        "scope": f"{settings.MICROSOFT_GRAPH_BASE}/.default",
     }
-    with httpx.Client(timeout=15) as client:
+    with httpx.Client(timeout=outbound_http_timeout(default=15)) as client:
         resp = client.post(url, data=data)
     if resp.status_code != 200:
         raise ErrorDeDominio(502, "Error obteniendo token de Azure AD")
@@ -63,7 +64,7 @@ from app.core.metrics import track_external_call
 async def graph_get(path: str) -> dict:
     token = await get_graph_token()
     with track_external_call("ms_graph"):
-        async with httpx.AsyncClient(timeout=20) as client:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=20)) as client:
             resp = await client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
         resp.raise_for_status()
         return resp.json()
@@ -72,7 +73,7 @@ async def graph_get(path: str) -> dict:
 async def graph_post(path: str, payload: dict) -> dict:
     token = await get_graph_token()
     with track_external_call("ms_graph"):
-        async with httpx.AsyncClient(timeout=20) as client:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=20)) as client:
             resp = await client.post(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
         resp.raise_for_status()
         return resp.json()
@@ -81,7 +82,7 @@ async def graph_post(path: str, payload: dict) -> dict:
 async def graph_patch(path: str, payload: dict) -> dict:
     token = await get_graph_token()
     with track_external_call("ms_graph"):
-        async with httpx.AsyncClient(timeout=20) as client:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=20)) as client:
             resp = await client.patch(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
         resp.raise_for_status()
         return resp.json()
@@ -90,7 +91,7 @@ async def graph_patch(path: str, payload: dict) -> dict:
 async def graph_delete(path: str) -> None:
     token = await get_graph_token()
     with track_external_call("ms_graph"):
-        async with httpx.AsyncClient(timeout=20) as client:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=20)) as client:
             resp = await client.delete(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
         if resp.status_code not in (200, 204):
             resp.raise_for_status()
@@ -99,7 +100,7 @@ async def graph_delete(path: str) -> None:
 def graph_get_sync(path: str) -> dict:
     token = get_graph_token_sync()
     with track_external_call("ms_graph"):
-        with httpx.Client(timeout=20) as client:
+        with httpx.Client(timeout=outbound_http_timeout(default=20)) as client:
             resp = client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
         resp.raise_for_status()
         return resp.json()
@@ -108,10 +109,52 @@ def graph_get_sync(path: str) -> dict:
 def graph_post_sync(path: str, payload: dict) -> dict:
     token = get_graph_token_sync()
     with track_external_call("ms_graph"):
-        with httpx.Client(timeout=20) as client:
+        with httpx.Client(timeout=outbound_http_timeout(default=20)) as client:
             resp = client.post(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
         resp.raise_for_status()
         return resp.json()
+
+
+def _upns_de_la_organizacion(db: Session, user, upns: list[str]) -> set[str]:
+    """De `upns`, los que son el correo de un usuario activo de la organizacion de `user`."""
+    from sqlalchemy import func
+    from app.db.session import _miembros_de
+    from app.models.user import User
+
+    org_id = getattr(user, "organization_id", None)
+    buscados = {(u or "").strip().lower() for u in upns if (u or "").strip()}
+    if not org_id or not buscados:
+        return set()
+    filas = db.query(func.lower(User.email)).filter(
+        func.lower(User.email).in_(buscados),
+        User.is_active == True,  # noqa: E712
+        _miembros_de(User, org_id),
+    ).all()
+    return {f[0] for f in filas if f[0]}
+
+
+def buzon_de_la_organizacion(db: Session, user, upn: str) -> str:
+    """El UPN, codificado para la ruta de Graph, si es de un usuario de la organizacion.
+
+    Auditoria 2026-11 (#15): las credenciales de Graph son de aplicacion (sirven
+    para CUALQUIER buzon del tenant de Azure), y `user_upn` llegaba libre: un
+    administrador de un cliente podia leer o escribir el calendario de
+    cualquiera. Ahora solo buzones de usuarios de su organizacion.
+    """
+    from urllib.parse import quote
+
+    limpio = (upn or "").strip()
+    if not limpio or limpio.lower() not in _upns_de_la_organizacion(db, user, [limpio]):
+        raise ErrorDeDominio(403, "Ese buzón no es de un usuario de tu organización")
+    return quote(limpio, safe="@")
+
+
+def upns_de_la_organizacion(db: Session, user, upns: list[str]) -> list[str]:
+    """Los UPN de la lista que son de usuarios de la organizacion, codificados para Graph."""
+    from urllib.parse import quote
+
+    permitidos = _upns_de_la_organizacion(db, user, upns)
+    return [quote(u.strip(), safe="@") for u in upns if u.strip().lower() in permitidos]
 
 
 def get_upcoming_milestones(db: Session, cutoff: date, limit: int = 50) -> list:

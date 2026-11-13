@@ -12,6 +12,7 @@ import os
 import subprocess
 import tempfile
 from typing import Optional
+from app.services.settings_service import outbound_ai_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +43,11 @@ def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm", db=None, o
         logger.warning("Factory STT crash for chunk: %s", exc)
 
     # Fallback legacy — solo si el factory completo no pudo.
-    # env-driven feature toggle: legacy fallback path bypasses the STT factory and
-    # is intentionally controlled via raw env to keep the failsafe independent of Settings.
-    if os.environ.get("OPENAI_API_KEY"):
+    from app.core.config import settings
+    from app.services.stt.openai_stt import clave_openai_de_proceso
+    if clave_openai_de_proceso():
         return _via_openai(data, filename, lang) or ""
-    if os.environ.get("WHISPER_LOCAL") == "1":
+    if settings.WHISPER_LOCAL:
         return _via_whisper_local(data, filename, lang) or ""
     return ""
 
@@ -54,16 +55,18 @@ def transcribe_audio_chunk(data: bytes, filename: str = "chunk.webm", db=None, o
 def _via_openai(data: bytes, filename: str, lang: str) -> Optional[str]:
     try:
         import httpx
+        from app.core.config import settings
+        from app.services.stt.openai_stt import clave_openai_de_proceso
         files = {"file": (filename, data, "audio/webm")}
         r = httpx.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
+            f"{settings.OPENAI_API_URL.rstrip('/')}/audio/transcriptions",
+            headers={"Authorization": f"Bearer {clave_openai_de_proceso()}"},
             data={
-                "model": os.environ.get("OPENAI_STT_MODEL") or "gpt-4o-mini-transcribe",
+                "model": settings.OPENAI_STT_MODEL or type(settings).model_fields["OPENAI_STT_MODEL"].default,
                 "language": lang,
             },
             files=files,
-            timeout=30,
+            timeout=outbound_ai_timeout(default=30),
         )
         if r.status_code >= 400:
             return None
@@ -74,8 +77,9 @@ def _via_openai(data: bytes, filename: str, lang: str) -> Optional[str]:
 
 
 def _via_whisper_local(data: bytes, filename: str, lang: str) -> Optional[str]:
-    binary = os.environ.get("WHISPER_BIN", "whisper")
-    model = os.environ.get("WHISPER_MODEL", "base")
+    from app.core.config import settings
+    binary = settings.WHISPER_BIN or "whisper"
+    model = settings.WHISPER_MODEL or "base"
     with tempfile.TemporaryDirectory() as td:
         in_path = os.path.join(td, filename)
         with open(in_path, "wb") as f:

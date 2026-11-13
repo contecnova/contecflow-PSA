@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode, useId } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AxiosInstance } from 'axios'
 
@@ -119,7 +119,7 @@ type GrcLabel = { text: string; color: string }
 const cardStyle: CSSProperties = {
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-4)',
-  borderRadius: 14,
+  borderRadius: 'var(--radius-lg)',
 }
 
 const inputStyle: CSSProperties = {
@@ -230,9 +230,9 @@ function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
   const borderColor = message.grc_status === 'pending_review' ? 'var(--warning-border)' : 'var(--surface-4)'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: alignSelf }}>
-      <div style={{ maxWidth: '88%', width: 'fit-content', background: bubbleBg, border: `1px solid ${borderColor}`, borderRadius: 14, padding: '12px 14px' }}>
+      <div style={{ maxWidth: '88%', width: 'fit-content', background: bubbleBg, border: `1px solid ${borderColor}`, borderRadius: 'var(--radius-lg)', padding: '12px 14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>{message.sender_name}</div>
+          <div className="u-sm-700">{message.sender_name}</div>
           <div className="u-text3-2xs">{(message.created_at || '').slice(0, 16)}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -272,11 +272,12 @@ interface ConversationComposerProps {
 }
 
 function ConversationComposer({ mode, value, onChange, onSend, sending, canInternalNotes, isInternalNote, onToggleInternalNote, disabled }: ConversationComposerProps) {
+  const idCampo = useId()
   const { t } = useAppLang()
   return (
     <div style={{ ...cardStyle, padding: '14px 16px' }}>
-      <label style={labelStyle}>Responder</label>
-      <textarea
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Responder</label>
+      <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         rows={4}
@@ -322,6 +323,7 @@ interface CreateConversationForm {
 }
 
 function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions, defaultProjectId, teamUsers, clientUsers, saving }: CreateConversationModalProps) {
+  const idCampo = useId()
   const { t } = useAppLang()
   const [form, setForm] = useState<CreateConversationForm>({
     title: '',
@@ -349,23 +351,23 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
   if (!open) return null
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-modal)', padding: 20 }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" style={{ ...cardStyle, width: 620, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '18px 20px' }}>
         <div style={{ fontSize: "var(--text-17)", fontWeight: 800, marginBottom: 16 }}>{mode === 'team' ? 'Nueva conversación gobernada' : 'Nueva conversación con el equipo'}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>{t('governedconversations.titulo')}</label>
-            <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} style={inputStyle} />
+        <div className="u-grid2-14">
+          <div className="u-col-full">
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{t('governedconversations.titulo')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Tipo</label>
-            <select value={form.topic_type} onChange={(event) => setForm((prev) => ({ ...prev, topic_type: event.target.value }))} style={inputStyle}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>Tipo</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.topic_type} onChange={(event) => setForm((prev) => ({ ...prev, topic_type: event.target.value }))} style={inputStyle}>
               {TOPIC_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Proyecto</label>
-            <select value={form.project_id} onChange={(event) => setForm((prev) => ({ ...prev, project_id: event.target.value }))} style={inputStyle}>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Proyecto</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.project_id} onChange={(event) => setForm((prev) => ({ ...prev, project_id: event.target.value }))} style={inputStyle}>
               <option value="">{t('governedconversations.sin_proyecto')}</option>
               {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
             </select>
@@ -373,22 +375,22 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
           {mode === 'team' && (
             <>
               <div>
-                <label style={labelStyle}>Equipo invitado</label>
-                <select multiple value={form.internal_user_ids} onChange={(event) => setForm((prev) => ({ ...prev, internal_user_ids: Array.from(event.target.selectedOptions).map((option) => option.value) }))} style={{ ...inputStyle, minHeight: 110 }}>
+                <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>Equipo invitado</label>
+                <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} multiple value={form.internal_user_ids} onChange={(event) => setForm((prev) => ({ ...prev, internal_user_ids: Array.from(event.target.selectedOptions).map((option) => option.value) }))} style={{ ...inputStyle, minHeight: 110 }}>
                   {teamUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Usuarios portal invitados</label>
-                <select multiple value={form.client_user_ids} onChange={(event) => setForm((prev) => ({ ...prev, client_user_ids: Array.from(event.target.selectedOptions).map((option) => option.value) }))} style={{ ...inputStyle, minHeight: 110 }}>
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={labelStyle}>Usuarios portal invitados</label>
+                <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} multiple value={form.client_user_ids} onChange={(event) => setForm((prev) => ({ ...prev, client_user_ids: Array.from(event.target.selectedOptions).map((option) => option.value) }))} style={{ ...inputStyle, minHeight: 110 }}>
                   {clientUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
                 </select>
               </div>
             </>
           )}
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>Primer mensaje</label>
-            <textarea value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} rows={5} style={{ ...inputStyle, resize: 'vertical' }} />
+          <div className="u-col-full">
+            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={labelStyle}>Primer mensaje</label>
+            <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} rows={5} style={{ ...inputStyle, resize: 'vertical' }} />
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
@@ -618,7 +620,7 @@ export function GovernedConversationInbox({
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, marginBottom: 4 }}>{title}</div>
           <div className="u-text2-sm">{conversations.length} {t('governedconversations.conversacion_es')} {headerKpi} {t('governedconversations.sin_leer')}</div>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="u-wrap-10">
           {projectOptions.length > 1 && (
             <select value={selectedProject} onChange={(event) => setSelectedProject(event.target.value)} style={{ ...inputStyle, minWidth: 220 }}>
               <option value="">{t('governedconversations.todos_los_proyectos')}</option>
@@ -792,7 +794,7 @@ export function ConversationPoliciesPanel() {
               </div>
               <div>
                 <label style={labelStyle}>{t('governedconversations.rol_por_defecto')}</label>
-                <input value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} style={inputStyle} placeholder="admin, manager, pm..." />
+                <input aria-label="admin, manager, pm..." value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} style={inputStyle} placeholder="admin, manager, pm..." />
               </div>
               <div>
                 <label style={labelStyle}>{t('governedconversations.pool_de_asignacion')}</label>
@@ -811,11 +813,11 @@ export function ConversationPoliciesPanel() {
               </div>
               <div>
                 <label style={labelStyle}>Rol aprobador</label>
-                <input value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} style={inputStyle} placeholder="admin" />
+                <input aria-label="admin" value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} style={inputStyle} placeholder="admin" />
               </div>
               <div>
                 <label style={labelStyle}>Keywords sensibles</label>
-                <input value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} style={inputStyle} placeholder="password, token, iban" />
+                <input aria-label="password, token, iban" value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} style={inputStyle} placeholder="password, token, iban" />
               </div>
             </div>
 

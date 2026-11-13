@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -68,7 +68,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
 
   return (
     <Card style={{ marginTop: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div className="u-row-between-mb16">
         <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, margin: 0 }}>{t('imputa_page.week_title')}</h3>
         {/* Item #48: badge global de anomalías detectadas en los últimos 30 días.
             Click → abre drawer con detalle de high_hours/gaps/closed_project. */}
@@ -210,7 +210,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
         ) : items.map((a: Anomaly, idx: number) => (
           <div key={idx} style={{
             background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-            borderRadius: 10, padding: 14,
+            borderRadius: 'var(--radius-md)', padding: 14,
           }}>
             <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--warning)' }}>
               {a.type === 'high_hours'
@@ -234,6 +234,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
 }
 
 export default function ImputarPage(): JSX.Element {
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const { user } = useAuth()
@@ -413,7 +414,7 @@ export default function ImputarPage(): JSX.Element {
         <div style={{
           background: 'var(--accent-glow)',
           border: '1px solid var(--accent)',
-          borderRadius: 10,
+          borderRadius: 'var(--radius-md)',
           padding: '10px 16px',
           marginBottom: 16,
           display: 'flex',
@@ -439,10 +440,10 @@ export default function ImputarPage(): JSX.Element {
       <Card>
         {/* Project */}
         <div className="u-mb-20">
-          <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.project_label')} <span className="u-danger">*</span>
           </label>
-          <select
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
             value={form.project_id}
             onChange={e => set('project_id')(e.target.value)}
             style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: form.project_id ? 'var(--text-1)' : 'var(--text-2)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', cursor: 'pointer' }}
@@ -456,10 +457,10 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Task */}
         <div className="u-mb-20">
-          <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.task_label')}
           </label>
-          <select
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
             value={form.task_id}
             onChange={e => set('task_id')(e.target.value)}
             disabled={!form.project_id}
@@ -474,10 +475,10 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Date */}
         <div className="u-mb-20">
-          <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.date_label')} <span className="u-danger">*</span>
           </label>
-          <DateInput
+          <DateInput id={`${idCampo}-3`}
             value={form.date}
             onChange={e => set('date')(e.target.value)}
             max={today}
@@ -518,10 +519,10 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Description */}
         <div className="u-mb-20">
-          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 'var(--space-2)' }}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 'var(--space-2)' }}>
             {t('imputa_page.description_label')}
           </label>
-          <textarea
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`}
             value={form.description}
             onChange={e => set('description')(e.target.value)}
             placeholder={t('imputa_page.description_placeholder')}
@@ -554,7 +555,7 @@ export default function ImputarPage(): JSX.Element {
               {t('imputa_page.billable_label')}
             </span>
             {form.is_billable && (
-              <span style={{ fontSize: '11px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 6, padding: '2px 8px', fontWeight: 700 }}>
+              <span style={{ fontSize: '11px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', fontWeight: 700 }}>
                 {t('imputa_page.billable_badge')}
               </span>
             )}
@@ -566,7 +567,7 @@ export default function ImputarPage(): JSX.Element {
           <div style={{
             background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
             border: '1px solid var(--warning)',
-            borderRadius: 10,
+            borderRadius: 'var(--radius-md)',
             padding: '12px 16px',
             marginBottom: 16,
           }}>
@@ -589,7 +590,7 @@ export default function ImputarPage(): JSX.Element {
           onClick={handleSubmit}
           disabled={!canSubmit || isPending || (!!duplicateError && !forceDuplicate)}
           style={{
-            width: '100%', padding: '14px', borderRadius: 10, border: 'none',
+            width: '100%', padding: '14px', borderRadius: 'var(--radius-md)', border: 'none',
             background: saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)',
             color: (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--surface-0)' : 'var(--text-2)',
             fontWeight: 800, fontSize: "var(--text-md-em)", cursor: (canSubmit && (!duplicateError || forceDuplicate)) ? 'pointer' : 'not-allowed',
@@ -615,7 +616,7 @@ export default function ImputarPage(): JSX.Element {
                       type="number" step="0.25" min="0.25" max="24"
                       value={editForm.hours}
                       onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
-                      style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 6,
+                      style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)',
                         padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}
                     />
                   </div>
@@ -624,7 +625,7 @@ export default function ImputarPage(): JSX.Element {
                     <input
                       value={editForm.description}
                       onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                      style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 6,
+                      style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)',
                         padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                     />
                   </div>
@@ -652,7 +653,7 @@ export default function ImputarPage(): JSX.Element {
                 /* Vista normal con botones de editar/borrar */
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', fontSize: "var(--text-base)" }}>
                   <div>
-                    <span style={{ fontWeight: 600 }}>{imp.project?.name || '—'}</span>
+                    <span className="u-600">{imp.project?.name || '—'}</span>
                     {imp.task?.title && <span style={{ color: 'var(--text-3)', marginLeft: 6, fontSize: "var(--text-xs)" }}>· {imp.task.title}</span>}
                     {imp.description && <span style={{ color: 'var(--text-2)', marginLeft: 8 }}>· {imp.description}</span>}
                     {imp.is_billable && (

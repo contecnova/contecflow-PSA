@@ -32,6 +32,7 @@ from app.models.user import User, UserRole
 from app.core.abac_enforce import enforce_abac
 from app.services import esign_service
 from app.core.errores import ErrorDeDominio
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 _logger = logging.getLogger(__name__)
@@ -126,9 +127,9 @@ from app.services.esign_service import (
 def list_envelopes(
     document_id: Optional[int] = Query(None),
     status:      Optional[str] = Query(None),
-    limit:       int           = Query(50, le=200),
+    limit:       int           = Query(50, le=MAX_TAMANO_DE_PAGINA),
     page:        int           = Query(1, ge=1),
-    page_size:   int           = Query(50, ge=1, le=200),
+    page_size:   int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db:          Session       = Depends(get_db),
     current_user: User         = Depends(get_current_user),
 ):
@@ -554,19 +555,28 @@ def docusign_oauth_authorize(
         raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/docusign/callback"
 
-    url = docusign_auth_url(integration_key, redirect_uri, is_demo=is_demo)
+    from app.services import oauth_state
+    state = oauth_state.emitir("esign_docusign", user_id=current_user.id, org_id=current_user.organization_id)
+    url = docusign_auth_url(integration_key, redirect_uri, is_demo=is_demo, state=state)
     return APIResponse.ok(data={"authorization_url": url, "redirect_uri": redirect_uri})
 
 
 @router.get("/auth/docusign/callback", summary="Callback OAuth DocuSign — intercambio de código")
 def docusign_oauth_callback(
     code: str,
+    state: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """Exchange authorization code for DocuSign access + refresh tokens and store them."""
     from app.services.esign_providers import docusign_exchange_code
+    from app.services import oauth_state
     from app.core.config import settings as _s
+
+    # Auditoria 2026-11 (#26): sin `state`, cualquiera podia hacer que este
+    # administrador guardase los tokens de OTRA cuenta de DocuSign.
+    oauth_state.consumir("esign_docusign", state, user_id=current_user.id,
+                         org_id=current_user.organization_id)
 
     integration_key = _get_esign_setting(db, current_user, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
     secret_key = _get_esign_setting(db, current_user, "esign.docusign_secret_key") or _s.DOCUSIGN_SECRET_KEY
@@ -608,19 +618,27 @@ def adobe_oauth_authorize(
         raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/adobe/callback"
 
-    url = adobe_sign_auth_url(client_id, redirect_uri, base_url=base_url)
+    from app.services import oauth_state
+    state = oauth_state.emitir("esign_adobe", user_id=current_user.id, org_id=current_user.organization_id)
+    url = adobe_sign_auth_url(client_id, redirect_uri, base_url=base_url, state=state)
     return APIResponse.ok(data={"authorization_url": url, "redirect_uri": redirect_uri})
 
 
 @router.get("/auth/adobe/callback", summary="Callback OAuth Adobe Sign — intercambio de código")
 def adobe_oauth_callback(
     code: str,
+    state: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """Exchange authorization code for Adobe Sign access + refresh tokens and store them."""
     from app.services.esign_providers import adobe_sign_exchange_code
+    from app.services import oauth_state
     from app.core.config import settings as _s
+
+    # Auditoria 2026-11 (#26): `state` firmado, de un solo uso y de este usuario.
+    oauth_state.consumir("esign_adobe", state, user_id=current_user.id,
+                         org_id=current_user.organization_id)
 
     client_id = _get_esign_setting(db, current_user, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
     client_secret = _get_esign_setting(db, current_user, "esign.adobe_sign_client_secret") or _s.ADOBE_SIGN_CLIENT_SECRET

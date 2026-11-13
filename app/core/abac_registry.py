@@ -160,7 +160,6 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     # ── Integraciones ──────────────────────────────────────────────────────────
     "/api/v1/integrations":          ("integration",      "read"),
     "/api/v1/integrations-hub":      ("integration",      "read"),
-    "/api/v1/marketplace":           ("integration",      "read"),
     "/api/v1/oauth-integrations":    ("integration",      "read"),
     "/api/v1/jira":                  ("integration",      "read"),
     "/api/v1/git":                   ("integration",      "read"),
@@ -175,6 +174,8 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
 # cada prefijo de la API esté aquí o en el registro de arriba, así que un dominio
 # nuevo no puede quedarse sin decisión por descuido.
 ABAC_EXEMPT_PREFIXES: dict[str, str] = {
+    # Auditoria 2026-11: informe de error de render del frontend; solo escribe en el log.
+    "/api/v1/client-errors": "Publico: solo registra el error en el log; tamaño y frecuencia limitados",
     # Revisión 2026-11. Conectores con contecmind y contecintelligence: la
     # configuración es de la empresa y sólo la toca admin; las consultas corren
     # con las credenciales de la empresa. No hay recurso ABAC por fila.
@@ -193,7 +194,6 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     # Autenticación: ABAC evalúa a un usuario ya autenticado, no puede gobernar el
     # propio flujo de login.
     "/api/v1/auth":            "flujo de autenticación",
-    "/api/v1/mfa":             "segundo factor y endpoints de BI con token propio",
 
     # Principal distinto: el portal de cliente autentica ClientUser, no User, y ABAC
     # se evalúa sobre atributos de User. Su aislamiento es por cliente/proyecto.
@@ -215,7 +215,6 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     "/api/v1/ui":              "etiquetas de UI",
     "/api/v1/translations":    "catálogo i18n",
     "/api/v1/labels":          "stub 501",
-    "/api/v1/collaborative":   "stub 501",
     # /api/v1/docs, /api/v1/redoc y /api/v1/openapi.json se retiraron de esta
     # lista en la auditoría 2026-08: no son rutas del router de la aplicación
     # (FastAPI las monta aparte, y quedan deshabilitadas por entorno), así que

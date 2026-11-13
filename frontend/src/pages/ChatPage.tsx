@@ -6,7 +6,7 @@
  * Wired to /api/v1/collaboration endpoints + WebSocket realtime.
  */
 import type { CSSProperties, ReactNode, Dispatch, SetStateAction, DragEvent as ReactDragEvent, ClipboardEvent as ReactClipboardEvent } from 'react'
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef, useState, useId } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -93,11 +93,11 @@ type TypingDetail = { conversation_id?: string; payload?: { user_id?: string; ac
 const styles: Record<string, CSSProperties> = {
   modalOverlay: {
     position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-modal)',
   },
   modalDialog: {
     background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-    borderRadius: 14, width: 540, maxWidth: '94%', overflow: 'hidden',
+    borderRadius: 'var(--radius-lg)', width: 540, maxWidth: '94%', overflow: 'hidden',
   },
   iconCloseBtn: {
     background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)',
@@ -110,12 +110,12 @@ const styles: Record<string, CSSProperties> = {
     position: 'absolute', bottom: '100%', left: 18, right: 18,
     marginBottom: 6, padding: 6,
     background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-    borderRadius: 10, boxShadow: '0 -4px 18px rgba(0,0,0,0.3)',
+    borderRadius: 'var(--radius-md)', boxShadow: '0 -4px 18px rgba(0,0,0,0.3)',
     maxHeight: 280, overflowY: 'auto',
   },
   popoverItem: {
     display: 'flex', alignItems: 'center', gap: 10,
-    width: '100%', padding: '8px 10px', borderRadius: 6,
+    width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)',
     background: 'transparent', border: 'none', cursor: 'pointer',
     fontFamily: 'inherit', textAlign: 'left',
   },
@@ -137,7 +137,7 @@ const styles: Record<string, CSSProperties> = {
   },
   composerHintBar: {
     display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', marginBottom: 6,
-    background: 'var(--accent-muted)', borderRadius: 6, fontSize: 'var(--text-xs)',
+    background: 'var(--accent-muted)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)',
   },
 }
 
@@ -383,7 +383,7 @@ function NavRail({ activeTab, onTab, unreadNotifs }: { activeTab: string; onTab:
                 position: 'absolute', top: 6, right: 8,
                 background: 'var(--danger)', color: 'var(--on-accent-light)',
                 fontSize: 9, fontWeight: 800, padding: '1px 5px',
-                borderRadius: 999, minWidth: 14, textAlign: 'center',
+                borderRadius: 'var(--radius-full)', minWidth: 14, textAlign: 'center',
               }}>{(it.badge ?? 0) > 99 ? '99+' : it.badge}</span>
             )}
           </button>
@@ -433,7 +433,7 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
       <div style={{ padding: '14px 14px 8px', borderBottom: '1px solid var(--surface-4)' }}>
         <div style={{ position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-          <input
+          <input aria-label="Buscar…"
             value={filter} onChange={e => setFilter(e.target.value)}
             placeholder="Buscar…"
             style={{
@@ -506,7 +506,7 @@ function SectionGroup({ title, count, children, collapsed, onToggle }: {
   title: string; count?: number; children?: ReactNode; collapsed?: boolean; onToggle?: () => void
 }) {
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="u-mb-12">
       <button onClick={onToggle} style={{
         display: 'flex', alignItems: 'center', gap: 6,
         width: '100%', padding: '4px 10px',
@@ -533,7 +533,7 @@ function ConvRow({ c, active, onClick, presence, indent }: {
       paddingLeft: indent ? 22 : 10,
       background: active ? 'var(--accent-muted)' : 'transparent',
       border: '1px solid transparent',
-      borderRadius: 6,
+      borderRadius: 'var(--radius-sm)',
       fontFamily: 'inherit', textAlign: 'left',
       color: active ? 'var(--accent)' : 'var(--text-1)',
       fontSize: 'var(--text-sm)', fontWeight: 500,
@@ -588,6 +588,7 @@ function NewConversationButton({ onCreated }: { onCreated?: (c: Conv) => void })
 }
 
 function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (c: Conv) => void }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
@@ -699,28 +700,28 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
         </div>
         <div style={{ padding: 18, maxHeight: '60vh', overflowY: 'auto' }}>
           {tab === 'group' && (
-            <div style={{ marginBottom: 12 }}>
-              <label style={styles.formLabel}>{traducir('chat.titulo_opcional')}</label>
-              <input value={form.groupTitle} onChange={(e) => updateForm({ groupTitle: e.target.value })} placeholder="Ej. Refactor backend"
+            <div className="u-mb-12">
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={styles.formLabel}>{traducir('chat.titulo_opcional')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.groupTitle} onChange={(e) => updateForm({ groupTitle: e.target.value })} placeholder="Ej. Refactor backend"
                 style={inputStyle} />
             </div>
           )}
           {tab === 'channel' && (
             <>
-              <div style={{ marginBottom: 12 }}>
-                <label style={styles.formLabel}>Nombre</label>
-                <input value={form.channelName} onChange={(e) => updateForm({ channelName: e.target.value })} placeholder="ej. ventas-q4" style={inputStyle} />
+              <div className="u-mb-12">
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={styles.formLabel}>Nombre</label>
+                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.channelName} onChange={(e) => updateForm({ channelName: e.target.value })} placeholder="ej. ventas-q4" style={inputStyle} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 <div>
-                  <label style={styles.formLabel}>Equipo</label>
-                  <select value={form.selectedTeamId} onChange={(e) => updateForm({ selectedTeamId: e.target.value })} style={inputStyle}>
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={styles.formLabel}>Equipo</label>
+                  <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.selectedTeamId} onChange={(e) => updateForm({ selectedTeamId: e.target.value })} style={inputStyle}>
                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={styles.formLabel}>Tipo</label>
-                  <select value={form.channelType} onChange={(e) => updateForm({ channelType: e.target.value })} style={inputStyle}>
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={styles.formLabel}>Tipo</label>
+                  <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.channelType} onChange={(e) => updateForm({ channelType: e.target.value })} style={inputStyle}>
                     <option value="public">{traducir('chat.publico')}</option>
                     <option value="private">Privado</option>
                     <option value="announcement">Anuncios</option>
@@ -736,14 +737,14 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
               {traducir('chat.anade_miembros')} {tab === 'group' ? '(mínimo 1)' : '(opcional)'}
             </div>
           )}
-          <input value={search} onChange={(e) => updateForm({ search: e.target.value })} placeholder="Buscar usuarios…"
+          <input aria-label="Buscar usuarios…" value={search} onChange={(e) => updateForm({ search: e.target.value })} placeholder="Buscar usuarios…"
             style={inputStyle} autoFocus />
           {selectedUsers.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
               {selectedUsers.map(u => (
                 <span key={u.id} style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '4px 10px', borderRadius: 999,
+                  padding: '4px 10px', borderRadius: 'var(--radius-full)',
                   background: 'var(--accent-muted)', color: 'var(--accent)',
                   fontSize: 'var(--text-xs)', fontWeight: 700,
                 }}>
@@ -764,7 +765,7 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
                   }
                 }} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  width: '100%', padding: '8px 10px', borderRadius: 6,
+                  width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)',
                   background: sel ? 'var(--accent-muted)' : 'transparent',
                   border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
                 }}>
@@ -775,7 +776,7 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
                     fontSize: 11, fontWeight: 800,
                   }}>{(u.full_name || u.username || '?').charAt(0).toUpperCase()}</span>
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 600 }}>{u.full_name}</div>
+                    <div className="u-text1-sm-600">{u.full_name}</div>
                     <div className="u-text3-xs">{u.email}</div>
                   </div>
                   {sel && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>✓</span>}
@@ -1003,7 +1004,7 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
 
   return (
     <div ref={ref} role="menu" style={{
-      position: 'absolute', top: 38, right: 0, zIndex: 50,
+      position: 'absolute', top: 38, right: 0, zIndex: 'var(--z-sticky)',
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
       borderRadius: 8, minWidth: 220, padding: '4px 0',
       boxShadow: '0 8px 24px rgba(0,0,0,0.32)',
@@ -1228,7 +1229,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
         color: 'var(--text-3)', flexDirection: 'column', gap: 14,
       }}>
         <MessageSquare size={48} />
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>{traducir('chat.selecciona_una_conversacion')}</div>
+        <div className="u-md-600">{traducir('chat.selecciona_una_conversacion')}</div>
       </div>
     )
   }
@@ -1457,7 +1458,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
             position: 'relative',
             width: 32, height: 32, flexShrink: 0,
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            background: 'transparent', borderRadius: 6,
+            background: 'transparent', borderRadius: 'var(--radius-sm)',
             color: 'var(--text-2)', cursor: 'pointer',
           }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-4)' }}
@@ -1533,7 +1534,7 @@ function IconBtn({ children, onClick, title, style = {} }: {
     <button onClick={onClick} title={title} style={{
       width: 32, height: 32,
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      background: 'transparent', border: '1px solid transparent', borderRadius: 6,
+      background: 'transparent', border: '1px solid transparent', borderRadius: 'var(--radius-sm)',
       color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0,
       ...style,
     }}
@@ -1584,7 +1585,7 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
       <div className="u-flex1-min0">
         {!compact && (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{author}</span>
+            <span className="u-sm-700">{author}</span>
             {msg.bot_id && <span style={{ fontSize: 'var(--text-xs)', padding: '1px 6px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4, fontWeight: 700 }}>BOT</span>}
             <span className="u-text3-xs">
               {new Date(msg.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
@@ -1614,7 +1615,7 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
             {Object.entries(groupReactions(msg.reactions)).map(([emoji, users]) => (
               <button key={emoji} onClick={() => onReact(emoji)} style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '2px 8px', borderRadius: 999,
+                padding: '2px 8px', borderRadius: 'var(--radius-full)',
                 background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
                 fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'inherit',
               }}>{emoji} <span>{users.length}</span></button>
@@ -1628,7 +1629,7 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
           position: 'absolute', top: 0, right: 8,
           display: 'flex', gap: 2,
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 6, padding: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          borderRadius: 'var(--radius-sm)', padding: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         }}>
           {['👍', '❤️', '😂', '🎉'].map(e => (
             <button key={e} onClick={() => onReact(e)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, fontSize: 14 }}>{e}</button>
@@ -1685,7 +1686,7 @@ function Card({ icon: Icon, accent, title, body }: {
       maxWidth: 480,
     }}>
       <div style={{
-        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+        width: 28, height: 28, borderRadius: 'var(--radius-sm)', flexShrink: 0,
         background: alpha(accent, '25'), color: accent,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}><Icon size={15} /></div>
@@ -1705,7 +1706,7 @@ function PollCard({ meta }: { meta: BotMeta }) {
         <button key={i} style={{
           display: 'block', width: '100%', textAlign: 'left',
           padding: '6px 10px', marginBottom: 4,
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 6,
+          background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
           fontFamily: 'inherit', cursor: 'pointer',
           fontSize: 'var(--text-sm)', color: 'var(--text-1)',
         }}>{o.label} <span className="u-text3-xs">({o.votes || 0})</span></button>
@@ -1745,7 +1746,7 @@ function AttachmentChip({ att }: { att: Attachment }) {
   if (isImage && previewUrl) {
     return (
       <a href={downloadUrl} target="_blank" rel="noopener noreferrer"
-        style={{ display: 'block', maxWidth: 320, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
+        style={{ display: 'block', maxWidth: 320, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
         <img src={previewUrl} alt={att.name} loading="lazy" decoding="async" style={{ display: 'block', width: '100%', maxHeight: 240, objectFit: 'cover' }} />
       </a>
     )
@@ -1795,11 +1796,11 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
         style={{
         background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-        borderRadius: 14, width: 640, maxWidth: '94%', overflow: 'hidden',
+        borderRadius: 'var(--radius-lg)', width: 640, maxWidth: '94%', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: '1px solid var(--surface-4)' }}>
           <Search size={16} style={{ color: 'var(--text-3)' }} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus
+          <input aria-label="Buscar mensajes…  (operadores: from:, in:, before:, has:link, is:pinned …)" value={q} onChange={(e) => setQ(e.target.value)} autoFocus
             placeholder="Buscar mensajes…  (operadores: from:, in:, before:, has:link, is:pinned …)"
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
@@ -1855,7 +1856,7 @@ function LinkedEntityChips({ msg }: { msg: Msg }) {
         <a key={i} href={c.href} target="_blank" rel="noopener noreferrer"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '4px 10px', borderRadius: 999,
+            padding: '4px 10px', borderRadius: 'var(--radius-full)',
             background: alpha(c.color, '15'), border: `1px solid ${alpha(c.color, '40')}`,
             color: c.color, fontSize: 'var(--text-xs)', fontWeight: 700,
             textDecoration: 'none',
@@ -1899,7 +1900,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
             <X size={14} />
           </button>
         </div>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" autoFocus
+        <input aria-label="Buscar…" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" autoFocus
           style={{
             width: '100%', boxSizing: 'border-box',
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -1911,7 +1912,7 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
           {items.map((it) => (
             <button key={it.id} onClick={() => link.mutate(it.id)} style={{
               display: 'block', width: '100%', textAlign: 'left',
-              padding: '10px 12px', borderRadius: 6,
+              padding: '10px 12px', borderRadius: 'var(--radius-sm)',
               background: 'transparent', border: 'none', cursor: 'pointer',
               fontFamily: 'inherit', fontSize: 'var(--text-sm)', color: 'var(--text-1)',
             }}
@@ -1974,23 +1975,23 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
     <div style={{
       position: 'fixed', top: 56, right: 0, bottom: 0, width: 380,
       background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
-      display: 'flex', flexDirection: 'column', zIndex: 50,
+      display: 'flex', flexDirection: 'column', zIndex: 'var(--z-sticky)',
     }}>
       <div style={{ height: 48, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--surface-4)' }}>
-        <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>Hilo · {thread.length} respuesta{thread.length === 1 ? '' : 's'}</div>
+        <div className="u-sm-700">Hilo · {thread.length} respuesta{thread.length === 1 ? '' : 's'}</div>
         <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
         {thread.length === 0 && <div className="u-text3-xs">{traducir('chat.sin_respuestas_todavia')}</div>}
         {thread.map(m => (
-          <div key={m.id} style={{ marginBottom: 14 }}>
+          <div key={m.id} className="u-mb-14">
             <div className="u-text3-xs">{m.author_name || 'Usuario'} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}</div>
             <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>{m.body}</div>
           </div>
         ))}
       </div>
       <div style={{ padding: 10, borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 6 }}>
-        <input value={reply} onChange={e => setReply(e.target.value)}
+        <input aria-label="Responder en hilo…" value={reply} onChange={e => setReply(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && reply.trim() && send.mutate()}
           placeholder="Responder en hilo…"
           style={{
@@ -2122,7 +2123,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
             <button
               onClick={() => setShowAddMember(true)}
               title={traducir('chat.anadir_miembro')}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, color: 'var(--text-2)', cursor: 'pointer', padding: '2px 6px', fontSize: 'var(--text-xs)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', cursor: 'pointer', padding: '2px 6px', fontSize: 'var(--text-xs)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
             >
               <Plus size={11} /> {traducir('chat.anadir')}
             </button>
@@ -2142,7 +2143,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
                 {(m.role && m.role !== 'member') && <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{m.role}</span>}
                 {m.is_admin && <span style={{ fontSize: 10, color: 'var(--accent)' }}>admin</span>}
                 {canRemove && (
-                  <button
+                  <button aria-label={isMe ? 'Salir del grupo' : 'Quitar del grupo'}
                     onClick={async () => { if (await confirmar({ message: isMe ? '¿Salir del grupo?' : `¿Quitar a ${m.user_name}?`, danger: true, confirmLabel: isMe ? 'Salir' : 'Quitar' })) removeMember.mutate(m.user_id) }}
                     title={isMe ? 'Salir del grupo' : 'Quitar del grupo'}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 2 }}
@@ -2238,7 +2239,7 @@ function ActivityList({ narrow = false }: { narrow?: boolean }) {
     <div style={{ ...(narrow ? { flex: 1, minWidth: 0 } : { width: 360 }), background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', overflowY: 'auto', padding: 16 }}>
       <Section title={`Notificaciones (${notifs.length})`}>
         {notifs.length === 0 ? <Empty>{traducir('chat.sin_notificaciones')}</Empty> : notifs.slice(0, 30).map(n => (
-          <div key={n.id} style={{ padding: '8px 10px', borderRadius: 6, background: n.is_read ? 'transparent' : 'var(--accent-muted)', marginBottom: 4 }}>
+          <div key={n.id} style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: n.is_read ? 'transparent' : 'var(--accent-muted)', marginBottom: 4 }}>
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{n.title}</div>
             <div className="u-text3-xs">{(n.body || '').slice(0, 80)}</div>
           </div>

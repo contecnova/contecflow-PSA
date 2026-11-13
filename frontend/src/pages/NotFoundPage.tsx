@@ -21,7 +21,7 @@ export default function NotFoundPage(): JSX.Element {
         maxWidth: 640,
         background: 'var(--surface-1)',
         border: '1px solid var(--surface-4)',
-        borderRadius: 14,
+        borderRadius: 'var(--radius-lg)',
         padding: 28,
         boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
       }}>
@@ -35,7 +35,7 @@ export default function NotFoundPage(): JSX.Element {
         <p style={{ margin: '0 0 18px', color: 'var(--text-2)', lineHeight: 1.6 }}>
           {t('not_found_page.requested_route')} <strong className="u-text1">{location.pathname}</strong>
         </p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="u-wrap-10">
           <Link
             to="/"
             style={{

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -8,12 +8,13 @@ import { Card, Button, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } f
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle } from 'lucide-react'
-import { fmtCurrency, extractErr } from '../utils/helpers'
+import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | string
 type RiskStatus = 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'closed' | 'materialized' | string
 type RiskProbability = 'very_low' | 'low' | 'medium' | 'high' | 'very_high' | string
@@ -179,7 +180,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
                 const cr = cellRisks(prob, imp)
                 return (
                   <td key={prob} style={{ padding: 4 }}>
-                    <div style={{ width: 82, height: 52, borderRadius: 6, background: alpha(color, '20'), border: `1px solid ${alpha(color, '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                    <div style={{ width: 82, height: 52, borderRadius: 'var(--radius-sm)', background: alpha(color, '20'), border: `1px solid ${alpha(color, '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
                       {cr.length > 0 && (
                         <>
                           <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{cr.length}</div>
@@ -202,6 +203,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
 }
 
 function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; projectId: string | number; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT() as (key: string) => string
   const qc = useQueryClient()
   const toast = useToast()
@@ -238,75 +240,75 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
 
   return (
     <Modal open title={isEdit ? t('risks.edit_title') : t('risks.new_title')} onClose={onClose} width={660}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="u-grid2-14">
         <div className="u-col-full">
-          <label style={ls}>{t('risks.form.title')}</label>
-          <input value={form.title} onChange={set('title')} style={fs} placeholder={t('risks.form.title_ph')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('risks.form.title')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={fs} placeholder={t('risks.form.title_ph')} />
         </div>
         <div>
-          <label style={ls}>{t('risks.form.category')}</label>
-          <select value={form.category} onChange={set('category')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('risks.form.category')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={set('category')} style={fs}>
             {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('risks.form.status')}</label>
-          <select value={form.status} onChange={set('status')} style={fs}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('risks.form.status')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} style={fs}>
             {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('risks.form.prob')}</label>
-          <select value={form.probability} onChange={set('probability')} style={fs}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('risks.form.prob')}</label>
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.probability} onChange={set('probability')} style={fs}>
             {PROB_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('risks.form.impact')}</label>
-          <select value={form.impact} onChange={set('impact')} style={fs}>
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('risks.form.impact')}</label>
+          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} style={fs}>
             {IMPACT_OPTIONS.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('risks.form.response_type')}</label>
-          <select value={form.response_type} onChange={set('response_type')} style={fs}>
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('risks.form.response_type')}</label>
+          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.response_type} onChange={set('response_type')} style={fs}>
             {RESPONSE_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('risks.form.owner')}</label>
-          <select value={form.owner_id} onChange={set('owner_id')} style={fs}>
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('risks.form.owner')}</label>
+          <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.owner_id} onChange={set('owner_id')} style={fs}>
             <option value="">{t('risks.form.unassigned')}</option>
             {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('risks.form.cost_min')}</label>
-          <input type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} style={fs} placeholder={t('risks.form.cost_min_ph')} />
+          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>{t('risks.form.cost_min')}</label>
+          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} style={fs} placeholder={t('risks.form.cost_min_ph')} />
         </div>
         <div>
-          <label style={ls}>{t('risks.form.cost_max')}</label>
-          <input type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} style={fs} placeholder={t('risks.form.cost_max_ph')} />
+          <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>{t('risks.form.cost_max')}</label>
+          <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} style={fs} placeholder={t('risks.form.cost_max_ph')} />
         </div>
         <div>
-          <label style={ls}>{t('risks.form.days_impact')}</label>
-          <input type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={fs} placeholder={t('risks.form.days_impact_ph')} />
+          <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>{t('risks.form.days_impact')}</label>
+          <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={fs} placeholder={t('risks.form.days_impact_ph')} />
         </div>
         <div>
-          <label style={ls}>{t('risks.form.review_date')}</label>
-          <DateInput value={form.review_date} onChange={set('review_date')} style={fs} />
+          <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={ls}>{t('risks.form.review_date')}</label>
+          <DateInput id={`${idCampo}-11`} value={form.review_date} onChange={set('review_date')} style={fs} />
         </div>
         <div className="u-col-full">
-          <label style={ls}>{t('risks.form.description')}</label>
-          <textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
+          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={ls}>{t('risks.form.description')}</label>
+          <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
         </div>
         <div className="u-col-full">
-          <label style={ls}>{t('risks.form.mitigation_plan')}</label>
-          <textarea value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('risks.form.mitigation_plan_ph')} />
+          <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={ls}>{t('risks.form.mitigation_plan')}</label>
+          <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('risks.form.mitigation_plan_ph')} />
         </div>
         <div className="u-col-full">
-          <label style={ls}>{t('risks.form.contingency_plan')}</label>
-          <textarea value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('risks.form.contingency_plan_ph')} />
+          <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} style={ls}>{t('risks.form.contingency_plan')}</label>
+          <textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('risks.form.contingency_plan_ph')} />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>{t('risks.form.cancel')}</Button>
@@ -320,6 +322,7 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
 }
 
 export default function RisksPage() {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT() as (key: string) => string
   const toast = useToast()
   const [selectedProject, setSelectedProject] = useState('')
@@ -338,7 +341,7 @@ export default function RisksPage() {
   const { data: risksData, isLoading } = useQuery<RisksResponse>({
     queryKey: ['risks', selectedProject],
     queryFn: () => selectedProject
-      ? risksApi.list(selectedProject, {}).then(r => r.data as RisksResponse)
+      ? risksApi.list<RiskItem>(selectedProject, {}).then(r => r.data)
       : risksApi.portfolioAll().then(r => {
           const items = (r.data?.items ?? r.data ?? []) as RiskItem[]
           return { risks: items, summary: { total: items.length } }
@@ -363,7 +366,7 @@ export default function RisksPage() {
         title={t('risks.title')}
         subtitle={t('risks.subtitle')}
         actions={
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="u-row-10">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 200 }}>
               <option value="">{t('risks.all_projects')}</option>
@@ -446,11 +449,11 @@ export default function RisksPage() {
                         <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8, fontFamily: 'var(--font-mono)' }}>{r.code}</span>
                         {r.project_name && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>· {r.project_name}</span>}
                       </div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <div className="u-row-center-6">
                         <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: lvl.bg, color: lvl.color, border: `1px solid ${alpha(lvl.color, '40')}` }}>{lvl.label}</span>
                         <span className="u-text2-xs">{r.status_label}</span>
-                        <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
-                        <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                        <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
+                        <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: r.mitigation_plan ? 8 : 0 }}>
@@ -458,11 +461,11 @@ export default function RisksPage() {
                       <span>Impacto: <span className="u-text1">{r.impact_label}</span></span>
                       {r.category_label && <span>Tipo: <span className="u-text1">{r.category_label}</span></span>}
                       {r.owner_name && <span>Responsable: <span className="u-text1">{r.owner_name}</span></span>}
-                      {r.cost_impact_max && <span>Impacto €: <span className="u-warning">hasta {fmtCurrency(Number(r.cost_impact_max))}</span></span>}
+                      {r.cost_impact_max && <span>Impacto: <span className="u-warning">hasta {fmtMoneda(Number(r.cost_impact_max), { decimales: 0 })}</span></span>}
                       {r.schedule_impact_days && <span>Plazo: <span className="u-warning">+{r.schedule_impact_days}d</span></span>}
                     </div>
                     {r.mitigation_plan && (
-                      <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>
+                      <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
                         🛡️ <span className="u-text1">{r.mitigation_plan}</span>
                       </div>
                     )}

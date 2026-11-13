@@ -15,6 +15,7 @@ import hashlib
 import hmac
 import logging
 from typing import Optional
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ def validate_twilio_signature(url: str, params: dict, signature: Optional[str]) 
 def build_sms_ticket_notification(ticket_number: str, title: str, status: str) -> str:
     """Format a short SMS notification for a ticket status update."""
     return (
-        f"[ContecFlow] Ticket {ticket_number}: {title[:60]}\n"
+        f"[{NOMBRE_DEL_PRODUCTO}] Ticket {ticket_number}: {title[:60]}\n"
         f"Estado: {status}\n"
         "Responde a este mensaje para actualizar el ticket."
     )

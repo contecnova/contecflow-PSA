@@ -49,10 +49,11 @@ from app.services.service_desk.merge_split_service import (
 from app.services.service_desk.ai_suggest_service import build_ai_ticket_suggestion
 from app.services.service_desk.workload_service import auto_assign_ticket_ml_command
 from app.services.service_desk.kb_service import create_kb_from_ticket
-from app.services.service_desk.portal_auth_service import get_current_portal_client
+from app.core.deps import get_current_portal_client
 from app.services.service_desk.semantic_feedback_service import (
     enqueue_profile_refresh, enqueue_reassign_feedback, enqueue_routing_outcome,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -64,7 +65,7 @@ def list_tickets(
     group_id: Optional[str] = None, project_id: Optional[str] = None,
     support_level: Optional[str] = None, sla_breached: Optional[bool] = None,
     search: Optional[str] = None,
-    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     payload = list_tickets_payload(
@@ -82,7 +83,7 @@ def list_tickets(
 
 @router.get("/tickets/my-queue", summary="Mi cola de trabajo")
 def my_queue(
-    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
@@ -99,7 +100,7 @@ def my_queue(
 
 @router.get("/tickets/my-queue/prioritized", summary="Mi cola priorizada por riesgo SLA y valor de negocio")
 def my_queue_prioritized(
-    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
@@ -117,7 +118,7 @@ def my_queue_prioritized(
 @router.get("/tickets/client/my", summary="Mis tickets (cliente)")
 def client_my_tickets(
     status: Optional[str] = None,
-    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     client=Depends(get_current_portal_client),

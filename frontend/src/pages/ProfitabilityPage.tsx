@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { Link } from 'react-router-dom'
@@ -15,6 +15,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 interface MilestoneItem {
   id: string | number
   name: string
@@ -164,22 +165,24 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
       {m.billing_amount && (
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{fmtCurrency(m.billing_amount)}</div>
-          {m.billing_pct && <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{m.billing_pct}% contrato</div>}
+          {m.billing_pct && <div className="u-text2-2xs">{m.billing_pct}% contrato</div>}
         </div>
       )}
       <div className="u-row-6">
         {/* Se factura en Facturación por hitos, que pide aprobación y genera la factura (revisión 2026-11). */}
         {m.is_completed && !m.is_billed && (
-          <Link to="/milestone-billing" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', fontSize: "var(--text-xs)", textDecoration: 'none' }}>💶 Facturar en Hitos →</Link>
+          <Link to="/milestone-billing" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--success)', fontSize: "var(--text-xs)", textDecoration: 'none' }}>💶 Facturar en Hitos →</Link>
         )}
         {m.is_billed && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ Facturado</span>}
-        <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este hito de facturación?', onConfirm: () => del(), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+        <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este hito de facturación?', onConfirm: () => del(), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
       </div>
     </div>
   )
 }
 
 function ProjectDetail({ projectId, onClose }: { projectId: string | number; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -214,7 +217,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
           { label: 'Margen bruto', value: fmtCurrency(data.gross_margin), color: marginColor },
           { label: '% Margen', value: `${data.margin_pct.toFixed(1)}%`, color: marginColor },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
+          <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '14px 16px', textAlign: 'center' }}>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
             <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
           </div>
@@ -282,12 +285,12 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
             { label: 'Totales', value: fmtHours(data.total_hours) },
             { label: 'Facturables', value: fmtHours(data.billable_hours) },
             { label: 'Presupuestadas', value: data.budget_hours ? fmtHours(data.budget_hours) : '—' },
-            { label: 'Tarifa media coste', value: `${data.avg_cost_rate}€/h` },
-            { label: 'Tarifa cliente', value: data.billing_rate ? `${data.billing_rate}€/h` : '—' },
+            { label: 'Tarifa media coste', value: `${fmtMoneda(data.avg_cost_rate)}/h` },
+            { label: 'Tarifa cliente', value: data.billing_rate ? `${fmtMoneda(data.billing_rate)}/h` : '—' },
           ].map(({ label, value }) => (
             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', fontSize: "var(--text-base)" }}>
               <span className="u-text2">{label}</span>
-              <span style={{ fontWeight: 600 }}>{value}</span>
+              <span className="u-600">{value}</span>
             </div>
           ))}
         </Card>
@@ -348,11 +351,11 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
         )}
 
         {showAddMilestone && (
-          <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
+          <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div><label style={ls}>Nombre</label><input value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('profitability.nombre_del_hito')} aria-label={t('profitability.nombre_del_hito')} /></div>
-              <div><label style={ls}>Fecha</label><DateInput value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
-              <div><label style={ls}>Importe €</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder={t('profitability.importe_del_hito')} aria-label={t('profitability.importe_del_hito')} /></div>
+              <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Fecha</label><DateInput id={`${idCampo}-1`} value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
+              <div><label style={ls}>Importe ({fmtMoneda.simbolo})</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder={t('profitability.importe_del_hito')} aria-label={t('profitability.importe_del_hito')} /></div>
               <div><label style={ls}>% Contrato</label><input type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('profitability.porcentaje_del_contrato')} aria-label={t('profitability.porcentaje_del_contrato')} /></div>
             </div>
             <div className="u-row-8">
@@ -438,7 +441,7 @@ export default function ProfitabilityPage() {
           </Card>
 
           {/* Table */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div className="ds-card ds-card--plano">
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               <span>Proyecto</span><span>Ingresos</span><span>Coste</span><span>Margen</span><span>% Margen</span><span>Horas</span><span></span>
             </div>
@@ -462,7 +465,7 @@ export default function ProfitabilityPage() {
                   <MarginBar margin_pct={p.margin_pct ?? 0} />
                 </div>
                 <span className="u-text2-sm">{fmtHours(p.total_hours)}</span>
-                <button onClick={e => { e.stopPropagation(); if (p.project_id != null) setSelectedProject(p.project_id) }} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Detalle</button>
+                <button onClick={e => { e.stopPropagation(); if (p.project_id != null) setSelectedProject(p.project_id) }} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Detalle</button>
               </div>
             ))}
           </div>

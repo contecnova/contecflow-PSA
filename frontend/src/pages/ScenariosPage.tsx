@@ -1,7 +1,7 @@
 /**
  * ScenariosPage — Scenario planning / What-if capacity
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -72,6 +72,7 @@ const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 
 export default function ScenariosPage() {
+  const idCampo = useId()
   const t = useAppT()
   const narrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
@@ -158,7 +159,7 @@ export default function ScenariosPage() {
                       { l:'Utilización media', v: `${results.avg_utilization_pct}%` },
                       { l:'Demanda total', v: `${results.total_demand_hours}h` },
                     ].map((k,i) => (
-                      <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'14px 16px' }}>
+                      <div key={i} style={{ background:'var(--surface-2)', borderRadius:'var(--radius-md)', padding:'14px 16px' }}>
                         <div style={{ fontSize: "var(--text-sm)", color: k.c || 'var(--text-1)', fontWeight:500, marginBottom:2 }}>{k.v}</div>
                         <div className="u-text2-xs">{k.l}</div>
                       </div>
@@ -214,17 +215,17 @@ export default function ScenariosPage() {
       {showCreate && (
         <Modal open title={t('scenarios.nuevo_escenario_2')} onClose={()=>setShowCreate(false)} width={560}>
           <div className="u-stack-14">
-            <div><label style={ls}>Nombre</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>{t('scenarios.descripcion')}</label><input value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>{t('scenarios.horizonte_de_simulacion_semanas')}</label><input type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('scenarios.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('scenarios.horizonte_de_simulacion_semanas')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} style={fs} /></div>
 
             <div style={{ borderTop:'.5px solid var(--surface-4)', paddingTop:14 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:10 }}>{t('scenarios.anadir_proyectos_hipoteticos')}</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                <input placeholder={t('scenarios.nombre_del_proyecto')} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} style={fs} />
-                <input type="number" placeholder="Total horas" value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} style={fs} />
-                <div><label style={ls}>Inicio</label><DateInput value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} style={fs} /></div>
-                <div><label style={ls}>Fin</label><DateInput value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} style={fs} /></div>
+                <input aria-label={t('scenarios.nombre_del_proyecto')} placeholder={t('scenarios.nombre_del_proyecto')} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} style={fs} />
+                <input aria-label="Total horas" type="number" placeholder="Total horas" value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} style={fs} />
+                <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Inicio</label><DateInput id={`${idCampo}-4`} value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} style={fs} /></div>
+                <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Fin</label><DateInput id={`${idCampo}-5`} value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} style={fs} /></div>
               </div>
               <button onClick={()=>{ if(newProject.name){ setForm(f=>({...f,projects:[...f.projects,{...newProject}]})); setNewProject({name:'',start_date:'',end_date:'',total_hours:0}) }}}
                 style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding:'6px 14px', color:'var(--text-1)', cursor:'pointer', fontSize: "var(--text-base)", fontFamily:'inherit' }}>

@@ -40,6 +40,7 @@ from app.services.git_service import (
     verify_github_signature as _verify_github_signature,
     verify_gitlab_token as _verify_gitlab_token,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 _logger = logging.getLogger(__name__)
@@ -67,8 +68,9 @@ def _empresa(db: Session, slug: Optional[str]) -> str:
 
 async def _github(request: Request, evento: str, firma: str, db: Session, slug: Optional[str]):
     from app.services import git_service as gs
-    org = _empresa(db, slug)
-    secreto = gs.secreto_de_la_empresa(db, "github", org) if slug else None
+    # Auditoria 2026-11: las dos consultas, al pool de hilos.
+    org = await run_db(_empresa, db, slug)
+    secreto = (await run_db(gs.secreto_de_la_empresa, db, "github", org)) if slug else None
     if slug and not secreto:
         raise HTTPException(403, "La empresa no tiene secreto de GitHub (Credenciales → Inbound webhooks)")
     body = await request.body()
@@ -89,8 +91,9 @@ async def _github(request: Request, evento: str, firma: str, db: Session, slug: 
 
 async def _gitlab(request: Request, token: str, db: Session, slug: Optional[str]):
     from app.services import git_service as gs
-    org = _empresa(db, slug)
-    secreto = gs.secreto_de_la_empresa(db, "gitlab", org) if slug else None
+    # Auditoria 2026-11: las dos consultas, al pool de hilos.
+    org = await run_db(_empresa, db, slug)
+    secreto = (await run_db(gs.secreto_de_la_empresa, db, "gitlab", org)) if slug else None
     if slug and not secreto:
         raise HTTPException(403, "La empresa no tiene secreto de GitLab (Credenciales → Inbound webhooks)")
     if not _verify_gitlab_token(token, secreto):
@@ -181,9 +184,9 @@ def list_prs(
     project_id: Optional[int] = Query(None),
     status:     Optional[str] = Query(None),
     provider:   Optional[str] = Query(None),
-    limit:      int           = Query(50, le=200),
+    limit:      int           = Query(50, le=MAX_TAMANO_DE_PAGINA),
     page:       int           = Query(1, ge=1),
-    page_size:  int           = Query(50, ge=1, le=200),
+    page_size:  int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db:         Session       = Depends(get_db),
     _:          User          = Depends(get_current_user),
 ):
@@ -208,9 +211,9 @@ def list_deployments(
     task_id:    Optional[int] = Query(None),
     project_id: Optional[int] = Query(None),
     status:     Optional[str] = Query(None),
-    limit:      int           = Query(50, le=200),
+    limit:      int           = Query(50, le=MAX_TAMANO_DE_PAGINA),
     page:       int           = Query(1, ge=1),
-    page_size:  int           = Query(50, ge=1, le=200),
+    page_size:  int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db:         Session       = Depends(get_db),
     _:          User          = Depends(get_current_user),
 ):

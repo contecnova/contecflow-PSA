@@ -67,7 +67,7 @@ def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
         if probability < 0.25:
             continue
 
-        severity = _severity_from_probability(probability)
+        severity = _severity_from_probability(probability, db, getattr(p, "organization_id", None))
         title = f"Riesgo de retraso — {p.name}"
         explanation = (
             f"El proyecto tiene {overdue} tareas vencidas de {len(tasks)} totales "
@@ -190,7 +190,7 @@ def _oracle_burnout(db: Session, active_users: list, now: datetime) -> list:
         max_w = max(weekly)
         trend = weekly[0] - weekly[-1] if len(weekly) > 1 else 0
         trend_txt = f" Tendencia: {'↑ creciente' if trend > 3 else '→ estable'}." if len(weekly) > 1 else ""
-        severity = _severity_from_probability(probability)
+        severity = _severity_from_probability(probability, db, getattr(u, "organization_id", None))
         existing = db.query(AIPrediction).filter(
             AIPrediction.entity_id == u.id,
             AIPrediction.prediction_type == "burnout",

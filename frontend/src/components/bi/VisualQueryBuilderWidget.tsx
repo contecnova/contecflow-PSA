@@ -211,7 +211,7 @@ export default function VisualQueryBuilderWidget() {
   }
 
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
       <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--surface-4)' }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{t('visual_query_builder.title')}</div>
         <div className="u-text3-2xs">{t('visual_query_builder.subtitle')}</div>
@@ -241,7 +241,7 @@ export default function VisualQueryBuilderWidget() {
         {!!entityDef && (
           <>
             <div style={{ display: 'grid', gap: 6, gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
-              <input
+              <input aria-label={t('visual_query_builder.template_placeholder')}
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
                 placeholder={t('visual_query_builder.template_placeholder')}
@@ -262,11 +262,11 @@ export default function VisualQueryBuilderWidget() {
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>{t('visual_query_builder.saved_templates')}</div>
                 <div style={{ display: 'grid', gap: 4 }}>
                   {templateItems.map((item) => (
-                    <div key={item.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div key={item.id} className="u-row-center-6">
                       <button
                         type="button"
                         onClick={() => loadTemplate(item)}
-                        style={{ flex: 1, textAlign: 'left', border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-2)', borderRadius: 6, padding: '5px 8px', fontSize: "var(--text-xs)", cursor: 'pointer' }}
+                        style={{ flex: 1, textAlign: 'left', border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-2)', borderRadius: 'var(--radius-sm)', padding: '5px 8px', fontSize: "var(--text-xs)", cursor: 'pointer' }}
                       >
                         {item.name}
                       </button>

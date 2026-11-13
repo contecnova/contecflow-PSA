@@ -1,10 +1,4 @@
-import logging
-import json
-from datetime import date
-from app.core.timeutil import utcnow
-from typing import List
-
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_any_manager
@@ -14,18 +8,8 @@ from app.services import salesforce_service
 
 router = APIRouter(tags=["Integrations", "Salesforce"])
 
-STAGE_MAP = {
-    "Prospecting": "lead",
-    "Qualification": "qualification",
-    "Needs Analysis": "qualification",
-    "Value Proposition": "proposal",
-    "Id. Decision Makers": "proposal",
-    "Perception Analysis": "negotiation",
-    "Proposal/Price Quote": "proposal",
-    "Negotiation/Review": "negotiation",
-    "Closed Won": "won",
-    "Closed Lost": "lost",
-}
+# Se conserva el nombre: la tabla vive ahora en el servicio.
+STAGE_MAP = salesforce_service.STAGE_MAP
 
 
 @router.post(
@@ -38,77 +22,19 @@ def sync_salesforce_opportunities(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.core.encryption import decrypt_value
-
     org_id = getattr(current_user, "organization_id", None)
+    # Las comprobaciones (instancia, conector, credenciales) siguen en la
+    # peticion: sus 404/400/503 los necesita quien pulsa el boton.
+    salesforce_service.preparar_sincronizacion(db, instance_id, org_id)
 
-    inst = salesforce_service.get_salesforce_instance(db, instance_id, org_id)
-    if not inst:
-        raise HTTPException(404, "Salesforce integration instance not found or disabled")
-
-    conn = salesforce_service.get_salesforce_connector(db, inst.connector_id)
-    if not conn:
-        raise HTTPException(400, "This instance is not a Salesforce connector")
-
-    try:
-        config = json.loads(decrypt_value(inst.encrypted_config) if inst.encrypted_config else "{}")
-    except Exception:
-        logging.getLogger(__name__).debug("sync_salesforce_opportunities: excepcion ignorada", exc_info=True)
-        config = {}
-
-    sf_base = config.get("instance_url", "")
-    access_token = config.get("access_token", "")
-    if not sf_base or not access_token:
-        raise HTTPException(
-            503,
-            "Salesforce credentials incomplete. Configure instance_url and access_token "
-            "in the integration settings.",
-        )
-
-    synced_in = 0
-    synced_out = 0
-    errors: List[str] = []
-
-    if direction in ("inbound", "bidirectional"):
-        import httpx
-
-        try:
-            with httpx.Client(timeout=20.0) as client:
-                resp = client.get(
-                    f"{sf_base}/services/data/v57.0/query",
-                    params={
-                        "q": "SELECT Id,Name,Amount,StageName,CloseDate,AccountId FROM Opportunity WHERE IsClosed=false LIMIT 200"
-                    },
-                    headers={"Authorization": f"Bearer {access_token}"},
-                )
-                resp.raise_for_status()
-                sf_opps = resp.json().get("records", [])
-        except Exception as exc:
-            logging.getLogger(__name__).warning("sync_salesforce_opportunities: excepcion ignorada", exc_info=True)
-            errors.append(f"Salesforce API error: {exc}")
-            sf_opps = []
-
-        for sf_opp in sf_opps:
-            mapped_stage = STAGE_MAP.get(sf_opp.get("StageName", ""), "lead")
-
-            try:
-                close_date = date.fromisoformat(sf_opp["CloseDate"]) if sf_opp.get("CloseDate") else None
-            except ValueError:
-                close_date = None
-
-            salesforce_service.upsert_opportunity(db, sf_opp, mapped_stage, close_date)
-            synced_in += 1
-
-        if sf_opps:
-            salesforce_service.commit_opportunities(db)
-
-    salesforce_service.update_instance_sync_status(db, inst, synced_in + synced_out, errors)
-
-    return APIResponse.ok(data={
-        "ok": not errors,
-        "direction": direction,
-        "synced_inbound": synced_in,
-        "synced_outbound": synced_out,
-        "errors": errors,
-        "synced_at": str(utcnow()),
-    })
+    # Segunda auditoria 2026-11 (n.º 20): la consulta a Salesforce (20 s) y el
+    # volcado al pipeline van al worker. Con cola: 202 `{status: "queued"}`;
+    # el resultado queda en el estado de sincronizacion de la instancia. Las
+    # credenciales no viajan por la cola: el worker las vuelve a leer.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    resultado = encolar(salesforce_service.sincronizar_oportunidades,
+                        instance_id=instance_id, direction=direction, org_id=org_id,
+                        _organizacion=org_id, _sesion=db)
+    if resultado is EN_COLA:
+        return respuesta_en_cola(direction=direction)
+    return APIResponse.ok(data=resultado)

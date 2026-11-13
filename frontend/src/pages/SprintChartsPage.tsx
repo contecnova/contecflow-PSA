@@ -4,7 +4,7 @@
  * Routes: /sprint-charts
  */
 
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { projectsApi, projectSprintsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
@@ -53,9 +53,10 @@ interface VelocityPayload {
   avg_velocity?: number
 }
 
-const sf = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }
+const sf = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }
 
 export default function SprintChartsPage() {
+  const idCampo = useId()
   const t = useAppT()
   const _t = useAppT()
   const [projectId, setProjectId] = useState('')
@@ -108,10 +109,10 @@ export default function SprintChartsPage() {
       {/* Project + Sprint selectors */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 28, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', display: 'block', marginBottom: 6 }}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', display: 'block', marginBottom: 6 }}>
             PROYECTO
           </label>
-          <select value={projectId} onChange={e => { setProjectId(e.target.value); setSprintId('') }} style={{ ...sel, width: '100%' }}>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => { setProjectId(e.target.value); setSprintId('') }} style={{ ...sel, width: '100%' }}>
             <option value="">{t('sprintcharts.selecciona_un_proyecto')}</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
@@ -120,10 +121,10 @@ export default function SprintChartsPage() {
         </div>
         {projectId && (
           <div style={{ flex: 1, minWidth: 180 }}>
-            <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', display: 'block', marginBottom: 6 }}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', display: 'block', marginBottom: 6 }}>
               {t('sprintcharts.sprint_para_burnup')}
             </label>
-            <select value={sprintId} onChange={e => setSprintId(e.target.value)} style={{ ...sel, width: '100%' }}>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintId} onChange={e => setSprintId(e.target.value)} style={{ ...sel, width: '100%' }}>
               <option value="">{t('sprintcharts.selecciona_un_sprint')}</option>
               {sprints.map(s => (
                 <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
@@ -140,7 +141,7 @@ export default function SprintChartsPage() {
       {/* Velocity chart */}
       {projectId && (
         <div style={{ ...sf, marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="u-row-between-mb16">
             <h3 style={{ margin: 0, fontSize: "var(--text-lg)", color: 'var(--text-1)' }}>{t('sprintcharts.velocity_ultimos_sprints')}</h3>
             {avgVel > 0 && (
               <span className="u-text2-base">
@@ -178,7 +179,7 @@ export default function SprintChartsPage() {
       {/* Burnup chart */}
       {projectId && sprintId && (
         <div style={sf}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="u-row-between-mb16">
             <h3 style={{ margin: 0, fontSize: "var(--text-lg)", color: 'var(--text-1)' }}>📈 Burnup — {burnupData?.sprint?.name || 'Sprint'}</h3>
             {(burnupData?.target ?? 0) > 0 && (
               <span className="u-text2-base">
@@ -248,7 +249,7 @@ export default function SprintChartsPage() {
                         borderRadius: 8, padding: '12px 16px',
                       }}>
                         <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: k.color }}>{k.value}</div>
-                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
+                        <div className="u-text2-xs-mt2">{k.label}</div>
                       </div>
                     ))}
                   </div>

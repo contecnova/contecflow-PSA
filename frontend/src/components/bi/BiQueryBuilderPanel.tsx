@@ -18,10 +18,10 @@ const TABS = [
   { id: 'results', label: '📊 Resultados' },
 ]
 
-const ps: React.CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20, marginBottom: 16 }
+const ps: React.CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16 }
 const ls: React.CSSProperties = { display: 'block', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4, fontWeight: 500 }
-const is: React.CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', boxSizing: 'border-box' }
-const btn = (accent: boolean): React.CSSProperties => ({ padding: '7px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600, background: accent ? 'var(--accent)' : 'var(--surface-3)', color: accent ? '#fff' : 'var(--text-1)' })
+const is: React.CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', boxSizing: 'border-box' }
+const btn = (accent: boolean): React.CSSProperties => ({ padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600, background: accent ? 'var(--accent)' : 'var(--surface-3)', color: accent ? '#fff' : 'var(--text-1)' })
 
 // TODO type: biQueryBuilderApi schema/payload — needs shared type
 interface DatasetField {
@@ -89,6 +89,7 @@ const AGG_FUNCS  = ['count', 'sum', 'avg', 'min', 'max']
 const NULL_OPS = new Set(['is_null', 'is_not_null'])
 
 export default function BiQueryBuilderPanel() {
+  const idCampo = React.useId()
   const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const [tab, setTab] = useState<string>('builder')
@@ -256,8 +257,8 @@ export default function BiQueryBuilderPanel() {
         <div>
           {/* Dataset selector */}
           <div style={ps}>
-            <label style={ls}>Dataset</label>
-            <select style={is} value={dataset} onChange={e => { setDataset(e.target.value); setSelectedFields([]); setGroupBy([]) }}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Dataset</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={dataset} onChange={e => { setDataset(e.target.value); setSelectedFields([]); setGroupBy([]) }}>
               <option value="">Seleccionar dataset…</option>
               {datasets.map(d => <option key={d.name} value={d.name}>{d.label ?? d.name}</option>)}
             </select>
@@ -324,7 +325,7 @@ export default function BiQueryBuilderPanel() {
                     <select style={{ ...is, flex: '0 0 90px' }} value={a.func} onChange={e => updateAgg(i, 'func', e.target.value)}>
                       {AGG_FUNCS.map(fn => <option key={fn} value={fn}>{fn}</option>)}
                     </select>
-                    <input style={{ ...is, flex: '1 1 110px' }} placeholder="Alias (opcional)" value={a.alias}
+                    <input aria-label="Alias (opcional)" style={{ ...is, flex: '1 1 110px' }} placeholder="Alias (opcional)" value={a.alias}
                       onChange={e => updateAgg(i, 'alias', e.target.value)} />
                     <button style={{ ...btn(false), color: 'var(--danger)', padding: '5px 10px' }}
                       onClick={() => setAggregations(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
@@ -335,22 +336,22 @@ export default function BiQueryBuilderPanel() {
               {/* Sort + Limit */}
               <div style={{ ...ps, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 160px' }}>
-                  <label style={ls}>{traducir('biquerybuilder.ordenar_por')}</label>
-                  <select style={is} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('biquerybuilder.ordenar_por')}</label>
+                  <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={sortBy} onChange={e => setSortBy(e.target.value)}>
                     <option value="">{traducir('biquerybuilder.sin_orden')}</option>
                     {availableFields.map(f => <option key={f.name} value={f.name}>{f.label ?? f.name}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: '0 0 100px' }}>
-                  <label style={ls}>{traducir('biquerybuilder.direccion')}</label>
-                  <select style={is} value={sortDir} onChange={e => setSortDir(e.target.value)}>
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{traducir('biquerybuilder.direccion')}</label>
+                  <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={sortDir} onChange={e => setSortDir(e.target.value)}>
                     <option value="asc">ASC ↑</option>
                     <option value="desc">DESC ↓</option>
                   </select>
                 </div>
                 <div style={{ flex: '0 0 100px' }}>
-                  <label style={ls}>{traducir('biquerybuilder.limite')}</label>
-                  <input type="number" style={is} value={limit} min={1} max={5000}
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{traducir('biquerybuilder.limite')}</label>
+                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" style={is} value={limit} min={1} max={5000}
                     onChange={e => setLimit(Number(e.target.value))} />
                 </div>
               </div>
@@ -358,8 +359,8 @@ export default function BiQueryBuilderPanel() {
               {/* Save name + Run */}
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 200px' }}>
-                  <label style={ls}>{traducir('biquerybuilder.nombre_de_la_query_requerido_para_guardar')}</label>
-                  <input style={is} placeholder="Mi query…" value={queryName}
+                  <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{traducir('biquerybuilder.nombre_de_la_query_requerido_para_guardar')}</label>
+                  <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} style={is} placeholder="Mi query…" value={queryName}
                     onChange={e => setQueryName(e.target.value)} />
                 </div>
                 <button style={btn(false)} onClick={handleSaveBuilder}
@@ -389,7 +390,7 @@ export default function BiQueryBuilderPanel() {
               {savedQueries.map(q => (
                 <div key={q.id} style={{ ...ps, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{q.name}</div>
+                    <div className="u-md-600">{q.name}</div>
                     <div className="u-text3-sm">
                       Dataset: <b>{q.dataset}</b> · Campos: {(q.fields ?? []).join(', ') || '—'}
                     </div>

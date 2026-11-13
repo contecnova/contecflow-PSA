@@ -33,6 +33,8 @@ from app.services.m365_service import (
 from app.services import bi_intelligence_service as bi_svc
 from app.services.bi_embed_service import create_embed_token
 from app.core.errores import ErrorDeDominio
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.services.settings_service import outbound_http_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +125,7 @@ def generate_teams_tab_config(
         "entityId": entity_id,
         "contentUrl": content_url,
         "websiteUrl": website_url,
-        "suggestedDisplayName": f"Contecflow BI – {dashboard_id.replace('-', ' ').title()}",
+        "suggestedDisplayName": f"{NOMBRE_DEL_PRODUCTO} BI – {dashboard_id.replace('-', ' ').title()}",
         "removeUrl": None,
     }
 
@@ -173,7 +175,7 @@ def _build_adaptive_card(snapshot: dict[str, Any], dashboard_id: str, deep_link:
     body: list[dict] = [
         {
             "type": "TextBlock",
-            "text": f"📊 Contecflow BI – {dashboard_id.replace('-', ' ').title()}",
+            "text": f"📊 {NOMBRE_DEL_PRODUCTO} BI – {dashboard_id.replace('-', ' ').title()}",
             "weight": "Bolder",
             "size": "Medium",
             "wrap": True,
@@ -260,13 +262,13 @@ def post_bi_card_to_teams_channel(
                     "contentType": "application/vnd.microsoft.card.adaptive",
                     "contentUrl": None,
                     "content": json.dumps(card),
-                    "name": f"Contecflow BI – {dashboard_id}",
+                    "name": f"{NOMBRE_DEL_PRODUCTO} BI – {dashboard_id}",
                     "thumbnailUrl": None,
                 }
             ],
         }
         try:
-            with httpx.Client(timeout=20) as client:
+            with httpx.Client(timeout=outbound_http_timeout(db, default=20)) as client:
                 resp = client.post(
                     f"{GRAPH_BASE}/teams/{team_id}/channels/{channel_id}/messages",
                     json=message_payload,
@@ -306,7 +308,7 @@ def post_bi_card_to_teams_channel(
         "@type": "MessageCard",
         "@context": "http://schema.org/extensions",
         "themeColor": "0078D4",
-        "summary": f"Contecflow BI – {dashboard_id}",
+        "summary": f"{NOMBRE_DEL_PRODUCTO} BI – {dashboard_id}",
         "sections": sections,
         "potentialAction": [
             {
@@ -316,7 +318,7 @@ def post_bi_card_to_teams_channel(
             }
         ],
     }
-    with httpx.Client(timeout=15) as client:
+    with httpx.Client(timeout=outbound_http_timeout(db, default=15)) as client:
         resp = client.post(webhook_url, json=card_fallback)
     if resp.status_code not in (200, 202):
         raise ErrorDeDominio(502, f"Teams webhook error: {resp.text}")
@@ -347,7 +349,7 @@ def get_sharepoint_webpart_config(
     iframe_html = (
         f'<iframe src="{embed_url}" '
         f'width="100%" height="600" frameborder="0" allowfullscreen '
-        f'title="Contecflow BI – {dashboard_id}"></iframe>'
+        f'title="{NOMBRE_DEL_PRODUCTO} BI – {dashboard_id}"></iframe>'
     )
     return {
         "dashboard_id": dashboard_id,
@@ -418,7 +420,7 @@ def create_sharepoint_page_with_bi(
 
     token = get_graph_token_sync()
     try:
-        with httpx.Client(timeout=30) as client:
+        with httpx.Client(timeout=outbound_http_timeout(db, default=30)) as client:
             resp = client.post(
                 f"{GRAPH_BASE}/sites/{site_id}/pages",
                 json=page_payload,
@@ -504,7 +506,7 @@ def export_dashboard_excel(
 
     ws_sum = wb.active
     ws_sum.title = "Resumen"
-    ws_sum.append(["Contecflow BI – Dashboard Export"])
+    ws_sum.append([f"{NOMBRE_DEL_PRODUCTO} BI – Dashboard Export"])
     ws_sum["A1"].font = Font(bold=True, size=14)
     ws_sum.append([f"Dashboard: {dashboard_id}"])
     ws_sum.append([f"Organización: {org_id or 'global'}"])
@@ -660,7 +662,7 @@ def export_dashboard_word(
     snapshot = get_dashboard_snapshot(db, organization_id=org_id, dashboard_id=dashboard_id)
 
     doc = _Rtf()
-    doc.h1(f"Contecflow BI – {dashboard_id.replace('-', ' ').title()}")
+    doc.h1(f"{NOMBRE_DEL_PRODUCTO} BI – {dashboard_id.replace('-', ' ').title()}")
     doc.p(f"Generado: {ahora}")
     if org_id:
         doc.p(f"Organización: {org_id}")
@@ -683,7 +685,7 @@ def upload_to_onedrive(
     *,
     filename: str,
     user_upn: Optional[str] = None,
-    folder_path: str = "Contecflow BI Exports",
+    folder_path: str = f"{NOMBRE_DEL_PRODUCTO} BI Exports",
 ) -> dict[str, Any]:
     """Upload *file_bytes* to the user's OneDrive via Graph API.
 
@@ -696,7 +698,7 @@ def upload_to_onedrive(
     drive_base = f"/users/{user_upn}/drive" if user_upn else "/me/drive"
     upload_path = f"{drive_base}/root:/{folder_path}/{filename}:/content"
 
-    with httpx.Client(timeout=60) as client:
+    with httpx.Client(timeout=outbound_http_timeout(default=60)) as client:
         resp = client.put(
             f"{GRAPH_BASE}{upload_path}",
             content=file_bytes,

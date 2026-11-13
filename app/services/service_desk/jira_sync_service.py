@@ -6,6 +6,10 @@ Responsibilities:
   - Pull: Jira webhook events or polled diff → update local tickets
   - Conflict resolution: last-write-wins with manual override flag
   - Audit: every event written to JiraSyncLog
+
+Auditoria 2026-11 (#34): el cliente HTTP, los mapas de estado/prioridad y el
+token descifrado son los de `services/jira_service.py` (la unica capa de Jira);
+aqui queda solo lo propio del ticket (cuerpo de la incidencia, registro, enlaces).
 """
 from __future__ import annotations
 
@@ -32,73 +36,28 @@ from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
-# ── Priority + Status default maps ────────────────────────────────────────────
+# ── Mapas y cliente: los de `jira_service` ────────────────────────────────────
 
-_DEFAULT_PRIORITY_MAP: dict[str, str] = {
-    "p1_critical": "Highest",
-    "p2_high": "High",
-    "p3_medium": "Medium",
-    "p4_low": "Low",
-}
+from app.services import jira_service as _jira  # noqa: E402
 
-_DEFAULT_STATUS_MAP: dict[str, str] = {
-    "new": "Open",
-    "assigned": "In Progress",
-    "in_progress": "In Progress",
-    "pending_client": "Waiting for customer",
-    "pending_third": "Waiting for support",
-    "resolved": "Resolved",
-    "closed": "Closed",
-    "cancelled": "Cancelled",
-}
-
-_JIRA_TO_TICKET_STATUS: dict[str, str] = {
-    "open": "new",
-    "in progress": "in_progress",
-    "waiting for customer": "pending_client",
-    "waiting for support": "pending_third",
-    "resolved": "resolved",
-    "closed": "closed",
-    "done": "resolved",
-}
-
-# ── HTTP client helpers ────────────────────────────────────────────────────────
-
-
-def jira_token_en_claro(config) -> str:
-    """El token de la API de Jira descifrado.
-
-    Auditoria 2026-11: se guardaba en claro en `jira_api_token_enc`. Ahora se
-    cifra al guardar; lo que quede de antes (no descifra) se usa tal cual.
-    """
-    from app.core.encryption import decrypt_value
-
-    guardado = config.jira_api_token_enc or ""
-    return decrypt_value(guardado) or guardado
+_DEFAULT_PRIORITY_MAP = _jira.TICKET_A_JIRA_PRIORIDAD
+_DEFAULT_STATUS_MAP = _jira.TICKET_A_JIRA_ESTADO
+_JIRA_TO_TICKET_STATUS = _jira.JIRA_A_TICKET_ESTADO
+jira_token_en_claro = _jira.token_en_claro
 
 
 def jira_base_url_segura(config) -> str:
     """La URL de Jira validada contra SSRF (esquema, hosts locales y redes privadas)."""
-    from app.core.outbound_url import cliente_httpx, validate_outbound_url
+    from app.core.outbound_url import validate_outbound_url
 
     return validate_outbound_url((config.jira_base_url or "").rstrip("/"), field="jira_base_url")
 
 
 def _jira_client(config: JiraConfig, db=None) -> httpx.Client:
-    """Build an authenticated httpx client for Jira Cloud REST API."""
-    import base64
+    """El cliente de `jira_service` con las credenciales de la configuracion."""
     from app.services.settings_service import outbound_http_timeout
-    # Basic auth: email:token base64-encoded
-    creds = base64.b64encode(f"{config.jira_email}:{jira_token_en_claro(config)}".encode()).decode()
-    return cliente_httpx(
-        base_url=jira_base_url_segura(config),
-        headers={
-            "Authorization": f"Basic {creds}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        },
-        timeout=outbound_http_timeout(db, default=15.0),
-    )
+
+    return _jira.cliente_de_configuracion(config, timeout=outbound_http_timeout(db, default=15.0))
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -243,7 +202,8 @@ def push_ticket_to_jira(db: Session, config: JiraConfig, ticket: Ticket) -> Jira
         return existing_map
 
     except httpx.HTTPStatusError as exc:
-        error_msg = f"HTTP {exc.response.status_code}: {exc.response.text[:500]}"
+        # Sin el cuerpo de la respuesta remota (auditoria 2026-11 #25).
+        error_msg = f"HTTP {exc.response.status_code}"
         logger.error("Jira push failed for ticket %s: %s", ticket.number, error_msg)
         if existing_map:
             existing_map.sync_status = JiraSyncStatus.error
@@ -561,6 +521,7 @@ def crear_configuracion(db: Session, user, datos: dict) -> _JiraConfig:
     from app.core.outbound_url import validate_outbound_url
 
     datos = dict(datos)
+    para_tareas = bool(datos.pop("usar_para_tareas", False))
     validate_outbound_url(datos.get("jira_base_url") or "", field="jira_base_url")
     if datos.get("jira_api_token_enc"):
         datos["jira_api_token_enc"] = encrypt_value(datos["jira_api_token_enc"])
@@ -570,6 +531,9 @@ def crear_configuracion(db: Session, user, datos: dict) -> _JiraConfig:
         **datos,
     )
     db.add(fila)
+    if para_tareas:
+        db.flush()
+        _jira.marcar_como_conexion_de_tareas(db, fila)
     db.commit()
     db.refresh(fila)
     return fila
@@ -600,6 +564,11 @@ def aplicar_cambios_de_configuracion(db: Session, config: _JiraConfig, cambios: 
             config.status_map_json = _json.dumps(valor)
         elif clave == "priority_map":
             config.priority_map_json = _json.dumps(valor)
+        elif clave == "usar_para_tareas":
+            if valor:
+                _jira.marcar_como_conexion_de_tareas(db, config)
+            else:
+                config.usar_para_tareas = False
         elif es_asignable(config, clave, ("created_by_user_id", "jira_api_token_enc")):
             if clave == "jira_base_url":
                 validate_outbound_url(valor or "", field="jira_base_url")
@@ -609,19 +578,23 @@ def aplicar_cambios_de_configuracion(db: Session, config: _JiraConfig, cambios: 
     return config
 
 
-def procesar_webhook(db: Session, issue: dict, issue_key: str) -> dict:
+def procesar_webhook(db: Session, issue: dict, issue_key: str, org_id: Optional[str] = None) -> dict:
     """Aplica un webhook de Jira a los tickets enlazados con esa incidencia.
 
-    No lleva filtro de organizacion, y es correcto: un webhook llega sin sujeto.
-    El ambito lo da el propio enlace —cada `JiraSyncMap` trae su configuracion, y
-    de ella su organizacion— asi que una incidencia solo puede tocar los tickets
-    que alguien enlazo con ella.
+    Auditoria 2026-11 (#14): se buscaban los enlaces por clave en TODAS las
+    organizaciones, y la clave (`SUP-12`) se repite entre los Jira de distintos
+    clientes. Ahora solo los enlaces de configuraciones de `org_id`, la
+    organizacion cuyo secreto autentico el webhook. Sin organizacion, nada.
     """
     from app.models.jira_integration import JiraSyncDirection, JiraSyncMap
 
+    if not org_id:
+        return {"ok": True, "skipped": "no organization"}
     enlaces = (
         db.query(JiraSyncMap)
-        .filter(JiraSyncMap.jira_issue_key == issue_key)
+        .join(_JiraConfig, _JiraConfig.id == JiraSyncMap.config_id)
+        .filter(JiraSyncMap.jira_issue_key == issue_key,
+                _JiraConfig.organization_id == org_id)
         .all()
     )
     if not enlaces:
@@ -632,6 +605,7 @@ def procesar_webhook(db: Session, issue: dict, issue_key: str) -> dict:
             db.query(_JiraConfig)
             .filter(
                 _JiraConfig.id == enlace.config_id,
+                _JiraConfig.organization_id == org_id,
                 _JiraConfig.is_active == True,  # noqa: E712
             )
             .first()

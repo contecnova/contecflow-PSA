@@ -14,7 +14,6 @@ import zipfile
 import pytest
 
 from app.services.exportador_tabular import FORMATOS, respuesta_tabular
-from fastapi import HTTPException
 from app.core.errores import ErrorDeDominio
 
 
@@ -26,12 +25,18 @@ FILAS = [
 
 
 def _cuerpo(respuesta) -> bytes:
-    """El contenido de un `StreamingResponse`, venga como venga.
+    """El contenido de una `Descarga` o de un `StreamingResponse`, venga como venga.
+
+    Auditoria 2026-11 (item 36): el servicio devuelve una `Descarga` (bytes);
+    la respuesta HTTP la monta la API.
 
     Starlette envuelve el iterador que se le pasa, y segun la version lo deja
     sincrono o lo convierte en asincrono. Se soportan los dos en vez de
     depender de cual toca.
     """
+    from app.core.descargas import Descarga
+    if isinstance(respuesta, Descarga):
+        return respuesta.contenido
     it = respuesta.body_iterator
     if hasattr(it, "__anext__"):
         import asyncio
@@ -80,7 +85,7 @@ def test_el_nombre_y_el_contenido_no_pueden_discrepar():
     """
     for formato in FORMATOS:
         r = respuesta_tabular(formato, nombre="informe", cabecera=CABECERA, filas=FILAS)
-        assert r.headers["content-disposition"] == f"attachment; filename=informe.{formato}"
+        assert r.cabeceras["Content-Disposition"] == f"attachment; filename=informe.{formato}"
 
 
 def test_los_numeros_van_como_numeros_en_la_hoja():
@@ -103,7 +108,7 @@ def test_los_numeros_van_como_numeros_en_la_hoja():
 
 def test_un_formato_desconocido_es_400_y_no_un_csv_por_defecto():
     """Devolver otra cosa de la que se pide es el defecto que esto cierra."""
-    with pytest.raises((HTTPException, ErrorDeDominio)) as exc:
+    with pytest.raises(ErrorDeDominio) as exc:
         respuesta_tabular("pdf", nombre="x", cabecera=CABECERA, filas=FILAS)
     assert exc.value.status_code == 400
     assert "pdf" in str(exc.value.detail)

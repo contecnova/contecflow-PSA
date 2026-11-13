@@ -55,7 +55,7 @@ export default function ConfigCorreoEntrante() {
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="u-stack-20">
       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 720 }}>{t('sd_cfg.mail_intro')}</div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
@@ -97,10 +97,10 @@ export default function ConfigCorreoEntrante() {
           <div className="u-text3-sm">{t('sd_cfg.mail_log_empty')}</div>
         ) : (
           <div className="u-scroll-x">
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+            <table className="u-table-sm">
               <tbody>
                 {entradas.map(e => (
-                  <tr key={e.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                  <tr key={e.id} className="u-border-b">
                     <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{e.received_at ? new Date(e.received_at).toLocaleString(localeActivo()) : ''}</td>
                     <td style={{ padding: '7px 8px', color: 'var(--text-2)' }}>{e.sender}</td>
                     <td style={{ padding: '7px 8px', fontWeight: 600, color: COLOR_RESULTADO[e.outcome] ?? 'var(--text-2)', whiteSpace: 'nowrap' }}>

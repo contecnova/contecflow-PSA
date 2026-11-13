@@ -108,9 +108,9 @@ function FTSMode() {
       const calls = await Promise.allSettled([
         ents.includes('project')  ? projectsApi.list({ search: q, page: 1, page_size: 8 }).then(r => ({ type: 'project', items: (r.data as unknown as { items?: SearchItem[] })?.items || r.data || [] })) : null,
         ents.includes('task')     ? tasksApi.list({ search: q, page: 1, page_size: 8 }).then(r => ({ type: 'task',    items: (r.data as unknown as { items?: SearchItem[] })?.items || r.data || [] })) : null,
-        ents.includes('client')   ? clientsApi.list({ q, limit: 8 }).then(r => ({ type: 'client',  items: r.data?.items ?? r.data ?? [] })) : null,
+        ents.includes('client')   ? clientsApi.list({ q, limit: 8 }).then(r => ({ type: 'client',  items: r.data ?? [] })) : null,
         ents.includes('ticket')   ? ticketsApi.list({ search: q, page_size: 8 }).then(r => ({ type: 'ticket',  items: r.data?.tickets || r.data?.items || (Array.isArray(r.data) ? r.data : []) })) : null,
-        ents.includes('contract') ? contractsApi.list({ q, limit: 8 }).then(r => ({ type: 'contract', items: r.data?.items || r.data || [] })) : null,
+        ents.includes('contract') ? contractsApi.list({ q, limit: 8 }).then(r => ({ type: 'contract', items: r.data ?? [] })) : null,
       ].filter(Boolean))
       const grouped: GroupedResults = {}
       calls.forEach(c => {
@@ -182,7 +182,7 @@ function FTSMode() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ fontSize: "var(--text-lg)" }}>{etype.icon}</span>
                 <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: etype.color }}>{etype.label}</span>
-                <span style={{ fontSize: "var(--text-xs)", background: alpha(etype.color, '20'), color: etype.color, borderRadius: 10, padding: '1px 7px' }}>
+                <span style={{ fontSize: "var(--text-xs)", background: alpha(etype.color, '20'), color: etype.color, borderRadius: 'var(--radius-md)', padding: '1px 7px' }}>
                   {results[etype.id]!.length}
                 </span>
               </div>
@@ -248,7 +248,7 @@ function NQLMode() {
           <div className="u-wrap-6">
             {EXAMPLES.map((ex, i) => (
               <button key={i} onClick={() => setQuery(ex)}
-                style={{ fontSize: "var(--text-2xs)", padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)',
+                style={{ fontSize: "var(--text-2xs)", padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
                   background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Ejemplo {i+1}
               </button>
@@ -298,7 +298,7 @@ export default function SearchPage() {
         title={_t('search.title')}
         subtitle={_t('search.subtitle')}
         actions={
-          <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 4 }}>
+          <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 4 }}>
             {([['fts', '🔍 Búsqueda rápida'], ['nql', '⚡ NQL avanzado']] as const).map(([id, label]) => (
               <button key={id} onClick={() => setMode(id)}
                 style={{ padding: '7px 16px', borderRadius: 7, border: 'none',

@@ -47,7 +47,7 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
       {isLoading ? <Spinner /> : isError ? <div role="alert" className="u-danger">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div> : l && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: 22 }}>
           <div className="u-stack-16">
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="u-wrap-center-8">
               <span style={{ color: ColorDeEstado(l.estado), border: '1px solid currentColor', borderRadius: 99, padding: '1px 10px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>{t(`lec.estado_${l.estado}`)}</span>
               <span className="u-text2-xs">{t(`lec.tipo_${l.tipo}`)} · {t(`lec.cat_${l.categoria}`, l.categoria)} · {t(`lec.sev_${l.severidad}`)}</span>
               {l.etiquetas && <span className="u-text3-xs">#{l.etiquetas.split(',').map(e => e.trim()).join(' #')}</span>}

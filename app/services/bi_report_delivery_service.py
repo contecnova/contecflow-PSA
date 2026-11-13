@@ -12,6 +12,13 @@ A Celery beat task (`bi_scheduled_delivery_run`) evaluates due schedules
 every hour and dispatches pending deliveries.
 
 AppSetting key: ``bi.delivery.schedules.<org_id>``
+
+Auditoria 2026-11 (#35): convive con `scheduled_reports.py` porque programan
+cosas distintas (ver alli). Lo que comparten es la entrega: Slack/Teams por
+`entrega_saliente.enviar_a_webhook` (antes `httpx.post` sin validar la URL:
+SSRF), el correo por `entrega_saliente.enviar_informe_por_correo` y el PDF
+tabular por `report_pdf.generate_report_pdf` (antes un ReportLab propio sin
+marca de la organizacion).
 """
 from __future__ import annotations
 
@@ -192,6 +199,7 @@ def create_schedule(
     _validate_channels(channels)
     _validate_format(export_format)
     _validate_frequency(frequency)
+    _validate_webhooks({"slack_webhook_url": slack_webhook_url, "teams_webhook_url": teams_webhook_url})
 
     schedules = _get_json(db, SCHEDULES_KEY_TPL, organization_id, default={})
     schedule_id = str(uuid.uuid4())
@@ -245,6 +253,7 @@ def update_schedule(
         _validate_channels(sched["channels"])
     if "export_format" in payload:
         _validate_format(sched["export_format"])
+    _validate_webhooks(payload)
 
     sched["updated_at"] = _iso_now()
     schedules[schedule_id] = sched
@@ -269,6 +278,15 @@ def _validate_channels(channels: List[str]) -> None:
     invalid = [c for c in channels if c not in VALID_CHANNELS]
     if invalid:
         raise ValueError(f"Invalid channels: {invalid}. Supported: {VALID_CHANNELS}")
+
+
+def _validate_webhooks(datos: Dict[str, Any]) -> None:
+    """Auditoria 2026-11 (#35): las URL de Slack/Teams se validan al guardar (400 si son internas)."""
+    from app.core.outbound_url import validate_outbound_url
+
+    for campo in ("slack_webhook_url", "teams_webhook_url"):
+        if datos.get(campo):
+            validate_outbound_url(datos[campo], field=campo)
 
 
 def _validate_format(fmt: str) -> None:
@@ -319,56 +337,24 @@ def _export_to_excel(columns: List[str], rows: List[Dict], sheet_name: str = "Re
     return buf.getvalue()
 
 
-def _export_to_pdf(title: str, columns: List[str], rows: List[Dict]) -> bytes:
-    """Generate PDF bytes using ReportLab (falls back to plain text if unavailable)."""
-    try:
-        from reportlab.lib.pagesizes import A4, landscape  # type: ignore
-        from reportlab.lib import colors  # type: ignore
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer  # type: ignore
-        from reportlab.lib.styles import getSampleStyleSheet  # type: ignore
+def _export_to_pdf(title: str, columns: List[str], rows: List[Dict], paleta=None) -> bytes:
+    """El PDF tabular comun (`report_pdf.generate_report_pdf`), con la marca de la organizacion.
 
-        buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=landscape(A4))
-        styles = getSampleStyleSheet()
-        elems = []
+    Ese generador pone las primeras filas y resume el resto en una nota: para
+    el informe completo esta el formato `xlsx`/`csv`.
+    """
+    from app.services.report_pdf import generate_report_pdf
 
-        elems.append(Paragraph(title, styles["Title"]))
-        elems.append(Spacer(1, 12))
-
-        table_data = [columns]
-        for row in rows[:500]:  # Cap at 500 rows for PDF readability
-            table_data.append([str(row.get(c, "")) for c in columns])
-
-        tbl = Table(table_data, repeatRows=1)
-        tbl.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F2F2F2")]),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ]))
-        elems.append(tbl)
-        doc.build(elems)
-        return buf.getvalue()
-
-    except ImportError:
-        # Fallback: plain-text representation
-        lines = [title, "=" * len(title), "\t".join(columns)]
-        for row in rows[:200]:
-            lines.append("\t".join(str(row.get(c, "")) for c in columns))
-        return "\n".join(lines).encode("utf-8")
+    datos = [{c: row.get(c) for c in columns} for row in rows]
+    return generate_report_pdf(title=title, metric_label="Informe BI", data=datos,
+                               summary={"Filas": len(rows)}, paleta=paleta)
 
 
 # ── Channel senders ────────────────────────────────────────────────────────────
 
 def _send_slack(webhook_url: str, title: str, summary: str, report_url: Optional[str] = None) -> bool:
-    """Post a Slack message via incoming webhook."""
-    try:
-        import httpx  # type: ignore
-    except ImportError:
-        raise ImportError("pip install httpx")
+    """Post a Slack message via incoming webhook (`entrega_saliente`)."""
+    from app.services.entrega_saliente import enviar_a_webhook, mensaje_de_slack
 
     blocks: List[Dict] = [
         {
@@ -385,18 +371,12 @@ def _send_slack(webhook_url: str, title: str, summary: str, report_url: Optional
             "type": "actions",
             "elements": [{"type": "button", "text": {"type": "plain_text", "text": "Ver informe"}, "url": report_url}],
         })
-
-    payload = {"blocks": blocks}
-    resp = httpx.post(webhook_url, json=payload, timeout=10.0)
-    return resp.status_code == 200
+    return enviar_a_webhook(webhook_url, mensaje_de_slack(title, blocks), estados_ok=(200,)).ok
 
 
 def _send_teams(webhook_url: str, title: str, summary: str, report_url: Optional[str] = None) -> bool:
-    """Post an Adaptive Card to Microsoft Teams via incoming webhook."""
-    try:
-        import httpx  # type: ignore
-    except ImportError:
-        raise ImportError("pip install httpx")
+    """Post an Adaptive Card to Microsoft Teams via incoming webhook (`entrega_saliente`)."""
+    from app.services.entrega_saliente import enviar_a_webhook
 
     # Teams Adaptive Card 1.2 format
     card: Dict = {
@@ -422,42 +402,26 @@ def _send_teams(webhook_url: str, title: str, summary: str, report_url: Optional
             }
         ],
     }
-
-    resp = httpx.post(webhook_url, json=card, timeout=10.0)
-    return resp.status_code in (200, 202)
+    return enviar_a_webhook(webhook_url, card, estados_ok=(200, 202)).ok
 
 
 def _send_email(recipients: List[str], subject: str, body_html: str, attachment_bytes: Optional[bytes] = None,
                 attachment_filename: Optional[str] = None) -> bool:
-    """Envia el informe por correo, por SMTP directo.
+    """Envia el informe por correo: `entrega_saliente.enviar_informe_por_correo`.
 
-    Auditoria 2026-08. Antes intentaba primero
-    `from app.services.email_service import send_email`, **modulo que no
-    existe**, asi que el `except` saltaba SIEMPRE y registraba
-    «Primary email_service path failed; falling back to direct SMTP» con traza
-    completa **en cada correo enviado**. El envio funcionaba —el respaldo SMTP
-    de abajo es real— pero el log se llenaba de un fallo que no era un fallo, y
-    eso es peor que no registrar nada: entierra los avisos de verdad.
-
-    Auditoria 2026-11 (hallazgo 20): el envio va por
-    `notification_service.enviar_correo`, el unico emisor SMTP. Antes reusaba
-    un solo mensaje y le iba ANADIENDO una cabecera `To` por destinatario
-    (`msg["To"] = ...` no sustituye), asi que el tercero recibia el informe con
-    los dos anteriores a la vista. Ahora cada destinatario recibe el suyo.
+    Auditoria 2026-11 (hallazgo 20): cada destinatario recibe su propio mensaje
+    (antes el tercero veia a los dos anteriores en `To`). (#35): el mismo
+    camino que `scheduled_reports`.
     """
-    from app.services.notification_service import ServidorSmtp, enviar_correo
+    from app.services.entrega_saliente import enviar_informe_por_correo
 
-    servidor = ServidorSmtp.del_entorno()
-    if not servidor.configurado:
+    adjunto = ((attachment_filename, attachment_bytes, "application/octet-stream")
+               if attachment_bytes and attachment_filename else None)
+    try:
+        return not enviar_informe_por_correo(recipients, subject, body_html, adjunto=adjunto)
+    except RuntimeError:
         logger.warning("SMTP not configured — email delivery skipped")
         return False
-    adjuntos = ([(attachment_filename, attachment_bytes, "application/octet-stream")]
-                if attachment_bytes and attachment_filename else None)
-    ok = True
-    for recipient in recipients:
-        if not enviar_correo(recipient, subject, body_html, adjuntos=adjuntos, servidor=servidor).enviado:
-            ok = False
-    return ok
 
 
 # ── Delivery execution ────────────────────────────────────────────────────────
@@ -528,7 +492,7 @@ def _generar_informe(db: Session, organization_id, preset_id: str, errores: list
 
 
 def _generar_adjunto(preset_id: str, export_format: str, title: str,
-                     columns: list, rows: list, errores: list):
+                     columns: list, rows: list, errores: list, paleta=None):
     """El fichero que se adjunta al correo. Devuelve (bytes, nombre).
 
     Sin columnas no se genera Excel: una hoja sin cabeceras no sirve de nada.
@@ -540,7 +504,7 @@ def _generar_adjunto(preset_id: str, export_format: str, title: str,
             # 31 caracteres es el limite de Excel para el nombre de una hoja.
             return _export_to_excel(columns, rows, sheet_name=title[:31]), f"{preset_id}_{ts}.xlsx"
         if export_format == "pdf":
-            return _export_to_pdf(title, columns, rows), f"{preset_id}_{ts}.pdf"
+            return _export_to_pdf(title, columns, rows, paleta=paleta), f"{preset_id}_{ts}.pdf"
     except Exception as exc:
         logger.exception(
             "Failed to generate report attachment for preset=%s format=%s",
@@ -650,8 +614,12 @@ def send_schedule_now(
     diff = _compute_report_diff(prev_snapshot, columns, rows)
     skipped_no_changes = bool(send_only_on_change and not diff.get("has_changes"))
 
+    paleta = None
+    if export_format == "pdf":
+        from app.services._pdf_marca import PALETA_POR_DEFECTO, marca_de_organizacion
+        paleta = marca_de_organizacion(db, organization_id, base=PALETA_POR_DEFECTO).paleta
     attachment_bytes, attachment_filename = _generar_adjunto(
-        preset_id, export_format, title, columns, rows, errors
+        preset_id, export_format, title, columns, rows, errors, paleta=paleta
     )
 
     summary = (

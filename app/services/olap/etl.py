@@ -18,7 +18,7 @@ from app.core.config import settings
 
 
 def _resolve_duckdb_path() -> str:
-    env_path = os.getenv("DUCKDB_PATH")
+    env_path = settings.DUCKDB_PATH
     if env_path:
         return env_path
 

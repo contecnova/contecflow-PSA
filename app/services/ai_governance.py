@@ -158,10 +158,6 @@ def detect_pii(text: str) -> List[PIIMatch]:
     return matches
 
 
-def has_pii(text: str) -> bool:
-    return bool(detect_pii(text))
-
-
 # ── PII Redactor ──────────────────────────────────────────────────────────────
 
 def _mask_value(value: str, entity_type: str, strategy: str) -> str:

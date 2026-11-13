@@ -37,7 +37,7 @@ const COLOR: Record<Conector['status'], string> = { connected: 'var(--success)',
 const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color,
   background: `color-mix(in srgb, ${color} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-  borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap',
+  borderRadius: 'var(--radius-full)', padding: '2px 9px', whiteSpace: 'nowrap',
 })
 const campo: React.CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 
@@ -48,7 +48,7 @@ function Campos({ ficha, valores, puestos, onChange }: { ficha: Ficha; valores: 
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
       {ficha.campos.map(c => (
         <label key={c.clave} style={{ display: 'grid', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
-          <span style={{ fontFamily: 'var(--font-mono)' }}>{c.clave}</span>
+          <span className="u-mono">{c.clave}</span>
           <input type={c.secreto ? 'password' : 'text'} autoComplete="off" style={campo} value={valores[c.clave] ?? ''}
             placeholder={c.secreto && puestos.includes(c.clave) ? t('etl.secreto_puesto') : ''}
             onChange={e => onChange(c.clave, e.target.value)} />
@@ -163,16 +163,16 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
   }
   const Icono = c.status === 'error' ? AlertCircle : CheckCircle
   return (
-    <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px', display: 'grid', gap: 10 }}>
+    <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px', display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Icono size={16} style={{ color: COLOR[c.status], flexShrink: 0 }} />
         <div className="u-flex1-min0">
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{c.nombre}</div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{c.connector_id} · {c.entity}</div>
+          <div className="u-text1-sm-600">{c.nombre}</div>
+          <div className="u-text3-mono-xs">{c.connector_id} · {c.entity}</div>
         </div>
         <span style={chip(COLOR[c.status])}>{t(`etl.estado_${c.status}`)}</span>
       </div>
-      {c.falta && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>{t('etl.falta_paquete')} <code style={{ fontFamily: 'var(--font-mono)' }}>{c.falta}</code></div>}
+      {c.falta && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>{t('etl.falta_paquete')} <code className="u-mono">{c.falta}</code></div>}
       {c.last_error && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', overflowWrap: 'anywhere' }}>{c.last_error}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
         <span>{t('etl.ultimo_sync')}: <span className="u-text2">{c.last_sync_at ? new Date(c.last_sync_at).toLocaleString(localeActivo()) : t('etl.nunca')}</span></span>

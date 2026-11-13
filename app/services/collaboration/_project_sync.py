@@ -98,18 +98,3 @@ def on_project_created(db: Session, project, creator) -> None:
         payload={"project_id": project.id, "code": project.code},
     )
 
-
-def ensure_project_channel(db: Session, user, project_id: str) -> str | None:
-    """Devuelve channel_id del proyecto, creándolo si no existe (idempotente)."""
-    from app.models.collaboration import CollaborationChannel
-    from app.models.project import Project
-    ch = db.query(CollaborationChannel).filter(CollaborationChannel.project_id == project_id).first()
-    if ch:
-        return ch.id
-    p = db.query(Project).filter(Project.id == project_id).first()
-    if not p:
-        return None
-    on_project_created(db, p, user)
-    db.commit()
-    ch = db.query(CollaborationChannel).filter(CollaborationChannel.project_id == project_id).first()
-    return ch.id if ch else None

@@ -127,7 +127,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
     <div>
       {/* Search box */}
       <div style={{ position: 'relative', marginBottom: 8 }}>
-        <input
+        <input aria-label="Buscar campos..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar campos..."
@@ -322,7 +322,7 @@ function BiPresetsTab() {
   }
 
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <span style={{ fontWeight: 700, fontSize: '1rem' }}>Presets BI</span>
         <span className="u-text3-xs">{items.length} presets disponibles</span>
@@ -355,7 +355,7 @@ function BiPresetsTab() {
         </div>
         {previewData && (
           <div className="u-scroll-x">
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+            <table className="u-table-sm">
               <thead>
                 <tr style={{ background: 'var(--surface-3)' }}>
                   {(previewData.columns || []).map(c => (
@@ -365,7 +365,7 @@ function BiPresetsTab() {
               </thead>
               <tbody>
                 {(previewData.rows || []).map((row, ri) => (
-                  <tr key={ri} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                  <tr key={ri} className="u-border-b">
                     {(previewData.columns || []).map(c => <td key={c} style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{(row[c] ?? '—') as ReactNode}</td>)}
                   </tr>
                 ))}
@@ -536,17 +536,17 @@ export default function ReportBuilderPage() {
               {traducir('reportbuilder.no_hay_plantillas_guardadas_crea_un_informe')}
             </div>
           ) : templates.map(t => (
-            <div key={t.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
+            <div key={t.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
               <div className="u-flex1-min0">
                 <div style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', fontWeight: 600 }}>{t.name}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
+                <div className="u-text2-xs-mt2">
                   {entities[t.query?.entity || '']?.label || t.query?.entity}
                   {' · '}{(t.query?.columns || []).length} columnas
                   {' · '}{(t.query?.filters || []).length} filtros
                 </div>
               </div>
               <button onClick={() => loadTemplate(t)}
-                style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 6, color: 'var(--info)', padding: '6px 14px', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
+                style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 'var(--radius-sm)', color: 'var(--info)', padding: '6px 14px', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                 Cargar
               </button>
               <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar plantilla?', onConfirm: () => deleteTpl(t.id), danger: true }) }}
@@ -559,7 +559,7 @@ export default function ReportBuilderPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
           {/* ── Left panel ── */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Entity selector */}
             <div>
@@ -648,7 +648,7 @@ export default function ReportBuilderPage() {
           {/* ── Right panel ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
             {/* Toolbar */}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="u-wrap-center-8">
               {preview && (
                 <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', flex: 1, minWidth: 120 }}>
                   {preview.count} fila{preview.count !== 1 ? 's' : ''}
@@ -689,7 +689,7 @@ export default function ReportBuilderPage() {
             </div>
 
             {/* Preview table */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', minHeight: 200 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', minHeight: 200 }}>
               <PreviewTable rows={preview?.rows} columns={resolvedColumns} entityDef={entityDef} />
             </div>
           </div>

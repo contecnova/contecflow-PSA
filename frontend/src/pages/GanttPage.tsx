@@ -180,8 +180,8 @@ export default function GanttPage(): JSX.Element {
           title={t('gantt.title')}
           subtitle={t('gantt.subtitle')}
           actions={
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
+            <div className="u-wrap-center-8">
+              <input aria-label={t('gantt.filter_ph')}
                 placeholder={t('gantt.filter_ph')}
                 value={filter}
                 onChange={e => setFilter(e.target.value)}

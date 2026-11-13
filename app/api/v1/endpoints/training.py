@@ -15,6 +15,7 @@ from app.services.training_service import (
     serialize_certification as _ser_cert,
 )
 from app.schemas.training import CourseIn, EnrollmentIn, CertificationIn
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(tags=["Training"])
 
@@ -22,7 +23,7 @@ router = APIRouter(tags=["Training"])
 @router.get("/courses", response_model=APIListResponse[dict], summary="Listar cursos")
 def list_courses(category: Optional[str] = None,
                  page: int = Query(1, ge=1),
-                 page_size: int = Query(50, ge=1, le=200),
+                 page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
                  db: Session = Depends(get_db),
                  cu: User = Depends(get_current_user), response: Response = None):
     items = [_ser_course(c) for c in training_service.list_courses(db, category=category)]
@@ -61,7 +62,7 @@ def delete_course(course_id: str, db: Session = Depends(get_db),
 def list_enrollments(user_id: Optional[str] = None, course_id: Optional[str] = None,
                      status: Optional[str] = None,
                      page: int = Query(1, ge=1),
-                     page_size: int = Query(50, ge=1, le=200),
+                     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
                      db: Session = Depends(get_db),
                      cu: User = Depends(get_current_user), response: Response = None):
     items = [_ser_enrollment(e) for e in training_service.list_enrollments(
@@ -100,7 +101,7 @@ def delete_enrollment(enroll_id: str, db: Session = Depends(get_db),
 @router.get("/certifications", response_model=APIListResponse[dict], summary="Certificaciones de usuarios")
 def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[int] = None,
                         page: int = Query(1, ge=1),
-                        page_size: int = Query(50, ge=1, le=200),
+                        page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
                         db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     # Revisión 2026-11: fuera de los gestores, cada uno ve sólo las suyas.
     if getattr(cu.role, "value", cu.role) not in ("admin", "hr", "pm", "team_lead"):

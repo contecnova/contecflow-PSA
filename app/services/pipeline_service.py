@@ -314,8 +314,7 @@ def create_stage_config(db: Session, payload_dict: dict) -> PipelineStageConfig:
         PipelineStageConfig.stage_key == payload_dict["stage_key"]
     ).first()
     if existing:
-        from fastapi import status
-        raise ErrorDeDominio(status_code=status.HTTP_409_CONFLICT, detail=f"La etapa '{payload_dict['stage_key']}' ya existe")
+        raise ErrorDeDominio(status_code=409, detail=f"La etapa '{payload_dict['stage_key']}' ya existe")
     stage = PipelineStageConfig(**payload_dict)
     db.add(stage)
     db.commit()

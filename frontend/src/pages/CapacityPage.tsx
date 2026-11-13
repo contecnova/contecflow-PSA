@@ -4,7 +4,7 @@
  * Matriz: usuarios (filas) × semanas (columnas)
  * Permite arrastrar bloques de horas de un usuario/semana a otro.
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -94,6 +94,7 @@ function weekLabel(dateStr: string) {
 
 // ── Modal de nueva asignación ─────────────────────────────────────────────────
 function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -146,24 +147,24 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
     <Modal open title={t('capacity.nueva_asignacion')} onClose={onClose} width={460}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         <div>
-          <label style={ls}>Persona *</label>
-          <select value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Persona *</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
             <option value="">Seleccionar...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
           {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
         </div>
         <div>
-          <label style={ls}>Proyecto</label>
-          <select value={form.project_id} onChange={setField('project_id')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Proyecto</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} style={fs}>
             <option value="">{t('capacity.sin_proyecto_disponible')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div className="u-grid2-12">
           <div>
-            <label style={ls}>Semana</label>
-            <DateInput value={form.week_start}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Semana</label>
+            <DateInput id={`${idCampo}-3`} value={form.week_start}
               onChange={e => {
                 setForm(current => ({ ...current, week_start: monday(e.target.value) }))
                 validation.clearFieldError('week_start')
@@ -171,8 +172,8 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
             {validation.errors.week_start && <div className="u-field-error">{validation.errors.week_start}</div>}
           </div>
           <div>
-            <label style={ls}>Horas planificadas</label>
-            <input type="number" value={form.planned_hours} min="1" max="80" step="0.5"
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Horas planificadas</label>
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.planned_hours} min="1" max="80" step="0.5"
               onChange={setField('planned_hours')} style={validation.inputStyle(fs, 'planned_hours')} />
             {validation.errors.planned_hours && <div className="u-field-error">{validation.errors.planned_hours}</div>}
           </div>
@@ -183,7 +184,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
         </div>
       </div>
       <div className="u-actions-8">
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+        <button onClick={onClose} className="u-btn-outline-sm">Cancelar</button>
         <Button onClick={submit} loading={isPending} disabled={isPending}>
           Asignar
         </Button>
@@ -418,7 +419,7 @@ export default function CapacityPage(): JSX.Element {
       ) : displayUsers.length === 0 ? (
         <EmptyState icon="👥" title={t('capacity.sin_personas_disponibles')} description="No hay recursos que coincidan con el filtro actual" />
       ) : (
-        <div style={{ overflowX: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: 16 }}>
+        <div style={{ overflowX: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: 16 }}>
           <table style={{ borderCollapse: 'separate', borderSpacing: '4px 4px', minWidth: '100%' }}>
             <thead>
               <tr>

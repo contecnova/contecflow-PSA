@@ -17,6 +17,7 @@ from app.services.collaboration._permissions import _org, assert_conversation_ac
 from app.services.traffic_control_service import consume_quota
 from app.core.responses import APIListResponse, APIResponse
 import logging
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ MSG_CONV_LIMIT_PER_MIN = 160
 def list_messages(
     conversation_id: str,
     before: Optional[str] = None,
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     thread_root: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

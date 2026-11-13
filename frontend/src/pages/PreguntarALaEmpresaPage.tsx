@@ -134,7 +134,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
   return (
     <div className="u-stack-14">
       <form style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={e => { e.preventDefault(); enviar() }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="u-wrap-center-8">
           <label style={sub} htmlFor="ci-fuente">{t('ci.fuente')}</label>
           {fuentes.isError
             ? <span role="alert" style={{ ...sub, color: 'var(--danger)' }}>{mensajeDeConector(fuentes.error, t('ci.error'))}</span>
@@ -222,7 +222,7 @@ function Datos({ g }: { g: Grafico }) {
         </div>
       )}
       <div style={{ overflow: 'auto', maxHeight: 360 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+        <table className="u-table-sm">
           <thead><tr>{columnas.map(c => <th key={c} style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--surface-3)' }}>{c}</th>)}</tr></thead>
           <tbody>{(g.data ?? []).slice(0, 500).map((d, i) => (
             <tr key={i}>{columnas.map(c => <td key={c} style={{ padding: '5px 8px', borderBottom: '1px solid var(--surface-2)', color: 'var(--text-1)', fontFamily: typeof d[c] === 'number' ? 'var(--font-mono)' : undefined, textAlign: typeof d[c] === 'number' ? 'right' : 'left' }}>{valorTexto(d[c])}</td>)}</tr>
@@ -288,7 +288,7 @@ function DetalleMetrica({ m }: { m: Metrica }) {
         <div style={{ fontWeight: 700, color: 'var(--text-1)' }}>{m.label}</div>
         <div style={sub}>{m.description}</div>
       </div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="u-wrap-center-8">
         <label style={sub} htmlFor="ci-dim">{t('ci.desglose')}</label>
         <select id="ci-dim" value={dim} onChange={e => setDim(e.target.value)} style={campo}>
           <option value="">{t('ci.sin_desglose')}</option>
@@ -307,7 +307,7 @@ function DetalleMetrica({ m }: { m: Metrica }) {
 
       <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <strong className="u-sm">{t('ci.explicar_cambio')}</strong>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="u-wrap-center-8">
           <input aria-label={t('ci.columna_fecha')} placeholder={t('ci.columna_fecha')} value={col} onChange={e => setCol(e.target.value)} style={campo} />
           <span style={sub}>{t('ci.periodo_actual')}</span>
           <DateInput aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} style={campo} />

@@ -1,7 +1,7 @@
 /**
  * ImportPage — Importación masiva de datos desde CSV/Excel
  */
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { importApi } from '../services/api'
@@ -53,6 +53,7 @@ const card: CSSProperties = { background:'var(--surface-2)', border:'1px solid v
 
 // ── Import Tab ────────────────────────────────────────────────────────────────
 function ImportTab() {
+  const idCampo = useId()
   const t = useAppT()
   const [entityType, setEntityType] = useState('projects')
   const [step, setStep] = useState<'select' | 'validate' | 'result'>('select')
@@ -154,8 +155,8 @@ function ImportTab() {
             <div style={{fontSize: "var(--text-md)",fontWeight:700,marginBottom:16}}>{t('import_data.title_panel')}</div>
 
             <div className="u-mb-16">
-              <label style={ls}>{t('import_data.type_label')}</label>
-              <select value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }} style={fs}>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('import_data.type_label')}</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }} style={fs}>
                 {Object.entries(ENTITY_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -167,15 +168,15 @@ function ImportTab() {
                   {template.columns.join(' | ')}
                 </div>
                 <button onClick={downloadTemplate}
-                  style={{marginTop:10,background:'transparent',border:'1px solid var(--accent-border-strong)',borderRadius:6,padding:'5px 12px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
+                  style={{marginTop:10,background:'transparent',border:'1px solid var(--accent-border-strong)',borderRadius:'var(--radius-sm)',padding:'5px 12px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
                   ⬇ {t('import_data.download_template')}
                 </button>
               </div>
             )}
 
             <div>
-              <label style={ls}>{t('import_data.file_label')}</label>
-              <input ref={fileRef} type="file" accept=".csv,.txt"
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('import_data.file_label')}</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} ref={fileRef} type="file" accept=".csv,.txt"
                 onChange={e => { if(e.target.files![0]) { setStep('select'); setValidation(null); setResult(null) } }}
                 style={{...fs,padding:'7px'}} />
             </div>
@@ -214,8 +215,8 @@ function ImportTab() {
                 {validation.valid ? t('import_data.file_valid') : t('import_data.validation_errors')}
               </div>
               <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginBottom:10}}>{validation.total_rows} {t('import_data.rows_detected')}</div>
-              {validation.warnings?.map((w,i) => <div key={i} style={{background:'var(--warning-bg)',border:'1px solid var(--warning-border)',borderRadius:6,padding:'6px 10px',color:'var(--warning)',fontSize: "var(--text-sm)",marginBottom:6}}>⚠ {t('import_data.warning')} {w}</div>)}
-              {validation.errors?.map((e,i) => <div key={i} style={{background:'var(--danger-bg)',border:'1px solid var(--danger-border)',borderRadius:6,padding:'6px 10px',color:'var(--danger)',fontSize: "var(--text-sm)",marginBottom:6}}>✗ {t('import_data.row')} {e.row}: {e.error}</div>)}
+              {validation.warnings?.map((w,i) => <div key={i} style={{background:'var(--warning-bg)',border:'1px solid var(--warning-border)',borderRadius:'var(--radius-sm)',padding:'6px 10px',color:'var(--warning)',fontSize: "var(--text-sm)",marginBottom:6}}>⚠ {t('import_data.warning')} {w}</div>)}
+              {validation.errors?.map((e,i) => <div key={i} style={{background:'var(--danger-bg)',border:'1px solid var(--danger-border)',borderRadius:'var(--radius-sm)',padding:'6px 10px',color:'var(--danger)',fontSize: "var(--text-sm)",marginBottom:6}}>✗ {t('import_data.row')} {e.row}: {e.error}</div>)}
               {(validation.preview ?? []).length > 0 && (
                 <div style={{marginTop:12,fontSize: "var(--text-xs)",color:'var(--text-2)'}}>
                   <div style={{fontWeight:700,marginBottom:6}}>{t('import_data.preview')}</div>

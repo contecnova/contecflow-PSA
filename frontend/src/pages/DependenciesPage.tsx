@@ -1,4 +1,4 @@
-import { CSSProperties, useState, useMemo } from 'react'
+import { CSSProperties, useState, useMemo, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -74,6 +74,7 @@ const _EPIC_DEP_TYPES = [
 const STATUS_COLOR: Record<string, string> = {todo:'var(--text-2)',in_progress:'var(--accent)',done:'var(--success)',blocked:'var(--danger)',in_review:'var(--warning)'}
 
 function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: TaskItem[]; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT();
   const qc = useQueryClient();
   const toast = useToast();
@@ -97,15 +98,15 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label style={ls}>{t('dependencies.from_task')}</label>
-            <select style={is} value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('dependencies.from_task')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.map(tk => <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>{t('dependencies.to_task')}</label>
-            <select style={is} value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('dependencies.to_task')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.filter(tk => String(tk.id) !== form.predecessor_id).map(tk => (
                 <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>))}
@@ -135,8 +136,8 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
         <div className="u-grid2-12">
           <div>
-            <label style={ls}>{t('dependencies.dias_de_lag_retraso')}</label>
-            <input type="number" style={is} value={form.lag_days} min={0}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('dependencies.dias_de_lag_retraso')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" style={is} value={form.lag_days} min={0}
               onChange={e => set('lag_days')(+e.target.value)} />
             <div className="u-hint">{t('dependencies.dias_extra_tras_cumplir_la_condicion')}</div>
           </div>
@@ -202,7 +203,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                 {node.title}
               </div>
               <div>
-                <span style={{fontSize: "var(--text-2xs)", padding:'2px 6px', borderRadius:10,
+                <span style={{fontSize: "var(--text-2xs)", padding:'2px 6px', borderRadius:'var(--radius-md)',
                   background:alpha(sc, '20'), color:sc}}>{node.status}</span>
               </div>
               <div style={{display:'flex', flexDirection:'column', gap:4}}>
@@ -235,7 +236,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                   <span style={{color:'var(--surface-4)', fontSize: "var(--text-xs)"}}>{t('dependencies.sin_dependencias')}</span>
                 )}
               </div>
-              <div style={{fontSize: "var(--text-2xs)", color:'var(--text-2)'}}>
+              <div className="u-text2-2xs">
                 {isBlocking && <div className="u-danger">⬆ bloquea</div>}
                 {isBlocked  && <div className="u-warning">⬇ bloqueada</div>}
               </div>
@@ -248,6 +249,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
 }
 
 export default function DependenciesPage(): JSX.Element {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -311,8 +313,8 @@ export default function DependenciesPage(): JSX.Element {
       <div style={{...ps, marginBottom:20}}>
         <div style={{display:'grid', gridTemplateColumns:'1fr auto', gap:12, alignItems:'flex-end'}}>
           <div>
-            <label style={ls}>Proyecto</label>
-            <select value={project} onChange={e => setProject(e.target.value)} style={is}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Proyecto</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={is}>
               <option value="">{t('dependencies.selecciona_un_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -360,9 +362,9 @@ export default function DependenciesPage(): JSX.Element {
             <div style={ps}>
               {edges.length === 0 ? (
                 <div style={{textAlign:'center', padding:'48px 24px'}}>
-                  <div style={{fontSize: "var(--text-6xl)", marginBottom:16}}>🔗</div>
+                  <div className="u-empty-icon">🔗</div>
                   <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>{t('dependencies.sin_dependencias_2')}</div>
-                  <div style={{fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:20}}>
+                  <div className="u-text2-base-mb20">
                     {t('dependencies.define_que_tareas_bloquean_a_otras_para')}
                   </div>
                   <Button onClick={() => setShowForm(true)}>+ Crear primera dependencia</Button>
@@ -370,7 +372,7 @@ export default function DependenciesPage(): JSX.Element {
               ) : (
                 <table style={{width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)"}}>
                   <thead>
-                    <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
+                    <tr className="u-border-b">
                       {['Tarea A','Tipo','Tarea B','Lag','Nota',''].map(h => (
                         <th key={h} style={{textAlign:'left', padding:'8px 12px', fontSize: "var(--text-xs)", color:'var(--text-2)',
                           textTransform:'uppercase', letterSpacing:'.06em'}}>{h}</th>
@@ -390,7 +392,7 @@ export default function DependenciesPage(): JSX.Element {
                               {e.from_task_status}
                             </div>
                           </td>
-                          <td style={{padding:'10px 12px'}}>
+                          <td className="u-pad-10-12">
                             <span style={{fontSize: "var(--text-xs)", padding:'3px 8px', borderRadius:20,
                               background:alpha((dt?.color||'var(--text-2)'), '20'), color:dt?.color||'var(--text-2)', fontWeight:600}}>
                               {dt?.label}
@@ -412,9 +414,9 @@ export default function DependenciesPage(): JSX.Element {
                               {e.note || '—'}
                             </div>
                           </td>
-                          <td style={{padding:'10px 12px'}}>
+                          <td className="u-pad-10-12">
                             <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta dependencia?', onConfirm: () => deleteEdge(e.id), danger: true }) }}
-                              style={{background:'none', border:'1px solid var(--danger-border)', borderRadius:6,
+                              style={{background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)',
                                 padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
                               ✕
                             </button>

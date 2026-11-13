@@ -8,7 +8,6 @@ import secrets
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -95,8 +94,8 @@ def generate_scim_token(db: Session, org_id: str) -> str:
 
 
 def _is_dev_or_test() -> bool:
-    import os
-    if os.environ.get("TESTING") == "1" or os.environ.get("PYTEST_CURRENT_TEST"):
+    from app.core.entorno import ejecutando_pytest, en_pruebas
+    if en_pruebas() or ejecutando_pytest():
         return True
     env = (settings.ENVIRONMENT or "").lower()
     return env in ("development", "dev", "test", "testing", "local")
@@ -448,7 +447,7 @@ def process_bulk_operation(
         from app.services.organizations_service import exigir_cupo
         try:
             exigir_cupo(db, org_id, "users")
-        except (HTTPException, ErrorDeDominio) as e:
+        except ErrorDeDominio as e:
             raise ValueError(str(e.detail)) from e
         role = parse_role(((data.get("roles") or [{}])[0] or {}).get("value"))
         new_user = User(
@@ -663,14 +662,3 @@ def process_bulk_operations(
 # conserva porque el aprovisionamiento SCIM en bloque es una funcionalidad
 # declarada de la plataforma, pero nadie la invoca hoy — no asumir que está en
 # uso.
-def scim_bulk_error(bulk_id, status, detail) -> dict:
-    return {
-        "method": "UNKNOWN",
-        "bulkId": bulk_id,
-        "status": str(status),
-        "response": {
-            "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
-            "status": str(status),
-            "detail": detail,
-        }
-    }

@@ -503,36 +503,29 @@ def _called_service_sources(endpoint) -> str:
 #: La regla del trinquete es la de siempre en este repo: **la lista sólo puede
 #: encoger**. Una ruta nueva en esta situación rompe el test; una que se arregle
 #: y no se quite de aquí, también.
-ABAC_UNICO_CONTROL_CONOCIDAS = {
-    # Auditoria 2026-09, segunda pasada: de 24 rutas a 1.
-    #
-    # De las 24, **ocho no tenian el problema**: el control existia y el
-    # detector no sabia leerlo. Cada limite esta arreglado y documentado donde
-    # vive: `_acota_por_propiedad` (el id del llamante baja y se compara contra
-    # una columna de propiedad), `TRAMPOLINES` (funciones que se pasan a
-    # `run_in_threadpool` en vez de llamarse) y la propiedad escrita en la
-    # clave de `AppSetting` en vez de en una columna.
-    #
-    # Las otras quince llevan ya una guarda de rol, con el motivo escrito junto
-    # a cada una. El criterio, para que se pueda discutir: **borrar no puede
-    # ser mas facil que crear**. Donde crear ya exigia gestor (ALM) la guarda
-    # es la misma; donde crear esta abierto y la operacion es la inversa exacta
-    # y reversible (vinculos entre tickets, etiquetas de wiki) se excluye solo
-    # al subcontratista; y donde la operacion es de gestion por naturaleza
-    # (capacidad, clientes, activos, cambios) se exige gestor. `esign` es el
-    # unico con control de propiedad y no de rol, porque crear la solicitud
-    # esta abierto y un `require_any_manager` habria atrapado al solicitante.
-    #
-    # Queda una, y no se arregla con una guarda:
-    "DELETE /api/v1/marketplace/uninstall",
-    # Ese endpoint **no hace nada**: su cuerpo entero es `return
-    # APIResponse.ok(data={"result": "ok"})`. Todo el router de marketplace lo
-    # es —`POST /install` tampoco instala nada y `GET /instances` devuelve
-    # siempre la lista vacia—. Ponerle una guarda de rol seria teatro: protege
-    # un no-op y deja la impresion, en la siguiente auditoria, de que ahi hay
-    # algo resuelto. El hallazgo de verdad es que el modulo es una fachada, y
-    # esta anotado como tal en el traspaso. Se guarda el dia que haga algo.
-}
+ABAC_UNICO_CONTROL_CONOCIDAS: set[str] = set()
+# Auditoria 2026-09, segunda pasada: de 24 rutas a 1.
+#
+# De las 24, **ocho no tenian el problema**: el control existia y el
+# detector no sabia leerlo. Cada limite esta arreglado y documentado donde
+# vive: `_acota_por_propiedad` (el id del llamante baja y se compara contra
+# una columna de propiedad), `TRAMPOLINES` (funciones que se pasan a
+# `run_in_threadpool` en vez de llamarse) y la propiedad escrita en la
+# clave de `AppSetting` en vez de en una columna.
+#
+# Las otras quince llevan ya una guarda de rol, con el motivo escrito junto
+# a cada una. El criterio, para que se pueda discutir: **borrar no puede
+# ser mas facil que crear**. Donde crear ya exigia gestor (ALM) la guarda
+# es la misma; donde crear esta abierto y la operacion es la inversa exacta
+# y reversible (vinculos entre tickets, etiquetas de wiki) se excluye solo
+# al subcontratista; y donde la operacion es de gestion por naturaleza
+# (capacidad, clientes, activos, cambios) se exige gestor. `esign` es el
+# unico con control de propiedad y no de rol, porque crear la solicitud
+# esta abierto y un `require_any_manager` habria atrapado al solicitante.
+#
+# Quedaba una, `DELETE /api/v1/marketplace/uninstall`: no hacia nada (todo el
+# router de marketplace era una fachada). Segunda auditoria 2026-11: el modulo
+# se borro entero, sin llamadas desde el frontend ni documentacion.
 
 
 

@@ -91,7 +91,7 @@ type SharedViewsSort = 'date_desc' | 'date_asc' | 'author_asc' | 'name_asc'
 type FieldSensitivityLevel = 'low' | 'medium' | 'high' | 'critical' | 'pii'
 
 const S = {
-  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, overflow: 'hidden' } as CSSProperties,
+  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' } as CSSProperties,
   cardPad:     { padding: '20px 24px' } as CSSProperties,
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' } as CSSProperties,
   btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
@@ -279,7 +279,7 @@ export default function DataGovernancePage(): JSX.Element {
       showListExport={false}
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="u-stack-20">
 
         <BiGdprPanel />
         <BiGovernancePanel />
@@ -292,8 +292,8 @@ export default function DataGovernancePage(): JSX.Element {
             <div style={S.card}>
               <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
                 <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.auditoria_de_accesos')}</span>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input value={govAuditUserFilter} onChange={e => setGovAuditUserFilter(e.target.value)} placeholder={t('datagovernance.filtrar_por_user_id')}
+                <div className="u-row-center-6">
+                  <input aria-label={t('datagovernance.filtrar_por_user_id')} value={govAuditUserFilter} onChange={e => setGovAuditUserFilter(e.target.value)} placeholder={t('datagovernance.filtrar_por_user_id')}
                     style={{ ...S.input, width: 130, padding: '5px 10px', fontSize: 'var(--text-xs)' }} />
                   <button onClick={() => setGovAuditTick(x => x + 1)} style={{ ...S.btnSecondary, padding: '5px 10px', fontSize: 'var(--text-xs)' }}>Filtrar</button>
                 </div>
@@ -304,7 +304,7 @@ export default function DataGovernancePage(): JSX.Element {
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {govAuditItems.slice(0, 20).map((ev, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
-                          <span style={{ fontSize: 'var(--text-2xs)', background: alpha(COLOR.info, '18'), color: COLOR.info, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
+                          <span style={{ fontSize: 'var(--text-2xs)', background: alpha(COLOR.info, '18'), color: COLOR.info, borderRadius: 'var(--radius-sm)', padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
                           <div className="u-flex1-min0">
                             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.resource || '—'}</div>
                             <div className="u-text3-2xs">{ev.user_id || '—'} · {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString(localeActivo()) : '—'}</div>
@@ -324,9 +324,9 @@ export default function DataGovernancePage(): JSX.Element {
               </div>
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input value={newLineageSource} onChange={e => setNewLineageSource(e.target.value)} placeholder="Tabla origen" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
+                  <input aria-label="Tabla origen" value={newLineageSource} onChange={e => setNewLineageSource(e.target.value)} placeholder="Tabla origen" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
                   <span className="u-text3">→</span>
-                  <input value={newLineageTarget} onChange={e => setNewLineageTarget(e.target.value)} placeholder="Tabla destino" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
+                  <input aria-label="Tabla destino" value={newLineageTarget} onChange={e => setNewLineageTarget(e.target.value)} placeholder="Tabla destino" style={{ ...S.input, flex: 1, minWidth: 80, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
                   <button onClick={handleAddLineageEdge} style={{ ...S.btnAccentOutline(), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>{t('datagovernance.anadir')}</button>
                 </div>
                 {govLineageItems.length === 0
@@ -352,8 +352,8 @@ export default function DataGovernancePage(): JSX.Element {
               </div>
               <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <input value={newFieldDataset} onChange={e => setNewFieldDataset(e.target.value)} placeholder="Dataset ID" style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
-                  <input value={newFieldName} onChange={e => setNewFieldName(e.target.value)} placeholder="Campo (ej. email)" style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
+                  <input aria-label="Dataset ID" value={newFieldDataset} onChange={e => setNewFieldDataset(e.target.value)} placeholder="Dataset ID" style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
+                  <input aria-label="Campo (ej. email)" value={newFieldName} onChange={e => setNewFieldName(e.target.value)} placeholder="Campo (ej. email)" style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
                   <select value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value as FieldSensitivityLevel)} style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }}>
                     {(['low', 'medium', 'high', 'critical', 'pii'] as FieldSensitivityLevel[]).map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -366,7 +366,7 @@ export default function DataGovernancePage(): JSX.Element {
                         const sc = f.sensitivity === 'critical' || f.sensitivity === 'pii' ? COLOR.danger : f.sensitivity === 'high' ? COLOR.warning : COLOR.success
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
-                            <span style={{ fontSize: 'var(--text-2xs)', background: alpha(sc, '18'), color: sc, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>{f.sensitivity || '—'}</span>
+                            <span style={{ fontSize: 'var(--text-2xs)', background: alpha(sc, '18'), color: sc, borderRadius: 'var(--radius-sm)', padding: '2px 7px', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>{f.sensitivity || '—'}</span>
                             <div className="u-flex1-min0">
                               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.field_name || '—'}</div>
                               <div className="u-text3-2xs">{f.dataset_id || '—'}</div>
@@ -394,12 +394,12 @@ export default function DataGovernancePage(): JSX.Element {
             </div>
             <div style={{ ...S.cardPad, display: 'grid', gap: 10 }}>
               <div className="u-row-8">
-                <input value={sharedViewName} onChange={e => setSharedViewName(e.target.value)} placeholder={t('datagovernance.nombre_de_la_vista')}
+                <input aria-label={t('datagovernance.nombre_de_la_vista')} value={sharedViewName} onChange={e => setSharedViewName(e.target.value)} placeholder={t('datagovernance.nombre_de_la_vista')}
                   style={{ ...S.input, flex: 1 }} />
                 <button onClick={handleCreateSharedView} style={S.btnAccentOutline(COLOR.success)}>Guardar vista</button>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <input value={sharedViewsSearch} onChange={e => setSharedViewsSearch(e.target.value)} placeholder="Buscar vista..."
+              <div className="u-wrap-center-8">
+                <input aria-label="Buscar vista..." value={sharedViewsSearch} onChange={e => setSharedViewsSearch(e.target.value)} placeholder="Buscar vista..."
                   style={{ ...S.input, flex: 1, minWidth: 160 }} />
                 <select value={sharedViewsSort} onChange={e => setSharedViewsSort(e.target.value as SharedViewsSort)} style={{ ...S.input, width: 'auto' }}>
                   <option value="date_desc">{t('datagovernance.mas_recientes')}</option>
@@ -420,7 +420,7 @@ export default function DataGovernancePage(): JSX.Element {
                   : sortedSharedViews.map(v => (
                       <div key={v.id} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <div>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
+                          <div className="u-text1-sm-600">{v.name}</div>
                           <div className="u-text3-2xs">{v.dashboard_key} · {v.created_by_name || '—'} · {v.active === false ? 'inactiva' : 'activa'}</div>
                         </div>
                         <div className="u-row-6">
@@ -448,7 +448,7 @@ export default function DataGovernancePage(): JSX.Element {
                 <option value="profit_table">{t('datagovernance.rentabilidad_por_proyecto')}</option>
                 <option value="ai_narrative">Narrativa IA</option>
               </select>
-              <textarea value={commentText} onChange={e => setCommentText(e.target.value)} rows={3}
+              <textarea aria-label={t('datagovernance.anade_un_comentario_para_este_widget')} value={commentText} onChange={e => setCommentText(e.target.value)} rows={3}
                 placeholder={t('datagovernance.anade_un_comentario_para_este_widget')}
                 style={{ ...S.input, resize: 'vertical' }} />
               <button onClick={handleCreateComment} style={S.btnAccentOutline()}>Guardar comentario</button>
@@ -478,7 +478,7 @@ export default function DataGovernancePage(): JSX.Element {
           <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('datagovernance.bookmarks_de_dashboard')}</span>
             <div className="u-row-center-8">
-              <input value={newBookmarkName} onChange={e => setNewBookmarkName(e.target.value)} placeholder={t('datagovernance.nombre_del_bookmark')}
+              <input aria-label={t('datagovernance.nombre_del_bookmark')} value={newBookmarkName} onChange={e => setNewBookmarkName(e.target.value)} placeholder={t('datagovernance.nombre_del_bookmark')}
                 style={{ ...S.input, width: 200 }} />
               <button onClick={async () => {
                 if (!newBookmarkName.trim()) return
@@ -505,7 +505,7 @@ export default function DataGovernancePage(): JSX.Element {
                       </div>
                       <div className="u-text3-xs">{t('datagovernance.periodo')} {bm.period_days}d · Tab: {bm.active_tab || 'executive'}</div>
                       {bm.description && <div className="u-text2-xs">{bm.description}</div>}
-                      {bm.shared && <span style={{ fontSize: 'var(--text-2xs)', padding: '3px 8px', borderRadius: 10, background: alpha(COLOR.success, '18'), color: COLOR.success, fontWeight: 700, alignSelf: 'flex-start' }}>Compartido</span>}
+                      {bm.shared && <span style={{ fontSize: 'var(--text-2xs)', padding: '3px 8px', borderRadius: 'var(--radius-md)', background: alpha(COLOR.success, '18'), color: COLOR.success, fontWeight: 700, alignSelf: 'flex-start' }}>Compartido</span>}
                     </div>
                   ))}
                 </div>
@@ -527,7 +527,7 @@ export default function DataGovernancePage(): JSX.Element {
                 { label: 'Hallazgos de la última comprobación', value: governanceRun ? (governanceRun.finding_count ?? 0) : '—' },
                 { label: 'Última comprobación', value: governanceRun?.timestamp ? new Date(governanceRun.timestamp).toLocaleString() : '—' },
               ].map(k => (
-                <div key={k.label} style={{ padding: '12px 16px', background: 'var(--surface-3)', borderRadius: 10 }}>
+                <div key={k.label} style={{ padding: '12px 16px', background: 'var(--surface-3)', borderRadius: 'var(--radius-md)' }}>
                   <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--text-1)', marginBottom: 4 }}>{k.value ?? '—'}</div>
                   <div className="u-text3-xs">{k.label}</div>
                 </div>

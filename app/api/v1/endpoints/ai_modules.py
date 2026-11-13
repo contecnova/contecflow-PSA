@@ -1,7 +1,6 @@
 """
 ai_modules — thin router delegating to app.services.ai_modules_service
 """
-import os
 from app.core.config import settings
 from app.core.modulos_ia import comprobar_modulo, exigir_modulo_ia
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Body
@@ -14,35 +13,17 @@ from app.core.ratelimit import limiter
 from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
-from app.services.service_desk.portal_auth_service import get_current_portal_client
+from app.core.deps import get_current_portal_client
 import app.services.ai_modules_service as _svc
 
 router = APIRouter()
 
 # Local aliases for backward compatibility with tests
-def _compute_kb_embedding(db, article_id: str, text: str):
-    return _svc.compute_kb_embedding(db, article_id, text)
-
 def _log_action(db, user_id, module, action_type, input_s=None, output_s=None,
                 entities=None, tokens=0, latency=0, status="success"):
     return _svc.log_action(db, user_id, module, action_type, input_s=input_s,
                            output_s=output_s, entities=entities, tokens=tokens,
                            latency=latency, status=status)
-
-def _burnout_score(weekly_hours: list) -> float:
-    return _svc.burnout_score(weekly_hours)
-
-def _chunk_text(text: str, chunk_size: int = 6000, overlap: int = 500) -> list:
-    return _svc.chunk_text(text, chunk_size=chunk_size, overlap=overlap)
-
-def _map_reduce_analysis(text, map_system, map_user_prefix, reduce_system, reduce_user_suffix,
-                         db, module, user_id, map_tokens=1500, reduce_tokens=3000):
-    return _svc.map_reduce_analysis(text, map_system, map_user_prefix, reduce_system,
-                                    reduce_user_suffix, db, module, user_id,
-                                    map_tokens=map_tokens, reduce_tokens=reduce_tokens)
-
-def _kb_vector_search(db, query_text: str, limit: int = 5, only_published: bool = True) -> list:
-    return _svc.kb_vector_search(db, query_text, limit=limit, only_published=only_published)
 
 def _openai_key_from_db(db) -> Optional[str]:
     return _svc.openai_key_from_db(db)
@@ -51,18 +32,6 @@ def _process_voice_core(transcript: str, db, current_user, confirm: bool = False
     # Auditoria 2026-11: el envoltorio no aceptaba `confirm` y las dos rutas de
     # voz (/voice/command y /voice/transcribe) daban 500 siempre.
     return _svc.process_voice_core(transcript, db, current_user, confirm=confirm)
-
-def _get_client_project_data(client_user, db: Session) -> dict:
-    return _svc.get_client_project_data(client_user, db)
-
-def _client_demo_response(message: str, project_data: dict) -> str:
-    return _svc.client_demo_response(message, project_data)
-
-def _predict_overrun_ml(cpi, spi, budget_used_pct, elapsed_pct,
-                        task_completion_pct, overdue_task_ratio, team_load_pct):
-    return _svc.predict_overrun_ml(cpi, spi, budget_used_pct, elapsed_pct,
-                                   task_completion_pct, overdue_task_ratio, team_load_pct)
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # NEXUSORACLE — Predictive Intelligence
@@ -326,10 +295,11 @@ def _http_del_error_stt(exc) -> HTTPException:
 def _puente_de_clave_openai_heredada(db: Session) -> None:
     """Retrocompatibilidad: la clave de OpenAI guardada en base de datos.
 
-    El factory de STT lee la clave del entorno, así que si el proveedor
-    primario es OpenAI y no hay clave en el entorno se busca en un proveedor
-    guardado y se publica ahí. Escribe en `os.environ` **a propósito**: es el
-    contrato del SDK de OpenAI.
+    Si el proveedor primario es OpenAI y `Settings` no tiene clave, se busca en
+    un proveedor guardado y se publica en `openai_stt.publicar_clave_heredada`.
+    Segunda auditoría 2026-11 (hallazgo 16): antes se escribía en `os.environ`;
+    nada usa el SDK de OpenAI, sólo `openai_stt` y los subtítulos del chat, que
+    ahora la leen de ahí.
     """
     if (getattr(settings, "STT_PROVIDER", "openai") or "openai").lower() != "openai":
         return
@@ -337,7 +307,8 @@ def _puente_de_clave_openai_heredada(db: Session) -> None:
         return
     clave = _openai_key_from_db(db)
     if clave:
-        os.environ["OPENAI_API_KEY"] = clave
+        from app.services.stt.openai_stt import publicar_clave_heredada
+        publicar_clave_heredada(clave)
 
 
 @router.post("/voice/transcribe", summary="Transcribir audio (OpenAI / Azure / Google / whisper local) y procesar como comando", dependencies=[Depends(exigir_modulo_ia("voice"))])

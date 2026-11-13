@@ -15,7 +15,7 @@ from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.service_desk import Ticket
 from app.models.task import Task
-from app.worker import run_agent_task
+from app.core.segundo_plano import enviar_tarea
 from app.core import timeutil
 
 _log = logging.getLogger(__name__)
@@ -184,7 +184,7 @@ def _voice_handle_other(db, current_user, transcript: str, result: dict) -> None
         status="queued",
     )
     db.add(exec_record); db.flush()
-    run_agent_task.delay(str(exec_record.id), transcript, str(current_user.id))
+    enviar_tarea("app.worker.run_agent_task", args=[str(exec_record.id), transcript, str(current_user.id)])
     result["action"] = (
         f"Comando enviado al agente (ID: {str(exec_record.id)[:8]}). "
         "Revisa el historial de ContecflowAgent para el resultado."

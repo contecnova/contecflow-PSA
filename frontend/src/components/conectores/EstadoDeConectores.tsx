@@ -17,7 +17,7 @@ import { Button, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { fmtDate } from '../../utils/helpers'
 
-const tarjeta: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14, background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }
+const tarjeta: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14, background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }
 const sub: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }
 const num: CSSProperties = { fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }
 
@@ -72,7 +72,7 @@ function Producto({ p }: { p: EstadoProducto }) {
       )}
       {probar.isError && <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--danger)' }}>{mensajeDeConector(probar.error, t('conectores.error'))}</div>}
       {p.ultimo_error && (
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', border: '1px solid var(--surface-3)', borderRadius: 6, padding: '6px 8px' }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', border: '1px solid var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 8px' }}>
           <strong>{t('conectores.ultimo_error')}</strong> · {fmtDate(p.ultimo_error.cuando)} · {p.ultimo_error.operacion}
           {p.ultimo_error.estado_http ? ` · HTTP ${p.ultimo_error.estado_http}` : ''}
           <div style={{ marginTop: 2 }}>{p.ultimo_error.error}</div>

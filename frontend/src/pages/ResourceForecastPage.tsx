@@ -117,7 +117,7 @@ function HeatCell({ week }: { week: SemanaDeCarga }) {
       onPointerEnter={() => setHover(true)}
       onPointerLeave={() => setHover(false)}
       style={{
-        position: 'relative', width: 36, height: 36, borderRadius: 6,
+        position: 'relative', width: 36, height: 36, borderRadius: 'var(--radius-sm)',
         background: 'var(--surface-1)', border: `1px solid ${alpha(color, '30')}`,
         cursor: 'default', overflow: 'visible', flexShrink: 0,
       }}
@@ -143,7 +143,7 @@ function HeatCell({ week }: { week: SemanaDeCarga }) {
           position: 'absolute', bottom: '110%', left: '50%',
           transform: 'translateX(-50%)',
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 8, padding: '8px 12px', zIndex: 100,
+          borderRadius: 8, padding: '8px 12px', zIndex: 'var(--z-mobile-nav)',
           whiteSpace: 'nowrap', fontSize: "var(--text-xs)", color: 'var(--text-1)',
           boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
           minWidth: 140,
@@ -182,9 +182,9 @@ function UserRow({ user, selectedUser, onSelect, nameWidth = 160 }: UserRowProps
         style={{
           width: nameWidth, flexShrink: 0, fontSize: "var(--text-sm)", fontWeight: 600,
           color: isSelected ? 'var(--accent)' : 'var(--text-1)',
-          cursor: 'pointer', padding: '4px 6px', borderRadius: 6,
+          cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)',
           background: isSelected ? 'var(--accent-muted)' : 'transparent',
-          border: isSelected ? '1px solid rgba(79,142,247,0.3)' : '1px solid transparent',
+          border: isSelected ? '1px solid var(--accent-border)' : '1px solid transparent',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign:'left', fontFamily:'inherit'
         }}
         title={user.user_name ?? ''}
@@ -236,7 +236,7 @@ function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: nu
 
   return (
     <div style={{
-      background: 'var(--surface-1)', border: '1px solid rgba(79,142,247,0.2)',
+      background: 'var(--surface-1)', border: '1px solid var(--accent-border-soft)',
       borderRadius: 12, padding: '18px 20px', marginTop: 16,
     }}>
       <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 14, color: 'var(--accent)' }}>
@@ -315,7 +315,7 @@ export default function ResourceForecastPage() {
   const VISIBLE_WEEKS = Math.min(weeks, 16)
   const visibleUsers  = users
 
-  const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '16px 20px' }
+  const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '16px 20px' }
 
   return (
     <PageShell>
@@ -347,7 +347,7 @@ export default function ResourceForecastPage() {
 
       {/* Controles */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 10, padding: 4 }}>
+        <div style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', padding: 4 }}>
           {[
             { id: 'heatmap', label: 'Heatmap' },
             { id: 'summary', label: 'Resumen' },
@@ -357,7 +357,7 @@ export default function ResourceForecastPage() {
               background: view === v.id ? 'var(--accent-muted)' : 'transparent',
               color: view === v.id ? 'var(--accent)' : 'var(--text-2)',
               cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600,
-              outline: view === v.id ? '1px solid rgba(79,142,247,0.3)' : 'none',
+              outline: view === v.id ? '1px solid var(--accent-border)' : 'none',
             }}>{v.label}</button>
           ))}
         </div>

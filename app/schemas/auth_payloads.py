@@ -36,6 +36,12 @@ class ChangePasswordIn(_Base):
 
 # ── auth_mfa ──────────────────────────────────────────────────────────────────
 
+class ReautenticacionIn(_Base):
+    """Prueba de identidad para cambiar el segundo factor (auditoria 2026-11 #21)."""
+    password: Optional[str] = Field(default=None, max_length=256, description="Contraseña actual")
+    code: Optional[str] = Field(default=None, max_length=12, description="Código TOTP actual")
+
+
 class MfaCodeIn(_Base):
     """Genérico para endpoints que sólo requieren un código TOTP.
 

@@ -6,9 +6,21 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from app.core.config import settings
-from app.services.key_management import get_jwt_signing_key, get_jwt_verification_keys
 
 logger = logging.getLogger(__name__)
+
+
+# Las claves JWT las gestiona un servicio (BD, rotacion). `app/core` no importa
+# servicios al cargarse (auditoria 2026-11, #43): se cargan al usarlas.
+def get_jwt_signing_key():
+    from app.services.key_management import get_jwt_signing_key as _clave
+    return _clave()
+
+
+def get_jwt_verification_keys():
+    from app.services.key_management import get_jwt_verification_keys as _claves
+    return _claves()
+
 
 ALGORITHM = settings.JWT_ALGORITHM
 
@@ -170,22 +182,27 @@ def verify_client_token(token: str, db):
         uid = payload.get("sub")
         if not uid:
             return None
-        return db.query(ClientUser).filter(ClientUser.id == uid).first()
+        # Auditoria 2026-11 (#23): contacto desactivado o token revocado al
+        # cerrar sesion -> fuera, en cada peticion.
+        from app.services.client_portal_service.autenticacion import token_de_cliente_revocado
+        if token_de_cliente_revocado(payload):
+            return None
+        return db.query(ClientUser).filter(ClientUser.id == uid, ClientUser.is_active == True).first()  # noqa: E712
     except Exception as e:
         logger.debug(f"Client token validation failed: {e}", exc_info=False)
         return None
 
 
 def verify_admin_or_governance_role(user) -> None:
-    """Verify that user has admin or governance role. Raises HTTPException if not."""
-    from fastapi import HTTPException, status
+    """Verify that user has admin or governance role. Raises ErrorDeDominio(403) if not."""
+    from app.core.errores import ErrorDeDominio
 
     # Check if user is admin or governance
     if getattr(user, 'is_superadmin', False):
         return
     if getattr(user, 'role', None) in ('admin', 'governance'):
         return
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
+    raise ErrorDeDominio(
+        status_code=403,
         detail="Admin or governance role required"
     )

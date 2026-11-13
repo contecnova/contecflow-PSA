@@ -5,7 +5,7 @@
  * Pestaña 2 — Posiciones: tabla editable de todos los usuarios
  * Pestaña 3 — Aprobaciones: quién aprueba gastos, ausencias e imputaciones
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
@@ -22,8 +22,8 @@ import { alpha } from '../constants/theme'
 
 // ── Colores por rol ───────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
-  admin: '#4f8ef7', pm: '#a78bfa', team_lead: '#0891b2',
-  employee: '#34d399', hr: '#f59e0b', client: '#7a8aaa',
+  admin: 'var(--accent)', pm: 'var(--purple)', team_lead: '#0891b2',
+  employee: 'var(--success)', hr: 'var(--warning)', client: '#7a8aaa',
 }
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin', pm: 'PM', team_lead: 'Team Lead',
@@ -72,6 +72,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
   onClose: () => void
   onSaved: () => void
 }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const [managerId, setManagerId]   = useState(user.manager_id || '')
@@ -109,20 +110,20 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
       <div className="u-stack-14">
         <div style={{ padding:'10px 14px', background:'var(--surface-2)', borderRadius:8,
           border:'1px solid var(--surface-4)' }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>{user.full_name}</div>
+          <div className="u-md-600">{user.full_name}</div>
           <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginTop:2 }}>
             {user.email} · <span style={{ color: getRoleColor(user.role) }}>{getRoleLabel(user.role)}</span>
           </div>
         </div>
 
         <div>
-          <label style={LS}>Cargo / Puesto</label>
-          <input value={jobTitle} onChange={e => setJobTitle(e.target.value)} style={IS}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>Cargo / Puesto</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={jobTitle} onChange={e => setJobTitle(e.target.value)} style={IS}
             placeholder="Ej: Desarrollador Senior" />
         </div>
         <div>
-          <label style={LS}>Departamento</label>
-          <select value={department} onChange={e => setDepartment(e.target.value)} style={IS}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>Departamento</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={department} onChange={e => setDepartment(e.target.value)} style={IS}>
             <option value="">{t('orgchart.sin_departamento')}</option>
             {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
@@ -270,7 +271,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
           borderRadius:12, padding:16 }}>
           <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)', marginBottom:10,
             textTransform:'uppercase', letterSpacing:'0.06em' }}>🔍 Buscar persona</div>
-          <input value={search} onChange={e => setSearch(e.target.value)}
+          <input aria-label="Buscar persona..." value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar persona..."
             style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
               borderRadius:7, padding:'8px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
@@ -279,7 +280,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
             <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
               {searchResults.map(u => (
                 <button key={u.id} type="button" onClick={() => { setSearch(''); setEditing(u) }}
-                  style={{ padding:'6px 10px', background:'var(--surface-1)', borderRadius:6,
+                  style={{ padding:'6px 10px', background:'var(--surface-1)', borderRadius:'var(--radius-sm)',
                     cursor:'pointer', fontSize: "var(--text-sm)", width:'100%', textAlign:'left', fontFamily:'inherit', border:'none' }}>
                   <div style={{ fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
                   <div className="u-text3-xs">{u.job_title||u.role}</div>
@@ -380,7 +381,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
     <div>
       {/* Filtros */}
       <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'center' }}>
-        <input value={search} onChange={e => setSearch(e.target.value)}
+        <input aria-label="Buscar persona..." value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar persona..."
           style={{ ...IS, flex:1, minWidth:200 }} />
         <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={IS}>
@@ -391,7 +392,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
       </div>
 
       {/* Tabla */}
-      <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
+      <div className="ds-card ds-card--plano">
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)" }}>
           <thead>
             <tr style={{ borderBottom:'2px solid var(--surface-4)', background:'var(--surface-1)' }}>
@@ -447,7 +448,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                           {managerUser.full_name?.charAt(0)}
                         </div>
                         <div>
-                          <div style={{ fontSize: "var(--text-sm)", fontWeight:600, color:'var(--text-1)' }}>{managerUser.full_name}</div>
+                          <div className="u-text1-sm-600">{managerUser.full_name}</div>
                           <div className="u-text3-xs">{managerUser.job_title||getRoleLabel(managerUser.role)}</div>
                         </div>
                       </div>
@@ -460,7 +461,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                   <td style={{ padding:'10px 14px' }}>
                     {isAdmin && (
                       <button onClick={() => setEditing(u)}
-                        style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--surface-4)',
+                        style={{ padding:'4px 10px', borderRadius:'var(--radius-sm)', border:'1px solid var(--surface-4)',
                           background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)",
                           cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
                         ✏ Editar
@@ -534,7 +535,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
           textTransform:'uppercase', letterSpacing:'0.06em' }}>
           {t('orgchart.ver_cadena_de_aprobacion')}
         </div>
-        {puedeVerOtras && <input value={search} onChange={e => setSearch(e.target.value)}
+        {puedeVerOtras && <input aria-label="Buscar persona..." value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar persona..."
           style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
             borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
@@ -579,7 +580,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                 textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
                 Empleado
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <div className="u-row-center-12">
                 <div style={{ width:40, height:40, borderRadius:'50%',
                   background:'var(--accent)', display:'flex', alignItems:'center',
                   justifyContent:'center', fontSize: "var(--text-lg)", fontWeight:700, color:'var(--on-accent-light)' }}>
@@ -655,7 +656,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                           <div style={{ padding:'14px 16px',
                             background: idx===0 ? 'rgba(0,229,160,0.06)' : 'var(--surface-1)',
                             border: `1px solid ${idx===0 ? 'rgba(0,229,160,0.25)' : 'var(--surface-4)'}`,
-                            borderRadius:10, display:'flex', alignItems:'center', gap:12 }}>
+                            borderRadius:'var(--radius-md)', display:'flex', alignItems:'center', gap:12 }}>
                             <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0,
                               background: getRoleColor(approver.role),
                               display:'flex', alignItems:'center', justifyContent:'center',

@@ -16,6 +16,7 @@ import logging
 import httpx
 
 from app.core.config import settings
+from app.services.settings_service import outbound_http_timeout
 
 _STRIPE_CHECKOUT_URL = "https://api.stripe.com/v1/checkout/sessions"
 
@@ -89,7 +90,7 @@ def create_checkout_session(
             data=form,
             auth=(settings.STRIPE_SECRET_KEY or "", ""),
             headers={"Idempotency-Key": f"invoice-checkout-{invoice_id}-{unit_amount}"},
-            timeout=20.0,
+            timeout=outbound_http_timeout(default=20.0),
         )
     except httpx.HTTPError as e:
         raise StripeError(f"No se pudo contactar con Stripe: {e}") from e

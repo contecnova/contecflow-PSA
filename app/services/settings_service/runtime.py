@@ -163,34 +163,39 @@ def get_runtime_namespace(db: Session, keys: dict[str, str], org_id: Optional[st
     return SimpleNamespace(**values)
 
 
-def outbound_http_timeout(db=None, default: float = 10.0) -> float:
-    """Return effective HTTP timeout for outbound calls (UI override → env → default).
+def _espera_saliente(db, clave: str, default: Optional[float]) -> float:
+    """Ajuste en vivo (fila global) → valor puesto por el operador (`.env`/entorno)
+    → `default` del sitio de llamada → defecto de `Settings`.
 
-    Provided as a one-liner helper so any callsite using
-    ``httpx.Client(timeout=...)`` can swap the literal for
-    ``outbound_http_timeout(db)`` and adopt the runtime flag without further
-    refactor. When ``db`` is None it falls back to env.
+    Auditoria 2026-11 (#38): antes `default` no servia (el campo de `Settings`
+    siempre existe), y los sitios con 15 s esperaban 10. Asi cada llamada
+    conserva su espera de siempre hasta que el operador fija el ajuste, y
+    entonces manda el ajuste en todas.
     """
     if db is not None:
         try:
-            v = get_runtime_float(db, "OUTBOUND_HTTP_TIMEOUT_SECONDS")
-            if v is not None:
-                return v
+            raw = _read_raw(db, clave, None)
+            if raw is not None:
+                return float(raw)
         except Exception:
-            logger.debug("outbound_http_timeout: fallo best-effort ignorado", exc_info=True)
-    return getattr(app_settings, "OUTBOUND_HTTP_TIMEOUT_SECONDS", default)
+            logger.debug("%s: ajuste en vivo no disponible", clave, exc_info=True)
+    if default is None or clave in app_settings.model_fields_set:
+        return float(getattr(app_settings, clave))
+    return float(default)
 
 
-def outbound_ai_timeout(db=None, default: float = 60.0) -> float:
-    """Return effective timeout for outbound AI/LLM calls."""
-    if db is not None:
-        try:
-            v = get_runtime_float(db, "OUTBOUND_AI_TIMEOUT_SECONDS")
-            if v is not None:
-                return v
-        except Exception:
-            logger.debug("outbound_ai_timeout: fallo best-effort ignorado", exc_info=True)
-    return getattr(app_settings, "OUTBOUND_AI_TIMEOUT_SECONDS", default)
+def outbound_http_timeout(db=None, default: Optional[float] = None) -> float:
+    """Espera (s) de una llamada de red saliente (HTTP, SMTP, IMAP): `OUTBOUND_HTTP_TIMEOUT_SECONDS`.
+
+    `default`: la espera de ese sitio mientras el operador no fije el ajuste.
+    Sin `db` no se consulta el ajuste en vivo, solo el entorno.
+    """
+    return _espera_saliente(db, "OUTBOUND_HTTP_TIMEOUT_SECONDS", default)
+
+
+def outbound_ai_timeout(db=None, default: Optional[float] = None) -> float:
+    """Espera (s) de una llamada a un proveedor de IA (LLM, voz a texto): `OUTBOUND_AI_TIMEOUT_SECONDS`."""
+    return _espera_saliente(db, "OUTBOUND_AI_TIMEOUT_SECONDS", default)
 
 
 #: Ajustes de la plataforma: se leen en su fila global y sólo los cambia el
@@ -199,6 +204,8 @@ def outbound_ai_timeout(db=None, default: float = 60.0) -> float:
 #: `tests/test_ajustes_de_plataforma_2026_11.py` comprueba que toda clave leída
 #: sólo en global está aquí (o se arregla su lectura).
 AJUSTES_DE_PLATAFORMA = frozenset({
+    # Tipos de cambio del BCE: una tabla global para toda la instalacion (2026-11)
+    "EXCHANGE_RATES_AUTO_UPDATE",
     # Claves y firma de tokens
     "KEY_ROTATION_ENABLED", "JWT_KEY_ROTATION_DAYS", "JWT_KEY_RETENTION_COUNT", "INTEGRATION_SECRET_ROTATION_DAYS",
     "DEVELOPER_TOKEN_TTL_MINUTES", "PASSKEY_PASSWORDLESS_ENABLED", "REFRESH_TOKEN_EXPIRE_DAYS",

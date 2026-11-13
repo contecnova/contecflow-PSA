@@ -2,7 +2,7 @@
  * RevenuePage — Reconocimiento de ingresos ASC 606 / IFRS 15
  * Configura el método por proyecto y registra entradas mensuales
  */
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, useId } from 'react'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -18,6 +18,7 @@ import { useOrgSettings } from '../hooks/useOrgSettings'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
@@ -121,6 +122,7 @@ const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 
 // ── Obligations panel (per-contract) ─────────────────────────────────────────
 function ObligationsPanel({ contractId, onClose, currency }: { contractId: string; onClose: () => void; currency?: string }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -162,7 +164,7 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
                 <div key={ob.id} style={{ background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'center', gap:12 }}>
                   <div className="u-flex1-min0">
                     <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{ob.name}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2 }}>
+                    <div className="u-text2-xs-mt2">
                       {mCfg.icon} {mCfg.label}
                       {(ob.standalone_price ?? 0) > 0 && <span style={{ marginLeft:8 }}>{fmtEur(ob.standalone_price ?? 0, currency)}</span>}
                       {ob.is_satisfied && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Completada</span>}
@@ -170,9 +172,9 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
                   </div>
                   <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                     <button onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:String(ob.standalone_price||''), notes:ob.notes||'' }); setShowForm(true) }}
-                      style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>✏</button>
+                      style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>✏</button>
                     <button onClick={() => del(ob.id)}
-                      style={{ background:'none', border:'1px solid rgba(239,68,68,0.2)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--danger)' }}>🗑</button>
+                      style={{ background:'none', border:'1px solid rgba(239,68,68,0.2)', borderRadius:'var(--radius-sm)', padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--danger)' }}>🗑</button>
                   </div>
                 </div>
               )
@@ -182,21 +184,21 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
 
         {showForm ? (
           <div style={{ border:'.5px solid var(--surface-4)', borderRadius:8, padding:'14px', display:'flex', flexDirection:'column', gap:10 }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              <div><label style={ls}>Nombre</label>
-                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} placeholder={t('revenue.ej_fase_1_analisis')} />
+            <div className="u-grid2-10">
+              <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
+                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} placeholder={t('revenue.ej_fase_1_analisis')} />
               </div>
-              <div><label style={ls}>{t('revenue.metodo')}</label>
-                <select value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} style={fs}>
+              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('revenue.metodo')}</label>
+                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} style={fs}>
                   {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
                 </select>
               </div>
             </div>
-            <div><label style={ls}>{t('revenue.precio_de_venta_independiente')}</label>
-              <input type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} style={fs} placeholder="0" />
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('revenue.precio_de_venta_independiente')}</label>
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} style={fs} placeholder="0" />
             </div>
-            <div><label style={ls}>Notas</label>
-              <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Notas</label>
+              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
             </div>
             <div className="u-actions-8">
               <Button variant="secondary" onClick={reset}>Cancelar</Button>
@@ -220,6 +222,8 @@ function fmtEur(n: number | null | undefined, currency?: string) {
 }
 
 export default function RevenuePage() {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -341,7 +345,7 @@ export default function RevenuePage() {
           { label:'Contratos activos', value:asc606Dashboard?.contracts?.length || 0, icon:'📑' },
           { label:'Entradas registradas', value:asc606Dashboard?.entry_count || 0, icon:'📋' },
         ].map((k,i) => (
-          <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'16px 18px' }}>
+          <div key={i} style={{ background:'var(--surface-2)', borderRadius:'var(--radius-md)', padding:'16px 18px' }}>
             <div style={{ fontSize: "var(--text-xl)", marginBottom:6 }}>{k.icon}</div>
             <div style={{ fontSize: "var(--text-xl-em)", fontWeight:500, marginBottom:2 }}>{k.value}</div>
             <div className="u-text2-sm">{k.label}</div>
@@ -361,7 +365,7 @@ export default function RevenuePage() {
 
       {/* ── ASC 606 Contratos (nuevo motor) ── */}
       {tab === 'asc606' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+        <div className="u-stack-20">
           {/* Top bar */}
           <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center', justifyContent:'space-between' }}>
             <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center' }}>
@@ -373,7 +377,7 @@ export default function RevenuePage() {
                 <RefreshCw size={13} style={{ marginRight:4 }} />{runningMonthly ? 'Procesando...' : `Ejecutar reconocimiento${mesAEjecutar ? ` · ${dashYear}-${String(mesAEjecutar).padStart(2, '0')}` : ''}`}
               </Button>
             </div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+            <div className="u-wrap-10">
               <Button variant="secondary" onClick={() => setShowCloseModal(true)}><Lock size={13} style={{ marginRight:4 }} />{t('revenue.cerrar_periodo')}</Button>
               <Button onClick={() => setShowCreateContract(true)}>{t('revenue.nuevo_contrato')}</Button>
             </div>
@@ -387,7 +391,7 @@ export default function RevenuePage() {
                 { label:'Contratos activos', value: asc606Dashboard.contracts?.length || 0, icon:'📑' },
                 { label:'Entradas contables', value: asc606Dashboard.entry_count || 0, icon:'📋' },
               ].map((k,i) => (
-                <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'14px 16px' }}>
+                <div key={i} style={{ background:'var(--surface-2)', borderRadius:'var(--radius-md)', padding:'14px 16px' }}>
                   <div style={{ fontSize: "var(--text-lg-em)", marginBottom:4 }}>{k.icon}</div>
                   <div style={{ fontSize: "var(--text-xl)", fontWeight:500, marginBottom:2 }}>{k.value}</div>
                   <div className="u-text2-xs">{k.label}</div>
@@ -403,7 +407,7 @@ export default function RevenuePage() {
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={asc606ChartData}>
                   <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
-                  <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
+                  <YAxis tickFormatter={v => fmtMoneda(v, { compacto: true })} tick={{ fontSize: "var(--text-xs)" }} />
                   <Tooltip formatter={(v: number, n: string) => [fmt(v), n]} />
                   <Legend />
                   <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
@@ -420,10 +424,10 @@ export default function RevenuePage() {
               <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Cierres contables</div>
               <div className="u-wrap-8">
                 {periodCloses.map(pc => (
-                  <div key={pc.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:6, background:'var(--surface-2)', fontSize: "var(--text-sm)" }}>
+                  <div key={pc.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:'var(--radius-sm)', background:'var(--surface-2)', fontSize: "var(--text-sm)" }}>
                     <Lock size={11} style={{ color:'var(--accent)' }} />
                     <span>{pc.period_year}-{String(pc.period_month).padStart(2,'0')}</span>
-                    <button
+                    <button aria-label={t('revenue.reabrir_periodo')}
                       onClick={() => reopenPeriodMut({ year: pc.period_year, month: pc.period_month })}
                       style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:0, lineHeight:1 }}
                       title={t('revenue.reabrir_periodo')}
@@ -465,7 +469,7 @@ export default function RevenuePage() {
                             <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Fin</div><div style={{ fontSize: "var(--text-base)" }}>{c.end_date || c.duration_months ? `${c.duration_months}m` : '—'}</div></div>
                           </div>
                           <button onClick={() => setObligationsFor(c.id)}
-                            style={{ fontSize: "var(--text-xs)", padding:'3px 10px', borderRadius:6, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>
+                            style={{ fontSize: "var(--text-xs)", padding:'3px 10px', borderRadius:'var(--radius-sm)', border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>
                             {t('revenue.obligaciones_de_desempeno_2')}
                           </button>
                         </div>
@@ -485,22 +489,22 @@ export default function RevenuePage() {
           {/* Filters */}
           <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
             <div style={{ flex:'1 1 220px', minWidth:0 }}>
-              <label style={ls}>Contrato</label>
-              <select value={entryFilter.contract_id} onChange={e => setEntryFilter(f=>({...f, contract_id:e.target.value}))} style={fs}>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Contrato</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entryFilter.contract_id} onChange={e => setEntryFilter(f=>({...f, contract_id:e.target.value}))} style={fs}>
                 <option value="">{t('revenue.todos_los_contratos')}</option>
                 {contracts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={ls}>{t('revenue.ano')}</label>
-              <select value={entryFilter.year} onChange={e => setEntryFilter(f=>({...f, year:e.target.value}))} style={{...fs, width:100}}>
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('revenue.ano')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={entryFilter.year} onChange={e => setEntryFilter(f=>({...f, year:e.target.value}))} style={{...fs, width:100}}>
                 <option value="">{t('revenue.todos')}</option>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <div>
-              <label style={ls}>Mes</label>
-              <select value={entryFilter.month} onChange={e => setEntryFilter(f=>({...f, month:e.target.value}))} style={{...fs, width:110}}>
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Mes</label>
+              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={entryFilter.month} onChange={e => setEntryFilter(f=>({...f, month:e.target.value}))} style={{...fs, width:110}}>
                 <option value="">{t('revenue.todos')}</option>
                 {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
               </select>
@@ -555,13 +559,13 @@ export default function RevenuePage() {
                           {isReversed
                             ? <span style={{ fontSize: "var(--text-xs)", color:'var(--danger)' }}>Revertida</span>
                             : esReversion
-                            ? <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>Reversión</span>
+                            ? <span className="u-text3-xs">Reversión</span>
                             : <span style={{ fontSize: "var(--text-xs)", color:'var(--success)' }}>Activa</span>}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
                           {!isReversed && !esReversion && (
                             <button onClick={() => { openConfirmGlobal({ message: '¿Revertir esta entrada? Esta acción no se puede deshacer.', onConfirm: () => reverseEntry(e.id), danger: true }) }}
-                              style={{ fontSize: "var(--text-xs)", padding:'3px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'var(--danger)', cursor:'pointer', fontFamily:'inherit' }}>
+                              style={{ fontSize: "var(--text-xs)", padding:'3px 9px', borderRadius:'var(--radius-sm)', border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'var(--danger)', cursor:'pointer', fontFamily:'inherit' }}>
                               ↩ Revertir
                             </button>
                           )}
@@ -614,41 +618,41 @@ export default function RevenuePage() {
       {showCreateContract && (
         <Modal open title={t('revenue.nuevo_contrato_asc_606')} onClose={() => setShowCreateContract(false)} width={540}>
           <div className="u-stack-14">
-            <div><label style={ls}>Proyecto</label>
-              <select value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} style={fs}>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Proyecto</label>
+              <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} style={fs}>
                 <option value="">Seleccionar proyecto...</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
               </select>
             </div>
-            <div><label style={ls}>{t('revenue.nombre_del_contrato')}</label>
-              <input value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} style={fs} placeholder="Ej: Contrato desarrollo Q1 2026" />
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('revenue.nombre_del_contrato')}</label>
+              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} style={fs} placeholder="Ej: Contrato desarrollo Q1 2026" />
             </div>
-            <div><label style={ls}>{t('revenue.metodo_de_reconocimiento')}</label>
-              <select value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} style={fs}>
+            <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('revenue.metodo_de_reconocimiento')}</label>
+              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} style={fs}>
                 {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option>)}
               </select>
             </div>
             <div className="u-grid2-12">
-              <div><label style={ls}>{t('revenue.valor_del_contrato_2')}</label>
-                <input type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder="50000" />
+              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('revenue.valor_del_contrato_2')}</label>
+                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder="50000" />
               </div>
-              <div><label style={ls}>Moneda</label>
-                <select value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} style={fs}>
+              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>Moneda</label>
+                <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} style={fs}>
                   {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
             <div className="u-grid2-12">
-              <div><label style={ls}>Fecha inicio</label><DateInput value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Fecha fin</label><DateInput value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>Fecha inicio</label><DateInput id={`${idCampo}-9`} value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>Fecha fin</label><DateInput id={`${idCampo}-10`} value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} style={fs} /></div>
             </div>
             {contractForm.method === 'straight_line' && (
-              <div><label style={ls}>{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
-                <input type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} style={fs} placeholder="12" />
+              <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={ls}>{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
+                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} style={fs} placeholder="12" />
               </div>
             )}
-            <div><label style={ls}>Notas</label>
-              <textarea value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            <div><label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={ls}>Notas</label>
+              <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreateContract(false)}>Cancelar</Button>
@@ -675,22 +679,22 @@ export default function RevenuePage() {
               {t('revenue.una_vez_cerrado_no_se_podran_crear')}
             </div>
             <div className="u-grid2-12">
-              <div><label style={ls}>{t('revenue.ano')}</label>
-                <input type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} style={fs} />
+              <div><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={ls}>{t('revenue.ano')}</label>
+                <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} style={fs} />
               </div>
-              <div><label style={ls}>Mes</label>
-                <select value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))} style={fs}>
+              <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} style={ls}>Mes</label>
+                <select id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))} style={fs}>
                   {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
                 </select>
               </div>
             </div>
             {closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`) && (
-              <div style={{ fontSize: "var(--text-sm)", color:'var(--danger)', padding:'6px 10px', background:'var(--danger-bg)', borderRadius:6 }}>
+              <div style={{ fontSize: "var(--text-sm)", color:'var(--danger)', padding:'6px 10px', background:'var(--danger-bg)', borderRadius:'var(--radius-sm)' }}>
                 {t('revenue.este_periodo_ya_esta_cerrado')}
               </div>
             )}
-            <div><label style={ls}>Notas (opcional)</label>
-              <textarea value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} style={ls}>Notas (opcional)</label>
+              <textarea id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCloseModal(false)}>Cancelar</Button>

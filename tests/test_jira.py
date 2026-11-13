@@ -13,6 +13,13 @@ JIRA_CONFIG = {
 }
 
 
+def _secreto_de_webhook(client, admin_token):
+    """Auditoria 2026-11 (#14): el secreto del webhook es de la organizacion."""
+    r = client.post("/api/v1/jira/webhook-secret", headers=auth(admin_token))
+    assert r.status_code == 200, r.text
+    return r.json()["data"]["secret"]
+
+
 def _mock_httpx_ok():
     """Return a mock successful Jira /rest/api/3/myself response (httpx)."""
     mock = MagicMock()
@@ -88,8 +95,9 @@ def test_jira_test_connection_mocked(client, admin_token, db):
     # First save config
     client.post("/api/v1/jira/config", json=JIRA_CONFIG, headers=auth(admin_token))
 
-    # jira.py uses httpx; mock it at the module level
-    with patch("app.api.v1.endpoints.jira.httpx.get", return_value=_mock_httpx_ok()):
+    # Auditoria 2026-11 (#25): la peticion sale por `jira_service` (URL validada
+    # y `cliente_httpx`); se simula ahi.
+    with patch("app.services.jira_service.llamar_a_jira_crudo", return_value=_mock_httpx_ok().json()):
         res = client.get("/api/v1/jira/test", headers=auth(admin_token))
         assert res.status_code == 200
         data = res.json()["data"]
@@ -142,7 +150,7 @@ def test_jira_webhook_updates_task_status(client, admin_token, pm_token, db):
     res = client.post(
         "/api/v1/jira/webhook",
         json=webhook_payload,
-        headers={"X-Atlassian-Webhook-Token": settings.JIRA_WEBHOOK_SECRET},
+        headers={"X-Atlassian-Webhook-Token": _secreto_de_webhook(client, admin_token)},
     )
     assert res.status_code == 200
     data = res.json()
@@ -159,7 +167,7 @@ def test_jira_webhook_rejects_unauthenticated(client):
     assert res.status_code == 403
 
 
-def test_jira_webhook_ignores_unknown_issue(client, db):
+def test_jira_webhook_ignores_unknown_issue(client, admin_token, db):
     """Webhook for an unknown Jira key is accepted (200) but does nothing harmful."""
     payload = {
         "webhookEvent": "jira:issue_updated",
@@ -178,7 +186,7 @@ def test_jira_webhook_ignores_unknown_issue(client, db):
     res = client.post(
         "/api/v1/jira/webhook",
         json=payload,
-        headers={"X-Atlassian-Webhook-Token": settings.JIRA_WEBHOOK_SECRET},
+        headers={"X-Atlassian-Webhook-Token": _secreto_de_webhook(client, admin_token)},
     )
     assert res.status_code == 200
     data = res.json()

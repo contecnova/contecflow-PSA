@@ -65,7 +65,7 @@ function OverviewSection({ icon: Icon, iconColor, title, children, badge }: Over
     <div style={{
       background: 'var(--surface-3)',
       border: '1px solid var(--surface-4)',
-      borderRadius: 10,
+      borderRadius: 'var(--radius-md)',
       padding: '14px 16px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
@@ -348,7 +348,7 @@ export default function BiGovernancePanel() {
             </div>
             <div style={{ flex: '1 1 200px' }}>
               <div style={fieldLabel}>{t('bigovernance.filtrar_por_user_id')}</div>
-              <input
+              <input aria-label="user_id (opcional)"
                 type="text"
                 placeholder="user_id (opcional)"
                 value={auditUserFilter}

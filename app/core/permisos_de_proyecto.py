@@ -28,9 +28,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+
+from app.core.errores import ErrorDeDominio
 
 _LECTURA = {"GET", "HEAD", "OPTIONS"}
 _FINANCIEROS = {"evm", "profitability", "revenue-forecast", "revenue", "margin", "budget"}
@@ -76,7 +78,7 @@ def comprobar(db: Session, user, request: Request) -> None:
     _nivel, motivo = decidir(db, user, request.method, request.url.path,
                              (request.path_params or {}).get("project_id"))
     if motivo:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, motivo)
+        raise ErrorDeDominio(status.HTTP_403_FORBIDDEN, motivo)
 
 
 def vetados_y_concedidos(db: Session, user) -> tuple[set[str], set[str]]:

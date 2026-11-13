@@ -16,7 +16,6 @@ Documentado: si esto resulta limitante, migrar a la API de batch.
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 import httpx
@@ -24,12 +23,18 @@ import httpx
 from app.core.config import settings
 from app.services.stt.base import STTError, STTProvider, STTResult
 import logging
+from app.services.settings_service import outbound_ai_timeout
 
 logger = logging.getLogger(__name__)
 
 
+def _a_bcp47(codigo):
+    from app.services.formato_regional import a_bcp47
+    return a_bcp47(codigo)
+
+
 def _azure_setting(name: str, default: str = "") -> str:
-    return getattr(settings, name, None) or os.environ.get(name, default) or default
+    return getattr(settings, name, None) or default
 
 
 class AzureSTTProvider(STTProvider):
@@ -55,7 +60,8 @@ class AzureSTTProvider(STTProvider):
                 logger.debug("__init__: fallo best-effort ignorado", exc_info=True)
         self._api_key = api_key or ui_key or _azure_setting("AZURE_SPEECH_KEY")
         self._region = region or ui_region or _azure_setting("AZURE_SPEECH_REGION", "westeurope")
-        self._default_language = language or ui_lang or _azure_setting("AZURE_STT_LANGUAGE", "es-ES")
+        self._default_language = language or ui_lang or (_azure_setting("AZURE_STT_LANGUAGE")
+                                  or _a_bcp47(settings.DEFAULT_LANGUAGE))
 
     def is_available(self) -> bool:
         return bool(self._api_key and self._region)
@@ -84,7 +90,7 @@ class AzureSTTProvider(STTProvider):
         }
 
         try:
-            with httpx.Client(timeout=60) as client:
+            with httpx.Client(timeout=outbound_ai_timeout(default=60)) as client:
                 resp = client.post(url, params=params, headers=headers, content=audio_bytes)
         except httpx.TimeoutException as exc:
             raise STTError(self.name, "Timeout esperando respuesta", status_code=504) from exc

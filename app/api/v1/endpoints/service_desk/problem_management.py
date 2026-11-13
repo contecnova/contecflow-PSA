@@ -16,6 +16,8 @@ from app.schemas.service_desk import ProblemIn
 from app.services.service_desk import problem_management_service as svc
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.core.errores import ErrorDeDominio
+from app.models.user import UserRole
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -89,7 +91,7 @@ class WizardAIAssistIn(BaseModel):
 @router.get('/problems', summary='Listar problemas (Problem Management)')
 def list_problems(
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=200),
+    page_size: int = Query(25, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -254,7 +256,7 @@ def approve_problem_rca(
     from app.services.service_desk.problem_service import get_scoped_problem_or_404
     from app.services.service_desk.known_error_service import approve_rca
 
-    if current_user.role not in ('admin', 'support'):
+    if current_user.role not in (UserRole.admin, 'support'):
         raise HTTPException(status_code=403, detail='Only admin/support can approve RCA')
 
     problem = get_scoped_problem_or_404(db, current_user, problem_id)
@@ -332,17 +334,6 @@ def known_error_tickets(
     return APIListResponse.ok(items=items, total=len(items))
 
 
-@router.get('/known-errors/stats', summary='Estadísticas del KEDB')
-def kedb_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Return aggregate KEDB statistics."""
-    from app.services.service_desk.known_error_service import get_kedb_stats
-
-    return APIResponse.ok(data=get_kedb_stats(db))
-
-
 @router.post('/known-errors/run-expiry-scan', summary='Ejecutar escaneo de KEDB caducado (admin)', status_code=200)
 def run_kedb_expiry_scan(
     db: Session = Depends(get_db),
@@ -352,7 +343,7 @@ def run_kedb_expiry_scan(
     """Demote expired KEDB entries back to investigating status."""
     from app.services.service_desk.known_error_service import run_kedb_expiry_scan as _scan
 
-    if current_user.role != 'admin':
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail='Admin only')
     result = _scan(db)
     _commit_or_rollback(db)
@@ -368,7 +359,7 @@ def run_kedb_effectiveness_scan(
     """Batch-recompute effectiveness scores for all active KEDB entries."""
     from app.services.service_desk.known_error_service import run_kedb_effectiveness_scan as _scan
 
-    if current_user.role != 'admin':
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail='Admin only')
     result = _scan(db)
     _commit_or_rollback(db)

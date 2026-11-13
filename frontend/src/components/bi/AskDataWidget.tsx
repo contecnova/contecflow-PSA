@@ -125,7 +125,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
     <div style={{
       background: 'var(--surface-2)',
       border: '1px solid var(--surface-4)',
-      borderRadius: 14,
+      borderRadius: 'var(--radius-lg)',
       overflow: 'hidden',
       ...style,
     }}>
@@ -154,7 +154,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
       {/* Input */}
       <div style={{ padding: '16px 20px 0' }}>
         <form onSubmit={handleSubmit} className="u-row-8">
-          <input
+          <input aria-label={t('askdatawidget.que_proyectos_tienen_margen_negativo_este_ano')}
             ref={inputRef}
             value={question}
             onChange={e => setQuestion(e.target.value)}

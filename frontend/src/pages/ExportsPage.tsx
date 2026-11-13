@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { integrationsApi, projectsApi, unwrapList } from '../services/api'
+import { integrationsApi, jiraApi, projectsApi, unwrapList } from '../services/api'
 import { Button, Card } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -43,6 +43,7 @@ function extractErrorMessage(error: unknown): string {
 }
 
 export default function ExportsPage(): JSX.Element {
+  const idCampo = useId()
   const t = useAppT()
   const { hasRole } = useAuth()
   const today = new Date().toISOString().split('T')[0]
@@ -103,7 +104,7 @@ export default function ExportsPage(): JSX.Element {
     if (!jiraProject) return
     setJiraSyncing(true)
     try {
-      await integrationsApi.jiraSync(jiraProject)
+      await jiraApi.sync({ project_id: jiraProject })
       showMsg('✅ Sincronización con Jira iniciada en segundo plano')
     } catch (e) {
       showMsg(`❌ ${extractErrorMessage(e)}`)
@@ -128,19 +129,19 @@ export default function ExportsPage(): JSX.Element {
       {/* Imputations export */}
       <Card style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>📊 Exportar Imputaciones</h3>
-        <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
+        <p className="u-text2-base-mb20">
           {t('exports.descarga_el_registro_de_horas_en_excel')}
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 14, marginBottom: 16 }}>
           <div>
-            <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Desde</label>
-            <DateInput value={imputForm.date_from}
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Desde</label>
+            <DateInput id={`${idCampo}-1`} value={imputForm.date_from}
               onChange={e => setImputForm(f => ({ ...f, date_from: e.target.value }))}
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
           <div>
-            <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Hasta</label>
-            <DateInput value={imputForm.date_to}
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Hasta</label>
+            <DateInput id={`${idCampo}-2`} value={imputForm.date_to}
               onChange={e => setImputForm(f => ({ ...f, date_to: e.target.value }))}
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
@@ -158,7 +159,7 @@ export default function ExportsPage(): JSX.Element {
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
               <input type="checkbox" checked={imputForm.include_costs}
                 onChange={e => setImputForm(f => ({ ...f, include_costs: e.target.checked }))} />
-              Incluir costes € (confidencial)
+              Incluir costes (confidencial)
             </label>
           )}
         </div>
@@ -173,7 +174,7 @@ export default function ExportsPage(): JSX.Element {
       {/* Projects export */}
       <Card style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>📁 Exportar Proyectos</h3>
-        <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
+        <p className="u-text2-base-mb20">
           {t('exports.informe_completo_de_todos_los_proyectos_con')}
         </p>
         {/* Auditoría 2026-09: este botón decía «Descargar Excel de proyectos» y
@@ -206,7 +207,7 @@ export default function ExportsPage(): JSX.Element {
       {hasRole('admin', 'pm') && (
         <Card>
           <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>{t('exports.sincronizar_con_jira')}</h3>
-          <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
+          <p className="u-text2-base-mb20">
             {t('exports.importa_issues_de_jira_como_tareas_en')}
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>

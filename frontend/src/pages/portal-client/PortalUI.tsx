@@ -18,7 +18,7 @@
  * Inspirado en components/layout/Layout.jsx + components/ui/index.jsx pero
  * autocontenido para no acoplar el portal al AuthContext del operador.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   CSSProperties, ComponentType, ReactNode, MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent,
   InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes,
@@ -28,12 +28,12 @@ import {
   Receipt, Headphones, MessageSquare, Settings, LogOut, Search,
   Bell, X, Menu, Plus, Sparkles,
 } from 'lucide-react'
-import { CLIENT_API, useClientAuth, useLang } from './portalClientContext'
+import { useClientAuth, useLang } from './portalClientContext'
 import PortalQuickCreateMenu from './PortalQuickCreateMenu'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { useTabListKeys } from '../../components/ui/Tabs'
-import { localeActivo } from '../../utils/helpers'
+import { formatearMoneda } from '../../utils/helpers'
 import StatusBadge, { type StatusBadgeKind } from '../../components/ui/StatusBadge'
 
 // ── Section configuration (grouped like the backoffice) ──────────────────────
@@ -228,7 +228,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
             })
             if (items.length === 0) return null
             return (
-              <div key={group.label} style={{ marginBottom: 14 }}>
+              <div key={group.label} className="u-mb-14">
                 {!collapsed && (
                   <div style={{
                     fontSize: 'var(--text-2xs, 10px)', fontWeight: 700, color: 'var(--text-3)',
@@ -276,7 +276,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                           fontSize: 'var(--text-2xs, 10px)', fontWeight: 700,
                           background: 'var(--danger-bg, rgba(239,68,68,0.15))',
                           color: 'var(--danger, #ef4444)',
-                          borderRadius: 999, padding: '1px 7px', minWidth: 20, textAlign: 'center',
+                          borderRadius: 'var(--radius-full)', padding: '1px 7px', minWidth: 20, textAlign: 'center',
                         }}>{badge > 99 ? '99+' : badge}</span>
                       )}
                       {collapsed && badge != null && badge > 0 && (
@@ -399,7 +399,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                 <span style={{
                   position: 'absolute', top: -4, right: -4,
                   background: 'var(--danger, #ef4444)', color: 'var(--on-accent-light)',
-                  borderRadius: 999, fontSize: 'var(--text-3xs, 9px)', fontWeight: 800,
+                  borderRadius: 'var(--radius-full)', fontSize: 'var(--text-3xs, 9px)', fontWeight: 800,
                   minWidth: 16, height: 16, padding: '0 4px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>{Math.min((badges?.support || 0) + (badges?.messages || 0), 99)}</span>
@@ -493,7 +493,7 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
       {breadcrumb && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
           {breadcrumb.map((c, i) => (
-            <span key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span key={i} className="u-row-center-6">
               {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: 'var(--text-xs)' }}>›</span>}
               {c.onClick ? (
                 <button type="button" onClick={c.onClick} style={{
@@ -515,12 +515,12 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
       )}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
         <div className="u-min0">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="u-row-center-12">
             {Icon && (
               <div style={{
-                width: 38, height: 38, borderRadius: 10,
+                width: 38, height: 38, borderRadius: 'var(--radius-md)',
                 background: 'var(--accent-muted)',
-                border: '1px solid var(--accent-border, rgba(79,142,247,0.25))',
+                border: '1px solid var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--accent)', flexShrink: 0,
               }}><Icon size={18} /></div>
@@ -574,10 +574,10 @@ interface PortalCardProps {
 export function PortalCard({ children, style = {}, accent, padding = 20, onClick }: PortalCardProps) {
   const base: CSSProperties = {
     background: 'var(--surface-2)',
-    border: `1px solid ${accent ? 'var(--accent-border, rgba(79,142,247,0.25))' : 'var(--surface-4)'}`,
+    border: `1px solid ${accent ? 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))' : 'var(--surface-4)'}`,
     borderRadius: 'var(--radius-lg, 12px)',
     padding,
-    boxShadow: accent ? '0 0 0 3px rgba(79,142,247,0.06)' : 'none',
+    boxShadow: accent ? '0 0 0 3px color-mix(in srgb, var(--accent) 6%, transparent)' : 'none',
     transition: 'border-color 0.15s, box-shadow 0.15s',
     ...style,
   }
@@ -588,8 +588,8 @@ export function PortalCard({ children, style = {}, accent, padding = 20, onClick
         onClick={onClick}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e) } }}
         style={{ ...base, cursor: 'pointer' }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-border-strong, rgba(79,142,247,0.4))' }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = accent ? 'var(--accent-border, rgba(79,142,247,0.25))' : 'var(--surface-4)' }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-border-strong, var(--accent-border-strong))' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = accent ? 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))' : 'var(--surface-4)' }}
       >{children}</div>
     )
   }
@@ -662,7 +662,7 @@ export function PortalSection({ title, hint, action, children, style = {} }: Por
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
         <div>
           <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)' }}>{title}</div>
-          {hint && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{hint}</div>}
+          {hint && <div className="u-text3-xs-mt2">{hint}</div>}
         </div>
         {action}
       </div>
@@ -714,7 +714,7 @@ export function PortalTabs({ tabs, value, onChange, ariaLabel }: PortalTabsProps
               <span style={{
                 background: active ? 'var(--accent-muted)' : 'var(--surface-3)',
                 color: active ? 'var(--accent)' : 'var(--text-2)',
-                fontSize: 'var(--text-2xs, 10px)', fontWeight: 700, padding: '1px 7px', borderRadius: 999,
+                fontSize: 'var(--text-2xs, 10px)', fontWeight: 700, padding: '1px 7px', borderRadius: 'var(--radius-full)',
               }}>{tab.badge}</span>
             )}
           </button>
@@ -771,8 +771,8 @@ export function PortalProgress({ value, max = 100, color, height = 6, showLabel 
   const c = color || (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)')
   return (
     <div>
-      <div style={{ height, background: 'var(--surface-4)', borderRadius: 999, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: c, borderRadius: 999, transition: 'width 0.6s' }} />
+      <div style={{ height, background: 'var(--surface-4)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: c, borderRadius: 'var(--radius-full)', transition: 'width 0.6s' }} />
       </div>
       {showLabel && (
         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, textAlign: 'right' }}>
@@ -822,7 +822,7 @@ export function PortalButton({ children, onClick, variant = 'primary', size = 'm
     primary:   { background: 'var(--accent)', color: 'var(--on-accent)', border: '1px solid var(--accent)' },
     secondary: { background: 'var(--surface-3)', color: 'var(--text-1)', border: '1px solid var(--surface-4)' },
     danger:    { background: 'var(--danger-bg, rgba(239,68,68,0.12))', color: 'var(--danger)', border: '1px solid var(--danger-border, rgba(239,68,68,0.3))' },
-    ghost:     { background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border, rgba(79,142,247,0.25))' },
+    ghost:     { background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))' },
     subtle:    { background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid transparent' },
   } as Record<string, CSSProperties>)[variant] || {}
   const s = ({
@@ -895,7 +895,7 @@ export function PortalInput(props: InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       style={{ ...fieldBase, ...(props.style || {}) }}
-      onFocus={e => { e.target.style.borderColor = 'var(--accent-border-strong, rgba(79,142,247,0.5))'; e.target.style.boxShadow = '0 0 0 3px rgba(79,142,247,0.08)' }}
+      onFocus={e => { e.target.style.borderColor = 'var(--accent-border-strong, color-mix(in srgb, var(--accent) 50%, transparent))'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)' }}
       onBlur={e => { e.target.style.borderColor = 'var(--surface-4)'; e.target.style.boxShadow = 'none' }}
     />
   )
@@ -932,7 +932,7 @@ export function PortalModal({ open, onClose, title, subtitle, width = 560, child
     <div role="presentation" onMouseDown={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      padding: '40px 24px', zIndex: 1000, overflowY: 'auto',
+      padding: '40px 24px', zIndex: 'var(--z-modal)', overflowY: 'auto',
     }}>
       <div role="dialog" aria-modal="true" onMouseDown={e => e.stopPropagation()} style={{
         background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -947,7 +947,7 @@ export function PortalModal({ open, onClose, title, subtitle, width = 560, child
           </div>
           <button onClick={onClose} aria-label="Cerrar" style={{
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-            borderRadius: 6, color: 'var(--text-2)', cursor: 'pointer',
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', cursor: 'pointer',
             width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}><X size={14} /></button>
         </div>
@@ -973,7 +973,7 @@ interface PortalBannerProps {
 
 export function PortalBanner({ tone = 'info', icon, title, body, action }: PortalBannerProps) {
   const tones: Record<string, { bg: string; bd: string; fg: string }> = {
-    info:    { bg: 'var(--accent-muted)', bd: 'var(--accent-border, rgba(79,142,247,0.25))', fg: 'var(--accent)' },
+    info:    { bg: 'var(--accent-muted)', bd: 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))', fg: 'var(--accent)' },
     warning: { bg: 'var(--warning-bg, rgba(245,158,11,0.12))', bd: 'var(--warning-border, rgba(245,158,11,0.3))', fg: 'var(--warning)' },
     danger:  { bg: 'var(--danger-bg, rgba(239,68,68,0.12))',  bd: 'var(--danger-border, rgba(239,68,68,0.3))',  fg: 'var(--danger)' },
     success: { bg: 'var(--success-bg, rgba(16,185,129,0.12))', bd: 'var(--success-border, rgba(16,185,129,0.3))', fg: 'var(--success)' },
@@ -988,7 +988,7 @@ export function PortalBanner({ tone = 'info', icon, title, body, action }: Porta
       {icon && <div style={{ color: c.fg, flexShrink: 0, display: 'inline-flex' }}>{icon}</div>}
       <div className="u-flex1-min0">
         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: c.fg }}>{title}</div>
-        {body && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginTop: 2 }}>{body}</div>}
+        {body && <div className="u-text2-sm-mt2">{body}</div>}
       </div>
       {action}
     </div>
@@ -1089,8 +1089,8 @@ export function PortalBars({ items = [] }: { items?: PortalBarItem[] }) {
             <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>{it.label}</span>
             <span style={{ color: it.color || 'var(--text-1)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{it.value}{it.suffix || ''}</span>
           </div>
-          <div style={{ height: 5, borderRadius: 999, background: 'var(--surface-4)', overflow: 'hidden' }}>
-            <div style={{ width: `${((it.value || 0) / max) * 100}%`, height: '100%', borderRadius: 999, background: it.color || 'var(--accent)', transition: 'width 0.6s' }} />
+          <div style={{ height: 5, borderRadius: 'var(--radius-full)', background: 'var(--surface-4)', overflow: 'hidden' }}>
+            <div style={{ width: `${((it.value || 0) / max) * 100}%`, height: '100%', borderRadius: 'var(--radius-full)', background: it.color || 'var(--accent)', transition: 'width 0.6s' }} />
           </div>
         </div>
       ))}
@@ -1099,8 +1099,6 @@ export function PortalBars({ items = [] }: { items?: PortalBarItem[] }) {
 }
 
 // ── Helpers exportados ───────────────────────────────────────────────────────
-export const PORTAL_API = CLIENT_API
-export { useLang as usePortalLang }
 
 export function formatDuration(minutes: number | string | null | undefined) {
   if (minutes == null || Number.isNaN(Number(minutes))) return '—'
@@ -1111,35 +1109,15 @@ export function formatDuration(minutes: number | string | null | undefined) {
   return r ? `${h}h ${r}min` : `${h}h`
 }
 
-export function formatMoney(value: number | string | null | undefined, currency = 'EUR') {
-  const n = Number(value || 0)
-  try { return n.toLocaleString(localeActivo(), { style: 'currency', currency }) }
-  catch { return `${n.toLocaleString(localeActivo())} ${currency}` }
+/**
+ * Moneda por defecto del portal cuando el dato no trae la suya. El portal no
+ * puede leer la de la empresa: /settings/org-defaults exige sesion de empleado
+ * (get_current_user) y el cliente entra con token de portal. Las facturas y
+ * pedidos traen `currency`; esto solo cubre el caso de no tener ninguno.
+ */
+export const MONEDA_PORTAL_POR_DEFECTO = 'EUR'
+
+export function formatMoney(value: number | string | null | undefined, currency: string | null | undefined = MONEDA_PORTAL_POR_DEFECTO) {
+  return formatearMoneda(Number(value || 0), currency || MONEDA_PORTAL_POR_DEFECTO)
 }
 
-export function relativeDate(iso: string | number | Date | null | undefined) {
-  if (!iso) return '—'
-  try {
-    const d = new Date(iso)
-    const diff = (d.getTime() - Date.now()) / 86400000
-    const abs = Math.abs(diff)
-    if (abs < 1) return diff < 0 ? 'hoy' : 'hoy'
-    if (abs < 2) return diff < 0 ? 'ayer' : 'mañana'
-    if (abs < 7) return diff < 0 ? `hace ${Math.round(abs)} días` : `en ${Math.round(abs)} días`
-    return d.toLocaleDateString(localeActivo(), { day: 'numeric', month: 'short' })
-  } catch { return iso }
-}
-
-export function useDebounced<T>(value: T, delay = 250): T {
-  const [v, setV] = useState(value)
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), delay)
-    return () => clearTimeout(t)
-  }, [value, delay])
-  return v
-}
-
-export function usePortalSection(initial = 'dashboard') {
-  const [section, setSection] = useState(initial)
-  return useMemo(() => ({ section, setSection }), [section])
-}

@@ -38,6 +38,7 @@ from app.services.service_desk.change_impact_service import (
     _get_json_setting,
 )
 from app.core.deps import require_internal_user
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 
 class WhatIfIn(BaseModel):
@@ -199,7 +200,7 @@ def cab_dashboard(
         description="Comma-separated statuses"),
     min_risk_score: float = Query(0, ge=0, le=100),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

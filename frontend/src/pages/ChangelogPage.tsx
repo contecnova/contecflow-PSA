@@ -2,7 +2,7 @@
  * ChangelogPage — Release notes y changelog por proyecto
  * Genera automáticamente entradas desde tareas completadas o permite añadirlas manualmente.
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
@@ -67,7 +67,7 @@ interface GeneratePayload {
 
 function getTypeMeta(t: (key: string, params?: Record<string, string | number>) => string) {
   return {
-    feature:     { label: t('changelog.type_feature'),      color: 'var(--accent)',   bg: 'rgba(79,142,247,0.12)',  icon: '✨' },
+    feature:     { label: t('changelog.type_feature'),      color: 'var(--accent)',   bg: 'color-mix(in srgb, var(--accent) 12%, transparent)',  icon: '✨' },
     bugfix:      { label: t('changelog.type_bugfix'),       color: 'var(--danger)',   bg: 'rgba(248,113,113,0.12)', icon: '🐛' },
     improvement: { label: t('changelog.type_improvement'),  color: 'var(--warning)',  bg: 'rgba(251,191,36,0.12)',  icon: '⚡' },
     milestone:   { label: t('changelog.type_milestone'),    color: 'var(--success)',  bg: 'rgba(74,222,128,0.12)',  icon: '🏆' },
@@ -117,7 +117,7 @@ function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: 
               )}
               <span style={{ fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20, background: meta.bg, color: meta.color, fontWeight: 700 }}>{meta.label}</span>
               {entry.is_auto_generated && (
-                <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 10, background: 'var(--surface-3)', color: 'var(--text-3)' }}>{t('changelog.auto')}</span>
+                <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 'var(--radius-md)', background: 'var(--surface-3)', color: 'var(--text-3)' }}>{t('changelog.auto')}</span>
               )}
             </div>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{entry.title}</div>
@@ -141,6 +141,7 @@ function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: 
 }
 
 function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; onClose: () => void; onSaved: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const typeMeta = getTypeMeta(t)
@@ -164,29 +165,29 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
     <div className="u-stack-14">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
         <div>
-          <label style={lbStyle}>{t('changelog.version_tag')}</label>
-          <input value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t('changelog.version_tag_ph')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbStyle}>{t('changelog.version_tag')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t('changelog.version_tag_ph')} />
         </div>
         <div>
-          <label style={lbStyle}>{t('changelog.date')}</label>
-          <DateInput value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} style={validation.inputStyle(inputStyle, 'entry_date')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbStyle}>{t('changelog.date')}</label>
+          <DateInput id={`${idCampo}-2`} value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} style={validation.inputStyle(inputStyle, 'entry_date')} />
           {validation.errors.entry_date && <p className="u-field-error">{validation.errors.entry_date}</p>}
         </div>
         <div>
-          <label style={lbStyle}>{t('changelog.type')}</label>
-          <select value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} style={validation.inputStyle(inputStyle, 'entry_type')}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbStyle}>{t('changelog.type')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} style={validation.inputStyle(inputStyle, 'entry_type')}>
             {Object.entries(typeMeta).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
       </div>
       <div>
-        <label style={lbStyle}>{t('changelog.title_label')}</label>
-        <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder={t('changelog.title_ph')} />
+        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbStyle}>{t('changelog.title_label')}</label>
+        <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder={t('changelog.title_ph')} />
         {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
       </div>
       <div>
-        <label style={lbStyle}>{t('changelog.description')}</label>
-        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder={t('changelog.description_ph')} />
+        <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbStyle}>{t('changelog.description')}</label>
+        <textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder={t('changelog.description_ph')} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('changelog.cancel')}</Button>
@@ -197,6 +198,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
 }
 
 function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onClose: () => void; onSaved: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const [weeks, setWeeks] = useState(2)
@@ -219,18 +221,18 @@ function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onC
 
   return (
     <div className="u-stack-14">
-      <div style={{ background: 'rgba(79,142,247,0.08)', border: '1px solid rgba(79,142,247,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
+      <div style={{ background: 'color-mix(in srgb, var(--accent) 8%, transparent)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
         {t('changelog.generate_info')}
       </div>
       <div className="u-grid2-12">
         <div>
-          <label style={lbStyle}>{t('changelog.period_weeks')}</label>
-          <input type="number" value={weeks} onChange={e => { setWeeks(Number(e.target.value)); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbStyle}>{t('changelog.period_weeks')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={weeks} onChange={e => { setWeeks(Number(e.target.value)); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
           {validation.errors.weeks && <p className="u-field-error">{validation.errors.weeks}</p>}
         </div>
         <div>
-          <label style={lbStyle}>{t('changelog.version_tag_optional')}</label>
-          <input value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t('changelog.version_tag_ph')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbStyle}>{t('changelog.version_tag_optional')}</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t('changelog.version_tag_ph')} />
         </div>
       </div>
       {genResult && genResult.generated > 0 && (

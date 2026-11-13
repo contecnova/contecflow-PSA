@@ -12,6 +12,7 @@ from app.api.deps import get_current_user, get_db
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import bi_export_service as svc
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 router = APIRouter(prefix="/bi/export", tags=["BI Export"])
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/bi/export", tags=["BI Export"])
 @router.get("/excel", summary="Descargar dashboard como Excel avanzado (.xlsx)")
 def download_excel(
     period_days: int = Query(180, ge=7, le=1825),
-    title: str = Query("Informe BI Contecflow"),
+    title: str = Query(f"Informe BI {NOMBRE_DEL_PRODUCTO}"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -40,7 +41,7 @@ def download_excel(
 @router.get("/pptx", summary="Descargar dashboard como PowerPoint (.pptx)")
 def download_pptx(
     period_days: int = Query(180, ge=7, le=1825),
-    title: str = Query("Informe BI Contecflow"),
+    title: str = Query(f"Informe BI {NOMBRE_DEL_PRODUCTO}"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

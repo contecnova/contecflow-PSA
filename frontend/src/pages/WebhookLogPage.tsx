@@ -51,11 +51,17 @@ export default function WebhookLogPage() {
     queryFn: () => webhooksApi.list().then(r => r.data?.items ?? r.data ?? []).catch(() => []),
   })
 
-  // Obtener logs de todos los webhooks
+  // Obtener logs de todos los webhooks.
+  // Auditoria 2026-11 (#45): la clave no llevaba los webhooks de los que
+  // depende, asi que al crear o borrar uno se seguian ensenando los logs
+  // cacheados de la lista anterior. Ahora la clave incluye sus ids.
+  // N+1 pendiente: el backend solo expone /webhooks/{id}/logs; una peticion por
+  // webhook (en paralelo) hasta que haya un endpoint agregado.
+  const validWebhooks = webhooks.filter((w) => w && w.id)
+  const idsWebhooks = validWebhooks.map(w => w.id)
   const { data: allLogs = [], isLoading, refetch } = useQuery<WebhookLogItem[]>({
-    queryKey: ['webhook-logs-all'],
+    queryKey: ['webhook-logs-all', idsWebhooks],
     queryFn: async () => {
-      const validWebhooks = webhooks.filter((w) => w && w.id)
       const results = await Promise.all(
         validWebhooks.map((w) =>
           webhooksApi.logs(w.id)
@@ -117,7 +123,7 @@ export default function WebhookLogPage() {
             borderRadius:12, padding:'14px 18px' }}>
             <div style={{ fontSize: "var(--text-2xl)", fontWeight:900, color:kpi.color,
               fontFamily: 'var(--font-mono)' }}>{kpi.value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
+            <div className="u-text2-sm-mt2">{kpi.label}</div>
           </div>
         ))}
       </div>
@@ -159,7 +165,7 @@ export default function WebhookLogPage() {
                 const ok = (log.http_status ?? 0) >= 200 && (log.http_status ?? 0) < 300
                 return (
                   <span style={{ fontSize: "var(--text-sm)", fontWeight:800, padding:'2px 8px',
-                    borderRadius:6, fontFamily:'var(--font-mono)',
+                    borderRadius:'var(--radius-sm)', fontFamily:'var(--font-mono)',
                     background:alpha(statusColor, '20'), color:statusColor }}>
                     {ok ? '✓' : '✗'} {log.http_status || 'ERR'}
                   </span>

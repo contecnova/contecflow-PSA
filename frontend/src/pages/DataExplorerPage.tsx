@@ -27,7 +27,7 @@ export default function DataExplorerPage(): JSX.Element {
       showListExport={false}
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="u-stack-20">
         <EstadoDelAlmacen />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))', gap: 14 }}>
           <NarrativeCard lang={lang} />

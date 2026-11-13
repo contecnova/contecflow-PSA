@@ -14,6 +14,7 @@ import { useDialogo } from '../components/ui';
 import { useAppT } from '../i18n/AppLangContext';
 import { localeActivo } from '../utils/helpers';
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type IdType = string | number
 type HealthKey = 'green' | 'yellow' | 'red' | 'grey'
 
@@ -47,7 +48,6 @@ interface EvmData {
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 const fmt = (n: number | null | undefined, dec = 2) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: dec, maximumFractionDigits: dec });
-const fmtEur = (n: number | null | undefined) => n == null ? '—' : `${fmt(n, 0)} €`;
 const fmtPct = (n: number | null | undefined) => n == null ? '—' : `${fmt(n, 1)} %`;
 const fmtIdx = (n: number | null | undefined) => n == null ? '—' : fmt(n, 3);
 
@@ -67,7 +67,7 @@ const COLOR_DE_ESTADO: Record<string, string> = { green: 'var(--success)', yello
 function IndexBadge({ label, value, status, format = fmtIdx }: { label: string; value?: number | null; status?: string; format?: (n: number | null | undefined) => string }) {
   const color = value == null ? 'var(--text-3)' : status ? (COLOR_DE_ESTADO[status] ?? 'var(--text-1)') : 'var(--text-1)';
   return (
-    <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 16px', minWidth: 120 }}>
+    <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: '12px 16px', minWidth: 120 }}>
       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color }}>{format(value)}</div>
     </div>
@@ -75,15 +75,16 @@ function IndexBadge({ label, value, status, format = fmtIdx }: { label: string; 
 }
 
 function VarianceBadge({ label, value }: { label: string; value?: number | null }) {
+  const fmtMoneda = useFormatoMoneda()
   const pos = value == null ? null : value >= 0;
   const color = pos == null ? 'var(--text-3)' : pos ? 'var(--success)' : 'var(--danger)';
   const Icon  = pos == null ? null : pos ? TrendingUp : TrendingDown;
   return (
-    <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 16px', minWidth: 120 }}>
+    <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: '12px 16px', minWidth: 120 }}>
       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, color }}>
         {Icon && <Icon size={14} />}
-        <span style={{ fontSize: "var(--text-lg-em)", fontWeight: 700 }}>{fmtEur(value)}</span>
+        <span style={{ fontSize: "var(--text-lg-em)", fontWeight: 700 }}>{fmtMoneda(value, { decimales: 0 })}</span>
       </div>
     </div>
   );
@@ -96,13 +97,15 @@ function ProgressBar({ pct, color = 'var(--accent)', label }: { pct?: number | n
       <div style={{ background: 'var(--surface-3)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
         <div style={{ width: `${Math.min(pct ?? 0, 100)}%`, background: color, height: '100%', transition: 'width 0.5s' }} />
       </div>
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{fmtPct(pct)}</div>
+      <div className="u-text2-xs-mt2">{fmtPct(pct)}</div>
     </div>
   );
 }
 
 // ── Detail panel ─────────────────────────────────────────────────────────────
 function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const fmtEurDetalle = (n: number | null | undefined) => fmtMoneda(n, { decimales: 0 })
   const t = useAppT()
   const { data: dataRaw, isLoading, isError } = useQuery({
     queryKey: ['evm', projectId],
@@ -116,7 +119,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
   return (
     <div role="presentation" style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 'var(--z-modal)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }} onMouseDown={onClose}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="evm-dialog-title" style={{
@@ -153,10 +156,10 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           <div className="u-mb-16">
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Valores base</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <IndexBadge label="BAC" value={data.bac} format={fmtEur} />
-              <IndexBadge label="PV" value={data.pv} format={fmtEur} />
-              <IndexBadge label="EV" value={data.ev} format={fmtEur} />
-              <IndexBadge label="AC" value={data.ac} format={fmtEur} />
+              <IndexBadge label="BAC" value={data.bac} format={fmtEurDetalle} />
+              <IndexBadge label="PV" value={data.pv} format={fmtEurDetalle} />
+              <IndexBadge label="EV" value={data.ev} format={fmtEurDetalle} />
+              <IndexBadge label="AC" value={data.ac} format={fmtEurDetalle} />
             </div>
           </div>
 
@@ -183,14 +186,14 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           <div>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{t('evm.prevision_final')}</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <IndexBadge label="EAC" value={data.eac} format={fmtEur} />
-              <IndexBadge label="ETC" value={data.etc} format={fmtEur} />
+              <IndexBadge label="EAC" value={data.eac} format={fmtEurDetalle} />
+              <IndexBadge label="ETC" value={data.etc} format={fmtEurDetalle} />
               <VarianceBadge label="VAC" value={data.vac} />
             </div>
           </div>
 
           {/* Legend */}
-          <div style={{ marginTop: 24, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 10, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+          <div style={{ marginTop: 24, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
             <strong>{t('evm.guia_rapida')}</strong> {t('evm.cpi_1_bajo_presupuesto_cpi_1_sobre')}
           </div>
 
@@ -206,6 +209,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
 // ── Portfolio table ───────────────────────────────────────────────────────────
 export default function EVMPage(): JSX.Element {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT();
   const [selected, setSelected] = useState<IdType | null>(null);
 
@@ -246,7 +250,7 @@ export default function EVMPage(): JSX.Element {
               { label: 'Proyectos activos', value: portfolio.length, sub: `${reds} en riesgo`, color: reds > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Target },
               { label: 'CPI de la cartera', value: fmtIdx(avgCpi), sub: `${cpiRojos} proyecto${cpiRojos === 1 ? '' : 's'} con CPI en rojo`, color: cpiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: DollarSign },
               { label: 'SPI de la cartera', value: fmtIdx(avgSpi), sub: `${spiRojos} proyecto${spiRojos === 1 ? '' : 's'} con SPI en rojo`, color: spiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Clock },
-              { label: 'Presupuesto total', value: fmtEur(totalBac), sub: `Gastado: ${fmtEur(totalAc)}`, color: 'var(--text-1)', Icon: BarChart2 },
+              { label: 'Presupuesto total', value: fmtMoneda(totalBac, { decimales: 0 }), sub: `Gastado: ${fmtMoneda(totalAc, { decimales: 0 })}`, color: 'var(--text-1)', Icon: BarChart2 },
             ].map(({ label, value, sub, color, Icon }) => (
               <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -267,7 +271,7 @@ export default function EVMPage(): JSX.Element {
       ) : portfolio.length === 0 ? (
         <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>{t('evm.sin_proyectos_activos_con_datos_suficientes')}</div>
       ) : (
-        <div style={{ background: 'var(--surface-2)', borderRadius: 14, overflowX: 'auto' }}>
+        <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
             <thead>
               <tr style={{ background: 'var(--surface-3)' }}>
@@ -300,16 +304,16 @@ export default function EVMPage(): JSX.Element {
                         <span className="u-text2-xs">{p.pct_complete ?? 0}%</span>
                       </div>
                     </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.bac)}</td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.ev)}</td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.ac)}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.bac, { decimales: 0 })}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.ev, { decimales: 0 })}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.ac, { decimales: 0 })}</td>
                     <td style={{ padding: '12px 14px', fontWeight: 600, color: COLOR_DE_ESTADO[p.cpi_status ?? 'grey'] }}>
                       {fmtIdx(p.cpi)}
                     </td>
                     <td style={{ padding: '12px 14px', fontWeight: 600, color: COLOR_DE_ESTADO[p.spi_status ?? 'grey'] }}>
                       {fmtIdx(p.spi)}
                     </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtEur(p.eac)}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.eac, { decimales: 0 })}</td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                       <ChevronRight size={14} color="var(--text-3)" />
                     </td>

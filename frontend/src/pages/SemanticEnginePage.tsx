@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { AxiosError } from 'axios'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
@@ -107,6 +107,7 @@ interface TestResult {
 type ErrorDeValidacion = AxiosError<{ detail?: string | Array<{ msg?: string }> }>
 
 function ProfileModal({ user, onClose }: { user: ProfileRow; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -124,15 +125,15 @@ function ProfileModal({ user, onClose }: { user: ProfileRow; onClose: () => void
       <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
         {traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area')}
       </p>
-      <div style={{ marginBottom: 14 }}>
-        <label style={ls}>{traducir('semanticengine.texto_del_perfil')}</label>
-        <textarea value={text} onChange={e => setText(e.target.value)} rows={6}
+      <div className="u-mb-14">
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('semanticengine.texto_del_perfil')}</label>
+        <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={text} onChange={e => setText(e.target.value)} rows={6}
           style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }}
           placeholder={traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area_2')} />
       </div>
       <div className="u-mb-20">
-        <label style={ls}>{traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')}</label>
-        <input type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))}
+        <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')}</label>
+        <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))}
           style={{ ...fs, width: 100 }} min={1} max={50} />
       </div>
       <div className="u-actions-10">
@@ -147,6 +148,7 @@ function ProfileModal({ user, onClose }: { user: ProfileRow; onClose: () => void
 }
 
 function TestPanel() {
+  const idCampo = useId()
   const traducir = useAppT()
   const [type, setType] = useState('ticket')
   const [title, setTitle] = useState('')
@@ -181,13 +183,13 @@ function TestPanel() {
       </div>
       <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>
         <div>
-          <label style={ls}>{traducir('semanticengine.titulo')}</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} style={fs}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('semanticengine.titulo')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} style={fs}
             placeholder={type === 'ticket' ? 'Error al iniciar sesión en el portal' : 'Implementar endpoint de autenticación JWT'} />
         </div>
         <div>
-          <label style={ls}>{traducir('semanticengine.descripcion_opcional')}</label>
-          <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3}
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('semanticengine.descripcion_opcional')}</label>
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={desc} onChange={e => setDesc(e.target.value)} rows={3}
             style={{ ...fs, resize: 'vertical' }} placeholder={traducir('semanticengine.descripcion_opcional_del_ticket_o_tarea')} />
         </div>
       </div>
@@ -196,7 +198,7 @@ function TestPanel() {
       </Button>
 
       {result && (
-        <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--surface-1)', borderRadius: 10 }}>
+        <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)' }}>
           {result.error ? (
             <div className="u-danger">❌ {result.error}</div>
           ) : (
@@ -244,6 +246,7 @@ function TestPanel() {
 }
 
 export default function SemanticEnginePage() {
+  const idCampo = useId()
   const isNarrow = useMediaQuery('(max-width: 900px)')
   const traducir = useAppT()
   const _t = useAppT()
@@ -392,7 +395,7 @@ export default function SemanticEnginePage() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[['overview','⚙️ Configuración'],['profiles','👥 Perfiles'],['test','🧪 Probar'],['stats','📊 Estadísticas']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -411,7 +414,7 @@ export default function SemanticEnginePage() {
                     <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
                     <div>
                       <div style={{ fontSize: "var(--text-xs)", color: config.engine_mode === key ? 'var(--accent)' : 'var(--text-1)' }}>{meta.label}</div>
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{meta.desc}</div>
+                      <div className="u-text2-xs-mt2">{meta.desc}</div>
                     </div>
                     {config.engine_mode === key && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: "var(--text-lg-em)" }}>{savingConfig ? '⟳' : '✓'}</span>}
                   </div>
@@ -424,9 +427,9 @@ export default function SemanticEnginePage() {
             <div style={{ ...card, padding: '20px 24px' }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Embeddings y modelo</div>
 
-              <div style={{ marginBottom: 14 }}>
-                <label style={ls}>{traducir('semanticengine.backend_de_embeddings')}</label>
-                <select
+              <div className="u-mb-14">
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('semanticengine.backend_de_embeddings')}</label>
+                <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
                   value={config.embeddings_backend || 'tfidf'}
                   onChange={e => {
                     const backend = e.target.value
@@ -455,10 +458,10 @@ export default function SemanticEnginePage() {
                 )}
               </div>
 
-              <div style={{ marginBottom: 10 }}>
+              <div className="u-mb-10">
                 <label style={ls}>Modelo Hugging Face</label>
                 <div className="u-row-8">
-                  <input
+                  <input aria-label="all-MiniLM-L6-v2 o sentence-transformers/all-MiniLM-L6-v2"
                     value={hfModelDraft}
                     onChange={e => setHfModelDraft(e.target.value)}
                     placeholder="all-MiniLM-L6-v2 o sentence-transformers/all-MiniLM-L6-v2"
@@ -489,7 +492,7 @@ export default function SemanticEnginePage() {
                 { key: 'threshold_expert_cache', label: 'Expert cache semántico (sim. coseno)', val: config.threshold_expert_cache },
                 { key: 'load_balance_weight', label: 'Peso balanceo de carga (0-1)', val: config.load_balance_weight },
               ].map(f => (
-                <div key={f.key} style={{ marginBottom: 12 }}>
+                <div key={f.key} className="u-mb-12">
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                     <label style={{ ...ls, marginBottom: 0 }}>{f.label}</label>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{f.val}</span>
@@ -540,10 +543,10 @@ export default function SemanticEnginePage() {
             ) : profilesWithUsers.map(u => (
               <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: "var(--text-base)" }}>
                 <div className="u-min0">
-                  <div style={{ fontWeight: 600 }}>{u.user_name}</div>
+                  <div className="u-600">{u.user_name}</div>
                   {u.profile_text && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.profile_text}</div>}
                 </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div className="u-row-center-6">
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: u.has_embedding ? 'var(--success)' : u.has_profile ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }} />
                   <span className="u-text2-xs">
                     {u.has_embedding ? 'Embedding OK' : u.has_profile ? 'Sin embedding' : 'Sin perfil'}
@@ -555,7 +558,7 @@ export default function SemanticEnginePage() {
                   {u.is_available !== false ? 'Disponible' : 'No disponible'}
                 </span>
                 {puedeEditar && <button onClick={() => setEditProfile(u)}
-                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                  style={{ padding: '5px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                   ✏️ Editar
                 </button>}
               </div>
@@ -630,7 +633,7 @@ export default function SemanticEnginePage() {
                 return (
                   <div className="u-stack-12">
                     {/* Single stacked bar */}
-                    <div style={{ display: 'flex', height: 24, borderRadius: 6, overflow: 'hidden', gap: 2 }}>
+                    <div style={{ display: 'flex', height: 24, borderRadius: 'var(--radius-sm)', overflow: 'hidden', gap: 2 }}>
                       {bars.map(b => b.val > 0 && (
                         <div key={b.label} style={{ flex: b.val / tot, background: b.color, transition: 'flex 0.4s ease' }} title={`${b.label}: ${b.val}`} />
                       ))}
@@ -678,7 +681,7 @@ export default function SemanticEnginePage() {
                 { label: 'Feedback experto', value: stats.expert_feedback || 0, icon: '🧓', hint: 'Correcciones manuales', color: 'var(--success)' },
                 { label: 'Perfiles con vector', value: profiles.filter(p => p.has_embedding).length, icon: '🧬', hint: `de ${profiles.length} perfiles`, color: 'var(--purple)' },
               ].map(s => (
-                <div key={s.label} style={{ padding: '14px 16px', background: 'var(--surface-1)', borderRadius: 10, display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div key={s.label} style={{ padding: '14px 16px', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
                   <span style={{ fontSize: "var(--text-2xl)" }}>{s.icon}</span>
                   <div>
                     <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 900, color: s.color }}>{s.value}</div>

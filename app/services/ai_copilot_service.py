@@ -13,7 +13,6 @@ from typing import Dict
 from sqlalchemy.orm import Session
 from app.models.imputation import Imputation
 from app.models.project import Project
-from app.models.service_desk import Ticket, KBArticle
 from app.models.task import Task
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
@@ -205,45 +204,3 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session, current_user=None) -> 
         "analysed_at": str(utcnow()),
     }
 
-
-def get_ai_ticket_kb_suggestions(ticket_id: str, db: Session) -> dict:
-
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket:
-        raise ErrorDeDominio(404, "Ticket not found")
-
-    text = f"{ticket.title or ''} {ticket.description or ''}".lower()
-    words = set(w for w in text.split() if len(w) > 3)
-    # Auditoria 2026-08: `KBArticle.is_published` no existe —la columna es
-    # `is_public`, y hay ademas `published_at`—, asi que esto reventaba con
-    # `AttributeError` y la sugerencia de articulos del copiloto no funcionaba.
-    #
-    # Y `art.content` tampoco existe: el cuerpo del articulo es `art.body`. Ese
-    # no lo encuentra el detector, porque `art` es una instancia y el acceso a
-    # un atributo de instancia no se puede comprobar estaticamente — salio al
-    # leer el arreglo del de al lado. Con `content` inexistente, el texto del
-    # articulo entraba vacio en la puntuacion: la sugerencia se decidia **solo
-    # por el titulo**.
-    articles = db.query(KBArticle).filter(
-        KBArticle.is_public == True  # noqa: E712
-    ).limit(200).all()
-
-    scored = []
-    for art in articles:
-        art_text = f"{art.title or ''} {art.body or ''}".lower()
-        matches = sum(1 for w in words if w in art_text)
-        if matches > 0:
-            scored.append({
-                "article_id": art.id,
-                "title": art.title,
-                "score": matches,
-                "url": f"/api/v1/sd/kb/articles/{art.id}",
-            })
-    scored.sort(key=lambda x: -x["score"])
-
-    return {
-        "ticket_id": ticket_id,
-        "ticket_title": ticket.title,
-        "suggestions": scored[:5],
-        "analysed_at": str(utcnow()),
-    }

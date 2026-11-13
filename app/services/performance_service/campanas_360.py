@@ -26,6 +26,7 @@ from app.services.performance_service.ciclos_y_preguntas import (
     list_questions,
     serialize_question,
 )
+from app.models.user import UserRole
 
 
 logger = logging.getLogger("app.services.performance_service")
@@ -496,9 +497,9 @@ def can_launch_campaign_for(db: Session, *, current_user: User, subject_id: str)
     if getattr(current_user, "is_superadmin", False):
         return True
     role = current_user.role
-    if role in ("admin", "hr"):
+    if role in (UserRole.admin, UserRole.hr):
         return True
-    if role in ("pm", "team_lead"):
+    if role in (UserRole.pm, UserRole.team_lead):
         subject = db.query(User).filter(User.id == subject_id).first()
         return bool(subject and subject.manager_id == current_user.id)
     return False

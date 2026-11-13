@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 from typing import Any, Iterable
 
 from app.services.collaboration._bus import EventBus, Subscription
@@ -22,7 +21,8 @@ logger = logging.getLogger(__name__)
 class NatsBus(EventBus):
     def __init__(self, url: str | None = None) -> None:
         super().__init__()
-        self._url = url or os.environ.get("NATS_URL", "nats://localhost:4222")
+        from app.core.config import settings
+        self._url = url or settings.NATS_URL
         self._nc = None
         self._subs_by_channel: dict[str, Any] = {}
 

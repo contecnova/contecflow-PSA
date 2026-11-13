@@ -25,6 +25,31 @@ from app.models.mfa import (
 _logger = logging.getLogger(__name__)
 
 
+# ── Texto del usuario en el PDF (auditoria 2026-11 #28) ──────────────────────
+# `Paragraph` de ReportLab interpreta un mini-HTML (`<font>`, `<a href>`,
+# `<img src>`...). `company_name` llegaba del cuerpo de la peticion y el nombre
+# del proyecto de la base, y se metian tal cual: `<img src="/etc/passwd">` o
+# `<a href="javascript:...">` acababan en el documento, y un `<` suelto rompia
+# la generacion. Todo texto ajeno va escapado.
+
+def _texto(valor) -> str:
+    from xml.sax.saxutils import escape
+    return escape(str(valor if valor is not None else ""))
+
+
+_COLOR_HEX = __import__("re").compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def _color_seguro(valor: Optional[str], defecto: str = "#1C2833") -> str:
+    return valor if isinstance(valor, str) and _COLOR_HEX.match(valor) else defecto
+
+
+def _nombre_seguro(valor: Optional[str]) -> str:
+    """Para nombres de fichero y el PDF minimo: solo letras, digitos, `_` y `-`."""
+    import re
+    return re.sub(r"[^A-Za-z0-9_-]", "_", str(valor or ""))[:60] or "export"
+
+
 def _pdf_de_factura(source_id: str, params: dict, db: Session) -> Optional[bytes]:
     """La factura sale del generador de facturas, no de un dibujo propio.
 
@@ -81,9 +106,9 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
 
         logo_b64 = params.get("logo_b64")  # noqa: F841
         company_name = params.get("company_name", "Contecflow")
-        primary_color = params.get("primary_color", "#1C2833")
+        primary_color = _color_seguro(params.get("primary_color"))
 
-        elements.append(Paragraph(f"<b>{company_name}</b>", title_style))
+        elements.append(Paragraph(f"<b>{_texto(company_name)}</b>", title_style))
         elements.append(HRFlowable(width="100%", thickness=2,
                                    color=colors.HexColor(primary_color), spaceAfter=8))
 
@@ -94,7 +119,7 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
             project = db.query(Project).filter(Project.id == source_id).first()
             if project:
                 from app.services.formato_regional import formatear_importe, simbolo_de_moneda
-                elements.append(Paragraph(f"Resumen del proyecto: {project.name}", section_style))
+                elements.append(Paragraph(f"Resumen del proyecto: {_texto(project.name)}", section_style))
                 data = [
                     ["Campo", "Valor"],
                     ["Código", project.code or "—"],
@@ -123,7 +148,7 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
                 elements.append(t)
 
         else:
-            elements.append(Paragraph(f"Tipo: {export_type}", section_style))
+            elements.append(Paragraph(f"Tipo: {_texto(export_type)}", section_style))
             elements.append(Paragraph("Exportación generada por Contecflow v15.", body_style))
 
         elements.append(Spacer(1, 15 * mm))
@@ -144,7 +169,7 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
 4 0 obj<</Length 120>>
 stream
-BT /F1 14 Tf 50 780 Td (Contecflow v15 - {export_type}) Tj 0 -25 Td /F1 10 Tf (Generado: {datetime.now().strftime('%d/%m/%Y')}) Tj ET
+BT /F1 14 Tf 50 780 Td (Contecflow v15 - {_nombre_seguro(export_type)}) Tj 0 -25 Td /F1 10 Tf (Generado: {datetime.now().strftime('%d/%m/%Y')}) Tj ET
 endstream
 endobj
 5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
@@ -183,7 +208,8 @@ def create_and_run_pdf_export(
         job.file_size = len(pdf_bytes)
         job.completed_at = datetime.now(timezone.utc)
         db.commit()
-        filename = f"contecflow_{export_type}_{source_id or 'export'}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        filename = (f"contecflow_{_nombre_seguro(export_type)}_{_nombre_seguro(source_id)}"
+                    f"_{datetime.now().strftime('%Y%m%d')}.pdf")
         return pdf_bytes, filename
     except Exception as e:
         _logger.exception("PDF generation job failed (export_type=%s source_id=%s)", export_type, source_id)

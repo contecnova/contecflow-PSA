@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk import monitoring_ingest as svc
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(tags=["Service Desk - Monitorización"])
 
@@ -29,5 +30,5 @@ def recibir(
 
 
 @router.get("/events/alerts", summary="Últimas alertas recibidas y su incidencia")
-def ultimas(limit: int = Query(30, ge=1, le=200), db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def ultimas(limit: int = Query(30, ge=1, le=MAX_TAMANO_DE_PAGINA), db: Session = Depends(get_db), _: User = Depends(require_admin)):
     return APIListResponse.ok(items=svc.ultimas(db, limit))

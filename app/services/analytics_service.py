@@ -26,6 +26,7 @@ from app.services.metrics import METRICS_REGISTRY as MODULAR_METRICS_REGISTRY
 from sqlalchemy import func
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.models.user import UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +187,7 @@ def get_hours_by_week(weeks: int, current_user, db) -> dict:
         ).filter(Imputation.date >= week_start, Imputation.date <= week_end)
         if current_user.organization_id:
             q = q.filter(Project.organization_id == current_user.organization_id)
-        if current_user.role not in ["admin", "pm", "hr", "team_lead"]:
+        if current_user.role not in [UserRole.admin, UserRole.pm, UserRole.hr, UserRole.team_lead]:
             q = q.filter(Imputation.user_id == current_user.id)
         result.append({
             "week": week_start.strftime("S%V"),

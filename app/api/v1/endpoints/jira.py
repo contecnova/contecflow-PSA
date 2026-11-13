@@ -2,7 +2,10 @@
 jira.py — Jira bidirectional integration.
 
 Jira Cloud REST API v3 (email + API token → HTTP Basic auth).
-Credentials stored in app_settings table (keys: jira_url, jira_email, jira_api_token, jira_project_key).
+
+Auditoria 2026-11 (#34): rutas finas sobre `services/jira_service.py`, la unica
+capa de Jira. La configuracion es la conexion `usar_para_tareas` de la
+organizacion en `sd_jira_configs` (antes, cuatro `app_settings`).
 
 Endpoints:
   GET  /jira/config                          → get current Jira config (without token)
@@ -12,7 +15,8 @@ Endpoints:
   POST /jira/sync                            → pull Jira → NexusPM  (create/update Tasks)
   POST /jira/push?project_id=…              → push NexusPM tasks → Jira (create missing issues)
   POST /jira/webhook                         → receive Jira webhook events
-  GET  /jira/sync-log?limit=50              → last N sync events from app_settings audit
+  POST /jira/webhook-secret                  → generar/rotar el secreto del webhook
+  GET  /jira/linked                          → tareas enlazadas
 """
 from __future__ import annotations
 
@@ -22,7 +26,6 @@ from app.core.timeutil import utcnow
 import logging
 from typing import Optional, List
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
@@ -37,16 +40,6 @@ from app.services.jira_service import JIRA_STATUS_MAP, JIRA_PRIORITY_MAP
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Jira Integration"])
-
-# NexusPM → Jira status mapping
-NM_TO_JIRA_STATUS = {
-    "backlog":     "To Do",
-    "todo":        "To Do",
-    "in_progress": "In Progress",
-    "in_review":   "In Review",
-    "done":        "Done",
-    "cancelled":   "Won't Fix",
-}
 
 # ── schemas ────────────────────────────────────────────────────────────────────
 
@@ -75,11 +68,6 @@ class JiraPushIn(BaseModel):
     jira_project_key: Optional[str] = None
     statuses:         List[str] = ["todo", "backlog", "in_progress", "in_review"]
     dry_run:          bool = False
-
-
-# ── helpers ────────────────────────────────────────────────────────────────────
-
-_jira_headers = jira_service.jira_headers
 
 
 # ── endpoints ──────────────────────────────────────────────────────────────────
@@ -120,31 +108,8 @@ def test_jira_connection(
     current_user: User = Depends(require_any_manager),
 ):
     cfg = jira_service.get_jira_config(db, current_user.organization_id)
-    if not cfg["jira_url"] or not cfg["jira_api_token"]:
-        raise HTTPException(400, "Jira no configurado. Ve a /jira/config primero.")
-    try:
-        resp = httpx.get(
-            f"{cfg['jira_url']}/rest/api/3/myself",
-            headers=_jira_headers(cfg["jira_email"], cfg["jira_api_token"]),
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return APIResponse.ok(data={
-            "ok": True,
-            "jira_url": cfg["jira_url"],
-            "account_id": data.get("accountId"),
-            "display_name": data.get("displayName"),
-            "email": data.get("emailAddress"),
-        })
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(502, f"Jira devolvió {e.response.status_code}: {e.response.text[:200]}")
-    except httpx.RequestError as e:
-        raise HTTPException(503, f"No se pudo conectar con Jira: {str(e)[:200]}")
-    except ValueError as e:
-        raise HTTPException(400, f"Error de datos: {str(e)[:200]}")
-    except Exception as e:
-        raise HTTPException(500, f"Error inesperado: {str(e)[:200]}")
+    # Auditoria 2026-11 (#34): la misma prueba que `/integrations/jira/configs/{id}/test`.
+    return APIResponse.ok(data={"jira_url": cfg["jira_url"], **jira_service.probar_conexion(cfg)})
 
 
 @router.get("/issues", summary="Listar issues Jira (proxy)")
@@ -163,37 +128,26 @@ def list_jira_issues(
         raise HTTPException(400, "Proporciona project_key o un jql personalizado.")
 
     query = jql or f"project = {key} ORDER BY updated DESC"
-    try:
-        resp = httpx.post(
-            f"{cfg['jira_url']}/rest/api/3/issue/search",
-            headers=_jira_headers(cfg["jira_email"], cfg["jira_api_token"]),
-            json={"jql": query, "maxResults": max_results,
-                  "fields": ["summary", "status", "priority", "assignee", "description",
-                              "created", "updated", "duedate", "issuetype", "labels", "subtasks"]},
-            timeout=15,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        issues = []
-        for iss in data.get("issues", []):
-            f = iss.get("fields", {})
-            issues.append({
-                "key": iss["key"],
-                "id": iss["id"],
-                "summary": f.get("summary"),
-                "status": f.get("status", {}).get("name"),
-                "priority": f.get("priority", {}).get("name"),
-                "assignee": f.get("assignee", {}).get("displayName") if f.get("assignee") else None,
-                "due_date": f.get("duedate"),
-                "issue_type": f.get("issuetype", {}).get("name"),
-                "labels": f.get("labels", []),
-                "updated": f.get("updated"),
-            })
-        return APIResponse.ok(data={"total": data.get("total", 0), "issues": issues})
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(502, f"Jira {e.response.status_code}: {e.response.text[:200]}")
-    except Exception as e:
-        raise HTTPException(502, f"Error Jira: {str(e)[:200]}")
+    data = jira_service.llamar_a_jira(cfg, "POST", "/rest/api/3/issue/search", timeout=15, json={
+        "jql": query, "maxResults": max_results,
+        "fields": ["summary", "status", "priority", "assignee", "description",
+                   "created", "updated", "duedate", "issuetype", "labels", "subtasks"]})
+    issues = []
+    for iss in data.get("issues", []):
+        f = iss.get("fields", {})
+        issues.append({
+            "key": iss["key"],
+            "id": iss["id"],
+            "summary": f.get("summary"),
+            "status": f.get("status", {}).get("name"),
+            "priority": f.get("priority", {}).get("name"),
+            "assignee": f.get("assignee", {}).get("displayName") if f.get("assignee") else None,
+            "due_date": f.get("duedate"),
+            "issue_type": f.get("issuetype", {}).get("name"),
+            "labels": f.get("labels", []),
+            "updated": f.get("updated"),
+        })
+    return APIResponse.ok(data={"total": data.get("total", 0), "issues": issues})
 
 
 @router.post("/sync", summary="Jira → NexusPM: importar / actualizar tareas")
@@ -218,28 +172,19 @@ def sync_jira_to_nexus(
     jql = f"project = {key} AND updated >= '{cutoff}' ORDER BY updated DESC"
     max_results = min(payload.max_results, 200)
 
-    try:
-        resp = httpx.post(
-            f"{cfg['jira_url']}/rest/api/3/issue/search",
-            headers=_jira_headers(cfg["jira_email"], cfg["jira_api_token"]),
-            json={"jql": jql, "maxResults": max_results,
-                  "fields": ["summary", "status", "priority", "description", "duedate",
-                              "assignee", "issuetype", "labels", "subtasks"]},
-            timeout=20,
-        )
-        resp.raise_for_status()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(502, f"Jira {e.response.status_code}: {e.response.text[:200]}")
-    except Exception as e:
-        raise HTTPException(502, f"Error Jira: {str(e)[:200]}")
+    data = jira_service.llamar_a_jira(cfg, "POST", "/rest/api/3/issue/search", timeout=20, json={
+        "jql": jql, "maxResults": max_results,
+        "fields": ["summary", "status", "priority", "description", "duedate",
+                   "assignee", "issuetype", "labels", "subtasks"]})
 
-    issues = resp.json().get("issues", [])
+    issues = data.get("issues", [])
     stats = jira_service.sync_jira_issues(
         db,
         issues=issues,
         project_id=payload.project_id,
         current_user_id=current_user.id,
         dry_run=payload.dry_run,
+        org_id=current_user.organization_id,
     )
 
     return APIResponse.ok(data={
@@ -268,65 +213,34 @@ def push_nexus_to_jira(
     if not proj_key:
         raise HTTPException(400, "Proporciona jira_project_key.")
 
-    tasks = jira_service.get_tasks_for_push(db, payload.project_id, payload.statuses)
+    # Segunda auditoria 2026-11 (n.º 20): una llamada a Jira (15 s) por tarea
+    # iba dentro de la peticion. Ahora va al worker; con cola: 202
+    # `{status: "queued"}`. `dry_run` no llama a Jira y sigue siendo sincrono
+    # (es la vista previa). Sin cola, como siempre.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    argumentos = dict(project_id=payload.project_id, statuses=list(payload.statuses),
+                      jira_project_key=proj_key, org_id=current_user.organization_id)
+    if payload.dry_run:
+        return APIResponse.ok(data=jira_service.empujar_tareas_a_jira(db, dry_run=True, **argumentos))
+    resultado = encolar(jira_service.empujar_tareas_a_jira, **argumentos, _sesion=db)
+    if resultado is EN_COLA:
+        return respuesta_en_cola(dry_run=False)
+    return APIResponse.ok(data=resultado)
 
-    NEXUS_PRIORITY_TO_JIRA = {
-        "critical": "Highest", "high": "High",
-        "medium": "Medium", "low": "Low", "none": "Medium",
-    }
-    created = skipped = errors = 0
-    errs = []
 
-    for task in tasks:
-        jira_payload = {
-            "fields": {
-                "project":   {"key": proj_key},
-                "summary":   task.title,
-                "issuetype": {"name": "Task"},
-                "priority":  {"name": NEXUS_PRIORITY_TO_JIRA.get(task.priority or "medium", "Medium")},
-            }
-        }
-        if task.description:
-            jira_payload["fields"]["description"] = {
-                "type": "doc", "version": 1,
-                "content": [{"type": "paragraph", "content": [{"type": "text", "text": task.description}]}]
-            }
-        if task.due_date:
-            jira_payload["fields"]["duedate"] = str(task.due_date)
-
-        if payload.dry_run:
-            created += 1
-            continue
-
-        try:
-            resp = httpx.post(
-                f"{cfg['jira_url']}/rest/api/3/issue",
-                headers=_jira_headers(cfg["jira_email"], cfg["jira_api_token"]),
-                json=jira_payload,
-                timeout=15,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            task.jira_issue_key = data["key"]
-            task.jira_issue_id  = data["id"]
-            task.jira_synced_at = datetime.datetime.now(datetime.timezone.utc)
-            created += 1
-        except Exception as e:
-            logger.warning("push_nexus_to_jira: excepcion ignorada", exc_info=True)
-            errors += 1
-            errs.append({"task_id": task.id, "error": str(e)[:100]})
-
-    if not payload.dry_run:
-        jira_service.commit_db(db)
-
+@router.post("/webhook-secret", summary="Generar (o rotar) el secreto del webhook Jira de la organización")
+def rotate_jira_webhook_secret(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """El secreto se muestra UNA vez. Jira debe enviarlo en `X-Atlassian-Webhook-Token`
+    (o firmar el cuerpo con él en `X-Hub-Signature-256`)."""
+    secreto = jira_service.generar_secreto_de_webhook(db, current_user.organization_id)
     return APIResponse.ok(data={
-        "ok": True,
-        "dry_run": payload.dry_run,
-        "tasks_evaluated": len(tasks),
-        "created": created,
-        "skipped": skipped,
-        "errors": errors,
-        "error_details": errs[:10],
+        "secret": secreto,
+        "header": "X-Atlassian-Webhook-Token",
+        "webhook_paths": [f"/api/v1/jira/webhook?org={current_user.organization_id}",
+                          f"/api/v1/integrations/jira/webhook?org={current_user.organization_id}"],
     })
 
 
@@ -335,6 +249,7 @@ async def jira_webhook(
     request: Request,
     x_atlassian_webhook_token: Optional[str] = Header(None),
     x_hub_signature_256: Optional[str] = Header(None),
+    org: Optional[str] = Query(None, description="Organización (solo acota; autentica el secreto)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -342,11 +257,16 @@ async def jira_webhook(
     - Updates NexusPM task status / priority when a Jira issue changes
     - Marks tasks as done when Jira issue is resolved/closed
 
-    Authenticated against JIRA_WEBHOOK_SECRET (shared token or body HMAC)
-    before any mutation.
+    Auditoria 2026-11 (#14): autentica el secreto de webhook DE UNA
+    organizacion (`POST /jira/webhook-secret`), y solo toca tareas de esa
+    organizacion. El `JIRA_WEBHOOK_SECRET` global ya no autentica.
     """
+    from app.core.async_db import run_db
+
     body = await request.body()
-    if not jira_service.verify_jira_webhook(body, x_atlassian_webhook_token, x_hub_signature_256):
+    org_id = await run_db(jira_service.organizacion_del_webhook, db, body,
+                          x_atlassian_webhook_token, x_hub_signature_256, org)
+    if not org_id:
         logger.warning("Jira webhook rejected: invalid/missing authentication token")
         raise HTTPException(403, "Invalid Jira webhook authentication")
 
@@ -365,18 +285,18 @@ async def jira_webhook(
         return {"ok": True, "ignored": True}
 
     # Async handler (awaits raw body for auth) → offload blocking ORM to threadpool.
-    from app.core.async_db import run_db
-    return await run_db(_process_legacy_jira_webhook_sync, db, issue, jira_key, event)
+    return await run_db(_process_legacy_jira_webhook_sync, db, issue, jira_key, event, org_id)
 
 
-def _process_legacy_jira_webhook_sync(db: Session, issue: dict, jira_key: str, event: str) -> dict:
+def _process_legacy_jira_webhook_sync(db: Session, issue: dict, jira_key: str, event: str,
+                                      org_id: Optional[str] = None) -> dict:
     fields       = issue.get("fields", {})
     raw_status   = (fields.get("status", {}).get("name") or "").lower()
     raw_priority = (fields.get("priority", {}).get("name") or "").lower()
     nm_status    = JIRA_STATUS_MAP.get(raw_status)
     nm_priority  = JIRA_PRIORITY_MAP.get(raw_priority)
 
-    task = jira_service.get_task_by_jira_key(db, jira_key)
+    task = jira_service.get_task_by_jira_key(db, jira_key, org_id)
     if not task:
         return {"ok": True, "message": f"No task linked to {jira_key}"}
 
@@ -392,10 +312,10 @@ def get_linked_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    q = jira_service.get_linked_tasks_query(db, project_id)
+    q = jira_service.get_linked_tasks_query(db, project_id, org_id=current_user.organization_id)
     from app.models.task import Task as TaskModel
     tasks, _, _ = paginate_query(q.order_by(TaskModel.updated_at.desc()), page, page_size)
-    jira_url = jira_service.get_setting(db, "jira_url", current_user.organization_id)
+    jira_url = jira_service.get_jira_config(db, current_user.organization_id)["jira_url"]
     items = [
         {
             "id": t.id, "title": t.title, "status": t.status,

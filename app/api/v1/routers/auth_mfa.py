@@ -4,6 +4,7 @@ Auth MFA Router — Two-factor authentication: TOTP setup/verify and WebAuthn (p
 from fastapi import APIRouter, Depends, HTTPException, Response, Body, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+from typing import Optional
 import json
 import logging
 
@@ -14,14 +15,13 @@ from app.core.ratelimit import limiter
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
 from app.schemas.auth_payloads import (
-    MfaCodeIn, MfaValidateIn,
+    MfaCodeIn, MfaValidateIn, ReautenticacionIn,
     WebAuthnRegisterFinishIn, WebAuthnAuthStartIn, WebAuthnAuthFinishIn,
 )
 from app.services.session_security import register_or_rotate_user_session
 
 import app.services.auth_service as _svc
 from app.services.auth_service import (
-    client_ip as _client_ip,
     soc_svc as _soc_svc,
     read_mfa_challenge as _read_mfa_challenge,
     consume_mfa_challenge as _consume_mfa_challenge,
@@ -29,23 +29,45 @@ from app.services.auth_service import (
     b64url_decode as _b64url_decode,
     create_ephemeral_token as _create_ephemeral_token,
     read_ephemeral_token as _read_ephemeral_token,
-    set_auth_cookies as _set_auth_cookies,
 )
+from app.api.cookies_de_sesion import set_auth_cookies as _set_auth_cookies
+from app.core.network import extract_client_ip as _client_ip
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 # ── TOTP Setup and Verification ───────────────────────────────────────────────
+# Auditoria 2026-11: habia un segundo sistema TOTP en `/api/v1/mfa/*` (tabla
+# `mfa_configs`) que el login no miraba. Se retiro; la pantalla /mfa usa estas
+# rutas y los codigos de respaldo son del usuario (`mfa_backup_codes.user_id`).
+
+@router.get("/mfa/status", summary="Estado del segundo factor del usuario actual")
+def mfa_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _svc.estado_de_mfa(db, current_user)
+
 
 @router.post("/mfa/setup", summary="Iniciar configuración 2FA — genera secreto TOTP")
 @limiter.limit("5/minute")
 def mfa_setup(
     request: Request,
+    payload: Optional[ReautenticacionIn] = Body(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Genera un secreto TOTP y devuelve QR para el autenticador."""
+    """Genera un secreto TOTP y devuelve QR para el autenticador.
+
+    Auditoria 2026-11 (#21): con el 2FA ya activo, reconfigurarlo lo apaga hasta
+    verificar el nuevo codigo; por eso pide la contrasena actual o un codigo
+    TOTP valido (`{"password": ...}` o `{"code": ...}`).
+    """
+    if current_user.mfa_enabled:
+        _svc.exigir_reautenticacion(db, current_user,
+                                    password=payload.password if payload else None,
+                                    code=payload.code if payload else None)
     try:
         import pyotp
     except ImportError:
@@ -74,6 +96,9 @@ def mfa_setup(
         qr_b64 = base64.b64encode(buf.getvalue()).decode()
         qr_url = f"data:image/png;base64,{qr_b64}"
         _svc.guardar_secreto_de_mfa(db, current_user, encrypt_value(secret))
+        # El TOTP anterior deja de valer, y sus codigos de respaldo con el.
+        _svc.borrar_codigos_de_respaldo(db, current_user)
+        current_user.mfa_verified_at = None
         _svc.commit_db(db)
         return {
             "secret":           secret,
@@ -123,9 +148,15 @@ def mfa_verify_setup(
         raise HTTPException(400, "Código incorrecto o expirado. Asegúrate de que la hora del dispositivo es correcta.")
 
     current_user.mfa_enabled = True
+    current_user.mfa_verified_at = datetime.now(timezone.utc)
+    codigos = _svc.generar_codigos_de_respaldo(db, current_user)
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "MFA_ENABLED", "users", current_user.id, current_user.email)
     _svc.commit_db(db)
 
-    return {"ok": True, "message": "Autenticación de dos factores activada correctamente"}
+    return {"ok": True, "message": "Autenticación de dos factores activada correctamente",
+            "backup_codes": codigos,
+            "warning": "Guarda estos códigos en un lugar seguro. Solo se muestran una vez."}
 
 
 _MFA_MAX_FALLOS_POR_RETO = 5
@@ -182,9 +213,8 @@ def mfa_validate(
     if valid:
         user.mfa_last_timestep = paso
     else:
-        # Codigos de respaldo que entrega la pantalla /mfa al activarse.
-        from app.services.mfa_service import consumir_codigo_de_respaldo
-        valid = consumir_codigo_de_respaldo(user, code, db)
+        # Codigos de respaldo que entrega `verify-setup` al activarse.
+        valid = _svc.consumir_codigo_de_respaldo(db, user, code)
 
     if not valid:
         try:
@@ -267,9 +297,10 @@ def mfa_disable(
         raise HTTPException(401, "Código incorrecto")
 
     current_user.mfa_secret = None
-    # Y la configuracion de la pantalla /mfa, para que no diga «activado».
-    from app.services.mfa_service import apagar_config_de_pantalla
-    apagar_config_de_pantalla(current_user, db)
+    current_user.mfa_verified_at = None
+    _svc.borrar_codigos_de_respaldo(db, current_user)
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "MFA_DISABLED", "users", current_user.id, current_user.email)
     has_passkeys = _svc.user_has_passkeys(db, current_user.id)
     current_user.mfa_enabled = bool(has_passkeys)
     _svc.commit_db(db)
@@ -284,9 +315,16 @@ def mfa_disable(
 @limiter.limit("10/minute")
 def webauthn_register_start(
     request: Request,
+    payload: Optional[ReautenticacionIn] = Body(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Auditoria 2026-11 (#21): una passkey nueva es un segundo factor nuevo:
+    # se pide la contrasena actual o un codigo TOTP, no solo la sesion.
+    _svc.exigir_reautenticacion(db, current_user,
+                                password=payload.password if payload else None,
+                                code=payload.code if payload else None)
+    _svc.commit_db(db)  # el paso TOTP aceptado no se puede reutilizar
     try:
         from webauthn import generate_registration_options, options_to_json
         from webauthn.helpers.structs import (
@@ -372,6 +410,12 @@ def webauthn_register_finish(
         transports=json.dumps(credential.get("response", {}).get("transports", [])),
         nickname=nickname,
     )
+    # 2026-11: un alta de TOTP a medias (secreto guardado, sin verificar) tiene
+    # mfa_enabled=False. Si aqui se pone True, el login pediria un TOTP que el
+    # usuario nunca confirmo. Se descarta el secreto pendiente: el alta de TOTP
+    # se vuelve a empezar.
+    if current_user.mfa_secret and not current_user.mfa_enabled:
+        current_user.mfa_secret = None
     current_user.mfa_enabled = True
     _svc.commit_db(db)
     return {"ok": True, "message": "Passkey registrada correctamente"}

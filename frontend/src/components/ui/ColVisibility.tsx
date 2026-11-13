@@ -73,7 +73,7 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
           style={{
             background: open ? 'var(--surface-4)' : 'transparent',
             border: `1px solid ${open ? 'var(--surface-5)' : 'transparent'}`,
-            borderRadius: 6, padding: '4px 7px', cursor: 'pointer',
+            borderRadius: 'var(--radius-sm)', padding: '4px 7px', cursor: 'pointer',
             color: open ? 'var(--text-1)' : 'var(--text-3)',
             fontSize: 'var(--text-sm)', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 4,
           }}
@@ -88,7 +88,7 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
 
         {open && (
           <div className="col-toggle-panel"
-            style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 200 }}>
+            style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 'var(--z-dropdown)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--surface-4)' }}>
               <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)',

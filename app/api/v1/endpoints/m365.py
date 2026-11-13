@@ -36,6 +36,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import m365_service
 from app.core import timeutil
+from app.services.settings_service import outbound_http_timeout
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -81,11 +82,15 @@ def m365_status(db: Session = Depends(get_db), current_user: User = Depends(get_
 async def sync_calendar_events(
     user_upn: str,
     days: int = 14,
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Pull upcoming calendar events for the given user via Microsoft Graph."""
+    from app.core.async_db import run_db
     _require_m365()
+    # Auditoria 2026-11 (#15): solo buzones de usuarios de la organizacion.
+    user_upn = await run_db(m365_service.buzon_de_la_organizacion, db, _, user_upn)
     start = utcnow().strftime("%Y-%m-%dT%H:%M:%S")
     end   = (utcnow() + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
     try:
@@ -103,11 +108,14 @@ async def sync_calendar_events(
 @router.post("/calendar/events")
 async def create_calendar_event(
     body: CalendarEventCreate,
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Create a calendar event in the specified user's Microsoft 365 calendar."""
+    from app.core.async_db import run_db
     _require_m365()
+    buzon = await run_db(m365_service.buzon_de_la_organizacion, db, _, body.user_upn)
     payload = {
         "subject": body.subject,
         "start": {"dateTime": body.start_dt.isoformat(), "timeZone": "UTC"},
@@ -120,7 +128,7 @@ async def create_calendar_event(
         ],
     }
     try:
-        result = await _graph_post(f"/users/{body.user_upn}/events", payload)
+        result = await _graph_post(f"/users/{buzon}/events", payload)
         return APIResponse.ok(data={"id": result.get("id"), "webLink": result.get("webLink"), "subject": result.get("subject")})
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API create event failed: status=%s", e.response.status_code)
@@ -141,8 +149,10 @@ async def delete_calendar_event(
     from app.core.async_db import run_db
     await run_db(enforce_abac, db, current_user, "m365_calendar_event", event_id, action="delete")
     _require_m365()
+    buzon = await run_db(m365_service.buzon_de_la_organizacion, db, current_user, user_upn)
+    from urllib.parse import quote
     try:
-        await _graph_delete(f"/users/{user_upn}/events/{event_id}")
+        await _graph_delete(f"/users/{buzon}/events/{quote(event_id, safe='')}")
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API delete event failed: status=%s", e.response.status_code)
         raise HTTPException(e.response.status_code, "Graph API request failed")
@@ -158,6 +168,7 @@ def sync_milestones_to_calendar(
 ):
     """Push upcoming project milestones as Microsoft 365 calendar events."""
     _require_m365()
+    buzon = m365_service.buzon_de_la_organizacion(db, current_user, req.user_upn)
 
     cutoff = timeutil.today() + timedelta(days=req.days_ahead)
     milestones = m365_service.get_upcoming_milestones(db, cutoff, limit=50)
@@ -176,7 +187,7 @@ def sync_milestones_to_calendar(
             "body":    {"contentType": "text", "content": ms.description or ""},
         }
         try:
-            result = _graph_post_sync(f"/users/{req.user_upn}/events", payload)
+            result = _graph_post_sync(f"/users/{buzon}/events", payload)
             created.append({"milestone_id": ms.id, "event_id": result.get("id")})
         except Exception as e:
             logger.warning("sync_milestones_to_calendar: excepcion ignorada", exc_info=True)
@@ -194,9 +205,12 @@ async def send_teams_notification(
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Send an Adaptive Card-style message to a Microsoft Teams channel via incoming webhook."""
+    from app.core.outbound_url import cliente_httpx, validate_outbound_url
     webhook_url = body.webhook_url or settings.TEAMS_WEBHOOK_URL
     if not webhook_url:
         raise HTTPException(503, "TEAMS_WEBHOOK_URL not configured")
+    # Auditoria 2026-11 (#25): la URL llegaba del cuerpo sin validar (SSRF).
+    webhook_url = validate_outbound_url(webhook_url, field="webhook_url", require_https=True)
 
     card = {
         "@type": "MessageCard",
@@ -209,13 +223,21 @@ async def send_teams_notification(
             "markdown": True,
         }],
     }
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(webhook_url, json=card)
+    from app.core.async_db import run_db
 
-    if resp.status_code not in (200, 202):
-        logger.warning("Teams webhook notify failed: status=%s", resp.status_code)
+    def _enviar():
+        try:
+            with cliente_httpx(timeout=outbound_http_timeout(default=15)) as client:
+                return client.post(webhook_url, json=card).status_code
+        except (httpx.HTTPError, PermissionError):
+            logger.warning("Teams webhook notify: no se pudo conectar", exc_info=True)
+            return None
+
+    estado = await run_db(_enviar)
+    if estado not in (200, 202):
+        logger.warning("Teams webhook notify failed: status=%s", estado)
         raise HTTPException(502, "Teams webhook delivery failed")
-    return APIResponse.ok(data={"ok": True, "status": resp.status_code})
+    return APIResponse.ok(data={"ok": True, "status": estado})
 
 
 @router.post("/teams/notify-project")
@@ -242,7 +264,7 @@ async def notify_project_milestone(
             "markdown": True,
         }],
     }
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as client:
         resp = await client.post(webhook_url, json=card)
 
     if resp.status_code not in (200, 202):
@@ -291,6 +313,7 @@ def receive_teams_webhook(
 @router.get("/users/presence", summary="Presencia en tiempo real de usuarios M365")
 async def get_users_presence(
     upns: str,
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     """
@@ -304,6 +327,12 @@ async def get_users_presence(
         raise HTTPException(400, detail="No UPNs provided")
     if len(upn_list) > 650:
         raise HTTPException(400, detail="Maximum 650 UPNs per request")
+    # Auditoria 2026-11 (#15): solo la presencia de usuarios de la organizacion;
+    # los demas UPN se omiten.
+    from app.core.async_db import run_db
+    upn_list = await run_db(m365_service.upns_de_la_organizacion, db, _, upn_list)
+    if not upn_list:
+        return APIListResponse.ok(items=[])
 
     # First resolve UPNs → object IDs via /users
     ids = []
@@ -401,7 +430,7 @@ def sync_to_planner(
             "error": "PLAN_ID_REQUIRED",
             "message": (
                 "Provide plan_id. To find your plan ID: "
-                "https://graph.microsoft.com/v1.0/me/planner/plans"
+                f"{settings.MICROSOFT_GRAPH_BASE}/v1.0/me/planner/plans"
             ),
         })
 

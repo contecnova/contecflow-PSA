@@ -65,6 +65,9 @@ def suprimir_persona(db: Session, user) -> dict:
     user.is_active = False
     if hasattr(user, "hashed_password"):
         user.hashed_password = None
+    # Su segundo factor: el secreto TOTP vive en la ficha (auditoria 2026-11).
+    user.mfa_secret = None
+    user.mfa_enabled = False
     db.flush()
 
     with sin_filtro_de_tenant(db):

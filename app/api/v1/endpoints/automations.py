@@ -11,6 +11,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.automations_service as _svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -59,7 +60,7 @@ def list_rules(
     project_id: Optional[str] = None,
     is_active: Optional[bool] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):

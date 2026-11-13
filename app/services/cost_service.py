@@ -24,6 +24,7 @@ from app.models.user import User
 from app.models.user_cost import CountryEmployerCost, UserCostProfile
 from app.core.asignacion import es_asignable
 from app.core.errores import ErrorDeDominio
+from app.core.constantes import HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
 
 
 # ── Default presets seeded on first run ──────────────────────────────────────
@@ -54,7 +55,7 @@ def derive_cost(gross_annual_salary: float, employer_cost_pct: float,
                 extra_annual_costs: float, productive_hours_year: float) -> tuple[float, float]:
     """Return (total_annual_cost, cost_per_hour)."""
     total = (gross_annual_salary or 0) * (1 + (employer_cost_pct or 0)) + (extra_annual_costs or 0)
-    hrs = productive_hours_year if productive_hours_year and productive_hours_year > 0 else 1700
+    hrs = productive_hours_year if productive_hours_year and productive_hours_year > 0 else HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
     return round(total, 2), round(total / hrs, 2)
 
 
@@ -119,18 +120,6 @@ def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] =
 
 
 # ── Country preset access ───────────────────────────────────────────────────
-def get_country_preset(db: Session, country_code: str,
-                       organization_id: Optional[str] = None) -> Optional[CountryEmployerCost]:
-    """Return the org-specific preset, or fall back to the global one."""
-    code = (country_code or "").upper()
-    q = db.query(CountryEmployerCost).filter(CountryEmployerCost.country_code == code)
-    if organization_id is not None:
-        org_specific = q.filter(CountryEmployerCost.organization_id == organization_id).first()
-        if org_specific:
-            return org_specific
-    return q.filter(CountryEmployerCost.organization_id.is_(None)).first()
-
-
 def list_country_presets(db: Session, organization_id: Optional[str] = None) -> list[CountryEmployerCost]:
     """List all presets visible to the org: global + org-specific."""
     q = db.query(CountryEmployerCost)
@@ -145,7 +134,7 @@ def list_country_presets(db: Session, organization_id: Optional[str] = None) -> 
 # ── CRUD helpers ────────────────────────────────────────────────────────────
 def create_profile(db: Session, *, user_id: str, valid_from: Date,
                    gross_annual_salary: float, employer_cost_pct: float,
-                   extra_annual_costs: float = 0.0, productive_hours_year: float = 1700,
+                   extra_annual_costs: float = 0.0, productive_hours_year: float = HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO,
                    country_code: Optional[str] = None, currency: Optional[str] = None,
                    notes: Optional[str] = None,
                    organization_id: Optional[str] = None,

@@ -42,23 +42,6 @@ PORTAL_SHARE_LINK_EXPIRE_HOURS = _svc.PORTAL_SHARE_LINK_EXPIRE_HOURS
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
-def _hash_password(p: str) -> str:
-    return _svc.hash_password(p)
-
-def _verify_password(plain: str, hashed: str) -> bool:
-    return _svc.verify_password(plain, hashed)
-
-def _create_client_token(client_id: str) -> str:
-    return _svc.create_client_token(client_id)
-
-
-def _create_portal_share_token(project_id: str) -> str:
-    return _svc.create_portal_share_token(project_id)
-
-
-def _decode_portal_share_token(token: str) -> Optional[str]:
-    return _svc.decode_portal_share_token(token)
-
 def get_current_client(
     authorization: Optional[str] = Header(None),
     portal_access_token: Optional[str] = Cookie(None),
@@ -78,6 +61,8 @@ def get_current_client(
         if not client_id or payload.get("type") != "client":
             raise credentials_exception
     except JWTError:
+        raise credentials_exception
+    if _svc.token_de_cliente_revocado(payload):  # auditoria 2026-11 #23: cerro sesion
         raise credentials_exception
     client = _svc.get_active_client_by_id(db, client_id)
     if not client:
@@ -288,7 +273,15 @@ def client_login(request: Request, response: Response, payload: ClientLoginIn, d
 
 
 @router.post("/auth/logout", summary="Cerrar sesión del portal de cliente")
-def client_logout(response: Response):
+def client_logout(
+    response: Response,
+    authorization: Optional[str] = Header(None),
+    portal_access_token: Optional[str] = Cookie(None),
+):
+    # Auditoria 2026-11 (#23): borrar la cookie no invalidaba el token (JWT de
+    # 72 h): una copia seguia entrando. Ahora se revoca su `jti`.
+    token = authorization.split(" ", 1)[1] if authorization and authorization.startswith("Bearer ") else None
+    _svc.revocar_token_de_cliente(token or portal_access_token)
     response.delete_cookie(
         "portal_access_token",
         httponly=True,
@@ -397,10 +390,6 @@ def get_client_dashboard(
         raise HTTPException(403, str(e))
 
 
-def _get_recent_activity(project_id: str, db: Session) -> list:
-    return _svc.get_recent_activity(project_id, db)
-
-
 # ── Feature Requests ──────────────────────────────────────────────────────────
 
 @router.get("/feature-requests", summary="Mis solicitudes de funcionalidad")
@@ -422,10 +411,6 @@ def list_all_feature_requests(
     current_user: User = Depends(require_any_manager),
 ):
     return APIListResponse.ok(items=_svc.list_all_feature_requests(project_id, client_id, client_org_id, status, current_user, db))
-
-
-def _fr_out(fr) -> dict:
-    return _svc.fr_out(fr)
 
 
 @router.post("/feature-requests", summary="Nueva solicitud de funcionalidad (cliente)")
@@ -507,10 +492,6 @@ def client_decide_fr(
 
 
 # ── UAT ───────────────────────────────────────────────────────────────────────
-
-def _uat_out(s) -> dict:
-    return _svc.uat_out(s)
-
 
 @router.get("/uat", summary="Mis UATs (cliente)")
 def list_uat_client(
@@ -600,10 +581,6 @@ def update_issue(
 
 # ── Messaging ─────────────────────────────────────────────────────────────────
 
-def _msg_out(m) -> dict:
-    return _svc.msg_out(m)
-
-
 @router.get("/messages", summary="Mensajes del proyecto (cliente)")
 def get_client_messages(
     thread_id: Optional[str] = None,
@@ -679,10 +656,6 @@ def get_all_documents(
     current_user: User = Depends(require_any_manager),
 ):
     return APIListResponse.ok(items=_svc.get_all_documents(project_id, db))
-
-
-def _doc_out(d) -> dict:
-    return _svc.doc_out(d)
 
 
 @router.post("/documents", summary="Subir documento al portal")
@@ -774,10 +747,6 @@ def get_surveys(
     db: Session = Depends(get_db),
 ):
     return APIListResponse.ok(items=_svc.get_surveys(current_client, db))
-
-
-def _survey_out(s) -> dict:
-    return _svc.survey_out(s)
 
 
 @router.post("/surveys", summary="Crear encuesta de satisfacción (equipo)")

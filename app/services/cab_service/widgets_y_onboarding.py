@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.cab import DashboardWidget
 from app.models.cab import OnboardingState
+from app.models.user import UserRole
 
 
 # ─── Dashboard widget helpers ─────────────────────────────────────────────────
@@ -31,7 +32,7 @@ AVAILABLE_WIDGETS = [
 
 
 def default_widget_layout(role: str) -> list:
-    if role in ["admin", "pm"]:
+    if role in [UserRole.admin, UserRole.pm]:
         return [
             {"widget_type": "kpi_projects_active", "position_x": 0, "position_y": 0, "width": 1, "height": 1},
             {"widget_type": "kpi_hours_week",       "position_x": 1, "position_y": 0, "width": 1, "height": 1},

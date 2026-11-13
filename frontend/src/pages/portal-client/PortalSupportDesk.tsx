@@ -16,31 +16,16 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { CLIENT_API, useLang } from './portalClientContext'
 import PortalKbArticulo from './PortalKbArticulo'
 import {
-  PortalPageHeader as PortalPageHeaderBase, PortalCard as PortalCardBase,
-  PortalEmpty as PortalEmptyBase, PortalBadge as PortalBadgeBase,
-  PortalButton as PortalButtonBase, PortalModal as PortalModalBase,
-  PortalField as PortalFieldBase, PortalInput as PortalInputBase,
-  PortalSelect as PortalSelectBase, PortalTextarea as PortalTextareaBase,
-  PortalBanner as PortalBannerBase,
+  PortalPageHeader, PortalCard,
+  PortalEmpty, PortalBadge,
+  PortalButton, PortalModal,
+  PortalField, PortalInput,
+  PortalSelect, PortalTextarea,
+  PortalBanner,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useTabListKeys } from '../../components/ui/Tabs'
 
-// PortalUI is untyped JS: alias each component to accept partial props so
-// optional props need not be passed explicitly (behavior unchanged).
-type AnyProps = Record<string, unknown>
-type AnyComp = (p: AnyProps) => JSX.Element
-const PortalPageHeader = PortalPageHeaderBase as unknown as AnyComp
-const PortalCard = PortalCardBase as unknown as AnyComp
-const PortalEmpty = PortalEmptyBase as unknown as AnyComp
-const PortalBadge = PortalBadgeBase as unknown as AnyComp
-const PortalButton = PortalButtonBase as unknown as AnyComp
-const PortalModal = PortalModalBase as unknown as AnyComp
-const PortalField = PortalFieldBase as unknown as AnyComp
-const PortalInput = PortalInputBase as unknown as AnyComp
-const PortalSelect = PortalSelectBase as unknown as AnyComp
-const PortalTextarea = PortalTextareaBase as unknown as AnyComp
-const PortalBanner = PortalBannerBase as unknown as AnyComp
 
 const PRIORITY_TONE: Record<string, string> = {
   p1_critical: 'danger',
@@ -353,7 +338,7 @@ export function PortalSupportDesk() {
                 <div className="u-row-8">
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} onClick={() => submitCSAT({ score: n })} style={{
-                      flex: 1, padding: '12px', borderRadius: 10,
+                      flex: 1, padding: '12px', borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--surface-4)', background: 'var(--surface-3)',
                       color: 'var(--text-1)', cursor: 'pointer',
                       fontSize: 'var(--text-md-em)', fontFamily: 'inherit',
@@ -389,7 +374,7 @@ export function PortalSupportDesk() {
                   {upcomingEvents.map((ev) => (
                     <div key={ev.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
                       <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 700 }}>{ev.title}</div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{ev.starts_at}{ev.ends_at ? ` → ${ev.ends_at}` : ''}</div>
+                      <div className="u-text3-xs-mt2">{ev.starts_at}{ev.ends_at ? ` → ${ev.ends_at}` : ''}</div>
                     </div>
                   ))}
                 </div>
@@ -410,14 +395,14 @@ export function PortalSupportDesk() {
                   }}>{c.author_name?.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
                   <div className="u-flex1-min0">
                     <div style={{ display: 'flex', gap: 10, marginBottom: 4, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{c.author_name}</span>
+                      <span className="u-sm-700">{c.author_name}</span>
                       <span className="u-text3-xs">{c.created_at}</span>
                       {c.author_type === 'agent' && <PortalBadge tone="accent">Agente</PortalBadge>}
                     </div>
                     <div style={{
                       background: c.author_type === 'agent' ? 'var(--surface-3)' : 'var(--accent-muted)',
-                      border: `1px solid ${c.author_type === 'agent' ? 'var(--surface-4)' : 'var(--accent-border, rgba(79,142,247,0.25))'}`,
-                      borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-sm)', lineHeight: 1.6,
+                      border: `1px solid ${c.author_type === 'agent' ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}`,
+                      borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 'var(--text-sm)', lineHeight: 1.6,
                     }}>{c.body}</div>
                   </div>
                 </div>
@@ -507,16 +492,16 @@ export function PortalSupportDesk() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <div className="u-flex1-min0">
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{tk.number}</span>
+                        <span className="u-text3-mono-xs">{tk.number}</span>
                         <TypeIcon size={13} style={{ color: 'var(--text-2)' }} />
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{tk.title}</span>
+                        <span className="u-sm-700">{tk.title}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-xs)', color: 'var(--text-3)', flexWrap: 'wrap' }}>
                         <span>Creado: {tk.created_at}</span>
                         {tk.assigned_to_name && <span>Asignado: {tk.assigned_to_name}</span>}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div className="u-row-center-6">
                       <span style={{
                         fontSize: 'var(--text-xs)', fontWeight: 700,
                         color: PRIORITY_COLORS[tk.priority || ""] || 'var(--text-2)',
@@ -567,7 +552,7 @@ export function PortalSupportDesk() {
               {kbArticles.map(a => (
                 <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id as string)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{a.title}</div>
+                    <div className="u-sm-700">{a.title}</div>
                     <div className="u-text3-xs">👁 {a.view_count} · ✓ {a.helpful_count}</div>
                   </div>
                   {a.summary && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 8px' }}>{a.summary}</p>}
@@ -780,7 +765,7 @@ function SugerenciasDeLaKb({ texto, onResuelto }: { texto: string; onResuelto: (
   if (consulta.length < 4 || sugerencias.length === 0) return null
   return (
     <div role="region" aria-label={traducir('sd_cfg.kb_suggest_title')}
-      style={{ border: '1px solid var(--accent)', background: 'var(--accent-muted)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      style={{ border: '1px solid var(--accent)', background: 'var(--accent-muted)', borderRadius: 'var(--radius-md)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <strong className="u-sm">{traducir('sd_cfg.kb_suggest_title')}</strong>
       {sugerencias.slice(0, 3).map(a => (
         <div key={a.id} style={{ background: 'var(--surface-1)', borderRadius: 8, padding: '8px 10px' }}>

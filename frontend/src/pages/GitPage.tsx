@@ -152,10 +152,10 @@ export default function GitPage(): JSX.Element {
           { label: t('git_integration.kpi_deploys_ko'),    value: failDeps,   color: 'var(--danger)' },
         ].map(k => (
           <div key={k.label} style={{
-            background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px',
+            background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px',
           }}>
             <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: k.color }}>{k.value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
+            <div className="u-text2-sm-mt2">{k.label}</div>
           </div>
         ))}
       </div>
@@ -178,7 +178,7 @@ export default function GitPage(): JSX.Element {
         loadPR ? <Spinner /> : prs.length === 0 ? (
           <EmptyState icon="🔀" title={t('git_integration.empty_prs_title')} description={t('git_integration.empty_prs_desc')} />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
             <Table
               data={prs}
               columns={[
@@ -218,7 +218,7 @@ export default function GitPage(): JSX.Element {
         loadDep ? <Spinner /> : deploys.length === 0 ? (
           <EmptyState icon="🚀" title={t('git_integration.empty_deploys_title')} description={t('git_integration.empty_deploys_desc')} />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
             <Table
               data={deploys}
               columns={[
@@ -226,7 +226,7 @@ export default function GitPage(): JSX.Element {
                 { key: 'sha', label: t('git_integration.col_sha'), render: (_v, d) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)", color: 'var(--info)' }}>{d.sha ? d.sha.slice(0, 8) : t('git_integration.dash')}</span> },
                 { key: 'environment', label: t('git_integration.col_env'), render: (_v, d) => (
                   <span style={{
-                    background: 'var(--surface-4)', color: 'var(--text-1)', borderRadius: 6,
+                    background: 'var(--surface-4)', color: 'var(--text-1)', borderRadius: 'var(--radius-sm)',
                     padding: '2px 8px', fontSize: "var(--text-xs)", fontWeight: 600,
                   }}>{d.environment || t('git_integration.env_production')}</span>
                 ) },
@@ -245,7 +245,7 @@ export default function GitPage(): JSX.Element {
 
       {/* Config tab */}
       {tab === 'config' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="u-stack-20">
           <ConfigSection
             title={t('git_integration.config_github_title')}
             icon="🐙"
@@ -274,7 +274,7 @@ export default function GitPage(): JSX.Element {
             ]}
           />
           <div style={{
-            background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20,
+            background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20,
           }}>
             <h3 style={{ margin: '0 0 12px', fontSize: "var(--text-md)", color: 'var(--text-1)' }}>🔗 {t('git_integration.auto_link_title')}</h3>
             <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '0 0 8px' }}>
@@ -285,7 +285,7 @@ export default function GitPage(): JSX.Element {
               <li>{t('git_integration.auto_link_id')}: <code style={{ color: 'var(--info)' }}>#456</code></li>
             </ul>
             <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 8 }}>
-              {t('git_integration.auto_link_example')}: <code style={{ color: 'var(--success)' }}>feature/PROJ-42-add-login</code>
+              {t('git_integration.auto_link_example')}: <code className="u-success">feature/PROJ-42-add-login</code>
             </p>
           </div>
         </div>
@@ -304,18 +304,18 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
     navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
   }
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }}>
+    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>
       <h3 style={{ margin: '0 0 14px', fontSize: "var(--text-md-em)", color: 'var(--text-1)' }}>{icon} {title}</h3>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.webhook_url_label')}</div>
+      <div className="u-mb-12">
+        <div className="u-text2-xs-mb4">{t('git_integration.webhook_url_label')}</div>
         <div className="u-row-center-8">
           <code style={{
-            flex: 1, minWidth: 0, background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6,
+            flex: 1, minWidth: 0, background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
             padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--info)', overflowX: 'auto',
           }}>{url}</code>
           <button onClick={copy} style={{
             background: copied ? 'var(--success-bg)' : 'var(--surface-4)',
-            border: `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 6,
+            border: `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-sm)',
             color: copied ? 'var(--success)' : 'var(--text-2)', padding: '8px 14px', cursor: 'pointer',
             fontSize: "var(--text-sm)", fontFamily: 'inherit', flexShrink: 0,
           }}>
@@ -323,18 +323,18 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
           </button>
         </div>
       </div>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.secreto_label')}</div>
+      <div className="u-mb-12">
+        <div className="u-text2-xs-mb4">{t('git_integration.secreto_label')}</div>
         <div style={{ fontSize: "var(--text-sm)", color: webhook?.secreto ? 'var(--success)' : 'var(--warning)', overflowWrap: 'anywhere' }}>
           {t(webhook?.secreto ? 'git_integration.secreto_puesto' : 'git_integration.secreto_falta', { clave })}
         </div>
       </div>
-      <div style={{ marginBottom: 12 }}>
+      <div className="u-mb-12">
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{t('git_integration.events_label')}</div>
         <div className="u-wrap-6">
           {events.map(e => (
             <span key={e} style={{
-              background: 'var(--surface-4)', color: 'var(--text-1)', borderRadius: 6,
+              background: 'var(--surface-4)', color: 'var(--text-1)', borderRadius: 'var(--radius-sm)',
               padding: '3px 10px', fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)',
             }}>{e}</span>
           ))}

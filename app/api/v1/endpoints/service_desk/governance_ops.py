@@ -29,6 +29,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk import governance_compliance_service as svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -60,7 +61,7 @@ class DriftSnapshotIn(BaseModel):
 
 @router.get("/governance/ai/evaluations", summary="Listar evaluaciones offline de IA Service Desk")
 def list_ai_evaluations(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     items = svc.listar_evaluaciones(db, current_user, limit=limit)
@@ -98,7 +99,7 @@ def create_ai_evaluation(
 @router.get("/governance/ai/drift", summary="Listar snapshots de deriva por tenant")
 def list_ai_drift(
     model_name: str | None = Query(None),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     items = svc.listar_deriva(

@@ -27,7 +27,6 @@ from sqlalchemy.orm import Session
 from app.models.enterprise import Notification
 from app.models.user import User
 from app.core.config import settings
-from app.models.enterprise import ProjectPermission
 
 logger = logging.getLogger(__name__)
 _REDIS_URL: Optional[str] = settings.REDIS_URL or ""
@@ -152,25 +151,3 @@ def notify_role(
         notify_user(db, u.id, ntype, title, body, resource, resource_id, action_url)
     return len(users)
 
-
-def notify_project_team(
-    db: Session,
-    project_id: str,
-    ntype: str,
-    title: str,
-    body: Optional[str] = None,
-    exclude_user_id: Optional[str] = None,
-) -> int:
-    """Notify everyone with access to a project."""
-    # Get all users with explicit project permissions
-    perms = db.query(ProjectPermission).filter(
-        ProjectPermission.project_id == project_id
-    ).all()
-    notified = set()
-    for p in perms:
-        if p.user_id != exclude_user_id:
-            notify_user(db, p.user_id, ntype, title, body,
-                       resource="projects", resource_id=project_id,
-                       action_url=f"/projects?id={project_id}")
-            notified.add(p.user_id)
-    return len(notified)

@@ -135,11 +135,6 @@ class GroupCreate(BaseModel):
     client_user_ids: List[str] = Field([], description="IDs de usuarios cliente miembros")
 
 
-class GroupUpdate(BaseModel):
-    title: Optional[str] = Field(None, description="Nuevo título del grupo")
-    icon_url: Optional[str] = Field(None, description="Nueva URL del icono del grupo")
-
-
 class ConversationOut(BaseModel):
     id: str
     kind: str = Field(..., description="Tipo de conversación (channel, direct, group)")
@@ -247,15 +242,6 @@ class PresenceIn(BaseModel):
     custom_message: Optional[str] = Field(None, description="Mensaje personalizado de estado")
 
 
-class PresenceOut(BaseModel):
-    user_id: Optional[str] = Field(None, description="ID del usuario interno")
-    client_user_id: Optional[str] = Field(None, description="ID del usuario cliente")
-    status: str = Field(..., description="Estado de presencia")
-    custom_message: Optional[str] = Field(None, description="Mensaje personalizado de estado")
-    is_in_call: bool = Field(False, description="Indica si el usuario está en llamada")
-    last_seen_at: Optional[datetime] = Field(None, description="Marca temporal de la última conexión")
-
-
 # ── Notification rules ───────────────────────────────────────────────────────
 class NotificationRuleIn(BaseModel):
     scope: str = Field("global", description="Ámbito de la regla (global, workspace, channel)")
@@ -268,20 +254,6 @@ class NotificationRuleIn(BaseModel):
 
 
 # ── Attachments ──────────────────────────────────────────────────────────────
-class AttachmentInitIn(BaseModel):
-    conversation_id: str = Field(..., description="ID de la conversación que recibirá el adjunto")
-    name: str = Field(..., description="Nombre del archivo a subir")
-    mime_type: Optional[str] = Field(None, description="MIME type del archivo")
-    size_bytes: int = Field(0, description="Tamaño del archivo en bytes")
-
-
-class AttachmentInitOut(BaseModel):
-    attachment_id: str = Field(..., description="ID asignado al adjunto")
-    upload_url: str = Field(..., description="URL pre-firmada para subir el archivo")
-    storage_provider: str = Field(..., description="Proveedor de almacenamiento destino")
-    expires_in: int = Field(3600, description="Segundos hasta que expira la URL de subida")
-
-
 class AttachmentOut(BaseModel):
     id: str
     name: str = Field(..., description="Nombre del archivo")
@@ -451,14 +423,6 @@ class SearchResponse(BaseModel):
 
 
 # ── WebSocket events ─────────────────────────────────────────────────────────
-class WsEvent(BaseModel):
-    type: str = Field(..., description="Tipo de evento WebSocket")
-    payload: dict = Field({}, description="Carga útil del evento")
-    conversation_id: Optional[str] = Field(None, description="ID de conversación si aplica")
-    message_id: Optional[str] = Field(None, description="ID del mensaje si aplica")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Marca temporal del evento")
-
-
 # ── Audit ────────────────────────────────────────────────────────────────────
 class AuditEventOut(BaseModel):
     id: str

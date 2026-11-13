@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -14,6 +14,7 @@ import { alpha } from '../constants/theme'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type BillingStatus = 'pending' | 'completed' | 'pending_approval' | 'approved' | 'rejected' | 'invoiced'
 
 interface ProjectItem {
@@ -89,7 +90,7 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
           placeholder={t('milestonebilling.describe_el_motivo_del_rechazo')} aria-label={t('milestonebilling.motivo_del_rechazo_2')} />
       </div>
       <div className="u-actions-8">
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+        <button onClick={onClose} className="u-btn-outline-sm">{t('common.cancel')}</button>
         <Button variant="danger" onClick={() => onReject(reason)} disabled={!reason.trim()}>✗ Confirmar rechazo</Button>
       </div>
     </Modal>
@@ -98,6 +99,7 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
 
 // ── Milestone card ────────────────────────────────────────────────────────────
 function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projectName: string; onRefresh: () => void | Promise<unknown> }) {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const toast = useToast()
   const _qc = useQueryClient()
@@ -145,7 +147,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
             📁 {projectName}
             {m.billing_amount && (
               <span style={{ marginLeft: 10, color: 'var(--accent)', fontWeight: 600 }}>
-                💶 {m.billing_amount.toLocaleString(localeActivo(), { style: 'currency', currency: 'EUR' })}
+                💶 {fmtMoneda(m.billing_amount)}
               </span>
             )}
             {m.billing_pct && !m.billing_amount && (
@@ -155,12 +157,12 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
             )}
           </div>
           {m.rejection_reason && (
-            <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--danger-bg)', borderRadius: 6, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>
+            <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-xs)", color: 'var(--danger)' }}>
               ✗ Rechazado: {m.rejection_reason}
             </div>
           )}
           {m.invoice_id && (
-            <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--purple-bg)', borderRadius: 6, fontSize: "var(--text-xs)", color: 'var(--purple)' }}>
+            <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--purple-bg)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-xs)", color: 'var(--purple)' }}>
               🧾 Factura generada
             </div>
           )}
@@ -220,6 +222,8 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
 
 // ── Formulario de nuevo milestone ─────────────────────────────────────────────
 function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; onClose: () => void; onSave: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', description: '', due_date: '', billing_amount: '', billing_pct: '' })
@@ -241,12 +245,12 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
           <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('milestonebilling.nombre_del_milestone')} aria-label={t('milestonebilling.nombre_del_milestone')} />
         </div>
         <div>
-          <label style={lbl}>{t('milestonebilling.fecha_limite')}</label>
-          <DateInput value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={inp} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{t('milestonebilling.fecha_limite')}</label>
+          <DateInput id={`${idCampo}-1`} value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={inp} />
         </div>
         <div className="u-grid2-12">
           <div>
-            <label style={lbl}>Importe a facturar (€)</label>
+            <label style={lbl}>Importe a facturar ({fmtMoneda.simbolo})</label>
             <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} style={inp} placeholder="Importe a facturar" aria-label="Importe a facturar" />
           </div>
           <div>
@@ -255,12 +259,12 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
           </div>
         </div>
         <div>
-          <label style={lbl}>{t('milestonebilling.descripcion')}</label>
-          <textarea value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{t('milestonebilling.descripcion')}</label>
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
         </div>
       </div>
       <div className="u-actions-8">
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+        <button onClick={onClose} className="u-btn-outline-sm">{t('common.cancel')}</button>
         <Button onClick={() => mutate()} loading={isPending} disabled={!form.name || isPending}>Crear milestone</Button>
       </div>
     </Modal>
@@ -347,7 +351,7 @@ export default function MilestoneBillingPage(): JSX.Element {
               {/* Flujo visual */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
                 {Object.entries(STATUS).map(([k, v], i) => (
-                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div key={k} className="u-row-center-6">
                     <div style={{
                       padding: '4px 12px', borderRadius: 20, background: v.bg,
                       color: v.color, fontSize: "var(--text-xs)", fontWeight: 700,

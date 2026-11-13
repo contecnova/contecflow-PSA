@@ -10,6 +10,12 @@ import type { CreationOptionsJSON, RequestOptionsJSON } from '../../lib/webauthn
 
 // ── Request / response payloads ──────────────────────────────────────────────
 
+/** Prueba de identidad para cambiar el segundo factor (ReautenticacionIn del backend). */
+export interface Reautenticacion {
+  password?: string
+  code?: string
+}
+
 export interface LoginCredentials {
   username: string
   password: string
@@ -120,8 +126,11 @@ export const authApi = {
     api.post(`/auth/sso/${providerId}/callback`, payload),
 
   // Gestión de passkeys del propio usuario (Perfil → Seguridad).
-  passkeyRegisterStart: (): Promise<AxiosResponse<{ options: CreationOptionsJSON; webauthn_challenge_token: string }>> =>
-    api.post('/auth/mfa/webauthn/register/start'),
+  // Auditoria 2026-11 (#21, backend): una passkey nueva es un segundo factor
+  // nuevo; el servidor exige la contrasena actual o un codigo TOTP
+  // (ReautenticacionIn). Sin ellos responde 401.
+  passkeyRegisterStart: (reauth: Reautenticacion): Promise<AxiosResponse<{ options: CreationOptionsJSON; webauthn_challenge_token: string }>> =>
+    api.post('/auth/mfa/webauthn/register/start', reauth),
   passkeyRegisterFinish: (payload: { webauthn_challenge_token: string; credential: Record<string, unknown>; name?: string }): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/mfa/webauthn/register/finish', payload),
   passkeyList: (): Promise<AxiosResponse<Array<{ id: string; name: string | null; created_at: string; last_used_at: string | null }>>> =>

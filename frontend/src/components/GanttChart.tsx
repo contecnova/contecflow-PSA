@@ -364,8 +364,8 @@ export default function GanttChart({
         {ZOOM_PRESETS.map(z => (
           <button key={z} onClick={() => setZoom(z)}
             style={{
-              padding: '4px 12px', borderRadius: 6,
-              border: `1px solid ${zoom === z ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
+              padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+              border: `1px solid ${zoom === z ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`,
               background: zoom === z ? 'var(--accent-muted)' : 'transparent',
               color: zoom === z ? 'var(--accent)' : 'var(--text-2)',
               fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: zoom === z ? 600 : 400,
@@ -392,7 +392,7 @@ export default function GanttChart({
       </div>
 
       {/* Main: 2-column CSS grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--surface-1)' }}>
 
         {/* Left: label column */}
         <div style={{ borderRight: '1px solid var(--surface-4)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -412,7 +412,7 @@ export default function GanttChart({
                   height: h, borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 60%, transparent)',
                   display: 'flex', alignItems: 'center',
                   padding: isGroup ? '0 10px' : '0 14px', gap: 7,
-                  background: isGroup ? 'rgba(79,142,247,0.04)' : 'transparent',
+                  background: isGroup ? 'color-mix(in srgb, var(--accent) 4%, transparent)' : 'transparent',
                 }}>
                   {isGroup ? (
                     <>
@@ -503,7 +503,7 @@ export default function GanttChart({
             {rowsLayout.map(({ item, y: rowY, h, isGroup }) => {
               const svgY = HEADER_H + rowY
               if (isGroup) {
-                return <rect key={item.id} x={0} y={svgY} width={chartW} height={h} fill="rgba(79,142,247,0.04)" />
+                return <rect key={item.id} x={0} y={svgY} width={chartW} height={h} fill="color-mix(in srgb, var(--accent) 4%, transparent)" />
               }
 
               const eff = dragState?.id === item.id

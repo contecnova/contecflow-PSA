@@ -11,6 +11,8 @@ from typing import Optional
 import httpx
 
 from app.services.collaboration._integrations import decrypt
+from app.services.settings_service import outbound_http_timeout
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,7 @@ async def jira_create_issue(integration, project_key: str, summary: str, descrip
         }
     }
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
             r = await c.post(url, headers=headers, json=body)
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
@@ -58,7 +60,7 @@ async def github_create_issue(integration, owner: str, repo: str, title: str, bo
         return {"error": "GitHub no autenticado"}
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
             r = await c.post(url, headers={
                 "Authorization": f"Bearer {token}",
                 "Accept": "application/vnd.github+json",
@@ -76,7 +78,7 @@ async def gitlab_create_issue(integration, project_id: str, title: str, descript
         return {"error": "GitLab no autenticado"}
     url = f"https://gitlab.com/api/v4/projects/{project_id}/issues"
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
             r = await c.post(url, headers={"Authorization": f"Bearer {token}"},
                              json={"title": title, "description": description})
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
@@ -114,7 +116,7 @@ async def google_calendar_list(
     if hasta_iso:
         params["timeMax"] = hasta_iso
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
             r = await c.get(url, headers={"Authorization": f"Bearer {token}"},
                             params=params)
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
@@ -129,7 +131,7 @@ async def google_calendar_create(integration, summary: str, start_iso: str, end_
         return {"error": "Google no autenticado"}
     url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
             r = await c.post(url, headers={"Authorization": f"Bearer {token}"}, json={
                 "summary": summary,
                 "start": {"dateTime": start_iso},
@@ -165,14 +167,14 @@ async def m365_calendar_list(
         return {"error": "M365 no autenticado"}
     if desde_iso and hasta_iso:
         url = (
-            "https://graph.microsoft.com/v1.0/me/calendarView"
+            f"{settings.MICROSOFT_GRAPH_BASE}/v1.0/me/calendarView"
             f"?startDateTime={desde_iso}&endDateTime={hasta_iso}"
             f"&$top={top}&$orderby=start/dateTime"
         )
     else:
-        url = f"https://graph.microsoft.com/v1.0/me/events?$top={top}&$orderby=start/dateTime"
+        url = f"{settings.MICROSOFT_GRAPH_BASE}/v1.0/me/events?$top={top}&$orderby=start/dateTime"
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
             r = await c.get(url, headers={"Authorization": f"Bearer {token}"})
             return {"ok": r.status_code < 400, "status": r.status_code, "body": r.json()}
     except Exception as exc:
@@ -193,8 +195,8 @@ async def m365_send_mail(integration, to: str, subject: str, body: str) -> dict:
         "saveToSentItems": True,
     }
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.post("https://graph.microsoft.com/v1.0/me/sendMail",
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
+            r = await c.post(f"{settings.MICROSOFT_GRAPH_BASE}/v1.0/me/sendMail",
                              headers={"Authorization": f"Bearer {token}"}, json=payload)
             return {"ok": r.status_code < 400, "status": r.status_code}
     except Exception as exc:

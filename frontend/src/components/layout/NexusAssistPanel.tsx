@@ -170,7 +170,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
   if (!open) return null
   return (
     <div style={{
-      position:'fixed', top:12, right:12, width:420, maxWidth:'calc(100vw - 24px)', maxHeight:'calc(100vh - 24px)', zIndex:1000,
+      position:'fixed', top:12, right:12, width:420, maxWidth:'calc(100vw - 24px)', maxHeight:'calc(100vh - 24px)', zIndex:'var(--z-modal)',
       background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12,
       display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'-4px 0 24px rgba(0,0,0,0.18)',
     }}>
@@ -181,9 +181,9 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
         background:'var(--surface-2)', display:'flex', alignItems:'center', gap:10 }}>
         <span aria-hidden style={{ fontSize: "var(--text-xl-em)", flexShrink:0 }}>🤖</span>
         <div className="u-flex1-min0">
-          <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>NexusAssist</div>
+          <div className="u-md-600">NexusAssist</div>
           <div title={pageLabel || undefined} style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {t('nexusassist.asistente_ia')}{pageLabel ? <span style={{ color:'var(--accent)' }}> · {pageLabel}</span> : null}
+            {t('nexusassist.asistente_ia')}{pageLabel ? <span className="u-accent"> · {pageLabel}</span> : null}
           </div>
         </div>
         <div style={{ display:'flex', gap:4, flexShrink:0 }}>
@@ -233,7 +233,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
             {SUGGESTIONS.map((s, i) => (
               <button key={i} onClick={() => sendMessage(s)}
                 type="button"
-                style={{ padding:'10px 14px', borderRadius:10, border:'.5px solid var(--surface-4)',
+                style={{ padding:'10px 14px', borderRadius:'var(--radius-md)', border:'.5px solid var(--surface-4)',
                   cursor:'pointer', marginBottom:8, fontSize: "var(--text-sm)", color:'var(--text-2)',
                   background:'var(--surface-2)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
                 {s}
@@ -269,13 +269,13 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       </div>
       <div style={{ padding:'14px 18px', borderTop:'.5px solid var(--surface-4)', background:'var(--surface-2)' }}>
         <div style={{ display:'flex', gap:10, alignItems:'flex-end' }}>
-          <textarea value={input} onChange={e => setInput(e.target.value)}
+          <textarea aria-label={t('nexusassist.escribe_aqui')} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder={t('nexusassist.escribe_aqui')} rows={2}
             style={{ flex:1, background:'var(--surface-1)', border:'.5px solid var(--surface-4)',
-              borderRadius:10, padding:'10px 14px', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', resize:'none', lineHeight:1.4 }} />
+              borderRadius:'var(--radius-md)', padding:'10px 14px', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', resize:'none', lineHeight:1.4 }} />
           <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
-            style={{ padding:'10px 16px', borderRadius:10, background:'var(--accent)',
+            style={{ padding:'10px 16px', borderRadius:'var(--radius-md)', background:'var(--accent)',
               border:'none', color:'white', cursor:'pointer', fontSize: "var(--text-lg-em)",
               opacity: !input.trim() || loading ? 0.5 : 1 }}>↑</button>
         </div>
@@ -307,7 +307,7 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
     onSuccess: () => { setEstado('ok'); setAbierto(false) },
     onError: (e: unknown) => setEstado((e as { response?: { status?: number } })?.response?.status === 403 ? 'denegado' : 'error'),
   })
-  const chip = { fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 10, border: '.5px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', textDecoration: 'none' } as const
+  const chip = { fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 'var(--radius-md)', border: '.5px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', textDecoration: 'none' } as const
   return (
     <div style={{ maxWidth: '85%', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>

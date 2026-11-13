@@ -127,6 +127,8 @@ async def tus_delete(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Response:
-    enforce_abac(db, current_user, "collaboration_file", uid, action="delete")
+    # Auditoria 2026-11: la comprobacion ABAC consulta la BD; al pool de hilos.
+    await run_in_threadpool(
+        lambda: enforce_abac(db, current_user, "collaboration_file", uid, action="delete"))
     await run_in_threadpool(svc.abortar, uid, current_user)
     return Response(status_code=204, headers=_cabeceras())

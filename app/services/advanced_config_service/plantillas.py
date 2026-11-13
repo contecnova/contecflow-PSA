@@ -21,6 +21,7 @@ from app.models.resources import Deliverable
 from app.models.task import Task, TaskStatus, TaskPriority
 
 from app.services.advanced_config_service._comun import NotFoundError, logger
+from app.models.user import UserRole
 
 
 # ── Project template application ──────────────────────────────────────────────
@@ -30,7 +31,7 @@ def apply_template_to_project(
     start_date: Optional[str], user_id: str, user_role: str, db: Session,
 ) -> dict:
 
-    if user_role not in ("admin", "pm"):
+    if user_role not in (UserRole.admin, UserRole.pm):
         raise ErrorDeDominio(403, "Acceso denegado")
 
     template = db.query(ProjectTemplate).options(
@@ -154,7 +155,7 @@ def list_templates(db: Session) -> list:
 
 
 def create_template(data: dict, user_id: str, user_role: str, db: Session) -> dict:
-    if user_role not in ("admin", "pm"):
+    if user_role not in (UserRole.admin, UserRole.pm):
         raise ErrorDeDominio(403, "Acceso denegado")
     try:
         t = ProjectTemplate(

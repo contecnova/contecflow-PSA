@@ -40,8 +40,9 @@ _MODEL_INSTANCE = None
 _MODEL_NAME     = None
 _USE_TRANSFORMER = False
 
-def _get_model(model_name: str = "all-MiniLM-L6-v2", backend_override: str | None = None):
+def _get_model(model_name: str | None = None, backend_override: str | None = None):
     """Singleton del modelo (se carga UNA sola vez, como el ModelRegistry de Ficosa)."""
+    model_name = model_name or settings.EMBEDDING_MODEL_NAME
     global _MODEL_INSTANCE, _MODEL_NAME, _USE_TRANSFORMER
     if _MODEL_INSTANCE is not None and _MODEL_NAME == model_name:
         return _MODEL_INSTANCE, _USE_TRANSFORMER
@@ -237,7 +238,7 @@ class SemanticAssigner(ServiceBase):
         configured_model = (getattr(config, "local_model_name", "") or "").strip()
         if configured_model:
             if configured_model.lower() == "tfidf":
-                return "tfidf", "all-MiniLM-L6-v2"
+                return "tfidf", settings.EMBEDDING_MODEL_NAME
             return "transformer", configured_model
 
         backend = None
@@ -250,8 +251,8 @@ class SemanticAssigner(ServiceBase):
                 backend = None
         backend = (backend or settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
         if backend == "transformer":
-            return "transformer", "all-MiniLM-L6-v2"
-        return "tfidf", "all-MiniLM-L6-v2"
+            return "transformer", settings.EMBEDDING_MODEL_NAME
+        return "tfidf", settings.EMBEDDING_MODEL_NAME
 
     def __init__(self, db, config=None, current_user=None):
         # ServiceBase stores db and current_user; we pass None for current_user

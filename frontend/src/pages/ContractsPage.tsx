@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -16,6 +16,7 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
@@ -132,6 +133,8 @@ const workOrderSchema = z.object({
 })
 
 function ContractFormModal({ contract, onClose }: { contract?: Contract | null; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const qc = useQueryClient()
@@ -178,15 +181,15 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
 
   return (
     <Modal open title={isEdit ? `Editar contrato` : 'Nuevo Contrato'} onClose={onClose} width={620}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="u-grid2-14">
         <div className="u-col-full">
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder={traducir('contracts.nombre_del_contrato')} aria-label={traducir('contracts.nombre_del_contrato')} />
           {validation.errors.name && <p className="u-field-error">{validation.errors.name}</p>}
         </div>
         <div>
-          <label style={ls}>Proyecto *</label>
-          <select value={form.project_id} onChange={set('project_id')} style={validation.inputStyle(fs, 'project_id')}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Proyecto *</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_id} onChange={set('project_id')} style={validation.inputStyle(fs, 'project_id')}>
             <option value="">Seleccionar...</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
@@ -205,28 +208,28 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           {validation.errors.client_id && <p className="u-field-error">{validation.errors.client_id}</p>}
         </div>
         <div>
-          <label style={ls}>{traducir('contracts.tipo_de_contrato')}</label>
-          <select value={form.contract_type} onChange={set('contract_type')} style={validation.inputStyle(fs, 'contract_type')}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('contracts.tipo_de_contrato')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.contract_type} onChange={set('contract_type')} style={validation.inputStyle(fs, 'contract_type')}>
             {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
           {validation.errors.contract_type && <p className="u-field-error">{validation.errors.contract_type}</p>}
         </div>
         <div>
-          <label style={ls}>Estado</label>
-          <select value={form.status} onChange={set('status')} style={fs}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Estado</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} style={fs}>
             {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
           </select>
         </div>
         {form.contract_type === 'fixed_price' && (
           <div>
-            <label style={ls}>Importe total (€)</label>
+            <label style={ls}>Importe total ({fmtMoneda.simbolo})</label>
             <input type="number" value={form.total_amount} onChange={set('total_amount')} style={validation.inputStyle(fs, 'total_amount')} placeholder="Importe total" aria-label="Importe total" />
             {validation.errors.total_amount && <p className="u-field-error">{validation.errors.total_amount}</p>}
           </div>
         )}
         {form.contract_type === 'time_material' && (
           <div>
-            <label style={ls}>Tarifa €/hora</label>
+            <label style={ls}>Tarifa {fmtMoneda.simbolo}/hora</label>
             <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder={traducir('contracts.tarifa_por_hora')} aria-label={traducir('contracts.tarifa_por_hora')} />
             {validation.errors.hourly_rate && <p className="u-field-error">{validation.errors.hourly_rate}</p>}
           </div>
@@ -239,7 +242,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
               {validation.errors.hours_bag && <p className="u-field-error">{validation.errors.hours_bag}</p>}
             </div>
             <div>
-              <label style={ls}>Tarifa €/hora</label>
+              <label style={ls}>Tarifa {fmtMoneda.simbolo}/hora</label>
               <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder={traducir('contracts.tarifa_por_hora')} aria-label={traducir('contracts.tarifa_por_hora')} />
               {validation.errors.hourly_rate && <p className="u-field-error">{validation.errors.hourly_rate}</p>}
             </div>
@@ -247,31 +250,31 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         )}
         {form.contract_type === 'retainer' && (
           <div>
-            <label style={ls}>Retainer mensual (€)</label>
+            <label style={ls}>Retainer mensual ({fmtMoneda.simbolo})</label>
             <input type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} style={validation.inputStyle(fs, 'monthly_retainer')} placeholder="Importe mensual" aria-label="Importe mensual" />
             {validation.errors.monthly_retainer && <p className="u-field-error">{validation.errors.monthly_retainer}</p>}
           </div>
         )}
         <div>
-          <label style={ls}>Fecha inicio</label>
-          <DateInput value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Fecha inicio</label>
+          <DateInput id={`${idCampo}-4`} value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
         </div>
         <div>
-          <label style={ls}>Fecha fin</label>
-          <DateInput value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Fecha fin</label>
+          <DateInput id={`${idCampo}-5`} value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
           {validation.errors.end_date && <p className="u-field-error">{validation.errors.end_date}</p>}
         </div>
         <div>
-          <label style={ls}>Fecha firma</label>
-          <DateInput value={form.signed_date} onChange={set('signed_date')} style={fs} />
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Fecha firma</label>
+          <DateInput id={`${idCampo}-6`} value={form.signed_date} onChange={set('signed_date')} style={fs} />
         </div>
         <div>
           <label style={ls}>{traducir('contracts.condiciones_de_pago')}</label>
           <input value={form.payment_terms} onChange={set('payment_terms')} style={fs} placeholder="Ej. 30 dias fecha factura" aria-label={traducir('contracts.condiciones_de_pago')} />
         </div>
         <div className="u-col-full">
-          <label style={ls}>Notas</label>
-          <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} />
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Notas</label>
+          <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -285,6 +288,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
 }
 
 function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onClose: () => void; onEdit: (c: Contract) => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -323,7 +327,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
         {[
           { label: 'Cliente', value: contract.client_name || '—' },
           { label: 'Importe', value: contract.total_amount ? fmtCurrency(contract.total_amount) : contract.monthly_retainer ? `${fmtCurrency(contract.monthly_retainer)}/mes` : '—' },
-          { label: 'Tarifa', value: contract.hourly_rate ? `${contract.hourly_rate}€/h` : '—' },
+          { label: 'Tarifa', value: contract.hourly_rate ? `${fmtMoneda(contract.hourly_rate)}/h` : '—' },
           { label: 'Inicio', value: contract.start_date ? fmtDate(contract.start_date) : '—' },
           { label: 'Fin', value: contract.end_date ? fmtDate(contract.end_date) : '—' },
           { label: 'Firma', value: contract.signed_date ? fmtDate(contract.signed_date) : '—' },
@@ -369,7 +373,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
         )}
 
         {showWO && (
-          <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
+          <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <input value={woForm.name} onChange={e => { setWoForm(f => ({ ...f, name: e.target.value })); woValidation.clearFieldError('name') }} style={woValidation.inputStyle(fs, 'name')} placeholder={traducir('contracts.nombre_de_la_orden')} aria-label={traducir('contracts.nombre_de_la_orden')} />
@@ -449,7 +453,7 @@ export default function ContractsPage(): JSX.Element {
         title={t('contracts.title')}
         subtitle={t('contracts.subtitle')}
         actions={
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <div className="u-wrap-10">
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">{traducir('contracts.todos_los_estados')}</option>
@@ -472,7 +476,7 @@ export default function ContractsPage(): JSX.Element {
             return (
               <button key={c.id} type="button" style={{ display: 'flex', alignItems: 'center', gap: 12,
                 padding: '10px 16px', background: bg, border: `1px solid ${bdr}`,
-                borderRadius: 10, marginBottom: 6, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}
+                borderRadius: 'var(--radius-md)', marginBottom: 6, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}
                 onClick={() => setDetail(c)}>
                 <span style={{ fontSize: "var(--text-lg)" }}>{icon}</span>
                 <div className="u-flex1-min0">
@@ -557,11 +561,11 @@ export default function ContractsPage(): JSX.Element {
                   <div className="u-min0">
                     <div style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)', marginBottom: 2 }}>{c.code}</div>
                     <div className="u-md-700">{c.name}</div>
-                    {c.client_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>🏢 {c.client_name}</div>}
+                    {c.client_name && <div className="u-text2-xs-mt2">🏢 {c.client_name}</div>}
                   </div>
                   <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: alpha(cfg.color, '20'), color: cfg.color, whiteSpace: 'nowrap', flexShrink: 0 }}>{cfg.label}</span>
                 </div>
-                <div style={{ marginBottom: 10 }}>
+                <div className="u-mb-10">
                   <span style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
                     {c.total_amount ? fmtCurrency(c.total_amount) : c.monthly_retainer ? `${fmtCurrency(c.monthly_retainer)}/m` : c.hours_bag ? `${c.hours_bag}h` : '—'}
                   </span>

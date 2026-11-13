@@ -203,7 +203,7 @@ function layout3D(nodes: GraphNode[], edges: GraphEdge[]): Record<string, Pos3D>
 // ─── TOOLBAR BUTTON STYLE ────────────────────────────────────────────────────
 
 const tbBtn = (active: boolean): CSSProperties => ({
-  padding: '4px 12px', borderRadius: 6, fontSize: "var(--text-sm)", cursor: 'pointer',
+  padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-sm)", cursor: 'pointer',
   border: '1px solid var(--surface-4)', fontFamily: 'inherit',
   background: active ? 'var(--accent)' : 'var(--surface-3)',
   color: active ? 'var(--on-accent-light)' : 'var(--text-2)', transition: 'background .15s, color .15s',
@@ -576,7 +576,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
           <button
             onClick={() => setImpactSource(null)}
             style={{
-              padding: '4px 10px', borderRadius: 6, fontSize: "var(--text-xs)", cursor: 'pointer',
+              padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-xs)", cursor: 'pointer',
               border: '1px solid var(--danger)', background: 'transparent',
               color: 'var(--danger)', fontFamily: 'inherit',
             }}
@@ -587,7 +587,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
 
         {centerName && (
           <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-            Centro: <strong style={{ color: 'var(--accent)' }}>{centerName}</strong>
+            Centro: <strong className="u-accent">{centerName}</strong>
             {' · '}{nodes.length} nodos · {edges.length} aristas
           </span>
         )}

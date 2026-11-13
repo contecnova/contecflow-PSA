@@ -219,7 +219,7 @@ def list_imputations_query(
     ).filter(Imputation.is_active == True)
 
     # Scope: employees and subcontractors only see their own imputations
-    if current_user.role in ("employee", "subcontractor"):
+    if current_user.role in (UserRole.employee, UserRole.subcontractor):
         q = q.filter(Imputation.user_id == current_user.id)
     elif user_id:
         q = q.filter(Imputation.user_id == user_id)

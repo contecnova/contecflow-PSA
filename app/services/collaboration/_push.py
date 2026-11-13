@@ -15,27 +15,26 @@ from app.core.timeutil import utcnow
 
 import json
 import logging
-import os
 from typing import Optional
 
 from sqlalchemy.orm import Session
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 def _vapid_claims():
-    # env-driven: VAPID keys for web-push are deployment-specific secrets and an
-    # optional capability; intentionally not part of Settings.
-    contact = os.environ.get("VAPID_CONTACT", "mailto:noreply@contecflow.local")
+    contact = settings.VAPID_CONTACT
     return {"sub": contact}
 
 
 def public_key() -> Optional[str]:
-    return os.environ.get("VAPID_PUBLIC_KEY") or None
+    return settings.VAPID_PUBLIC_KEY or None
 
 
 def is_configured() -> bool:
-    return bool(os.environ.get("VAPID_PRIVATE_KEY")) and bool(public_key())
+    return bool(settings.VAPID_PRIVATE_KEY) and bool(public_key())
 
 
 def send(subscription: dict, payload: dict) -> bool:
@@ -47,7 +46,7 @@ def send(subscription: dict, payload: dict) -> bool:
         webpush(
             subscription_info=subscription,
             data=json.dumps(payload),
-            vapid_private_key=os.environ["VAPID_PRIVATE_KEY"],
+            vapid_private_key=settings.VAPID_PRIVATE_KEY,
             vapid_claims=_vapid_claims(),
         )
         return True

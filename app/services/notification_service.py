@@ -33,6 +33,7 @@ from email.utils import make_msgid
 from typing import Iterable, Optional, Sequence, Union
 
 from app.core.config import settings
+from app.services.settings_service import outbound_http_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +249,7 @@ class NotificationService:
         """
         return enviar_correo(
             to, subject, html_body, remitente=from_addr,
-            servidor=ServidorSmtp.del_entorno(timeout=10.0),
+            servidor=ServidorSmtp.del_entorno(timeout=outbound_http_timeout(default=10.0)),
         ).enviado
 
 

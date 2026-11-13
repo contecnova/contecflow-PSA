@@ -94,16 +94,14 @@ def test_jira_periodic_sync_handles_http_errors(db, monkeypatch):
     """
     from contextlib import contextmanager
 
-    from app.models.settings import AppSetting
+    from app.services import jira_service
     from app.worker import jira_periodic_sync
     import httpx
 
-    for key, val in [("jira_url", "https://test.atlassian.net"),
-                     ("jira_email", "test@test.com"),
-                     ("jira_api_token", "token123"),
-                     ("jira_project_key", "TEST")]:
-        db.add(AppSetting(key=key, value=val))
-    db.commit()
+    # Auditoria 2026-11 (#14): la configuracion que se sincroniza es la de cada
+    # organizacion, y la peticion sale por `jira_service.llamar_a_jira_crudo`.
+    # (#34): la configuracion es la conexion de tareas de `sd_jira_configs`.
+    jira_service.save_jira_config(db, "1", "https://test.atlassian.net", "test@test.com", "token123", "TEST")
 
     @contextmanager
     def sesion_de_pruebas():
@@ -111,71 +109,51 @@ def test_jira_periodic_sync_handles_http_errors(db, monkeypatch):
 
     monkeypatch.setattr("app.db.session.worker_db_session", sesion_de_pruebas)
 
-    with patch("httpx.post") as mock_post:
+    from app.services.trabajos_de_fondo import FalloEnOrganizaciones
+
+    # Segunda auditoria 2026-11 (#33): una pasada por organizacion; el fallo de
+    # una sale al final como `FalloEnOrganizaciones`, con el original de causa.
+    with patch("app.services.jira_service.llamar_a_jira_crudo") as mock_post:
         mock_post.side_effect = httpx.ConnectError("Connection refused")
-        with pytest.raises(httpx.ConnectError):
+        with pytest.raises(FalloEnOrganizaciones) as e:
             jira_periodic_sync()
+    assert isinstance(e.value.__cause__, httpx.ConnectError)
 
 
-def test_jira_periodic_sync_creates_tasks_mock():
-    """jira_periodic_sync creates new Task records (mocked session via side_effect list)."""
-    from app.worker import jira_periodic_sync
+def test_jira_periodic_sync_updates_only_tasks_of_its_organization(db, monkeypatch, seed_multitenant):
+    """jira_periodic_sync actualiza la tarea enlazada de la organizacion de la configuracion.
+
+    Auditoria 2026-11 (#14): antes leia solo la configuracion global, buscaba la
+    tarea por clave en todas las organizaciones y la creaba sin organizacion (y
+    sin proyecto, que es obligatorio: el alta fallaba al confirmar).
+    """
+    from contextlib import contextmanager
+
     from app.models.task import Task
+    from app.services import jira_service
+    from app.worker import jira_periodic_sync
 
-    created_tasks = []
+    jira_service.save_jira_config(db, "org-a-test", "https://test.atlassian.net", "user@test.com", "secret", "ABC")
+    for tid in ("task-a-test", "task-b-test"):
+        db.get(Task, tid).jira_issue_key = "ABC-42"
+    db.commit()
 
-    def make_row(val):
-        r = MagicMock()
-        r.value = val
-        return r
+    @contextmanager
+    def sesion_de_pruebas():
+        yield db
 
-    # Worker calls _get() for: jira_url, jira_email, jira_api_token, jira_project_key
-    # then Task lookup (returns None for new issue), then task creation
-    setting_values = ["https://test.atlassian.net", "user@test.com", "secret", "ABC"]
-    setting_iter = iter(setting_values)
-
-    mock_first_calls = 0
-
-    def make_first():
-        nonlocal mock_first_calls
-        mock_first_calls += 1
-        if mock_first_calls <= 4:
-            return make_row(next(setting_iter))
-        return None  # Task.filter().first() → no existing task
-
-    mock_filter = MagicMock()
-    mock_filter.first = make_first
-    mock_query = MagicMock()
-    mock_query.filter.return_value = mock_filter
-
-    mock_session = MagicMock()
-    mock_session.query.return_value = mock_query
-    mock_session.add = lambda x: created_tasks.append(x)
-    mock_session.commit = MagicMock()
-    mock_session.close = MagicMock()
-
-    fake_response = MagicMock()
-    fake_response.raise_for_status = MagicMock()
-    fake_response.json.return_value = {
-        "issues": [{
-            "key": "ABC-42",
-            "fields": {
-                "summary": "Test Jira Issue",
-                "status": {"name": "In Progress"},
-                "priority": {"name": "High"},
-                "duedate": str(date.today() + timedelta(days=7)),
-            },
-        }]
-    }
-
-    with patch("app.db.session.SessionLocal", return_value=mock_session), \
-         patch("httpx.post", return_value=fake_response):
+    monkeypatch.setattr("app.db.session.worker_db_session", sesion_de_pruebas)
+    respuesta = {"issues": [{"key": "ABC-42", "fields": {
+        "summary": "Test Jira Issue", "status": {"name": "In Progress"},
+        "priority": {"name": "High"}, "duedate": str(date.today() + timedelta(days=7)),
+    }}]}
+    with patch("app.services.jira_service.llamar_a_jira_crudo", return_value=respuesta):
         result = jira_periodic_sync()
 
-    assert "synced" in result, f"Expected 'synced' key, got: {result}"
-    assert result["synced"] >= 1
-    assert result["errors"] == 0
-    assert any(isinstance(t, Task) for t in created_tasks), "Expected a Task to be created"
+    assert result["synced"] == 1 and result["errors"] == 0, result
+    db.expire_all()
+    assert db.get(Task, "task-a-test").title == "Test Jira Issue"
+    assert db.get(Task, "task-b-test").title == "Task tenant B", "tarea de otra organizacion"
 
 
 # ── 2. Booking creation (resource scheduler drag-to-assign backend) ───────────

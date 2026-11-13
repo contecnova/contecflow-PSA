@@ -77,7 +77,7 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
         : (q.data?.items ?? []).length === 0 ? <EmptyState svgIcon={<BookOpenCheck size={26} />} title={t('lec.vacio')} description={t('lec.vacio_texto')} />
         : (
-          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
             <div style={{ ...fila, borderTop: 'none', color: 'var(--text-3)', fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase' }}>
               <span>{t('lec.codigo')}</span><span>{t('lec.titulo')}</span><span>{t('lec.categoria')}</span><span>{t('lec.estado')}</span><span>{t('lec.le_sirvio')}</span>
             </div>
@@ -107,7 +107,7 @@ function Pendientes({ onCapturar }: { onCapturar: (tipo: string, id: string) => 
   const items = q.data?.items ?? []
   if (!items.length) return <EmptyState svgIcon={<Inbox size={26} />} title={t('lec.sin_pendientes')} description={t('lec.sin_pendientes_texto')} />
   return (
-    <div style={{ border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+    <div style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
       <div style={{ padding: '10px 12px', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('lec.pendientes_texto')}</div>
       {items.map(p => (
         <div key={`${p.origen_tipo}-${p.origen_id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderTop: '1px solid var(--surface-3)', fontSize: 'var(--text-sm)' }}>
@@ -134,7 +134,7 @@ function Acciones({ onAbrir }: { onAbrir: (id: string) => void }) {
       {q.isLoading ? <Spinner /> : (q.data?.items ?? []).length === 0
         ? <EmptyState svgIcon={<ClipboardList size={26} />} title={t('lec.sin_acciones_abiertas')} description="" />
         : (
-          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
             {q.data!.items.map(a => (
               <button key={a.id} type="button" onClick={() => onAbrir(a.leccion_id)} style={{ display: 'flex', gap: 12, alignItems: 'center', width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{a.leccion_codigo}</span>
@@ -164,7 +164,7 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
         <KpiCard label={t('lec.kpi_acciones')} value={d.acciones_abiertas} sub={t('lec.kpi_vencidas', { n: d.acciones_vencidas })} danger={d.acciones_vencidas > 0} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
-        <section style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14 }}>
+        <section style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14 }}>
           <h3 style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)' }}>{t('lec.por_categoria')}</h3>
           {Object.entries(d.por_categoria).map(([c, n]) => {
             const max = Math.max(...Object.values(d.por_categoria), 1)
@@ -177,12 +177,12 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
             )
           })}
         </section>
-        <section style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14 }}>
+        <section style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14 }}>
           <h3 style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)' }}>{t('lec.mas_utiles')}</h3>
           {d.mas_utiles.length === 0 ? <div className="u-text3-sm">{t('lec.sin_valoraciones')}</div>
             : d.mas_utiles.map(l => (
               <button key={l.id} type="button" onClick={() => onAbrir(l.id)} style={{ display: 'flex', gap: 8, width: '100%', background: 'none', border: 'none', padding: '5px 0', cursor: 'pointer', color: 'var(--text-1)', fontSize: 'var(--text-sm)', textAlign: 'left' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{l.codigo}</span><span className="u-flex1">{l.titulo}</span><span style={{ fontFamily: 'var(--font-mono)' }}>{l.valoraciones_utiles}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{l.codigo}</span><span className="u-flex1">{l.titulo}</span><span className="u-mono">{l.valoraciones_utiles}</span>
               </button>
             ))}
         </section>

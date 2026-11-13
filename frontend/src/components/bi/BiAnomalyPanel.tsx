@@ -56,7 +56,7 @@ interface ChurnFeatures {
 const ANOMALY_METRICS = ['revenue', 'tickets_created', 'utilization', 'hours_logged', 'first_response_time_avg']
 
 const S: Record<string, React.CSSProperties> = {
-  card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
+  card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
   input:  { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   select: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none' },
   label:  { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 },
@@ -99,7 +99,7 @@ export default function BiAnomalyPanel() {
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="u-stack-20">
       {/* Info banner */}
       {infoData && (
         <div style={{ fontSize: "var(--text-xs)", padding: '8px 12px', borderRadius: 8, background: 'var(--surface-3)', color: 'var(--text-3)', border: '1px solid var(--surface-4)' }}>
@@ -164,7 +164,7 @@ export default function BiAnomalyPanel() {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-          <input
+          <input aria-label="client-id"
             type="text"
             placeholder="client-id"
             value={churnClientId}
@@ -195,7 +195,7 @@ export default function BiAnomalyPanel() {
         </div>
 
         {churnResult && (
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
             {(() => {
               const riskKey = churnResult.risk_level ?? 'low'
               const factors = churnResult.top_factors ?? []

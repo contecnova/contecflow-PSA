@@ -24,10 +24,11 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import FormularioDePartida, { campo, modoDe } from './FormularioDePartida'
 import { CierreDelPresupuesto, ControlDelPresupuesto, PedidosYTraspasos } from './SeguirPresupuesto'
 
+import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--surface-3)', whiteSpace: 'nowrap' }
 const td: CSSProperties = { padding: '6px 8px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--surface-2)' }
 const num: CSSProperties = { ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }
+const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
 const tablaConScroll: CSSProperties = { overflowX: 'auto', maxWidth: '100%' }
 
 export function colorDeEstado(e: string) {
@@ -37,6 +38,7 @@ export function colorDeEstado(e: string) {
 type Dinero = (n?: number | null) => string
 
 export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: string; onClose: () => void; onAbrir: (id: string) => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -47,7 +49,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
   const [vincular, setVincular] = useState('')
   const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data as unknown as { id: string; code?: string; name?: string }[]) })
   const p = q.data
-  const dinero: Dinero = n => (n ?? 0).toLocaleString(localeActivo(), { style: 'currency', currency: p?.currency || 'EUR', maximumFractionDigits: 0 })
+  const dinero: Dinero = n => fmtMoneda(n ?? 0, { moneda: p?.currency, decimales: 0 })
   const accion = async (clave: string, f: () => Promise<FichaPresupuesto>) => {
     setOcupado(clave)
     try {
@@ -227,7 +229,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
         <div style={tablaConScroll}>
-          <table className="responsive-stack" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="responsive-stack u-table">
             <thead><tr><th style={th}>{t('pres.mes')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.real')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.desviacion')}</th>
               {inf.amortizacion_total > 0 && <th style={{ ...th, textAlign: 'right' }}>{t('pres.amortizacion')}</th>}
               {conIngresos && <th style={{ ...th, textAlign: 'right' }}>{t('pres.ingreso')}</th>}</tr></thead>
@@ -242,7 +244,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
           </table>
         </div>
         <div style={tablaConScroll}>
-          <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="cabe u-table">
             <thead><tr><th style={th}>{t('pres.tipo')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.real')}</th><th style={{ ...th, textAlign: 'right' }}>%</th></tr></thead>
             <tbody>{inf.por_tipo.map(x => (
               <tr key={x.tipo}>
@@ -284,7 +286,7 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
       {p.hijos.length > 0 ? (
         // Dos columnas (nombre con ámbito y estado debajo; importe a la derecha):
         // a 390 px una tabla de cuatro escondía el importe tras un desplazamiento.
-        <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="cabe u-table">
           <thead><tr><th style={th}>{t('pres.hijos')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.gasto')}</th></tr></thead>
           <tbody>{p.hijos.map(h => (
             <tr key={h.id} onClick={() => onAbrir(h.id)} style={{ cursor: 'pointer' }}>
@@ -320,7 +322,7 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
   return (
     <div className="u-stack-14">
       <div style={tablaConScroll}>
-        <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="cabe u-table">
           <thead><tr><th style={th}>{t('pres.version')}</th><th style={th}>{t('pres.estado')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.gasto')}</th></tr></thead>
           <tbody>{p.versiones.map(v => (
             <tr key={v.id} onClick={() => v.id !== p.id && onAbrir(v.id)} style={{ cursor: v.id !== p.id ? 'pointer' : 'default', background: v.id === p.id ? 'var(--accent-muted)' : undefined }}>
@@ -345,7 +347,7 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
       </div>
       {cmp && (
         <div style={tablaConScroll}>
-          <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="cabe u-table">
             <thead><tr><th style={th} />{cmp.presupuestos.map(x => <th key={x.id} style={{ ...th, textAlign: 'right' }}>{x.escenario} · v{x.version}</th>)}</tr></thead>
             <tbody>
               {tipos.map(tp => <tr key={tp}><td style={td}>{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={num}>{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}

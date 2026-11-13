@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useId } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Megaphone, Plus, Trash2, ExternalLink, FileText, Send, Briefcase, ChevronRight } from 'lucide-react'
@@ -101,7 +101,7 @@ const fieldStyle: CSSProperties = {
   boxSizing: 'border-box',
   background: 'var(--surface-3)',
   border: '1px solid var(--surface-4)',
-  borderRadius: 10,
+  borderRadius: 'var(--radius-md)',
   padding: '10px 12px',
   color: 'var(--text-1)',
   fontSize: "var(--text-base)",
@@ -197,6 +197,7 @@ function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label
 type ConvertResult = { project_code?: string; message?: string; rev_contract_id?: string }
 
 function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: Opp; onClose: () => void; stageLabels: Record<string, string>; onUpdate: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const [convertResult, setConvertResult] = useState<ConvertResult | null>(null)
@@ -286,8 +287,8 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
             <div style={{ display: 'grid', gap: 12 }}>
               <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} />
               <div>
-                <label style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
-                <textarea value={edicion.description} onChange={e => setEdicion(c => (c ? { ...c, description: e.target.value } : c))}
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
+                <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => setEdicion(c => (c ? { ...c, description: e.target.value } : c))}
                   rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
               </div>
               <div className="u-actions-8">
@@ -296,13 +297,13 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
               </div>
             </div>
           ) : !alreadyConverted && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="u-row-end">
               <Button size="sm" variant="secondary" onClick={() => setEdicion(formDe(opp))}>{t('pipeline.editar')}</Button>
             </div>
           )}
 
           {/* Info */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12, background: 'var(--surface-2)', borderRadius: 10, padding: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12, background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: 16 }}>
             {[
               { label: 'Cliente', value: opp.client_name || '—' },
               { label: 'Código', value: opp.code || '—' },
@@ -324,7 +325,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
           </div>
 
           {opp.description ? (
-            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
               {opp.description}
             </div>
           ) : null}
@@ -346,7 +347,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
               </div>
             ) : null}
 
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div className="u-wrap-10">
               <Button
                 onClick={handleGenerateProposal}
                 loading={generateProposal.isPending}
@@ -446,6 +447,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 }
 
 export default function PipelinePage() {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const [search, setSearch] = useState('')
@@ -672,15 +674,15 @@ export default function PipelinePage() {
                             <div className="u-hint">{opportunity.code || 'Sin código'}</div>
                           </div>
                           <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                            <button
+                            <button aria-label="Ver detalles y gestionar propuesta"
                               type="button"
                               onClick={() => setDetailOpp(opportunity)}
                               title="Ver detalles y gestionar propuesta"
-                              style={{ background: 'var(--accent-muted,rgba(0,212,255,0.08))', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: '4px 6px', borderRadius: 6 }}
+                              style={{ background: 'var(--accent-muted,rgba(0,212,255,0.08))', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)' }}
                             >
                               <FileText size={14} />
                             </button>
-                            <button
+                            <button aria-label="Eliminar oportunidad"
                               type="button"
                               onClick={() => handleDelete(opportunity)}
                               title="Eliminar oportunidad"
@@ -712,7 +714,7 @@ export default function PipelinePage() {
 
                         {/* Proposal status indicator */}
                         {proposalStatus !== 'none' && (
-                          <div style={{ fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 6, background: psCfg.bg, color: psCfg.color, fontWeight: 600, width: 'fit-content' }}>
+                          <div style={{ fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: psCfg.bg, color: psCfg.color, fontWeight: 600, width: 'fit-content' }}>
                             {psCfg.label}
                           </div>
                         )}
@@ -766,8 +768,8 @@ export default function PipelinePage() {
           />
 
           <div>
-            <label style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
-            <textarea
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
+            <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
               value={form.description}
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
               rows={4}

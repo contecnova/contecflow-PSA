@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react'
+import { CSSProperties, useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type AppliesTo = 'role' | 'department' | 'client'
 
 type RateEntry = {
@@ -83,6 +84,8 @@ const rateTableSchema = z.object({
 
 // ── Formulario de entrada ─────────────────────────────────────────────────────
 function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entry?: RateEntry | null; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -134,7 +137,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
           <input type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} style={inp} placeholder="Tarifa facturacion" aria-label={traducir('ratecards.tarifa_de_facturacion')} />
         </div>
         <div>
-          <label style={lbl}>Coste interno (€/h)</label>
+          <label style={lbl}>Coste interno ({fmtMoneda.simbolo}/h)</label>
           <input type="number" value={form.cost_rate} onChange={e => setForm(f=>({...f,cost_rate:e.target.value}))} style={inp} placeholder="Coste interno" aria-label="Coste interno" />
         </div>
         <div>
@@ -142,12 +145,12 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
           <input type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} style={inp} placeholder="% anual" aria-label="Escalado anual" min="0" max="20" step="0.5" />
         </div>
         <div>
-          <label style={lbl}>{traducir('ratecards.valido_desde')}</label>
-          <DateInput value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} style={inp} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{traducir('ratecards.valido_desde')}</label>
+          <DateInput id={`${idCampo}-1`} value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} style={inp} />
         </div>
         <div>
-          <label style={lbl}>{traducir('ratecards.valido_hasta')}</label>
-          <DateInput value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} style={inp} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{traducir('ratecards.valido_hasta')}</label>
+          <DateInput id={`${idCampo}-2`} value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} style={inp} />
         </div>
         <div className="u-col-full">
           <label style={lbl}>Notas</label>
@@ -158,12 +161,12 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
       {Number(form.billing_rate) > 0 && Number(form.cost_rate) > 0 && (
         <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: "var(--text-sm)", color: 'var(--success)' }}>
           💰 Margen: <strong>{Math.round((1 - Number(form.cost_rate) / Number(form.billing_rate)) * 100)}%</strong>
-          {Number(form.escalation_pct) > 0 && ` · Tarifa en 1 año: ${Math.round(Number(form.billing_rate) * (1 + Number(form.escalation_pct)/100))}€/h`}
+          {Number(form.escalation_pct) > 0 && ` · Tarifa en 1 año: ${fmtMoneda(Math.round(Number(form.billing_rate) * (1 + Number(form.escalation_pct)/100)))}/h`}
         </div>
       )}
 
       <div className="u-actions-8">
-        <button onClick={onClose} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>{t('common.cancel')}</button>
+        <button onClick={onClose} className="u-btn-outline-sm">{t('common.cancel')}</button>
         <Button onClick={save} loading={isPending} disabled={!form.label || isPending}>
           {isEdit ? '💾 Guardar' : '+ Añadir'}
         </Button>
@@ -174,6 +177,8 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
 
 // ── Detalle de tabla ──────────────────────────────────────────────────────────
 function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -237,9 +242,9 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
         <EmptyState icon="💰" title={traducir('ratecards.sin_tarifas')} description="Anade la primera tarifa a esta tabla" />
       ) : (
         <div style={{ ...panel, overflow: 'hidden' }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <table className="u-table">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+              <tr className="u-border-b">
                 {['Rol / Perfil', 'Facturación', 'Coste', 'Margen', 'Escalado', 'Vigencia', ''].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                 ))}
@@ -253,10 +258,10 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
                   <tr key={e.id} style={{ borderBottom: '1px solid var(--surface-1)', background: i % 2 === 0 ? 'transparent' : 'rgba(8,14,26,0.03)' }}>
                     <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{e.label}</td>
                     <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
-                      {e.billing_rate ? `${e.billing_rate}€/h` : '—'}
+                      {e.billing_rate ? `${fmtMoneda(e.billing_rate)}/h` : '—'}
                     </td>
                     <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
-                      {e.cost_rate ? `${e.cost_rate}€/h` : '—'}
+                      {e.cost_rate ? `${fmtMoneda(e.cost_rate)}/h` : '—'}
                     </td>
                     <td style={{ padding: '10px 16px' }}>
                       {margin !== null && (
@@ -273,8 +278,8 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
                     </td>
                     <td style={{ padding: '10px 16px' }}>
                       <div className="u-row-6">
-                        <button onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
-                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                        <button onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
+                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                       </div>
                     </td>
                   </tr>
@@ -292,14 +297,14 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
       {showDupe && (
         <Modal open title={traducir('ratecards.duplicar_tabla_con_escalado')} onClose={() => setShowDupe(false)} width={420}>
           <div className="u-mb-16">
-            <label style={lbl}>Escalado anual (%)</label>
-            <input type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} style={inp} min="0" max="20" step="0.5" />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Escalado anual (%)</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} style={inp} min="0" max="20" step="0.5" />
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>
               {traducir('ratecards.se_creara_una_copia_de')}{table.name}{traducir('ratecards.con_todas_las_tarifas_incrementadas_en_este')}
             </div>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowDupe(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <button onClick={() => setShowDupe(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
             <Button onClick={() => duplicate()} loading={duping}>Duplicar +{dupeEsc}%</Button>
           </div>
         </Modal>
@@ -310,6 +315,7 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function RateCardsPage() {
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -399,7 +405,7 @@ export default function RateCardsPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                 <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar tabla "${t.name}"?`,onConfirm:()=>del(t.id),danger:true}) }}
-                  style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                  style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                   🗑
                 </button>
               </div>
@@ -420,8 +426,8 @@ export default function RateCardsPage() {
               <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Descripcion opcional" aria-label="Descripcion opcional" />
             </div>
             <div>
-              <label style={lbl}>Aplicar a</label>
-              <select value={form.applies_to} onChange={e => setForm(f=>({...f,applies_to:e.target.value as AppliesTo}))} style={inp}>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Aplicar a</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.applies_to} onChange={e => setForm(f=>({...f,applies_to:e.target.value as AppliesTo}))} style={inp}>
                 <option value="role">{traducir('ratecards.por_rol_perfil')}</option>
                 <option value="department">{traducir('ratecards.por_departamento')}</option>
                 <option value="client">{traducir('ratecards.por_cliente')}</option>
@@ -433,7 +439,7 @@ export default function RateCardsPage() {
             </label>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} className="u-btn-outline-sm">Cancelar</button>
             <Button onClick={createTable} loading={isPending} disabled={!form.name || isPending}>Crear tabla</Button>
           </div>
         </Modal>

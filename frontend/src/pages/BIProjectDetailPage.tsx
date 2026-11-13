@@ -19,8 +19,8 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { localeActivo } from '../utils/helpers'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type Translator = (key: string, params?: Record<string, unknown>) => string
 
 type FilterState = {
@@ -143,6 +143,7 @@ function printNodeInNewWindow(node: HTMLElement | null, title: string): void {
 }
 
 export default function BIProjectDetailPage(): JSX.Element {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT() as Translator
   const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
@@ -388,13 +389,13 @@ export default function BIProjectDetailPage(): JSX.Element {
         <div style={panelStyle}>
           <div className="u-text3-xs">{t('bi.revenues')}</div>
           <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--accent)' }}>
-            {Math.round(Number(marginCard?.revenue || 0)).toLocaleString(localeActivo())} €
+            {fmtMoneda(Number(marginCard?.revenue || 0), { decimales: 0 })}
           </div>
         </div>
         <div style={panelStyle}>
           <div className="u-text3-xs">{t('bi.cost')}</div>
           <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>
-            {Math.round(Number(marginCard?.cost || 0)).toLocaleString(localeActivo())} €
+            {fmtMoneda(Number(marginCard?.cost || 0), { decimales: 0 })}
           </div>
         </div>
       </div>
@@ -469,7 +470,7 @@ export default function BIProjectDetailPage(): JSX.Element {
             <div className="u-text3-sm">{t('bi.no_member_data')}</div>
           ) : (
             <div style={{ overflow: 'auto', maxHeight: 280 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
+              <table className="u-table-sm">
                 <thead>
                   <tr>
                     <th style={{ textAlign: 'left', color: 'var(--text-3)', borderBottom: '1px solid var(--surface-4)', padding: '6px 4px' }}>{t('bi.person')}</th>

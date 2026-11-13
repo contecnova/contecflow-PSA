@@ -106,7 +106,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
               background: 'var(--surface-1)',
               border: `1px solid ${c.border}`,
               borderLeft: `4px solid ${c.fg}`,
-              borderRadius: 10,
+              borderRadius: 'var(--radius-md)',
               padding: '12px 16px',
               minWidth: 280, maxWidth: 420,
               boxShadow: '0 8px 32px rgba(0,0,0,0.5)',

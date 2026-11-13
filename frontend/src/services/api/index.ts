@@ -20,6 +20,7 @@
 // `_core.ts` once nothing imports it directly.
 
 export * from './_core'
+export type { Client, ClientContact, Contract, Epic, RiesgosDelProyecto, Risk, Sprint } from './tipos'
 export { default } from './_core'
 
 // ── Typed slices (override the matching name from `_core.ts`) ─────────────────

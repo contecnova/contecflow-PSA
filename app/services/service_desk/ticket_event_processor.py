@@ -39,6 +39,7 @@ from app.models.service_desk import (
 from app.models.user import User, UserPreference
 from app.services import settings_service as _ss
 from app.services.service_desk import correo
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.services.service_desk.plantillas_aviso import ETIQUETAS, IDIOMAS, POR_DEFECTO
 
 logger = logging.getLogger(__name__)
@@ -86,11 +87,11 @@ from app.services.service_desk.ticket_events import como_organizacion as _como_o
 # ── Idioma, plantillas y textos ──────────────────────────────────────────────
 
 def _idioma(db: Session, preferido: Optional[str], org_id: Optional[str]) -> str:
-    for candidato in (preferido, _ss.get_runtime_str(db, "DEFAULT_LANGUAGE", org_id), "es"):
+    for candidato in (preferido, _ss.get_runtime_str(db, "DEFAULT_LANGUAGE", org_id), IDIOMA_DE_RESPALDO):
         corto = (candidato or "").split("-")[0].lower()
         if corto in IDIOMAS:
             return corto
-    return "es"
+    return IDIOMA_DE_RESPALDO
 
 
 def _idioma_de_usuario(db: Session, user: User, org_id: Optional[str]) -> str:
@@ -118,7 +119,7 @@ def plantilla(db: Session, code: str, idioma: str, org_id: Optional[str]) -> Opt
     textos = POR_DEFECTO.get(code)
     if not textos:
         return None
-    return textos.get(idioma) or textos["es"]
+    return textos.get(idioma) or textos[IDIOMA_DE_RESPALDO]
 
 
 _VARIABLE = re.compile(r"\{\{\s*(\w+)\s*\}\}")

@@ -395,7 +395,7 @@ export default function CallPage(): JSX.Element {
         {captions && captionLines.length > 0 && (
           <div style={{
             position: 'absolute', bottom: 100, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(0,0,0,0.7)', color: 'var(--on-accent-light)', padding: '8px 14px', borderRadius: 10,
+            background: 'rgba(0,0,0,0.7)', color: 'var(--on-accent-light)', padding: '8px 14px', borderRadius: 'var(--radius-md)',
             maxWidth: '70%', fontSize: 14, lineHeight: 1.4,
           }}>
             {captionLines.slice(-2).map((c, i) => <div key={i}><b>{c.name}:</b> {c.text}</div>)}
@@ -479,7 +479,7 @@ function Tile({ name, hasVideo, videoRef, raised, quality }: {
 }) {
   return (
     <div style={{
-      aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden',
+      aspectRatio: '16 / 9', borderRadius: 'var(--radius-lg)', overflow: 'hidden',
       position: 'relative', background: 'var(--call-tile)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
@@ -498,11 +498,11 @@ function Tile({ name, hasVideo, videoRef, raised, quality }: {
         <div style={{ position: 'absolute', top: 10, right: 10, fontSize: 22 }}>✋</div>
       )}
       {quality && quality !== 'excellent' && (
-        <div style={{ position: 'absolute', top: 10, left: 10, padding: '2px 8px', background: 'rgba(245,158,11,0.85)', color: 'var(--on-accent-dark)', fontSize: 10, fontWeight: 800, borderRadius: 999 }}>
+        <div style={{ position: 'absolute', top: 10, left: 10, padding: '2px 8px', background: 'rgba(245,158,11,0.85)', color: 'var(--on-accent-dark)', fontSize: 10, fontWeight: 800, borderRadius: 'var(--radius-full)' }}>
           {quality}
         </div>
       )}
-      <div style={{ position: 'absolute', bottom: 10, left: 12, padding: '3px 10px', borderRadius: 999, background: 'rgba(0,0,0,0.55)', fontSize: 12, fontWeight: 600 }}>
+      <div style={{ position: 'absolute', bottom: 10, left: 12, padding: '3px 10px', borderRadius: 'var(--radius-full)', background: 'rgba(0,0,0,0.55)', fontSize: 12, fontWeight: 600 }}>
         {name}
       </div>
     </div>
@@ -519,7 +519,7 @@ function CtrlBtn({ icon: Icon, active, onClick, label, dangerWhenOff }: {
 }) {
   const bg = dangerWhenOff ? 'var(--call-danger)' : (active ? 'var(--accent)' : 'var(--call-tile)')
   return (
-    <button onClick={onClick} title={label} style={{
+    <button aria-label={label} onClick={onClick} title={label} style={{
       width: 44, height: 44, borderRadius: 22,
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       background: bg, color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer',
@@ -546,14 +546,14 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
         {items.length === 0 && <div style={{ fontSize: 12, color: 'var(--call-text-muted)' }}>{t('call.no_messages_yet')}</div>}
         {items.map((m, i) => (
-          <div key={i} style={{ marginBottom: 10 }}>
+          <div key={i} className="u-mb-10">
             <div style={{ fontSize: 11, color: 'var(--call-text-muted)' }}>{m.time} {m.name}</div>
             <div style={{ fontSize: 13 }}>{m.body}</div>
           </div>
         ))}
       </div>
       <div style={{ padding: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 6 }}>
-        <input value={value} onChange={e => onChange(e.target.value)}
+        <input aria-label={t('call.write_placeholder')} value={value} onChange={e => onChange(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && onSend()}
           placeholder={t('call.write_placeholder')}
           style={{

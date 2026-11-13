@@ -26,6 +26,7 @@ from app.services.service_desk.sms_service import (
     build_sms_ticket_notification,
     send_sms,
 )
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ def process_inbound_sms(db: Session, from_phone: str, body: str, to_phone: Optio
     try:
         send_sms(
             from_phone,
-            f"[ContecFlow] Ticket {ticket.number} creado. Seguimiento: "
+            f"[{NOMBRE_DEL_PRODUCTO}] Ticket {ticket.number} creado. Seguimiento: "
             f"{settings.FRONTEND_URL.rstrip('/')}/portal?ticket={ticket.id}",
         )
     except Exception as exc:

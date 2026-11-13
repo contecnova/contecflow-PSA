@@ -1,14 +1,13 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.security import decode_token
 from app.models.service_desk import KBArticle, KBArticleVersion, KBStatus, Ticket
 from app.models.user import User
-from app.services.pagination_service import paginate_query
+from app.services.pagination_service import ConCabeceras, paginate_query
 from app.services.service_desk.scoping import scope_kb_query
 from app.services.sla_service import next_kb_number as _next_kb_number
 import logging
@@ -24,7 +23,7 @@ def list_kb_articles_scoped(
     public_only: bool,
     page: int,
     page_size: int,
-    response: Optional[Response],
+    response: Optional[ConCabeceras],
     authorization: Optional[str],
     status: Optional[str] = None,
 ):

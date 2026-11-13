@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -100,12 +101,12 @@ def _get_graph_token(tenant_id: str, client_id: str, client_secret: str) -> str:
     """Obtain an OAuth2 token from Microsoft Identity (client credentials flow)."""
     try:
         import httpx
-        url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+        url = f"{settings.MICROSOFT_OAUTH_BASE}/{tenant_id}/oauth2/v2.0/token"
         data = {
             "grant_type": "client_credentials",
             "client_id": client_id,
             "client_secret": client_secret,
-            "scope": "https://graph.microsoft.com/.default",
+            "scope": f"{settings.MICROSOFT_GRAPH_BASE}/.default",
         }
         with httpx.Client(timeout=_plazo()) as client:
             resp = client.post(url, data=data)
@@ -129,7 +130,7 @@ def _fetch_graph_report(token: str, report_name: str, period: str) -> List[Dict[
     if not path:
         raise ValueError(f"Informe desconocido: {report_name}")
     import httpx, csv, io
-    url = f"https://graph.microsoft.com/v1.0/reports/{path}"
+    url = f"{settings.MICROSOFT_GRAPH_BASE}/v1.0/reports/{path}"
     headers = {"Authorization": f"Bearer {token}"}
     with httpx.Client(timeout=_plazo()) as client:
         resp = client.get(url, headers=headers, follow_redirects=True)

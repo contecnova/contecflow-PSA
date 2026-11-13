@@ -3,7 +3,7 @@ expense_service.py — Lógica de negocio para gastos.
 
 Funciones exportadas:
   review_expense(expense_id, approved, rejection_reason, current_user, db)
-  export_expenses_excel(date_from, date_to, status, category, db) -> StreamingResponse
+  export_expenses_excel(date_from, date_to, status, category, db) -> Descarga
   ocr_receipt(db, usuario, image_bytes, content_type) -> dict  (síncrona: el endpoint la pasa por run_db)
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.user import User
 from app.models.expenses import Expense, ExpenseStatus
-from app.services.gastos_avanzados import del_proyecto
+from app.services.gastos_avanzados import CATEGORY_LABELS, del_proyecto
 from app.models.project import Project
 from app.models.project import ProjectStatus
 from app.models.user import User as UserModel
@@ -39,7 +39,7 @@ def _normalize_status(status: Optional[str]) -> Optional[str]:
 from app.services.notifications import notify_user
 from app.services.numbering import next_numbered_code
 from datetime import datetime as _dt
-from fastapi.responses import StreamingResponse
+from app.core.descargas import Descarga
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from sqlalchemy import or_
@@ -135,7 +135,7 @@ def export_expenses_excel(
     db: Session,
 ):
     """
-    Build and return a StreamingResponse with an Excel workbook of filtered expenses.
+    El Excel de los gastos filtrados, como `Descarga` (el endpoint la sirve).
     """
     import io
 
@@ -189,13 +189,12 @@ def export_expenses_excel(
 
     buf = io.BytesIO()
     wb.save(buf)
-    buf.seek(0)
 
     filename = f"gastos_{date_from or 'todos'}_{date_to or 'hoy'}.xlsx"
-    return StreamingResponse(
-        buf,
+    return Descarga(
+        contenido=buf.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        cabeceras={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -348,14 +347,6 @@ def list_team_expenses(
     if date_from:   q = q.filter(Expense.expense_date >= date_from)
     if date_to:     q = q.filter(Expense.expense_date <= date_to)
     return q.order_by(Expense.expense_date.desc()).all()
-
-
-def list_project_expenses(db: Session, project_id: str):
-
-    return db.query(Expense).options(joinedload(Expense.user)).filter(
-        del_proyecto(project_id),   # suyo o con una parte del reparto
-        Expense.status.in_(["approved", "reimbursed"]),
-    ).all()
 
 
 # ── Create / update / delete ───────────────────────────────────────────────────
@@ -511,17 +502,7 @@ def delete_my_expense(db: Session, expense_id: str, user_id: str) -> dict:
 
 
 # ── Label constants + serialization helpers ────────────────────────────────
-
-CATEGORY_LABELS = {
-    "travel": "Viajes y transporte",
-    "accommodation": "Alojamiento",
-    "meals": "Dietas y comidas",
-    "software": "Software y licencias",
-    "hardware": "Hardware y equipamiento",
-    "training": "Formación",
-    "subcontract": "Subcontratación",
-    "other": "Otros",
-}
+# CATEGORY_LABELS vive en gastos_avanzados (importado arriba): rompe el ciclo.
 
 
 def next_expense_code(db: Session) -> str:

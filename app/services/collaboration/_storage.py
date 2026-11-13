@@ -24,9 +24,9 @@ from typing import BinaryIO, Optional
 
 logger = logging.getLogger(__name__)
 
-# env-driven: collaboration uploads root + ClamAV/storage backend knobs are deployment
-# infra tuning, not application config — kept out of Settings on purpose.
-UPLOADS_ROOT = Path(os.environ.get("UPLOADS_DIR", "uploads"))
+from app.core.config import settings  # noqa: E402  (hallazgo 16: estas variables están en Settings)
+
+UPLOADS_ROOT = Path(settings.UPLOADS_DIR)
 COLLAB_ROOT = UPLOADS_ROOT / "collaboration"
 COLLAB_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -42,7 +42,7 @@ class StoredFile:
 # In-memory signed URL token store (TTL based). For prod con varios workers
 # usar Redis / KMS. El token es el handle opaco de descarga.
 _SIGNED: dict[str, dict] = {}
-_SIGNED_MAX_ENTRIES = int(os.environ.get("COLLAB_SIGNED_MAX_ENTRIES", "20000"))
+_SIGNED_MAX_ENTRIES = int(settings.COLLAB_SIGNED_MAX_ENTRIES)
 
 
 def _purge_expired_signed_tokens() -> int:
@@ -151,7 +151,7 @@ class FileStorage:
 
 
 def _build_storage() -> FileStorage:
-    backend = os.environ.get("COLLAB_STORAGE_BACKEND", "local").lower()
+    backend = (settings.COLLAB_STORAGE_BACKEND or "local").lower()
     if backend == "local":
         return FileStorage()
     if backend in {"s3", "minio"}:
@@ -173,10 +173,10 @@ _EICAR = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*
 
 def _scan_with_clamd(data: bytes) -> tuple[str, dict] | None:
     """Conecta a clamd via TCP o socket UNIX. Devuelve None si no disponible."""
-    host = os.environ.get("CLAMAV_HOST", "localhost")
-    port = int(os.environ.get("CLAMAV_PORT", "3310"))
-    socket_path = os.environ.get("CLAMAV_SOCKET")  # /var/run/clamav/clamd.sock
-    timeout = float(os.environ.get("CLAMAV_TIMEOUT", "30"))
+    host = settings.CLAMAV_HOST
+    port = int(settings.CLAMAV_PORT)
+    socket_path = settings.CLAMAV_SOCKET  # /var/run/clamav/clamd.sock
+    timeout = float(settings.CLAMAV_TIMEOUT)
     try:
         import socket
         if socket_path:
@@ -220,7 +220,7 @@ def scan_with_av(data: bytes) -> tuple[str, dict]:
     Si CLAMAV_ENABLED=1 intenta conectar a clamd (TCP o socket UNIX). Si la
     conexión falla cae al chequeo dev (firma EICAR explícita). Si está
     deshabilitado, marca como 'skipped' con reason."""
-    if os.environ.get("CLAMAV_ENABLED", "0") == "1":
+    if settings.CLAMAV_ENABLED:
         result = _scan_with_clamd(data)
         if result is not None:
             return result

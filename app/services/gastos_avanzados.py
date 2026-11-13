@@ -28,6 +28,17 @@ from app.models.expenses import Expense, ExpenseAllocation, ExpenseAttachment, E
 from app.core.errores import ErrorDeDominio
 ACCIONES = ("bloquear", "avisar")
 
+CATEGORY_LABELS = {
+    "travel": "Viajes y transporte",
+    "accommodation": "Alojamiento",
+    "meals": "Dietas y comidas",
+    "software": "Software y licencias",
+    "hardware": "Hardware y equipamiento",
+    "training": "Formación",
+    "subcontract": "Subcontratación",
+    "other": "Otros",
+}
+
 
 def _aj(db: Session, clave: str, org, tipo: str = "float"):
     from app.services import settings_service as s
@@ -323,7 +334,6 @@ def _cat(e: Expense) -> str:
 
 def evaluar(db: Session, e: Expense) -> list[dict]:
     """Las reglas que el gasto incumple, con la política, la regla y un mensaje que se puede enseñar."""
-    from app.services.expense_service import CATEGORY_LABELS
     salida = []
     categoria = _cat(e)
     importe = float(e.amount or 0)

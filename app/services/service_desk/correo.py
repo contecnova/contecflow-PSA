@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.services.notification_service import ResultadoEnvio, ServidorSmtp, enviar_correo
+from app.services.settings_service import outbound_http_timeout
 
 __all__ = ["ResultadoEnvio", "enviar"]
 
@@ -30,7 +31,7 @@ def enviar(
     responder_a: Optional[str] = None,
 ) -> ResultadoEnvio:
     """Envia un correo y dice si salio. No lanza: el fallo vuelve en el resultado."""
-    servidor = ServidorSmtp.de_organizacion(db, org_id, timeout=20.0)
+    servidor = ServidorSmtp.de_organizacion(db, org_id, timeout=outbound_http_timeout(db, default=20.0))
     remitente = servidor.remitente or servidor.user
     if not servidor.host or not remitente:
         return ResultadoEnvio(False, error="SMTP sin configurar (host y remitente)")

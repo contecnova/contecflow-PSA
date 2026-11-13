@@ -16,7 +16,6 @@ intercambiar providers sin tocar endpoints y configurar fallbacks ordenados.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Iterable, List, Optional
 
 from app.core.config import settings
@@ -51,7 +50,7 @@ def _setting(name: str, default: str = "", db=None, org_id=None) -> str:
                 return v
         except Exception:
             logger.debug("_setting: fallo best-effort ignorado", exc_info=True)
-    return getattr(settings, name, None) or os.environ.get(name, default) or default
+    return getattr(settings, name, None) or default
 
 
 def list_known_providers() -> List[str]:

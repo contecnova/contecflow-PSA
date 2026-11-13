@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -105,7 +105,7 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: CatalogS
             <tr key={u.user_id}>
               <td style={{ padding: '4px 12px', position: 'sticky', left: 0, background: 'var(--surface-2)', zIndex: 1, borderBottom: '1px solid var(--surface-4)' }}>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{u.user_name}</div>
-                {u.department && <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{u.department}</div>}
+                {u.department && <div className="u-text2-2xs">{u.department}</div>}
               </td>
               {cats.map(cat => (
                 skills.filter(s => s.category === cat).map(s => {
@@ -114,12 +114,12 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: CatalogS
                     <td key={s.id} style={{ padding: 2, textAlign: 'center', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)' }}>
                       {us?.level ? (
                         <div title={`${LEVEL_CFG[us.level]?.label}${us.certified ? ' · Certificado' : ''}`}
-                          style={{ width: 28, height: 28, borderRadius: 6, background: alpha(levelColor(us.level), '30'), border: `1px solid ${alpha(levelColor(us.level), '60')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 'auto', fontSize: "var(--text-2xs)", color: levelColor(us.level), fontWeight: 700 }}>
+                          style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: alpha(levelColor(us.level), '30'), border: `1px solid ${alpha(levelColor(us.level), '60')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 'auto', fontSize: "var(--text-2xs)", color: levelColor(us.level), fontWeight: 700 }}>
                           {LEVEL_CFG[us.level]?.score}
                           {us.certified && <span style={{ fontSize: "var(--text-8)" }}>✓</span>}
                         </div>
                       ) : (
-                        <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--surface-4)', margin: 'auto' }} />
+                        <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: 'var(--surface-4)', margin: 'auto' }} />
                       )}
                     </td>
                   )
@@ -134,6 +134,7 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: CatalogS
 }
 
 function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -190,7 +191,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
             return (
               <div key={e.id} style={{ display:'flex', gap:12, padding:'10px 14px',
                 background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-                borderRadius:10, marginBottom:6 }}>
+                borderRadius:'var(--radius-md)', marginBottom:6 }}>
                 <div className="u-flex1-min0">
                   <div style={{ fontSize: "var(--text-base)", fontWeight:600, marginBottom:2 }}>{e.skill_name}</div>
                   <div style={{ display:'flex', alignItems:'center', gap:8, fontSize: "var(--text-sm)" }}>
@@ -217,7 +218,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
         {Object.keys(byCategory).length === 0 ? (
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', textAlign: 'center', padding: '16px 0' }}>{t('skills.sin_skills_registrados')}</div>
         ) : Object.entries(byCategory).map(([cat, skills]) => (
-          <div key={cat} style={{ marginBottom: 14 }}>
+          <div key={cat} className="u-mb-14">
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{CAT_LABELS[cat] || cat}</div>
             <div className="u-wrap-8">
               {skills.map(s => (
@@ -235,12 +236,12 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
       </div>
 
       {/* Add skill */}
-      <div style={{ padding: 16, background: 'var(--accent-muted)', border: '2px dashed var(--accent-muted)', borderRadius: 10 }}>
+      <div style={{ padding: 16, background: 'var(--accent-muted)', border: '2px dashed var(--accent-muted)', borderRadius: 'var(--radius-md)' }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>{t('skills.anadir_nuevo_skill')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div>
-            <label style={ls}>Skill *</label>
-            <select value={form.skill_id} onChange={e => setForm(f => ({ ...f, skill_id: e.target.value }))} style={{ ...fs, borderColor: form.skill_id ? 'var(--accent)' : 'var(--surface-4)' }}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Skill *</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.skill_id} onChange={e => setForm(f => ({ ...f, skill_id: e.target.value }))} style={{ ...fs, borderColor: form.skill_id ? 'var(--accent)' : 'var(--surface-4)' }}>
               <option value="">{t('skills.selecciona_un_skill')}</option>
               {CATEGORIES.map(cat => (
                 <optgroup key={cat} label={CAT_LABELS[cat] || cat}>
@@ -250,14 +251,14 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
             </select>
           </div>
           <div>
-            <label style={ls}>Nivel *</label>
-            <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={fs}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Nivel *</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={fs}>
               {LEVELS.map(l => <option key={l} value={l}>{LEVEL_CFG[l].label} {'★'.repeat(LEVEL_CFG[l].score)}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>{t('skills.anos_exp')}</label>
-            <input type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => setForm(f => ({ ...f, years_experience: e.target.value }))} style={fs} placeholder="Ej: 3.5" />
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('skills.anos_exp')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => setForm(f => ({ ...f, years_experience: e.target.value }))} style={fs} placeholder="Ej: 3.5" />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
@@ -266,7 +267,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
             {t('skills.tiene_certificacion')}
           </label>
           {form.certified && (
-            <input value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder={t('skills.nombre_de_la_certificacion')} />
+            <input aria-label={t('skills.nombre_de_la_certificacion')} value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder={t('skills.nombre_de_la_certificacion')} />
           )}
         </div>
         <button
@@ -342,20 +343,20 @@ function StaffingSearch() {
           ) : (
             <div className="u-stack-10">
               {results.map(u => (
-                <div key={u.user_id} style={{ padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+                <div key={u.user_id} style={{ padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{u.user_name}</div>
+                      <div className="u-base-700">{u.user_name}</div>
                       <div className="u-text2-xs">{u.department} · {u.role}</div>
                     </div>
                     <span style={{ fontSize: "var(--text-xs)", background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)', borderRadius: 20, padding: '3px 10px' }}>{u.skill_count} skills</span>
                   </div>
                   <div className="u-wrap-6">
                     {u.matching_skills.map(s => (
-                      <div key={s.skill_id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div key={s.skill_id} className="u-row-center-6">
                         <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>{s.skill_name}</span>
                         <LevelBadge level={s.level} />
-                        {s.years_experience && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{s.years_experience}a</span>}
+                        {s.years_experience && <span className="u-text2-2xs">{s.years_experience}a</span>}
                       </div>
                     ))}
                   </div>
@@ -472,7 +473,7 @@ export default function SkillsPage() {
           <Card style={{ padding: 16 }}>
             <div style={{ marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               {Object.entries(LEVEL_CFG).map(([l, cfg]) => (
-                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div key={l} className="u-row-center-6">
                   <div style={{ width: 16, height: 16, borderRadius: 4, background: alpha(cfg.color, '30'), border: `1px solid ${alpha(cfg.color, '60')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-3xs)", color: cfg.color, fontWeight: 700 }}>{cfg.score}</div>
                   <span className="u-text2-xs">{cfg.label}</span>
                 </div>
@@ -485,7 +486,7 @@ export default function SkillsPage() {
 
       {tab === 'profiles' && (
         <div>
-          <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-muted)', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: "var(--text-base)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-muted)', borderRadius: 'var(--radius-md)', padding: '10px 16px', marginBottom: 20, fontSize: "var(--text-base)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: "var(--text-lg-em)" }}>💡</span>
             {t('skills.haz_clic_en_cualquier_persona_para_ver')}
           </div>
@@ -499,9 +500,9 @@ export default function SkillsPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div>
                     <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{u.full_name}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{u.job_title || u.role} · {u.department || '—'}</div>
+                    <div className="u-text2-sm-mt2">{u.job_title || u.role} · {u.department || '—'}</div>
                   </div>
-                  <div style={{ background: 'var(--accent-glow)', border: '1px solid rgba(79,142,247,0.3)', borderRadius: 8, padding: '5px 12px', color: 'var(--accent)', fontSize: "var(--text-sm)", fontWeight: 700, flexShrink: 0 }}>
+                  <div style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '5px 12px', color: 'var(--accent)', fontSize: "var(--text-sm)", fontWeight: 700, flexShrink: 0 }}>
                     ✏️ Gestionar skills
                   </div>
                 </div>
@@ -519,7 +520,7 @@ export default function SkillsPage() {
           <Card style={{ padding: 16, marginBottom: 20 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>{t('skills.anadir_nuevo_skill_al_catalogo')}</div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <input value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} style={{ ...inputStyle, flex: 2 }} placeholder={t('skills.nombre_del_skill')} />
+              <input aria-label={t('skills.nombre_del_skill')} value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} style={{ ...inputStyle, flex: 2 }} placeholder={t('skills.nombre_del_skill')} />
               <select value={newSkill.category} onChange={e => setNewSkill(f => ({ ...f, category: e.target.value }))} style={{ ...inputStyle, flex: 1 }}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
               </select>

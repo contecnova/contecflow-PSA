@@ -25,6 +25,8 @@ from app.services.client_portal_service.autenticacion import (  # noqa: F401
     hash_password,
     verify_password,
     create_client_token,
+    revocar_token_de_cliente,
+    token_de_cliente_revocado,
     get_portal_session_config,
     create_portal_share_token,
     decode_portal_share_token,

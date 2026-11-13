@@ -93,7 +93,7 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
 
   return (
     <section aria-label={inicial ? t('pres.editar_partida') : t('pres.nueva_partida')}
-      style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 10, alignItems: 'end' }}>
+      style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 10, alignItems: 'end' }}>
       <label><span style={etiqueta}>{t('pres.sentido')}</span>
         <select aria-label={t('pres.sentido')} value={f.sentido} style={campo}
           onChange={e => setF(v => ({ ...v, sentido: e.target.value as 'gasto' | 'ingreso', tipo: (e.target.value === 'ingreso' ? p.tipos_ingreso : p.tipos)[0] ?? '', modo: 'importe' }))}>
@@ -104,7 +104,7 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
           {tipos.map(x => <option key={x} value={x}>{t(`pres.tipo_${x}`, x)}</option>)}
         </select></label>
       {entrada({ k: 'descripcion', label: t('pres.descripcion'), tipo: 'text', ancho: true })}
-      <label style={{ gridColumn: '1 / -1' }}><span style={etiqueta}>{t('pres.como_se_calcula_la_partida')}</span>
+      <label className="u-col-full"><span style={etiqueta}>{t('pres.como_se_calcula_la_partida')}</span>
         <div role="radiogroup" aria-label={t('pres.como_se_calcula_la_partida')} className="u-wrap-6">
           {modos.map(m => (
             <button key={m} type="button" role="radio" aria-checked={f.modo === m} onClick={() => setF(v => ({ ...v, modo: m }))}
@@ -152,7 +152,7 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
         <input aria-label={t('pres.desde_mes')} type="month" min={desde} max={hasta} value={f.mes_desde} onChange={set('mes_desde')} style={campo} /></label>
       <label><span style={etiqueta}>{t('pres.hasta_mes')}</span>
         <input aria-label={t('pres.hasta_mes')} type="month" min={desde} max={hasta} value={f.mes_hasta} onChange={set('mes_hasta')} style={campo} /></label>
-      <label style={{ gridColumn: '1 / -1' }}><span style={etiqueta}>{t('pres.justificacion')}</span>
+      <label className="u-col-full"><span style={etiqueta}>{t('pres.justificacion')}</span>
         <textarea aria-label={t('pres.justificacion')} value={f.justificacion} onChange={set('justificacion')} rows={2} style={{ ...campo, resize: 'vertical' }} placeholder={t('pres.justificacion_ayuda')} /></label>
       <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         {onCancelar && <Button variant="secondary" onClick={onCancelar}>{t('pres.cancelar')}</Button>}

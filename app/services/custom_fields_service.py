@@ -22,6 +22,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
 from app.core.errores import ErrorDeDominio
+from app.models.user import UserRole
 
 if TYPE_CHECKING:
     pass
@@ -363,7 +364,7 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
     if (
         transition.required_role
         and current_user.role != transition.required_role
-        and current_user.role != "admin"
+        and current_user.role != UserRole.admin
     ):
         raise ErrorDeDominio(
             403,

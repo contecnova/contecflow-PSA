@@ -158,7 +158,7 @@ export function PortalSurveys() {
 
         <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
           <PortalSection title={t('portalsurveys.recomendarias_el_equipo_a_otra_empresa')} hint={undefined} action={undefined}>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div className="u-row-10">
               {[
                 { v: true,  label: 'Sí, lo recomendaría',  Icon: ThumbsUp,   color: 'var(--success)' },
                 { v: false, label: 'No, esta vez no',      Icon: ThumbsDown, color: 'var(--danger)' },
@@ -169,7 +169,7 @@ export function PortalSurveys() {
                     style={{
                       flex: 1, padding: '14px 12px',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      borderRadius: 10,
+                      borderRadius: 'var(--radius-md)',
                       border: `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`,
                       background: isActive ? alpha(opt.color, '1a') : 'var(--surface-3)',
                       color: isActive ? opt.color : 'var(--text-2)',
@@ -251,14 +251,14 @@ export function PortalSurveys() {
               <div className="u-stack-10">
                 {pending.map(s => (
                   <PortalCard key={s.id} accent onClick={() => setActive(s)}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div className="u-row-center-12">
                       <div style={{
-                        width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                        width: 38, height: 38, borderRadius: 'var(--radius-md)', flexShrink: 0,
                         background: 'var(--accent-muted)', color: 'var(--accent)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}><Sparkles size={18} /></div>
                       <div className="u-flex1-min0">
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{s.title}</div>
+                        <div className="u-sm-700">{s.title}</div>
                         <div className="u-text3-xs">
                           {t('portalsurveys.enviada_el')} {s.sent_at}
                         </div>
@@ -281,12 +281,12 @@ export function PortalSurveys() {
                   <PortalCard key={s.id} accent={false} onClick={undefined}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                       <div style={{
-                        width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                        width: 38, height: 38, borderRadius: 'var(--radius-md)', flexShrink: 0,
                         background: 'var(--success-bg, rgba(16,185,129,0.12))', color: 'var(--success)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}><CheckCircle2 size={18} /></div>
                       <div className="u-flex1-min0">
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{s.title}</div>
+                        <div className="u-sm-700">{s.title}</div>
                         <div className="u-text3-xs">
                           {t('portalsurveys.respondida_el')} {s.completed_at}
                         </div>
@@ -334,7 +334,7 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>{label}</div>
-          {hint && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{hint}</div>}
+          {hint && <div className="u-text3-xs-mt2">{hint}</div>}
         </div>
         {value > 0 && (
           <span className="u-text3-xs">{RATING_LABELS[value - 1]}</span>
@@ -347,7 +347,7 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
             <button key={n} onClick={() => onChange(n)} aria-label={`${n} de 5 estrellas`}
               style={{
                 flex: 1, minWidth: 0, padding: '12px 8px',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 border: `1px solid ${filled ? 'var(--warning, #f59e0b)' : 'var(--surface-4)'}`,
                 background: filled ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--surface-3)',
                 color: filled ? 'var(--warning, #f59e0b)' : 'var(--text-3)',
@@ -399,7 +399,7 @@ function Pill({ icon, label, value, color }: { icon: ReactNode; label: string; v
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '3px 8px', borderRadius: 999,
+      padding: '3px 8px', borderRadius: 'var(--radius-full)',
       background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
       fontSize: 'var(--text-xs)', color: 'var(--text-2)',
     }}>

@@ -17,7 +17,7 @@ import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import FichaDeLeccion from './FichaDeLeccion'
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14, background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 10 }
+const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14, background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 10 }
 const chip: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-2)', border: '1px solid var(--surface-4)', borderRadius: 99, padding: '1px 8px' }
 
 export default function LeccionesQueAplican({ contexto, id, campos }: {
@@ -69,7 +69,7 @@ export default function LeccionesQueAplican({ contexto, id, campos }: {
               <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
                 {([['util', ThumbsUp], ['aplicada', Check], ['no_aplica', X]] as const).map(([v, Icono]) => (
                   <button key={v} type="button" title={t(`lec.uso_${v}`)} aria-label={t(`lec.uso_${v}`)} aria-pressed={r.mi_valoracion === v} onClick={() => valorar(r, v)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: r.mi_valoracion === v ? 'var(--accent-muted)' : 'transparent', color: r.mi_valoracion === v ? 'var(--accent)' : 'var(--text-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: r.mi_valoracion === v ? 'var(--accent-muted)' : 'transparent', color: r.mi_valoracion === v ? 'var(--accent)' : 'var(--text-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
                     <Icono size={12} />{t(`lec.uso_${v}`)}
                   </button>
                 ))}

@@ -38,6 +38,7 @@ from app.models.workflow_designer import (
     WorkflowRunStep,
     WorkflowRunStepStatus,
 )
+from app.services.settings_service import outbound_http_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -733,7 +734,7 @@ def _nodo_llamada_http(n: _Nodo) -> tuple[str, dict, int]:
         # run (500 caracteres): era SSRF con lectura (metadatos cloud, red interna).
         from app.core.outbound_url import cliente_httpx, validate_outbound_url
         validate_outbound_url(url or "", field="url del nodo http_call")
-        with cliente_httpx(timeout=10.0) as cli:
+        with cliente_httpx(timeout=outbound_http_timeout(default=10.0)) as cli:
             r = cli.request(
                 method, url,
                 json=body if isinstance(body, (dict, list)) else None,

@@ -21,6 +21,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
 from app.services._pdf_marca import PALETA_POR_DEFECTO
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 #: Tintes propios de este documento; ver la nota de la cabecera.
 _GRIS_DE_CUERPO = "#374151"
@@ -74,7 +75,7 @@ def generate_signed_pdf(
     elements = []
 
     # ── Header ────────────────────────────────────────────────────────────────
-    elements.append(Paragraph("Contecflow", ParagraphStyle("Brand",
+    elements.append(Paragraph(NOMBRE_DEL_PRODUCTO, ParagraphStyle("Brand",
         parent=styles["Normal"], fontSize=13, fontName="Helvetica-Bold",
         textColor=ACCENT, alignment=TA_CENTER, spaceAfter=4)))
 

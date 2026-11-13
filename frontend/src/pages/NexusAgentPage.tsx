@@ -102,7 +102,7 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
   const c = (step.tool && colors[step.tool]) || 'var(--text-2)'
   return (
     <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, marginBottom: 6 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 6, background: alpha(c, '20'), border: `1px solid ${alpha(c, '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: c, flexShrink: 0 }}>
+      <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: alpha(c, '20'), border: `1px solid ${alpha(c, '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: c, flexShrink: 0 }}>
         {step.step}
       </div>
       <div className="u-flex1-min0">
@@ -136,7 +136,7 @@ function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: E
       onMouseEnter={() => setEncima(true)} onMouseLeave={() => setEncima(false)}
       style={{
         display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left', fontFamily: 'inherit',
-        color: 'var(--text-1)', padding: '12px 14px', margin: 0, borderRadius: 10, cursor: 'pointer',
+        color: 'var(--text-1)', padding: '12px 14px', margin: 0, borderRadius: 'var(--radius-md)', cursor: 'pointer',
         border: `1px solid ${seleccionada ? alpha(sc.color, '55') : 'transparent'}`,
         background: seleccionada ? alpha(sc.color, '12') : encima ? 'var(--surface-3)' : 'transparent',
         transition: 'background 0.15s, border-color 0.15s',
@@ -327,7 +327,7 @@ export default function ContecflowAgentPage() {
               onKeyDown={handleKey}
               placeholder={traducir('nexusagent.ej_resume_el_estado_de_todos_los')}
               rows={4}
-              style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', fontSize: "var(--text-md)", fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
+              style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 14px', fontSize: "var(--text-md)", fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
@@ -361,7 +361,7 @@ export default function ContecflowAgentPage() {
                 <div className="u-text2-base">{traducir('nexusagent.analizando_instruccion')}</div>
               )}
               {liveText && (
-                <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>
+                <div style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>
                   {liveText}
                 </div>
               )}
@@ -379,13 +379,13 @@ export default function ContecflowAgentPage() {
 
           {result && !isPending && (
             <div style={{ ...card, padding: 24, marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div className="u-row-between-mb16">
                 <div className="u-md-700">{traducir('nexusagent.resultado')}</div>
                 <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 20, background: STATUS_CFG[result.status ?? '']?.bg, color: STATUS_CFG[result.status ?? '']?.color, fontWeight: 600 }}>
                   {result.status && STATUS_CFG[result.status] ? t(`nexusagent.estado_${result.status}`) : result.status}
                 </span>
               </div>
-              <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, marginBottom: result.steps?.length ? 16 : 0, color: 'var(--text-1)' }}>
+              <div style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, marginBottom: result.steps?.length ? 16 : 0, color: 'var(--text-1)' }}>
                 <MarkdownText text={result.result ?? ''} />
               </div>
               {(result.steps?.length ?? 0) > 0 && (
@@ -404,7 +404,7 @@ export default function ContecflowAgentPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', borderBottom: '1px solid var(--surface-4)' }}>
               <span style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{traducir('nexusagent.historial_de_ejecuciones')}</span>
               {history.length > 0 && (
-                <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 999, padding: '1px 8px' }}>{history.length}</span>
+                <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 'var(--radius-full)', padding: '1px 8px' }}>{history.length}</span>
               )}
             </div>
             {history.length === 0 ? (
@@ -452,7 +452,7 @@ export default function ContecflowAgentPage() {
                 <span style={{ fontSize: "var(--text-md)" }}>{tool.icon}</span>
                 <div>
                   <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{tool.name}</div>
-                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{traducir(tool.desc)}</div>
+                  <div className="u-text2-2xs">{traducir(tool.desc)}</div>
                 </div>
               </div>
             ))}

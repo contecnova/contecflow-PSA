@@ -128,7 +128,7 @@ export default function PortalAIChatWidget() {
         aria-label="Abrir asistente IA"
         title="Asistente IA — pregunta sobre tus proyectos"
         style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
+          position: 'fixed', bottom: 24, right: 24, zIndex: 'var(--z-modal)',
           width: 56, height: 56, borderRadius: '50%',
           background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
           border: 'none', cursor: 'pointer',
@@ -146,12 +146,12 @@ export default function PortalAIChatWidget() {
   return (
     <div
       style={{
-        position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
+        position: 'fixed', bottom: 24, right: 24, zIndex: 'var(--z-modal)',
         width: 380, maxWidth: 'calc(100vw - 32px)',
         height: 560, maxHeight: 'calc(100vh - 48px)',
         background: 'var(--surface-1)',
         border: '1px solid var(--surface-4)',
-        borderRadius: 14,
+        borderRadius: 'var(--radius-lg)',
         boxShadow: '0 18px 50px rgba(0,0,0,0.45)',
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
@@ -178,7 +178,7 @@ export default function PortalAIChatWidget() {
               aria-label={t('portalaichatwidget.nueva_conversacion')} title={t('portalaichatwidget.empezar_de_nuevo')}
               style={{
                 background: 'rgba(255,255,255,0.15)', color: 'var(--on-accent-light)', border: 'none',
-                borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer',
                 fontSize: 11, fontWeight: 600,
               }}>
               {t('portalaichatwidget.nueva')}
@@ -231,7 +231,7 @@ export default function PortalAIChatWidget() {
               background: m.role === 'user' ? 'var(--accent)' : 'var(--surface-1)',
               color: m.role === 'user' ? '#fff' : 'var(--text-1)',
               border: m.role === 'user' ? 'none' : '1px solid var(--surface-4)',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-md)',
               padding: '8px 12px',
               fontSize: 13, lineHeight: 1.4,
               whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -250,7 +250,7 @@ export default function PortalAIChatWidget() {
           <div style={{
             alignSelf: 'flex-start', maxWidth: '85%',
             background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-            borderRadius: 10, padding: '8px 12px',
+            borderRadius: 'var(--radius-md)', padding: '8px 12px',
             color: 'var(--text-3)', fontSize: 13, fontStyle: 'italic',
           }}>
             <span style={{ display: 'inline-block', animation: 'pulse 1.2s ease-in-out infinite' }}>
@@ -274,7 +274,7 @@ export default function PortalAIChatWidget() {
         padding: '10px 12px', borderTop: '1px solid var(--surface-4)',
         background: 'var(--surface-1)', display: 'flex', gap: 6,
       }}>
-        <input
+        <input aria-label="Escribe tu pregunta…"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}

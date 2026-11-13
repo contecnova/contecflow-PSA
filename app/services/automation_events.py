@@ -27,7 +27,7 @@ from sqlalchemy import event, inspect, select
 
 from app.db.session import TenantSession
 # Registra sus escuchadores ya: si entrara por primera vez desde `_tras_confirmar`
-# (al importar `app.worker`), lo haria en mitad del commit y SQLAlchemy
+# (antes importaba `app.worker`; ahora encola por nombre), lo haria en mitad del commit y SQLAlchemy
 # revienta con «deque mutated during iteration». Medido en Postgres con un
 # script que no cargaba `app.main`.
 import app.services.service_desk.ticket_events  # noqa: F401,E402
@@ -300,8 +300,8 @@ def _tras_confirmar(session) -> None:
     if not session.info.pop(_PENDIENTES, False):
         return
     try:
-        from app.worker import automations_procesar_eventos
-        automations_procesar_eventos.apply_async(retry=False)
+        from app.core.segundo_plano import enviar_tarea
+        enviar_tarea("app.worker.automations_procesar_eventos", retry=False)
     except Exception as exc:
         logger.debug("automatizaciones: sin broker, la recoge la tarea periodica (%s)", exc)
 

@@ -15,6 +15,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
+import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 type GastoMin = { id: string; code?: string; description?: string; amount?: number | string; currency?: string; status?: string; km?: number | null
   policy_flags?: { mensaje: string }[] }
 
@@ -22,6 +23,7 @@ const titulo: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 700, tex
 const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 
 export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: GastoMin; editable: boolean; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -59,11 +61,11 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
     } catch (e) { fallo(e) } finally { setGuardando(false) }
   }
   const importe = Number(gasto.amount) || 0
-  const dinero = (n: number) => n.toLocaleString(localeActivo(), { style: 'currency', currency: gasto.currency || 'EUR' })
+  const dinero = (n: number) => fmtMoneda(n, { moneda: gasto.currency })
 
   return (
     <Modal open onClose={onClose} size="lg" title={`${gasto.code ?? ''} — ${gasto.description ?? ''}`} subtitle={`${dinero(importe)}${gasto.km ? ` · ${gasto.km} km` : ''}`}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="u-stack-20">
         <section aria-label={t('gas.politicas')}>
           <h4 style={titulo}>{pol.data?.incumplimientos.length ? <ShieldAlert size={14} color="var(--warning)" /> : <ShieldCheck size={14} color="var(--success)" />}{t('gas.politicas')}</h4>
           {pol.isLoading ? <Spinner size={16} /> : (pol.data?.incumplimientos ?? []).length === 0

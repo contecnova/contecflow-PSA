@@ -63,10 +63,8 @@ USUARIO = re.compile(r"get_current_user|get_current_active_user")
 #: endpoint —«¿eres tú el aprobador designado?», «¿es tu propio perfil?»—, que
 #: es justo lo que un barrido no puede ver.
 EXENTAS_REVISADAS = {
-    # Credenciales y segundo factor del propio usuario.
-    "POST /api/v1/auth/change-password": "cambiar la contraseña propia",
-    "POST /api/v1/auth/mfa/setup": "dar de alta el segundo factor propio",
-    "POST /api/v1/auth/mfa/verify-setup": "verificar el segundo factor propio",
+    # (2026-11: `POST /auth/mfa/setup` y `verify-setup` salen de aqui: ahora tocan
+    # los codigos de respaldo de `current_user.id` y el detector las ve acotadas.)
     "PUT /api/v1/approvals/out-of-office": "fijar la propia ausencia y su delegado (solo toca al usuario de la sesion; el delegado ha de ser de su empresa y activo)",
     # Perfil propio. `PATCH /users/{user_id}` se queda fuera a propósito: el
     # endpoint YA distingue perfil propio de ficha ajena y rechaza los campos
@@ -82,7 +80,6 @@ EXENTAS_REVISADAS = {
     "POST /api/v1/dashboard/widgets": "los widgets del propio panel",
     "PATCH /api/v1/dashboard/widgets/reorder": "reordenar los widgets propios",
     "POST /api/v1/epics/mentions/read-all": "marcar por leídas las menciones propias",
-    "POST /api/v1/onboarding/step": "el propio onboarding",
     # Aprobaciones: presenta cualquiera, decide el designado. El endpoint
     # comprueba que lo eres; una guarda de rol dejaría fuera al aprobador que
     # no sea admin, que es el caso normal.
@@ -99,11 +96,6 @@ EXENTAS_REVISADAS = {
     "POST /api/v1/performance/dev-plans/{plan_id}/goals": "los objetivos del plan propio",
     "PATCH /api/v1/performance/dev-goals/{goal_id}": "los objetivos del plan propio",
     "DELETE /api/v1/performance/dev-goals/{goal_id}": "los objetivos del plan propio",
-    # El módulo marketplace no hace nada: ver §3.trigies. Guardar un no-op es
-    # teatro, y deja a la siguiente auditoría leyendo un control donde no hay
-    # funcionalidad.
-    "POST /api/v1/marketplace/install": "no instala nada; el módulo es una fachada",
-    "DELETE /api/v1/marketplace/uninstall": "no desinstala nada; el módulo es una fachada",
 }
 
 #: Exenciones detectadas automáticamente, por motivo y en su número medido.
@@ -119,7 +111,7 @@ EXENCIONES_ESPERADAS = {
     # 93 desde 2026-11-09: fuera PATCH/DELETE /sd/tickets/{id}/internal-comments (las
     # notas internas viven en los comentarios del ticket) y POST /capacity/plans
     # pasa a exigir gestor.
-    "acotada al propio usuario": 93,  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents)
+    "acotada al propio usuario": 92,  # 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
     "superficie: API key": 6,  # 2026-11: fuera POST /bookings/api-keys/verify (oraculo)
     # 20 desde 2026-11-09: fuera la copia de /clients/{cid}/portal-users (POST y
     # PATCH) que no exigía el máximo de usuarios del portal.

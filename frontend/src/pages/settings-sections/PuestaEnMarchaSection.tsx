@@ -25,19 +25,19 @@ export default function PuestaEnMarchaSection() {
     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: '1px solid var(--surface-4)' }}>
       <span aria-hidden style={{ fontSize: 'var(--text-lg)', color: p.done ? 'var(--success)' : p.required ? 'var(--warning)' : 'var(--text-3)' }}>{p.done ? '✓' : '○'}</span>
       <div className="u-flex1">
-        <div style={{ fontWeight: 600 }}>{t('puesta.' + p.id)}</div>
+        <div className="u-600">{t('puesta.' + p.id)}</div>
         <div className="u-text3-xs">{t('puesta.' + p.id + '_ayuda')}</div>
       </div>
       <span style={{ fontSize: 'var(--text-xs)', color: p.done ? 'var(--success)' : 'var(--text-3)' }}>{t(p.done ? 'puesta.hecho' : 'puesta.pendiente')}</span>
       {!p.done && p.link && (
         <button type="button" onClick={() => navigate(p.link as string)}
-          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)' }}>
+          style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)' }}>
           {t('puesta.configurar')}
         </button>
       )}
     </div>
   )
-  const caja = { border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', marginBottom: 18 } as const
+  const caja = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 18 } as const
   return (
     <div>
       <p className="u-text2-sm">{t('puesta.intro')}</p>

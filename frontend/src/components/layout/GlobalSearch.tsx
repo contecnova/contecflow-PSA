@@ -120,13 +120,13 @@ export default function GlobalSearch({ onClose }: Props) {
   let resultCursor = 0
 
   return (
-    <div role="presentation" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:'15vh' }}
+    <div role="presentation" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:'var(--z-drag)', display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:'15vh' }}
       onMouseDown={onClose}>
       <div role="dialog" aria-modal="true" aria-label={t('globalsearch.busqueda_global')} style={{ width:'100%', maxWidth:620, background:'var(--surface-1)', borderRadius:16, border:'.5px solid var(--surface-4)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
         onMouseDown={e => e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'center', padding:'14px 18px', borderBottom:'.5px solid var(--surface-4)', gap:10 }}>
           <span style={{ fontSize: "var(--text-lg)", color:'var(--text-2)' }}>⌕</span>
-          <input
+          <input aria-label={t('global_search.placeholder')}
             ref={inputRef}
             value={q}
             onChange={e => setQ(e.target.value)}
@@ -135,7 +135,7 @@ export default function GlobalSearch({ onClose }: Props) {
             onKeyDown={handleKeyDown}
           />
           {isLoading && <span className="u-text3-sm">{t('common.searching')}</span>}
-          <button onClick={onClose} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>Esc</button>
+          <button onClick={onClose} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>Esc</button>
         </div>
 
         <div ref={listRef} style={{ maxHeight:450, overflowY:'auto' }}>

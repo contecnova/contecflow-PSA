@@ -20,7 +20,7 @@ export default function Breadcrumbs({ items = [] }: Props) {
         return (
           <span key={`${item.to || item.label}-${idx}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {isLast || !item.to ? (
-              <span style={{ color: 'var(--text-1)', fontSize: "var(--text-base)", fontWeight: 600 }}>
+              <span className="u-text1-base-600">
                 {item.label}
               </span>
             ) : (

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from app.models.mfa import MFAConfig
+from app.models.mfa import MFABackupCode
 from app.models.pipeline import Opportunity
 from app.models.sessions import UserSession
 from app.models.user import User, UserRole
@@ -26,14 +26,15 @@ def test_EL_HALLAZGO_la_supresion_llega_a_las_copias_y_las_credenciales(db, monk
             pass
     monkeypatch.setattr("app.services.olap.etl.get_duckdb_conn", lambda: Conexion())
     db.add(User(id="u-sup", username="laura_g", email="laura@cliente.es", full_name="Laura Gómez",
-                role=UserRole.employee, organization_id="1", hashed_password="x", phone="600000000"))
+                role=UserRole.employee, organization_id="1", hashed_password="x", phone="600000000",
+                mfa_enabled=True, mfa_secret="cifrado"))
     db.add(Opportunity(code="OPP-S1", name="Renovación", client_name="Cliente", contact_name="Laura Gómez",
                        contact_email="laura@cliente.es", organization_id="1"))
     db.add(Opportunity(code="OPP-S2", name="Otra", client_name="Cliente", contact_name="Laura Gómez Pérez",
                        organization_id="1"))
     ahora = datetime.now(timezone.utc)
     db.add(UserSession(user_id="u-sup", refresh_token_jti="jti-1", last_seen_at=ahora, expires_at=ahora + timedelta(days=1)))
-    db.add(MFAConfig(user_id="u-sup", totp_secret="s"))
+    db.add(MFABackupCode(user_id="u-sup", code_hash="h"))
     db.commit()
     r = execute_erasure(db, subject_id="laura@cliente.es", org_id="1")
     db.expire_all()
@@ -44,6 +45,7 @@ def test_EL_HALLAZGO_la_supresion_llega_a_las_copias_y_las_credenciales(db, monk
     assert (o1.contact_name, o1.contact_email) == ("[ERASED]", u.email)
     assert db.query(Opportunity).filter(Opportunity.code == "OPP-S2").one().contact_name == "Laura Gómez Pérez"  # sólo exactas
     assert db.query(UserSession).filter(UserSession.user_id == "u-sup").count() == 0
-    assert db.query(MFAConfig).filter(MFAConfig.user_id == "u-sup").count() == 0
+    assert db.query(MFABackupCode).filter(MFABackupCode.user_id == "u-sup").count() == 0
+    assert (u.mfa_secret, u.mfa_enabled) == (None, False)
     assert enviado == [("DELETE FROM dim_user WHERE user_id = ?", ["u-sup"])]
     assert {"table": "duckdb", "action": "dim_user: borrada"} in r["operations"]

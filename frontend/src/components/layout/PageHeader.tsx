@@ -239,7 +239,7 @@ export default function PageHeader({
       {breadcrumb && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
           {breadcrumb.map((crumb, i) => (
-            <span key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span key={i} className="u-row-center-6">
               {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: "var(--text-xs)" }}>›</span>}
               {crumb.onClick ? (
                 <button type="button" style={{
@@ -266,7 +266,7 @@ export default function PageHeader({
           <div className="u-row-center-10">
             {icon && (
               <div style={{
-                width: 36, height: 36, borderRadius: 10,
+                width: 36, height: 36, borderRadius: 'var(--radius-md)',
                 background: 'var(--accent-muted)', border: '1px solid var(--accent-muted)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--accent)', flexShrink: 0,

@@ -19,6 +19,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_embed_service as svc
+from app.services import m365_bi_embed_service
 from app.core.deps import require_admin
 
 router = APIRouter(prefix="/bi/embed", tags=["BI Embedded SDK"])
@@ -113,7 +114,7 @@ def embed_view(
     org: str = Query(..., max_length=64),
     db: Session = Depends(get_db),
 ):
-    contenido = svc.pagina(db, org, dashboard_id, token)
+    contenido = svc.pagina(db, org, dashboard_id, token, m365_bi_embed_service.get_dashboard_snapshot)
     return HTMLResponse(contenido, headers={
         "Content-Security-Policy": (f"default-src 'none'; style-src 'unsafe-inline'; img-src data:; "
                                     f"frame-ancestors {svc.frame_ancestors(db, org)}; base-uri 'none'; form-action 'none'"),

@@ -123,10 +123,6 @@ def _settings_table_available(db) -> bool:
         return False
 
 
-def _legacy_only_state() -> KeyRingState:
-    raise RuntimeError("Legacy key state is no longer supported.")
-
-
 def _save_keyring(db, state: KeyRingState) -> None:
     payload = {
         "active_kid": state.active_kid,

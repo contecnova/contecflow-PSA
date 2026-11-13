@@ -93,8 +93,8 @@ def fire_webhook(
         )
 
         try:
-            from app.worker import deliver_webhook_task
-            deliver_webhook_task.apply_async(args=[hook.id, body, event])
+            from app.core.segundo_plano import enviar_tarea
+            enviar_tarea("app.worker.deliver_webhook", args=[hook.id, body, event])
             enqueued_count += 1
         except Exception as exc:
             logger.warning(

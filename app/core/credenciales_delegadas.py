@@ -40,7 +40,7 @@ _LECTURA = {"GET", "HEAD", "OPTIONS"}
 
 #: Rutas que una credencial delegada no puede tocar: gestionan credenciales.
 RUTAS_VEDADAS = (
-    "/api/v1/auth/", "/api/v1/mfa", "/api/v1/bookings/api-keys", "/api/v1/developer/apps",
+    "/api/v1/auth/", "/api/v1/bookings/api-keys", "/api/v1/developer/apps",
     "/api/v1/enterprise/sso", "/api/v1/bookings/sso", "/api/v1/users/me/password",
 )
 #: Excepciones de solo lectura dentro de las vedadas.

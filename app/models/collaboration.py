@@ -52,6 +52,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+from app.core.config import settings as _ajustes
 from app.db.base import Base
 
 
@@ -595,7 +596,7 @@ class CollaborationTranscript(Base):
     id = Column(String(36), primary_key=True, default=_uid)
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     call_id = Column(String(36), ForeignKey("collaboration_calls.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
-    language = Column(String(20), nullable=False, default="es")
+    language = Column(String(20), nullable=False, default=_ajustes.DEFAULT_LANGUAGE)
     text = Column(Text, nullable=False, default="")
     segments_json = Column(JSON, nullable=False, default=list)
     summary = Column(Text, nullable=True)

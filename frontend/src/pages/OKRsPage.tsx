@@ -2,7 +2,7 @@
  * OKRsPage — Objectives & Key Results
  * Vista árbol: Objectives con Key Results expandibles, progreso en tiempo real, check-ins
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { okrsApi, usersApi, projectsApi } from '../services/api'
@@ -16,6 +16,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type PeriodOpt = 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'H1' | 'H2' | 'annual' | ''
 type OkrStatus = 'draft' | 'active' | 'completed' | 'cancelled' | string
 type KrType = 'percentage' | 'number' | 'boolean' | 'currency' | string
@@ -55,7 +56,8 @@ const KR_TYPE_CFG: Record<string, { icon: string; label: string; unit: string }>
   percentage: { icon:'%', label:'Porcentaje', unit:'%' },
   number:     { icon:'#', label:'Número',     unit:'' },
   boolean:    { icon:'✓', label:'Sí/No',      unit:'' },
-  currency:   { icon:'€', label:'Importe',    unit:'€' },
+  // Moneda: icono y unidad salen de la moneda de la empresa al pintar (fmtMoneda.simbolo).
+  currency:   { icon:'¤', label:'Importe',    unit:'' },
 }
 const STATUS_CFG: Record<string, { color: string; label: string }> = {
   draft:     { color:'var(--text-3)',   label:'Borrador' },
@@ -87,6 +89,7 @@ function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: 
 }
 
 function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () => void; onDelete: (id: string | number) => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const [showCheckin, setShowCheckin] = useState(false)
   const [checkinVal, setCheckinVal] = useState<string | number>(kr.current_value ?? 0)
@@ -115,14 +118,14 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
         <ProgressRing pct={pct} size={36} stroke={3} color={color} />
         <div style={{ flex:'1 1 160px', minWidth:0 }}>
           <div style={{ fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{kr.title}</div>
-          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2 }}>
-            {typeCfg.icon} {kr.current_value ?? 0} / {kr.target_value} {kr.unit || typeCfg.unit}
+          <div className="u-text2-xs-mt2">
+            {kr.kr_type === 'currency' ? fmtMoneda.simbolo : typeCfg.icon} {kr.current_value ?? 0} / {kr.target_value} {kr.unit || (kr.kr_type === 'currency' ? fmtMoneda.simbolo : typeCfg.unit)}
             {kr.owner_name && <span style={{ marginLeft:8 }}>· {kr.owner_name}</span>}
           </div>
         </div>
         <button onClick={() => setShowCheckin(s => !s)}
           style={{ background:'var(--accent-muted)', border:'1px solid var(--accent-border)',
-            borderRadius:6, padding:'4px 10px', color:'var(--accent)',
+            borderRadius:'var(--radius-sm)', padding:'4px 10px', color:'var(--accent)',
             cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
           ↑ Actualizar
         </button>
@@ -138,14 +141,14 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
             <input type="number" value={checkinVal}
               onChange={e => setCheckinVal(e.target.value)}
               style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-                borderRadius:6, padding:'6px 10px', color:'var(--text-1)',
+                borderRadius:'var(--radius-sm)', padding:'6px 10px', color:'var(--text-1)',
                 fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}
               placeholder={`Nuevo valor (actual: ${kr.current_value})`} />
           </div>
           <div style={{ flex:'2 1 160px', minWidth:0 }}>
-            <input value={checkinNote} onChange={e => setCheckinNote(e.target.value)}
+            <input aria-label={t('okrs.nota_del_check_in')} value={checkinNote} onChange={e => setCheckinNote(e.target.value)}
               style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-                borderRadius:6, padding:'6px 10px', color:'var(--text-1)',
+                borderRadius:'var(--radius-sm)', padding:'6px 10px', color:'var(--text-1)',
                 fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}
               placeholder={t('okrs.nota_del_check_in')} />
           </div>
@@ -202,17 +205,17 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
         <div style={{ display:'flex', gap:6, flexShrink:0 }}>
           <button onClick={() => onAddKR(obj)}
             style={{ background:'var(--accent-muted)', border:'1px solid var(--accent-border)',
-              borderRadius:6, padding:'4px 10px', color:'var(--accent)',
+              borderRadius:'var(--radius-sm)', padding:'4px 10px', color:'var(--accent)',
               cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
             + KR
           </button>
           <button onClick={() => onEdit(obj)}
             style={{ background:'none', border:'1px solid var(--surface-4)',
-              borderRadius:6, padding:'4px 8px', color:'var(--text-2)',
+              borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--text-2)',
               cursor:'pointer', fontSize: "var(--text-xs)" }}>✏</button>
           <button onClick={() => onDeleteObj(obj.id)}
             style={{ background:'none', border:'1px solid var(--danger-border)',
-              borderRadius:6, padding:'4px 8px', color:'var(--danger)',
+              borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--danger)',
               cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
         </div>
       </div>
@@ -235,6 +238,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
 }
 
 function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -283,13 +287,13 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
     <Modal open onClose={onClose} title={isEdit ? 'Editar objetivo' : 'Nuevo objetivo'} width={580}>
       <div className="ds-stack">
         <div className="ds-field">
-          <label className="ds-field__label">{t('okrs.titulo')}</label>
-          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.titulo')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             className="ds-input" placeholder={t('okrs.ej_incrementar_retencion_de_clientes')} autoFocus />
         </div>
         <div className="ds-field">
-          <label className="ds-field__label">{t('okrs.descripcion')}</label>
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('okrs.descripcion')}</label>
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             rows={2} className="ds-input" style={{ resize: 'vertical' }}
             placeholder={t('okrs.que_problema_resuelve_y_como_se_medira')} />
         </div>
@@ -297,8 +301,8 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         {/* Asignaciones */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
           <div className="ds-field">
-            <label className="ds-field__label">Responsable</label>
-            <select value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Responsable</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
               className="ds-input">
               <option value="">{t('okrs.sin_asignar')}</option>
               {users.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name || u.username}</option>)}
@@ -306,8 +310,8 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
             <div className="ds-field__hint">{t('okrs.persona_que_rinde_cuentas_del_objetivo')}</div>
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">Departamento / equipo</label>
-            <select value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))}
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">Departamento / equipo</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))}
               className="ds-input">
               <option value="">{t('okrs.compania')}</option>
               {departments.map((d) => {
@@ -320,8 +324,8 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         </div>
 
         <div className="ds-field">
-          <label className="ds-field__label">Proyecto vinculado</label>
-          <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">Proyecto vinculado</label>
+          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
             className="ds-input">
             <option value="">— Ninguno —</option>
             {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code ? `${p.code} · ` : ''}{p.name}</option>)}
@@ -332,20 +336,20 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         {/* Período + estado */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
           <div className="ds-field">
-            <label className="ds-field__label">{t('okrs.periodo')}</label>
-            <select value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value }))} className="ds-input">
+            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('okrs.periodo')}</label>
+            <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value }))} className="ds-input">
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">{t('okrs.year')}</label>
-            <input type="number" value={form.year}
+            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('okrs.year')}</label>
+            <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={form.year}
               onChange={e => setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year }))}
               className="ds-input" />
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">Estado</label>
-            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="ds-input">
+            <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">Estado</label>
+            <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="ds-input">
               {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
@@ -363,6 +367,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
 }
 
 function KRModal({ objective, onClose }: { objective: Objective; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -397,48 +402,48 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
       width={560}>
       <div className="ds-stack">
         <div className="ds-field">
-          <label className="ds-field__label">{t('okrs.descripcion_del_resultado')}</label>
-          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.descripcion_del_resultado')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             className="ds-input" placeholder="Ej: Aumentar NPS a 60" autoFocus />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
           <div className="ds-field">
-            <label className="ds-field__label">Tipo</label>
-            <select value={form.kr_type} onChange={e => setForm(f => ({ ...f, kr_type: e.target.value }))} className="ds-input">
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Tipo</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.kr_type} onChange={e => setForm(f => ({ ...f, kr_type: e.target.value }))} className="ds-input">
               {Object.entries(KR_TYPE_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">Meta</label>
-            <input type="number" value={form.target_value}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Meta</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.target_value}
               onChange={e => setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 }))}
               className="ds-input" />
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">Unidad</label>
-            <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">Unidad</label>
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
               className="ds-input" placeholder="%, puntos, €, NPS…" />
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
           <div className="ds-field">
-            <label className="ds-field__label">{t('okrs.responsable_del_kr')}</label>
-            <select value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('okrs.responsable_del_kr')}</label>
+            <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
               className="ds-input">
               <option value="">{t('okrs.hereda_del_objetivo')}</option>
               {users.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name || u.username}</option>)}
             </select>
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">{t('okrs.fecha_limite')}</label>
-            <DateInput value={form.due_date}
+            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('okrs.fecha_limite')}</label>
+            <DateInput id={`${idCampo}-6`} value={form.due_date}
               onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
               className="ds-input" />
           </div>
         </div>
         <div className="ds-field">
-          <label className="ds-field__label">Notas (opcional)</label>
-          <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">Notas (opcional)</label>
+          <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
             rows={2} className="ds-input" style={{ resize: 'vertical' }}
             placeholder={t('okrs.detalles_criterios_de_exito_dependencias')} />
         </div>

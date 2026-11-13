@@ -1924,12 +1924,6 @@ app/services/service_desk/cab_workflow_service.py:change = db.query(ITSMChangeRe
 app/services/service_desk/cab_workflow_service.py:return db.query(AppSetting).filter(AppSetting.key == key).first()
 app/services/service_desk/canned_response_service.py:canned = db.query(CannedResponse).filter(
 app/services/service_desk/canned_response_service.py:q = db.query(CannedResponse).filter(CannedResponse.is_active == True)
-app/services/service_desk/capacity_planning_service.py:db.query(
-app/services/service_desk/capacity_planning_service.py:db.query(Ticket.assignee_id, func.count(Ticket.id).label("cnt"))
-app/services/service_desk/capacity_planning_service.py:db.query(func.count(Ticket.id))
-app/services/service_desk/capacity_planning_service.py:row = db.query(AppSetting).filter(AppSetting.key == key).first()
-app/services/service_desk/capacity_planning_service.py:row = db.query(AppSetting).filter(AppSetting.key == key).first()
-app/services/service_desk/capacity_planning_service.py:users = {str(u.id): getattr(u, "full_name", u.email) for u in db.query(User).filter(User.id.in_(user_ids)).all()}
 app/services/service_desk/catalog_service.py:category = db.query(ServiceCategory).filter(ServiceCategory.id == cat_id).first()
 app/services/service_desk/catalog_service.py:db.query(ServiceCategory)
 app/services/service_desk/catalog_service.py:service = db.query(ServiceItem).filter(ServiceItem.id == service_id).first()
@@ -2099,10 +2093,6 @@ app/services/service_desk/scoping.py:db.query(ConfigurationItem.id).filter(
 app/services/service_desk/scoping.py:p = db.query(SLAPolicy).filter(
 app/services/service_desk/scoping.py:p = db.query(SLAPolicy).filter(
 app/services/service_desk/scoping.py:return db.query(SLAPolicy).filter(
-app/services/service_desk/sd_reporting_service.py:q = db.query(Ticket)
-app/services/service_desk/sd_reporting_service.py:row = db.query(AppSetting).filter(AppSetting.key == key).first()
-app/services/service_desk/sd_reporting_service.py:row = db.query(AppSetting).filter(AppSetting.key == key).first()
-app/services/service_desk/sd_reporting_service.py:users = {str(u.id): u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
 app/services/service_desk/semantic_feedback_service.py:db.query(SemAssignment)
 app/services/service_desk/semantic_feedback_service.py:ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 app/services/service_desk/sla_assignment_service.py:client = db.query(Client).filter(Client.id == client_id).first()

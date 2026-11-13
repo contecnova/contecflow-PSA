@@ -302,8 +302,7 @@ AI_MODULES = [
     "contract_intelligence", "knowledge_base", "portal_ai", "voice",
     "mcp",
 ]
-#: Sin fila, apagados: abren una puerta hacia fuera (revisión 2026-11).
-APAGADOS_SIN_CONFIGURAR = {"mcp"}
+APAGADOS_SIN_CONFIGURAR = _gsvc.APAGADOS_SIN_CONFIGURAR
 
 
 @router.get("/config", summary="Configuración de módulos de IA gobernados")

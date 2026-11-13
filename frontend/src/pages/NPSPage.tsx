@@ -8,7 +8,7 @@
  *     Submit NPS form
  */
 
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ResponsiveContainer, LineChart, Line, AreaChart, Area,
@@ -128,6 +128,7 @@ function NPSGauge({ nps }: { nps?: number | null }) {
 }
 
 export default function NPSPage() {
+  const idCampo = useId()
   const t = useAppT()
   const narrow = useMediaQuery('(max-width: 900px)')
   const [clientId,    setClientId]    = useState<string | number | null>(null)
@@ -147,7 +148,7 @@ export default function NPSPage() {
 
   const { data: clientsRaw = [] } = useQuery({
     queryKey: ['clients-list-nps'],
-    queryFn: () => clientsApi.list({ page_size: 300 }).then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => clientsApi.list({ page_size: 300 }).then(r => r.data ?? []),
   })
   const clients = clientsRaw as ClientItem[]
 
@@ -200,7 +201,7 @@ export default function NPSPage() {
       />
       <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '260px minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
         {/* Leaderboard sidebar */}
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
             {t('nps.ranking')}
           </div>
@@ -211,7 +212,7 @@ export default function NPSPage() {
                 <button key={c.id} onClick={() => setClientId(c.id)} style={{
                   display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                   background: clientId === c.id ? 'var(--surface-4)' : 'none',
-                  border: 'none', borderRadius: 6, padding: '7px 10px', cursor: 'pointer', marginBottom: 2,
+                  border: 'none', borderRadius: 'var(--radius-sm)', padding: '7px 10px', cursor: 'pointer', marginBottom: 2,
                 }}>
                   <span style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', textAlign: 'left', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)' }}>—</span>
@@ -237,21 +238,21 @@ export default function NPSPage() {
         </div>
         {/* Right panel */}
         {!clientId ? (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: narrow ? '32px 16px' : 60, textAlign: 'center', color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: narrow ? '32px 16px' : 60, textAlign: 'center', color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
             {t('nps.select_client')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
             {/* Client header */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: 'var(--text-1)' }}>{selectedClient?.name || clientId}</div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{selectedClient?.contact_email || ''}</div>
+                <div className="u-text2-sm-mt2">{selectedClient?.contact_email || ''}</div>
               </div>
               {latestHealth !== undefined && (
                 <div style={{ textAlign: 'center', padding: '0 20px', borderLeft: '1px solid var(--surface-4)' }}>
                   <div style={{ fontSize: "var(--text-3xl)", fontWeight: 900, color: HEALTH_COLOR(latestHealth) }}>{Math.round(latestHealth)}</div>
-                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t('nps.current_health')}</div>
+                  <div className="u-text2-2xs">{t('nps.current_health')}</div>
                 </div>
               )}
               <button
@@ -262,7 +263,7 @@ export default function NPSPage() {
               </button>
             </div>
             {/* NPS summary */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{t('nps.nps')}</div>
                 <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))}
@@ -291,12 +292,12 @@ export default function NPSPage() {
               </div>
             </div>
             {/* Health trend */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>{t('nps.health_trend')}</div>
               <HealthChart data={health} />
             </div>
             {/* Submit NPS */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('nps.register_nps')}</div>
               <div className="u-stack-12">
                 <div>
@@ -304,7 +305,7 @@ export default function NPSPage() {
                   <div className="u-wrap-6">
                     {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
                       <button key={n} onClick={() => setScoreInput(n)} style={{
-                        width: 32, height: 32, borderRadius: 6,
+                        width: 32, height: 32, borderRadius: 'var(--radius-sm)',
                         background: scoreInput === n
                           ? (n >= 9 ? 'color-mix(in srgb, var(--success) 25%, var(--surface-2))'
                              : n >= 7 ? 'color-mix(in srgb, var(--orange) 25%, var(--surface-2))'
@@ -317,16 +318,16 @@ export default function NPSPage() {
                     ))}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="u-row-10">
                   <div className="u-flex1">
-                    <label style={ls}>{t('nps.respondent')}</label>
-                    <input value={respondent} onChange={e => setRespondent(e.target.value)}
+                    <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('nps.respondent')}</label>
+                    <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={respondent} onChange={e => setRespondent(e.target.value)}
                       style={fs} placeholder={t('nps.respondent')} />
                   </div>
                 </div>
                 <div>
-                  <label style={ls}>{t('nps.comment')}</label>
-                  <textarea value={comment} onChange={e => setComment(e.target.value)}
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('nps.comment')}</label>
+                  <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={comment} onChange={e => setComment(e.target.value)}
                     style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('nps.comment')} />
                 </div>
                 <button onClick={submitNPS} disabled={submitting} style={{

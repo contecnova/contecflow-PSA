@@ -80,12 +80,9 @@ const WikiPage               = lazy(() => import('./pages/WikiPage'))
 const EpicsPage              = lazy(() => import('./pages/EpicsPage'))
 const SearchPage             = lazy(() => import('./pages/SearchPage'))
 const CumulativeFlowPage     = lazy(() => import('./pages/CumulativeFlowPage'))
-const MentionsPage           = lazy(() => import('./pages/MentionsPage'))
 const IssueTypesPage         = lazy(() => import('./pages/IssueTypesPage'))
 const DependenciesPage       = lazy(() => import('./pages/DependenciesPage'))
-const FullTextSearchPage     = lazy(() => import('./pages/FullTextSearchPage'))
 const EpicGanttPage          = lazy(() => import('./pages/EpicGanttPage'))
-const WikiTagsPage           = lazy(() => import('./pages/WikiTagsPage'))
 const CMDBPage               = lazy(() => import('./pages/CMDBPage'))
 const AgentDashboardPage     = lazy(() => import('./pages/AgentDashboardPage'))
 const SprintPlanningPage     = lazy(() => import('./pages/SprintPlanningPage'))
@@ -107,7 +104,6 @@ const OKRsPage               = lazy(() => import('./pages/OKRsPage'))
 const PerformanceReviewsPage = lazy(() => import('./pages/PerformanceReviewsPage'))
 const TrainingPage           = lazy(() => import('./pages/TrainingPage'))
 const WebhookLogPage         = lazy(() => import('./pages/WebhookLogPage'))
-const NotificationsPage      = lazy(() => import('./pages/NotificationsPage'))
 const InboxPage              = lazy(() => import('./pages/InboxPage'))
 const RACIPage               = lazy(() => import('./pages/RACIPage'))
 const ChangelogPage          = lazy(() => import('./pages/ChangelogPage'))
@@ -245,7 +241,7 @@ class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBound
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         justifyContent: 'center', minHeight: '60vh', padding: 40, textAlign: 'center'
       }}>
-        <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>⚠️</div>
+        <div className="u-empty-icon">⚠️</div>
         <h3 style={{ color: 'var(--danger)', marginBottom: 8 }}>
           {isChunk ? this.props.t('app_errors.page_load_outdated') : this.props.t('app_errors.page_load_failed')}
         </h3>
@@ -569,8 +565,11 @@ function AppRoutes() {
       <Route path="/cumulative-flow" element={<ProtectedRoute><Layout><CumulativeFlowPage/></Layout></ProtectedRoute>}/>
       <Route path="/issue-types"    element={<ProtectedRoute roles={['admin','pm']}><Layout><IssueTypesPage/></Layout></ProtectedRoute>}/>
       <Route path="/dependencies"   element={<ProtectedRoute><Layout><DependenciesPage/></Layout></ProtectedRoute>}/>
-      <Route path="/fts-search"     element={<ProtectedRoute><Layout><FullTextSearchPage/></Layout></ProtectedRoute>}/>
-      <Route path="/wiki-tags"          element={<ProtectedRoute><Layout><WikiTagsPage/></Layout></ProtectedRoute>}/>
+      {/* Auditoria 2026-11 (#45): rutas huerfanas. La busqueda de texto completo
+          se fusiono en /search (SearchPage) y las etiquetas de la wiki viven en
+          /wiki (WikiTagsInline); quedan como redireccion para enlaces viejos. */}
+      <Route path="/fts-search"     element={<Navigate to="/search" replace />}/>
+      <Route path="/wiki-tags"      element={<Navigate to="/wiki" replace />}/>
       <Route path="/cmdb"              element={<ProtectedRoute roles={['admin','pm']}><Layout><CMDBPage/></Layout></ProtectedRoute>}/>
       <Route path="/agent-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeAgentDashboard/></Layout></ProtectedRoute>}/>
       {/* Revisión 2026-11: «Kanban» era la misma pregunta que Tareas → vista Kanban; ahora es una sola pantalla. */}
@@ -578,7 +577,8 @@ function AppRoutes() {
       <Route path="/sprint-planning"   element={<ProtectedRoute><Layout><SprintPlanningPage/></Layout></ProtectedRoute>}/>
       <Route path="/sla-calendars"     element={<ProtectedRoute roles={['admin','pm']}><Layout><SLACalendarsPage/></Layout></ProtectedRoute>}/>
       <Route path="/epic-gantt"     element={<ProtectedRoute><Layout><SafeEpicGantt/></Layout></ProtectedRoute>}/>
-      <Route path="/mentions" element={<ProtectedRoute><Layout><MentionsPage/></Layout></ProtectedRoute>}/>
+      {/* Menciones y notificaciones viven en la bandeja (InboxPage, pestanas). */}
+      <Route path="/mentions" element={<Navigate to="/inbox?tab=mentions" replace />}/>
       <Route path="/project-permissions" element={
         <ProtectedRoute roles={['admin','pm']}>
           <Layout><ProjectPermissionsPage /></Layout>
@@ -621,7 +621,7 @@ function AppRoutes() {
       <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeBIPage /></Layout></ProtectedRoute>} />
       <Route path="/webhook-log"         element={<ProtectedRoute roles={['admin']}><Layout><WebhookLogPage /></Layout></ProtectedRoute>} />
       <Route path="/inbox"               element={<ProtectedRoute><Layout><InboxPage /></Layout></ProtectedRoute>} />
-      <Route path="/notifications"       element={<ProtectedRoute><Layout><NotificationsPage /></Layout></ProtectedRoute>} />
+      <Route path="/notifications"       element={<Navigate to="/inbox?tab=notifications" replace />} />
       <Route path="/raci"                element={<ProtectedRoute><Layout><RACIPage /></Layout></ProtectedRoute>} />
       <Route path="/changelog"           element={<ProtectedRoute><Layout><ChangelogPage /></Layout></ProtectedRoute>} />
       <Route path="/uat"                element={<ProtectedRoute><Layout><UATPage /></Layout></ProtectedRoute>} />

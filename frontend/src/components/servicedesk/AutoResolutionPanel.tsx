@@ -94,7 +94,7 @@ function StatCard({ label, value, accent, sub }: StatCardProps) {
       flex: '1 1 140px',
       background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`,
       border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`,
-      borderRadius: 10,
+      borderRadius: 'var(--radius-md)',
       padding: '14px 16px',
       textAlign: 'center',
     }}>
@@ -132,7 +132,7 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
       <div className="u-stack-14">
         <div>
           <div style={fieldLabel}>{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="u-row-10">
             <button
               type="button"
               onClick={() => setSuccess(true)}
@@ -178,7 +178,7 @@ function FeedbackLookup({ onOpen }: { onOpen: (id: string) => void }) {
   const [id, setId] = useState<string>('')
   return (
     <div className="u-row-center-8">
-      <input
+      <input aria-label={t('autoresolution.id_o_numero_del_ticket_tsk_uuid')}
         value={id}
         onChange={e => setId(e.target.value)}
         placeholder={t('autoresolution.id_o_numero_del_ticket_tsk_uuid')}
@@ -400,7 +400,7 @@ export default function AutoResolutionPanel() {
         </div>
         {statsLoading ? <Spinner /> : (
           <>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div className="u-wrap-10">
               <StatCard
                 label="Auto-resueltos (total)"
                 value={stats?.total_auto_resolved}
@@ -454,7 +454,7 @@ export default function AutoResolutionPanel() {
                               fontSize: 'var(--text-xs)', fontWeight: 700, color,
                               background: `color-mix(in srgb, ${color} 15%, transparent)`,
                               border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-                              borderRadius: 6, padding: '2px 8px',
+                              borderRadius: 'var(--radius-sm)', padding: '2px 8px',
                             }}>{rate != null ? `${rate}%` : '—'}</span>
                           </span>
                         </div>
@@ -563,7 +563,7 @@ export default function AutoResolutionPanel() {
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 14 }}>
           {t('autoresolution.los_jobs_tambien_se_ejecutan_de_forma')}
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="u-wrap-10">
           <Button onClick={() => runJob()} loading={runningJob}>
             {t('autoresolution.ejecutar_auto_resolucion')}
           </Button>

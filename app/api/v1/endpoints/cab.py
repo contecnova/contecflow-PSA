@@ -19,6 +19,7 @@ from pydantic import BaseModel
 import json
 import logging
 from app.core import timeutil
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 logger = logging.getLogger("contecflow.v14")
 
@@ -28,9 +29,6 @@ from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
-from app.models.cab import (
-    WebhookTrigger,
-)
 
 router = APIRouter()
 import app.services.cab_service as _svc
@@ -43,7 +41,7 @@ import app.services.cab_service as _svc
 @router.get("/cab/changes", response_model=APIListResponse[dict], summary="CRs pendientes de revisión CAB")
 def cab_pending_changes(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -91,7 +89,7 @@ def close_cab_vote(
 def list_maintenance_windows(
     upcoming_only: bool = Query(False),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -151,14 +149,10 @@ class WebhookTriggerCreate(BaseModel):
     field_mapping: Optional[dict] = None
 
 
-def _trigger_out(t: WebhookTrigger) -> dict:
-    return _svc.trigger_out(t)
-
-
 @router.get("/webhooks", response_model=APIListResponse[dict], summary="Listar webhook triggers configurados")
 def list_webhook_triggers(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -340,7 +334,7 @@ def send_email(
 
 @router.get("/email/logs", summary="Historial de emails enviados")
 def email_logs(
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     status: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -355,7 +349,7 @@ def email_logs(
 @router.get("/gdpr/requests", response_model=APIListResponse[dict], summary="Listar solicitudes GDPR")
 def list_gdpr_requests(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):

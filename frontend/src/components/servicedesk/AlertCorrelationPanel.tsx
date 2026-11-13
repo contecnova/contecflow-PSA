@@ -63,7 +63,7 @@ function StatCard({ label, value, accent }: { label: string; value?: number | st
       flex: '1 1 140px',
       background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`,
       border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`,
-      borderRadius: 10,
+      borderRadius: 'var(--radius-md)',
       padding: '14px 16px',
       textAlign: 'center',
     }}>
@@ -98,7 +98,7 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
     <div style={{
       background: 'var(--surface-3)',
       border: '1px solid var(--surface-4)',
-      borderRadius: 10,
+      borderRadius: 'var(--radius-md)',
       padding: '14px 16px',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
@@ -111,7 +111,7 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
             <span style={chip(action.color)}>{action.label}</span>
             <span style={chip('var(--accent)')}>score {score}%</span>
           </div>
-          <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)', fontWeight: 600 }}>
+          <div className="u-text1-base-600">
             {cluster.category ? `${cluster.category}` : 'Cluster sin categoría'}
             {cluster.priority && <span style={{ color: 'var(--text-3)', fontWeight: 400 }}> · {PRIORITY_LABELS[cluster.priority] || cluster.priority}</span>}
           </div>
@@ -215,12 +215,23 @@ export default function AlertCorrelationPanel() {
   const { mutate: runScan, isPending: scanning } = useMutation({
     mutationFn: () => alertClustersApi.runScan(),
     onSuccess: (res) => {
+      const refrescar = () => {
+        qc.invalidateQueries({ queryKey: ['sd-alert-clusters'] })
+        qc.invalidateQueries({ queryKey: ['sd-alert-clusters-stats'] })
+        qc.invalidateQueries({ queryKey: ['sd-problems'] })
+      }
+      // Con cola el escaneo va al worker (202 `{status: 'queued'}`): se avisa y se
+      // refresca mas tarde.
+      if (res.data?.status === 'queued') {
+        toast.success('Escaneo en curso: los resultados aparecerán en unos instantes.')
+        setTimeout(refrescar, 15000)
+        return
+      }
       const found = res.data?.clusters_detected ?? res.data?.clusters_found ?? 0
-      const created = res.data?.problems_auto_created ?? res.data?.created_problems ?? 0
+      // El backend devuelve `problems_created` (se leian claves que no existen).
+      const created = res.data?.problems_created ?? 0
       toast.success(`Escáner: ${found} clusters · ${created} problemas auto-creados`)
-      qc.invalidateQueries({ queryKey: ['sd-alert-clusters'] })
-      qc.invalidateQueries({ queryKey: ['sd-alert-clusters-stats'] })
-      qc.invalidateQueries({ queryKey: ['sd-problems'] })
+      refrescar()
     },
     onError: (e: unknown) => {
       const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
@@ -248,7 +259,7 @@ export default function AlertCorrelationPanel() {
         </div>
 
         {statsLoading ? <Spinner /> : (
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div className="u-wrap-10">
             <StatCard label="Clusters detectados" value={stats?.clusters_detected} accent="var(--warning)" />
             <StatCard label="Tickets correlados" value={stats?.tickets_in_clusters} accent="var(--accent)" />
             <StatCard label="Necesitan problema" value={stats?.tickets_needing_problem} accent="var(--danger)" />

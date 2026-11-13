@@ -85,7 +85,7 @@ def get_call(call_id: str, current_user: User = Depends(get_current_user), db: S
 
 
 @router.post("/calls/{call_id}/transcribe-chunk", summary="Subir chunk de audio para transcribir (Whisper)")
-async def transcribe_chunk(
+def transcribe_chunk(
     call_id: str,
     audio: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -95,7 +95,9 @@ async def transcribe_chunk(
     # La llamada se comprueba ANTES de leer el fichero: no tiene sentido
     # descargar audio de una llamada a la que no se tiene acceso.
     svc.exigir_llamada_accesible(db, current_user, call_id)
-    datos = await audio.read()
+    # Auditoria 2026-11: `def` (threadpool). La transcripcion es un POST de
+    # hasta 30 s o un subproceso de whisper: en `async def` paraba el bucle.
+    datos = audio.file.read()
 
     from app.services.collaboration._transcription import transcribe_audio_chunk
     texto = transcribe_audio_chunk(datos, audio.filename or "chunk.webm", db=db,

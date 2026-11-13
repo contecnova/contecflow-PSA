@@ -183,7 +183,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
           padding: '14px 20px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
           <span style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>{title}</span>
           <button onClick={onClose} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-3)', display: 'flex', padding: 4, borderRadius: 6 }}>
+            color: 'var(--text-3)', display: 'flex', padding: 4, borderRadius: 'var(--radius-sm)' }}>
             <X size={16} />
           </button>
         </div>
@@ -206,7 +206,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="u-grid2-14">
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-name`} style={ls}>{t('ai.config_name')} *</label>
           <input id={`${idPrefix}-name`} value={form.name} onChange={s('name')} style={fs} placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} />
@@ -377,7 +377,7 @@ function TestModal({ provider, onClose }: { provider: AiProvider; onClose: () =>
 
   return (
     <Modal open onClose={onClose} title={`${t('ai.testing_provider')} — ${provider.name}`} width={480}>
-      <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
+      <p className="u-text2-base-mb20">
         {t('ai.connection_help')}
       </p>
       <Button onClick={runTest} disabled={testing}>
@@ -438,7 +438,7 @@ function GovernanceTab() {
   if (loading) return <div style={{ padding: 24 }}><Spinner /></div>
 
   return (
-    <div id="aihub-panel-governance" role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div id="aihub-panel-governance" role="tabpanel" className="u-stack-20">
       {/* Stats summary */}
       {stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: 12 }}>
@@ -450,7 +450,7 @@ function GovernanceTab() {
             { label: 'Redacted', value: stats.total_redacted || 0, color: 'var(--warning)' },
             { label: 'PII detectado', value: (stats.top_pii_types || []).reduce((n: number, x: { count?: number }) => n + (x.count || 0), 0), color: 'var(--purple)' },
           ].map(k => (
-            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px' }}>
+            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
               <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: k.color }}>{k.value}</div>
               <div className="u-text2-xs">{k.label}</div>
             </div>
@@ -459,7 +459,7 @@ function GovernanceTab() {
       )}
 
       {/* Policies list */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+      <div className="ds-card ds-card--plano">
         <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontWeight: 700 }}>{traducir('aihub.politicas_configuradas')}{policies.length})</div>
           <div className="u-text3-xs">
@@ -475,7 +475,7 @@ function GovernanceTab() {
             {policies.map(p => (
               <div key={p.id} style={{ padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600 }}>{p.name}</span>
+                  <span className="u-600">{p.name}</span>
                   <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 4, background: p.is_active ? 'var(--success-bg)' : 'var(--surface-3)', color: p.is_active ? 'var(--success)' : 'var(--text-3)' }}>
                     {p.is_active ? 'Activa' : 'Inactiva'}
                   </span>
@@ -490,7 +490,7 @@ function GovernanceTab() {
       </div>
 
       {/* Audit log */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+      <div className="ds-card ds-card--plano">
         <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700 }}>
           {traducir('aihub.audit_log_ultimas_50_evaluaciones')}
         </div>
@@ -607,6 +607,10 @@ export default function AIHubPage(): JSX.Element {
 
   const defaultProvider = providers.find(p => p.is_default)
   const byModule = stats.by_module || []
+  // USD a proposito (auditoria 2026-11, #18): los proveedores de IA facturan y
+  // publican precios en dolares y el backend guarda el gasto en `*_cost_usd`
+  // (presupuesto AI_DAILY_BUDGET_USD). Convertirlo a la moneda de la empresa
+  // seria inventar un tipo de cambio.
   const moneyFmt = new Intl.NumberFormat(localeActivo(lang), { style: 'currency', currency: 'USD', minimumFractionDigits: 4, maximumFractionDigits: 4 })
   const intFmt = new Intl.NumberFormat(localeActivo(lang))
 
@@ -679,7 +683,7 @@ export default function AIHubPage(): JSX.Element {
                     <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: "var(--text-base)" }}>
                       <span className={`ds-status-dot ds-status-dot--${dotKind}`} style={{ marginTop: 7, flexShrink: 0 }} />
                       <div className="u-flex1-min0">
-                        <span style={{ fontWeight: 600 }}>{pr.name}</span>
+                        <span className="u-600">{pr.name}</span>
                         <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.provider_type}</span>
                         {pr.latency_ms != null && (
                           <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.latency_ms} ms</span>
@@ -701,7 +705,7 @@ export default function AIHubPage(): JSX.Element {
           {/* Proveedor activo */}
           {defaultProvider && (
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: alpha(PMETA[defaultProvider.provider]?.color, '50') || 'var(--surface-4)', background: alpha(PMETA[defaultProvider.provider]?.color, '08') || 'var(--surface-2)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="u-row-center-12">
                 <span style={{ fontSize: "var(--text-3xl)" }}>{PMETA[defaultProvider.provider]?.icon}</span>
                 <div className="u-min0">
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('ai.provider_active_default')}</div>
@@ -714,7 +718,7 @@ export default function AIHubPage(): JSX.Element {
 
           {isLoading ? <Spinner /> : providers.length === 0 ? (
             <div style={{ ...card, padding: '48px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🤖</div>
+              <div className="u-empty-icon">🤖</div>
               <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, marginBottom: 8 }}>{t('ai.no_providers_title')}</div>
               <div style={{ fontSize: "var(--text-md)", color: 'var(--text-2)', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
                 {t('ai.no_providers_desc')}
@@ -730,7 +734,7 @@ export default function AIHubPage(): JSX.Element {
                   <div key={p.id} style={{ ...card, padding: '18px 20px', borderColor: p.is_default ? alpha(meta.color, '50') : 'var(--surface-4)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: alpha(meta.color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xl)" }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)', background: alpha(meta.color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xl)" }}>
                           {meta.icon}
                         </div>
                         <div>
@@ -752,7 +756,7 @@ export default function AIHubPage(): JSX.Element {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
                       <div><span className="u-text2">{t('ai.requests')}:</span> <strong>{p.total_requests}</strong></div>
-                      <div><span className="u-text2">{t('ai.total_cost')}:</span> <strong className="u-warning">${Number(p.total_cost_usd || 0).toFixed(4)}</strong></div>
+                      <div><span className="u-text2">{t('ai.total_cost')}:</span> <strong className="u-warning">{moneyFmt.format(Number(p.total_cost_usd || 0))}</strong></div>
                     </div>
 
                     <div className="u-wrap-6">
@@ -814,7 +818,7 @@ export default function AIHubPage(): JSX.Element {
               <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: "var(--text-md)" }}>{t('ai.module_usage')}</div>
               {byModule.map(r => (
                 <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, fontSize: "var(--text-base)" }}>
-                  <span style={{ fontWeight: 600 }}>{r.module}</span>
+                  <span className="u-600">{r.module}</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, color: 'var(--text-2)' }}>
                     <span>{r.calls} {t('ai.calls')}</span>
                     <span>{intFmt.format(r.tokens || 0)} {t('ai.tokens_label')}</span>
@@ -852,13 +856,13 @@ export default function AIHubPage(): JSX.Element {
                 return (
                   <div key={key} style={{ ...card, padding: '18px 20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{label}</div>
+                      <div className="u-md-600">{label}</div>
                       <span style={{ fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20, background: alpha(statusColor, '18'), color: statusColor, fontWeight: 600 }}>
                         {data.status || 'unknown'}
                       </span>
                     </div>
                     {data.score != null && (
-                      <div style={{ marginBottom: 10 }}>
+                      <div className="u-mb-10">
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: "var(--text-sm)" }}>
                           <span className="u-text2">{traducir('aihub.score_de_salud')}</span>
                           <span style={{ fontWeight: 700, color: statusColor }}>{(data.score * 100).toFixed(0)}%</span>
@@ -904,7 +908,7 @@ export default function AIHubPage(): JSX.Element {
                         </div>
                       )}
                       {data.reason && (
-                        <div style={{ marginTop: 6, padding: '6px 10px', background: 'var(--surface-3)', borderRadius: 6, color: 'var(--text-2)', lineHeight: 1.4 }}>
+                        <div style={{ marginTop: 6, padding: '6px 10px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', lineHeight: 1.4 }}>
                           {data.reason}
                         </div>
                       )}
@@ -922,7 +926,7 @@ export default function AIHubPage(): JSX.Element {
               </div>
               <div>
                 <div className="u-base-600">Estado global: {obsHealth.overall_status}</div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
+                <div className="u-text2-sm-mt2">
                   Score combinado: {obsHealth.overall_score != null ? `${(obsHealth.overall_score * 100).toFixed(0)}%` : '—'}
                 </div>
               </div>
@@ -953,7 +957,7 @@ export default function AIHubPage(): JSX.Element {
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{p.hint}</span>
+                <span className="u-text3-mono-xs">{p.hint}</span>
                 <a href={p.link} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)' }}>{t('ai.get_key')} →</a>
               </div>
             </div>

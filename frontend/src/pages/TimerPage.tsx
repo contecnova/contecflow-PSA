@@ -1,7 +1,7 @@
 /**
  * Timer Page — Seguimiento de tiempo con cronómetro activo e historial
  */
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useId } from 'react'
 import type { CSSProperties } from 'react'
 import type { TaskListParams, TaskListItem } from '../services/api/tasks'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -92,6 +92,7 @@ function StartModal({ onClose, onStart, isPending }: {
   onStart: (p: { project_id: string; task_id: string | null; is_billable: boolean }) => void
   isPending: boolean
 }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const [projectId, setProjectId] = useState('')
   const [taskId,    setTaskId]    = useState('')
@@ -128,7 +129,7 @@ function StartModal({ onClose, onStart, isPending }: {
         tabIndex={-1}
         style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-        borderRadius: 14, padding: 28, width: 440, maxWidth: '95vw',
+        borderRadius: 'var(--radius-lg)', padding: 28, width: 440, maxWidth: '95vw',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         pointerEvents: 'all',
       }}>
@@ -139,16 +140,16 @@ function StartModal({ onClose, onStart, isPending }: {
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-xl)" }}>✕</button>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={LS}>Proyecto *</label>
-          <select value={projectId} onChange={e => { setProjectId(e.target.value); setTaskId('') }} style={FS}>
+        <div className="u-mb-14">
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>Proyecto *</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => { setProjectId(e.target.value); setTaskId('') }} style={FS}>
             <option value="">{traducir('timer.selecciona_un_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={LS}>Tarea (opcional)</label>
-          <select value={taskId} onChange={e => setTaskId(e.target.value)}
+        <div className="u-mb-14">
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>Tarea (opcional)</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={taskId} onChange={e => setTaskId(e.target.value)}
             style={{ ...FS, opacity: projectId ? 1 : 0.5 }} disabled={!projectId}>
             <option value="">{traducir('timer.sin_tarea')}</option>
             {tasks.map(t => <option key={t.id} value={t.id}>{t.title || (t as { name?: string }).name}</option>)}
@@ -159,7 +160,7 @@ function StartModal({ onClose, onStart, isPending }: {
             style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
           Tiempo facturable
         </label>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="u-row-10">
           <button disabled={!projectId || isPending}
             onClick={() => onStart({ project_id: projectId, task_id: taskId || null, is_billable: billable })}
             style={{
@@ -229,7 +230,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
         tabIndex={-1}
         style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-        borderRadius: 14, padding: 28, width: 420, maxWidth: '95vw',
+        borderRadius: 'var(--radius-lg)', padding: 28, width: 420, maxWidth: '95vw',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         pointerEvents: 'all',
       }}>
@@ -242,13 +243,13 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-xl)" }}>✕</button>
         </div>
-        <div style={{ marginBottom: 14 }}>
+        <div className="u-mb-14">
           <label style={LS}>{traducir('timer.descripcion_del_trabajo')}</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)}
             style={{ ...FS, resize: 'vertical' }} rows={3}
             placeholder={traducir('timer.describe_el_trabajo_realizado')} aria-label={traducir('timer.descripcion_del_trabajo')} autoFocus />
         </div>
-        <div style={{ marginBottom: 14 }}>
+        <div className="u-mb-14">
           <label style={LS}>Tarea final</label>
           <select value={taskId} onChange={e => setTaskId(e.target.value)} style={FS} aria-label="Tarea final">
             <option value="">{traducir('timer.sin_tarea')}</option>
@@ -269,7 +270,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
           <span>{traducir('timer.permitir_imputacion_duplicada_y_avisar_al_manager')}</span>
         </label>
         <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="u-grid2-10">
           <button disabled={isBusy}
             onClick={() => onStop({ description: description || 'Sesión de trabajo', is_billable: billable, task_id: taskId || null, force_duplicate: forceDuplicate })}
             style={{
@@ -407,7 +408,7 @@ export default function TimerPage() {
     <PageShell style={{ maxWidth: 860, margin: '0 auto' }}>
       {!isOnline && (
         <div style={{
-          background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 10,
+          background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)',
           padding: '10px 16px', marginBottom: 16, color: 'var(--warning)',
           fontSize: "var(--text-base)", fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
         }}>
@@ -474,21 +475,21 @@ export default function TimerPage() {
             {isPaused ? (
               <button onClick={() => resumeMutation.mutate()} disabled={isLoading} style={{
                 padding: '12px 28px', background: 'var(--accent)', border: 'none',
-                borderRadius: 10, color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
+                borderRadius: 'var(--radius-md)', color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
                 cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 opacity: isLoading ? 0.6 : 1,
               }}>▶ Reanudar</button>
             ) : (
               <button onClick={() => pauseMutation.mutate()} disabled={isLoading} style={{
                 padding: '12px 28px', background: 'var(--warning)', border: 'none',
-                borderRadius: 10, color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
+                borderRadius: 'var(--radius-md)', color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
                 cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 opacity: isLoading ? 0.6 : 1,
               }}>⏸ Pausar</button>
             )}
             <button onClick={() => setShowStop(true)} disabled={isLoading} style={{
               padding: '12px 28px', background: 'var(--danger)', border: 'none',
-              borderRadius: 10, color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
+              borderRadius: 'var(--radius-md)', color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
               cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
               opacity: isLoading ? 0.6 : 1,
             }}>⏹ Detener y guardar</button>
@@ -507,7 +508,7 @@ export default function TimerPage() {
           </div>
           <button onClick={() => setShowStart(true)} style={{
             marginTop: 8, padding: '12px 32px', background: 'var(--accent)', border: 'none',
-            borderRadius: 10, color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
+            borderRadius: 'var(--radius-md)', color: 'var(--on-accent-light)', fontSize: "var(--text-md)", fontWeight: 700,
             cursor: 'pointer', fontFamily: 'inherit',
           }}>{traducir('timer.iniciar_cronometro_2')}</button>
         </div>
@@ -515,7 +516,7 @@ export default function TimerPage() {
 
       <div style={{
         background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-        borderRadius: 14, overflow: 'hidden',
+        borderRadius: 'var(--radius-lg)', overflow: 'hidden',
       }}>
         <div style={{
           padding: '16px 20px', borderBottom: '1px solid var(--surface-4)',

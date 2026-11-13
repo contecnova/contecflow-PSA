@@ -33,6 +33,7 @@ from app.services.collaboration.workspaces import (
     get_or_create_workspace, list_conversations_for_user,
 )
 from app.core.background import spawn
+from app.core.async_db import run_db
 
 router = APIRouter(tags=["Collaboration"])
 log = logging.getLogger(__name__)
@@ -205,7 +206,7 @@ class _ConexionColab:
     Reúne lo que las seis corrutinas del endpoint compartían por cierre.
     """
 
-    __slots__ = ("websocket", "db", "user", "ws_obj", "sub", "channels")
+    __slots__ = ("websocket", "db", "user", "ws_obj", "sub", "channels", "cerrojo")
 
     def __init__(self, websocket, db, user, ws_obj):
         self.websocket = websocket
@@ -214,6 +215,18 @@ class _ConexionColab:
         self.ws_obj = ws_obj
         self.sub = None
         self.channels: list[str] = []
+        self.cerrojo = asyncio.Lock()
+
+    async def en_bd(self, fn, *args):
+        """`fn(*args)` en el pool de hilos, de una en una por conexion.
+
+        Auditoria 2026-11: `canales()` y la revalidacion consultaban la BD dentro
+        del bucle de eventos. En el pool, `watchdog` y `consumer` podrian usar la
+        misma sesion desde dos hilos a la vez (no es thread-safe): el cerrojo
+        las pone en fila.
+        """
+        async with self.cerrojo:
+            return await run_db(fn, *args)
 
     # ── Envío ────────────────────────────────────────────────────────────────
     async def enviar(self, obj: dict) -> None:
@@ -234,7 +247,7 @@ class _ConexionColab:
         ] + [conv_channel(c["id"]) for c in conv_list]
 
     async def suscribir(self) -> None:
-        self.channels = self.canales()
+        self.channels = await self.en_bd(self.canales)
         self.sub = await bus.subscribe(self.channels)
 
     async def resync(self) -> None:
@@ -244,7 +257,7 @@ class _ConexionColab:
         conjunto de canales no ha cambiado no se toca la suscripción: cerrarla y
         reabrirla perdería los eventos publicados entre medias.
         """
-        nuevos = self.canales()
+        nuevos = await self.en_bd(self.canales)
         if set(nuevos) == set(self.channels):
             return
         await self.sub.close()
@@ -280,7 +293,7 @@ class _ConexionColab:
         colgase. Se comprueba cada 10 mensajes y, además, cada 30 segundos aunque
         esté inactivo.
         """
-        revalidado = get_active_user_by_id(self.db, self.user.id)
+        revalidado = await self.en_bd(get_active_user_by_id, self.db, self.user.id)
         if not revalidado or not revalidado.is_active:
             log.warning("collab ws closing user=%s: access revoked", self.user.id)
             try:
@@ -371,7 +384,7 @@ async def _abrir_conexion(websocket: WebSocket, ticket: Optional[str], db: Sessi
         await websocket.close(code=4401)
         return None
 
-    user = get_active_user_by_id(db, user_id)
+    user = await run_db(get_active_user_by_id, db, user_id)
     if not user:
         await websocket.close(code=4403)
         return None
@@ -401,7 +414,7 @@ async def _abrir_conexion(websocket: WebSocket, ticket: Optional[str], db: Sessi
     publicar_contexto_de_tenant(db, user)
 
     try:
-        ws_obj = get_or_create_workspace(db, user)
+        ws_obj = await run_db(get_or_create_workspace, db, user)
     except Exception as exc:
         log.warning("collab ws: get_or_create_workspace falló para user=%s: %s", user_id, exc)
         await websocket.accept()

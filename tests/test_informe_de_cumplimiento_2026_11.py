@@ -12,7 +12,7 @@ from sqlalchemy import text
 from app.models.bookings import ApiKey
 from app.models.cab import GDPRRequest, GDPRRequestType
 from app.models.enterprise import AuditLog
-from app.models.mfa import MFAConfig, Organization
+from app.models.mfa import Organization, WebAuthnCredential
 from app.models.user import User
 from app.db import cadena_auditoria
 from app.services import informe_de_cumplimiento as informe
@@ -53,10 +53,14 @@ def test_cobertura_de_mfa(db):
     activos = _activos(db)
     antes = _c(db, "mfa_coverage")["measured"]
     assert antes["active_users"] == len(activos) and antes["with_second_factor"] == 0
-    db.add(MFAConfig(user_id=activos[0].id, totp_secret="x", is_enabled=True, organization_id="1"))
-    db.add(MFAConfig(user_id=activos[1].id, totp_secret="y", is_enabled=False, organization_id="1"))
+    # Lo que exige el login: TOTP verificado (mfa_enabled + mfa_secret) o passkey activa.
+    activos[0].mfa_enabled, activos[0].mfa_secret = True, "x"
+    activos[1].mfa_enabled, activos[1].mfa_secret = False, "y"      # alta sin verificar: no cuenta
+    db.add(WebAuthnCredential(user_id=activos[1].id, credential_id="c-baja", public_key="k",
+                              is_active=False, organization_id="1"))  # passkey borrada: no cuenta
     db.commit()
-    assert _c(db, "mfa_coverage")["measured"]["with_second_factor"] == 1
+    medido = _c(db, "mfa_coverage")["measured"]
+    assert (medido["with_second_factor"], medido["totp"], medido["passkey"]) == (1, 1, 0)
     settings_service.set_runtime_value(db, "audit", "COMPLIANCE_MFA_MIN_COVERAGE_PCT", 1.0, "1")
     db.commit()
     settings_service.invalidate_cache()

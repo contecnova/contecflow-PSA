@@ -13,6 +13,7 @@ from app.models.task import Task
 from app.models.user import User
 from app.services.semantic_classifier import SemanticAssigner
 from sqlalchemy import func
+from app.core.config import settings
 
 
 VALID_ENGINE_MODES = {"semantic", "llm", "hybrid", "rules_only"}
@@ -49,7 +50,7 @@ def resolve_embeddings_backend_and_model(cfg) -> tuple[str, str]:
     model = (getattr(cfg, "local_model_name", "") or "").strip()
     if model and model.lower() != "tfidf":
         return "transformer", model
-    return "tfidf", "all-MiniLM-L6-v2"
+    return "tfidf", settings.EMBEDDING_MODEL_NAME
 
 
 def backend_en_uso(cfg) -> str:

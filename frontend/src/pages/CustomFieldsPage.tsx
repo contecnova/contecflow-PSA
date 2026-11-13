@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties} from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -57,6 +57,7 @@ const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)
 const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function FieldForm({ field, projectId, onClose }: { field: CustomField | null; projectId: string; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -157,8 +158,8 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
         </div>
 
         <div>
-          <label style={labelStyle}>{traducir('customfields.orden_de_visualizacion')}</label>
-          <input type="number" style={{ ...inputStyle, width: 100 }} value={form.sort_order}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{traducir('customfields.orden_de_visualizacion')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" style={{ ...inputStyle, width: 100 }} value={form.sort_order}
             onChange={e => set('sort_order')(+e.target.value)} />
         </div>
 
@@ -174,6 +175,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
 }
 
 export default function CustomFieldsPage(): JSX.Element {
+  const idCampo = useId()
   const traducir = useAppT()
   const _t = useAppT()
   const toast = useToast()
@@ -216,8 +218,8 @@ export default function CustomFieldsPage(): JSX.Element {
 
       {/* Selector de proyecto */}
       <div style={{ ...panelStyle, marginBottom: 24 }}>
-        <label style={labelStyle}>Proyecto</label>
-        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Proyecto</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           style={{ ...inputStyle, width: 360 }}>
           <option value="">{traducir('customfields.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -232,9 +234,9 @@ export default function CustomFieldsPage(): JSX.Element {
 
       {selectedProject && !isLoading && fields.length === 0 && (
         <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🗂</div>
+          <div className="u-empty-icon">🗂</div>
           <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>{traducir('customfields.sin_campos_personalizados')}</div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
+          <div className="u-text2-base-mb20">
             {traducir('customfields.crea_campos_propios_para_este_proyecto_severidad')}
           </div>
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Crear primer campo</Button>
@@ -243,13 +245,13 @@ export default function CustomFieldsPage(): JSX.Element {
 
       {selectedProject && fields.length > 0 && (
         <div style={panelStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{fields.length} campos — {selectedProj?.name}</div>
+          <div className="u-row-between-mb16">
+            <div className="u-md-600">{fields.length} campos — {selectedProj?.name}</div>
             <div className="u-text2-sm">{traducir('customfields.estos_campos_aparecen_en_todas_las_tareas')}</div>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+              <tr className="u-border-b">
                 {['Campo', 'Clave', 'Tipo', 'Obligatorio', 'En lista', 'Acciones'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                 ))}
@@ -262,8 +264,8 @@ export default function CustomFieldsPage(): JSX.Element {
                   <tr key={f.id} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
                     <td style={{ padding: '10px 12px', fontWeight: 500 }}>{f.name}</td>
                     <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{f.field_key}</td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <td className="u-pad-10-12">
+                      <span className="u-row-center-6">
                         <span>{type?.icon}</span>
                         <span className="u-text2">{type?.label}</span>
                         {f.field_type === 'select' && f.options && f.options.length > 0 && (
@@ -271,24 +273,24 @@ export default function CustomFieldsPage(): JSX.Element {
                         )}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 6, background: f.is_required ? 'var(--danger-bg)' : 'rgba(255,255,255,0.06)', color: f.is_required ? 'var(--danger)' : 'var(--text-3)' }}>
+                    <td className="u-pad-10-12">
+                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: f.is_required ? 'var(--danger-bg)' : 'rgba(255,255,255,0.06)', color: f.is_required ? 'var(--danger)' : 'var(--text-3)' }}>
                         {f.is_required ? 'Obligatorio' : 'Opcional'}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 6, background: f.show_in_list ? 'var(--accent-muted)' : 'rgba(255,255,255,0.06)', color: f.show_in_list ? 'var(--accent)' : 'var(--text-3)' }}>
+                    <td className="u-pad-10-12">
+                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: f.show_in_list ? 'var(--accent-muted)' : 'rgba(255,255,255,0.06)', color: f.show_in_list ? 'var(--accent)' : 'var(--text-3)' }}>
                         {f.show_in_list ? 'Sí' : 'No'}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 12px' }}>
+                    <td className="u-pad-10-12">
                       <div className="u-row-8">
                         <button onClick={() => { setEditing(f); setShowForm(true) }}
-                          style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                          style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                           Editar
                         </button>
                         <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el campo "${f.name}"? Los valores guardados se perderán.`, onConfirm: () => deleteField(f.id), danger: true }) }}
-                          style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                          style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                           Eliminar
                         </button>
                       </div>

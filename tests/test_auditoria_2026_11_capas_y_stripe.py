@@ -62,17 +62,17 @@ def test_conexion_a_ip_interna_bloqueada_tras_resolver(monkeypatch):
 
 def test_redireccion_a_red_interna_bloqueada():
     import urllib.request
-    from fastapi import HTTPException
     from app.core import outbound_url as ou
+    from app.core.errores import ErrorDeDominio
     req = urllib.request.Request("https://api.ejemplo.com/x")
-    with pytest.raises(HTTPException):
+    with pytest.raises(ErrorDeDominio):
         ou._RedireccionValidada().redirect_request(req, None, 302, "Found", {}, "http://169.254.169.254/latest/meta-data")
 
 
 def test_subida_sin_extension_de_tipo_desconocido():
-    from fastapi import HTTPException
+    from app.core.errores import ErrorDeDominio
     from app.core.uploads import validate_upload
-    with pytest.raises(HTTPException) as e:
+    with pytest.raises(ErrorDeDominio) as e:
         validate_upload("informe", "application/octet-stream", b"<html><script>alert(1)</script>")
     assert e.value.status_code == 415
     validate_upload("informe", "application/octet-stream", b"%PDF-1.7\n...")  # PDF reconocido: pasa

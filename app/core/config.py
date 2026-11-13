@@ -9,6 +9,9 @@ from app.core.config_groups import (
     SemanticSettingsMixin,
     ServiceDeskSettingsMixin,
     AutomationsSettingsMixin,
+    EscalasSettingsMixin,
+    INTERRUPTORES_DE_PROCESO,
+    ProcesoSettingsMixin,
 )
 
 
@@ -19,6 +22,8 @@ class Settings(
     SemanticSettingsMixin,
     ServiceDeskSettingsMixin,
     AutomationsSettingsMixin,
+    ProcesoSettingsMixin,
+    EscalasSettingsMixin,
     BaseSettings,
 ):
     """
@@ -171,6 +176,11 @@ class Settings(
     # ── SSO OAuth endpoints ───────────────────────────────────────────────────
     MICROSOFT_OAUTH_BASE: str = Field(
         default="https://login.microsoftonline.com", env="MICROSOFT_OAUTH_BASE"
+    )
+    # Microsoft Graph (sin /v1.0). Nubes soberanas: https://graph.microsoft.us,
+    # https://microsoftgraph.chinacloudapi.cn. Tambien da el `scope` `<base>/.default`.
+    MICROSOFT_GRAPH_BASE: str = Field(
+        default="https://graph.microsoft.com", env="MICROSOFT_GRAPH_BASE"
     )
     GOOGLE_OAUTH_BASE: str = Field(
         default="https://accounts.google.com", env="GOOGLE_OAUTH_BASE"
@@ -573,6 +583,14 @@ class Settings(
     class Config:
         env_file = ".env"
         extra = "ignore"
+
+    @field_validator(*INTERRUPTORES_DE_PROCESO, mode="before")
+    @classmethod
+    def _interruptor_vacio_vale_su_defecto(cls, v, info: ValidationInfo):
+        """`X=` en el entorno vale el defecto, como con el antiguo `os.getenv(...) == "1"`."""
+        if isinstance(v, str) and not v.strip():
+            return cls.model_fields[info.field_name].default
+        return v
 
     @field_validator("JWT_ALGORITHM")
     @classmethod

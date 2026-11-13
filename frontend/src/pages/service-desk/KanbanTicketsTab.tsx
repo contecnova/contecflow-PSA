@@ -116,7 +116,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
             style={{
               minWidth: 220, width: 220, flexShrink: 0,
               outline: dragOverCol === col.id ? `2px solid ${col.color}` : '2px solid transparent',
-              borderRadius: 10, transition: 'outline .15s',
+              borderRadius: 'var(--radius-md)', transition: 'outline .15s',
             }}
           >
             <div style={{
@@ -146,7 +146,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
                   aria-label={`${ticket.number} ${ticket.title}`}
                   style={{
                     padding: '10px 12px', background: 'var(--surface-2)',
-                    border: '1px solid var(--surface-4)', borderRadius: 10,
+                    border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
                     cursor: 'grab', transition: 'border-color .15s, box-shadow .15s',
                     opacity: dragging?.ticket?.id === ticket.id ? 0.5 : 1,
                   }}

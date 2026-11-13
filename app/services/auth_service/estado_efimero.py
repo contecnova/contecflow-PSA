@@ -4,13 +4,12 @@ Parte de `app.services.auth_service` (auditoria 2026-11, #24): se partio por res
 sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 import logging
-import os
 import threading
 import time
 from typing import Optional
 import json as _json
-from fastapi import Request
 from app.core.config import settings
+from app.core.entorno import en_pruebas
 
 from app.services.auth_service._comun import logger
 
@@ -50,7 +49,7 @@ _password_reset_jti_fallback: dict[str, tuple[str, float]] = {}
 # independientemente). Mantenemos el backoff corto para que cualquier flap
 # transitorio de Redis se recupere automáticamente antes de comprometer
 # la protección global.
-_REDIS_RECONNECT_BACKOFF = float(os.getenv("REDIS_RECONNECT_BACKOFF_SECONDS", "30"))
+_REDIS_RECONNECT_BACKOFF = float(settings.REDIS_RECONNECT_BACKOFF_SECONDS)
 # Última vez que intentamos crear el cliente (epoch seconds).
 _redis_last_attempt_at: float = 0.0
 
@@ -101,7 +100,7 @@ def get_sso_redis():
         _redis_client = r
         logger.info("SSO state store: using Redis (%s)", (settings.REDIS_URL or "").split("@")[-1])
     except Exception as _e:
-        if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
+        if settings.ENVIRONMENT == "development" and not en_pruebas():
             logger.info(
                 "SSO state store: Redis unavailable in development (%s). Using in-memory fallback "
                 "(reintento en %ss).",
@@ -185,13 +184,29 @@ def consume_sso_state_payload(state_raw: str) -> Optional[dict]:
 
 # ── Login rate-limiting ───────────────────────────────────────────────────────
 
-def login_bucket(username: str, request: Request) -> str:
-    ip = request.client.host if request.client and request.client.host else "unknown"
+def login_bucket(username: str, ip: Optional[str]) -> str:
+    """Cubeta usuario|IP. Auditoria 2026-11 (item 36): recibe la IP del par, no la peticion."""
+    ip = ip or "unknown"
     return f"{username.strip().lower()}|{ip}"
 
 
+#: Cuantas veces el cupo por usuario|IP admite el contador por cuenta.
+LOGIN_ACCOUNT_MULTIPLIER = 3
+
+
+def login_account_bucket(username: str) -> str:
+    """Contador por cuenta, sea cual sea la IP (auditoria 2026-11 #45).
+
+    El bloqueo era solo por `usuario|IP`: rotando IPs, un atacante probaba
+    contrasenas contra una cuenta sin limite. Este contador bloquea la cuenta
+    con un umbral mas alto (`LOGIN_ACCOUNT_MULTIPLIER` veces el de la politica)
+    para no dar a cualquiera el poder de bloquear a un usuario con pocos intentos.
+    """
+    return f"acct:{username.strip().lower()}"
+
+
 def login_lock_ttl(bucket: str) -> int:
-    if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
+    if settings.ENVIRONMENT == "development" and not en_pruebas():
         return 0
     r = get_sso_redis()
     lock_key = f"{LOGIN_LOCK_PREFIX}{bucket}"
@@ -232,9 +247,11 @@ def _politica_de_bloqueo() -> tuple[int, int, int]:
     para no abrir una sesion en cada fallo.
     """
     ahora = time.time()
-    if _POLITICA_CACHE["valor"] is not None and _POLITICA_CACHE["hasta"] > ahora:
-        return _POLITICA_CACHE["valor"]
     valor = (settings.LOGIN_MAX_ATTEMPTS, settings.LOGIN_ATTEMPT_WINDOW_SECONDS, settings.LOGIN_LOCKOUT_SECONDS)
+    # La cache se invalida tambien si cambian los valores de respaldo (.env).
+    if _POLITICA_CACHE["valor"] is not None and _POLITICA_CACHE["hasta"] > ahora             and _POLITICA_CACHE.get("base") == valor:
+        return _POLITICA_CACHE["valor"]
+    base = valor
     try:
         from app.db.session import SessionLocal
         from app.services.settings_service import get_runtime_int
@@ -246,15 +263,20 @@ def _politica_de_bloqueo() -> tuple[int, int, int]:
             db.close()
     except Exception:
         logging.getLogger(__name__).warning("politica de bloqueo: se usan los valores de .env", exc_info=True)
-    _POLITICA_CACHE.update(hasta=ahora + 60, valor=valor)
+    _POLITICA_CACHE.update(hasta=ahora + 60, valor=valor, base=base)
     return valor
 
 
-def register_login_failure(bucket: str) -> int:
-    """Register failed login and return lockout seconds if account got locked."""
-    if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
+def register_login_failure(bucket: str, multiplicador: int = 1) -> int:
+    """Register failed login and return lockout seconds if account got locked.
+
+    `multiplicador`: el umbral es `multiplicador` veces el de la politica
+    (el contador por cuenta usa `LOGIN_ACCOUNT_MULTIPLIER`).
+    """
+    if settings.ENVIRONMENT == "development" and not en_pruebas():
         return 0
     max_intentos, ventana, bloqueo = _politica_de_bloqueo()
+    max_intentos = max_intentos * max(1, int(multiplicador))
     r = get_sso_redis()
     fail_key = f"{LOGIN_FAIL_PREFIX}{bucket}"
     lock_key = f"{LOGIN_LOCK_PREFIX}{bucket}"
@@ -307,8 +329,8 @@ def clear_login_failure(bucket: str) -> None:
 
 # ── Password reset rate-limiting ──────────────────────────────────────────────
 
-def password_reset_bucket(identifier: str, request: Request) -> str:
-    ip = request.client.host if request.client and request.client.host else "unknown"
+def password_reset_bucket(identifier: str, ip: Optional[str]) -> str:
+    ip = ip or "unknown"
     return f"{identifier.strip().lower()}|{ip}"
 
 

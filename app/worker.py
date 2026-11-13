@@ -157,11 +157,6 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.analytics_snapshot",
         "schedule": crontab(minute=50),
     },
-    # Phase 3 — Catalog popularity recalc — every 6 hours
-    "catalog-popularity": {
-        "task": "app.worker.catalog_popularity_update",
-        "schedule": crontab(minute=0, hour="*/6"),
-    },
     # Phase 3 — Compliance check — weekly on Mondays at 06:00
     "compliance-check": {
         "task": "app.worker.compliance_check",
@@ -257,191 +252,72 @@ import app.services.automation_events  # noqa: F401,E402
 import app.services.preferencias_de_aviso  # noqa: F401,E402
 
 
-def _aplicar_cortacircuitos(hook) -> None:
-    """Suspende un webhook tras N fallos seguidos, y avisa a los administradores.
+# ── Reglas de las tareas (segunda auditoria 2026-11, #33 y #37) ──────────────
+#
+# Cada tarea es un envoltorio: la logica vive en `app/services`. Y cada tarea
+# esta en UNA de estas cuatro formas de tratar la organizacion (lo comprueba
+# `tests/test_auditoria_2026_11_arquitectura_c2.py`):
+#
+#   · por organizacion: `en_cada_organizacion` corre el trabajo una vez por
+#     organizacion activa, con su sesion y su contexto de tenant publicado;
+#   · por sujeto: el contexto es el del usuario, webhook u organizacion que
+#     llega como argumento;
+#   · por fila: el servicio recorre filas de varias organizaciones y publica la
+#     de cada fila (`como_organizacion`) antes de tocarla;
+#   · global: mantenimiento de plataforma, entre organizaciones por diseño.
+#
+# Un fallo no se devuelve como `{"error": ...}` (Celery lo marcaba SUCCESS, sin
+# reintento ni traza): se registra con su traza y se relanza.
 
-    Auditoría 2026-09 (hallazgo 18): esto vivía dentro de la tarea de entrega,
-    anidado a cuatro niveles. Es una decisión con nombre propio —«este destino
-    está muerto, deja de intentarlo»— y aquí se puede probar sola.
+#: Mantenimiento de plataforma: no hay una organizacion a la que pertenezca.
+TAREAS_GLOBALES = {
+    "app.worker.run_scheduled_rotation": "rota el material de claves de la plataforma",
+    "app.worker.olap_nightly_etl": "reconstruye el almacen OLAP de todas las organizaciones "
+                                   "(cada hecho lleva su organizacion como dimension)",
+    "app.worker.sincronizar_conectores_etl": "solo reparte: lee los pares (organizacion, conector) "
+                                             "activos y encola `sync_connector_data` con su organizacion",
+    "app.worker.purgar_empresas_caducadas": "borra organizaciones enteras cuya baja vencio",
+    "app.worker.actualizar_tipos_de_cambio": "tipos del BCE: filas globales (sin organizacion) que ven todas",
+    "app.worker.purgar_registro_de_conectores": "retencion tecnica del registro de llamadas, por antiguedad",
+}
 
-    Suspender no es tirar la configuración: el webhook se queda inactivo con su
-    `suspended_at`, y alguien lo reactiva desde el panel cuando arregle el
-    destino. Sin esto, un endpoint muerto recibe reintentos para siempre.
+#: El contexto lo da el argumento de la tarea.
+TAREAS_POR_SUJETO = {
+    "app.worker.deliver_webhook": "la organizacion del webhook (`entrega_de_webhooks`)",
+    "app.worker.ejecutar_en_segundo_plano": "la organizacion con la que se encolo "
+                                            "(`segundo_plano._ejecutar_con_contexto`)",
+    "app.worker.run_agent_task": "el usuario que pidio la ejecucion (`publicar_contexto_de_tenant`)",
+    "app.worker.sync_connector_data": "la organizacion del conector (`como_organizacion`)",
+}
 
-    El evento de aviso usa **su propia sesión** porque la de la entrega puede
-    estar a medias de una transacción que todavía no se ha confirmado.
-    """
-    from datetime import datetime, timezone
-
-    umbral = getattr(settings, "WEBHOOK_CB_THRESHOLD", 5)
-    if hook.consecutive_failures < umbral or not hook.is_active:
-        return
-
-    hook.is_active = False
-    hook.suspended_at = datetime.now(timezone.utc)
-    _worker_logger.error(
-        "Circuit breaker: webhook %s (%s) suspended after %d consecutive "
-        "failures. Re-enable via the admin panel once the endpoint is fixed.",
-        hook.id, hook.url, hook.consecutive_failures,
-    )
-    try:
-        from app.core.events import emit_event
-        from app.db.session import worker_db_session
-
-        with worker_db_session() as _db:
-            emit_event(_db, "webhook.suspended", {
-                "webhook_id": hook.id,
-                "webhook_name": hook.name,
-                "url": hook.url,
-                "consecutive_failures": hook.consecutive_failures,
-            })
-    except Exception as exc:
-        # El aviso es cortesía: que no se pueda emitir no debe impedir la
-        # suspensión, que es lo que de verdad protege al destino.
-        _worker_logger.debug("Could not emit webhook.suspended event: %s", exc)
+#: El servicio publica la organizacion de cada fila que procesa.
+TAREAS_POR_FILA = {
+    "app.worker.process_approval_timeouts": "app.services.approval_engine.timeouts",
+    "app.worker.sd_procesar_eventos_de_ticket": "app.services.service_desk.ticket_event_processor",
+    "app.worker.automations_procesar_eventos": "app.services.automation_events",
+    "app.worker.automations_escanear": "app.services.automations_service.disparo",
+    "app.worker.bpmn_vencer_temporizadores": "app.services.bpmn_engine",
+    "app.worker.sd_leer_buzones": "app.services.service_desk.inbound_mail",
+    "app.worker.kb_pasada_de_calidad": "app.services.service_desk.kb_calidad",
+}
 
 
-@celery_app.task(
-    bind=True,
-    name="app.worker.deliver_webhook",
-    max_retries=3,
-)
+def _por_organizacion(tarea: str, trabajo, **kw):
+    from app.services.trabajos_de_fondo import en_cada_organizacion
+    return en_cada_organizacion(tarea, trabajo, **kw)
+
+
+# ── Por sujeto ────────────────────────────────────────────────────────────────
+
+@celery_app.task(bind=True, name="app.worker.deliver_webhook", max_retries=3)
 def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
-    """Deliver a single outbound webhook with automatic retry on network errors.
+    """Entrega un webhook; reintenta los fallos transitorios a los 60 s, 300 s y 1800 s."""
+    from app.services.entrega_de_webhooks import entregar_webhook
 
-    Retry schedule: 60s → 300s → 1800s (attempt 1 → 2 → 3).
-    Each attempt is logged as a WebhookDelivery row regardless of outcome.
-    """
-    import httpx
-    import time
-    from datetime import datetime, timezone
-    from app.db.session import worker_db_session
-    from app.models.enterprise import Webhook, WebhookDelivery
-    from app.core.encryption import decrypt_value
-    from app.services.webhooks import _sign_payload
-    from app.services.enterprise_service import _validate_webhook_url
-
-    # Explicit retry schedule requested for transient webhook failures.
-    retry_schedule = (60, 300, 1800)
-    transient_statuses = {408, 425, 429, 500, 502, 503, 504}
-
-    with worker_db_session() as db:
-        hook = db.query(Webhook).filter(
-            Webhook.id == webhook_id,
-            Webhook.is_active == True,
-        ).first()
-
-        if not hook:
-            return {"skipped": True, "reason": "webhook not found or inactive"}
-
-        status_code = None
-        response_text = None
-        success = False
-        error = None
-        duration_ms = None
-        http_exc = None
-
-        # ── SSRF guard — re-validate at delivery time (defense in depth) ──────
-        # The URL is validated on create/update, but DNS can be re-pointed at an
-        # internal address afterwards (DNS rebinding / TOCTOU). Re-check here, in
-        # the worker, immediately before any outbound network I/O.
-        try:
-            _validate_webhook_url(hook.url)
-        except ValueError as exc:
-            _worker_logger.warning(
-                "Webhook delivery blocked by SSRF guard: hook_id=%s url=%r reason=%s",
-                hook.id, hook.url, exc,
-            )
-            db.add(WebhookDelivery(
-                webhook_id=hook.id, event=event, payload=body[:10000],
-                status_code=None, response=None, success=False,
-                error=f"blocked: unsafe destination ({exc})"[:500],
-            ))
-            db.commit()
-            return {"skipped": True, "blocked": True, "reason": "unsafe_destination"}
-
-        try:
-            headers = {
-                "Content-Type": "application/json",
-                "User-Agent": "Contecflow-Webhooks/1.0",
-                "X-Contecflow-Event": event,
-            }
-            if hook.secret:
-                secret = decrypt_value(hook.secret) or hook.secret
-                headers["X-Contecflow-Signature"] = _sign_payload(secret, body)
-
-            start = time.time()
-            with httpx.Client(timeout=10.0) as client:
-                resp = client.post(hook.url, content=body, headers=headers)
-            duration_ms = int((time.time() - start) * 1000)
-            status_code = resp.status_code
-            response_text = resp.text[:500]
-            success = 200 <= resp.status_code < 300
-
-        except httpx.HTTPError as exc:
-            error = str(exc)[:500]
-            http_exc = exc
-        except Exception as exc:
-            _worker_logger.warning("deliver_webhook_task: excepcion ignorada", exc_info=True)
-            error = str(exc)[:500]
-
-        # Log every attempt — including failed ones — before deciding to retry.
-        delivery = WebhookDelivery(
-            webhook_id=hook.id,
-            event=event,
-            payload=body[:10000],
-            status_code=status_code,
-            response=response_text,
-            success=success,
-            error=error,
-            duration_ms=duration_ms,
-        )
-        db.add(delivery)
-        hook.total_deliveries = (hook.total_deliveries or 0) + 1
-        hook.last_triggered_at = datetime.now(timezone.utc)
-
-        if success:
-            # Cualquier entrega correcta reinicia el contador del cortacircuitos.
-            hook.consecutive_failures = 0
-        else:
-            hook.failed_deliveries = (hook.failed_deliveries or 0) + 1
-            hook.consecutive_failures = (hook.consecutive_failures or 0) + 1
-            _aplicar_cortacircuitos(hook)
-
-        db.commit()
-
-        # Retry transient failures with fixed exponential backoff schedule.
-        # Only retry if the circuit breaker has not tripped (hook still active after commit).
-        should_retry = (
-            hook.is_active
-            and (
-                http_exc is not None
-                or (status_code in transient_statuses)
-            )
-        )
-        if should_retry:
-            if self.request.retries < len(retry_schedule):
-                countdown = retry_schedule[self.request.retries]
-                retry_reason = http_exc or RuntimeError(f"HTTP {status_code}")
-                _worker_logger.warning(
-                    "Webhook %s transient failure (attempt %d/%d), retrying in %ds: %s",
-                    webhook_id,
-                    self.request.retries + 1,
-                    self.max_retries + 1,
-                    countdown,
-                    retry_reason,
-                )
-                raise self.retry(exc=retry_reason, countdown=countdown)
-            _worker_logger.error(
-                "Webhook %s transient failure exhausted retries (attempt %d/%d). Last status=%s error=%s",
-                webhook_id,
-                self.request.retries + 1,
-                self.max_retries + 1,
-                status_code,
-                error,
-            )
-
-        return {"success": success, "status_code": status_code, "suspended": not hook.is_active}
+    resultado = entregar_webhook(webhook_id, body, event, intento=self.request.retries)
+    if "reintentar_en" in resultado:
+        raise self.retry(exc=resultado.pop("motivo"), countdown=resultado["reintentar_en"])
+    return resultado
 
 
 @celery_app.task(name="app.worker.ejecutar_en_segundo_plano")
@@ -451,221 +327,6 @@ def ejecutar_en_segundo_plano(ruta: str, args: list, kwargs: dict):
     return resolver(ruta)(*args, **kwargs)
 
 
-@celery_app.task(name="app.worker.run_alert_engine")
-def run_alert_engine():
-    from app.services.alert_service import run_alert_engine_job
-    return run_alert_engine_job()
-
-
-@celery_app.task(name="app.worker.run_perf_reminders")
-def run_perf_reminders():
-    """Recordatorios de evaluaciones de desempeno pendientes.
-
-    Auditoria 2026-11: solo estaba en APScheduler; con Celery beat (el modo de
-    ejecucion unica) no corria nunca.
-    """
-    from app.services.perf_reminder_service import run_perf_reminders_job
-    run_perf_reminders_job()
-
-
-@celery_app.task(name="app.worker.check_missing_imputations")
-def check_missing_imputations():
-    """Aviso a quien no ha imputado sus horas de hoy.
-
-    «Hoy» es el día de CADA empleado, no el del servidor (auditoría 2026-08,
-    P2-14). Antes esta tarea calculaba un único `date.today()` y además cortaba
-    en seco los fines de semana con `today.weekday() >= 5`, así que en el sábado
-    del servidor **nadie recibía aviso** — incluidos los empleados en zonas donde
-    todavía era viernes por la tarde. Ahora la zona se resuelve por empleado y el
-    descarte de fin de semana también, que es lo que el aviso quiere decir.
-    """
-    from sqlalchemy import func
-
-    from app.core import timeutil
-    from app.core.timeutil import using_zone, zone_for_user
-    from app.db.session import worker_db_session
-    from app.models.imputation import Imputation
-    from app.models.user import User, UserRole, UserStatus
-
-    with worker_db_session() as db:
-        employees = db.query(User).filter(
-            User.is_active.is_(True),
-            User.status == UserStatus.active,
-            User.role == UserRole.employee,
-        ).all()
-
-        # Las organizaciones se cachean: sin esto sería una consulta por empleado
-        # sólo para leer su zona.
-        orgs: dict = {}
-
-        def _org(org_id):
-            if org_id and org_id not in orgs:
-                from app.models.mfa import Organization
-
-                orgs[org_id] = db.query(Organization).filter(
-                    Organization.id == org_id
-                ).first()
-            return orgs.get(org_id)
-
-        missing = []
-        for emp in employees:
-            zona = zone_for_user(emp, _org(getattr(emp, "organization_id", None)))
-            with using_zone(zona):
-                hoy = timeutil.today()
-                if hoy.weekday() >= 5:  # su fin de semana, no el del servidor
-                    continue
-                # Capacidad diaria = capacidad semanal / 5 días laborables
-                daily_capacity = (
-                    emp.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
-                ) / 5
-                hours_today = db.query(func.sum(Imputation.hours)).filter(
-                    Imputation.user_id == emp.id,
-                    Imputation.date == hoy,
-                ).scalar() or 0.0
-                if hours_today < daily_capacity:
-                    missing.append(emp.email)
-
-        return {"missing_today": len(missing), "users": missing}
-
-
-@celery_app.task(name="app.worker.generate_retainer_invoices")
-def generate_retainer_invoices():
-    """
-    Auto-generate monthly invoices for recurring_retainer projects.
-    Runs daily; only creates an invoice if today matches project.retainer_day
-    and no invoice has been created this month yet.
-
-    El día se resuelve en la zona del CLIENTE del proyecto (auditoría 2026-08,
-    P2-14). Con un único `date.today()` del servidor, un proyecto con
-    `retainer_day = 1` y cliente en Asia se facturaba el día equivocado: cuando
-    para el cliente es ya día 1, para un servidor en UTC todavía es día 30, así
-    que la comparación `retainer_day != today.day` fallaba ese día y acertaba al
-    siguiente. El mes de `period_from` tenía el mismo desfase.
-    """
-    import uuid
-    from datetime import date
-
-    from app.core import timeutil
-    from app.core.timeutil import using_zone, zone_for_client
-    from app.db.session import worker_db_session
-    from app.models.billing_reports import Invoice, InvoiceStatus
-    from app.models.project import Project
-
-    generated = []
-    with worker_db_session() as db:
-        retainer_projects = db.query(Project).filter(
-            Project.billing_type == "recurring_retainer",
-            Project.retainer_amount != None,
-            Project.retainer_day != None,
-            Project.is_billable == True,
-        ).all()
-
-        # Cachés: sin ellas serían dos consultas por proyecto sólo para la zona.
-        clientes: dict = {}
-        orgs: dict = {}
-
-        def _zona_de(proj):
-            # `app.models.client` no existe: el modulo es `clients`, en
-            # plural. Al ser un importe diferido no reventaba al arrancar —
-            # fallaba cuando alguien llamaba a esta funcion. Auditoria 2026-08.
-            from app.models.clients import Client
-            from app.models.mfa import Organization
-
-            cid = getattr(proj, "client_id", None)
-            if cid and cid not in clientes:
-                clientes[cid] = db.query(Client).filter(Client.id == cid).first()
-            oid = getattr(proj, "organization_id", None)
-            if oid and oid not in orgs:
-                orgs[oid] = db.query(Organization).filter(Organization.id == oid).first()
-            return zone_for_client(clientes.get(cid), orgs.get(oid))
-
-        for proj in retainer_projects:
-            # El `with` se acota a resolver el día porque es lo único del cuerpo
-            # que depende de la zona: `next_numbered_code` fija su año en UTC de
-            # forma explícita y no lee el contexto. Ese año de la numeración se
-            # deja como está a propósito — cambiarlo desplazaría secuencias de
-            # numeración de facturas ya emitidas, que es un asunto contable, no
-            # una corrección de zona horaria.
-            with using_zone(_zona_de(proj)):
-                today = timeutil.today()
-            if proj.retainer_day != today.day:
-                continue
-            # Evitar facturas duplicadas este mes
-            try:
-                existing = db.query(Invoice).filter(
-                    Invoice.project_id == proj.id,
-                    Invoice.period_from >= date(today.year, today.month, 1),
-                ).first()
-                if existing:
-                    continue
-
-                # Generate invoice number via the locked numbering service
-                from app.services.numbering import next_numbered_code
-                inv_number = next_numbered_code(
-                    db,
-                    "invoice",
-                    prefix="INV",
-                    padding=4,
-                    include_year=True,
-                    reset_yearly=True,
-                    year_separator="-",
-                )
-
-                # Obtener datos del cliente si están disponibles
-                client_name = getattr(proj, "client_name", None)
-                client_email = getattr(proj, "client_email", None)
-                client_address = getattr(proj, "client_address", None)
-                # Si el proyecto no tiene estos datos, intentar obtenerlos del cliente
-                if not all([client_name, client_email, client_address]) and proj.client_id:
-                    # Idem que arriba: el modulo es `clients`, en plural.
-                    from app.models.clients import Client
-                    client = db.query(Client).filter(Client.id == proj.client_id).first()
-                    if client:
-                        client_name = client_name or getattr(client, "name", None)
-                        client_email = client_email or getattr(client, "email", None)
-                        client_address = client_address or getattr(client, "address", None)
-                inv = Invoice(
-                    id=str(uuid.uuid4()),
-                    number=inv_number,
-                    project_id=proj.id,
-                    client_id=proj.client_id,
-                    client_name=client_name,
-                    client_email=client_email,
-                    client_address=client_address,
-                    total=proj.retainer_amount,
-                    currency=proj.currency or settings.DEFAULT_CURRENCY,
-                    issue_date=today,
-                    period_from=date(today.year, today.month, 1),
-                    period_to=today,
-                    status=InvoiceStatus.draft,
-                    notes=f"Retainer mensual automático — {today.strftime('%B %Y')}",
-                )
-                db.add(inv)
-                generated.append(proj.code)
-            except Exception as inv_err:
-                import logging
-                logging.getLogger(__name__).error(f"Retainer invoice error for {proj.code}: {inv_err}")
-
-        db.commit()
-        return {"generated": generated, "count": len(generated)}
-
-
-@celery_app.task(name="app.worker.run_scheduled_reports")
-def run_scheduled_reports():
-    """Execute due scheduled reports. Called every hour."""
-    from app.services.scheduled_reports import run_due_reports
-    run_due_reports()
-    return {"ok": True}
-
-
-@celery_app.task(name="app.worker.run_scheduled_rotation")
-def run_scheduled_rotation():
-    """Execute key material rotation checks on schedule."""
-    from app.services.key_management import run_scheduled_rotation as _run
-    _run()
-    return {"ok": True}
-
-
 @celery_app.task(
     name="app.worker.run_agent_task",
     bind=True,
@@ -673,765 +334,10 @@ def run_scheduled_rotation():
     time_limit=settings.CELERY_AGENT_TASK_TIME_LIMIT,
     soft_time_limit=settings.CELERY_AGENT_TASK_SOFT_TIME_LIMIT,
 )
-def run_agent_task(
-    self,
-    execution_id: str,
-    instruction: str,
-    user_id: str,
-    auto_approve: bool = False,
-):
-    """
-    Run the ContecflowAgent agentic loop in a Celery worker.
-    Writes results back to AIAgentExecution.  Called by run_agent() via .delay().
-    """
-    import json
-    import time
-    from datetime import datetime, timezone
-
-    from app.db.session import worker_db_session
-    from app.models.ai_chat import AIAgentExecution, AIAgentStep
-    from app.models.user import User
-    from app.core.config import settings
-    from app.services.ai_chat_service import (
-        execute_tool as _execute_tool,
-        AGENT_TOOLS,
-        build_agent_system_prompt as _build_agent_system_prompt,
-        log_action as _log_action,
-    )
-
-    with worker_db_session() as db:
-        execution = None
-        step_num = 0
-        result_summary = ""
-
-        try:
-            execution = db.query(AIAgentExecution).filter(
-                AIAgentExecution.id == execution_id
-            ).first()
-            if not execution:
-                return {"error": "execution not found"}
-
-            current_user = db.query(User).filter(User.id == user_id).first()
-            if not current_user:
-                execution.status = "failed"
-                execution.error = "User not found"
-                db.commit()
-                return {"error": "user not found"}
-
-            execution.status = "running"
-            db.commit()
-            # Revisión 2026-11: la sesión del trabajo no tenía empresa, así que las
-            # herramientas leían y escribían de todas, y el proveedor se elegía como
-            # superadmin. Ahora todo corre en la empresa de quien lo pidió.
-            from app.db.session import publicar_contexto_de_tenant
-            publicar_contexto_de_tenant(db, current_user)
-
-            t0 = time.time()
-            SYSTEM = _build_agent_system_prompt(db, current_user)
-
-            # `get_default_provider` esta en el SERVICIO, no en el endpoint: el
-            # modulo de endpoints no lo define y este import fallaba en cada
-            # ejecucion de agente. De paso desaparece una dependencia del
-            # worker hacia la capa de API, que no deberia existir.
-            # Auditoria 2026-08.
-            from app.services.ai_provider_service import get_default_provider as _gdp
-            from app.services.ai_provider_service import call_ai
-            from app.services import ai_tools as _herr
-            from app.core.encryption import decrypt_value
-
-            active_prov = _gdp(db, is_superadmin=bool(current_user.is_superadmin),
-                               organization_id=current_user.organization_id)
-            # Auditoria 2026-09: esto preguntaba por la MARCA —«es anthropic?»—
-            # y con cualquier otro proveedor el agente no ejecutaba nada. Ahora
-            # pregunta por la CAPACIDAD; la traduccion de dialectos vive en
-            # `app.services.ai_tools`.
-            agent_proveedor = (active_prov.provider if active_prov else "anthropic")
-            # La clave viaja cifrada venga de la base o del entorno, y
-            # `decrypt_value` deja intacto lo que no lo este. Antes se pasaba
-            # TAL CUAL: con un proveedor guardado desde la interfaz, eso mandaba
-            # el cifrado `v2:...` como API key.
-            # Sin proveedor, None: el resolver ya mira base, `.env` y credencial.
-            agent_clave = decrypt_value(active_prov.api_key) if (active_prov and active_prov.api_key) else None
-            agent_base_url = (getattr(active_prov, "api_base_url", "") or "") if active_prov else ""
-            if not agent_base_url and agent_proveedor in _herr.FAMILIA_OPENAI:
-                agent_base_url = _herr.base_url_por_defecto(agent_proveedor)
-
-            has_anthropic_tools = bool(
-                _herr.soporta_herramientas(agent_proveedor) and agent_clave
-            )
-
-            if not has_anthropic_tools:
-                try:
-                    result_summary = call_ai(
-                        db,
-                        messages=[{"role": "user", "content": instruction}],
-                        system=SYSTEM + "\n\nNota: ejecuta un análisis y plan de acción sin usar herramientas reales.",
-                        module="nexusagent", user_id=user_id, max_tokens=800,
-                    )
-                except Exception:
-                    _worker_logger.debug("run_agent_task: excepcion ignorada", exc_info=True)
-                    result_summary = (
-                        f"⚠ Sin proveedor IA configurado. Instrucción recibida: *{instruction}*\n\n"
-                        f"Configura un proveedor en IA & Conectores para ejecutar instrucciones reales."
-                    )
-                execution.status = "done"
-                execution.result = result_summary
-                execution.completed_at = datetime.now(timezone.utc)
-                _log_action(db, current_user.id, "nexusagent", "execute",
-                            instruction[:200], result_summary[:200], status="success")
-                db.commit()
-                return {"ok": True}
-
-            agent_api_key = agent_clave
-            agent_model = (
-                (active_prov.default_model if active_prov else None)
-                or settings.CONTECFLOW_AI_MODEL
-            )
-
-            # Loop centralizado (item #54). Antes este loop estaba duplicado
-            # respecto al SSE endpoint en ai_chat.py. El endpoint mantiene su
-            # versión inline por necesidad de yield mid-iteration; aquí (Celery
-            # background, sin streaming) usamos el helper directamente.
-            from app.services.ai_chat.agent_loop import run_tool_use_loop
-            from app.services.ai_chat.tool_execution_service import WRITE_ACTION_TOOLS
-
-            def _persist_step(step_data: dict):
-                tool_result = step_data["output"]
-                step = AIAgentStep(
-                    execution_id=execution.id,
-                    step_number=step_data["step"],
-                    tool_name=step_data["tool"],
-                    tool_input=json.dumps(step_data["input"]),
-                    tool_output=json.dumps(tool_result),
-                    status="done" if "error" not in tool_result else "failed",
-                )
-                db.add(step)
-                db.flush()
-
-            # Revisión 2026-11: políticas de gobernanza de entrada y salida.
-            from app.services.ai_provider_service import guardrail_de_instruccion, guardrail_de_respuesta
-            instruction, bloqueo = guardrail_de_instruccion(db, current_user, instruction)
-            if bloqueo:
-                execution.status = "failed"
-                execution.error = bloqueo
-                db.commit()
-                return {"error": bloqueo}
-
-            result_summary, _steps, step_num = run_tool_use_loop(
-                execute_tool=_execute_tool,
-                instruction=instruction,
-                system=SYSTEM,
-                tools=AGENT_TOOLS,
-                db=db,
-                current_user=current_user,
-                model=agent_model,
-                api_key=agent_api_key,
-                max_tokens=4096,
-                max_steps=20,
-                auto_approve=bool(auto_approve),
-                write_action_tools=WRITE_ACTION_TOOLS,
-                on_step_done=_persist_step,
-                provider=agent_proveedor,
-                base_url=agent_base_url,
-            )
-
-            latency = int((time.time() - t0) * 1000)
-            result_summary = guardrail_de_respuesta(db, current_user, result_summary)
-            execution.status = "done"
-            execution.result = result_summary
-            execution.steps_count = step_num
-            execution.completed_at = datetime.now(timezone.utc)
-            _log_action(db, current_user.id, "nexusagent", "execute",
-                        instruction[:200], result_summary[:200],
-                        tokens=0, latency=latency, status="success")
-            db.commit()
-            return {"ok": True, "steps": step_num}
-
-        except Exception as exc:
-            if execution:
-                execution.status = "failed"
-                execution.error = str(exc)[:500]
-                execution.completed_at = datetime.now(timezone.utc)
-                try:
-                    db.commit()
-                except Exception:
-                    _worker_logger.warning("run_agent_task: excepcion ignorada", exc_info=True)
-                    db.rollback()
-            raise
-
-
-@celery_app.task(name="app.worker.jira_periodic_sync")
-def jira_periodic_sync():
-    """
-    Periodically pull updated Jira issues into local tasks.
-
-    Runs every 30 minutes (configured in beat_schedule).  For each integration
-    setting that has Jira configured, fetches issues updated in the last hour so
-    the window overlaps between runs and avoids gaps.
-    """
-    import logging
-    import datetime
-    import httpx
-
-    from app.db.session import worker_db_session
-    from app.models.settings import AppSetting
-    from app.models.task import Task, TaskStatus, TaskPriority
-    import uuid
-
-    log = logging.getLogger(__name__)
-    synced = 0
-    errors = 0
-
-    PRIORITY_MAP = {
-        "Highest": TaskPriority.critical,
-        "High": TaskPriority.high,
-        "Medium": TaskPriority.medium,
-        "Low": TaskPriority.low,
-        "Lowest": TaskPriority.low,
-    }
-    STATUS_MAP = {
-        "To Do": TaskStatus.todo,
-        "In Progress": TaskStatus.in_progress,
-        "Done": TaskStatus.done,
-        "In Review": TaskStatus.in_review,
-        "Blocked": TaskStatus.blocked,
-    }
-
-    def _jira_headers(email: str, token: str) -> dict:
-        import base64
-        creds = base64.b64encode(f"{email}:{token}".encode()).decode()
-        return {"Authorization": f"Basic {creds}", "Content-Type": "application/json"}
-
-    with worker_db_session() as db:
-        def _get(key):
-            # Worker has no request context; read only global (org-independent) settings.
-            row = db.query(AppSetting).filter(
-                AppSetting.key == key, AppSetting.organization_id.is_(None)
-            ).first()
-            return (row.value or "").strip() if row else ""
-
-        try:
-            jira_url   = _get("jira_url").rstrip("/")
-            jira_email = _get("jira_email")
-            jira_token = _get("jira_api_token")
-            project_key = _get("jira_project_key")
-
-            if not all([jira_url, jira_email, jira_token, project_key]):
-                return {"skipped": "Jira not configured or incomplete configuration"}
-
-            # Fetch issues updated in the last 65 minutes (overlap buffer)
-            cutoff = (utcnow() - datetime.timedelta(minutes=65)).strftime("%Y-%m-%d %H:%M")
-            jql = f"project = {project_key} AND updated >= '{cutoff}' ORDER BY updated DESC"
-
-            resp = httpx.post(
-                f"{jira_url}/rest/api/3/issue/search",
-                headers=_jira_headers(jira_email, jira_token),
-                json={"jql": jql, "maxResults": 100,
-                      "fields": ["summary", "status", "priority", "description",
-                                  "duedate", "assignee", "issuetype", "labels"]},
-                timeout=25,
-            )
-            resp.raise_for_status()
-            issues = resp.json().get("issues", [])
-
-            for issue in issues:
-                try:
-                    key = issue["key"]
-                    fields = issue.get("fields", {})
-                    title = fields.get("summary", key)
-                    status_name = (fields.get("status") or {}).get("name", "To Do")
-                    priority_name = (fields.get("priority") or {}).get("name", "Medium")
-                    due_raw = fields.get("duedate")
-                    due_date = datetime.date.fromisoformat(due_raw) if due_raw else None
-
-                    task_status = STATUS_MAP.get(status_name, TaskStatus.todo)
-                    task_priority = PRIORITY_MAP.get(priority_name, TaskPriority.medium)
-
-                    existing = db.query(Task).filter(Task.jira_issue_key == key).first()
-                    if existing:
-                        existing.title = title
-                        existing.status = task_status
-                        existing.priority = task_priority
-                        if due_date:
-                            existing.due_date = due_date
-                        synced += 1
-                    else:
-                        new_task = Task(
-                            id=str(uuid.uuid4()),
-                            title=title,
-                            status=task_status,
-                            priority=task_priority,
-                            due_date=due_date,
-                            jira_issue_key=key,
-                        )
-                        db.add(new_task)
-                        synced += 1
-                except Exception as task_err:
-                    log.warning(f"Jira sync: skipped issue {issue.get('key', '?')}: {task_err}")
-                    errors += 1
-
-            db.commit()
-            log.info(f"Jira periodic sync: {synced} issues synced, {errors} errors")
-            return {"synced": synced, "errors": errors}
-
-        except Exception as exc:
-            log.error(f"Jira periodic sync failed: {exc}")
-            db.rollback()
-            raise
-
-
-@celery_app.task(name="app.worker.process_approval_timeouts")
-def process_approval_timeouts():
-    """
-    Scan all pending ApprovalRequests and fire timeout actions for overdue steps.
-
-    Runs every hour (configured in beat_schedule).  For each step that has
-    exceeded its timeout_hours, applies on_timeout: escalate | auto_approve | reject.
-    """
-    from app.db.session import worker_db_session
-    from app.services.approval_engine import process_approval_timeouts as _process
-
-    with worker_db_session() as db:
-        result = _process(db)
-        return result
-
-
-@celery_app.task(name="app.worker.revenue_monthly_recognition")
-def revenue_monthly_recognition():
-    """
-    ASC 606 / IFRS 15 monthly recognition batch.
-    Runs daily at 02:00 (DEFAULT_TIMEZONE) and acts only on the organizations
-    whose own local date is the 1st.
-    Processes over_time, consumption, and straight_line contracts for the
-    previous calendar month across all organizations.
-    Milestone-method contracts are skipped (recognized on milestone completion).
-    """
-    from app.core.timeutil import resolve_zone, today_in
-    from app.db.session import worker_db_session
-    from app.services.revenue_service import run_monthly_recognition
-
-    with worker_db_session() as db:
-        from app.models.mfa import Organization
-
-        organizaciones = db.query(Organization).filter(
-            Organization.is_active.is_(True)
-        ).all()
-
-        resultados = {}
-        for org in organizaciones:
-            hoy = today_in(resolve_zone(getattr(org, "timezone", None)))
-            # Sólo se reconoce cuando es día 1 EN SU zona. La tarea corre a diario
-            # a propósito: con la ejecución mensual a las 02:00 del día 1, una
-            # organización en UTC−6 estaba todavía en el día 31 del mes anterior,
-            # así que su «mes anterior» salía desplazado un mes y ese periodo no
-            # se reconocía nunca. Repartir el disparo por zonas es lo que da
-            # exactamente una ejecución correcta por organización y mes.
-            if hoy.day != 1:
-                continue
-            if hoy.month == 1:
-                year, month = hoy.year - 1, 12
-            else:
-                year, month = hoy.year, hoy.month - 1
-
-            # El lote es idempotente (revenue_service._ya_reconocido + el índice
-            # único de la revisión 091), así que un disparo repetido no duplica
-            # ingresos. Antes sí lo hacía.
-            resultados[org.id] = run_monthly_recognition(
-                db, year, month, organization_id=org.id
-            )
-
-        if resultados:
-            _worker_logger.info(
-                "ASC 606: reconocido para %d organizaciones: %s",
-                len(resultados), resultados,
-            )
-        return resultados
-
-
-@celery_app.task(name="app.worker.olap_nightly_etl")
-def olap_nightly_etl():
-    """
-    Nightly incremental ETL: PostgreSQL → DuckDB OLAP star schema.
-    Runs at 01:00 (DEFAULT_TIMEZONE). Loads last 2 days of imputations + full dim/fact refresh.
-    Pass since=date(2023,1,1) in a manual call for a full historical load.
-    """
-    from app.db.session import worker_db_session
-    from app.services.olap.etl import run_full_etl
-
-    with worker_db_session() as db:
-        result = run_full_etl(db)
-        _worker_logger.info("OLAP ETL result: %s", result)
-        return result
-
-
-@celery_app.task(name="app.worker.ml_model_retrain")
-def ml_model_retrain():
-    """
-    Retrain overrun prediction ML models for all active organizations.
-    Runs on the 1st of each month at 03:00 (DEFAULT_TIMEZONE), after revenue recognition.
-    Skips orgs with fewer than MIN_TRAINING_SAMPLES completed projects.
-    Requires scikit-learn; skips gracefully if not available.
-    """
-    from app.db.session import worker_db_session
-    from app.services.ml_trainer import train_all_orgs
-
-    with worker_db_session() as db:
-        results = train_all_orgs(db)
-        trained = sum(1 for r in results if r.get("status") == "trained")
-        skipped = sum(1 for r in results if r.get("status") == "skipped")
-        _worker_logger.info("ML retrain: %d trained, %d skipped", trained, skipped)
-        return {"trained": trained, "skipped": skipped, "results": results}
-
-
-# ── Fase 1 ITSM Tasks ─────────────────────────────────────────────────────────
-
-@celery_app.task(name="app.worker.sla_breach_scan")
-def sla_breach_scan():
-    """Vigila el SLA: guarda el estado, avisa del riesgo y del incumplimiento, y escala.
-
-    Auditoria 2026-11: antes solo contaba los tickets en riesgo y lo dejaba en
-    el log. Ver `sla_monitor_service`.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.sla_monitor_service import escanear
-
-    with worker_db_session() as db:
-        resultado = escanear(db)
-        _worker_logger.info("SLA: %s", resultado)
-        return resultado
-
-
-@celery_app.task(name="app.worker.sd_leer_buzones")
-def sd_leer_buzones():
-    """Lee el buzon de soporte de cada organizacion (IMAP o Microsoft 365)."""
-    from app.db.session import worker_db_session
-    from app.services.service_desk.buzones import leer_todos
-
-    with worker_db_session() as db:
-        resultado = leer_todos(db)
-        _worker_logger.info("Buzones de soporte: %s", resultado)
-        return resultado
-
-
-@celery_app.task(name="app.worker.sd_procesar_eventos_de_ticket")
-def sd_procesar_eventos_de_ticket():
-    """Procesa la bandeja de eventos de ticket: avisos, correo, webhooks y flujos.
-
-    La encola cada `commit` que deja eventos (`ticket_events._tras_confirmar`);
-    la entrada del beat es la red para cuando el broker no estaba.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.ticket_event_processor import procesar_pendientes
-
-    with worker_db_session() as db:
-        return procesar_pendientes(db)
-
-
-@celery_app.task(name="app.worker.automations_procesar_eventos")
-def automations_procesar_eventos():
-    """Ejecuta las reglas de los eventos anotados (`automation_events`)."""
-    from app.db.session import worker_db_session
-    from app.services.automation_events import procesar_pendientes
-
-    with worker_db_session() as db:
-        return procesar_pendientes(db)
-
-
-@celery_app.task(name="app.worker.automations_escanear")
-def automations_escanear():
-    """Disparadores de fecha y umbral: tareas vencidas o que vencen, presupuesto, partes."""
-    from app.db.session import worker_db_session
-    from app.services.automations_service import escanear
-
-    with worker_db_session() as db:
-        return escanear(db)
-
-
-@celery_app.task(name="app.worker.bpmn_vencer_temporizadores")
-def bpmn_vencer_temporizadores():
-    """Despierta los temporizadores BPMN vencidos y sigue cada instancia."""
-    from app.db.session import worker_db_session
-    from app.services.bpmn_engine import vencer_temporizadores
-
-    with worker_db_session() as db:
-        return vencer_temporizadores(db)
-
-
-@celery_app.task(name="app.worker.problem_auto_detect")
-def problem_auto_detect():
-    """Auto-detect recurring incident clusters and create Problem records.
-
-    Runs every hour at :05. Uses detect_recurring_incidents() to find clusters
-    of >=3 open incidents in the same category+priority within 24h, then calls
-    create_problem_from_correlation() to create a Problem + AI RCA suggestion.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.incident_intelligence_service import (
-        detect_recurring_incidents,
-    )
-    from app.services.service_desk.problem_service import create_problem_from_correlation
-
-    with worker_db_session() as db:
-        problems_created = 0
-        try:
-            clusters = detect_recurring_incidents(db)
-            _worker_logger.info("Problem auto-detect: %d clusters found", len(clusters))
-
-            for cluster in clusters:
-                try:
-                    problem = create_problem_from_correlation(
-                        db=db,
-                        ticket_ids=cluster["ticket_ids"],
-                        category=cluster["category"],
-                        priority=cluster["priority"],
-                        auto_rca=True,
-                    )
-                    db.commit()
-                    _worker_logger.info(
-                        "Auto-created problem %s for category=%s priority=%s (%d tickets)",
-                        problem.number,
-                        cluster["category"],
-                        cluster["priority"],
-                        len(cluster["ticket_ids"]),
-                    )
-                    problems_created += 1
-                except Exception as exc:
-                    db.rollback()
-                    _worker_logger.error("Failed to create problem for cluster %s: %s", cluster, exc)
-
-            return {"clusters_found": len(clusters), "problems_created": problems_created}
-        except Exception as exc:
-            _worker_logger.error("problem_auto_detect error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.kedb_expiry_scan")
-def kedb_expiry_scan():
-    """ITSM-P02: Demote expired KEDB entries back to investigating.
-
-    Runs daily at 06:30. Any Known Error entry whose kedb_expires_at has passed
-    is returned to 'investigating' status so it gets re-reviewed before republishing.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.known_error_service import run_kedb_expiry_scan
-
-    with worker_db_session() as db:
-        try:
-            result = run_kedb_expiry_scan(db)
-            db.commit()
-            _worker_logger.info("KEDB expiry scan: %d entries expired", result.get("expired", 0))
-            return result
-        except Exception as exc:
-            db.rollback()
-            _worker_logger.error("kedb_expiry_scan error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.kedb_effectiveness_scan")
-def kedb_effectiveness_scan():
-    """ITSM-P02: Recompute effectiveness scores for all KEDB entries.
-
-    Runs daily at 07:00. For each Known Error computes the percentage of linked
-    tickets that were resolved after the entry was published (proxy for workaround
-    effectiveness) and persists the score.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.known_error_service import run_kedb_effectiveness_scan
-
-    with worker_db_session() as db:
-        try:
-            result = run_kedb_effectiveness_scan(db)
-            db.commit()
-            _worker_logger.info("KEDB effectiveness scan: %d entries updated", result.get("updated", 0))
-            return result
-        except Exception as exc:
-            db.rollback()
-            _worker_logger.error("kedb_effectiveness_scan error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.alert_correlation_scan")
-def alert_correlation_scan():
-    """ITSM-P03: Cluster open alerts and auto-create Problems for high-confidence groups.
-
-    Runs every 30 minutes. Clusters open tickets by CI + category + temporal proximity
-    + semantic similarity. Automatically creates Problem records for clusters with
-    correlation_score >= 0.65 and size >= 3 that are not already linked to a Problem.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.alert_correlation_service import run_correlation_scan_job
-
-    with worker_db_session() as db:
-        try:
-            result = run_correlation_scan_job(db)
-            _worker_logger.info(
-                "Alert correlation scan: %d clusters, %d problems created, %d errors",
-                result.get("clusters_found", 0),
-                result.get("problems_created", 0),
-                result.get("errors", 0),
-            )
-            return result
-        except Exception as exc:
-            _worker_logger.error("alert_correlation_scan error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.cmdb_discovery_run")
-def cmdb_discovery_run():
-    """Run CMDB auto-discovery for providers whose scan window has expired (ITSM-P04).
-
-    Runs every 15 minutes via beat schedule. Only executes providers where
-    next_run_at <= now, respecting per-provider scan_interval_minutes cadence.
-    Detects config drift, writes CMDBChangelog entries, and updates next_run_at.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.cmdb_discovery_service import (
-        run_due_discoveries,
-    )
-
-    with worker_db_session() as db:
-        try:
-            results = run_due_discoveries(db)
-            _worker_logger.info("CMDB discovery run: %d providers due/processed", len(results))
-            drifted = sum(1 for r in results if r.get("drift_detected") and r.get("updated", 0) > 0)
-            if drifted:
-                _worker_logger.warning("CMDB drift detected in %d provider scan(s)", drifted)
-            return {"providers_run": len(results), "results": results}
-        except Exception as exc:
-            _worker_logger.error("cmdb_discovery_run error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.change_impact_batch_score")
-def change_impact_batch_score():
-    """Batch-score Change Requests that haven't been analyzed yet (ITSM-P05).
-
-    Targets changes pending CAB decision with no auto_risk_score.
-    Also auto-approves standard changes with low risk score.
-    Runs every 10 minutes via beat schedule.
-
-    Auditoria 2026-08: esta tarea referenciaba `ChangeStatus.in_approval`, que
-    **no existe en el enum del modelo**, asi que **fallaba en cada tic** con un
-    `AttributeError` atrapado por el `except` de abajo — una linea de log y
-    nada mas. Los estados que espera el CAB salen ahora de
-    `ESTADOS_PENDIENTES_DE_CAB`, que se construye desde el enum. El detalle
-    esta en el comentario de esa constante.
-    """
-    from app.db.session import worker_db_session
-    from app.models.service_desk import ITSMChangeRequest
-    from app.services.service_desk.change_impact_service import (
-        ESTADOS_PENDIENTES_DE_CAB, score_and_persist,
-    )
-    from app.services.service_desk.change_service import _maybe_auto_approve
-
-    scored = auto_approved = errors = 0
-    with worker_db_session() as db:
-        try:
-            pending = (
-                db.query(ITSMChangeRequest)
-                .filter(
-                    ITSMChangeRequest.status.in_(ESTADOS_PENDIENTES_DE_CAB),
-                    ITSMChangeRequest.auto_risk_score.is_(None),
-                )
-                .limit(50)  # process up to 50 per tick to avoid long task
-                .all()
-            )
-            for change in pending:
-                try:
-                    score_and_persist(db, change.id)
-                    if _maybe_auto_approve(db, change, system_user_id="system-batch-score"):
-                        auto_approved += 1
-                    db.commit()
-                    scored += 1
-                except Exception as exc:
-                    db.rollback()
-                    errors += 1
-                    _worker_logger.warning(
-                        "change_impact_batch_score: failed for %s: %s", change.id, exc
-                    )
-
-            _worker_logger.info(
-                "change_impact_batch_score: scored=%d auto_approved=%d errors=%d",
-                scored, auto_approved, errors,
-            )
-            return {"scored": scored, "auto_approved": auto_approved, "errors": errors}
-        except Exception as exc:
-            _worker_logger.error("change_impact_batch_score error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.routing_outcome_scan")
-def routing_outcome_scan():
-    """Fill in routing outcome data for recently closed tickets (ITSM-P07).
-
-    Finds RoutingFeedback rows missing outcome_recorded_at and backfills
-    resolution_minutes + csat_score from the linked Ticket.
-    Runs every hour via beat schedule.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.ml_routing_service import run_outcome_scan
-
-    with worker_db_session() as db:
-        try:
-            result = run_outcome_scan(db)
-            _worker_logger.info(
-                "routing_outcome_scan: processed=%d updated=%d errors=%d",
-                result.get("processed", 0), result.get("updated", 0), result.get("errors", 0),
-            )
-            return result
-        except Exception as exc:
-            _worker_logger.error("routing_outcome_scan error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.predictive_scan")
-def predictive_scan():
-    """Run predictive intelligence scan on all open tickets.
-
-    Computes escalation risk, severity label, and predicted resolution time.
-    Runs every 30 minutes via beat schedule.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.predictive_analytics_service import (
-        run_predictive_scan,
-    )
-
-    with worker_db_session() as db:
-        try:
-            result = run_predictive_scan(db)
-            _worker_logger.info(
-                "Predictive scan: processed=%d predicted=%d",
-                result.get("processed", 0),
-                result.get("predicted", 0),
-            )
-            return result
-        except Exception as exc:
-            _worker_logger.error("predictive_scan error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.predictive_model_eval_retrain")
-def predictive_model_eval_retrain():
-    """Evaluate ITSM/BI predictive model health and trigger conditional retraining.
-
-    Runs every 6 hours. Uses quality and staleness thresholds to avoid blind retrains.
-    """
-    from app.db.session import worker_db_session
-    from app.services.predictive_retraining_service import run_periodic_evaluation_and_retraining
-
-    with worker_db_session() as db:
-        try:
-            result = run_periodic_evaluation_and_retraining(db)
-            _worker_logger.info(
-                "predictive_model_eval_retrain: orgs=%d itsm_retrained=%d bi_retrained=%d",
-                result.get("organizations", 0),
-                result.get("itsm_retrained", 0),
-                result.get("bi_retrained", 0),
-            )
-            return result
-        except Exception as exc:
-            _worker_logger.error("predictive_model_eval_retrain error: %s", exc)
-            return {"error": str(exc)}
+def run_agent_task(self, execution_id: str, instruction: str, user_id: str, auto_approve: bool = False):
+    """NexusAgent en segundo plano, en la empresa de quien lo pidio."""
+    from app.services.ai_chat.agente_en_segundo_plano import ejecutar_agente
+    return ejecutar_agente(execution_id, instruction, user_id, auto_approve)
 
 
 @celery_app.task(name="app.worker.sync_connector_data")
@@ -1448,9 +354,307 @@ def sync_connector_data(connector_id: str, org_id: str | None = None):
     with worker_db_session() as db, como_organizacion(db, org_id):
         try:
             r = bi_etl_service.sincronizar(db, org_id, connector_id)
-        except (LookupError, ValueError) as exc:     # quitado o desactivado desde la última pasada
+        except (LookupError, ValueError) as exc:
+            # Quitado o desactivado desde la ultima pasada: no es un fallo.
+            _worker_logger.info("Conector %s de %s omitido: %s", connector_id, org_id, exc)
             return {"connector_id": connector_id, "org_id": org_id, "ok": False, "error": str(exc)}
         return {"org_id": org_id, **r}
+
+
+# ── Por organizacion ─────────────────────────────────────────────────────────
+
+@celery_app.task(name="app.worker.run_alert_engine")
+def run_alert_engine():
+    from app.services.alert_service import run_alert_engine as _alertas
+    return _por_organizacion("run_alert_engine", lambda db, org: _alertas(db))
+
+
+@celery_app.task(name="app.worker.run_perf_reminders")
+def run_perf_reminders():
+    """Recordatorios de evaluaciones de desempeño pendientes."""
+    from app.services.perf_reminder_service import send_pending_review_reminders
+    return _por_organizacion("run_perf_reminders", lambda db, org: send_pending_review_reminders(db))
+
+
+@celery_app.task(name="app.worker.check_missing_imputations")
+def check_missing_imputations():
+    """Quien no ha imputado sus horas de hoy (el «hoy» de cada empleado)."""
+    from app.services.trabajos_de_fondo import imputaciones_pendientes_de_hoy
+    return _por_organizacion("check_missing_imputations", imputaciones_pendientes_de_hoy)
+
+
+@celery_app.task(name="app.worker.generate_retainer_invoices")
+def generate_retainer_invoices():
+    """Facturas mensuales de los proyectos `recurring_retainer` (dia en la zona del cliente)."""
+    from app.services.trabajos_de_fondo import generar_facturas_de_retainer
+    return _por_organizacion("generate_retainer_invoices", generar_facturas_de_retainer)
+
+
+@celery_app.task(name="app.worker.run_scheduled_reports")
+def run_scheduled_reports():
+    """Informes programados vencidos. Cada hora."""
+    from app.services.scheduled_reports import ejecutar_informes_vencidos
+    return _por_organizacion("run_scheduled_reports", lambda db, org: ejecutar_informes_vencidos(db))
+
+
+@celery_app.task(name="app.worker.jira_periodic_sync")
+def jira_periodic_sync():
+    """Trae las incidencias de Jira actualizadas, organizacion a organizacion.
+
+    Auditoria 2026-11 (#14): cada organizacion con su configuracion; la global
+    (sin organizacion) no se sincroniza: no hay a que organizacion asignar sus
+    tareas.
+    """
+    from app.db.session import worker_db_session
+    from app.services import jira_service
+
+    with worker_db_session() as db:
+        organizaciones = jira_service.organizaciones_con_jira(db)
+    if not organizaciones:
+        return {"skipped": "Jira not configured for any organization"}
+    r = _por_organizacion("jira_periodic_sync", jira_service.sincronizar_organizacion,
+                          organizaciones=organizaciones)
+    porg = r["por_organizacion"].values()
+    return {"synced": sum(x.get("synced", 0) for x in porg),
+            "errors": sum(x.get("errors", 0) for x in porg),
+            "organizations": r["organizaciones"]}
+
+
+@celery_app.task(name="app.worker.revenue_monthly_recognition")
+def revenue_monthly_recognition():
+    """ASC 606 / IFRS 15: a diario; reconoce el mes anterior donde es dia 1 en su zona."""
+    from app.services.trabajos_de_fondo import reconocer_ingresos_si_es_dia_1
+    return _por_organizacion("revenue_monthly_recognition", reconocer_ingresos_si_es_dia_1)
+
+
+@celery_app.task(name="app.worker.ml_model_retrain")
+def ml_model_retrain():
+    """Reentrena el modelo de sobrecoste de cada organizacion (dia 1, 03:00)."""
+    from app.services.ml_trainer import train_model
+    return _por_organizacion("ml_model_retrain", train_model)
+
+
+@celery_app.task(name="app.worker.sla_breach_scan")
+def sla_breach_scan():
+    """Estado del SLA, avisos de riesgo e incumplimiento, y escalado."""
+    from app.services.service_desk.sla_monitor_service import escanear
+    return _por_organizacion("sla_breach_scan", lambda db, org: escanear(db))
+
+
+@celery_app.task(name="app.worker.problem_auto_detect")
+def problem_auto_detect():
+    """Un Problem (con RCA de IA, gobernada por la organizacion) por grupo de incidentes repetidos."""
+    from app.services.trabajos_de_fondo import crear_problemas_recurrentes
+    return _por_organizacion("problem_auto_detect", crear_problemas_recurrentes)
+
+
+@celery_app.task(name="app.worker.kedb_expiry_scan")
+def kedb_expiry_scan():
+    """ITSM-P02: los errores conocidos caducados vuelven a investigacion."""
+    from app.services.service_desk.known_error_service import run_kedb_expiry_scan
+    return _por_organizacion("kedb_expiry_scan", lambda db, org: run_kedb_expiry_scan(db))
+
+
+@celery_app.task(name="app.worker.kedb_effectiveness_scan")
+def kedb_effectiveness_scan():
+    """ITSM-P02: recalcula la efectividad de cada error conocido."""
+    from app.services.service_desk.known_error_service import run_kedb_effectiveness_scan
+    return _por_organizacion("kedb_effectiveness_scan", lambda db, org: run_kedb_effectiveness_scan(db))
+
+
+@celery_app.task(name="app.worker.alert_correlation_scan")
+def alert_correlation_scan():
+    """ITSM-P03: agrupa alertas abiertas y crea Problems para los grupos claros."""
+    from app.services.service_desk.alert_correlation_service import run_correlation_scan_job
+    return _por_organizacion("alert_correlation_scan",
+                             lambda db, org: run_correlation_scan_job(db, organization_id=org))
+
+
+@celery_app.task(name="app.worker.cmdb_discovery_run")
+def cmdb_discovery_run():
+    """ITSM-P04: discovery de la CMDB para los proveedores cuya ventana vencio."""
+    from app.services.service_desk.cmdb_discovery_service import run_due_discoveries
+    return _por_organizacion("cmdb_discovery_run", lambda db, org: run_due_discoveries(db))
+
+
+@celery_app.task(name="app.worker.change_impact_batch_score")
+def change_impact_batch_score():
+    """ITSM-P05: puntua los cambios pendientes de CAB; aprueba los estandar de bajo riesgo."""
+    from app.services.trabajos_de_fondo import puntuar_cambios_pendientes
+    return _por_organizacion("change_impact_batch_score", puntuar_cambios_pendientes)
+
+
+@celery_app.task(name="app.worker.routing_outcome_scan")
+def routing_outcome_scan():
+    """ITSM-P07: completa el resultado de las asignaciones de tickets cerrados."""
+    from app.services.service_desk.ml_routing_service import run_outcome_scan
+    return _por_organizacion("routing_outcome_scan", lambda db, org: run_outcome_scan(db))
+
+
+@celery_app.task(name="app.worker.predictive_scan")
+def predictive_scan():
+    """Riesgo de escalado, severidad y tiempo de resolucion previsto de los tickets abiertos."""
+    from app.services.service_desk.predictive_analytics_service import run_predictive_scan
+    return _por_organizacion("predictive_scan", lambda db, org: run_predictive_scan(db))
+
+
+@celery_app.task(name="app.worker.predictive_model_eval_retrain")
+def predictive_model_eval_retrain():
+    """Salud de los modelos predictivos y reentreno condicional; el resumen queda global."""
+    from app.db.session import worker_db_session
+    from app.services.predictive_retraining_service import (
+        evaluar_y_reentrenar_organizacion, guardar_resumen_de_evaluacion,
+    )
+    r = _por_organizacion("predictive_model_eval_retrain", evaluar_y_reentrenar_organizacion)
+    with worker_db_session() as db:
+        resumen = guardar_resumen_de_evaluacion(db, list(r["por_organizacion"].values()))
+    return {k: resumen[k] for k in ("organizations", "itsm_retrained", "bi_retrained")}
+
+
+@celery_app.task(name="app.worker.asset_expiry_scan")
+def asset_expiry_scan():
+    """Un ticket de renovacion por activo de ALM que vence pronto (`SD_ASSET_REFRESH_DAYS`)."""
+    from app.services.alm_ciclo_de_vida import escanear_vencimientos
+    return _por_organizacion("asset_expiry_scan", lambda db, org: escanear_vencimientos(db))
+
+
+@celery_app.task(name="app.worker.analytics_snapshot")
+def analytics_snapshot():
+    """Instantanea horaria de KPIs ITSM de cada organizacion con tickets."""
+    from app.services.trabajos_de_fondo import instantanea_itsm
+    return _por_organizacion("analytics_snapshot", instantanea_itsm)
+
+
+@celery_app.task(name="app.worker.compliance_check")
+def compliance_check():
+    """Auditoria ITIL/ISO 20000 semanal: un informe por organizacion, guardado en ella."""
+    from app.services.service_desk.governance_compliance_service import schedule_compliance_check
+    return _por_organizacion("compliance_check", lambda db, org: schedule_compliance_check(db))
+
+
+@celery_app.task(name="app.worker.bi_scheduled_delivery_run")
+def bi_scheduled_delivery_run():
+    """Entregas programadas de BI vencidas (Slack / Teams / correo / PDF / Excel)."""
+    from app.services.bi_report_delivery_service import run_due_deliveries
+    return _por_organizacion("bi_scheduled_delivery_run", lambda db, org: run_due_deliveries(db))
+
+
+@celery_app.task(name="app.worker.bi_kpi_push")
+def bi_kpi_push():
+    """KPIs de BI de cada organizacion al canal de Redis. Cada 5 minutos."""
+    from app.services.trabajos_de_fondo import publicar_kpis_de_bi
+    return _por_organizacion("bi_kpi_push", publicar_kpis_de_bi)
+
+
+@celery_app.task(name="app.worker.aplicar_retencion")
+def aplicar_retencion():
+    """Politicas de retencion activas de cada empresa (respetan el bloqueo legal)."""
+    from app.services.retencion import aplicar
+    return _por_organizacion("aplicar_retencion", aplicar)
+
+
+@celery_app.task(name="app.worker.resumen_diario_de_avisos")
+def resumen_diario_de_avisos():
+    """Un correo al dia con lo no leido, a quien lo tenga activado."""
+    from app.services.resumen_de_avisos import enviar
+    return _por_organizacion("resumen_diario_de_avisos", lambda db, org: {"enviados": enviar(db)})
+
+
+@celery_app.task(name="app.worker.bi_ml_retrain")
+def bi_ml_retrain():
+    """Precalienta los modelos de anomalias de BI de cada organizacion (domingos 03:30)."""
+    from app.services.trabajos_de_fondo import calentar_modelos_de_bi
+    return _por_organizacion("bi_ml_retrain", calentar_modelos_de_bi)
+
+
+@celery_app.task(name="app.worker.autonomous_agent_scan")
+def autonomous_agent_scan():
+    """Agente autonomo sobre los tickets nuevos: resuelve o deja una primera respuesta."""
+    from app.services.service_desk.autonomous_agent_service import run_autonomous_scan
+    return _por_organizacion("autonomous_agent_scan", lambda db, org: run_autonomous_scan(db))
+
+
+@celery_app.task(name="app.worker.recordar_campana_de_presupuestos")
+def recordar_campana_de_presupuestos():
+    """Avisa a los responsables de presupuestos sin enviar cuando cierra su campaña."""
+    from app.services.presupuestos_preparar import recordar_campana
+    return _por_organizacion("recordar_campana_de_presupuestos", lambda db, org: {"avisos": recordar_campana(db)})
+
+
+# ── Por fila (el servicio publica la organizacion de cada fila) ──────────────
+
+def _en_sesion(funcion):
+    from app.db.session import worker_db_session
+    with worker_db_session() as db:
+        return funcion(db)
+
+
+@celery_app.task(name="app.worker.process_approval_timeouts")
+def process_approval_timeouts():
+    """Acciones de vencimiento (escalar, aprobar, rechazar) de los pasos de aprobacion caducados."""
+    from app.services.approval_engine import process_approval_timeouts as _vencer
+    return _en_sesion(_vencer)
+
+
+@celery_app.task(name="app.worker.sd_leer_buzones")
+def sd_leer_buzones():
+    """Lee el buzon de soporte de cada organizacion (IMAP o Microsoft 365)."""
+    from app.services.service_desk.buzones import leer_todos
+    # Un buzon que falla no para a los demas: `leer_todos` deja su traza
+    # (`logger.exception`) y su error en el resultado de esa organizacion.
+    return _en_sesion(leer_todos)
+
+
+@celery_app.task(name="app.worker.sd_procesar_eventos_de_ticket")
+def sd_procesar_eventos_de_ticket():
+    """Bandeja de eventos de ticket: avisos, correo, webhooks y flujos (red del encolado al confirmar)."""
+    from app.services.service_desk.ticket_event_processor import procesar_pendientes
+    return _en_sesion(procesar_pendientes)
+
+
+@celery_app.task(name="app.worker.automations_procesar_eventos")
+def automations_procesar_eventos():
+    """Ejecuta las reglas de los eventos anotados (`automation_events`)."""
+    from app.services.automation_events import procesar_pendientes
+    return _en_sesion(procesar_pendientes)
+
+
+@celery_app.task(name="app.worker.automations_escanear")
+def automations_escanear():
+    """Disparadores de fecha y umbral: tareas vencidas o que vencen, presupuesto, partes."""
+    from app.services.automations_service import escanear
+    return _en_sesion(escanear)
+
+
+@celery_app.task(name="app.worker.bpmn_vencer_temporizadores")
+def bpmn_vencer_temporizadores():
+    """Despierta los temporizadores BPMN vencidos y sigue cada instancia."""
+    from app.services.bpmn_engine import vencer_temporizadores
+    return _en_sesion(vencer_temporizadores)
+
+
+@celery_app.task(name="app.worker.kb_pasada_de_calidad")
+def kb_pasada_de_calidad():
+    """Avisa de articulos sin revisar y de pares que se contradicen."""
+    from app.services.service_desk.kb_calidad import pasada_diaria
+    return _en_sesion(pasada_diaria)
+
+
+# ── Globales ──────────────────────────────────────────────────────────────────
+
+@celery_app.task(name="app.worker.run_scheduled_rotation")
+def run_scheduled_rotation():
+    """Rotacion programada del material de claves."""
+    from app.services.key_management import run_scheduled_rotation as _rotar
+    _rotar()
+    return {"ok": True}
+
+
+@celery_app.task(name="app.worker.olap_nightly_etl")
+def olap_nightly_etl():
+    """ETL nocturno PostgreSQL -> DuckDB (01:00). Ultimos 2 dias de imputaciones y dimensiones."""
+    from app.services.olap.etl import run_full_etl
+    return _en_sesion(run_full_etl)
 
 
 @celery_app.task(name="app.worker.sincronizar_conectores_etl")
@@ -1464,161 +668,6 @@ def sincronizar_conectores_etl():
     for org_id, connector_id in pares:
         sync_connector_data.delay(connector_id, org_id)
     return {"lanzadas": len(pares)}
-
-
-@celery_app.task(name="app.worker.asset_expiry_scan")
-def asset_expiry_scan():
-    """Un ticket de renovacion por activo de ALM que vence pronto.
-
-    «Pronto» es `SD_ASSET_REFRESH_DAYS` de cada organizacion. Corre a diario a
-    las 07:05. La logica esta en `alm_ciclo_de_vida.escanear_vencimientos`.
-    """
-    from app.db.session import worker_db_session
-    from app.services.alm_ciclo_de_vida import escanear_vencimientos
-
-    with worker_db_session() as db:
-        try:
-            resultado = escanear_vencimientos(db)
-            db.commit()
-            _worker_logger.info("Asset expiry scan: %s", resultado)
-            return resultado
-        except Exception as exc:
-            db.rollback()
-            _worker_logger.error("asset_expiry_scan error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.analytics_snapshot")
-def analytics_snapshot():
-    """Persist hourly ITSM KPI snapshot for trend analytics (Phase 3).
-
-    Computes 24h rolling metrics and writes to sd_itsm_metric_snapshots.
-    Runs every hour at :50.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.analytics_service import persist_metric_snapshot
-
-    with worker_db_session() as db:
-        try:
-            result = persist_metric_snapshot(db)
-            _worker_logger.info(
-                "Analytics snapshot saved: tickets=%d sla=%.1f%%",
-                result.get("tickets_total", 0),
-                result.get("sla_compliance_pct", 0),
-            )
-            return result
-        except Exception as exc:
-            _worker_logger.error("analytics_snapshot error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.catalog_popularity_update")
-def catalog_popularity_update():
-    """Recalculate service catalog popularity scores (Phase 3).
-
-    Writes popularity_score to ServiceItem based on last 4 weeks of ticket volume.
-    Runs every 6 hours.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.smart_catalog_service import update_service_popularity
-
-    with worker_db_session() as db:
-        try:
-            result = update_service_popularity(db)
-            db.commit()
-            _worker_logger.info(
-                "Catalog popularity updated: %d services", result.get("updated", 0)
-            )
-            return result
-        except Exception as exc:
-            db.rollback()
-            _worker_logger.error("catalog_popularity_update error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.compliance_check")
-def compliance_check():
-    """Run full ITIL/ISO 20000 compliance audit and persist report (Phase 3).
-
-    Runs weekly on Mondays at 06:00.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.governance_compliance_service import schedule_compliance_check
-
-    with worker_db_session() as db:
-        try:
-            result = schedule_compliance_check(db)
-            _worker_logger.info(
-                "Compliance check complete: score=%d CMM=%d findings=%d",
-                result.get("overall_score", 0),
-                result.get("cmm_level", 0),
-                result.get("findings_count", 0),
-            )
-            return result
-        except Exception as exc:
-            _worker_logger.error("compliance_check error: %s", exc)
-            return {"error": str(exc)}
-
-
-# ── BI Phase 2 Celery tasks ────────────────────────────────────────────────────
-
-@celery_app.task(name="app.worker.bi_scheduled_delivery_run")
-def bi_scheduled_delivery_run():
-    """Evaluate and run all due BI report delivery schedules (Slack / Teams / Email / PDF / Excel).
-
-    Runs every hour at :45.
-    """
-    from app.db.session import worker_db_session
-    from app.services.bi_report_delivery_service import run_due_deliveries
-
-    with worker_db_session() as db:
-        try:
-            result = run_due_deliveries(db)
-            _worker_logger.info(
-                "BI delivery run: %d delivered, %d errors",
-                result.get("total_run", 0),
-                result.get("total_errors", 0),
-            )
-            return result
-        except Exception as exc:
-            _worker_logger.error("bi_scheduled_delivery_run error: %s", exc)
-            return {"error": str(exc)}
-
-
-@celery_app.task(name="app.worker.bi_kpi_push")
-def bi_kpi_push():
-    """Compute fresh KPI snapshot for each active org and publish to Redis BI channel.
-
-    Subscribed WebSocket clients receive the snapshot without polling.
-    Runs every 5 minutes.
-    """
-    from app.db.session import worker_db_session
-    from app.models.mfa import Organization
-    from app.services.bi_intelligence_service import instantanea_kpi, publish_kpi_snapshot
-    from app.services.service_desk.ticket_events import como_organizacion
-
-    pushed = 0
-    with worker_db_session() as db:
-        try:
-            # Antes: las organizaciones con estado de conectores guardado, así
-            # que quien no había tocado un conector no recibía nada.
-            org_ids = [o.id for o in db.query(Organization.id).all()] or [None]
-
-            for org_id in org_ids:
-                try:
-                    # El mismo marco que el sondeo del WebSocket: antes era
-                    # `bi_kpi_snapshot`, que la pantalla descartaba.
-                    with como_organizacion(db, org_id):
-                        publish_kpi_snapshot(org_id, instantanea_kpi(db, org_id))
-                    pushed += 1
-                except Exception as exc:
-                    _worker_logger.debug("bi_kpi_push skip [org=%s]: %s", org_id, exc)
-
-            _worker_logger.info("bi_kpi_push: pushed %d org snapshots", pushed)
-            return {"pushed": pushed}
-        except Exception as exc:
-            _worker_logger.error("bi_kpi_push error: %s", exc)
-            return {"error": str(exc)}
 
 
 @celery_app.task(name="app.worker.purgar_empresas_caducadas")
@@ -1643,105 +692,10 @@ def actualizar_tipos_de_cambio():
         return resultado
 
 
-@celery_app.task(name="app.worker.aplicar_retencion")
-def aplicar_retencion():
-    """Políticas de retención activas de todas las empresas (respetan el bloqueo legal)."""
-    from app.services.retencion import aplicar_job
-    aplicar_job()
-
-
 @celery_app.task(name="app.worker.purgar_registro_de_conectores")
 def purgar_registro_de_conectores():
     """Borra las llamadas a los conectores más antiguas que CONECTOR_LOG_RETENTION_DAYS."""
-    from app.db.session import SessionLocal
     from app.services.conectores.estado import purgar
-    db = SessionLocal()
-    try:
-        _logging.getLogger(__name__).info("conectores: %s llamadas antiguas borradas", purgar(db))
-    finally:
-        db.close()
-
-
-@celery_app.task(name="app.worker.resumen_diario_de_avisos")
-def resumen_diario_de_avisos():
-    """Un correo al día con lo no leído, a quien lo tenga activado."""
-    from app.services.resumen_de_avisos import enviar_job
-    enviar_job()
-
-
-@celery_app.task(name="app.worker.kb_pasada_de_calidad")
-def kb_pasada_de_calidad():
-    """Avisa de artículos sin revisar y de pares que se contradicen."""
-    from app.services.service_desk.kb_calidad import pasada_diaria_job
-    pasada_diaria_job()
-
-
-@celery_app.task(name="app.worker.bi_ml_retrain")
-def bi_ml_retrain():
-    """Refresh ML model training data stored as AppSetting JSON blobs.
-
-    Logs retraining stats per org. The actual model artifacts are ephemeral
-    (recomputed on demand); this task pre-warms the history series cache.
-    Runs weekly on Sundays at 03:30.
-    """
-    from app.db.session import worker_db_session
-    from app.models.mfa import Organization
-    from app.services.bi_intelligence_service import ml_detect_anomalies_multivariate
-
-    retrained = 0
-    with worker_db_session() as db:
-        try:
-            # Antes: las organizaciones con estado de conectores guardado, así
-            # que quien no había tocado un conector no recibía nada.
-            org_ids = [o.id for o in db.query(Organization.id).all()] or [None]
-            for org_id in org_ids:
-                try:
-                    # Run anomaly detection to exercise IsolationForest training path
-                    ml_detect_anomalies_multivariate(db, organization_id=org_id, contamination=0.1)
-                    retrained += 1
-                except Exception as exc:
-                    _worker_logger.debug("bi_ml_retrain skip [org=%s]: %s", org_id, exc)
-
-            _worker_logger.info("bi_ml_retrain: warmed models for %d orgs", retrained)
-            return {"retrained": retrained}
-        except Exception as exc:
-            _worker_logger.error("bi_ml_retrain error: %s", exc)
-            return {"error": str(exc)}
-
-
-# ── ITSM Fase 3 — Autonomous Agent scan ──────────────────────────────────────
-
-@celery_app.task(name="app.worker.autonomous_agent_scan")
-def autonomous_agent_scan():
-    """Process all newly created open tickets with the autonomous agent.
-
-    Runs every 5 minutes. Tickets eligible for autonomous resolution are
-    handled immediately; others receive playbook-assisted first responses.
-    """
-    from app.db.session import worker_db_session
-    from app.services.service_desk.autonomous_agent_service import run_autonomous_scan
-
-    with worker_db_session() as db:
-        try:
-            result = run_autonomous_scan(db)
-            _worker_logger.info(
-                "autonomous_agent_scan: evaluated=%d auto_resolved=%d assisted=%d skipped=%d",
-                result.get("evaluated", 0),
-                result.get("auto_resolved", 0),
-                result.get("assisted", 0),
-                result.get("skipped", 0),
-            )
-            return result
-        except Exception as exc:
-            _worker_logger.error("autonomous_agent_scan error: %s", exc)
-            return {"error": str(exc)}
-
-
-
-@celery_app.task(name="app.worker.recordar_campana_de_presupuestos")
-def recordar_campana_de_presupuestos():
-    """Avisa a los responsables de presupuestos sin enviar cuando cierra su campaña."""
-    from app.db.session import worker_db_session
-    from app.services.presupuestos_preparar import recordar_campana
-    with worker_db_session() as db:
-        return {"avisos": recordar_campana(db)}
+    borradas = _en_sesion(purgar)
+    _worker_logger.info("conectores: %s llamadas antiguas borradas", borradas)
+    return {"borradas": borradas}

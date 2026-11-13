@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
@@ -42,7 +42,7 @@ function CatalogConfig() {
 
   const { data: catalog = [], isLoading } = useQuery<Cat[]>({
     queryKey: ['sd-catalog'],
-    queryFn: () => sdCatalogApi.get().then(r => r.data),
+    queryFn: () => sdCatalogApi.list().then(r => r.data),
   })
 
   const [editingCat, setEditingCat] = useState<Cat | null>(null)
@@ -99,7 +99,7 @@ function CatalogConfig() {
        catalog.length === 0 ? <EmptyState icon="📋" title={t('service_desk.catalog_empty')} description={t('service_desk.catalog_empty_desc')} /> :
       <div className="u-stack-12">
         {catalog.map((cat: Cat) => (
-          <div key={cat.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
+          <div key={cat.id} className="ds-card ds-card--plano">
             <div style={{ padding:'14px 18px', background:'var(--surface-1)', borderBottom:'1px solid var(--surface-4)',
               display:'flex', alignItems:'center', gap:10 }}>
               <span style={{ fontSize: "var(--text-lg-em)" }}>{cat.icon || '📁'}</span>
@@ -114,10 +114,10 @@ function CatalogConfig() {
               </div>
             </div>
             {(cat.services?.length ?? 0) > 0 && (
-              <table style={{ width:'100%', borderCollapse:'collapse' }}>
+              <table className="u-table">
                 <tbody>
                   {(cat.services ?? []).map((svc: Svc) => (
-                    <tr key={svc.id} style={{ borderBottom:'1px solid var(--surface-4)' }}>
+                    <tr key={svc.id} className="u-border-b">
                       <td style={{ padding:'10px 18px', fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{svc.name}</td>
                       <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{etiquetaSd('type', svc.ticket_type)}</td>
                       <td style={{ padding:'10px 8px' }}><PBadge v={svc.default_priority} /></td>
@@ -167,6 +167,7 @@ function CatalogConfig() {
 }
 
 function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: CSSProperties; LS: CSSProperties; initial?: Cat | null }) {
+  const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
@@ -177,9 +178,9 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
     <Modal open title={initial ? t('service_desk.cat_edit_title') : t('service_desk.cat_new_title')} onClose={onClose}>
       <div className="u-stack-14">
         <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:10 }}>
-          <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
-          <div><label style={LS}>Icon</label><input value={form.icon} onChange={set('icon')} style={{...IS, width:60, textAlign:'center'}} /></div>
-          <div><label style={LS}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>Icon</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.icon} onChange={set('icon')} style={{...IS, width:60, textAlign:'center'}} /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>Color</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -191,6 +192,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
 }
 
 function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial }: { catalog: Cat[]; onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: CSSProperties; LS: CSSProperties; initial?: Svc | null }) {
+  const idCampo = useId()
   const t = useAppT()
   const { data: usuarios = [] } = useQuery<User[]>({
     queryKey: ['users'],
@@ -216,29 +218,29 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: (e.target as HTMLInputElement).type==='checkbox' ? (e.target as HTMLInputElement).checked : e.target.value}))
   return (
     <Modal open title={initial ? t('service_desk.svc_edit_title') : t('service_desk.svc_new_title')} onClose={onClose}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-        <div className="u-col-full"><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
+      <div className="u-grid2-14">
+        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
         <div>
-          <label style={LS}>{t('service_desk.tab_catalog')}</label>
-          <select value={form.category_id} onChange={set('category_id')} style={IS}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.tab_catalog')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category_id} onChange={set('category_id')} style={IS}>
             {catalog.map((c: Cat) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>{t('service_desk.svc_ticket_type')}</label>
-          <select value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.svc_ticket_type')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
             {['incident','service_request','change','question'].map(tk => <option key={tk} value={tk}>{tk.replace(/_/g,' ')}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>{t('service_desk.svc_default_priority')}</label>
-          <select value={form.default_priority} onChange={set('default_priority')} style={IS}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.svc_default_priority')}</label>
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.default_priority} onChange={set('default_priority')} style={IS}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
           </select>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-          <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} style={IS} /></div>
-          <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} style={IS} /></div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('service_desk.sla_response_h')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} style={IS} /></div>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={LS}>{t('service_desk.sla_resolution_h')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} style={IS} /></div>
         </div>
         <div className="u-row-center-10">
           <input type="checkbox" id="svc_visible" aria-label={t('sd_cfg.svc_visible')} checked={form.is_visible_to_clients} onChange={set('is_visible_to_clients')} />
@@ -345,9 +347,9 @@ function SLAConfig() {
               </span>
               <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
                 <button onClick={() => setEditing(p)}
-                  style={{ padding:'3px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
+                  style={{ padding:'3px 10px', borderRadius:'var(--radius-sm)', border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
                 <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta política SLA?', onConfirm: () => remove(p.id), danger: true }) }}
-                  style={{ padding:'3px 10px', borderRadius:6, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
+                  style={{ padding:'3px 10px', borderRadius:'var(--radius-sm)', border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
               </div>
             </div>
             <div style={{ fontSize:'var(--text-sm)', color:'var(--text-2)', marginBottom:12, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
@@ -417,7 +419,7 @@ function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: 
           <option value="">—</option>
           {opciones.map(o => <option key={o.id} value={o.id}>{o.name ?? o.title ?? o.id}</option>)}
         </select></div>
-      <div style={{ display:'flex', justifyContent:'flex-end' }}>
+      <div className="u-row-end">
         <Button disabled={!destino || asignar.isPending} loading={asignar.isPending} onClick={() => asignar.mutate()}>{t('common.save')}</Button>
       </div>
     </div>
@@ -435,6 +437,7 @@ function horarioDe(p?: Policy | null): string {
 }
 
 function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Policy | null }) {
+  const idCampo = useId()
   const t = useAppT()
   const { data: calendarios = [] } = useQuery<Calendario[]>({
     queryKey: ['sla-calendars'],
@@ -475,10 +478,10 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
   }
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-      <div className="u-col-full"><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
+    <div className="u-grid2-14">
+      <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
       {[['P1 Crítico', 'p1'], ['P2 Alto', 'p2'], ['P3 Medio', 'p3'], ['P4 Bajo', 'p4']].map(([label, key]) => (
-        <div key={key} style={{ background:'var(--surface-1)', borderRadius:10, padding:14 }}>
+        <div key={key} style={{ background:'var(--surface-1)', borderRadius:'var(--radius-md)', padding:14 }}>
           <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" min={0} step="0.25" value={formRec[`${key}_response_hours`] as number} onChange={set(`${key}_response_hours`)} style={IS} /></div>
@@ -486,7 +489,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
           </div>
         </div>
       ))}
-      <div style={{ gridColumn:'1/-1', background:'var(--surface-1)', borderRadius:10, padding:14, display:'flex', flexDirection:'column', gap:12 }}>
+      <div style={{ gridColumn:'1/-1', background:'var(--surface-1)', borderRadius:'var(--radius-md)', padding:14, display:'flex', flexDirection:'column', gap:12 }}>
         <div>
           <label style={LS} htmlFor="sla-horario">{t('sd_cfg.schedule')}</label>
           <select id="sla-horario" value={horario} onChange={e => setHorario(e.target.value)} style={IS}>
@@ -499,7 +502,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
             <option value="own">{t('sd_cfg.schedule_own')}</option>
           </select>
           <div style={{ fontSize:'var(--text-xs)', color:'var(--text-3)', marginTop:6 }}>
-            {t('sd_cfg.schedule_hint')} <a href="/sla-calendars" style={{ color:'var(--accent)' }}>{t('sd_cfg.manage_calendars')}</a>
+            {t('sd_cfg.schedule_hint')} <a href="/sla-calendars" className="u-accent">{t('sd_cfg.manage_calendars')}</a>
           </div>
         </div>
         {propio && (
@@ -621,9 +624,9 @@ function GroupsConfig() {
                     </select>
                   )}
                   <button onClick={() => setEditing(g)}
-                    style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>✏ Editar</button>
+                    style={{ padding:'4px 10px', borderRadius:'var(--radius-sm)', border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>✏ Editar</button>
                   <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el grupo "${g.name}"?`, onConfirm: () => deleteGroup(g.id), danger: true }) }}
-                    style={{ padding:'4px 10px', borderRadius:6, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🗑 Eliminar</button>
+                    style={{ padding:'4px 10px', borderRadius:'var(--radius-sm)', border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🗑 Eliminar</button>
                 </div>
               </div>
               {g.description && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginBottom:12 }}>{g.description}</div>}
@@ -667,6 +670,7 @@ function GroupsConfig() {
 }
 
 function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Group | null }) {
+  const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
@@ -677,14 +681,14 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSS
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <>
-      <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
-      <div><label style={LS}>{t('service_desk.groups_support_level')}</label>
-        <select value={form.support_level} onChange={set('support_level')} style={IS}>
+      <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
+      <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.groups_support_level')}</label>
+        <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.support_level} onChange={set('support_level')} style={IS}>
           {[['l1','L1 — Soporte básico'],['l2','L2 — Soporte técnico'],['l3','L3 — Experto / Desarrollo']].map(([v,l]) =>
             <option key={v} value={v}>{l}</option>)}
         </select>
       </div>
-      <div><label style={LS}>{t('common.description')}</label><input value={form.description} onChange={set('description')} style={IS} /></div>
+      <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('common.description')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} style={IS} /></div>
       <div><label style={LS} htmlFor="grp-ola">{t('sd_cfg.ola_hours')}</label>
         <input id="grp-ola" type="number" min={0} step={0.5} value={form.ola_hours} onChange={set('ola_hours')} style={IS}
           aria-invalid={!olaValido} aria-describedby="grp-ola-hint" />
@@ -758,15 +762,15 @@ function TemplatesConfig() {
               </div>
               <div className="u-row-6">
                 <button onClick={() => toggle({id:tmpl.id, is_active:!tmpl.is_active})}
-                  style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px',
+                  style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px',
                     fontSize: "var(--text-xs)", color: tmpl.is_active ? COLOR.success : 'var(--text-3)', cursor:'pointer', fontFamily:'inherit' }}>
                   {tmpl.is_active ? t('service_desk.templates_active') : t('service_desk.templates_inactive')}
                 </button>
                 <button onClick={() => setEditing(tmpl)}
-                  style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px',
+                  style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px',
                     fontSize: "var(--text-xs)", color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>✏</button>
                 <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta plantilla?', onConfirm: () => remove(tmpl.id), danger: true }) }}
-                  style={{ background:'none', border:`1px solid ${alpha(COLOR.danger, '30')}`, borderRadius:6, padding:'3px 8px',
+                  style={{ background:'none', border:`1px solid ${alpha(COLOR.danger, '30')}`, borderRadius:'var(--radius-sm)', padding:'3px 8px',
                     fontSize: "var(--text-xs)", color:COLOR.danger, cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
               </div>
             </div>
@@ -799,6 +803,7 @@ function TemplatesConfig() {
 }
 
 function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Template | null }) {
+  const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', ticket_type: initial?.ticket_type || 'service_request',
@@ -808,26 +813,26 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: 
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <div className="u-stack-14">
-      <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+      <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
+      <div className="u-grid2-10">
         <div>
-          <label style={LS}>{t('service_desk.svc_ticket_type')}</label>
-          <select value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.svc_ticket_type')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
             {['incident','service_request','change','question','problem'].map(tk =>
               <option key={tk} value={tk}>{tk.replace(/_/g,' ')}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>{t('service_desk.templates_priority')}</label>
-          <select value={form.default_priority} onChange={set('default_priority')} style={IS}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.templates_priority')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.default_priority} onChange={set('default_priority')} style={IS}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
               <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
           </select>
         </div>
       </div>
       <div>
-        <label style={LS}>{t('service_desk.templates_hint')}</label>
-        <textarea value={form.description_template} onChange={set('description_template')} rows={4}
+        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.templates_hint')}</label>
+        <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description_template} onChange={set('description_template')} rows={4}
           style={{...IS, resize:'vertical'}} placeholder={t('config.texto_de_la_plantilla_de_descripcion')} />
       </div>
       <div className="u-actions-10">
@@ -840,6 +845,7 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: 
 
 // ── Canned Responses Manager ──────────────────────────────────────────────────
 function CannedResponsesManager() {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -883,7 +889,7 @@ function CannedResponsesManager() {
         <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:20 }}>
           {responses.map((r: Canned) => editing === r.id ? (
             <div key={r.id} style={{ padding:'12px 14px', background:'var(--accent-muted)',
-              border:'1px solid var(--accent-glow)', borderRadius:10 }}>
+              border:'1px solid var(--accent-glow)', borderRadius:'var(--radius-md)' }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
           <div><label style={LS}>{t('common.name')} *</label>
             <input value={editForm.title||''} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
@@ -892,7 +898,7 @@ function CannedResponsesManager() {
         </div>
         <div style={{marginBottom:8}}><label style={LS}>{t('service_desk.canned_shortcut')}</label>
           <input value={editForm.shortcut||''} onChange={e=>setEditForm(f=>({...f,shortcut:e.target.value}))} style={{...IS}} /></div>
-        <div style={{marginBottom:10}}><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
+        <div className="u-mb-10"><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
                 <textarea value={editForm.body||''} onChange={e=>setEditForm(f=>({...f,body:e.target.value}))} rows={4}
                   style={{...IS, resize:'vertical'}} /></div>
               <div className="u-row-8">
@@ -906,9 +912,9 @@ function CannedResponsesManager() {
             </div>
           ) : (
             <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px',
-              background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:10 }}>
+              background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-md)' }}>
               <div className="u-flex1-min0">
-                <div style={{ fontSize: "var(--text-base)", fontWeight:700 }}>{r.title}
+                <div className="u-base-700">{r.title}
                   {r.shortcut && <span style={{ fontSize: "var(--text-2xs)", color:'var(--accent)', marginLeft:8,
                     fontFamily:'var(--font-mono)', background:'var(--accent-muted)', padding:'1px 6px', borderRadius:4 }}>{r.shortcut}</span>}
                   {r.category && <span style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginLeft:6 }}>{r.category}</span>}
@@ -917,9 +923,9 @@ function CannedResponsesManager() {
                   textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.body?.slice(0,100)}</div>
               </div>
               <button onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }}
-                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✏</button>
+                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✏</button>
               <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${r.title}"?`, onConfirm: () => del(r.id), danger: true }) }}
-                style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)"}}>🗑</button>
+                style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)"}}>🗑</button>
             </div>
           ))}
           {responses.length === 0 && !isLoading && (
@@ -928,18 +934,18 @@ function CannedResponsesManager() {
         </div>
       )}
 
-      <div style={{ padding:'14px', background:'var(--accent-muted)', border:'1px dashed var(--accent-border)', borderRadius:10 }}>
+      <div style={{ padding:'14px', background:'var(--accent-muted)', border:'1px dashed var(--accent-border)', borderRadius:'var(--radius-md)' }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--accent)', marginBottom:12 }}>{t('service_desk.canned_new_header')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-          <div><label style={LS}>{t('common.name')} *</label>
-            <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
-          <div><label style={LS}>{t('service_desk.routing_name_lbl')}</label>
-            <input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={IS} /></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.routing_name_lbl')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={IS} /></div>
         </div>
-        <div style={{marginBottom:8}}><label style={LS}>{t('service_desk.canned_shortcut')}</label>
-          <input value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} style={IS} placeholder={t('service_desk.canned_shortcut')} /></div>
-        <div style={{marginBottom:12}}><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
-          <textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
+        <div style={{marginBottom:8}}><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.canned_shortcut')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} style={IS} placeholder={t('service_desk.canned_shortcut')} /></div>
+        <div className="u-mb-12"><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.canned_body_lbl')} *</label>
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
             style={{...IS, resize:'vertical'}} placeholder={t('config.texto_de_la_respuesta_enlatada')} /></div>
         <button onClick={() => create(form)} disabled={!form.title || !form.body}
           style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-base)",fontFamily:'inherit',fontWeight:600}}>
@@ -952,6 +958,7 @@ function CannedResponsesManager() {
 
 // ── Announcements Config ──────────────────────────────────────────────────────
 export function AnnouncementsConfig() {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -988,7 +995,7 @@ export function AnnouncementsConfig() {
           : (
             <div className="u-stack-10">
               {anns.map((a: Ann) => (
-                <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${alpha((TYPE_COLOR[a.type||'']||'var(--accent)'), '30')}`, borderRadius:10, alignItems:'flex-start' }}>
+                <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${alpha((TYPE_COLOR[a.type||'']||'var(--accent)'), '30')}`, borderRadius:'var(--radius-md)', alignItems:'flex-start' }}>
                   <div style={{ width:4, alignSelf:'stretch', borderRadius:4, background:TYPE_COLOR[a.type||'']||'var(--accent)', flexShrink:0 }} />
                   <div className="u-flex1">
                     <div style={{ fontSize: "var(--text-base)", fontWeight:700, marginBottom:4 }}>{a.title}
@@ -1004,7 +1011,7 @@ export function AnnouncementsConfig() {
                     )}
                   </div>
                   <button onClick={() => { openConfirmGlobal({ message: '¿Desactivar este anuncio?', onConfirm: () => del(a.id) }) }}
-                    style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:6, padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                    style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)', padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               ))}
             </div>
@@ -1013,9 +1020,9 @@ export function AnnouncementsConfig() {
       {showCreate && (
         <Modal open title={t('config.nuevo_comunicado')} onClose={() => setShowCreate(false)} width={500}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div className="u-col-full"><label style={LS}>{t('service_desk.ticket_title')} *</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
-            <div><label style={LS}>{t('common.status')}</label>
-              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={IS}>
+            <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('service_desk.ticket_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('common.status')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={IS}>
                 {['info','warning','outage','maintenance'].map(tp=><option key={tp} value={tp}>{tp}</option>)}
               </select>
             </div>
@@ -1023,9 +1030,9 @@ export function AnnouncementsConfig() {
               <input type="checkbox" id="showCl" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
               <label htmlFor="showCl" style={{ fontSize: "var(--text-sm)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.ann_visible_clients')}</label>
             </div>
-            <div><label style={LS}>{t('service_desk.ann_starts')}</label><DateInput withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
-            <div><label style={LS}>{t('service_desk.ann_ends')}</label><DateInput withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>
-            <div className="u-col-full"><label style={LS}>{t('service_desk.ann_message')} *</label><textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.ann_starts')}</label><DateInput id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.ann_ends')}</label><DateInput id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>
+            <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('service_desk.ann_message')} *</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
           </div>
           <div className="u-actions-8">
             <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)" }}>{t('common.cancel')}</button>

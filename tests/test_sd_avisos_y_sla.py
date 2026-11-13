@@ -219,7 +219,7 @@ def test_el_webhook_sale_con_la_organizacion_del_evento(db, gente, monkeypatch):
 
     vistos = []
     monkeypatch.setattr(wh, "fire_webhook",
-                        lambda db, event, payload, project_id=None: vistos.append((event, db.info.get("organization_id"))) or 0)
+                        lambda db, event, payload, project_id=None, organization_id=None: vistos.append((event, organization_id or db.info.get("organization_id"))) or 0)
     _ticket(db, number="INC-0109")
     _procesar(db)
     assert vistos == [("ticket.created", ORG)]

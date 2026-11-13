@@ -15,6 +15,7 @@ from app.services.absence_service import (
 )
 from app.schemas.absences import AbsenceIn, AbsenceReview
 from app.core import timeutil
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -25,9 +26,9 @@ def list_absences(
     date_to:   Optional[date] = None,
     user_id:   Optional[str]  = None,
     status:    Optional[str]  = None,
-    limit:     Optional[int] = Query(None, ge=1, le=200),
+    limit:     Optional[int] = Query(None, ge=1, le=MAX_TAMANO_DE_PAGINA),
     page:      int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -58,7 +59,7 @@ def list_absences(
 @router.get("/my", response_model=APIListResponse[dict], summary="Mis ausencias")
 def get_my_absences(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -180,7 +181,7 @@ def get_team_absences(
 @router.get("/pending", response_model=APIListResponse[dict], summary="Ausencias pendientes de aprobación")
 def get_pending_absences(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):

@@ -173,7 +173,6 @@ def main() -> int:
     (el dueño del esquema) o, si no está, con `DATABASE_URL`. Sin rol definido
     solo aplica las políticas.
     """
-    import os
     from sqlalchemy import create_engine
     from app.core.config import settings
     import app.models  # noqa: F401  (registra los modelos para `politicas`)
@@ -183,7 +182,7 @@ def main() -> int:
         return 0
     motor = create_engine(url)
     with motor.begin() as conexion:
-        usuario, clave = os.getenv("APP_DB_USER", "").strip(), os.getenv("APP_DB_PASSWORD", "").strip()
+        usuario, clave = (settings.APP_DB_USER or "").strip(), (settings.APP_DB_PASSWORD or "").strip()
         if usuario and clave:
             crear_rol(conexion, usuario, clave)
             print(f"rls: rol {usuario} listo (sin superusuario ni BYPASSRLS)")

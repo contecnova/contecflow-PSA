@@ -36,6 +36,7 @@ from app.schemas.milestones import (
     MilestoneApprovalRequestIn as ApprovalRequestIn,
     MilestoneApprovalDecisionIn as ApprovalDecisionIn,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(tags=["milestones"])
 
@@ -50,7 +51,7 @@ _ms_out = serialize_milestone
 def list_milestones(
     project_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -174,7 +175,7 @@ def generate_invoice(
 @router.get("/dashboard/pending", response_model=APIListResponse[dict], summary="Milestones pendientes de acción en todos los proyectos")
 def pending_milestones_dashboard(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):

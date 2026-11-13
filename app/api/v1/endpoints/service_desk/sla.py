@@ -22,6 +22,7 @@ from app.services.service_desk.escalation_service import (
     run_escalation_rules_job, list_escalation_logs_payload,
 )
 from app.services.service_desk.metrics_service import priority_matrix_payload
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -122,7 +123,7 @@ def run_escalation_rules(db: Session = Depends(get_db), _: User = Depends(requir
 
 
 @router.get("/escalation-rules/logs", summary="Historial de escaladas disparadas")
-def get_escalation_logs(ticket_id: Optional[str] = None, limit: int = Query(50, le=200), db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def get_escalation_logs(ticket_id: Optional[str] = None, limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA), db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
     return APIListResponse.ok(items=list_escalation_logs_payload(db, ticket_id, limit))
 
 

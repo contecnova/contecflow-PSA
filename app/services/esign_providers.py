@@ -21,16 +21,14 @@ import urllib.request
 
 from app.core.outbound_url import abrir, validate_outbound_url
 from typing import Optional
+from app.services.settings_service import outbound_http_timeout
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # ── DocuSign auth base URLs ────────────────────────────────────────────────────
 _DS_AUTH_DEMO = "https://account-d.docusign.com"
 _DS_AUTH_PROD = "https://account.docusign.com"
-
-# ── Adobe Sign default API base ────────────────────────────────────────────────
-_ADOBE_DEFAULT_BASE = "https://api.na1.adobesign.com/api/rest/v6"
-
 
 # ── Low-level HTTP helper ──────────────────────────────────────────────────────
 
@@ -43,7 +41,7 @@ def _http(method: str, url: str, headers: dict, body=None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers=headers)  # noqa: S310
     try:
-        with abrir(req, timeout=20) as resp:  # noqa: S310
+        with abrir(req, timeout=outbound_http_timeout(default=20)) as resp:  # noqa: S310
             raw = resp.read()
             ct = resp.headers.get("Content-Type", "")
             if "json" in ct:
@@ -70,14 +68,19 @@ def docusign_auth_url(
     *,
     is_demo: bool = True,
     scopes: str = "signature impersonation",
+    state: Optional[str] = None,
 ) -> str:
-    """Return the OAuth authorization URL for DocuSign."""
+    """Return the OAuth authorization URL for DocuSign.
+
+    `state`: el de `app.services.oauth_state` (auditoria 2026-11 #26).
+    """
     base = _DS_AUTH_DEMO if is_demo else _DS_AUTH_PROD
     params = urllib.parse.urlencode({
         "response_type": "code",
         "scope": scopes,
         "client_id": integration_key,
         "redirect_uri": redirect_uri,
+        **({"state": state} if state else {}),
     })
     return f"{base}/oauth/auth?{params}"
 
@@ -111,7 +114,7 @@ def docusign_exchange_code(
         },
     )
     try:
-        with abrir(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
             data = json.loads(resp.read())
         return {
             "ok": True,
@@ -154,7 +157,7 @@ def docusign_refresh_token(
         },
     )
     try:
-        with abrir(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
             data = json.loads(resp.read())
         return {
             "ok": True,
@@ -299,14 +302,19 @@ def adobe_sign_auth_url(
     redirect_uri: str,
     base_url: Optional[str] = None,
     scopes: str = "agreement_write:self user_read:self agreement_read:self",
+    state: Optional[str] = None,
 ) -> str:
-    """Return the OAuth authorization URL for Adobe Sign."""
-    base = (base_url or _ADOBE_DEFAULT_BASE).rstrip("/").replace("/api/rest/v6", "")
+    """Return the OAuth authorization URL for Adobe Sign.
+
+    `state`: el de `app.services.oauth_state` (auditoria 2026-11 #26).
+    """
+    base = (base_url or settings.ADOBE_SIGN_BASE_URL).rstrip("/").replace("/api/rest/v6", "")
     params = urllib.parse.urlencode({
         "response_type": "code",
         "scope": scopes,
         "client_id": client_id,
         "redirect_uri": redirect_uri,
+        **({"state": state} if state else {}),
     })
     return f"{base}/public/oauth/v2?{params}"
 
@@ -322,7 +330,7 @@ def adobe_sign_exchange_code(
 
     Returns {"ok": True, "access_token": str, "refresh_token": str, "api_access_point": str}
     """
-    base = (base_url or _ADOBE_DEFAULT_BASE).rstrip("/").replace("/api/rest/v6", "")
+    base = (base_url or settings.ADOBE_SIGN_BASE_URL).rstrip("/").replace("/api/rest/v6", "")
     body_str = urllib.parse.urlencode({
         "grant_type": "authorization_code",
         "code": code,
@@ -337,14 +345,14 @@ def adobe_sign_exchange_code(
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     try:
-        with abrir(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
             data = json.loads(resp.read())
         return {
             "ok": True,
             "access_token": data.get("access_token", ""),
             "refresh_token": data.get("refresh_token", ""),
             "expires_in": data.get("expires_in", 3600),
-            "api_access_point": data.get("api_access_point", base_url or _ADOBE_DEFAULT_BASE),
+            "api_access_point": data.get("api_access_point", base_url or settings.ADOBE_SIGN_BASE_URL),
         }
     except urllib.error.HTTPError as exc:
         err = exc.read().decode()[:300]
@@ -364,7 +372,7 @@ def adobe_sign_refresh_token(
 
     Returns {"ok": True, "access_token": str}
     """
-    base = (base_url or _ADOBE_DEFAULT_BASE).rstrip("/").replace("/api/rest/v6", "")
+    base = (base_url or settings.ADOBE_SIGN_BASE_URL).rstrip("/").replace("/api/rest/v6", "")
     body_str = urllib.parse.urlencode({
         "grant_type": "refresh_token",
         "client_id": client_id,
@@ -378,7 +386,7 @@ def adobe_sign_refresh_token(
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     try:
-        with abrir(req, timeout=15) as resp:  # noqa: S310
+        with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
             data = json.loads(resp.read())
         return {
             "ok": True,
@@ -429,7 +437,7 @@ def adobe_sign_upload_document(
         },
     )
     try:
-        with abrir(req, timeout=30) as resp:  # noqa: S310
+        with abrir(req, timeout=outbound_http_timeout(default=30)) as resp:  # noqa: S310
             data = json.loads(resp.read())
         tdoc_id = data.get("transientDocumentId")
         if not tdoc_id:

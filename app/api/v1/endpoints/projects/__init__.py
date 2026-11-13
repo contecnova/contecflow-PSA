@@ -34,6 +34,7 @@ from app.services.project_service import (
     update_member_record,
     remove_member_record,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -45,7 +46,7 @@ def list_projects(
     pm_id: Optional[str] = None,
     search: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

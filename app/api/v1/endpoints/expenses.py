@@ -217,7 +217,8 @@ def export_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return export_expenses_excel(date_from, date_to, status, category, db)
+    from app.api.descargas import respuesta_de_descarga
+    return respuesta_de_descarga(export_expenses_excel(date_from, date_to, status, category, db))
 
 
 # ── OCR receipt scanning (v24) ────────────────────────────────────────────────

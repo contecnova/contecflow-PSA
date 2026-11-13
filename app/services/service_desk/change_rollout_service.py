@@ -19,6 +19,10 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.escalas import (
+    CAMBIO_UMBRAL_CANARIO, CAMBIO_UMBRAL_VUELTA_ATRAS, nivel_de_riesgo_de_cambio,
+)
+
 from app.models.settings import AppSetting
 
 _KEY_PLANS = "sd.change_rollout.plans"
@@ -220,17 +224,17 @@ def simulate_impact(
     risk_score += len(affected_services) * 0.05
     risk_score = min(1.0, risk_score)
 
-    risk_label = "critical" if risk_score >= 0.7 else "high" if risk_score >= 0.4 else "medium" if risk_score >= 0.2 else "low"
+    risk_label = nivel_de_riesgo_de_cambio(risk_score)
 
     estimated_duration_minutes = 30 + len(rollout_phases) * 15 + len(affected_services) * 5
 
     recommendations = [
         recommendation
         for recommendation in [
-            "Prepare rollback script before starting" if risk_score >= 0.4 else None,
+            "Prepare rollback script before starting" if risk_score >= CAMBIO_UMBRAL_VUELTA_ATRAS else None,
             "Notify all affected users 48h in advance" if affected_users_count > 100 else None,
             "Consider phased rollout over multiple days" if len(affected_services) > 5 else None,
-            "Add a canary phase before general rollout" if len(rollout_phases) <= 1 and risk_score >= 0.3 else None,
+            "Add a canary phase before general rollout" if len(rollout_phases) <= 1 and risk_score >= CAMBIO_UMBRAL_CANARIO else None,
         ]
         if recommendation
     ]
@@ -242,8 +246,8 @@ def simulate_impact(
         "affected_users_count": affected_users_count,
         "estimated_duration_minutes": estimated_duration_minutes,
         "phases_count": len(rollout_phases),
-        "recommended_window": "22:00-06:00" if risk_score >= 0.4 else "business_hours",
+        "recommended_window": "22:00-06:00" if risk_score >= CAMBIO_UMBRAL_VUELTA_ATRAS else "business_hours",
         "recommendations": recommendations,
-        "canary_recommended": risk_score >= 0.3,
-        "rollback_readiness": "required" if risk_score >= 0.4 else "recommended",
+        "canary_recommended": risk_score >= CAMBIO_UMBRAL_CANARIO,
+        "rollback_readiness": "required" if risk_score >= CAMBIO_UMBRAL_VUELTA_ATRAS else "recommended",
     }

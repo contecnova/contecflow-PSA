@@ -13,6 +13,7 @@ import AskDataWidget from '../components/bi/AskDataWidget'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { localeActivo } from '../utils/helpers'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 // Lo que devuelve `olap/query_engine.get_kpi_summary` (auditoria 2026-11: la
 // pagina leia `revenue_total`, `cost_total`… que no existen, y salia 0 €). Las
 // cifras de horas y coste son del mes en curso; no hay filtro por periodo.
@@ -42,12 +43,6 @@ interface BiProjectHealth {
 
 function getLocale(lang: string) {
   return localeActivo(lang || undefined)
-}
-
-function fmtCur(v: unknown, lang = 'es') {
-  if (v == null || Number.isNaN(Number(v))) return '—'
-  const locale = getLocale(lang)
-  return new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(v))
 }
 
 function fmtNum(v: unknown, lang = 'es') {
@@ -80,6 +75,7 @@ function EmptyDash() {
 }
 
 export default function BIPage(): JSX.Element {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const { lang } = useAppLang()
   const isMobile = useMediaQuery('(max-width: 900px)')
@@ -139,12 +135,12 @@ export default function BIPage(): JSX.Element {
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 16 }}>
-            <KpiCard label={`${t('bi.kpi_coste')} · ${t('bi.kpi_mes')}`} value={fmtCur(kpis?.cost_mtd, lang)} />
+            <KpiCard label={`${t('bi.kpi_coste')} · ${t('bi.kpi_mes')}`} value={fmtMoneda(kpis?.cost_mtd as number | null | undefined, { decimales: 0 })} />
             <KpiCard label={`${t('bi.kpi_horas')} · ${t('bi.kpi_mes')}`} value={fmtNum(kpis?.hours_mtd, lang)}
               note={`${t('bi.kpi_facturables')}: ${fmtPct(kpis?.billability_pct)}`} />
             <KpiCard label={t('bi.kpi_margen')} value={fmtPct(kpis?.avg_margin_pct)} note={t('bi.kpi_margen_nota')} />
-            <KpiCard label={t('bi.kpi_pipeline')} value={fmtCur(kpis?.pipeline_weighted, lang)}
-              note={`${t('bi.kpi_abiertas')}: ${kpis?.open_opps ?? 0} · ${t('bi.kpi_ganado')}: ${fmtCur(kpis?.won_revenue, lang)}`} />
+            <KpiCard label={t('bi.kpi_pipeline')} value={fmtMoneda(kpis?.pipeline_weighted as number | null | undefined, { decimales: 0 })}
+              note={`${t('bi.kpi_abiertas')}: ${kpis?.open_opps ?? 0} · ${t('bi.kpi_ganado')}: ${fmtMoneda(kpis?.won_revenue as number | null | undefined, { decimales: 0 })}`} />
             <KpiCard label={t('bi.kpi_proyectos')} value={activeProjects}
               note={`${t('bi.kpi_riesgo_alto')}: ${kpis?.high_risk_projects ?? 0}`} />
           </div>
@@ -165,7 +161,7 @@ export default function BIPage(): JSX.Element {
                     key={p.id || p.project_id || p.code}
                     style={{
                       border: '1px solid var(--surface-4)',
-                      borderRadius: 10,
+                      borderRadius: 'var(--radius-md)',
                       padding: 10,
                       background: 'var(--surface-2)',
                     }}
@@ -180,7 +176,7 @@ export default function BIPage(): JSX.Element {
               </div>
             ) : (
               <div className="u-scroll-x">
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
+                <table className="u-table-sm">
                   <thead>
                     <tr style={{ background: 'var(--surface-2)' }}>
                       <th style={{ textAlign: 'left', padding: '10px 12px' }}>{t('bi.col_proyecto')}</th>

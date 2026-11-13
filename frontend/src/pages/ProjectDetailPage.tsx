@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -62,7 +62,7 @@ function OverviewTab({ project }: { project: Project }) {
   const budgetColor = budgetPct > 90 ? 'var(--danger)' : budgetPct > 70 ? 'var(--warning)' : 'var(--success)'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="u-stack-20">
       {/* Progress */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: "var(--text-base)" }}>
@@ -109,7 +109,7 @@ function OverviewTab({ project }: { project: Project }) {
       )}
 
       {/* Quick links */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div className="u-wrap-10">
         {[
           { label: t('project_detail.view_gantt'), to: `/gantt?project=${project.id}`, icon: BarChart2 },
           { label: t('project_detail.view_full_tasks'), to: `/tasks?project_id=${project.id}`, icon: CheckSquare },
@@ -165,13 +165,13 @@ function TasksTab({ projectId }: { projectId?: string }) {
     <div className="u-stack-12">
       <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-3)', paddingBottom: 4 }}>
         <span>{t('project_detail.total')}: <b className="u-text1">{tasks.length}</b></span>
-        <span>{t('project_detail.open_tasks')}: <b style={{ color: 'var(--accent)' }}>{open.length}</b></span>
-        <span>{t('project_detail.completed_tasks')}: <b style={{ color: 'var(--success)' }}>{done.length}</b></span>
+        <span>{t('project_detail.open_tasks')}: <b className="u-accent">{open.length}</b></span>
+        <span>{t('project_detail.completed_tasks')}: <b className="u-success">{done.length}</b></span>
       </div>
       {tasks.map(task => (
         <div key={task.id} style={{
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 10, padding: '12px 16px',
+          borderRadius: 'var(--radius-md)', padding: '12px 16px',
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <div style={{
@@ -183,7 +183,7 @@ function TasksTab({ projectId }: { projectId?: string }) {
               {task.title}
             </div>
             {task.assignee_name && (
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>→ {task.assignee_name}</div>
+              <div className="u-text3-xs-mt2">→ {task.assignee_name}</div>
             )}
           </div>
           {task.due_date && (
@@ -231,7 +231,7 @@ function TeamTab({ projectId }: { projectId?: string }) {
       {members.map((m, i) => (
         <div key={m.id || m.user_id || i} style={{
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 10, padding: '12px 16px',
+          borderRadius: 'var(--radius-md)', padding: '12px 16px',
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <div style={{
@@ -243,7 +243,7 @@ function TeamTab({ projectId }: { projectId?: string }) {
             {(m.full_name || m.name || '?').charAt(0).toUpperCase()}
           </div>
           <div className="u-flex1">
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{m.full_name || m.name || '—'}</div>
+            <div className="u-text1-base-600">{m.full_name || m.name || '—'}</div>
             {(m.role || m.project_role) && (
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 1 }}>{m.role || m.project_role}</div>
             )}
@@ -263,10 +263,9 @@ function RisksTab({ projectId }: { projectId?: string }) {
   const t = useAppT()
   const { data: risks = [], isLoading } = useQuery<Risk[]>({
     queryKey: ['project-detail-risks', projectId],
-    queryFn: () => risksApi.list(projectId, undefined).then((r: { data: unknown }) => {
-      const d = r.data as Risk[] | { items?: Risk[] }
-      return Array.isArray(d) ? d : (d?.items || [])
-    }),
+    // Auditoria 2026-11 (#39): el endpoint devuelve `{risks, summary}`; se leia
+    // como lista o `{items}` y la pestana de riesgos salia siempre vacia.
+    queryFn: () => risksApi.list<Risk>(projectId, undefined).then(r => r.data?.risks ?? []),
     staleTime: 60_000,
   })
 
@@ -292,7 +291,7 @@ function RisksTab({ projectId }: { projectId?: string }) {
           <div key={risk.id || i} style={{
             background: 'var(--surface-2)', border: `1px solid ${alpha(impColor, '30')}`,
             borderLeft: `3px solid ${impColor}`,
-            borderRadius: 10, padding: '12px 16px',
+            borderRadius: 'var(--radius-md)', padding: '12px 16px',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
               <div>
@@ -337,6 +336,7 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
   onCancel: () => void
   isPending: boolean
 }) {
+  const idCampo = useId()
   const t = useAppT()
   const STATUS_CFG = {
     planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
@@ -368,34 +368,34 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
       <div>
-        <label style={labelStyle}>{t('project_detail.project_name_label')}</label>
-        <input value={form.name} onChange={e => set('name', e.target.value)} style={inputStyle}
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{t('project_detail.project_name_label')}</label>
+        <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => set('name', e.target.value)} style={inputStyle}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label style={labelStyle}>{t('project_detail.status_label')}</label>
-        <select value={form.status} onChange={e => set('status', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+        <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{t('project_detail.status_label')}</label>
+        <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={e => set('status', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
           {Object.entries(STATUS_CFG).map(([v, cfg]) => (
             <option key={v} value={v}>{cfg.label}</option>
           ))}
         </select>
       </div>
       <div>
-        <label style={labelStyle}>{t('project_detail.end_date_label')}</label>
-        <DateInput value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} style={inputStyle}
+        <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>{t('project_detail.end_date_label')}</label>
+        <DateInput id={`${idCampo}-3`} value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} style={inputStyle}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label style={labelStyle}>{t('project_detail.budget_label')}</label>
-        <input type="number" value={form.budget_amount} onChange={e => set('budget_amount', e.target.value)} style={inputStyle}
+        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>{t('project_detail.budget_label')}</label>
+        <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.budget_amount} onChange={e => set('budget_amount', e.target.value)} style={inputStyle}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label style={labelStyle}>{t('project_detail.description_label')}</label>
-        <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={4}
+        <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={labelStyle}>{t('project_detail.description_label')}</label>
+        <textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => set('description', e.target.value)} rows={4}
           style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
@@ -502,7 +502,7 @@ export default function ProjectDetailPage() {
           {project.code && (
             <>
               <span style={{ color: 'var(--text-4)' }}>/</span>
-              <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{project.code}</span>
+              <span className="u-text3-mono-xs">{project.code}</span>
             </>
           )}
         </div>

@@ -167,7 +167,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <div style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: 'color-mix(in srgb, var(--accent) 9%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', backgroundColor: 'color-mix(in srgb, var(--accent) 9%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
@@ -196,12 +196,12 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             <input ref={fileRef} type="file" style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
             {file
-              ? <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
+              ? <span className="u-text1-sm-600">{file.name}</span>
               : <span className="u-text3-xs">
                   <Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('documents_panel.click_or_drag')}
                 </span>}
           </button>
-          <input
+          <input aria-label={t('documents_panel.title_placeholder')}
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder={t('documents_panel.title_placeholder')}
@@ -246,23 +246,23 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
                   <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
                   <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
                     <span>{doc.category}</span>
-                    {lv && <span style={{ fontFamily: 'var(--font-mono)' }}>{fmtBytes(lv.file_size)}</span>}
+                    {lv && <span className="u-mono">{fmtBytes(lv.file_size)}</span>}
                     {approval && <span style={{ color: approval.c, fontWeight: 700 }}>{approval.icon}</span>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
                   {lv?.download_url && (
                     <a href={lv.download_url} target="_blank" rel="noreferrer" title={t('documents_panel.download_title')}
-                      style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
+                      style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
                       <Download size={11} />
                     </a>
                   )}
-                  <button onClick={() => summaryMutation.mutate(doc.id)} title={t('documents_panel.ai_summary_title')}
-                    style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
+                  <button aria-label={t('documents_panel.ai_summary_title')} onClick={() => summaryMutation.mutate(doc.id)} title={t('documents_panel.ai_summary_title')}
+                    style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
                     <Sparkles size={11} />
                   </button>
-                  <button onClick={() => { openConfirmGlobal({message:`${t('documents_panel.delete_confirm')} "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }} title={t('documents_panel.delete_title')}
-                    style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
+                  <button aria-label={t('documents_panel.delete_title')} onClick={() => { openConfirmGlobal({message:`${t('documents_panel.delete_confirm')} "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }} title={t('documents_panel.delete_title')}
+                    style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
                     <Trash2 size={11} />
                   </button>
                 </div>

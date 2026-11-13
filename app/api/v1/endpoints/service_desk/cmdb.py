@@ -40,6 +40,7 @@ from app.services.service_desk.cmdb_discovery_service import (
     deduplicate_candidates,
     auto_merge_duplicates,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -257,7 +258,7 @@ def run_discovery_provider_now(
 @router.get("/cmdb/discovery/providers/{provider_id}/jobs", summary="Listar jobs de discovery")
 def list_discovery_jobs(
     provider_id: str,
-    page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
     # La comprobacion de a quien pertenece el proveedor vive ahora dentro de
@@ -270,11 +271,23 @@ def list_discovery_jobs(
     )
 
 
+def _discovery_en_segundo_plano(trabajo, db: Session):
+    """Segunda auditoria 2026-11 (n.º 20): recorrer todos los proveedores
+    (llamadas a nubes, escaneos) iba dentro de la peticion. Con cola: 202
+    `{status: "queued", results: []}`; cada ejecucion queda en los jobs de su
+    proveedor. Sin cola, como siempre: `{ok, results}`."""
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    resultados = encolar(trabajo, _sesion=db)
+    if resultados is EN_COLA:
+        return respuesta_en_cola(results=[])
+    return APIResponse.ok(data={"ok": True, "results": resultados})
+
+
 @router.post("/cmdb/discovery/run-all", summary="Ejecutar discovery para todos los proveedores activos")
 def run_discovery_all(
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
-    return APIResponse.ok(data={"ok": True, "results": run_all_active_discoveries(db)})
+    return _discovery_en_segundo_plano(run_all_active_discoveries, db)
 
 
 @router.get("/cmdb/discovery/reconciliation-health", summary="Salud de reconciliación CMDB")
@@ -398,7 +411,7 @@ def run_due_discovery(
     innecesarios y reducir carga en entornos grandes.
     """
     _ = current_user
-    return APIResponse.ok(data={"ok": True, "results": run_due_discoveries(db)})
+    return _discovery_en_segundo_plano(run_due_discoveries, db)
 
 
 @router.post(

@@ -10,8 +10,6 @@ from app.models.ai_chat import AIActionLog, AIMessage
 from app.schemas.ai_chat import (
     serialize_tool_calls,
     serialize_tool_results,
-    deserialize_tool_calls,
-    deserialize_tool_results,
 )
 from app.services.ai_chat.prompt_service import get_prompt
 from app.services.ai_chat.context_service import build_tenant_context
@@ -139,12 +137,3 @@ def persist_chat_response(
     db.commit()
     return ai_msg.id   # revisión 2026-11: el panel lo usa para valorar la respuesta
 
-
-def load_message_tool_calls(msg: AIMessage) -> list:
-    """Read ``AIMessage.tool_calls`` as validated dicts (audit #61)."""
-    return deserialize_tool_calls(msg.tool_calls)
-
-
-def load_message_tool_results(msg: AIMessage) -> list:
-    """Read ``AIMessage.tool_results`` as validated dicts (audit #61)."""
-    return deserialize_tool_results(msg.tool_results)

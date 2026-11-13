@@ -318,27 +318,6 @@ def _serialize_approval_request(db, doc) -> Optional[dict]:
 
 # ── Entity-list helper ────────────────────────────────────────────────────────
 
-def build_doc_list(docs: list) -> list:
-    result = []
-    for doc in docs:
-        latest = doc.versions[0] if doc.versions else None
-        result.append({
-            "id": doc.id, "title": doc.title, "category": doc.category,
-            "approval_status": doc.approval_status, "is_archived": doc.is_archived,
-            "created_by_name": doc.creator.full_name if doc.creator else "Unknown",
-            "created_at": str(doc.created_at)[:16] if doc.created_at else None,
-            "tags": [t.tag_name for t in doc.tags],
-            "version_count": len(doc.versions),
-            "checkout": _reserva_vigente(doc),
-            "latest_version": {
-                "id": latest.id, "version_num": latest.version_num, "file_name": latest.file_name,
-                "file_size": latest.file_size, "file_mime_type": latest.file_mime_type,
-                "download_url": file_storage.generate_presigned_url(latest.file_key) if latest.file_key else None,
-            } if latest else None,
-        })
-    return result
-
-
 # ── AI summary extraction ─────────────────────────────────────────────────────
 
 _MAX_SUMMARY_SOURCE_CHARS = 8000
@@ -679,33 +658,6 @@ def create_document(db, payload, current_user):
     return serialize_document(db, doc, current_user)
 
 
-def list_documents(db, current_user, skip: int, limit: int, category, tags, search, project_id, is_archived: bool):
-    q = db.query(Document).filter(Document.is_archived == is_archived)
-    if category:
-        q = q.filter(Document.category == category)
-    if project_id:
-        q = q.filter(Document.project_id == project_id)
-    if search:
-        q = q.filter(or_(
-            Document.title.ilike(f"%{search}%"),
-            Document.description.ilike(f"%{search}%"),
-        ))
-    if current_user.role != UserRole.admin:
-        q = q.filter(or_(
-            Document.created_by == current_user.id,
-            Document.permissions.any(DocumentPermission.user_id == current_user.id),
-        ))
-    if not current_user.is_superadmin and current_user.organization_id:
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == current_user.organization_id
-        ).scalar_subquery()
-        q = q.filter(or_(
-            Document.created_by.in_(org_user_ids),
-            Document.permissions.any(DocumentPermission.user_id.in_(org_user_ids)),
-        ))
-    return q.order_by(Document.created_at.desc()).offset(skip).limit(limit).all()
-
-
 def log_document_view(db, doc_id: str, user_id: str, ip_address):
     db.add(DocumentAccessLog(document_id=doc_id, user_id=user_id, action="view", ip_address=ip_address))
     db.commit()
@@ -939,14 +891,6 @@ def create_and_upload_document(db, current_user, file, content: bytes, title: st
     return serialize_document(db, doc, current_user)
 
 
-def resolve_user_from_token(db, token: str):
-    payload = decode_token(token)
-    if payload and payload.get("type") == "access":
-        user_id = payload.get("sub")
-        return db.query(User).filter(User.id == user_id, User.is_active == True).first()
-    return None
-
-
 def resolve_file_access_token(token: str, file_key: str) -> bool:
     payload = decode_token(token)
     if not payload or payload.get("type") != "access":
@@ -963,20 +907,6 @@ def get_version_by_file_key(db, file_key: str):
 def log_document_download(db, doc_id: str, user_id: str, ip_address):
     db.add(DocumentAccessLog(document_id=doc_id, user_id=user_id, action="download", ip_address=ip_address))
     db.commit()
-
-
-def docs_by_project(db, project_id: str, archived: bool):
-    return db.query(Document).filter(
-        Document.project_id == project_id,
-        Document.is_archived == archived,
-    ).order_by(Document.created_at.desc()).all()
-
-
-def docs_by_task(db, task_id: str):
-    return db.query(Document).filter(
-        Document.task_id == task_id,
-        Document.is_archived == False,
-    ).order_by(Document.created_at.desc()).all()
 
 
 def docs_by_ticket(db, ticket_id: str):

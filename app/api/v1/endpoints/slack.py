@@ -13,7 +13,7 @@ numero 1 de la auditoria.
 **Los paths no han cambiado.** ABAC y GRC derivan el modulo de la ruta, asi que
 tocarlos alteraria los permisos en silencio.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
@@ -89,11 +89,3 @@ def slack_notify(
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-
-@router.get("/slack/logs", summary="Historial de notificaciones Slack")
-def slack_logs(
-    limit: int = Query(50, le=200),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    return APIListResponse.ok(items=_slack.get_slack_logs(limit, db))

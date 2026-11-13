@@ -21,6 +21,7 @@ from app.models.user import User
 from app.services import portfolio_service
 from app.services.portfolio_service import serialize_portfolio as _serialize_portfolio
 from app.core import timeutil
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -45,7 +46,7 @@ class PortfolioProjectIn(BaseModel):
 @router.get("", response_model=APIListResponse[dict], summary="Listar carteras")
 @router.get("/", response_model=APIListResponse[dict], summary="Listar carteras", include_in_schema=False)
 def list_portfolios(page: int = Query(1, ge=1),
-                    page_size: int = Query(50, ge=1, le=200),
+                    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
                     db: Session = Depends(get_db),
                     cu: User = Depends(get_current_user)):
     rows = portfolio_service.list_portfolios(

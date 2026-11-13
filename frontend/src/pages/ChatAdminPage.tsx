@@ -376,7 +376,7 @@ function LegalHoldTab() {
       <Card>
         <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>{t('chat_admin.new_case')}</h4>
         <div className="u-stack-10">
-          <Field label={t('chat_admin.case_reference_label')}><input style={inputStyle} value={form.case_reference} onChange={(e) => setForm({ ...form, case_reference: e.target.value })} placeholder="CASO-2026-001" /></Field>
+          <Field label={t('chat_admin.case_reference_label')}><input aria-label="CASO-2026-001" style={inputStyle} value={form.case_reference} onChange={(e) => setForm({ ...form, case_reference: e.target.value })} placeholder="CASO-2026-001" /></Field>
           <Field label={t('chat_admin.description_label')}><textarea rows={2} style={inputStyle} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
           <Field label={t('chat_admin.custodians_label')}><input style={inputStyle} value={form.custodian_user_ids} onChange={(e) => setForm({ ...form, custodian_user_ids: e.target.value })} /></Field>
           <Field label={t('chat_admin.channels_label')}><input style={inputStyle} value={form.channel_ids} onChange={(e) => setForm({ ...form, channel_ids: e.target.value })} /></Field>
@@ -500,7 +500,7 @@ function WebhooksTab() {
           <Field label={t('chat_admin.col_name')}><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           {form.direction === 'outgoing' && <Field label={t('chat_admin.target_url_label')}><input style={inputStyle} value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></Field>}
           <Field label={t('chat_admin.target_channel_label')}><input style={inputStyle} value={form.target_channel_id} onChange={(e) => setForm({ ...form, target_channel_id: e.target.value })} /></Field>
-          <Field label={t('chat_admin.events_input_label')}><input style={inputStyle} value={form.events} onChange={(e) => setForm({ ...form, events: e.target.value })} placeholder="message.created,channel.created" /></Field>
+          <Field label={t('chat_admin.events_input_label')}><input aria-label="message.created,channel.created" style={inputStyle} value={form.events} onChange={(e) => setForm({ ...form, events: e.target.value })} placeholder="message.created,channel.created" /></Field>
           <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create')}</Btn>
         </div>
       </Card>

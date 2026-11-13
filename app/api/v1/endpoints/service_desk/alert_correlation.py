@@ -21,6 +21,7 @@ from app.core.responses import APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
+from app.models.user import UserRole
 
 router = APIRouter(tags=["Service Desk - Alert Correlation"])
 
@@ -72,7 +73,7 @@ def list_alert_clusters(
 
         tickets_map = tickets_por_id(
             db, [tid for c in clusters for tid in c.ticket_ids])
-        clusters = [_enrich_cluster_score(c, tickets_map) for c in clusters]
+        clusters = [_enrich_cluster_score(c, tickets_map, db, org) for c in clusters]
 
     return APIResponse.ok(data={
         "window_hours": window_hours,
@@ -130,7 +131,7 @@ def merge_cluster_to_problem(
     The new Problem will have auto_detected=True and, if auto_rca=True,
     an AI-generated RCA suggestion.
     """
-    if current_user.role not in ("admin", "support"):
+    if current_user.role not in (UserRole.admin,):  # 2026-11: "support" no existe en UserRole
         raise HTTPException(status_code=403, detail="Only admin/support can merge clusters")
 
     from app.services.service_desk.alert_correlation_service import merge_cluster_to_problem as _merge
@@ -158,16 +159,23 @@ def run_correlation_scan(
     """
     Admin-only: trigger a full alert correlation scan.
 
-    High-confidence clusters (score >= 0.65, size >= 3) automatically
+    High-confidence clusters (score >= ALERT_CORRELATION_PROBLEM_SCORE, 0.65 by default; size >= 3) automatically
     generate Problem records if none already exist.
     """
-    if current_user.role != "admin":
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
     from app.services.service_desk.alert_correlation_service import run_correlation_scan_job
 
     org = organization_id or getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data=run_correlation_scan_job(db, organization_id=org))
+    # Segunda auditoria 2026-11 (n.º 20): el escaneo (puntuacion semantica y
+    # RCA con IA por cada Problem creado) va al worker. Con cola: 202
+    # `{status: "queued"}`. Sin cola, como siempre.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    resultado = encolar(run_correlation_scan_job, organization_id=org, _sesion=db)
+    if resultado is EN_COLA:
+        return respuesta_en_cola(organization_id=org)
+    return APIResponse.ok(data=resultado)
 
 
 # ── Per-ticket deduplication ──────────────────────────────────────────────────

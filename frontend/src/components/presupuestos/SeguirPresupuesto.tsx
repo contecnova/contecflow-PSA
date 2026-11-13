@@ -24,10 +24,11 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { campo } from './FormularioDePartida'
 import DateInput from '../ui/DateInput'
 
+import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 type Dinero = (n?: number | null) => string
 type Accion = (clave: string, f: () => Promise<FichaPresupuesto>) => Promise<void>
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12, minWidth: 0 }
+const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12, minWidth: 0 }
 const lbl: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 3 }
 const cifra: CSSProperties = { fontFamily: 'var(--font-mono)', fontWeight: 700, whiteSpace: 'nowrap' }
 const rejilla: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 10, alignItems: 'end' }
@@ -238,14 +239,14 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
       <div style={caja}>
-        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{t('pres.pedidos')}</div>
+        <div className="u-sm-700">{t('pres.pedidos')}</div>
         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', margin: '2px 0 10px' }}>{t('pres.pedidos_ayuda')}</div>
         {p.puedo_gestionar && (
           <div style={rejilla}>
             <label><span style={lbl}>{t('pres.tipo')}</span>
               <select aria-label={t('pres.tipo')} value={ped.tipo} onChange={e => setPed(v => ({ ...v, tipo: e.target.value }))} style={campo}>
                 {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</select></label>
-            <label style={{ gridColumn: '1 / -1' }}><span style={lbl}>{t('pres.descripcion')}</span>
+            <label className="u-col-full"><span style={lbl}>{t('pres.descripcion')}</span>
               <input aria-label={t('pres.descripcion')} value={ped.descripcion} onChange={e => setPed(v => ({ ...v, descripcion: e.target.value }))} style={campo} /></label>
             <label><span style={lbl}>{t('pres.proveedor')}</span>
               <input aria-label={t('pres.proveedor')} value={ped.proveedor} onChange={e => setPed(v => ({ ...v, proveedor: e.target.value }))} style={campo} /></label>
@@ -291,7 +292,7 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
         </div>
       </div>
       <div style={caja}>
-        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{t('pres.traspasos')}</div>
+        <div className="u-sm-700">{t('pres.traspasos')}</div>
         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', margin: '2px 0 10px' }}>{t('pres.traspasos_ayuda')}</div>
         {p.puedo_gestionar && (
           <div style={rejilla}>
@@ -308,7 +309,7 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
                 {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</select></label>}
             <label><span style={lbl}>{t('pres.importe')}</span>
               <input aria-label={`${t('pres.importe')} · ${t('pres.traspasos')}`} type="number" min={0} step="any" value={tr.importe} onChange={e => setTr(v => ({ ...v, importe: e.target.value }))} style={campo} /></label>
-            <label style={{ gridColumn: '1 / -1' }}><span style={lbl}>{t('pres.motivo')}</span>
+            <label className="u-col-full"><span style={lbl}>{t('pres.motivo')}</span>
               <input aria-label={`${t('pres.motivo')} · ${t('pres.traspasos')}`} value={tr.motivo} onChange={e => setTr(v => ({ ...v, motivo: e.target.value }))} style={campo} /></label>
             <div><Button size="sm" disabled={!(Number(tr.importe) > 0) || !tr.motivo.trim()} loading={ocupado === 'traspaso'}
               onClick={() => hacer('traspaso', () => presupuestosApi.pedirTraspaso(p.id, {
@@ -343,10 +344,11 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
 const SEMAFORO = { verde: 'var(--success)', ambar: 'var(--warning)', rojo: 'var(--danger)' } as const
 
 export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id: string) => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const q = useQuery({ queryKey: ['presupuestos', 'cuadro', year], queryFn: () => presupuestosApi.cuadro(year) })
   // Cada renglón en su moneda.
-  const dinero = (n: number, moneda: string) => n.toLocaleString(localeActivo(), { style: 'currency', currency: moneda || 'EUR', maximumFractionDigits: 0 })
+  const dinero = (n: number, moneda: string) => fmtMoneda(n, { moneda, decimales: 0 })
   if (q.isLoading) return <Spinner />
   if (q.isError) return <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
   const filas = q.data ?? []

@@ -5,7 +5,7 @@
  * - Connection status
  */
 
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { m365Api, apiUrl } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
@@ -56,6 +56,7 @@ function StatusBadge({ ok, label }: { ok?: boolean; label: string }) {
 }
 
 function CalendarTab() {
+  const idCampo = useId()
   const t = useAppT()
   const [upn,  setUpn]  = useState('')
   const [days, setDays] = useState(14)
@@ -91,18 +92,18 @@ function CalendarTab() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="u-stack-20">
       {/* Pull calendar */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.pull_eventos_de_calendario')}</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={ls}>{t('m365.upn_del_usuario_usuario_empresa_com')}</label>
-            <input value={upn} onChange={e => setUpn(e.target.value)} style={fs} placeholder="usuario@empresa.com" />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('m365.upn_del_usuario_usuario_empresa_com')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={upn} onChange={e => setUpn(e.target.value)} style={fs} placeholder="usuario@empresa.com" />
           </div>
           <div style={{ width: 100 }}>
-            <label style={ls}>{t('m365.dias')}</label>
-            <input type="number" value={days} onChange={e => setDays(Number(e.target.value))} style={fs} min={1} max={90} />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('m365.dias')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={days} onChange={e => setDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
           <button onClick={pullCalendar} disabled={!upn || syncLoading} style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 8, color: 'var(--info)', padding: '10px 18px', cursor: upn ? 'pointer' : 'not-allowed', fontSize: "var(--text-base)", fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             {syncLoading ? 'Sincronizando…' : '🔄 Pull eventos'}
@@ -127,16 +128,16 @@ function CalendarTab() {
       </div>
 
       {/* Push milestones */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>📌 Sincronizar Milestones → Calendario</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={ls}>Calendario destino (UPN)</label>
-            <input value={msUpn} onChange={e => setMsUpn(e.target.value)} style={fs} placeholder="usuario@empresa.com" />
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Calendario destino (UPN)</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={msUpn} onChange={e => setMsUpn(e.target.value)} style={fs} placeholder="usuario@empresa.com" />
           </div>
           <div style={{ width: 100 }}>
-            <label style={ls}>{t('m365.dias')}</label>
-            <input type="number" value={msDays} onChange={e => setMsDays(Number(e.target.value))} style={fs} min={1} max={90} />
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('m365.dias')}</label>
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={msDays} onChange={e => setMsDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
           <button onClick={pushMilestones} disabled={!msUpn || msLoading} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, color: 'var(--success)', padding: '10px 18px', cursor: msUpn ? 'pointer' : 'not-allowed', fontSize: "var(--text-base)", fontFamily: 'inherit', whiteSpace: 'nowrap', fontWeight: 600 }}>
             {msLoading ? 'Creando eventos…' : '📤 Push Milestones'}
@@ -144,7 +145,7 @@ function CalendarTab() {
         </div>
         {msResult && !msResult.error && (
           <div style={{ marginTop: 10, fontSize: "var(--text-sm)" }}>
-            <span style={{ color: 'var(--success)' }}>✓ {msResult.created} milestones sincronizados</span>
+            <span className="u-success">✓ {msResult.created} milestones sincronizados</span>
             {(msResult.errors?.length ?? 0) > 0 && <span style={{ color: 'var(--orange)', marginLeft: 10 }}>⚠ {msResult.errors?.length} errores</span>}
           </div>
         )}
@@ -160,6 +161,7 @@ function CalendarTab() {
 const TEAMS_BRAND_PRESETS = ['0078D4', 'FF0000', 'FF8C00', '107C10', '5C2D91']
 
 function TeamsTab() {
+  const idCampo = useId()
   const t = useAppT()
   const [title,   setTitle]   = useState('')
   const [text,    setText]    = useState('')
@@ -182,23 +184,23 @@ function TeamsTab() {
 
   return (
     <div className="u-stack-16">
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.enviar_notificacion_a_teams')}</div>
         <div className="u-stack-12">
           <div>
-            <label style={ls}>{t('m365.titulo')}</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder={t('m365.titulo_de_la_notificacion')} />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('m365.titulo')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder={t('m365.titulo_de_la_notificacion')} />
           </div>
           <div>
-            <label style={ls}>Mensaje</label>
-            <textarea value={text} onChange={e => setText(e.target.value)} style={{ ...fs, resize: 'vertical' }} rows={3} placeholder={t('m365.texto_del_mensaje')} />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Mensaje</label>
+            <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={text} onChange={e => setText(e.target.value)} style={{ ...fs, resize: 'vertical' }} rows={3} placeholder={t('m365.texto_del_mensaje')} />
           </div>
           <div>
             <label style={ls}>{t('m365.color_hex_sin')}</label>
             <div className="u-row-center-8">
               <input value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
               {TEAMS_BRAND_PRESETS.map(c => (
-                <button key={c} onClick={() => setColor(c)} title={`Color de marca Teams #${c}`}
+                <button aria-label={`Color de marca Teams #${c}`} key={c} onClick={() => setColor(c)} title={`Color de marca Teams #${c}`}
                   style={{ width: 22, height: 22, background: `#${c}`, border: color === c ? '2px solid var(--text-1)' : '2px solid transparent', borderRadius: 4, cursor: 'pointer' }} />
               ))}
             </div>
@@ -211,7 +213,7 @@ function TeamsTab() {
         </div>
       </div>
 
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 }}>{t('m365.notificaciones_automaticas')}</div>
         <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.6 }}>
           {t('m365.configura_contecflow_para_enviar_automaticamente_notificaciones_a')}
@@ -248,7 +250,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
   return (
     <div className="u-stack-16">
       {/* Status */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>{t('m365.estado_de_la_integracion')}</div>
         <div className="u-wrap-8">
           {envVars.map(v => (
@@ -258,7 +260,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
       </div>
 
       {/* Setup steps */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.guia_de_configuracion')}</div>
         <div className="u-stack-14">
           {steps.map(s => (
@@ -270,7 +272,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>{s.title}</div>
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{s.desc}</div>
                 {s.code && (
-                  <pre style={{ background: 'var(--surface-0)', border: '1px solid var(--surface-5)', borderRadius: 6, padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6, overflow: 'auto' }}>{s.code}</pre>
+                  <pre style={{ background: 'var(--surface-0)', border: '1px solid var(--surface-5)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6, overflow: 'auto' }}>{s.code}</pre>
                 )}
               </div>
             </div>
@@ -279,7 +281,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
       </div>
 
       {/* Scopes reference */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
         <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>Permisos Graph requeridos</div>
         <Table
           data={[

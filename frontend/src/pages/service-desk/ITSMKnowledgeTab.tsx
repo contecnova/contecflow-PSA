@@ -98,7 +98,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
       <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>Tickets vinculados</div>
       <div className="u-stack-6">
         {tickets.map((tk) => (
-          <div key={tk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
+          <div key={tk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
             <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)' }}>#{tk.id}</span>
             <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', flex: 1 }}>{tk.title}</span>
             <SBadge v={String(tk.status ?? '')} />
@@ -133,7 +133,7 @@ function KnownErrors() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="u-row-between-mb16">
         <div className="u-text3-sm">
           {t('itsmknowledge.base_de_errores_conocidos_problemas_con_causa')}
         </div>
@@ -156,12 +156,12 @@ function KnownErrors() {
                 >
                   {ke.affected_tickets || 0} tickets {expandedKE === ke.id ? '▲' : '▼'}
                 </button>
-                <button onClick={() => setEditing(ke)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
+                <button onClick={() => setEditing(ke)} style={{ padding: '3px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
               </div>
             </div>
             {ke.ci && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 8 }}>CI afectado: {ke.ci}</div>}
             {ke.root_cause && (
-              <div style={{ marginBottom: 10 }}>
+              <div className="u-mb-10">
                 <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 4 }}>CAUSA RAIZ</div>
                 <div className="u-text2-base">{ke.root_cause}</div>
               </div>
@@ -307,7 +307,7 @@ function Problems() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="u-row-between-mb16">
         <div className="u-text3-sm">
           {t('itsmknowledge.registro_de_problemas_causas_raiz_de_incidentes')}
         </div>
@@ -339,18 +339,18 @@ function Problems() {
                       <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)' }}>{p.title}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <button onClick={() => setRcaWizardProblem(p)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--info)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🔍 RCA</button>
+                      <button onClick={() => setRcaWizardProblem(p)} style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--info)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🔍 RCA</button>
                       {p.status !== 'known_error' && (
                         <button
                           onClick={() => openConfirmGlobal({ message: `¿Promover "${p.title}" a Error Conocido (KEDB)?`, onConfirm: () => promoteToKE(p.id), danger: false })}
                           disabled={promotingId === p.id}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(251,146,60,0.4)', background: 'transparent', color: 'var(--orange)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}
+                          style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(251,146,60,0.4)', background: 'transparent', color: 'var(--orange)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}
                         >
                           📋 Promover a KE
                         </button>
                       )}
-                      <button onClick={() => { setEditing(p); setShowModal(true) }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
-                      <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${p.title}"? Esta acción no se puede deshacer.`, onConfirm: () => deleteProblem(p.id), danger: true }) }} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(255,71,87,0.3)', background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
+                      <button onClick={() => { setEditing(p); setShowModal(true) }} style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
+                      <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${p.title}"? Esta acción no se puede deshacer.`, onConfirm: () => deleteProblem(p.id), danger: true }) }} style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,71,87,0.3)', background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
                     </div>
                   </div>
                   {p.root_cause && (
@@ -513,16 +513,16 @@ function KB() {
               {a.tags && <span>🏷 {a.tags.split(',').slice(0, 2).join(', ')}</span>}
             </div>
             <div className="u-row-6">
-              <button onClick={() => setLeyendo(a.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>📖 {ts('itsmknowledge.leer')}</button>
-              <button onClick={() => { setEditing(a); setShowNew(true) }} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
+              <button onClick={() => setLeyendo(a.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>📖 {ts('itsmknowledge.leer')}</button>
+              <button onClick={() => { setEditing(a); setShowNew(true) }} style={{ flex: 1, padding: '5px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
               {a.status === 'in_review' ? <>
-                <button onClick={() => revisar({ id: a.id, publish: true })} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: COLOR.success, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>▶ {ts('sd_cfg.kb_publish')}</button>
-                <button onClick={() => setDevolviendo(a)} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: COLOR.warning, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>↩ {ts('sd_cfg.kb_return')}</button>
+                <button onClick={() => revisar({ id: a.id, publish: true })} style={{ flex: 1, padding: '5px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: COLOR.success, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>▶ {ts('sd_cfg.kb_publish')}</button>
+                <button onClick={() => setDevolviendo(a)} style={{ flex: 1, padding: '5px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: COLOR.warning, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>↩ {ts('sd_cfg.kb_return')}</button>
               </> : <>
-                <button onClick={() => toggleStatus({ id: a.id, status: a.status === 'published' ? 'draft' : 'published' })} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{a.status === 'published' ? `⏸ ${ts('sd_cfg.kb_unpublish')}` : `▶ ${ts('sd_cfg.kb_publish')}`}</button>
-                {a.status === 'draft' && <button onClick={() => enviarARevision(a.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{ts('sd_cfg.kb_submit')}</button>}
+                <button onClick={() => toggleStatus({ id: a.id, status: a.status === 'published' ? 'draft' : 'published' })} style={{ flex: 1, padding: '5px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{a.status === 'published' ? `⏸ ${ts('sd_cfg.kb_unpublish')}` : `▶ ${ts('sd_cfg.kb_publish')}`}</button>
+                {a.status === 'draft' && <button onClick={() => enviarARevision(a.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>{ts('sd_cfg.kb_submit')}</button>}
               </>}
-              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar articulo?', onConfirm: () => deleteArticle(a.id), danger: true }) }} style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${alpha(COLOR.danger, '30')}`, background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
+              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar articulo?', onConfirm: () => deleteArticle(a.id), danger: true }) }} style={{ padding: '5px 8px', borderRadius: 'var(--radius-sm)', border: `1px solid ${alpha(COLOR.danger, '30')}`, background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
             </div>
           </div>
         ))}
@@ -554,6 +554,7 @@ type KBArticleModalProps = {
 }
 
 function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalProps) {
+  const idCampo = useId()
   const { t } = useAppT()
   const idPrefix = useId()
   const toast = useToast()
@@ -579,7 +580,7 @@ function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalPr
   return (
     <Modal open title={isEdit ? 'Editar articulo KB' : 'Nuevo articulo KB'} onClose={onClose} size="lg">
       <div className="u-stack-14">
-        <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} /></div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>Titulo *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={IS} /></div>
         <div><label htmlFor={`${idPrefix}-summary`} style={LS}>Resumen</label><input id={`${idPrefix}-summary`} value={form.summary} onChange={set('summary')} style={IS} placeholder={t('itsmknowledge.resumen_del_articulo')} /></div>
         <div><label htmlFor={`${idPrefix}-body`} style={LS}>Contenido *</label><textarea id={`${idPrefix}-body`} value={form.body} onChange={set('body')} rows={8} style={{ ...IS, resize: 'vertical' }} placeholder={t('itsmknowledge.contenido_del_articulo')} /></div>
         <div className="u-grid2-12">
@@ -647,11 +648,21 @@ function CalidadKB() {
     onSuccess: refrescar, onError: alFallar,
   })
   const { mutate: pasar, isPending: pasando } = useMutation({
-    mutationFn: () => sdKbApi.runQuality(), onSuccess: refrescar, onError: alFallar,
+    mutationFn: () => sdKbApi.runQuality(),
+    // Con cola la revision va al worker (202 `{status: 'queued'}`): aviso y refresco diferido.
+    onSuccess: (r: { data?: { status?: string } }) => {
+      if (r?.data?.status === 'queued') {
+        toast.success('Revisión de calidad en curso: los resultados aparecerán en unos minutos.')
+        setTimeout(refrescar, 30000)
+        return
+      }
+      refrescar()
+    },
+    onError: alFallar,
   })
   if (isLoading || !data) return <Spinner />
-  const tarjeta: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }
-  const boton: CSSProperties = { padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+  const tarjeta: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }
+  const boton: CSSProperties = { padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
   const titulo: CSSProperties = { fontSize: 'var(--text-md)', fontWeight: 700, margin: '18px 0 8px' }
   const vacio = (texto: string) => <div className="u-text3-sm">{texto}</div>
   return (

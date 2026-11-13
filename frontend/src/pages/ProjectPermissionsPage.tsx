@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -58,6 +58,7 @@ const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)
 const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function PermissionForm({ projectId, users, perm, onClose }: { projectId: string; users: UserItem[]; perm: PermissionItem | null; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -85,8 +86,8 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
       <div className="u-stack-16">
         {!isEdit && (
           <div>
-            <label style={labelStyle}>Usuario</label>
-            <select style={inputStyle} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Usuario</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={inputStyle} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
               <option value="">{t('projectpermissions.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name} — {u.role}</option>)}
             </select>
@@ -151,6 +152,7 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
 }
 
 export default function ProjectPermissionsPage() {
+  const idCampo = useId()
   const t = useAppT()
   const _t = useAppT()
   const toast = useToast()
@@ -203,8 +205,8 @@ export default function ProjectPermissionsPage() {
 
       {/* Selector de proyecto */}
       <div style={{ ...panelStyle, marginBottom: 24 }}>
-        <label style={labelStyle}>Proyecto</label>
-        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Proyecto</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           style={{ ...inputStyle, width: 360 }}>
           <option value="">{t('projectpermissions.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -224,9 +226,9 @@ export default function ProjectPermissionsPage() {
 
       {selectedProject && !isLoading && perms.length === 0 && (
         <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🔓</div>
+          <div className="u-empty-icon">🔓</div>
           <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>{t('projectpermissions.sin_permisos_especificos')}</div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
+          <div className="u-text2-base-mb20">
             {t('projectpermissions.todos_los_usuarios_con_rol_pm_o')}<br />
             {t('projectpermissions.anade_permisos_especificos_para_restringir_o_ampliar')}
           </div>
@@ -239,9 +241,9 @@ export default function ProjectPermissionsPage() {
           {/* Resumen */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
             {LEVELS.map(l => (
-              <div key={l.value} style={{ background: 'var(--surface-2)', border: `1px solid ${byLevel[l.value]?.length > 0 ? alpha(l.color, '40') : 'var(--surface-4)'}`, borderRadius: 10, padding: '12px 14px' }}>
+              <div key={l.value} style={{ background: 'var(--surface-2)', border: `1px solid ${byLevel[l.value]?.length > 0 ? alpha(l.color, '40') : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
                 <div style={{ fontSize: "var(--text-xl)", fontWeight: 700, color: l.color }}>{byLevel[l.value]?.length || 0}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{l.label}</div>
+                <div className="u-text2-xs-mt2">{l.label}</div>
               </div>
             ))}
           </div>
@@ -253,7 +255,7 @@ export default function ProjectPermissionsPage() {
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                <tr className="u-border-b">
                   {['Usuario', 'Nivel de acceso', 'Finanzas', 'Tarifas', 'Exportar', 'Acciones'].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                   ))}
@@ -264,7 +266,7 @@ export default function ProjectPermissionsPage() {
                   const level = LEVELS.find(l => l.value === perm.level)
                   return (
                     <tr key={perm.id} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
-                      <td style={{ padding: '10px 12px' }}>
+                      <td className="u-pad-10-12">
                         <div className="u-row-center-10">
                           <Avatar name={perm.user?.full_name} size={30} url={undefined} />
                           <div>
@@ -273,24 +275,24 @@ export default function ProjectPermissionsPage() {
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 6, background: alpha((level?.color || 'var(--text-2)'), '20'), color: level?.color || 'var(--text-2)', fontWeight: 500 }}>
+                      <td className="u-pad-10-12">
+                        <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: alpha((level?.color || 'var(--text-2)'), '20'), color: level?.color || 'var(--text-2)', fontWeight: 500 }}>
                           {level?.label || perm.level}
                         </span>
                       </td>
                       {[perm.can_see_financials, perm.can_see_rates, perm.can_export].map((v, idx) => (
-                        <td key={idx} style={{ padding: '10px 12px' }}>
+                        <td key={idx} className="u-pad-10-12">
                           <span style={{ color: v ? 'var(--success)' : 'var(--danger)', fontSize: "var(--text-lg)" }}>{v ? '✓' : '✕'}</span>
                         </td>
                       ))}
-                      <td style={{ padding: '10px 12px' }}>
+                      <td className="u-pad-10-12">
                         <div className="u-row-8">
                           <button onClick={() => { setEditingPerm(perm); setShowForm(true) }}
-                            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                             Editar
                           </button>
                           <button onClick={() => { openConfirmGlobal({ message: `¿Revocar acceso de ${perm.user?.full_name}?`, onConfirm: () => revoke(perm.id), danger: true }) }}
-                            style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                            style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                             Revocar
                           </button>
                         </div>

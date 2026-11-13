@@ -64,14 +64,6 @@ def _org(user) -> str:
     return org
 
 
-def can_access_workspace(db: Session, user, workspace_id: str) -> bool:
-    from app.models.collaboration import CollaborationWorkspace
-    ws = db.query(CollaborationWorkspace).filter(CollaborationWorkspace.id == workspace_id).first()
-    if not ws:
-        return False
-    return ws.organization_id == _org(user)
-
-
 def is_team_member(db: Session, user, team_id: str) -> bool:
     cache_key = f"team:{team_id}:{user.id}"
     # Sólo cacheamos True (positivos). Los False vuelven a consultar siempre,
@@ -162,17 +154,3 @@ def assert_team_access(db: Session, user, team_id: str) -> None:
     if not is_team_member(db, user, team_id):
         raise ErrorDeDominio(403, "No eres miembro de este equipo")
 
-
-def assert_workspace(db: Session, user, workspace_id: Optional[str]) -> str:
-    """Returns the workspace_id, ensuring the user can use it. If None, returns
-    the user's default workspace (creates if missing)."""
-    if workspace_id:
-        if not can_access_workspace(db, user, workspace_id):
-            raise ErrorDeDominio(403, "No tienes acceso a este workspace")
-        return workspace_id
-    # default workspace = the one matching the user's org
-    from app.models.collaboration import CollaborationWorkspace
-    ws = db.query(CollaborationWorkspace).filter(CollaborationWorkspace.organization_id == _org(user)).first()
-    if ws:
-        return ws.id
-    raise ErrorDeDominio(404, "Workspace no inicializado")

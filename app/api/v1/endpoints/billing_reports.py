@@ -25,6 +25,8 @@ from app.services.billing_reports.data_source_service import (
     run_skills_report,
     run_pipeline_report,
 )
+from app.core.constantes import NOMBRE_COMPLETO_DEL_PRODUCTO
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 
 def _company_display_name(db) -> str:
@@ -255,7 +257,7 @@ def execute_import(
 @router.get("/import/jobs", response_model=APIListResponse[ImportJobHistoryOut], summary="Historial de importaciones")
 def import_jobs(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=200),
+    page_size: int = Query(20, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -274,7 +276,7 @@ def list_invoices(
     project_id: Optional[str] = None,
     status: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -343,7 +345,7 @@ def download_invoice_pdf(
 
     pdf_bytes = _invoice_pdf.pdf_de_factura(
         db, inv, lines, org_id=current_user.organization_id,
-        company_name=marca.nombre, paleta=marca.paleta, generated_by="Contecflow PSA",
+        company_name=marca.nombre, paleta=marca.paleta, generated_by=NOMBRE_COMPLETO_DEL_PRODUCTO,
     )
 
     filename = f"factura_{inv.number.replace('/', '-')}.pdf"
@@ -440,7 +442,7 @@ def delete_workflow(
 def workflow_executions(
     wf_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=200),
+    page_size: int = Query(20, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -569,8 +571,17 @@ def run_scheduled_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.services.scheduled_reports import execute_report_now
-    result = execute_report_now(report_id, db)
+    # Segunda auditoria 2026-11 (n.º 20): generar el PDF y mandarlo por SMTP
+    # va al worker. Con cola: 202 `{status: "queued", recipients}`; el resultado
+    # queda en `last_status`/`last_error` del informe. Sin cola, como siempre.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    from app.services.scheduled_reports import destinatarios_del_informe, execute_report_now
+    destinatarios = destinatarios_del_informe(report_id, db)
+    if destinatarios is None:
+        raise HTTPException(404, "Informe no encontrado")
+    result = encolar(execute_report_now, report_id, _sesion=db)
+    if result is EN_COLA:
+        return respuesta_en_cola(report_id=report_id, recipients=destinatarios)
     if not result["ok"]:
         err = result.get("error", "Error al ejecutar")
         # "Informe no encontrado" → 404; cualquier otro fallo de ejecución → 500

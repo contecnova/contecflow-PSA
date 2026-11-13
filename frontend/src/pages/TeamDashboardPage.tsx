@@ -9,7 +9,6 @@ import {
   typePalette,
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
-import type { ComponentType } from 'react'
 
 interface TeamUser {
   status?: string
@@ -58,7 +57,6 @@ export default function TeamDashboardPage() {
     finance: t('team_dashboard.role_finance'),
     client_user: t('team_dashboard.role_client_user'),
   }
-  const iconCompat = <T,>(icon: T) => icon as unknown as ComponentType<{ size?: number; strokeWidth?: number }>
 
   const { data: resourcesRaw = [], isLoading: lr } = useQuery({
     queryKey: ['team-dash-resources'],
@@ -171,24 +169,24 @@ export default function TeamDashboardPage() {
       <div className="ds-page">
         {/* KPI row */}
         <div className="ds-grid-stats">
-          <KpiCard icon={<KpiIcon icon={iconCompat(Users)} />} label={t('team_dashboard.kpi_team_size')}
+          <KpiCard icon={<KpiIcon icon={Users} />} label={t('team_dashboard.kpi_team_size')}
             value={teamSize} color="var(--text-1)" accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(Target)} />} label={t('team_dashboard.kpi_active_okrs')}
+          <KpiCard icon={<KpiIcon icon={Target} />} label={t('team_dashboard.kpi_active_okrs')}
             value={totalOkrs} color={COLOR.purple} accentBar={COLOR.purple}
             sub={completedOkrs > 0 ? `${completedOkrs} ${t('team_dashboard.completed_lower')}` : undefined} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(Star)} />} label={t('team_dashboard.kpi_pending_reviews')}
+          <KpiCard icon={<KpiIcon icon={Star} />} label={t('team_dashboard.kpi_pending_reviews')}
             value={pendingReviews}
             color={pendingReviews > 0 ? COLOR.warning : COLOR.success}
             accentBar={pendingReviews > 0 ? COLOR.warning : COLOR.success} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(GraduationCap)} />} label={t('team_dashboard.kpi_trainings')}
+          <KpiCard icon={<KpiIcon icon={GraduationCap} />} label={t('team_dashboard.kpi_trainings')}
             value={trainingTotal}
             color={COLOR.accent} accentBar={COLOR.accent}
             sub={`${trainingCompleted} ${t('team_dashboard.completed_fem_plural')} · ${trainingInProgress} ${t('team_dashboard.in_progress_lower')}`} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(Plane)} />} label={t('team_dashboard.kpi_absences_today')}
+          <KpiCard icon={<KpiIcon icon={Plane} />} label={t('team_dashboard.kpi_absences_today')}
             value={todayAbsences}
             color={todayAbsences > 0 ? COLOR.warning : COLOR.success}
             accentBar={todayAbsences > 0 ? COLOR.warning : COLOR.success} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(Zap)} />} label={t('team_dashboard.kpi_pending_absences')}
+          <KpiCard icon={<KpiIcon icon={Zap} />} label={t('team_dashboard.kpi_pending_absences')}
             value={absences.filter(a => a.status === 'pending').length}
             color={COLOR.purple} accentBar={COLOR.purple} />
         </div>

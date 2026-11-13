@@ -36,7 +36,6 @@ import os
 import uuid
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -237,7 +236,7 @@ def materializar(db: Session, user, uid: str, meta: dict) -> Optional[str]:
     nombre = _nombre(meta.get("name"))
     try:
         validate_upload(nombre, meta.get("mime_type") or "", datos, PERFIL)
-    except (HTTPException, ErrorDeDominio):
+    except ErrorDeDominio:
         _borrar_temporales(uid)
         raise
 
@@ -275,7 +274,7 @@ def abortar(uid: str, user) -> None:
     """
     try:
         _validar_uid(uid)
-    except (HTTPException, ErrorDeDominio):
+    except ErrorDeDominio:
         return
     meta = _leer_meta(uid)
     if meta and meta.get("user_id") == user.id:

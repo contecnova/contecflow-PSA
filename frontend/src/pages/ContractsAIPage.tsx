@@ -9,7 +9,7 @@
  * Lista histórica de análisis con vista de detalle por contrato (cláusulas
  * agrupadas por tipo, badges de riesgo, citas verbatim del contrato).
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useId } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contractsAIApi, projectsApi } from '../services/api'
@@ -17,9 +17,10 @@ import { useToast } from '../context/ToastContext'
 import PageHeader from '../components/layout/PageHeader'
 import { Button, Card, Spinner, EmptyState, useDialogo } from '../components/ui'
 import { FileText, Upload } from 'lucide-react'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr } from '../utils/helpers'
 import { useAppLang } from '../i18n/AppLangContext'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type RiskLevel = 'high' | 'medium' | 'low' | string
 
 type ProjectItem = {
@@ -93,6 +94,7 @@ const RISK_COLOR: Record<string, string> = {
 
 
 function ContractDetailPanel({ contractId, onClose }: { contractId: string | number | null; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
   const { data, isLoading } = useQuery<ContractDetail | null>({
     queryKey: ['contracts-ai', contractId],
@@ -117,7 +119,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
 
   return (
     <div role="presentation" onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 'var(--z-modal)', display: 'flex', justifyContent: 'flex-end' }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Escape') onClose() }}
@@ -137,7 +139,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
                   {data.client_name || '—'} · {data.created_at}
                   {data.risk_level && (
                     <span style={{
-                      marginLeft: 10, padding: '2px 8px', borderRadius: 6,
+                      marginLeft: 10, padding: '2px 8px', borderRadius: 'var(--radius-sm)',
                       background: 'var(--surface-3)', color: RISK_COLOR[data.risk_level] || 'var(--text-2)',
                       fontWeight: 600, fontSize: 'var(--text-xs)',
                     }}>
@@ -165,7 +167,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
               <Card style={{ marginBottom: 16, display: 'flex', gap: 30 }}>
                 <div>
                   <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>Valor total</div>
-                  <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>{data.total_value?.toLocaleString(localeActivo())} €</div>
+                  <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>{fmtMoneda(data.total_value)}</div>
                 </div>
                 {(data.scope_creep_alerts ?? 0) > 0 && (
                   <div>
@@ -205,14 +207,14 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
                       <div style={{
                         fontSize: 'var(--text-sm)', color: 'var(--danger)',
                         background: 'rgba(239,68,68,0.08)', padding: '6px 10px',
-                        borderRadius: 6, marginBottom: 6,
+                        borderRadius: 'var(--radius-sm)', marginBottom: 6,
                       }}>
                         🛑 {cl.risk_reason}
                       </div>
                     )}
                     {(cl.impact_amount != null || cl.due_date) && (
                       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 6 }}>
-                        {cl.impact_amount != null && `Impacto: ${cl.impact_amount.toLocaleString(localeActivo())} €`}
+                        {cl.impact_amount != null && `Impacto: ${fmtMoneda(cl.impact_amount)}`}
                         {cl.impact_amount != null && cl.due_date && ' · '}
                         {cl.due_date && `Vencimiento: ${cl.due_date}`}
                       </div>
@@ -244,6 +246,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
 
 
 export default function ContractsAIPage(): JSX.Element {
+  const idCampo = useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -339,10 +342,10 @@ export default function ContractsAIPage(): JSX.Element {
         {/* Common fields */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <div className="u-flex1">
-            <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
               Proyecto (opcional)
             </label>
-            <select
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
               value={projectId}
               onChange={e => setProjectId(e.target.value)}
               style={{
@@ -355,10 +358,10 @@ export default function ContractsAIPage(): JSX.Element {
             </select>
           </div>
           <div className="u-flex1">
-            <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
               Cliente (opcional)
             </label>
-            <input
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
               type="text"
               value={clientName}
               onChange={e => setClientName(e.target.value)}
@@ -374,7 +377,7 @@ export default function ContractsAIPage(): JSX.Element {
         {/* Input by mode */}
         {mode === 'text' ? (
           <>
-            <textarea
+            <textarea aria-label={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')}
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')}
@@ -391,7 +394,7 @@ export default function ContractsAIPage(): JSX.Element {
           </>
         ) : (
           <div style={{
-            border: '2px dashed var(--surface-4)', borderRadius: 10,
+            border: '2px dashed var(--surface-4)', borderRadius: 'var(--radius-md)',
             padding: 32, textAlign: 'center', background: 'var(--surface-2)',
           }}>
             <input
@@ -452,7 +455,7 @@ export default function ContractsAIPage(): JSX.Element {
               </div>
               {c.risk_level && (
                 <span style={{
-                  padding: '4px 10px', borderRadius: 6, fontWeight: 600,
+                  padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontWeight: 600,
                   fontSize: 'var(--text-xs)', textTransform: 'uppercase',
                   background: 'var(--surface-3)', color: RISK_COLOR[c.risk_level] || 'var(--text-2)',
                 }}>

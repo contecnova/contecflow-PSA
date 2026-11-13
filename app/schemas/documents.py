@@ -152,10 +152,6 @@ class DocumentListOut(BaseModel):
 
 # ── File Upload Schemas ────────────────────────────────────────────────────
 
-class DocumentVersionCreate(BaseModel):
-    change_note: Optional[str] = Field(None, max_length=500, description="Nota de cambio asociada a la nueva versión")
-
-
 class DocumentApprovalPayload(BaseModel):
     status: ApprovalStatus = Field(default=ApprovalStatus.approved, description="Estado final de la aprobación")
     note: Optional[str] = Field(default=None, description="Nota o comentario de la decisión de aprobación")
@@ -163,13 +159,3 @@ class DocumentApprovalPayload(BaseModel):
 
 
 # ── Search/Filter Schemas ──────────────────────────────────────────────────
-
-class DocumentFilterParams(BaseModel):
-    category: Optional[DocumentCategory] = Field(default=None, description="Filtrar por categoría de documento")
-    tags: Optional[List[str]] = Field(default=None, description="Filtrar por etiquetas")
-    created_by_id: Optional[str] = Field(default=None, description="Filtrar por ID del creador")
-    project_id: Optional[str] = Field(default=None, description="Filtrar por proyecto asociado")
-    client_id: Optional[str] = Field(default=None, description="Filtrar por cliente asociado")
-    is_archived: Optional[bool] = Field(default=False, description="Filtrar por estado de archivado")
-    search: Optional[str] = Field(default=None, description="Texto de búsqueda libre")
-    approval_status: Optional[ApprovalStatus] = Field(default=None, description="Filtrar por estado de aprobación")

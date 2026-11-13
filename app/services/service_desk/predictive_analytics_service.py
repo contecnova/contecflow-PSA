@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import json
-import os as _os
+from app.core.config import settings as _settings
 import statistics
 from datetime import datetime, timezone
 from typing import Optional
@@ -325,15 +325,9 @@ def predict_severity_label(db: Session, ticket: Ticket) -> str:
 
     Uses escalation risk score thresholded against severity buckets.
     """
+    from app.core.escalas import nivel_por_probabilidad
     risk = predict_escalation_risk(db, ticket)
-    if risk >= 0.75:
-        return "critical"
-    elif risk >= 0.50:
-        return "high"
-    elif risk >= 0.25:
-        return "medium"
-    else:
-        return "low"
+    return nivel_por_probabilidad(risk, db=db, org_id=getattr(ticket, "organization_id", None))
 
 
 # ── KB recommendation count ───────────────────────────────────────────────────
@@ -378,8 +372,7 @@ def _count_matching_kb_articles(db: Session, ticket: Ticket) -> int:
 #: El tope no arregla el N+1; lo acota, que es lo que se puede hacer sin
 #: rediseñar los dos predictores. Y la respuesta dice cuantos analizo de cuantos
 #: hay, para que un numero truncado no se lea como completo.
-TOPE_DE_TICKETS_ANALIZADOS = int(
-    _os.getenv("PREDICTIVE_STATS_MAX_TICKETS", "200"))
+TOPE_DE_TICKETS_ANALIZADOS = int(_settings.PREDICTIVE_STATS_MAX_TICKETS)
 
 #: A partir de que probabilidad se cuenta un ticket como «SLA en riesgo».
 #: Estaba en duro en el cuerpo del endpoint.
@@ -643,40 +636,3 @@ def predict_sla_breach(db: Session, ticket: Ticket) -> dict:
         "recommendation": recomendacion,
     }
 
-
-def get_at_risk_tickets(db: Session, limit: int = 50) -> list[dict]:
-    """Return open tickets sorted by SLA breach probability (highest first).
-
-    Filters to only open/in-progress tickets with an SLA deadline.
-    """
-    open_tickets = (
-        db.query(Ticket)
-        .filter(
-            Ticket.status.notin_([s.value for s in _CLOSED_STATUSES]),
-            Ticket.sla_resolution_due.isnot(None),
-        )
-        .limit(200)
-        .all()
-    )
-
-    results = []
-    for ticket in open_tickets:
-        try:
-            sla_data = predict_sla_breach(db, ticket)
-            results.append({
-                "ticket_id": ticket.id,
-                "ticket_number": ticket.number,
-                "title": ticket.title,
-                "priority": getattr(ticket.priority, "value", str(ticket.priority)),
-                "status": getattr(ticket.status, "value", str(ticket.status)),
-                "breach_probability": sla_data["breach_probability"],
-                "already_breached": sla_data["already_breached"],
-                "minutes_until_due": sla_data["minutes_until_resolution_due"],
-                "risk_level": sla_data["risk_level"],
-                "recommendation": sla_data["recommendation"],
-            })
-        except Exception as exc:
-            logger.warning("SLA breach prediction failed for ticket %s: %s", ticket.id, exc)
-
-    results.sort(key=lambda x: -x["breach_probability"])
-    return results[:limit]

@@ -1,6 +1,6 @@
 import ConfigCorreoEntrante from '../service-desk/ConfigCorreoEntrante'
 import EstadoDeConectores from '../../components/conectores/EstadoDeConectores'
-import type { ChangeEvent, CSSProperties, ReactNode } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { Fragment, useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -10,23 +10,11 @@ import { APP_LANGUAGES, AVAILABLE_LANGUAGES, loadLanguage, getAllKeys, es } from
 import { PORTAL_TRANSLATIONS, PORTAL_LANGUAGES, getPortalKeys } from '../../i18n/portalTranslations'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Card } from '../../components/ui'
+import SeccionDeAjustes from './SeccionDeAjustes'
 import { portalClientsApi, settingsApi, type IntegrationProvider, type IntegrationTestResult, type LogLevel, type RuntimeSetting } from '../../services/api'
 import { settingsApi as ajustesGeneralesApi, type SettingOut } from '../../services/settingsApi'
 import type { PortalDictionary } from '../../i18n/portalTranslations'
 import { alpha } from '../../constants/theme'
-
-function Section({ icon, title, description, children }: { icon?: ReactNode; title?: ReactNode; description?: ReactNode; children?: ReactNode }) {
-  return (
-    <Card style={{ marginBottom: 24 }}>
-      <div className="u-mb-20">
-        <div style={{ fontSize: "var(--text-lg)", fontWeight: 700 }}>{icon} {title}</div>
-        {description && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginTop: 4 }}>{description}</div>}
-      </div>
-      {children}
-    </Card>
-  )
-}
 
 /** Textos por módulo y clave: `{módulo: {clave: texto}}`. */
 type TextosPorModulo = Record<string, Record<string, string>>
@@ -163,17 +151,17 @@ export function IdiomasSection() {
     descargarJSON(`portal_translations_${portalLang}.json`, { [portalLang]: modelo })
   }
 
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit' }
+  const fs: CSSProperties = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit' }
   const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
   if (loadingAppLang) return <div>Cargando traducciones...</div>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="u-stack-20">
       <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--surface-4)', paddingBottom: 10 }}>
         {[['operator', '⚙️ Idioma del operador'], ['app', '🖥 Traducciones del back-office'], ['portal', '🌐 Portal cliente']].map(([id, label]) => (
           <button key={id} onClick={() => setActiveTab(id)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -188,11 +176,11 @@ export function IdiomasSection() {
             </div>
           </div>
           <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div className="u-wrap-10">
               {/* Operator-facing picker: only well-covered locales (pl/zh hidden). */}
               {AVAILABLE_LANGUAGES.map(l => (
                 <button key={l.code} onClick={() => setOperatorLang(l.code)}
-                  style={{ padding: '12px 22px', borderRadius: 10, border: `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: operatorLang === l.code ? 'var(--accent-muted)' : 'var(--surface-2)', color: operatorLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-md-em)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                  style={{ padding: '12px 22px', borderRadius: 'var(--radius-md)', border: `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: operatorLang === l.code ? 'var(--accent-muted)' : 'var(--surface-2)', color: operatorLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-md-em)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                   {l.flag} {l.label}
                   {operatorLang === l.code && <span style={{ marginLeft: 8, fontSize: "var(--text-sm)" }}>✓</span>}
                 </button>
@@ -209,36 +197,36 @@ export function IdiomasSection() {
         <div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IDIOMA A EDITAR</div>
+              <div className="u-text2-xs-mb4">IDIOMA A EDITAR</div>
               <div className="u-row-6">
                 {APP_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button key={l.code} onClick={() => setAppLang(l.code)}
-                    style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                     {l.flag} {l.label}
                   </button>
                 ))}
               </div>
             </div>
             <div className="u-flex1">
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>BUSCAR CLAVE</div>
+              <div className="u-text2-xs-mb4">BUSCAR CLAVE</div>
               <input value={searchKey} onChange={e => setSearchKey(e.target.value)}
                 placeholder={t('settingsadvanced.buscar_clave_de_traduccion')} aria-label={t('settingsadvanced.buscar_clave_de_traduccion')} style={{ ...fs, width: 280 }} />
             </div>
             <div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>MODULO</div>
+              <div className="u-text2-xs-mb4">MODULO</div>
               <select value={activeModule} onChange={e => setActiveModule(e.target.value)} style={{ ...fs, width: 160 }}>
                 {modules.map(m => <option key={m} value={m}>{m === 'all' ? 'Todos los modulos' : m}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
+              <div className="u-text2-xs-mb4">IMPORTAR JSON</div>
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📥 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={importJSON} />
               </label>
             </div>
             <div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>EXPORTAR JSON</div>
+              <div className="u-text2-xs-mb4">EXPORTAR JSON</div>
               <button type="button" onClick={exportJSON}
                 style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📤 Exportar JSON
@@ -299,23 +287,23 @@ export function IdiomasSection() {
         <div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IDIOMA A EDITAR</div>
+              <div className="u-text2-xs-mb4">IDIOMA A EDITAR</div>
               <div className="u-row-6">
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button key={l.code} onClick={() => setPortalLang(l.code)}
-                    style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                     {l.flag} {l.label}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>BUSCAR</div>
+              <div className="u-text2-xs-mb4">BUSCAR</div>
               <input value={portalSearch} onChange={e => setPortalSearch(e.target.value)}
                 placeholder={t('settingsadvanced.buscar_texto_del_portal')} aria-label={t('settingsadvanced.buscar_texto_del_portal')} style={{ ...fs, width: 260 }} />
             </div>
             <div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
+              <div className="u-text2-xs-mb4">IMPORTAR JSON</div>
               <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📥 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
@@ -346,7 +334,7 @@ export function IdiomasSection() {
               </label>
             </div>
             <div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>EXPORTAR JSON</div>
+              <div className="u-text2-xs-mb4">EXPORTAR JSON</div>
               <button type="button" onClick={exportPortalJSON}
                 style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 📤 Exportar JSON
@@ -463,9 +451,9 @@ export function LogLevelSection() {
   const LEVEL_COLORS: Record<string, string> = { DEBUG: 'var(--text-2)', INFO: 'var(--accent)', WARNING: 'var(--warning)', ERROR: 'var(--danger)', CRITICAL: '#c0392b' }
 
   return (
-    <Section icon="📋" title={t('settingsadvanced.nivel_de_log')} description="Controla la verbosidad del backend y frontend">
+    <SeccionDeAjustes icon="📋" title={t('settingsadvanced.nivel_de_log')} description="Controla la verbosidad del backend y frontend">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '18px 20px' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>🖥️ Servidor (FastAPI / Uvicorn)</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>
             {t('settingsadvanced.cambia_el_nivel_en_tiempo_real_sin')} <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: "var(--text-xs)" }}>LOG_LEVEL=INFO</code>
@@ -491,7 +479,7 @@ export function LogLevelSection() {
           </div>
         </div>
 
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '18px 20px' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>🌐 Navegador (React / Vite)</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>
             {t('settingsadvanced.controla_la_consola_del_navegador_se_guarda')} <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: "var(--text-xs)" }}>{"__contecflowLogger.setLevel('debug')"}</code>
@@ -513,16 +501,16 @@ export function LogLevelSection() {
           </div>
         </div>
       </div>
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
 export function EmailInboundSection() {
   // La misma pantalla que Service Desk → Configuración → Correo entrante.
   return (
-    <Section icon="📧" title="Email a ticket" description="Correo entrante al Service Desk: buzón, pasarela y últimos mensajes">
+    <SeccionDeAjustes icon="📧" title="Email a ticket" description="Correo entrante al Service Desk: buzón, pasarela y últimos mensajes">
       <ConfigCorreoEntrante />
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -643,7 +631,7 @@ function SystemSettingItem({ setting }: { setting: FilaAjuste }) {
   return (
     <div style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-      borderRadius: 10, padding: '12px 14px',
+      borderRadius: 'var(--radius-md)', padding: '12px 14px',
       minWidth: 0, overflow: 'hidden',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
@@ -657,7 +645,7 @@ function SystemSettingItem({ setting }: { setting: FilaAjuste }) {
           onClick={() => setExpanded(v => !v)}
           style={{
             background: 'transparent', border: '1px solid var(--surface-4)',
-            borderRadius: 6, padding: '3px 9px',
+            borderRadius: 'var(--radius-sm)', padding: '3px 9px',
             color: 'var(--text-2)', fontFamily: 'inherit',
             fontSize: 'var(--text-2xs)', cursor: 'pointer', flexShrink: 0,
           }}
@@ -670,7 +658,7 @@ function SystemSettingItem({ setting }: { setting: FilaAjuste }) {
       )}
       <pre style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-        borderRadius: 6, padding: '8px 10px',
+        borderRadius: 'var(--radius-sm)', padding: '8px 10px',
         fontSize: 'var(--text-2xs)', color: 'var(--text-2)',
         margin: 0, fontFamily: 'var(--font-mono)',
         maxHeight: expanded ? 'none' : 64,
@@ -696,7 +684,7 @@ function AislamientoEnLaBase() {
   if (!data) return null
   const color = data.armed ? 'var(--success)' : 'var(--warning)'
   return (
-    <div role={data.armed ? undefined : 'alert'} style={{ marginBottom: 18, borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-sm)',
+    <div role={data.armed ? undefined : 'alert'} style={{ marginBottom: 18, borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 'var(--text-sm)',
       background: `color-mix(in srgb, ${color} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${color} 30%, var(--surface-4))` }}>
       <strong style={{ color }}>{data.armed ? '🔒 ' + t('settingsadvanced.rls_armado') : '⚠ ' + t('settingsadvanced.rls_desarmado')}</strong>
       <div style={{ color: 'var(--text-2)', marginTop: 4 }}>
@@ -727,7 +715,7 @@ export function SystemStateSection() {
   const groupMeta = Object.fromEntries(SYSTEM_KEY_GROUPS.map(g => [g.label, g]))
 
   return (
-    <Section icon="🔧" title={t('settingsadvanced.estado_del_sistema')} description="Lectura del estado interno persistido por servicios BI / ITSM (admin · solo lectura)">
+    <SeccionDeAjustes icon="🔧" title={t('settingsadvanced.estado_del_sistema')} description="Lectura del estado interno persistido por servicios BI / ITSM (admin · solo lectura)">
       <AislamientoEnLaBase />
       {isLoading ? (
         <div className="u-text3-sm">Cargando…</div>
@@ -740,12 +728,12 @@ export function SystemStateSection() {
           <div style={{
             background: 'color-mix(in srgb, var(--warning) 8%, var(--surface-3))',
             border: '1px solid color-mix(in srgb, var(--warning) 30%, var(--surface-4))',
-            borderRadius: 10, padding: '10px 14px',
+            borderRadius: 'var(--radius-md)', padding: '10px 14px',
             fontSize: 'var(--text-xs)', color: 'var(--text-2)', lineHeight: 1.5,
           }}>
             <strong className="u-warning">{t('settingsadvanced.vista_de_solo_lectura')}</strong>{' '}
-            {t('settingsadvanced.estos_blobs_son_estado_interno_de_servicios')}<code style={{ fontFamily: 'var(--font-mono)' }}>/bi/govern</code>, <code style={{ fontFamily: 'var(--font-mono)' }}>/bi/data</code>,
-            <code style={{ fontFamily: 'var(--font-mono)' }}>{t('settingsadvanced.service_desk_voz_ml_auto_resolucion')}</code>{t('settingsadvanced.editarlos_directamente_puede_romper_el_modulo_correspondiente')}
+            {t('settingsadvanced.estos_blobs_son_estado_interno_de_servicios')}<code className="u-mono">/bi/govern</code>, <code className="u-mono">/bi/data</code>,
+            <code className="u-mono">{t('settingsadvanced.service_desk_voz_ml_auto_resolucion')}</code>{t('settingsadvanced.editarlos_directamente_puede_romper_el_modulo_correspondiente')}
           </div>
 
           {orderedGroups.map(label => {
@@ -760,7 +748,7 @@ export function SystemStateSection() {
                       textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700,
                     }}>{meta?.icon || '📦'} {label}</div>
                     {meta?.description && (
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                      <div className="u-text3-xs-mt2">
                         {meta.description}
                       </div>
                     )}
@@ -768,7 +756,7 @@ export function SystemStateSection() {
                   <span style={{
                     fontSize: 'var(--text-2xs)', fontWeight: 700,
                     color: 'var(--text-2)', background: 'var(--surface-4)',
-                    borderRadius: 999, padding: '2px 9px',
+                    borderRadius: 'var(--radius-full)', padding: '2px 9px',
                   }}>{items.length}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 10 }}>
@@ -782,7 +770,7 @@ export function SystemStateSection() {
           })}
         </div>
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -893,7 +881,7 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>{item.label}</span>
+        <span className="u-text1-sm-600">{item.label}</span>
         <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>{item.key}{item.plataforma ? ' · plataforma (superadmin)' : ''}</span>
       </div>
       <div>
@@ -1024,7 +1012,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
           return (
             <Fragment key={it.key}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>{it.label}</span>
+                <span className="u-text1-sm-600">{it.label}</span>
                 <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>
                   {it.key}{it.is_secret ? ' • secreto' : ''} • origen: {it.source}
                 </span>
@@ -1088,13 +1076,13 @@ export function IntegrationCredentialsSection() {
     if (!active && providers.length) setActive(providers[0].provider)
   }, [providers, active])
 
-  if (isLoading) return <Section icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div></Section>
-  if (isError)   return <Section icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></Section>
+  if (isLoading) return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div></SeccionDeAjustes>
+  if (isError)   return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></SeccionDeAjustes>
 
   const currentProvider = providers.find(p => p.provider === active)
 
   return (
-    <Section
+    <SeccionDeAjustes
       icon="🔐"
       title={t('settingsadvanced.credenciales_de_integracion')}
       description="SMTP, AWS S3, Microsoft Graph, Slack, Stripe, etc. Los secretos se cifran en reposo (Fernet/HKDF + opcional AWS KMS) y nunca se devuelven en las respuestas."
@@ -1107,7 +1095,7 @@ export function IntegrationCredentialsSection() {
             onClick={() => setActive(p.provider)}
             style={{
               padding: '6px 14px',
-              borderRadius: 999,
+              borderRadius: 'var(--radius-full)',
               border: '1px solid ' + (active === p.provider ? 'var(--accent)' : 'var(--surface-4)'),
               background: active === p.provider ? 'var(--accent-muted)' : 'transparent',
               color: active === p.provider ? 'var(--accent)' : 'var(--text-2)',
@@ -1120,7 +1108,7 @@ export function IntegrationCredentialsSection() {
       {active && currentProvider && (
         <IntegrationProviderEditor key={active} provider={active} label={currentProvider.label} />
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -1130,7 +1118,7 @@ export function RuntimeFlagsSection() {
   const [active, setActive] = useState(RUNTIME_GROUPS[0].id)
   const current = RUNTIME_GROUPS.find(g => g.id === active) || RUNTIME_GROUPS[0]
   return (
-    <Section icon="⚙️" title={t('settingsadvanced.configuracion_dinamica')} description="Knobs operativos editables sin redeploy. Resuelven org → global → valor del .env.">
+    <SeccionDeAjustes icon="⚙️" title={t('settingsadvanced.configuracion_dinamica')} description="Knobs operativos editables sin redeploy. Resuelven org → global → valor del .env.">
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         {RUNTIME_GROUPS.map(g => (
           <button
@@ -1138,7 +1126,7 @@ export function RuntimeFlagsSection() {
             onClick={() => setActive(g.id)}
             style={{
               padding: '6px 14px',
-              borderRadius: 999,
+              borderRadius: 'var(--radius-full)',
               border: '1px solid ' + (active === g.id ? 'var(--accent)' : 'var(--surface-4)'),
               background: active === g.id ? 'var(--accent-muted)' : 'transparent',
               color: active === g.id ? 'var(--accent)' : 'var(--text-2)',
@@ -1149,6 +1137,6 @@ export function RuntimeFlagsSection() {
         ))}
       </div>
       <RuntimeGroupEditor key={active} groupId={active} description={current.description} />
-    </Section>
+    </SeccionDeAjustes>
   )
 }

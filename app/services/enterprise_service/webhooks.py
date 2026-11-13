@@ -16,6 +16,8 @@ from app.models.enterprise import WebhookDelivery
 from app.services.audit import audit_log
 from sqlalchemy.orm import joinedload
 from typing import TYPE_CHECKING
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.services.settings_service import outbound_http_timeout
 if TYPE_CHECKING:
     from app.models.enterprise import (
         Webhook,
@@ -150,13 +152,13 @@ def test_webhook_delivery(hook, current_user) -> dict:
 
     test_payload = {
         "event": "test",
-        "message": "This is a test delivery from Contecflow",
+        "message": f"This is a test delivery from {NOMBRE_DEL_PRODUCTO}",
         "triggered_by": current_user.full_name,
     }
     try:
         body = json.dumps({"event": "test", "data": test_payload}, default=str)
         start = time.time()
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=outbound_http_timeout(default=10.0)) as client:
             resp = client.post(
                 hook.url,
                 content=body,

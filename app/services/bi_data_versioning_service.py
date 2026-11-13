@@ -238,22 +238,3 @@ def diff_versions(
         "removed": removed[:50],
     }
 
-
-def temporal_query(
-    db: Session,
-    org_id: str,
-    dataset_key: str,
-    as_of: str,
-) -> dict:
-    """Return the most recent snapshot taken at or before ``as_of`` timestamp."""
-    meta_k = _meta_key(dataset_key, org_id)
-    meta = _get_json(db, meta_k, default={"versions": []})
-    versions: list[dict] = meta.get("versions", [])
-
-    # Sort ascending by created_at and find last version <= as_of
-    candidates = [v for v in sorted(versions, key=lambda x: x["created_at"]) if v["created_at"] <= as_of]
-    if not candidates:
-        raise ErrorDeDominio(404, f"No hay versión disponible en o antes de {as_of!r} para {dataset_key!r}")
-
-    target_version = candidates[-1]
-    return get_version_data(db, org_id, dataset_key, target_version["version_id"])

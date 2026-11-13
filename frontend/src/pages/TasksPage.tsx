@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
@@ -100,7 +100,7 @@ type SemSuggestion = {
 }
 /** Respuesta de `/semantic/estimate/effort`. */
 type SemEffort = { base_hours?: number; complexity?: string }
-type Sprint = { id: string; name: string }
+type Sprint = { id: string; name?: string }
 type KanbanColumnConfig = { id: string; status: string; wip_limit: number | null }
 /** `/cmdb/kanban/{proyecto}`: carriles y límites WIP del tablero. */
 type KanbanConfig = { configured?: boolean; swimlane_by?: string; columns?: KanbanColumnConfig[] }
@@ -191,19 +191,19 @@ function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }: { task: Task; on
       onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onTaskClick(task)}
       style={{
         background: 'var(--surface-2)', border: `1px solid ${task.status === 'blocked' ? 'var(--danger-border)' : 'var(--surface-4)'}`,
-        borderRadius: 10, padding: '14px 16px', cursor: 'grab', transition: 'all 0.15s', userSelect: 'none',
+        borderRadius: 'var(--radius-md)', padding: '14px 16px', cursor: 'grab', transition: 'all 0.15s', userSelect: 'none',
       }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(79,142,247,0.4)'}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-border-strong)'}
       onMouseLeave={e => e.currentTarget.style.borderColor = task.status === 'blocked' ? 'var(--danger-border)' : 'var(--surface-4)'}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'flex-start' }}>
-        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{task.code}</span>
+        <span className="u-text2-mono-xs">{task.code}</span>
         <Badge label={task.priority} />
       </div>
       <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 10, lineHeight: 1.4 }}>{task.title}</div>
       <div className="u-row-between">
         {task.assignee ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="u-row-center-6">
             <Avatar name={task.assignee.full_name} size={22} />
             <span className="u-text2-xs">{task.assignee.full_name.split(' ')[0]}</span>
           </div>
@@ -279,8 +279,8 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
       onPointerLeave={onColumnLeave}
       style={{
         minWidth: 240, flex: 1,
-        background: dragOver ? 'rgba(79,142,247,0.06)' : 'transparent',
-        borderRadius: 12, border: `1px solid ${dragOver ? 'rgba(79,142,247,0.35)' : 'transparent'}`,
+        background: dragOver ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : 'transparent',
+        borderRadius: 12, border: `1px solid ${dragOver ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'transparent'}`,
         padding: 8, transition: 'background 0.15s, border-color 0.15s',
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 4px' }}>
@@ -289,7 +289,7 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
           {CLAVE_DE_ESTADO[status] ? t(CLAVE_DE_ESTADO[status]) : STATUS_LABELS_MAP[status]}
         </span>
         <span title={wipLimit ? t('tasks.kanban_wip_titulo', { n: wipLimit }) : undefined}
-          style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", background: pasado ? 'var(--danger-bg)' : 'var(--surface-4)', color: pasado ? 'var(--danger)' : 'var(--text-2)', borderRadius: 10, padding: '1px 7px', fontWeight: pasado ? 700 : 400 }}>
+          style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", background: pasado ? 'var(--danger-bg)' : 'var(--surface-4)', color: pasado ? 'var(--danger)' : 'var(--text-2)', borderRadius: 'var(--radius-md)', padding: '1px 7px', fontWeight: pasado ? 700 : 400 }}>
           {tasks.length}{wipLimit ? ` / ${wipLimit}` : ''}
         </span>
         {onSetWip && (
@@ -344,6 +344,7 @@ function useWorkflowStatusOptions(projectId: string | undefined, t: Traductor): 
 }
 
 function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boolean; onClose: () => void }) {
+  const idCampo = useId()
   const puedeBorrar = useAuth().hasRole('admin', 'pm')
   const t = useAppT()
   const qc = useQueryClient()
@@ -505,7 +506,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           padding: '14px 20px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{task.code}</span>
           <button onClick={onClose} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-3)', display: 'flex', padding: 4, borderRadius: 6 }}>
+            color: 'var(--text-3)', display: 'flex', padding: 4, borderRadius: 'var(--radius-sm)' }}>
             <X size={16} />
           </button>
         </div>
@@ -596,7 +597,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
 
           {/* Tags */}
           {task.tags && (
-            <div style={{ marginBottom: 14 }}>
+            <div className="u-mb-14">
               <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{t('tasks.tags_label')}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {String(task.tags).split(',').filter(Boolean).map(tag => (
@@ -645,22 +646,22 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
 
           {/* Título */}
           <div className="u-col-full">
-            <label style={ls}>{t('tasks.title_required')}</label>
-            <input value={form.title} onChange={set('title')} style={fs} />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('tasks.title_required')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={fs} />
           </div>
 
           {/* Estado + Prioridad */}
           <div>
-            <label style={ls}>{t('common.status')}</label>
-            <select value={form.status} onChange={set('status')} style={fs}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('common.status')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={set('status')} style={fs}>
               {statusOptions.map(o => (
                 <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
               ))}
             </select>
           </div>
           <div>
-            <label style={ls}>{t('common.priority')}</label>
-            <select value={form.priority} onChange={set('priority')} style={fs}>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('common.priority')}</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.priority} onChange={set('priority')} style={fs}>
               <option value="low">🟢 {t('tasks.priority_low')}</option>
               <option value="medium">🟡 {t('tasks.priority_medium')}</option>
               <option value="high">🔴 {t('tasks.priority_high')}</option>
@@ -673,7 +674,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <label style={{ ...ls, marginBottom: 0 }}>{t('tasks.assignee')}</label>
               <button onClick={analyzeWithAI} disabled={suggesting || !form.title}
-                style={{ background: 'transparent', border: '1px solid var(--purple-border-strong)', borderRadius: 6, padding: '3px 10px', color: 'var(--purple)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+                style={{ background: 'transparent', border: '1px solid var(--purple-border-strong)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--purple)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
                 {suggesting ? '⏳...' : `🧠 ${t('tasks.ai_suggest')}`}
               </button>
             </div>
@@ -688,21 +689,21 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                   <div style={{ display: 'flex', gap: 16 }}>
                     {semSuggestion?.suggested_user_name && (
                       <div>
-                        <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t('tasks.ai_person_label')}</div>
-                        <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{semSuggestion.suggested_user_name} <span style={{ color: 'var(--accent)', fontSize: "var(--text-xs)" }}>{Math.round((semSuggestion.confidence||0)*100)}%</span></div>
+                        <div className="u-text2-2xs">{t('tasks.ai_person_label')}</div>
+                        <div className="u-base-700">{semSuggestion.suggested_user_name} <span style={{ color: 'var(--accent)', fontSize: "var(--text-xs)" }}>{Math.round((semSuggestion.confidence||0)*100)}%</span></div>
                       </div>
                     )}
                     {semEffort && (
                       <div>
-                        <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t('tasks.ai_effort_label')}</div>
+                        <div className="u-text2-2xs">{t('tasks.ai_effort_label')}</div>
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--warning)' }}>{semEffort.base_hours}h <span style={{ color: COMPLEXITY_COLORS[semEffort.complexity], fontSize: "var(--text-xs)" }}>{semEffort.complexity}</span></div>
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="u-row-6">
-                  <button onClick={acceptSuggestion} style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('tasks.ai_apply')}</button>
-                  <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '4px 8px', borderRadius: 6, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✕</button>
+                  <button onClick={acceptSuggestion} style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('tasks.ai_apply')}</button>
+                  <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✕</button>
                 </div>
               </div>
             )}
@@ -725,12 +726,12 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           </div>
           <div style={{ gridColumn: '1/-1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <label style={ls}>{t('tasks.date_start')}</label>
-              <DateInput value={form.start_date} onChange={set('start_date')} style={fs} />
+              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('tasks.date_start')}</label>
+              <DateInput id={`${idCampo}-4`} value={form.start_date} onChange={set('start_date')} style={fs} />
             </div>
             <div>
-              <label style={ls}>{t('tasks.due_date')}</label>
-              <DateInput value={form.due_date} onChange={set('due_date')} style={fs} />
+              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('tasks.due_date')}</label>
+              <DateInput id={`${idCampo}-5`} value={form.due_date} onChange={set('due_date')} style={fs} />
             </div>
           </div>
 
@@ -743,16 +744,16 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           {/* Motivo bloqueo */}
           {form.status === 'blocked' && (
             <div className="u-col-full">
-              <label style={ls}>{t('tasks.blocked_reason')}</label>
-              <input value={form.blocked_reason} onChange={set('blocked_reason')} style={fs}
+              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('tasks.blocked_reason')}</label>
+              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.blocked_reason} onChange={set('blocked_reason')} style={fs}
                 placeholder={t('tasks.blocked_reason_placeholder')} />
             </div>
           )}
 
           {/* Tags */}
           <div className="u-col-full">
-            <label style={ls}>{t('tasks.tags_label')}</label>
-            <input value={form.tags} onChange={set('tags')} style={fs} placeholder={t('tasks.tags_placeholder')} />
+            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('tasks.tags_label')}</label>
+            <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.tags} onChange={set('tags')} style={fs} placeholder={t('tasks.tags_placeholder')} />
           </div>
 
           {/* Campos personalizados */}
@@ -791,7 +792,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           <div style={{ gridColumn: '1/-1', display: 'flex', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
             <span>🕐 {t('tasks.real_hours')}: <strong className="u-text1">{task.real_hours?.toFixed(1) ?? 0}h</strong></span>
             <span>📅 {t('tasks.created_label')}: <strong className="u-text1">{fmtDate(task.created_at)}</strong></span>
-            {task.completed_at && <span>✅ {t('tasks.completed_label')}: <strong style={{ color: 'var(--success)' }}>{fmtDate(task.completed_at)}</strong></span>}
+            {task.completed_at && <span>✅ {t('tasks.completed_label')}: <strong className="u-success">{fmtDate(task.completed_at)}</strong></span>}
           </div>
 
           {/* Acciones edición */}
@@ -824,10 +825,10 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           ) : (
             <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {task.comments.map(c => (
-                <div key={c.id} style={{ display: 'flex', gap: 10 }}>
+                <div key={c.id} className="u-row-10">
                   <Avatar name={c.author?.full_name || '?'} size={28} />
                   <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px', flex: 1 }}>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>
+                    <div className="u-text2-xs-mb4">
                       <strong className="u-text1">{c.author?.full_name}</strong> · {fmtDate(c.created_at)}
                     </div>
                     <div style={{ fontSize: "var(--text-base)", lineHeight: 1.5 }}>{c.content}</div>
@@ -837,7 +838,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
             </div>
           )}
           <div className="u-row-8">
-            <textarea value={comment} onChange={e => setComment(e.target.value)}
+            <textarea aria-label={t('tasks.add_comment')} value={comment} onChange={e => setComment(e.target.value)}
               placeholder={t('tasks.add_comment')}
               rows={2}
               style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'none' }}
@@ -1068,7 +1069,7 @@ export default function TasksPage() {
   const puedeConfigurar = hasRole('admin', 'pm')
   const { data: sprintsDelProyecto = [] } = useQuery<Sprint[]>({
     queryKey: ['sprints', projectFilter], enabled: !!projectFilter,
-    queryFn: () => sprintsApi.list(projectFilter).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => sprintsApi.list(projectFilter).then(r => r.data ?? []),
   })
   const { data: tablero } = useQuery<KanbanConfig>({
     queryKey: ['kanban-config', projectFilter], enabled: !!projectFilter,
@@ -1238,7 +1239,7 @@ export default function TasksPage() {
             position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
             color: 'var(--text-3)', pointerEvents: 'none',
           }} />
-          <input ref={buscador} value={search} onChange={e => setSearch(e.target.value)}
+          <input aria-label={t('tasks.search_placeholder')} ref={buscador} value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('tasks.search_placeholder')} aria-keyshortcuts="/"
             className="ds-input"
             style={{ paddingLeft: 32 }} />
@@ -1389,7 +1390,7 @@ export default function TasksPage() {
                   role="button"
                   tabIndex={0}
                   style={{
-                    background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10,
+                    background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
                     padding: '12px 14px', cursor: 'pointer',
                   }}
                 >
@@ -1447,7 +1448,7 @@ export default function TasksPage() {
                   <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
                   <div>
                     <div className="u-base-600">{t.title}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{t.code}</div>
+                    <div className="u-text2-mono-xs">{t.code}</div>
                   </div>
                   <span className="u-text2-sm">
                     {projects.find(p => p.id === t.project_id)?.code || t.project_id?.slice(0,8) || '—'}
@@ -1477,6 +1478,7 @@ export default function TasksPage() {
 }
 
 function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: () => void; projects: ProjectListItem[] }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1574,29 +1576,29 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
 
   return (
     <Modal open={open} onClose={onClose} title={t('tasks.new_task')} width={580}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <label style={ls}>{t('tasks.title_required')}</label>
-          <input value={form.title} onChange={set('title')} style={fs} placeholder={t('tasks.task_title')} />
+      <div className="u-grid2-14">
+        <div className="u-col-full">
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('tasks.title_required')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={fs} placeholder={t('tasks.task_title')} />
         </div>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <label style={ls}>{t('tasks.project_required')}</label>
-          <select value={form.project_id} onChange={set('project_id')} style={fs}>
+        <div className="u-col-full">
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('tasks.project_required')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={set('project_id')} style={fs}>
             <option value="">{t('tasks.select_project_option')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('common.status')}</label>
-          <select value={form.status} onChange={set('status')} style={fs}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('common.status')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} style={fs}>
             {statusOptions.map(o => (
               <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
             ))}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('common.priority')}</label>
-          <select value={form.priority} onChange={set('priority')} style={fs}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('common.priority')}</label>
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.priority} onChange={set('priority')} style={fs}>
             <option value="low">🟢 {t('tasks.priority_low')}</option>
             <option value="medium">🟡 {t('tasks.priority_medium')}</option>
             <option value="high">🔴 {t('tasks.priority_high')}</option>
@@ -1604,11 +1606,11 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
           </select>
         </div>
         {/* Asignación + estimación con IA */}
-        <div style={{ gridColumn: '1 / -1' }}>
+        <div className="u-col-full">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <label style={{ ...ls, marginBottom: 0 }}>{t('tasks.assignee')}</label>
             <button onClick={analyzeWithAI} disabled={suggesting || !form.title}
-              style={{ background: 'transparent', border: '1px solid var(--purple-border-strong)', borderRadius: 6, padding: '3px 12px', color: 'var(--purple)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+              style={{ background: 'transparent', border: '1px solid var(--purple-border-strong)', borderRadius: 'var(--radius-sm)', padding: '3px 12px', color: 'var(--purple)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
               {suggesting ? '⏳...' : `🧠 ${t('tasks.ai_analyze')}`}
             </button>
           </div>
@@ -1619,13 +1621,13 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
         </div>
         {/* Banner de sugerencia IA */}
         {(semSuggestion || semEffort) && !semSuggestion?.error && (
-          <div style={{ gridColumn: '1 / -1', padding: '12px 14px', background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ gridColumn: '1 / -1', padding: '12px 14px', background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
             <div className="u-flex1">
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6, fontWeight: 700 }}>{t('tasks.ai_analysis')}</div>
               <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                 {semSuggestion?.suggested_user_name && (
                   <div>
-                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t('tasks.ai_person_label')}</div>
+                    <div className="u-text2-2xs">{t('tasks.ai_person_label')}</div>
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>
                       {semSuggestion.suggested_user_name}
                       <span style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', marginLeft: 6 }}>
@@ -1636,7 +1638,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
                 )}
                 {semEffort && (
                   <div>
-                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t('tasks.ai_effort_label')}</div>
+                    <div className="u-text2-2xs">{t('tasks.ai_effort_label')}</div>
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--warning)' }}>
                       {semEffort.base_hours}h
                       <span style={{ fontSize: "var(--text-xs)", marginLeft: 6, color: COMPLEXITY_COLORS[semEffort.complexity] }}>
@@ -1649,8 +1651,8 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
               {semSuggestion?.reasoning && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>{semSuggestion.reasoning}</div>}
             </div>
             <div className="u-row-6">
-              <button onClick={acceptSuggestion} style={{ padding: '5px 12px', borderRadius: 6, background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('tasks.ai_apply')}</button>
-              <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '5px 8px', borderRadius: 6, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✕</button>
+              <button onClick={acceptSuggestion} style={{ padding: '5px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('tasks.ai_apply')}</button>
+              <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '5px 8px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✕</button>
             </div>
           </div>
         )}
@@ -1659,14 +1661,14 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
           <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="Horas estimadas" aria-label="Horas estimadas" />
         </div>
         <div>
-          <label style={ls}>{t('tasks.date_start')}</label>
-          <DateInput value={form.start_date} onChange={set('start_date')} style={fs} />
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('tasks.date_start')}</label>
+          <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={set('start_date')} style={fs} />
         </div>
         <div>
-          <label style={ls}>{t('tasks.due_date')}</label>
-          <DateInput value={form.due_date} onChange={set('due_date')} style={fs} />
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('tasks.due_date')}</label>
+          <DateInput id={`${idCampo}-6`} value={form.due_date} onChange={set('due_date')} style={fs} />
         </div>
-        <div style={{ gridColumn: '1 / -1' }}>
+        <div className="u-col-full">
           <label style={ls}>{t('common.description')} <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontWeight: 400 }}>{t('tasks.description_hint')}</span></label>
           <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={3} placeholder={t('common.description')} style={{ ...fs, resize: 'vertical' }} />
         </div>

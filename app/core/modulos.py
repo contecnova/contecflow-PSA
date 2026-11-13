@@ -18,8 +18,10 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from sqlalchemy.orm import Session
+
+from app.core.errores import ErrorDeDominio
 
 #: modulo -> (prefijos de la API, rutas de la pantalla). Los nombres son los
 #: de `advanced_config_service.DEFAULT_MODULES`.
@@ -110,7 +112,7 @@ def comprobar(db: Session, user, request: Request) -> None:
     """403 si la ruta pertenece a un modulo cerrado para este usuario."""
     modulo = modulo_cerrado(db, user, request.url.path)
     if modulo:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+        raise ErrorDeDominio(status_code=status.HTTP_403_FORBIDDEN,
                             detail=f"Tu rol no tiene acceso al módulo «{modulo}»")
 
 
@@ -130,4 +132,4 @@ def validar_acceso(module_access: Optional[dict]) -> None:
         return
     desconocidos = sorted(set(module_access) - set(MODULOS))
     if desconocidos:
-        raise HTTPException(422, f"Módulos desconocidos: {', '.join(desconocidos)}")
+        raise ErrorDeDominio(422, f"Módulos desconocidos: {', '.join(desconocidos)}")

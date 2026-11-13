@@ -119,7 +119,14 @@ DESAJUSTES_CONOCIDOS = 0
 
 _VERBOS = {"get": "GET", "post": "POST", "put": "PUT", "patch": "PATCH",
            "delete": "DELETE"}
-_LLAMADA = re.compile(r"\bapi\.(get|post|put|patch|delete)\(\s*([`'\"])([^`'\"]*)\2")
+#: Auditoria 2026-11 (#45): antes solo se leia `api.`; el portal del cliente usa
+#: `CLIENT_API.` (portalClientContext), la vista publica del portal su propio
+#: `API.` y el formulario publico de alta `axios.x(apiUrl('...'))`. Los tres van
+#: contra la misma base `/api/v1` y quedaban fuera del detector.
+_LLAMADA = re.compile(
+    r"(?:\b(?:api|API|CLIENT_API)\.(get|post|put|patch|delete)\(\s*"
+    r"|\baxios\.(get|post|put|patch|delete)\(\s*apiUrl\(\s*)"
+    r"([`'\"])([^`'\"]*)\3")
 
 #: El prefijo que el cliente de axios pone delante de todo
 #: (`_core.ts`: `BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'`).
@@ -139,9 +146,13 @@ def _llamadas_del_frontend() -> dict[tuple[str, str], set[str]]:
 
     llamadas: dict[tuple[str, str], set[str]] = {}
     for f in sorted(raiz.rglob("*.ts*")):
+        # Los tests del frontend llaman a rutas de mentira contra un axios
+        # simulado (p. ej. `CLIENT_API.get('/x')`): no son llamadas reales.
+        if "__tests__" in f.parts or ".test." in f.name:
+            continue
         txt = f.read_text(encoding="utf-8", errors="replace")
         for m in _LLAMADA.finditer(txt):
-            verbo, ruta = m.group(1), m.group(3)
+            verbo, ruta = m.group(1) or m.group(2), m.group(4)
             if not ruta.startswith("/"):
                 continue
             # plantilla anidada: la lectura estática no es fiable

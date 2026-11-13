@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Body, Qu
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
-import os
+from app.core.entorno import en_pruebas
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.core.deps import require_any_manager
 from app.models.user import User
 from app.core.errores import ErrorDeDominio
+from app.services.settings_service import outbound_http_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +210,7 @@ def manual_event_notify(
         event_type=payload.get("event_type", ""),
         entity=payload.get("entity", {}),
         db=db,
+        organization_id=current_user.organization_id,
     )
     return APIResponse.ok(data={"ok": True, "dispatched": len(results), "results": results})
 
@@ -241,7 +243,7 @@ async def _verificar_firma_de_slack(request: Request) -> bytes:
     signing_secret = settings.SLACK_SIGNING_SECRET
     body_bytes = await request.body()
     if not signing_secret:
-        if os.getenv("TESTING") != "1":
+        if not en_pruebas():
             raise HTTPException(503, "Slack inbound commands are not configured")
         return body_bytes
 
@@ -290,7 +292,7 @@ def _claves_de_bot_framework(metadata_url: str):
         return cliente
 
     validate_https_discovery_url(metadata_url)
-    with urllib.request.urlopen(metadata_url, timeout=5) as resp:  # noqa: S310
+    with urllib.request.urlopen(metadata_url, timeout=outbound_http_timeout(default=5)) as resp:  # noqa: S310
         metadatos = _json.loads(resp.read())
     jwks_uri = metadatos.get("jwks_uri")
     if not jwks_uri:
@@ -332,7 +334,7 @@ def _verificar_token_de_teams(request: Request) -> Optional[dict]:
 
     bot_app_id = settings.TEAMS_BOT_APP_ID
     if not bot_app_id:
-        if os.getenv("TESTING") != "1":
+        if not en_pruebas():
             raise HTTPException(503, "Teams inbound commands are not configured")
         return None
 
@@ -512,7 +514,10 @@ async def teams_inbound_command(
     Supports conversational commands identical to the Slack bot.
     Validates Bearer token audience against TEAMS_BOT_APP_ID env var.
     """
-    claims = _verificar_token_de_teams(request)
+    # Auditoria 2026-11: verificar el token puede descargar los metadatos y las
+    # claves de Bot Framework (urlopen / PyJWKClient, red sincrona): al pool.
+    from app.core.async_db import run_db
+    claims = await run_db(_verificar_token_de_teams, request)
 
     body = await request.json()
     original = (body.get("text") or "").strip()
@@ -533,7 +538,8 @@ async def teams_inbound_command(
     from app.services.settings_service import get_runtime_bool
     verbo = (text.split(None, 1) or [""])[0]
     if (verbo not in _COMANDOS and contecflow_user is not None and original
-            and get_runtime_bool(db, "TEAMS_KB_ANSWERS_ENABLED", contecflow_user.organization_id) is not False):
+            and (await run_db(get_runtime_bool, db, "TEAMS_KB_ANSWERS_ENABLED",
+                              contecflow_user.organization_id)) is not False):
         from app.db.session import publicar_contexto_de_tenant
         publicar_contexto_de_tenant(db, contecflow_user)
         texto = await run_db(teams_bot.respuesta_de_la_base, db, contecflow_user, original)

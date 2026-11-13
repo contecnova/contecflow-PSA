@@ -31,6 +31,7 @@ from app.models.project import Project
 from app.models.service_desk import Ticket
 from app.core.asignacion import campos_asignables, es_asignable
 from app.core.errores import ErrorDeDominio
+from app.models.user import UserRole
 
 
 # ── Scoped query helpers ───────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
     # into the UI and breaks tenant onboarding.
     from app.db.transactions import atomic
 
-    if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
+    if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
         raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden crear clientes")
 
     with atomic(db):
@@ -384,7 +385,7 @@ def get_client_360(client_id: str, db: Session) -> dict:
 # ── Client CRUD ───────────────────────────────────────────────────────────────
 
 def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict:
-    if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
+    if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
         raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden editar clientes")
     c = get_scoped_client_or_404(db, current_user, cid)
     for k, v in data.items():
@@ -396,7 +397,7 @@ def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict
 
 
 def delete_client(cid: str, current_user: User, db: Session) -> dict:
-    if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
+    if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
         raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden eliminar clientes")
     c = get_scoped_client_or_404(db, current_user, cid)
     dependencies = []

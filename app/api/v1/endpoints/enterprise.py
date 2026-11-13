@@ -17,6 +17,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.models.enterprise import WebhookEvent
 import app.services.enterprise_service as _svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -29,7 +30,7 @@ def get_audit_log(
     resource: Optional[str] = None, resource_id: Optional[str] = None,
     user_id: Optional[str] = None, action: Optional[str] = None,
     date_from: Optional[date] = None, date_to: Optional[date] = None,
-    page: int = Query(1, ge=1), page_size: int = Query(50, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
     return APIResponse.ok(data=_svc.get_audit_log(db, resource, resource_id, user_id, action, date_from, date_to, page, page_size))

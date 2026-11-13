@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react'
+import { CSSProperties, useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -148,6 +148,7 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
 }
 
 function TransitionForm({ projectId, states, onClose }: { projectId: string; states: WorkflowState[]; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -171,15 +172,15 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label style={labelStyle}>Desde</label>
-            <select style={inputStyle} value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Desde</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={inputStyle} value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
               <option value="">Selecciona estado...</option>
               {states.map(s => <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Hasta</label>
-            <select style={inputStyle} value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>Hasta</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={inputStyle} value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
               <option value="">Selecciona estado...</option>
               {states.filter(s => String(s.id) !== form.from_state_id).map(s => (
                 <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>
@@ -192,8 +193,8 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
           <input style={inputStyle} value={form.label} onChange={e => set('label')(e.target.value)} placeholder="Ejecutar, Validar o Cerrar" aria-label={t('workflows.etiqueta_de_la_transicion')} />
         </div>
         <div>
-          <label style={labelStyle}>{t('workflows.solo_puede_ejecutarla_este_rol')}</label>
-          <select style={inputStyle} value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>{t('workflows.solo_puede_ejecutarla_este_rol')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={inputStyle} value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
             <option value="">Cualquier rol</option>
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
@@ -214,6 +215,7 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
 }
 
 export default function WorkflowsPage() {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -293,8 +295,8 @@ export default function WorkflowsPage() {
 
       {/* Selector de proyecto */}
       <div style={{ ...panelStyle, marginBottom: 24 }}>
-        <label style={labelStyle}>Proyecto</label>
-        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Proyecto</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           style={{ ...inputStyle, width: 360 }}>
           <option value="">{t('workflows.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
@@ -309,7 +311,7 @@ export default function WorkflowsPage() {
 
       {selectedProject && !isLoading && states.length === 0 && (
         <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>⚙️</div>
+          <div className="u-empty-icon">⚙️</div>
           <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>{t('workflows.sin_workflow_definido')}</div>
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 24 }}>
             {t('workflows.puedes_inicializar_un_workflow_scrum_estandar_o')}
@@ -332,10 +334,10 @@ export default function WorkflowsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           {/* Panel de estados */}
           <div style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>Estados ({states.length})</div>
+            <div className="u-row-between-mb16">
+              <div className="u-md-600">Estados ({states.length})</div>
               <button onClick={() => { setEditingState(null); setShowStateForm(true) }}
-                style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '5px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 + Estado
               </button>
             </div>
@@ -346,7 +348,7 @@ export default function WorkflowsPage() {
                   <span style={{ fontSize: "var(--text-lg)" }}>{s.icon}</span>
                   <div className="u-flex1">
                     <div style={{ fontWeight: 500, fontSize: "var(--text-base)" }}>{s.name}</div>
-                    <div style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{s.value}</div>
+                    <div className="u-text3-mono-xs">{s.value}</div>
                   </div>
                   <div className="u-row-6">
                     {s.is_initial && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>Inicial</span>}
@@ -365,10 +367,10 @@ export default function WorkflowsPage() {
 
           {/* Panel de transiciones */}
           <div style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>Transiciones ({totalTransitions})</div>
+            <div className="u-row-between-mb16">
+              <div className="u-md-600">Transiciones ({totalTransitions})</div>
               <button onClick={() => setShowTransitionForm(true)}
-                style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 6, padding: '5px 12px', color: 'var(--purple)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: 'var(--purple)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 {t('workflows.transicion')}
               </button>
             </div>

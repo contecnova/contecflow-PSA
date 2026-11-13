@@ -1,6 +1,4 @@
 """Seed v13: dependencias de tareas, bookings, tipos de cambio, SLA schedules, API keys."""
-import os
-
 from app.core.config import settings
 
 def seed_v13():
@@ -107,7 +105,7 @@ def seed_v13():
     # ── API Key demo ───────────────────────────────────────────────────────────
     if admin:
         import bcrypt as _bcrypt
-        raw_key = os.getenv("SEED_API_KEY_DEMO", "nxpm_demo_integration_key_1234")
+        raw_key = settings.SEED_API_KEY_DEMO
         hashed = _bcrypt.hashpw(raw_key.encode(), _bcrypt.gensalt()).decode()
         db.add(ApiKey(
             name="Integración BI Dashboard",

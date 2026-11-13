@@ -51,7 +51,7 @@ const SLA_COLOR: Record<string, string> = {
 }
 // Refuerzo: exportar para debug si es necesario
 // export const inp = inp;
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { z } from 'zod'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -133,6 +133,7 @@ const clientCreateSchema = z.object({
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ClientsPage(): JSX.Element {
+  const idCampo = useId()
   const traducir = useAppT()
   const _t = useAppT()
   const toast = useToast()
@@ -275,7 +276,7 @@ export default function ClientsPage(): JSX.Element {
             </button>
           ))
           : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '8px 12px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <SortableTH col="name" sort={clientSort} onSort={setClientSort}>Cliente</SortableTH>
                 <SortableTH col="projects_count" sort={clientSort} onSort={setClientSort}>Proy</SortableTH>
@@ -288,7 +289,7 @@ export default function ClientsPage(): JSX.Element {
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
                   <div className="u-min0">
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                    <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 10, background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
+                    <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 'var(--radius-md)', background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
                       {STATUS_LABEL[c.status || ""] || c.status}
                     </span>
                   </div>
@@ -306,7 +307,7 @@ export default function ClientsPage(): JSX.Element {
         {!selected ? (
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🏢</div>
+              <div className="u-empty-icon">🏢</div>
               <div style={{ fontSize: "var(--text-md)" }}>{traducir('clients.selecciona_un_cliente_para_ver_su_perfil')}</div>
             </div>
           </div>
@@ -398,26 +399,26 @@ export default function ClientsPage(): JSX.Element {
         <Modal open title={`✏️ Editar: ${editClientForm.name}`} onClose={() => setShowEdit(false)} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={lbl}>Nombre *</label>
-              <input value={editClientForm.name}
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Nombre *</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editClientForm.name}
                 onChange={e => setEditClientForm(f => ({ ...f, name: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Nombre corto</label>
-              <input value={editClientForm.short_name}
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Nombre corto</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editClientForm.short_name}
                 onChange={e => setEditClientForm(f => ({ ...f, short_name: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>CIF / NIF / VAT</label>
-              <input value={editClientForm.tax_id}
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>CIF / NIF / VAT</label>
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={editClientForm.tax_id}
                 onChange={e => setEditClientForm(f => ({ ...f, tax_id: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Sector</label>
-              <select value={editClientForm.industry}
+              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>Sector</label>
+              <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={editClientForm.industry}
                 onChange={e => setEditClientForm(f => ({ ...f, industry: e.target.value }))}
                 style={inp}>
                 {INDUSTRIES.map(i => (
@@ -426,26 +427,26 @@ export default function ClientsPage(): JSX.Element {
               </select>
             </div>
             <div>
-              <label style={lbl}>Contacto principal</label>
-              <input value={editClientForm.contact_name}
+              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>Contacto principal</label>
+              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={editClientForm.contact_name}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_name: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Email contacto</label>
-              <input type="email" value={editClientForm.contact_email}
+              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={lbl}>Email contacto</label>
+              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="email" value={editClientForm.contact_email}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_email: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>{traducir('clients.telefono')}</label>
-              <input value={editClientForm.contact_phone}
+              <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={lbl}>{traducir('clients.telefono')}</label>
+              <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={editClientForm.contact_phone}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_phone: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Estado</label>
-              <select value={editClientForm.status}
+              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={lbl}>Estado</label>
+              <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={editClientForm.status}
                 onChange={e => setEditClientForm(f => ({ ...f, status: e.target.value }))}
                 style={inp}>
                 {Object.entries(STATUS_LABEL).map(([k, v]) => (
@@ -465,7 +466,7 @@ export default function ClientsPage(): JSX.Element {
                 onChange={e => setEditClientForm(f => ({ ...f, city: e.target.value }))}
                 style={inp} placeholder="Ciudad" aria-label="Ciudad" />
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
+            <div className="u-col-full">
               <label style={lbl}>Website</label>
               <input value={editClientForm.website}
                 onChange={e => setEditClientForm(f => ({ ...f, website: e.target.value }))}
@@ -473,15 +474,14 @@ export default function ClientsPage(): JSX.Element {
             </div>
           </div>
           <div className="u-mb-16">
-            <label style={lbl}>Notas</label>
-            <textarea value={editClientForm.notes}
+            <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={lbl}>Notas</label>
+            <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editClientForm.notes}
               onChange={e => setEditClientForm(f => ({ ...f, notes: e.target.value }))}
               style={{ ...inp, minHeight: 70, resize: 'vertical' }} />
           </div>
           <div className="u-actions-8">
             <button onClick={() => setShowEdit(false)}
-              style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
-                padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+              className="u-btn-outline-sm">
               Cancelar
             </button>
             <Button
@@ -531,7 +531,7 @@ export default function ClientsPage(): JSX.Element {
           </div>
           <div className="u-mb-16"><label style={lbl}>Notas</label><textarea value={newForm.notes} onChange={setCreateField('notes')} style={{ ...createValidation.inputStyle(inp, 'notes'), minHeight: 70, resize: 'vertical' }} />{errField('notes')}</div>
           <div className="u-actions-8">
-            <button onClick={() => { setShowCreate(false); createValidation.setErrors({}) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => { setShowCreate(false); createValidation.setErrors({}) }} className="u-btn-outline-sm">Cancelar</button>
             <Button onClick={submitCreate} disabled={creating}>
               {creating ? '⟳ Creando...' : '✓ Crear cliente'}
             </Button>

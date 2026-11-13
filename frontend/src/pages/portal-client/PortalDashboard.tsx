@@ -29,7 +29,7 @@ import {
   PortalDonut,
   PortalSpark,
   PortalBars,
-  formatDuration, formatMoney,
+  formatDuration, formatMoney, MONEDA_PORTAL_POR_DEFECTO,
   type PortalIcon, metaItems,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -383,7 +383,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   const totalPaid   = invoicesPaid.reduce((s, i) => s + Number(i.total || 0), 0)
   const totalOverdue = invoicesOverdue.reduce((s, i) => s + Number(i.total || 0), 0)
   const collectionPct = totalBilled ? Math.round((totalPaid / totalBilled) * 100) : 0
-  const currency = invoices[0]?.currency || 'EUR'
+  const currency = invoices[0]?.currency || MONEDA_PORTAL_POR_DEFECTO
 
   // Action items (lo que requiere atención del cliente)
   const docsToSign = docs.filter(d => d.requires_signature && !d.signed_by_client)
@@ -451,9 +451,9 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       {totalActions > 0 && (
         <PortalCard accent style={{ marginBottom: SECTION_GAP }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="u-row-center-12">
               <div style={{
-                width: 38, height: 38, borderRadius: 10, background: 'var(--accent-muted)',
+                width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--accent-muted)',
                 color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}><Zap size={18} /></div>
               <div>
@@ -473,7 +473,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 <button key={i} onClick={() => go(it.target)} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                  borderRadius: 10, padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)', padding: '10px 14px',
                   cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
                   color: 'var(--text-1)', transition: 'border-color 0.15s',
                 }}
@@ -486,7 +486,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}><Icon size={15} /></div>
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+                    <div className="u-sm-700">
                       <span style={{ fontFamily: 'var(--font-mono)', color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}>{it.count}</span> {it.label}
                     </div>
                   </div>
@@ -601,7 +601,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 {upcomingMilestones.map(m => {
                   const tone = m.days < 0 ? 'danger' : m.days < 7 ? 'warning' : 'accent'
                   return (
-                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div key={m.id} className="u-row-center-12">
                       <div style={{
                         width: 32, height: 32, borderRadius: 8, flexShrink: 0,
                         background: tone === 'danger' ? 'var(--danger-bg, rgba(239,68,68,0.12))'
@@ -794,13 +794,13 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 {milestones.filter(m => m.billing_pct).slice(0, 5).map(m => (
                   <div key={m.id} className="u-row-center-10">
                     <div style={{
-                      width: 26, height: 26, borderRadius: 999, flexShrink: 0,
+                      width: 26, height: 26, borderRadius: 'var(--radius-full)', flexShrink: 0,
                       background: m.is_completed ? 'var(--success-bg, rgba(16,185,129,0.12))' : 'var(--surface-3)',
                       color: m.is_completed ? 'var(--success)' : 'var(--text-2)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>{m.is_completed ? <CheckCircle2 size={14} /> : <Pin size={13} />}</div>
                     <div className="u-flex1-min0">
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{m.name}</div>
+                      <div className="u-sm-700">{m.name}</div>
                       <div className="u-text3-xs">{m.due_date || '—'}</div>
                     </div>
                     <PortalBadge tone={m.is_completed ? 'success' : 'warning'}>{m.billing_pct}% factura</PortalBadge>
@@ -832,7 +832,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                       }}><Icon size={14} /></div>
                       <div className="u-flex1-min0">
                         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{it.description}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{it.date?.slice(0, 16)?.replace('T', ' ')}</div>
+                        <div className="u-text3-xs-mt2">{it.date?.slice(0, 16)?.replace('T', ' ')}</div>
                       </div>
                     </div>
                   )
@@ -844,7 +844,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.atajos_rapidos')}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="u-grid2-10">
               <QuickLink onClick={() => go('support')} icon={Headphones} label="Abrir ticket" hint="Service desk" />
               <QuickLink onClick={() => go('requests')} icon={Lightbulb} label="Pedir cambio" hint="Feature request" />
               <QuickLink onClick={() => go('uat')} icon={FlaskConical} label="UAT pendientes" hint={`${uatToRun} sesion(es)`} />
@@ -880,7 +880,7 @@ function DataRow({ label, value, tone = 'default', hint }: { label: ReactNode; v
 function MetricBlock({ icon: Icon, label, value, tone }: { icon: PortalIcon; label: ReactNode; value: ReactNode; tone?: string }) {
   const color = tone === 'success' ? 'var(--success)' : tone === 'accent' ? 'var(--accent)' : 'var(--text-1)'
   return (
-    <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 12px' }}>
+    <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
         <Icon size={12} /> {label}
       </div>
@@ -894,7 +894,7 @@ function QuickLink({ icon: Icon, label, hint, onClick }: { icon: PortalIcon; lab
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 12,
       background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-      borderRadius: 10, padding: '12px 14px',
+      borderRadius: 'var(--radius-md)', padding: '12px 14px',
       cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
       color: 'var(--text-1)', transition: 'border-color 0.15s',
     }}
@@ -906,7 +906,7 @@ function QuickLink({ icon: Icon, label, hint, onClick }: { icon: PortalIcon; lab
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}><Icon size={16} /></div>
       <div className="u-flex1-min0">
-        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{label}</div>
+        <div className="u-sm-700">{label}</div>
         <div className="u-text3-xs">{hint}</div>
       </div>
       <ArrowRight size={14} style={{ color: 'var(--text-3)' }} aria-hidden="true" />

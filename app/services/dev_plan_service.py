@@ -16,6 +16,7 @@ from app.models.performance import (
     DevelopmentPlan, DevGoal, DevPlanStatus, DevGoalStatus,
 )
 from app.models.user import User
+from app.models.user import UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 def can_edit_plan(*, current_user: User, plan: DevelopmentPlan, db: Session) -> bool:
     if getattr(current_user, "is_superadmin", False):
         return True
-    if current_user.role in ("admin", "hr"):
+    if current_user.role in (UserRole.admin, UserRole.hr):
         return True
     if current_user.id == plan.subject_id:
         return True

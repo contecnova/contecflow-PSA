@@ -2,7 +2,7 @@
  * ExpensesPage — gestión completa de gastos con flujo de aprobación
  * Vistas: Mis gastos | Pendientes aprobación | Equipo | Resumen por proyecto
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo, downloadBlob } from '../utils/helpers'
@@ -101,7 +101,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
   const [detalle, setDetalle] = useState(false)
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
-      <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{expense.code}</span>
+      <span className="u-text3-mono-xs">{expense.code}</span>
       <CatBadge cat={expense.category || ''} />
       <div>
         <button type="button" onClick={() => setDetalle(true)} title={t('gas.abrir_detalle')}
@@ -109,7 +109,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
           {expense.description}
         </button>
         {(expense.policy_flags ?? []).length > 0 && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--warning)' }}>⚠ {t('gas.excede_politica')}</span>}
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
+        <div className="u-text2-xs-mt2">
           {expense.project_name || 'Sin proyecto'} · {expense.expense_date}
           {isManager && <span style={{ marginLeft: 8 }}>· {expense.user_name}</span>}
         </div>
@@ -142,6 +142,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
 
 // ── Create/Edit expense modal ─────────────────────────────────────────────────
 function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -178,7 +179,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
     <Modal open title={isEdit ? 'Editar gasto' : 'Nuevo gasto'} onClose={onClose} width={580}>
       {/* OCR receipt scan button */}
       {!isEdit && (
-        <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-glow)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-glow)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: "var(--text-xl)" }}>📷</span>
           <div style={{ flex: '1 1 180px', minWidth: 0 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 2 }}>{traducir('expenses.escanear_recibo_con_ia')}</div>
@@ -215,20 +216,20 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           </label>
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="u-grid2-14">
         <div className="u-col-full">
           <label style={ls}>{traducir('expenses.descripcion')}</label>
           <input value={form.description} onChange={set('description')} style={fs} placeholder={traducir('expenses.descripcion_del_gasto')} aria-label={traducir('expenses.descripcion_del_gasto')} />
         </div>
         <div>
-          <label style={ls}>{traducir('expenses.category')}</label>
-          <select value={form.category} onChange={set('category')} style={fs}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('expenses.category')}</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.category} onChange={set('category')} style={fs}>
             {Object.entries(CATEGORIES).map(([v, c]) => <option key={v} value={v}>{c.icon} {c.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>Proyecto</label>
-          <select value={form.project_id} onChange={set('project_id')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Proyecto</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={set('project_id')} style={fs}>
             <option value="">{traducir('expenses.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
@@ -243,14 +244,14 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <input type="number" step="0.1" min={0} value={form.km} onChange={set('km')} style={fs} placeholder={traducir('gas.km_ayuda')} aria-label={traducir('gas.km')} />
         </div>
         <div>
-          <label style={ls}>Moneda</label>
-          <select value={form.currency} onChange={set('currency')} style={fs}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Moneda</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.currency} onChange={set('currency')} style={fs}>
             {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{traducir('expenses.fecha_del_gasto')}</label>
-          <DateInput value={form.expense_date} onChange={set('expense_date')} style={fs} />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{traducir('expenses.fecha_del_gasto')}</label>
+          <DateInput id={`${idCampo}-4`} value={form.expense_date} onChange={set('expense_date')} style={fs} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 24 }}>
           <input type="checkbox" id="billable" checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
@@ -290,7 +291,7 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
   })
   return (
     <Modal open title={`Revisar gasto — ${expense.code}`} onClose={onClose} width={480}>
-      <div style={{ marginBottom: 16, background: 'var(--surface-3)', borderRadius: 10, padding: '14px 16px' }}>
+      <div style={{ marginBottom: 16, background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{expense.description}</div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
           <span>👤 {expense.user_name}</span>
@@ -426,19 +427,19 @@ function MyExpenses() {
               <div style={{ display: 'flex', gap: 5 }}>
                 {exp.status === 'draft' && <>
                   <button onClick={() => setEditing(exp)} title="Editar gasto" aria-label="Editar gasto"
-                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
+                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
                   <button onClick={() => submit(exp.id)} title="Enviar gasto" aria-label="Enviar gasto"
-                    style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-sm)" }} disabled={saving}>↑ Enviar</button>
+                    style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-sm)" }} disabled={saving}>↑ Enviar</button>
                   <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este gasto?', onConfirm: () => del(exp.id), danger: true }) }} title="Eliminar gasto" aria-label="Eliminar gasto"
-                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
+                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                 </>}
                 {exp.status === 'submitted' && (
                   <button onClick={() => recall(exp.id)} title="Retirar gasto" aria-label="Retirar gasto"
-                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>↩ Retirar</button>
+                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>↩ Retirar</button>
                 )}
                 {exp.status === 'rejected' && (
                   <button onClick={() => setEditing(exp)} title="Editar gasto rechazado" aria-label="Editar gasto rechazado"
-                    style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏ Editar</button>
+                    style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏ Editar</button>
                 )}
               </div>
             )} />
@@ -525,7 +526,7 @@ function PendingApproval() {
             <ExpenseRow key={e.id} expense={e} isManager onAction={(exp) => (
               <div style={{ display: 'flex', gap: 5 }}>
                 <button onClick={() => setReviewing(exp)}
-                  style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 10px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                  style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                   Revisar
                 </button>
               </div>
@@ -659,7 +660,7 @@ function TeamExpenses() {
               <div>
                 {exp.status === 'approved' && (
                   <button onClick={() => reimburse(exp.id)}
-                    style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-strong)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
+                    style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-strong)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                     💰 Reembolsar
                   </button>
                 )}
@@ -719,7 +720,7 @@ export default function ExpensesPage(): JSX.Element {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}

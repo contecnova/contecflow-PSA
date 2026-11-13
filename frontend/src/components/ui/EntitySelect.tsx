@@ -13,7 +13,7 @@
  */
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
-// TODO type: services/api still JS.
+import type { Client, Contract, Epic, Sprint } from '../../services/api/tipos'
 import {
   clientsApi, usersApi, projectsApi,
   sprintsApi, epicsApi, contractsApi,
@@ -44,9 +44,9 @@ export interface BaseEntity {
   name?: string
 }
 
-export interface ClientEntity extends BaseEntity {
-  name: string
-}
+// Auditoria 2026-11 (#39): los de cliente, sprint, epica y contrato son ya los
+// tipos de respuesta del cliente de API (services/api/tipos.ts).
+export type ClientEntity = Client
 
 export interface UserEntity {
   id: string
@@ -65,9 +65,9 @@ export interface NamedEntity extends BaseEntity {
   name: string
 }
 
-export interface SprintEntity extends NamedEntity {}
-export interface EpicEntity extends NamedEntity {}
-export interface ContractEntity extends NamedEntity {}
+export type SprintEntity = Sprint
+export type EpicEntity = Epic
+export type ContractEntity = Contract
 export interface MilestoneEntity extends NamedEntity {}
 
 export interface TaskEntity {
@@ -294,7 +294,7 @@ export function EpicSelect({ value = '', onChange, projectId, placeholder = 'Sel
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
       <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
-      {epics.map((ep) => <option key={ep.id} value={ep.id}>{ep.name}</option>)}
+      {epics.map((ep) => <option key={ep.id} value={ep.id}>{ep.title || String(ep.name ?? '')}</option>)}
     </select>
   )
 }

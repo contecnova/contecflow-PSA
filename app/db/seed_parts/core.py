@@ -144,7 +144,7 @@ def _sembrar_usuarios(db, org):
     from app.models.user import User
 
     import json, os
-    users_data_path = os.getenv("SEED_USERS_DATA_PATH", "seed_users_data.json")
+    users_data_path = settings.SEED_USERS_DATA_PATH
     if os.path.exists(users_data_path):
         with open(users_data_path, "r") as f:
             users_data = json.load(f)
@@ -327,7 +327,7 @@ def _sembrar_clientes(db, users):
     import json
     from app.models.clients import Client, ClientIndustry, ClientStatus
 
-    clients_data_path = os.getenv("SEED_CLIENTS_DATA_PATH", "seed_clients_data.json")
+    clients_data_path = settings.SEED_CLIENTS_DATA_PATH
     if os.path.exists(clients_data_path):
         with open(clients_data_path, "r") as f:
             clients_data = json.load(f)

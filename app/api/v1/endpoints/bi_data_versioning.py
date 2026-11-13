@@ -72,14 +72,3 @@ def diff_versions(
     org_id = str(current_user.organization_id or "global")
     return APIResponse.ok(data=svc.diff_versions(db, org_id=org_id, dataset_key=dataset_key, version_id_a=v1, version_id_b=v2))
 
-
-@router.get("/temporal", summary="Query temporal — estado del dataset en un momento pasado")
-def temporal_query(
-    dataset_key: str = Query(...),
-    as_of: str = Query(..., description="ISO 8601 timestamp, ej. 2024-06-01T00:00:00Z"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Devuelve el snapshot más reciente capturado en o antes de `as_of`."""
-    org_id = str(current_user.organization_id or "global")
-    return APIResponse.ok(data=svc.temporal_query(db, org_id=org_id, dataset_key=dataset_key, as_of=as_of))

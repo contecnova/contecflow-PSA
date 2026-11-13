@@ -12,16 +12,13 @@ def test_jira_api_token_is_encrypted_at_rest(client, admin_token, db):
     res = client.post("/api/v1/jira/config", json=payload, headers=auth(admin_token))
     assert res.status_code == 200, res.text
 
-    from app.models.settings import AppSetting
+    # Auditoria 2026-11 (#34): la conexion de las tareas vive en `sd_jira_configs`.
+    from app.models.jira_integration import JiraConfig
 
-    row = db.query(AppSetting).filter(
-        AppSetting.key == "jira_api_token",
-        AppSetting.organization_id == "1",
+    row = db.query(JiraConfig).filter(
+        JiraConfig.organization_id == "1", JiraConfig.usar_para_tareas.is_(True),
     ).first()
-    # In some test paths org_id may persist as int/string depending on SQLite coercion.
-    if row is None:
-        row = db.query(AppSetting).filter(AppSetting.key == "jira_api_token").first()
 
     assert row is not None
-    assert row.value is not None
-    assert row.value.startswith("v2:") or row.value.startswith("kmsv1:")
+    assert row.jira_api_token_enc is not None
+    assert row.jira_api_token_enc.startswith("v2:") or row.jira_api_token_enc.startswith("kmsv1:")

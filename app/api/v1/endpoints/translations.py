@@ -1,5 +1,6 @@
 import logging
 from fastapi import APIRouter, Depends, Query
+from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.responses import APIResponse
 from app.models.user import User
@@ -15,7 +16,7 @@ SUPPORTED_LANGS = {"es", "en", "fr", "de", "it", "pt", "pl", "zh"}
 
 @router.get("", summary="Traducciones de la UI")
 def get_translations(
-    lang: str = Query('es', description="Código de idioma: es, en, fr, ..."),
+    lang: str = Query(settings.DEFAULT_LANGUAGE, description="Código de idioma: es, en, fr, ..."),
     current_user: User = Depends(get_current_user)
 ):
     """

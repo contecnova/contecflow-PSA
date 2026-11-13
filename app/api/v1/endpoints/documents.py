@@ -27,6 +27,7 @@ from app.services.ai_provider_service import call_ai
 from app.services import documents_service as doc_svc
 
 from app.services import reserva_de_documentos as _reserva
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ def create_document(
 @router.get("", response_model=APIListResponse[DocumentListOut], summary="List documents with filters")
 def list_documents(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     category: Optional[DocumentCategory] = None,
     tags: Optional[str] = None,
     search: Optional[str] = None,
@@ -552,7 +553,7 @@ def docs_by_project(
     project_id: str,
     archived: bool = False,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -572,7 +573,7 @@ def docs_by_project(
 def docs_by_task(
     task_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -592,7 +593,7 @@ def docs_by_task(
 def docs_by_ticket(
     ticket_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -613,10 +614,6 @@ def docs_by_ticket(
             response.headers["X-Page"] = str(page)
             response.headers["X-Page-Size"] = str(page_size)
         return APIListResponse.ok(items=[], total=0, page=page, page_size=page_size)
-
-
-def _doc_list(db, docs):
-    return doc_svc.build_doc_list(docs)
 
 
 # ── Tag management ─────────────────────────────────────────────────────────

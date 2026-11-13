@@ -17,6 +17,8 @@ import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Bell, Languages, Palette, ShieldCheck, UserRound } from 'lucide-react'
 import { Avatar } from '../ui'
+import { Drawer } from '../ui/Drawer'
+import { useTabListKeys } from '../ui/Tabs'
 import PasskeysSection from '../security/PasskeysSection'
 import { AVAILABLE_LANGUAGES } from '../../i18n/appTranslations'
 import { applyAccent as applyAccentToDom } from '../../utils/appearance'
@@ -80,6 +82,7 @@ interface Props {
 }
 
 export default function UserProfilePanel({ onClose }: Props) {
+  const idCampo = React.useId()
   const { t: traducir } = useAppLang()
   const { user, setUser } = useAuth()
   const toast = useToast()
@@ -160,19 +163,18 @@ export default function UserProfilePanel({ onClose }: Props) {
     { id: 'notifications', label: traducir('perfilpanel.tab_avisos'),     Icono: Bell },
   ]
 
+  const teclasTabs = useTabListKeys(TABS.map(x => x.id), tab, setTab)
+
   return (
     <>
-      {/* Overlay */}
-      <div role="presentation" onMouseDown={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          zIndex: 299, backdropFilter: 'blur(2px)' }} />
-
-      {/* Panel */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, width: 'min(380px, 100vw)', zIndex: 300,
-        background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)',
-        borderTop: '1px solid var(--surface-4)', borderRadius: '0 16px 0 0',
-        display: 'flex', flexDirection: 'column',
-        maxHeight: '90vh', boxShadow: '4px -4px 32px rgba(0,0,0,0.4)' }}>
+      {/* Auditoria 2026-11 (#41): overlay y panel hechos a mano, sin trampa de
+          foco ni Esc -> Drawer del kit, anclado abajo a la izquierda como antes. */}
+      <Drawer onClose={onClose} ariaLabel={traducir('perfilpanel.tab_perfil')} width="min(380px, 100vw)"
+        backdrop="rgba(0,0,0,0.4)"
+        style={{ top: 'auto', right: 'auto', bottom: 0, left: 0, maxWidth: '100vw',
+          border: 'none', borderRight: '1px solid var(--surface-4)',
+          borderTop: '1px solid var(--surface-4)', borderRadius: '0 16px 0 0',
+          maxHeight: '90vh', boxShadow: '4px -4px 32px rgba(0,0,0,0.4)' }}>
 
         {/* Header del panel */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)',
@@ -188,16 +190,16 @@ export default function UserProfilePanel({ onClose }: Props) {
               {user?.role} · {user?.department || 'Sin departamento'}
             </div>
           </div>
-          <button onClick={onClose}
+          <button type="button" aria-label="Cerrar" onClick={onClose}
             style={{ background: 'none', border: 'none', color: 'var(--text-3)',
               cursor: 'pointer', fontSize: "var(--text-xl)", padding: '0 4px' }}>✕</button>
         </div>
 
         {/* Tabs */}
-        <div role="tablist" style={{ display: 'grid', gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))`, gap: 4,
+        <div role="tablist" ref={teclasTabs.listRef} onKeyDown={teclasTabs.onKeyDown} aria-label={traducir('perfilpanel.tab_perfil')} style={{ display: 'grid', gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))`, gap: 4,
           padding: '8px 12px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
           {TABS.map(({ id, label, Icono }) => (
-            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} title={label}
+            <button key={id} type="button" role="tab" data-tab-id={id} aria-selected={tab === id} tabIndex={teclasTabs.focusId === id ? 0 : -1} onClick={() => setTab(id)} title={label}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 0,
                 padding: '6px 4px', borderRadius: 8, fontSize: "var(--text-2xs)", fontWeight: 600,
                 border: `1px solid ${tab === id ? 'var(--accent)' : 'transparent'}`,
@@ -221,63 +223,63 @@ export default function UserProfilePanel({ onClose }: Props) {
                 borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 <div>👤 Usuario: <strong className="u-text1">{user?.username}</strong></div>
                 <div style={{ marginTop: 4 }}>📧 Email: <strong className="u-text1">{profileForm.email || user?.email}</strong></div>
-                <div style={{ marginTop: 2, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                <div className="u-text3-xs-mt2">
                   {traducir('userprofile.los_cambios_se_aplican_al_mismo_recurso')}
                 </div>
               </div>
 
               <div>
-                <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
                   display: 'block', marginBottom: 4 }}>Email</label>
-                <input value={profileForm.email}
+                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={profileForm.email}
                   onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))}
                   style={IS} type="email" placeholder="nombre@empresa.com" />
               </div>
 
               {/* Nombre */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="u-grid2-10">
                 <div>
-                  <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                     textTransform: 'uppercase', letterSpacing: '0.07em',
                     display: 'block', marginBottom: 4 }}>Nombre</label>
-                  <input value={profileForm.first_name}
+                  <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={profileForm.first_name}
                     onChange={e => setProfileForm(f => ({ ...f, first_name: e.target.value }))}
                     style={IS} placeholder="Tu nombre" />
                 </div>
                 <div>
-                  <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                     textTransform: 'uppercase', letterSpacing: '0.07em',
                     display: 'block', marginBottom: 4 }}>Apellidos</label>
-                  <input value={profileForm.last_name}
+                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={profileForm.last_name}
                     onChange={e => setProfileForm(f => ({ ...f, last_name: e.target.value }))}
                     style={IS} placeholder="Tus apellidos" />
                 </div>
               </div>
 
               <div>
-                <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
+                <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
                   display: 'block', marginBottom: 4 }}>Cargo</label>
-                <input value={profileForm.job_title}
+                <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={profileForm.job_title}
                   onChange={e => setProfileForm(f => ({ ...f, job_title: e.target.value }))}
                   style={IS} placeholder="Ej: Senior Developer, Project Manager..." />
               </div>
 
               <div>
-                <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
                   display: 'block', marginBottom: 4 }}>{traducir('userprofile.telefono')}</label>
-                <input value={profileForm.phone}
+                <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={profileForm.phone}
                   onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
                   style={IS} placeholder="+34 600 000 000" type="tel" />
               </div>
 
               <div>
-                <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
+                <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
                   display: 'block', marginBottom: 4 }}>{traducir('userprofile.url_de_avatar_opcional')}</label>
-                <input value={profileForm.avatar_url}
+                <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={profileForm.avatar_url}
                   onChange={e => setProfileForm(f => ({ ...f, avatar_url: e.target.value }))}
                   style={IS} placeholder="https://..." />
                 {profileForm.avatar_url && (
@@ -304,7 +306,7 @@ export default function UserProfilePanel({ onClose }: Props) {
 
           {/* ── APARIENCIA ───────────────────────────────────────────────────── */}
           {tab === 'appearance' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div className="u-stack-20">
 
               {/* Tema */}
               <div>
@@ -318,7 +320,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                       style={{ display: 'flex', alignItems: 'center', gap: 12,
                         padding: '10px 14px', borderRadius: 9, textAlign: 'left',
                         background: localTheme === t.id ? 'var(--accent-muted)' : 'var(--surface-3)',
-                        border: `1px solid ${localTheme === t.id ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
+                        border: `1px solid ${localTheme === t.id ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}`,
                         cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>
                       <span style={{ fontSize: "var(--text-xl)", flexShrink: 0 }}>{t.icon}</span>
                       <div className="u-flex1-min0">
@@ -353,7 +355,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 </button>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 6, marginBottom: 10 }}>
                   {ACCENT_PRESETS.map(p => (
-                    <button key={p.color} onClick={() => applyAccent(p.color)}
+                    <button aria-label={p.label} key={p.color} onClick={() => applyAccent(p.color)}
                       title={p.label}
                       style={{ aspectRatio: '1', borderRadius: 8, background: p.color, border: 'none',
                         cursor: 'pointer', transition: 'transform .1s',
@@ -375,9 +377,9 @@ export default function UserProfilePanel({ onClose }: Props) {
                   </div>
                   {/* Preview */}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 6,
+                    <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)',
                       background: 'var(--accent)' }} />
-                    <div style={{ width: 28, height: 28, borderRadius: 6,
+                    <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)',
                       background: 'var(--accent-muted)', border: '1px solid var(--accent)' }} />
                   </div>
                 </div>
@@ -397,7 +399,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                   ] as Array<[string, string]>).map(([val, label]) => (
                     <button key={val} onClick={() => setLocalDensity(val)}
                       style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: "var(--text-xs)",
-                        fontWeight: 600, border: `1px solid ${localDensity === val ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
+                        fontWeight: 600, border: `1px solid ${localDensity === val ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}`,
                         background: localDensity === val ? 'var(--accent-muted)' : 'var(--surface-3)',
                         color: localDensity === val ? 'var(--accent)' : 'var(--text-2)',
                         cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -420,7 +422,7 @@ export default function UserProfilePanel({ onClose }: Props) {
           {tab === 'language' && (
             <div className="u-stack-8">
               <div style={{ padding: '10px 14px', background: 'var(--accent-muted)',
-                border: '1px solid rgba(79,142,247,0.25)', borderRadius: 8,
+                border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 8,
                 fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 4 }}>
                 <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Idioma activo: </span>
                 {LANGUAGES.find(l => l.code === activeLang)?.flag} {LANGUAGES.find(l => l.code === activeLang)?.label}
@@ -434,9 +436,9 @@ export default function UserProfilePanel({ onClose }: Props) {
                   <button key={lang.code}
                     onClick={() => setPendingLang(lang.code)}
                     style={{ display: 'flex', alignItems: 'center', gap: 14,
-                      padding: '12px 16px', borderRadius: 10, textAlign: 'left',
+                      padding: '12px 16px', borderRadius: 'var(--radius-md)', textAlign: 'left',
                       background: isPending ? 'var(--accent-muted)' : 'var(--surface-3)',
-                      border: `1px solid ${isPending ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
+                      border: `1px solid ${isPending ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}`,
                       cursor: 'pointer', fontFamily: 'inherit', width: '100%',
                       transition: 'all .15s' }}>
                     <span style={{ fontSize: "var(--text-2xl)" }}>{lang.flag}</span>
@@ -562,7 +564,7 @@ export default function UserProfilePanel({ onClose }: Props) {
             </div>
           )}
         </div>
-      </div>
+      </Drawer>
     </>
   )
 }

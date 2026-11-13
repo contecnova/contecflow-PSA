@@ -156,7 +156,12 @@ def test_el_acceso_sin_contrasena_se_puede_apagar(client, admin_token, db):
 
 def test_registrar_pide_credencial_descubrible_y_se_renombra(client, pm_token, db):
     from app.models.mfa import WebAuthnCredential
-    r = client.post("/api/v1/auth/mfa/webauthn/register/start", headers=auth(pm_token))
+    from tests.conftest import TEST_PASSWORD
+    # Auditoria 2026-11 (#21): registrar una passkey pide la contrasena actual.
+    assert client.post("/api/v1/auth/mfa/webauthn/register/start",
+                       headers=auth(pm_token)).status_code == 401
+    r = client.post("/api/v1/auth/mfa/webauthn/register/start", headers=auth(pm_token),
+                    json={"password": TEST_PASSWORD})
     assert r.status_code == 200, r.text
     sel = r.json()["options"]["authenticatorSelection"]
     assert sel["residentKey"] == "preferred" and sel["userVerification"] == "required"

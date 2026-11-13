@@ -28,6 +28,7 @@ from app.services.collaboration._permissions import (
 from app.core.errores import ErrorDeDominio
 
 from app.services.collaboration.workspaces._comun import _nombre_de, _usuarios_por_id
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
@@ -47,7 +48,7 @@ def get_or_create_workspace(db: Session, user) -> CollaborationWorkspace:
     # Fetch organization name via DB (avoid lazy-load on a possibly detached user).
     from app.models.mfa import Organization
     org_row = db.query(Organization).filter(Organization.id == org).first()
-    name = (org_row.name if org_row else None) or "Contecflow Workspace"
+    name = (org_row.name if org_row else None) or f"{NOMBRE_DEL_PRODUCTO} Workspace"
     ws = CollaborationWorkspace(organization_id=org, name=name)
     db.add(ws)
     db.flush()

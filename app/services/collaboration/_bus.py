@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from collections import defaultdict
 from typing import Any, AsyncIterator, Iterable
 
@@ -106,9 +105,8 @@ def org_channel(organization_id: str) -> str:
 
 # ── Backend selection ────────────────────────────────────────────────────────
 def _build_bus() -> EventBus:
-    # env-driven backend selector: collaboration event bus implementation
-    # (memory/redis/nats) is a deployment topology choice, not application config.
-    backend = os.environ.get("COLLAB_BUS_BACKEND", "memory").lower()
+    from app.core.config import settings
+    backend = (settings.COLLAB_BUS_BACKEND or "memory").lower()
     if backend == "memory":
         return EventBus()
     if backend == "redis":

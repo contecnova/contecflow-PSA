@@ -27,6 +27,7 @@ from typing import Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.escalas import accion_por_correlacion
 from app.models.project import Project
 from app.models.service_desk import Ticket, TicketStatus, TicketPriority
 from app.models.user import User
@@ -285,12 +286,9 @@ def cluster_open_alerts(
         # CI dependency expansion for root cause hint
         root_cis = _expand_ci_dependencies(db, [c for c in ci_ids if c])
 
-        if correlation_score >= 0.70 and len(members) >= 3:
-            action = "create_problem"
-        elif correlation_score >= 0.40:
-            action = "review"
-        else:
-            action = "monitor"
+        # Hallazgo 17 (2026-11): esta pasada usaba 0,70/0,40 y la de
+        # `_enrich_cluster_score` 0,65/0,35; ahora las dos la escala común.
+        action = accion_por_correlacion(correlation_score, len(members), db=db, org_id=organization_id)
 
         clusters.append(AlertCluster(
             cluster_id=cluster_hash,
@@ -433,7 +431,8 @@ def tickets_por_id(db, ticket_ids):
     }
 
 
-def _enrich_cluster_score(cluster: AlertCluster, tickets_by_id: dict[str, Ticket]) -> AlertCluster:
+def _enrich_cluster_score(cluster: AlertCluster, tickets_by_id: dict[str, Ticket],
+                          db=None, org_id: Optional[str] = None) -> AlertCluster:
     """Re-score a cluster by blending structural score with semantic similarity."""
     members = [tickets_by_id[tid] for tid in cluster.ticket_ids if tid in tickets_by_id]
     sem = _semantic_score(members)
@@ -442,12 +441,7 @@ def _enrich_cluster_score(cluster: AlertCluster, tickets_by_id: dict[str, Ticket
     cluster.correlation_score = blended
 
     # Re-evaluate suggested action with richer score
-    if blended >= 0.65 and cluster.size >= 3:
-        cluster.suggested_action = "create_problem"
-    elif blended >= 0.35:
-        cluster.suggested_action = "review"
-    else:
-        cluster.suggested_action = "monitor"
+    cluster.suggested_action = accion_por_correlacion(blended, cluster.size, db=db, org_id=org_id)
 
     return cluster
 
@@ -488,7 +482,7 @@ def run_correlation_scan_job(db: Session, *, organization_id: Optional[str] = No
             t.id: t
             for t in db.query(Ticket).filter(Ticket.id.in_(all_ticket_ids)).all()
         }
-        clusters = [_enrich_cluster_score(c, tickets_map) for c in clusters]
+        clusters = [_enrich_cluster_score(c, tickets_map, db, organization_id) for c in clusters]
 
     stats = {"clusters_found": len(clusters), "problems_created": 0, "errors": 0}
 

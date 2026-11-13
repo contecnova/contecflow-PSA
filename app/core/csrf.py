@@ -26,7 +26,6 @@ Both layers are bypassed for:
 from __future__ import annotations
 
 import logging
-import os
 import secrets
 from typing import Iterable, Optional, Set
 from urllib.parse import urlparse
@@ -36,6 +35,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.core.config import settings
+from app.core.entorno import en_pruebas
 
 logger = logging.getLogger(__name__)
 
@@ -115,10 +115,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, *, exempt_prefixes: Iterable[str] | None = None) -> None:
         super().__init__(app)
         self._exempt_prefixes = tuple(exempt_prefixes or _DEFAULT_EXEMPT_PREFIXES)
-        self._double_submit = os.getenv("CSRF_DOUBLE_SUBMIT", "0") == "1"
+        self._double_submit = bool(settings.CSRF_DOUBLE_SUBMIT)
         # In test mode we relax the origin check because the TestClient does not
         # send an Origin header by default.
-        self._enabled = os.getenv("DISABLE_CSRF_MIDDLEWARE", "0") != "1" and os.getenv("TESTING", "0") != "1"
+        self._enabled = not settings.DISABLE_CSRF_MIDDLEWARE and not en_pruebas()
 
     def _rechazo_por_origen(self, request: Request, method: str, path: str) -> Optional[Response]:
         """Capa 1: el `Origin`/`Referer` tiene que ser uno de los permitidos.

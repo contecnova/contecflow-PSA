@@ -6,7 +6,6 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core import timeutil
@@ -497,7 +496,7 @@ def _accion_create_approval(db: Session, atype, action: dict, params: dict, cont
         req = create_approval_request(
             ApprovalRequestIn(entity_type=tipo, entity_id=entidad, entity_summary=str(resumen)[:500],
                               context=contexto), db, solicitante, confirmar=False)
-    except (HTTPException, ErrorDeDominio) as e:
+    except ErrorDeDominio as e:
         results.append({"action": atype, "ok": False, "error": str(e.detail)})
         return
     results.append({"action": atype, "ok": True, "approval_id": req.id, "entity_type": tipo})

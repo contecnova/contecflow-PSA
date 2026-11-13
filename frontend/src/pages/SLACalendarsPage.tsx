@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -49,6 +49,7 @@ const TIMEZONES = ['Europe/Madrid','Europe/London','America/New_York','America/C
 const DAYS_MAP  = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado',7:'Domingo'}
 
 function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -84,25 +85,25 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
     <Modal open onClose={onClose} title={isEdit ? 'Editar calendario SLA' : 'Nuevo calendario SLA'}>
       <div className="u-stack-14">
         <div>
-          <label style={ls}>Nombre</label>
-          <input style={is} value={form.name} onChange={e => set('name')(e.target.value)}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.name} onChange={e => set('name')(e.target.value)}
             placeholder="Ej: Horario laboral estandar" />
         </div>
         <div>
-          <label style={ls}>Zona horaria</label>
-          <select style={is} value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Zona horaria</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
             {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
         <div className="u-grid2-12">
           <div>
-            <label style={ls}>Inicio jornada</label>
-            <input type="time" style={is} value={form.work_start}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Inicio jornada</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="time" style={is} value={form.work_start}
               onChange={e => set('work_start')(e.target.value)} />
           </div>
           <div>
-            <label style={ls}>Fin jornada</label>
-            <input type="time" style={is} value={form.work_end}
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Fin jornada</label>
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="time" style={is} value={form.work_end}
               onChange={e => set('work_end')(e.target.value)} />
           </div>
         </div>
@@ -135,6 +136,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
 }
 
 function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -183,12 +185,12 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
         {/* Añadir festivo */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:8,alignItems:'flex-end'}}>
           <div>
-            <label style={ls}>Fecha</label>
-            <DateInput style={is} value={date} onChange={e => setDate(e.target.value)} />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Fecha</label>
+            <DateInput id={`${idCampo}-1`} style={is} value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div>
-            <label style={ls}>Nombre (opcional)</label>
-            <input style={is} value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Navidad" />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Nombre (opcional)</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Navidad" />
           </div>
           <Button onClick={() => addH()} disabled={isPending || !date}>
             {isPending ? '...' : 'Añadir'}
@@ -207,7 +209,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
                     onChange={e => setEditForm(f => ({...f, holiday_date: e.target.value}))}
                     style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:5,
                       padding:'3px 7px',color:'var(--text-1)',fontSize: "var(--text-sm)",fontFamily:'inherit'}} />
-                  <input value={editForm.name}
+                  <input aria-label={t('slacalendars.nombre_del_festivo')} value={editForm.name}
                     onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
                     placeholder={t('slacalendars.nombre_del_festivo')}
                     style={{flex:1,background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:5,
@@ -253,7 +255,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
           )}
         </div>
 
-        <div style={{display:'flex',justifyContent:'flex-end'}}>
+        <div className="u-row-end">
           <Button variant="secondary" onClick={onClose}>Cerrar</Button>
         </div>
       </div>
@@ -290,9 +292,9 @@ export default function SLACalendarsPage() {
 
       {isLoading ? <Spinner /> : calendars.length === 0 ? (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>📅</div>
+          <div className="u-empty-icon">📅</div>
           <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('slacalendars.sin_calendarios_sla')}</div>
-          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>
+          <div className="u-text2-base-mb20">
             {t('slacalendars.los_calendarios_definen_cuando_se_cuenta_el')}
           </div>
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Crear primer calendario</Button>

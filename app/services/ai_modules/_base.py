@@ -352,13 +352,14 @@ def _scope_query_by_org(q, model, user_org):
     return q
 
 
-def _severity_from_probability(probability: float) -> str:
-    """Map probability to severity bucket: critical (>0.75), high (>0.5), else medium."""
-    if probability > 0.75:
-        return "critical"
-    if probability > 0.5:
-        return "high"
-    return "medium"
+def _severity_from_probability(probability: float, db=None, org_id=None) -> str:
+    """Probabilidad → critical/high/medium, con la escala común (`app.core.escalas`).
+
+    Segunda auditoría 2026-11 (hallazgo 17): eran `> 0.75` / `> 0.5` propios;
+    ahora `>=` RISK_PROBABILITY_* (0,75/0,50 por defecto) y suelo «medium».
+    """
+    from app.core.escalas import nivel_por_probabilidad
+    return nivel_por_probabilidad(probability, db=db, org_id=org_id, suelo="medium")
 
 
 def kb_vector_search(db, query_text: str, limit: int = 5, only_published: bool = True) -> list:

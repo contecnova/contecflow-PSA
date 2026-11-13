@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from typing import Optional
+from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -74,8 +74,25 @@ def supuestos(b: Budget) -> dict:
 
 # ── Meses ─────────────────────────────────────────────────────────────────────
 
+def meses_del_periodo(desde: date, hasta: date) -> list[str]:
+    salida, y, m = [], desde.year, desde.month
+    while (y, m) <= (hasta.year, hasta.month):
+        salida.append(f"{y}-{m:02d}")
+        y, m = (y, m + 1) if m < 12 else (y + 1, 1)
+    return salida
+
+
+def repartir_por_igual(importe: float, meses: list[str]) -> dict[str, float]:
+    """Partes iguales en céntimos; el redondeo va al último mes para que sumen exacto."""
+    if not meses:
+        return {}
+    cada = round(importe / len(meses), 2)
+    salida = {m: cada for m in meses}
+    salida[meses[-1]] = round(importe - cada * (len(meses) - 1), 2)
+    return salida
+
+
 def meses_de(b: Budget) -> list[str]:
-    from app.services.budgets_service import meses_del_periodo
     return meses_del_periodo(b.periodo_desde, b.periodo_hasta) if b.periodo_desde and b.periodo_hasta else []
 
 
@@ -95,7 +112,6 @@ def _factor_inflacion(b: Budget, mes: str) -> float:
 
 
 def _repartir(importe: float, meses: list[str]) -> dict[str, float]:
-    from app.services.budgets_service import repartir_por_igual
     return repartir_por_igual(importe, meses)
 
 
@@ -336,14 +352,15 @@ def nueva_partida(db: Session, b: Budget, datos: dict, meses: Optional[dict] = N
     return l
 
 
-def copiar_de_otro(db: Session, destino: Budget, origen: Budget, base: str, ajuste_pct: float) -> None:
+def copiar_de_otro(db: Session, destino: Budget, origen: Budget, base: str, ajuste_pct: float,
+                   real_mensual: Callable[[Session, Budget], dict[str, dict[str, float]]]) -> None:
     """Partidas a partir de otro presupuesto (p. ej. el del año anterior).
 
     `base = "plan"`: sus partidas, con el mismo modo de cálculo, ajustado un %.
     `base = "real"`: una partida por tipo con lo gastado de verdad, mes a mes
-    (el mismo mes del año siguiente), ajustado un %.
+    (el mismo mes del año siguiente), ajustado un %. `real_mensual` lo pasa
+    `budgets_service` (su `_real_mensual`): importarlo de alli cerraba un ciclo.
     """
-    from app.services.budgets_service import _real_mensual
     factor = 1 + float(ajuste_pct or 0) / 100
     periodo = set(meses_de(destino))
     if base == "plan":
@@ -365,7 +382,7 @@ def copiar_de_otro(db: Session, destino: Budget, origen: Budget, base: str, ajus
     elif base == "real":
         desplaza = destino.periodo_desde.year - origen.periodo_desde.year
         por_tipo: dict[str, dict[str, float]] = {}
-        for mes, tipos in _real_mensual(db, origen).items():
+        for mes, tipos in real_mensual(db, origen).items():
             nuevo = f"{int(mes[:4]) + desplaza}-{mes[5:]}"
             if nuevo not in periodo:
                 continue

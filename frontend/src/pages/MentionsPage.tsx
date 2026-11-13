@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -61,17 +61,17 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
             {!mention.is_read&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{t('mentions.new')}</span>}
           </div>
           {mention.context_text&&(
-            <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',lineHeight:1.5,marginBottom:8,background:'var(--surface-1)',padding:'8px 12px',borderRadius:6,borderLeft:'2px solid var(--surface-4)'}}>
+            <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',lineHeight:1.5,marginBottom:8,background:'var(--surface-1)',padding:'8px 12px',borderRadius:'var(--radius-sm)',borderLeft:'2px solid var(--surface-4)'}}>
               &quot;...{mention.context_text.slice(0,200)}{mention.context_text.length>200?'...':''}&quot;
             </div>
           )}
-          <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',fontFamily:'var(--font-mono)'}}>
+          <div className="u-text3-mono-xs">
             {mention.entity_type} #{mention.entity_id?.slice(0,8)}
           </div>
         </div>
         {!mention.is_read&&(
           <button onClick={()=>onRead(mention.id)}
-            style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",flexShrink:0}}>
+            style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",flexShrink:0}}>
             {t('mentions.mark_read')}
           </button>
         )}
@@ -130,7 +130,7 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
         <div style={{fontSize: "var(--text-base)",color:'var(--text-1)',lineHeight:1.5}}>{comment.content}</div>
         {replyTo===comment.id&&(
           <div style={{marginTop:10}}>
-            <textarea value={replyContent} onChange={e=>setReplyContent(e.target.value)}
+            <textarea aria-label={t('mentions.reply_placeholder')} value={replyContent} onChange={e=>setReplyContent(e.target.value)}
               placeholder={t('mentions.reply_placeholder')}
               rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
             <div className="u-row-6">
@@ -157,7 +157,7 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
             :comments.map((c) => <CommentNode key={c.id} comment={c}/>)
       )}
       <div style={{marginTop:12}}>
-        <textarea value={newContent} onChange={e=>setNewContent(e.target.value)}
+        <textarea aria-label={t('mentions.comment_placeholder')} value={newContent} onChange={e=>setNewContent(e.target.value)}
           placeholder={t('mentions.comment_placeholder')}
           rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
         <Button onClick={()=>addComment({content:newContent,parent_id:null})} disabled={adding||!newContent.trim()}>
@@ -169,6 +169,7 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
 }
 
 export default function MentionsPage() {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -230,7 +231,7 @@ export default function MentionsPage() {
       {/* TAB: Menciones */}
       {tab==='mentions'&&(
         <div data-export-table="mentions-list">
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <div className="u-row-between-mb16">
             <div className="u-row-center-8">
               <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize: "var(--text-base)"}}>
                 <input type="checkbox" checked={onlyUnread} onChange={e=>setOnlyUnread(e.target.checked)}/>
@@ -259,15 +260,15 @@ export default function MentionsPage() {
             </div>
             <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:12,alignItems:'flex-end'}}>
               <div>
-                <label style={ls}>{t('mentions.type_label')}</label>
-                <select value={demoType} onChange={e=>setDemoType(e.target.value)} style={{...is,width:130}}>
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('mentions.type_label')}</label>
+                <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={demoType} onChange={e=>setDemoType(e.target.value)} style={{...is,width:130}}>
                   <option value="task">📌 {t('mentions.type_task')}</option>
                   <option value="ticket">🎫 {t('mentions.type_ticket')}</option>
                 </select>
               </div>
               <div>
-                <label style={ls}>{t('mentions.entity_id_label')}</label>
-                <input value={demoEntity} onChange={e=>setDemoEntity(e.target.value)}
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('mentions.entity_id_label')}</label>
+                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={demoEntity} onChange={e=>setDemoEntity(e.target.value)}
                   placeholder={t('mentions.entity_id_placeholder')} style={is}/>
               </div>
             </div>
@@ -287,7 +288,7 @@ export default function MentionsPage() {
             </div>
           ):(
             <div style={{...ps,textAlign:'center',padding:'40px 24px'}}>
-              <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>💬</div>
+              <div className="u-empty-icon">💬</div>
               <div style={{fontSize: "var(--text-md)",color:'var(--text-2)'}}>{t('mentions.enter_entity_id')}</div>
             </div>
           )}

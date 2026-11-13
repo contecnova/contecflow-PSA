@@ -69,12 +69,12 @@ class TestPIIDetection:
         assert "ip_address" in types
 
     def test_no_pii_in_clean_text(self):
-        from app.services.ai_governance import has_pii
-        assert not has_pii("El proyecto avanza según lo previsto. Reunión el lunes.")
+        from app.services.ai_governance import detect_pii
+        assert not detect_pii("El proyecto avanza según lo previsto. Reunión el lunes.")
 
     def test_has_pii_returns_true(self):
-        from app.services.ai_governance import has_pii
-        assert has_pii("Email me at alice@corp.io")
+        from app.services.ai_governance import detect_pii
+        assert detect_pii("Email me at alice@corp.io")
 
     def test_multiple_entities_same_text(self):
         from app.services.ai_governance import detect_pii

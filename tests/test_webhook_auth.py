@@ -16,26 +16,27 @@ from app.services import esign_service, jira_service
 # ── Jira ────────────────────────────────────────────────────────────────────
 
 def test_jira_webhook_rejected_when_secret_unset(monkeypatch):
-    monkeypatch.setattr(settings, "JIRA_WEBHOOK_SECRET", "")
-    assert jira_service.verify_jira_webhook(b"{}", "anything", None) is False
-    assert jira_service.verify_jira_webhook(b"{}", None, "sha256=deadbeef") is False
+    # Auditoria 2026-11 (#14): el secreto es de cada organizacion y se pasa
+    # explicito; el global (`JIRA_WEBHOOK_SECRET`) ya no autentica.
+    monkeypatch.setattr(settings, "JIRA_WEBHOOK_SECRET", "global-ya-no-vale")
+    assert jira_service.verify_jira_webhook(b"{}", "global-ya-no-vale", None) is False
+    assert jira_service.verify_jira_webhook(b"{}", "anything", None, "") is False
+    assert jira_service.verify_jira_webhook(b"{}", None, "sha256=deadbeef", None) is False
 
 
-def test_jira_webhook_accepts_matching_shared_token(monkeypatch):
-    monkeypatch.setattr(settings, "JIRA_WEBHOOK_SECRET", "s3cret-token")
-    assert jira_service.verify_jira_webhook(b"{}", "s3cret-token", None) is True
-    assert jira_service.verify_jira_webhook(b"{}", "wrong", None) is False
-    assert jira_service.verify_jira_webhook(b"{}", None, None) is False
+def test_jira_webhook_accepts_matching_shared_token():
+    assert jira_service.verify_jira_webhook(b"{}", "s3cret-token", None, "s3cret-token") is True
+    assert jira_service.verify_jira_webhook(b"{}", "wrong", None, "s3cret-token") is False
+    assert jira_service.verify_jira_webhook(b"{}", None, None, "s3cret-token") is False
 
 
-def test_jira_webhook_accepts_matching_body_hmac(monkeypatch):
+def test_jira_webhook_accepts_matching_body_hmac():
     secret = "s3cret-token"
-    monkeypatch.setattr(settings, "JIRA_WEBHOOK_SECRET", secret)
     body = b'{"webhookEvent":"jira:issue_updated"}'
     sig = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    assert jira_service.verify_jira_webhook(body, None, sig) is True
+    assert jira_service.verify_jira_webhook(body, None, sig, secret) is True
     # tampered body fails
-    assert jira_service.verify_jira_webhook(b"tampered", None, sig) is False
+    assert jira_service.verify_jira_webhook(b"tampered", None, sig, secret) is False
 
 
 # ── DocuSign Connect HMAC ─────────────────────────────────────────────────────

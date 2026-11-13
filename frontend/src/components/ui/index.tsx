@@ -21,7 +21,7 @@ export {
   TicketSelect, ProblemSelect, SubcontractorSelect,
 } from './EntitySelect'
 
-export { useSort, SortableTH, ViewToggle, FilterSelect, SearchInput, ActiveFilters } from './TableControls'
+export { useSort, SortableTH, ariaSort, ViewToggle, FilterSelect, SearchInput, ActiveFilters } from './TableControls'
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 /** Human-readable labels for common status/priority enum values. */
@@ -148,7 +148,7 @@ export function Badge({ label, display, _color }: BadgeProps) {
     p2_high:     { bg: 'var(--orange-bg)',   text: 'var(--orange)',   border: 'var(--orange-border)' },
     p3_medium:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
     p4_low:      { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
-    active:      { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'rgba(79,142,247,0.25)' },
+    active:      { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'color-mix(in srgb, var(--accent) 25%, transparent)' },
     planning:    { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
     paused:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
     closed:      { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
@@ -156,7 +156,7 @@ export function Badge({ label, display, _color }: BadgeProps) {
     accepted:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
     approved:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
     cancelled:   { bg: 'var(--surface-3)',   text: 'var(--text-3)',   border: 'var(--surface-4)' },
-    in_progress: { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'rgba(79,142,247,0.25)' },
+    in_progress: { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'color-mix(in srgb, var(--accent) 25%, transparent)' },
     in_review:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
     blocked:     { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
     rejected:    { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
@@ -275,7 +275,7 @@ export function Card({ children, className, style = {}, accent = false, onClick 
         tabIndex={0}
         style={{
           background: 'var(--surface-2)',
-          border: `1px solid ${accent ? 'rgba(79,142,247,0.25)' : 'var(--surface-4)'}`,
+          border: `1px solid ${accent ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
           borderRadius: 'var(--radius-lg)',
           padding: 'var(--space-6)',
           boxShadow: accent ? 'var(--shadow-accent)' : 'none',
@@ -284,11 +284,11 @@ export function Card({ children, className, style = {}, accent = false, onClick 
           ...style,
         }}
         onMouseEnter={e => {
-          e.currentTarget.style.borderColor = accent ? 'rgba(79,142,247,0.4)' : 'var(--surface-5)'
+          e.currentTarget.style.borderColor = accent ? 'var(--accent-border-strong)' : 'var(--surface-5)'
           e.currentTarget.style.boxShadow = 'var(--shadow-md)'
         }}
         onMouseLeave={e => {
-          e.currentTarget.style.borderColor = accent ? 'rgba(79,142,247,0.25)' : 'var(--surface-4)'
+          e.currentTarget.style.borderColor = accent ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'
           e.currentTarget.style.boxShadow = accent ? 'var(--shadow-accent)' : 'none'
         }}
       >
@@ -302,7 +302,7 @@ export function Card({ children, className, style = {}, accent = false, onClick 
       className={className}
       style={{
         background: 'var(--surface-2)',
-        border: `1px solid ${accent ? 'rgba(79,142,247,0.25)' : 'var(--surface-4)'}`,
+        border: `1px solid ${accent ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
         borderRadius: 'var(--radius-lg)',
         padding: 'var(--space-6)',
         boxShadow: accent ? 'var(--shadow-accent)' : 'none',
@@ -376,7 +376,7 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
       background: 'var(--accent)',
       color: 'var(--on-accent)',   // blanco fijo no llegaba a AA (2,37:1 en freight)
       border: 'none',
-      boxShadow: '0 1px 3px rgba(79,142,247,0.3)',
+      boxShadow: '0 1px 3px var(--accent-border)',
     },
     secondary: {
       background: 'var(--surface-3)',
@@ -391,12 +391,12 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
     ghost:     {
       background: 'transparent',
       color: 'var(--accent)',
-      border: '1px solid rgba(79,142,247,0.25)',
+      border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)',
     },
     subtle:    {
       background: 'var(--accent-muted)',
       color: 'var(--accent)',
-      border: '1px solid rgba(79,142,247,0.15)',
+      border: '1px solid color-mix(in srgb, var(--accent) 15%, transparent)',
     },
   }
   const sizes: Record<string, { fontSize: string; padding: string; borderRadius: string; gap: number }> = {
@@ -444,6 +444,10 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
 }
 
 // ── Input ─────────────────────────────────────────────────────────────────────
+// Auditoria 2026-11 (#10): la <label> no estaba asociada al control (sin
+// htmlFor/id), asi que el lector de pantalla anunciaba "campo de edicion" sin
+// nombre y pulsar la etiqueta no enfocaba. Ahora cada campo genera su id con
+// useId (o usa el que se pase) y enlaza ayuda y error con aria-describedby.
 interface InputProps {
   label?: React.ReactNode
   value?: string | number
@@ -454,35 +458,57 @@ interface InputProps {
   required?: boolean
   style?: React.CSSProperties
   hint?: React.ReactNode
+  /** Mensaje de error: se pinta bajo el campo y marca aria-invalid. */
+  error?: React.ReactNode
+  /** Id del control; si no se pasa se genera uno. */
+  id?: string
 }
 
-export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint }: InputProps) {
+/** Ids del control y de sus textos de apoyo (ayuda, error). */
+function useIdsDeCampo(id: string | undefined, hint: unknown, error: unknown) {
+  const generado = React.useId()
+  const base = id || `campo-${generado}`
+  const idHint = hint ? `${base}-ayuda` : undefined
+  const idError = error ? `${base}-error` : undefined
+  const describedBy = [idHint, idError].filter(Boolean).join(' ') || undefined
+  return { base, idHint, idError, describedBy }
+}
+
+const ESTILO_ETIQUETA: React.CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }
+
+export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint, error, id }: InputProps) {
+  const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-          {label}{required && <span className="u-danger"> *</span>}
+        <label htmlFor={base} style={ESTILO_ETIQUETA}>
+          {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
         </label>
       )}
       <input
+        id={base}
         type={type} value={value} onChange={onChange} placeholder={placeholder}
+        required={required || undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
         style={{
-          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+          background: 'var(--surface-3)', border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`,
           borderRadius: 'var(--radius-md)', padding: '9px 13px',
           color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none',
           fontFamily: 'var(--font-sans)', width: '100%',
           transition: 'border-color 0.15s, box-shadow 0.15s',
         }}
         onFocus={e => {
-          e.target.style.borderColor = 'rgba(79,142,247,0.5)'
-          e.target.style.boxShadow = '0 0 0 3px rgba(79,142,247,0.08)'
+          e.target.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'
+          e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)'
         }}
         onBlur={e => {
-          e.target.style.borderColor = 'var(--surface-4)'
+          e.target.style.borderColor = error ? 'var(--danger-border)' : 'var(--surface-4)'
           e.target.style.boxShadow = 'none'
         }}
       />
-      {hint && <div className="u-text3-xs">{hint}</div>}
+      {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
+      {error && <div id={idError} role="alert" className="u-field-error">{error}</div>}
     </div>
   )
 }
@@ -494,20 +520,27 @@ interface SelectProps {
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
   options?: Array<{ value: string; label: string }>
   style?: React.CSSProperties
+  hint?: React.ReactNode
+  error?: React.ReactNode
+  id?: string
 }
 
-export function Select({ label, value, onChange, options = [], style = {} }: SelectProps) {
+export function Select({ label, value, onChange, options = [], style = {}, hint, error, id }: SelectProps) {
+  const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <label htmlFor={base} style={ESTILO_ETIQUETA}>
           {label}
         </label>
       )}
       <select
+        id={base}
         value={value} onChange={onChange}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
         style={{
-          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+          background: 'var(--surface-3)', border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`,
           borderRadius: 'var(--radius-md)', padding: '9px 13px',
           color: value ? 'var(--text-1)' : 'var(--text-3)', fontSize: "var(--text-base)",
           outline: 'none', fontFamily: 'var(--font-sans)', cursor: 'pointer', width: '100%',
@@ -516,6 +549,8 @@ export function Select({ label, value, onChange, options = [], style = {} }: Sel
         <option value="">Seleccionar...</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
+      {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
+      {error && <div id={idError} role="alert" className="u-field-error">{error}</div>}
     </div>
   )
 }
@@ -744,8 +779,8 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
   return (
     <div>
       {data.length > pageSize && (
-        <div style={{ marginBottom: 12 }}>
-          <input value={filter} onChange={e => { setFilter(e.target.value); setPage(0) }}
+        <div className="u-mb-12">
+          <input aria-label="Filtrar..." value={filter} onChange={e => { setFilter(e.target.value); setPage(0) }}
             placeholder="Filtrar..." style={{
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
               borderRadius: 'var(--radius-md)', padding: '7px 12px',
@@ -757,7 +792,7 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
       <div className="u-scroll-x">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+            <tr className="u-border-b">
               {columns.map(col => (
                 <th key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)}
                   style={{
@@ -822,7 +857,7 @@ export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>)
     <div className="u-scroll-x">
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
         <thead>
-          <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+          <tr className="u-border-b">
             {columns.map(col => (
               <th key={col.key} style={{
                 padding: '10px 14px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 600,

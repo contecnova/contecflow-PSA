@@ -7,8 +7,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 const tickets = vi.fn()
 const queue = vi.fn()
 vi.mock('../services/api', () => ({
-  sdRoutingApi: { tickets: (...a: unknown[]) => tickets(...a), queue: (...a: unknown[]) => queue(...a) },
-  sdGroupsApi: {}, sdSlaPoliciesApi: {}, usersApi: {},
+  // Auditoria 2026-11 (#45): la lista y «Mi cola» usan ticketsApi (sdRoutingApi
+  // repetia las mismas rutas).
+  ticketsApi: { list: (...a: unknown[]) => tickets(...a), myQueue: (...a: unknown[]) => queue(...a) },
+  sdRoutingApi: {}, sdGroupsApi: {}, sdSlaPoliciesApi: {}, usersApi: {},
 }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string) => k, useAppLang: () => ({ lang: 'en', t: (k: string) => k }) }))

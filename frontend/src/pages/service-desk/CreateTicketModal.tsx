@@ -134,7 +134,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
   })
   const { data: clients = [] } = useQuery<ClientItem[]>({
     queryKey: ['clients'],
-    queryFn: () => clientsApi.list({}).then(r => (r.data?.items ?? r.data ?? []) as ClientItem[]),
+    queryFn: () => clientsApi.list({}).then(r => (r.data ?? []) as ClientItem[]),
   })
   const { data: dynamicFormRules } = useQuery<DynamicFormsConfig>({
     queryKey: ['sd-dynamic-forms'],
@@ -489,7 +489,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             <div className="u-text2-sm">
               {traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')}
             </div>
-            <textarea
+            <textarea aria-label={'campo_a,campo_b\nvalor1,valor2'}
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
               placeholder={'campo_a,campo_b\nvalor1,valor2'}

@@ -107,7 +107,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
     a[d].push(l)
     return a
   }, {} as Record<string, TimesheetLine[]>)
-  const IS: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 6,
+  const IS: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
     padding: '5px 9px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   return (
@@ -140,12 +140,12 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
                         style={{ ...IS, flex: 1 }} />
                       <button onClick={() => updateLine({ id: l.id, data: { hours: editForm.hours, description: editForm.description } })}
                         disabled={updating || editForm.hours <= 0}
-                        style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px',
+                        style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 12px',
                           color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         {updating ? '...' : '✓ Guardar'}
                       </button>
                       <button onClick={() => setEditingId(null)}
-                        style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6,
+                        style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
                           padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                         Cancelar
                       </button>
@@ -218,7 +218,7 @@ function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose
             { label: 'Coste', value: fmtCurrency(timesheet.total_cost) },
           ].map(({ label, value }) => (
             <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{label}</div>
+              <div className="u-text2-xs-mb4">{label}</div>
               <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{value}</div>
             </div>
           ))}
@@ -345,7 +345,7 @@ export default function TimesheetsPage() {
             <EmptyState icon="📋" title={t('timesheets.no_timesheets')} description="Aun no has generado ningun parte semanal" />
           ) : (
             <div data-export-table="timesheets-list" className="u-stack-10">
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="u-wrap-center-8">
                 <select value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
                   <option value="">{t('timesheets.estado_todos')}</option>
                     <option value="draft">Borrador</option>
@@ -373,18 +373,18 @@ export default function TimesheetsPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                       <span>Total: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtHours(ts.total_hours)}</span></span>
-                      <span>Facturables: <span style={{ color: 'var(--accent)' }}>{fmtHours(ts.billable_hours)}</span></span>
+                      <span>Facturables: <span className="u-accent">{fmtHours(ts.billable_hours)}</span></span>
                       {(ts.total_cost ?? 0) > 0 && <span>Coste: <span className="u-warning">{fmtCurrency(ts.total_cost)}</span></span>}
                     </div>
                     {ts.review_notes && ts.status === 'rejected' && (
-                      <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 6, padding: '4px 10px' }}>
+                      <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)', padding: '4px 10px' }}>
                         💬 {ts.review_notes}
                       </div>
                     )}
                   </div>
                   <StatusBadge status={ts.status} />
                   <div className="u-row-8">
-                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('timesheets.ver_lineas')}</button>
+                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('timesheets.ver_lineas')}</button>
                     {(ts.status === 'draft' || ts.status === 'rejected') && (ts.total_hours ?? 0) > 0 && (
                       <Button size="sm" onClick={() => submit(ts.week_start)} loading={submitting}>Enviar</Button>
                     )}
@@ -402,7 +402,7 @@ export default function TimesheetsPage() {
             <EmptyState icon="✅" title={t('timesheets.sin_pendientes')} description="No hay timesheets pendientes de revision" />
           ) : (
             <div className="u-stack-10">
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="u-wrap-center-8">
                 <input value={pendingSearch} onChange={e => setPendingSearch(e.target.value)} placeholder="Buscar persona o semana..." aria-label="Buscar pendientes" style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 340, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
                 <DateInput value={pendingFrom} onChange={e => setPendingFrom(e.target.value)} aria-label="Pendientes desde" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
                 <span className="u-text3">—</span>
@@ -420,7 +420,7 @@ export default function TimesheetsPage() {
                 <div key={ts.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div className="u-flex1">
                     <div className="u-md-700">{ts.user_name}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
+                    <div className="u-text2-sm-mt2">
                       {t('timesheets.semana_del')} {fmtDate(ts.week_start)} · {fmtHours(ts.total_hours)} · {fmtHours(ts.billable_hours)} facturables
                     </div>
                   </div>
@@ -439,7 +439,7 @@ export default function TimesheetsPage() {
             <EmptyState icon="👥" title={t('timesheets.sin_timesheets_de_equipo')} description="Todavia no hay partes semanales del equipo" />
           ) : (
             <div className="u-stack-10">
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="u-wrap-center-8">
                 <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Buscar persona o semana..." aria-label="Buscar equipo" style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 340, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
                 <select value={teamStatusFilter} onChange={e => setTeamStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
                   <option value="">{t('timesheets.estado_todos')}</option>
@@ -461,7 +461,7 @@ export default function TimesheetsPage() {
               {filteredTeam.length === 0 ? (
                 <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description="No hay timesheets de equipo que coincidan con los filtros" />
               ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+            <div className="ds-card ds-card--plano">
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                 {([['user_name','Persona'],['week_start','Semana'],['total_hours','Total'],['billable_hours','Fact.'],['total_cost','Coste'],['status','Estado']] as Array<[TeamSortKey, string]>).map(([key, label]) => (
                   <button key={key} type="button" onClick={() => toggleTeamSort(key)}

@@ -27,6 +27,7 @@ from app.core.deps import get_current_user
 from app.core.security import verify_client_token
 import app.services.ws_service as _ws_svc
 from app.db.session import publicar_contexto_de_tenant
+from app.core.async_db import run_db
 
 router = APIRouter(prefix="/ws", tags=["WebSocket"])
 log    = logging.getLogger(__name__)
@@ -201,13 +202,28 @@ async def _validate_jwt(token: str, db) -> str:
     user_id = payload.get("sub")
     if not user_id:
         return None
-    user = _ws_svc.get_active_user_by_id(db, user_id)
+    user = await run_db(_ws_svc.get_active_user_by_id, db, user_id)
     if not user:
         return None
     return user_id
 
 
-async def _poll_and_send(websocket: WebSocket, user_id: str, db):
+async def _en_sesion(cerrojo: Optional[asyncio.Lock], fn, *args):
+    """Ejecuta `fn(*args)` (consultas sincronas) en el pool de hilos.
+
+    Auditoria 2026-11: el sondeo y los mensajes del cliente consultaban la BD
+    dentro del bucle de eventos, cada 10-15 s por conexion abierta. En el pool
+    de hilos, el sondeo y `mark_read` podrian usar la MISMA sesion a la vez desde
+    dos hilos (una `Session` no es thread-safe): el cerrojo de la conexion los
+    pone en fila.
+    """
+    if cerrojo is None:
+        return await run_db(fn, *args)
+    async with cerrojo:
+        return await run_db(fn, *args)
+
+
+async def _poll_and_send(websocket: WebSocket, user_id: str, db, cerrojo: Optional[asyncio.Lock] = None):
     """
     Sondea la BD cada 15s y envía notificaciones no leídas al cliente.
     En producción se reemplazaría por eventos de BD (pg_notify / Redis).
@@ -215,8 +231,8 @@ async def _poll_and_send(websocket: WebSocket, user_id: str, db):
     last_count = None
     while True:
         try:
-            count, notifs = _ws_svc.get_unread_notifications(db, user_id)
-            team_poll = _ws_svc.get_team_poll_data(db, user_id)
+            count, notifs, team_poll = await _en_sesion(
+                cerrojo, _sondeo_de_usuario, db, user_id)
             governed_unread = team_poll["governed_unread"]
             pending_reviews = team_poll["pending_reviews"]
             assigned_overdue = team_poll["assigned_overdue"]
@@ -251,12 +267,22 @@ async def _poll_and_send(websocket: WebSocket, user_id: str, db):
         await asyncio.sleep(15)
 
 
-async def _poll_and_send_client(websocket: WebSocket, client_id: str, db):
+def _sondeo_de_usuario(db, user_id: str):
+    """Las dos consultas del sondeo, juntas: un solo salto al pool de hilos.
+
+    `items` se serializa en el bucle de eventos despues; los atributos de las
+    notificaciones ya vienen cargados de la consulta.
+    """
+    count, notifs = _ws_svc.get_unread_notifications(db, user_id)
+    return count, notifs, _ws_svc.get_team_poll_data(db, user_id)
+
+
+async def _poll_and_send_client(websocket: WebSocket, client_id: str, db, cerrojo: Optional[asyncio.Lock] = None):
     """Poll client-facing updates (messages + tickets) and push via WS."""
     last_snapshot = None
     while True:
         try:
-            poll_data = _ws_svc.get_portal_poll_data(db, client_id)
+            poll_data = await _en_sesion(cerrojo, _ws_svc.get_portal_poll_data, db, client_id)
             unread_messages = poll_data["unread_messages"]
             governed_unread = poll_data["governed_unread"]
             open_tickets = poll_data["open_tickets"]
@@ -318,7 +344,7 @@ async def get_portal_ws_ticket(
     from app.db.session import SessionLocal
     db = SessionLocal()
     try:
-        client = verify_client_token(token, db)
+        client = await run_db(verify_client_token, token, db)
         if not client or not getattr(client, "is_active", False):
             raise HTTPException(401, "Token de cliente inválido")
         # Auditoria 2026-08 (hallazgo 22): sesion creada a mano. Aqui solo se
@@ -384,7 +410,7 @@ async def _identidad_de_la_conexion(
             )
             return None
         if portal:
-            cliente = verify_client_token(token, db)
+            cliente = await run_db(verify_client_token, token, db)
             identidad = str(cliente.id) if cliente else None
         else:
             identidad = await _validate_jwt(token, db)
@@ -433,7 +459,7 @@ async def ws_notifications(
             # Hasta aqui solo se tiene el `user_id` que venia del ticket, asi
             # que hay que cargar al usuario. Es una consulta por conexion, no
             # por mensaje.
-            usuario = _ws_svc.get_active_user_by_id(db, user_id)
+            usuario = await run_db(_ws_svc.get_active_user_by_id, db, user_id)
             if not usuario:
                 await websocket.close(code=4001, reason="Usuario no encontrado")
                 return
@@ -449,7 +475,8 @@ async def ws_notifications(
             }))
 
             # Iniciar el loop de polling en background
-            poll_task = asyncio.create_task(_poll_and_send(websocket, user_id, db))
+            cerrojo = asyncio.Lock()
+            poll_task = asyncio.create_task(_poll_and_send(websocket, user_id, db, cerrojo))
 
             try:
                 while True:
@@ -460,7 +487,8 @@ async def ws_notifications(
                         if msg.get("type") == "ping":
                             await websocket.send_text(json.dumps({"type": "pong"}))
                         elif msg.get("type") == "mark_read" and msg.get("id"):
-                            _ws_svc.mark_notification_read(db, msg["id"], user_id)
+                            await _en_sesion(cerrojo, _ws_svc.mark_notification_read,
+                                             db, msg["id"], user_id)
                     except (json.JSONDecodeError, KeyError, TypeError) as e:
                         logging.getLogger(__name__).warning(f"WS notifications malformed message: {e}")
                     except Exception as e:
@@ -499,7 +527,7 @@ async def ws_portal_notifications(
                 get_active_client_by_id as _cliente_activo,
             )
 
-            cliente = _cliente_activo(db, client_id)
+            cliente = await run_db(_cliente_activo, db, client_id)
             if not cliente:
                 await websocket.close(code=4001, reason="Cliente no encontrado")
                 return
@@ -512,7 +540,8 @@ async def ws_portal_notifications(
                 "client_id": client_id,
                 "ts": datetime.now(timezone.utc).isoformat(),
             }))
-            poll_task = asyncio.create_task(_poll_and_send_client(websocket, client_id, db))
+            poll_task = asyncio.create_task(
+                _poll_and_send_client(websocket, client_id, db, asyncio.Lock()))
 
             try:
                 while True:
@@ -696,14 +725,14 @@ async def ws_doc_collab(
                 return
 
             # Obtener usuario y documento
-            user = _ws_svc.get_active_user_by_id(db, user_id)
+            user = await run_db(_ws_svc.get_active_user_by_id, db, user_id)
             # Auditoria 2026-08 (hallazgo 22): el contexto va **entre** las dos
             # llamadas, y no es casualidad. `get_active_user_by_id` busca por id
             # sin saber todavia de que organizacion es, asi que tiene que correr
             # sin filtrar; `get_document_or_404` si tiene que estar acotada.
             if user:
                 publicar_contexto_de_tenant(db, user)
-            doc = get_document_or_404(db, doc_id, user)
+            doc = await run_db(get_document_or_404, db, doc_id, user)
             try:
                 check_document_access(doc, user, required_level=None)  # viewer mínimo
             except Exception:

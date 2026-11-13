@@ -34,6 +34,7 @@ from app.services.service_desk.voice_agent_service import (
     list_sessions,
 )
 from app.core.config import settings
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(prefix="/voice", tags=["Service Desk - Voice Agent IVR"])
 
@@ -103,7 +104,7 @@ def start_voice_session(
 def get_voice_sessions(
     request: Request,
     status: Optional[str] = Query(None, description="active | closed"),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

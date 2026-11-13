@@ -2,7 +2,6 @@ import logging
 from typing import Optional
 import json
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
@@ -70,7 +69,6 @@ def _a_partes(db: Session, ticket: Ticket, user, minutos: int, descripcion: Opti
     proyecto, fechas bloqueadas, topes, redondeo a medias horas). Si una lo
     impide, el tiempo se queda en el ticket y se dice por que.
     """
-    from fastapi import HTTPException
     from app.core import timeutil
     from app.schemas.imputations import ImputationCreate
     from app.services import settings_service as _ss
@@ -87,7 +85,7 @@ def _a_partes(db: Session, ticket: Ticket, user, minutos: int, descripcion: Opti
         return {"timesheet": "skipped", "reason": "Menos de un cuarto de hora: no llega al mínimo de los partes"}
     try:
         imputacion = validate_and_create_imputation(entrada, user, db)
-    except (HTTPException, ErrorDeDominio) as exc:
+    except ErrorDeDominio as exc:
         return {"timesheet": "skipped", "reason": str(exc.detail)}
     return {"timesheet": "created", "imputation_id": imputacion.id, "hours": imputacion.hours}
 
@@ -138,7 +136,7 @@ def restore_pending_snapshot(db: Session, ticket: Ticket, current_user_id: str) 
     # minutos en pausa, y ese tiempo contaba contra el SLA. Y si la prioridad
     # vuelve a otra, sus vencimientos tambien.
     from datetime import datetime, timezone
-    from app.services.service_desk.ticket_update_service import _reanudar_sla_pausado, cambiar_prioridad
+    from app.services.service_desk.sla_del_ticket import _reanudar_sla_pausado, cambiar_prioridad
     _reanudar_sla_pausado(ticket, datetime.now(timezone.utc))
     cambiar_prioridad(db, ticket, snap.get("priority") or ticket.priority)
     _log_history(db, ticket.id, "status", old_status, str(ticket.status), current_user_id)

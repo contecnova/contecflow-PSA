@@ -5,9 +5,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import Request
 from sqlalchemy.orm import Session
-from app.core.network import extract_client_ip
 from app.models.sessions import UserSession
 from app.models.user import User
 from app.services.security_observability import SecurityEventService
@@ -26,10 +24,8 @@ def soc_svc(db, user) -> "SecurityEventService | None":
         return None
 
 
-# ── Client IP ─────────────────────────────────────────────────────────────────
-
-def client_ip(request: Request) -> str:
-    return extract_client_ip(request)
+# `client_ip(request)` era un alias de `app.core.network.extract_client_ip`; los
+# routers lo usan directamente (auditoria 2026-11, item 36: sin `Request` aqui).
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import enum
 from sqlalchemy import Index, Column, String, Text, Float, Boolean, Integer, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
 from app.db.base import Base
+from app.core.config import settings
 
 
 class SemEngineMode(str, enum.Enum):
@@ -138,7 +139,7 @@ class SemConfig(Base):
     auto_assign_tickets = Column(Boolean, default=False)  # si True, asigna sin confirmación
     auto_assign_tasks   = Column(Boolean, default=False)
     # Modelo local
-    local_model_name    = Column(String(200), default="all-MiniLM-L6-v2")
+    local_model_name    = Column(String(200), default=lambda: settings.EMBEDDING_MODEL_NAME)
     # Actualizado
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     created_at  = Column(DateTime(timezone=True), server_default=func.now())

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../context/ToastContext'
-import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi } from '../../services/api'
-import { Button, Spinner, EmptyState, Modal, useSort, SortableTH } from '../../components/ui'
+import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi, ticketsApi } from '../../services/api'
+import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -89,9 +89,9 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
         return { items, total: Number(r.meta?.total ?? items.length) }
       }
       if (queueOnly) {
-        return sdRoutingApi.queue({ page, page_size: TICKETS_POR_PAGINA }).then(leer)
+        return ticketsApi.myQueue({ page, page_size: TICKETS_POR_PAGINA }).then(leer)
       }
-      return sdRoutingApi.tickets({
+      return ticketsApi.list({
         priority: filterPrio || undefined,
         status: filterStatus || undefined,
         ticket_type: filterType || undefined,
@@ -154,13 +154,13 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_title')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="priority" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_priority')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_status')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="ticket_type" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_type')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="sla_due" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_sla_deadline')}</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="assignee_name" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.assigned_to')}</SortableTH></th>
+              <th aria-sort={ariaSort(ticketSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
+              <th aria-sort={ariaSort(ticketSort, 'title')} className="u-cell-nowrap"><SortableTH col="title" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_title')}</SortableTH></th>
+              <th aria-sort={ariaSort(ticketSort, 'priority')} className="u-cell-nowrap"><SortableTH col="priority" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_priority')}</SortableTH></th>
+              <th aria-sort={ariaSort(ticketSort, 'status')} className="u-cell-nowrap"><SortableTH col="status" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_status')}</SortableTH></th>
+              <th aria-sort={ariaSort(ticketSort, 'ticket_type')} className="u-cell-nowrap"><SortableTH col="ticket_type" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_type')}</SortableTH></th>
+              <th aria-sort={ariaSort(ticketSort, 'sla_due')} className="u-cell-nowrap"><SortableTH col="sla_due" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_sla_deadline')}</SortableTH></th>
+              <th aria-sort={ariaSort(ticketSort, 'assignee_name')} className="u-cell-nowrap"><SortableTH col="assignee_name" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.assigned_to')}</SortableTH></th>
             </tr>
           </thead>
           <tbody>
@@ -223,21 +223,21 @@ export function MajorIncidents() {
 
       {isLoading ? <Spinner /> : (
         <div data-export-table="service-desk-export" className="u-scroll-x">
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="u-table">
             <thead>
               <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={miSort} onSort={setMiSort}>{t('service_desk.col_number')}</SortableTH></th>
-                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_title')}</SortableTH></th>
-                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="severity" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_severity')}</SortableTH></th>
-                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_status')}</SortableTH></th>
-                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="commander" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_commander')}</SortableTH></th>
-                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="declared_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_declared_at')}</SortableTH></th>
-                <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="resolved_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_resolved_at')}</SortableTH></th>
+                <th aria-sort={ariaSort(miSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={miSort} onSort={setMiSort}>{t('service_desk.col_number')}</SortableTH></th>
+                <th aria-sort={ariaSort(miSort, 'title')} className="u-cell-nowrap"><SortableTH col="title" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_title')}</SortableTH></th>
+                <th aria-sort={ariaSort(miSort, 'severity')} className="u-cell-nowrap"><SortableTH col="severity" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_severity')}</SortableTH></th>
+                <th aria-sort={ariaSort(miSort, 'status')} className="u-cell-nowrap"><SortableTH col="status" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_status')}</SortableTH></th>
+                <th aria-sort={ariaSort(miSort, 'commander')} className="u-cell-nowrap"><SortableTH col="commander" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_commander')}</SortableTH></th>
+                <th aria-sort={ariaSort(miSort, 'declared_at')} className="u-cell-nowrap"><SortableTH col="declared_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_declared_at')}</SortableTH></th>
+                <th aria-sort={ariaSort(miSort, 'resolved_at')} className="u-cell-nowrap"><SortableTH col="resolved_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_resolved_at')}</SortableTH></th>
               </tr>
             </thead>
             <tbody>
               {sortedMis.map(m => (
-                <tr key={m.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                <tr key={m.id} className="u-border-b">
                   <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: COLOR.danger, fontWeight: 700 }}>{m.number}</td>
                   <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</td>
                   <td style={{ padding: '10px 8px' }}>
@@ -369,7 +369,7 @@ export function RoutingRules() {
           try { conds = JSON.parse(rule.conditions || '{}'); acts = JSON.parse(rule.actions || '{}') } catch { /* noop */ }
           return (
             <div key={rule.id} style={{ background: 'var(--surface-2)', border: `1px solid ${rule.is_active ? 'var(--surface-4)' : 'var(--surface-3)'}`,
-              borderRadius: 10, padding: '14px 18px', opacity: rule.is_active ? 1 : 0.5 }}>
+              borderRadius: 'var(--radius-md)', padding: '14px 18px', opacity: rule.is_active ? 1 : 0.5 }}>
               <div className="u-row-between">
                 <div>
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginRight: 10 }}>#{rule.priority}</span>
@@ -379,18 +379,18 @@ export function RoutingRules() {
                   <button onClick={() => toggleRule({ id: rule.id, is_active: !rule.is_active })}
                     aria-pressed={rule.is_active}
                     aria-label={`${rule.is_active ? 'Desactivar' : 'Activar'} regla ${rule.name}`}
-                    style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)',
+                    style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
                       background: 'transparent', color: rule.is_active ? COLOR.success : 'var(--text-3)',
                       fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                     {rule.is_active ? t('service_desk.routing_active') : t('service_desk.routing_inactive')}
                   </button>
                   <button aria-label={`${t('common.edit')} ${rule.name}`} onClick={() => setEditingRule(rule)}
-                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
+                    style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
                       background: 'transparent', color: COLOR.accent, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                     ✏ {t('common.edit')}
                   </button>
                   <button aria-label={`${t('common.delete')} ${rule.name}`} onClick={() => deleteRule(rule.id)}
-                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
+                    style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
                       background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                     {t('common.delete')}
                   </button>
@@ -437,6 +437,7 @@ export function RoutingRules() {
 
 type Entry = { key: string; value: string }
 function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; onSaved: () => void; rule?: Rule }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const isEdit = !!rule
@@ -631,24 +632,24 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '80vh', overflowY: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 12 }}>
           <div>
-            <label style={LS}>{t('service_desk.routing_name_lbl')} *</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('service_desk.routing_name_lbl')} *</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               style={IS} autoFocus />
           </div>
           <div>
-            <label style={LS}>{t('service_desk.routing_order_lbl')}</label>
-            <input type="number" value={form.priority}
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.routing_order_lbl')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.priority}
               onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
               style={{ ...IS }} />
           </div>
         </div>
 
-        <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: 14 }}>
+        <div style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', padding: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)' }}>{t('service_desk.cond_field')}</span>
             <button type="button" onClick={addCondition}
               disabled={availCondTypes.length === 0}
-              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
+              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
                 background: 'var(--surface-3)', color: 'var(--text-2)', cursor: availCondTypes.length ? 'pointer' : 'not-allowed',
                 fontFamily: 'inherit' }}>
               {t('queueandrouting.condicion')}
@@ -686,12 +687,12 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
           ))}
         </div>
 
-        <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: 14 }}>
+        <div style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', padding: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)' }}>{t('service_desk.act_label')}</span>
             <button type="button" onClick={addAction}
               disabled={actions.length >= ACT_TYPES.length}
-              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
+              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
                 background: 'var(--surface-3)', color: 'var(--text-2)', cursor: actions.length < ACT_TYPES.length ? 'pointer' : 'not-allowed',
                 fontFamily: 'inherit' }}>
               {t('queueandrouting.accion')}

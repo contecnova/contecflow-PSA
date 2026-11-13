@@ -214,8 +214,8 @@ def _tras_confirmar(session) -> None:
     if not session.info.pop(_PENDIENTES, False):
         return
     try:
-        from app.worker import sd_procesar_eventos_de_ticket
-        sd_procesar_eventos_de_ticket.apply_async(retry=False)
+        from app.core.segundo_plano import enviar_tarea
+        enviar_tarea("app.worker.sd_procesar_eventos_de_ticket", retry=False)
     except Exception as exc:
         logger.debug("bandeja de tickets: sin broker, la recoge la tarea periodica (%s)", exc)
 

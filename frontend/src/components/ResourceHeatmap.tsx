@@ -2,7 +2,7 @@
  * ResourceHeatmap — Visual weekly load heatmap per team member
  * Shows hard/soft bookings, utilization %, and overload warnings
  */
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
@@ -68,7 +68,7 @@ interface HeatmapData {
 const STATUS_COLORS: Record<string, { bg: string; border: string; text: string; label: string }> = {
   overloaded: { bg: 'var(--danger-border)', border: 'rgba(248,113,113,0.50)', text: 'var(--danger)', label: 'Sobrecargado' },
   high:       { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.38)', text: 'var(--warning)', label: 'Alta carga' },
-  ok:         { bg: 'var(--accent-muted)', border: 'rgba(79,142,247,0.25)', text: 'var(--accent)', label: 'Ok' },
+  ok:         { bg: 'var(--accent-muted)', border: 'color-mix(in srgb, var(--accent) 25%, transparent)', text: 'var(--accent)', label: 'Ok' },
   free:       { bg: 'rgba(30,45,69,0.13)', border: 'rgba(30,45,69,0.25)', text: 'var(--text-3)', label: 'Libre' },
 }
 
@@ -118,6 +118,7 @@ const bookingSchema = z.object({
 })
 
 function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: BookingPrefill | null }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const [form, setForm] = useState({
@@ -158,41 +159,41 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
   return (
     <Modal open title={t('resource_heatmap.new_booking_title')} onClose={onClose} width={480}>
       <div className="u-stack-14">
-        <div><label style={ls}>Persona *</label>
-          <select value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Persona *</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
             <option value="">Seleccionar...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
           </select>
           {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
         </div>
-        <div><label style={ls}>Proyecto</label>
-          <select value={form.project_id} onChange={setField('project_id')} style={fs}>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Proyecto</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} style={fs}>
             <option value="">{t('resourceheatmap.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div className="u-grid2-12">
-          <div><label style={ls}>Tipo</label>
-            <select value={form.booking_type} onChange={setField('booking_type')} style={fs}>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Tipo</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.booking_type} onChange={setField('booking_type')} style={fs}>
               <option value="hard">Hard — Confirmado</option>
               <option value="soft">Soft — Tentativo</option>
             </select>
           </div>
-          <div><label style={ls}>{t('resourceheatmap.h_dia')}</label>
-            <input type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} style={validation.inputStyle(fs, 'hours_per_day')} />
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('resourceheatmap.h_dia')}</label>
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} style={validation.inputStyle(fs, 'hours_per_day')} />
             {validation.errors.hours_per_day && <div className="u-field-error">{validation.errors.hours_per_day}</div>}
           </div>
-          <div><label style={ls}>Fecha inicio *</label>
-            <DateInput value={form.start_date} onChange={setField('start_date')} style={validation.inputStyle(fs, 'start_date')} />
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Fecha inicio *</label>
+            <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} style={validation.inputStyle(fs, 'start_date')} />
             {validation.errors.start_date && <div className="u-field-error">{validation.errors.start_date}</div>}
           </div>
-          <div><label style={ls}>Fecha fin *</label>
-            <DateInput value={form.end_date} onChange={setField('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Fecha fin *</label>
+            <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} style={validation.inputStyle(fs, 'end_date')} />
             {validation.errors.end_date && <div className="u-field-error">{validation.errors.end_date}</div>}
           </div>
         </div>
-        <div><label style={ls}>Nota</label>
-          <input value={form.note} onChange={setField('note')} style={fs} placeholder={t('resourceheatmap.motivo_de_la_reserva')} />
+        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Nota</label>
+          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} style={fs} placeholder={t('resourceheatmap.motivo_de_la_reserva')} />
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -256,7 +257,7 @@ export default function ResourceHeatmap() {
           { label:'Infrautilizados (<20%)', value:freeCount, color:'var(--text-2)', icon:'⚪' },
           { label:'Personas totales', value:users.length, color:'var(--accent)', icon:'👥' },
         ].map(({ label, value, color, icon }) => (
-          <div key={label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:10, padding:'12px 16px' }}>
+          <div key={label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-md)', padding:'12px 16px' }}>
             <div style={{ fontSize: "var(--text-lg-em)", marginBottom:4 }}>{icon}</div>
             <div style={{ fontSize: "var(--text-xl-em)", fontWeight:800, color }}>{value}</div>
             <div className="u-text2-xs">{label}</div>
@@ -269,7 +270,7 @@ export default function ResourceHeatmap() {
         <span className="u-text2-sm">Semanas:</span>
         {[4,8,12,16].map(w => (
           <button key={w} onClick={() => setWeeks(w)}
-            style={{ padding:'5px 12px', borderRadius:6, border:`1px solid ${weeks===w?'rgba(79,142,247,0.31)':'var(--surface-4)'}`, background:weeks===w?'var(--accent-muted)':'transparent', color:weeks===w?'var(--accent)':'var(--text-2)', fontSize: "var(--text-sm)", cursor:'pointer', fontFamily:'inherit' }}>
+            style={{ padding:'5px 12px', borderRadius:'var(--radius-sm)', border:`1px solid ${weeks===w?'color-mix(in srgb, var(--accent) 31%, transparent)':'var(--surface-4)'}`, background:weeks===w?'var(--accent-muted)':'transparent', color:weeks===w?'var(--accent)':'var(--text-2)', fontSize: "var(--text-sm)", cursor:'pointer', fontFamily:'inherit' }}>
             {w}w
           </button>
         ))}
@@ -319,14 +320,14 @@ export default function ResourceHeatmap() {
             <div className="u-stack-6">
               {bookings.map(b => (
                 <div key={b.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 120px 120px 80px 80px auto', gap:10, padding:'8px 12px', background:'var(--surface-3)', borderRadius:8, alignItems:'center', fontSize: "var(--text-sm)" }}>
-                  <span style={{ fontWeight:600 }}>{b.user_name}</span>
+                  <span className="u-600">{b.user_name}</span>
                   <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:(b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', background:alpha(((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)'), '20'), padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
                   <span className="u-text2">{b.project_name || t('resource_heatmap.no_project')}</span>
                   <span className="u-text2">{b.start_date} → {b.end_date}</span>
                   <span>{b.hours_per_day}{t('resourceheatmap.h_dia_2')}</span>
                   <span style={{ fontWeight:700 }}>{b.total_hours}h total</span>
                   <button onClick={() => { openConfirmGlobal({message:t('resource_heatmap.delete_booking_confirm'),onConfirm:()=>deleteBooking(b.id),danger:true}) }}
-                    style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:6, padding:'2px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                    style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)', padding:'2px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               ))}
             </div>

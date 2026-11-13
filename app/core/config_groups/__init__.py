@@ -16,6 +16,8 @@ from app.core.config_groups.health_config import HealthSettingsMixin
 from app.core.config_groups.semantic_config import SemanticSettingsMixin
 from app.core.config_groups.service_desk_config import ServiceDeskSettingsMixin
 from app.core.config_groups.automations_config import AutomationsSettingsMixin
+from app.core.config_groups.proceso_config import INTERRUPTORES_DE_PROCESO, ProcesoSettingsMixin
+from app.core.config_groups.escalas_config import EscalasSettingsMixin
 
 __all__ = [
     "AISettingsMixin",
@@ -24,4 +26,7 @@ __all__ = [
     "SemanticSettingsMixin",
     "ServiceDeskSettingsMixin",
     "AutomationsSettingsMixin",
+    "ProcesoSettingsMixin",
+    "EscalasSettingsMixin",
+    "INTERRUPTORES_DE_PROCESO",
 ]

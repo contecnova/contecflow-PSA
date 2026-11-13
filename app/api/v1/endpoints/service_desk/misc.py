@@ -1,6 +1,7 @@
 """Service Desk — Miscellaneous subdomain router (catalog, groups, problems, announcements, routing, changes, major incidents, assets, status page)."""
 from fastapi import APIRouter, Depends, Query, Body, Response, HTTPException, Request
-from app.services.service_desk.portal_auth_service import Lector, get_portal_client_or_user
+from app.core.deps import get_portal_client_or_user
+from app.services.service_desk.portal_auth_service import Lector
 from sqlalchemy.orm import Session
 from typing import Optional
 import json
@@ -62,6 +63,7 @@ from app.services.service_desk.status_page_service import (
     update_status_component_record, delete_status_component as delete_status_component_svc,
     create_status_incident_record, add_status_incident_update_record,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -204,7 +206,7 @@ def link_ticket_to_problem(request: Request, problem_id: str, ticket_id: str, db
 # ── Announcements ─────────────────────────────────────────────────────────────
 
 @router.get("/announcements", summary="Anuncios activos")
-def list_announcements(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200), response: Response = None,
+def list_announcements(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA), response: Response = None,
                        db: Session = Depends(get_db), lector: Lector = Depends(get_portal_client_or_user)):
     # Auditoria 2026-11: se servian sin login, sin organizacion y sin mirar
     # `show_to_clients` (un anonimo leia los internos de todas).
@@ -279,7 +281,7 @@ def run_routing_outcome_scan(
 def list_changes(
     status: Optional[str] = Query(None), change_type: Optional[str] = Query(None),
     date_from: Optional[str] = Query(None), date_to: Optional[str] = Query(None),
-    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     return APIListResponse.ok(items=list_changes_payload(db, current_user, status, change_type, date_from, date_to, page, page_size), page=page, page_size=page_size)

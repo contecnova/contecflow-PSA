@@ -13,7 +13,7 @@ import enum
 import uuid
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+    Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text, false
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -79,6 +79,11 @@ class JiraConfig(Base):
     priority_map_json = Column(Text, nullable=True)
 
     is_active = Column(Boolean, default=True)
+    # Auditoria 2026-11 (#34): la conexion que usan las TAREAS de proyecto
+    # (`/jira/*` y la sincronizacion periodica). Antes vivia aparte, en cuatro
+    # `app_settings` (`jira_url`, `jira_email`, `jira_api_token`,
+    # `jira_project_key`); la migracion 159 las trajo aqui. Una por organizacion.
+    usar_para_tareas = Column(Boolean, nullable=False, default=False, server_default=false())
     last_full_sync_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

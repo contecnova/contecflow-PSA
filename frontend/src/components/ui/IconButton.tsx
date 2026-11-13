@@ -28,7 +28,7 @@ export default function IconButton({
       style={{
         background: 'transparent',
         border: '1px solid transparent',
-        borderRadius: 6,
+        borderRadius: 'var(--radius-sm)',
         padding: 6,
         display: 'inline-flex',
         alignItems: 'center',

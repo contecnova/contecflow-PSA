@@ -69,7 +69,7 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
         ))}
         {(data?.releases ?? []).map(r => (
           <div key={r.id} style={{ border: '1px solid var(--accent)', background: 'var(--accent-muted)', borderRadius: 8, padding: '8px 12px', fontSize: 'var(--text-sm)' }}>
-            <strong style={{ color: 'var(--accent)' }}>🚀 {r.name}{r.version ? ` ${r.version}` : ''}</strong> · {fecha(r.planned_date)} · {t(`sd_cfg.chg_rel_${r.status}`)}
+            <strong className="u-accent">🚀 {r.name}{r.version ? ` ${r.version}` : ''}</strong> · {fecha(r.planned_date)} · {t(`sd_cfg.chg_rel_${r.status}`)}
           </div>
         ))}
         {dias.length === 0 ? <div className="u-text3-sm">{t('sd_cfg.chg_empty_month')}</div> : dias.map(([dia, cambios]) => (
@@ -155,7 +155,7 @@ function FormCongelacion({ inicial, pendiente, onCancelar, onGuardar }: { inicia
   return (
     <div className="u-stack-12">
       <div><label style={LS} htmlFor="blk-name">{t('sd_cfg.chg_name')} *</label><input id="blk-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} style={IS} /></div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="u-grid2-10">
         <div><label style={LS} htmlFor="blk-from">{t('sd_cfg.chg_from')} *</label><DateInput id="blk-from" aria-label={t('sd_cfg.chg_from')} withTime value={f.start} onChange={e => setF({ ...f, start: e.target.value })} style={IS} /></div>
         <div><label style={LS} htmlFor="blk-to">{t('sd_cfg.chg_to')} *</label><DateInput id="blk-to" aria-label={t('sd_cfg.chg_to')} withTime value={f.end} onChange={e => setF({ ...f, end: e.target.value })} style={IS} /></div>
       </div>
@@ -189,7 +189,7 @@ export function Versiones({ onOpen }: { onOpen: (id: string) => void }) {
   const borrar = useMutation({ mutationFn: (id: string) => sdChangePlanningApi.deleteRelease(id), onSuccess: refrescar })
   return (
     <div className="u-stack-14">
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={() => setEditando('nueva')}>+ {t('sd_cfg.chg_release_new')}</Button></div>
+      <div className="u-row-end"><Button onClick={() => setEditando('nueva')}>+ {t('sd_cfg.chg_release_new')}</Button></div>
       {isLoading ? <Spinner /> : filas.length === 0 ? <EmptyState icon="🚀" title={t('sd_cfg.chg_release_empty')} description="" /> : filas.map(r => (
         <div key={r.id} className="ds-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -203,7 +203,7 @@ export function Versiones({ onOpen }: { onOpen: (id: string) => void }) {
           <div className="u-wrap-6">
             {(r.changes ?? []).length === 0 ? <span className="u-text3-sm">{t('sd_cfg.chg_no_changes')}</span>
               : (r.changes ?? []).map(c => (
-                <button key={c.id} type="button" onClick={() => onOpen(c.id)} style={{ border: '1px solid var(--surface-4)', borderRadius: 999, padding: '3px 10px', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)', color: 'var(--text-1)' }}>
+                <button key={c.id} type="button" onClick={() => onOpen(c.id)} style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-full)', padding: '3px 10px', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)', color: 'var(--text-1)' }}>
                   {c.number} · {etiquetaSd('chg_st', c.status)}
                 </button>
               ))}
@@ -230,7 +230,7 @@ function FormVersion({ inicial, pendiente, onCancelar, onGuardar }: { inicial: V
         <div><label style={LS} htmlFor="rel-name">{t('sd_cfg.chg_name')} *</label><input id="rel-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} style={IS} /></div>
         <div><label style={LS} htmlFor="rel-version">{t('sd_cfg.chg_version')}</label><input id="rel-version" aria-label={t('sd_cfg.chg_version')} value={f.version} onChange={e => setF({ ...f, version: e.target.value })} style={IS} /></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="u-grid2-10">
         <div><label style={LS} htmlFor="rel-date">{t('sd_cfg.chg_planned_date')}</label><DateInput id="rel-date" aria-label={t('sd_cfg.chg_planned_date')} withTime value={f.date} onChange={e => setF({ ...f, date: e.target.value })} style={IS} /></div>
         <div><label style={LS} htmlFor="rel-status">{t('sd_cfg.chg_status')}</label>
           <select id="rel-status" aria-label={t('sd_cfg.chg_status')} value={f.status} onChange={e => setF({ ...f, status: e.target.value })} style={IS}>

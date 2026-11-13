@@ -41,7 +41,6 @@ GLOBALES_A_PROPOSITO = {
     ("collaboration_push_subscriptions", ("endpoint",)): "endpoint del navegador, único por dispositivo",
     ("integration_connectors", ("name",)): "catálogo global de la plataforma (NULL = global)",
     ("integration_connectors", ("slug",)): "catálogo global de la plataforma (NULL = global)",
-    ("mfa_configs", ("user_id",)): _DEL_PADRE,
     ("onboarding_states", ("user_id",)): _DEL_PADRE,
     ("sem_profiles", ("user_id",)): _DEL_PADRE,
     ("user_preferences", ("user_id",)): _DEL_PADRE,

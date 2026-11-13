@@ -66,7 +66,7 @@ def test_una_clave_de_escritura_escribe(client, pm_token, db):
 @pytest.mark.parametrize("metodo,ruta", [
     ("post", "/api/v1/bookings/api-keys"),
     ("post", "/api/v1/auth/change-password"),
-    ("post", "/api/v1/mfa/setup"),
+    ("post", "/api/v1/auth/mfa/setup"),
     ("post", "/api/v1/developer/apps"),
 ])
 def test_EL_HALLAZGO_una_clave_no_gestiona_credenciales(client, pm_token, db, metodo, ruta):

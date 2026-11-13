@@ -1,7 +1,7 @@
 /**
  * PublicFormsPage — Manage public ticket intake forms
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formsApi } from '../services/api'
@@ -55,6 +55,7 @@ const FS: CSSProperties = {
 const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () => void }) {
+  const idCampo = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const t = useAppT()
@@ -91,24 +92,24 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
     <Modal open title={isEdit ? `${t('public_forms.edit_form')} — ${form.name}` : t('public_forms.new_form_title')} onClose={onClose} width={520}>
       <div className="u-stack-14">
         <div>
-          <label style={LS}>{t('public_forms.name_label')}</label>
-          <input value={f.name} onChange={set('name')} style={FS} placeholder={t('public_forms.name_placeholder')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('public_forms.name_label')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} style={FS} placeholder={t('public_forms.name_placeholder')} />
         </div>
         <div>
-          <label style={LS}>{t('public_forms.description_label')}</label>
-          <textarea value={f.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }} rows={2} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('public_forms.description_label')}</label>
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }} rows={2} />
         </div>
         <div className="u-grid2-12">
           <div>
-            <label style={LS}>{t('public_forms.type_label')}</label>
-            <select value={f.form_type} onChange={set('form_type')} style={FS}>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('public_forms.type_label')}</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.form_type} onChange={set('form_type')} style={FS}>
               <option value="ticket">{t('public_forms.type_ticket')}</option>
               <option value="task">{t('public_forms.type_task')}</option>
             </select>
           </div>
           <div>
-            <label style={LS}>{t('public_forms.default_priority_label')}</label>
-            <select value={f.default_priority} onChange={set('default_priority')} style={FS}>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('public_forms.default_priority_label')}</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.default_priority} onChange={set('default_priority')} style={FS}>
               <option value="low">{t('public_forms.priority_low')}</option>
               <option value="medium">{t('public_forms.priority_medium')}</option>
               <option value="high">{t('public_forms.priority_high')}</option>
@@ -117,12 +118,12 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
           </div>
         </div>
         <div>
-          <label style={LS}>{t('public_forms.default_category_label')}</label>
-          <input value={f.default_category} onChange={set('default_category')} style={FS} placeholder={t('public_forms.default_category_placeholder')} />
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('public_forms.default_category_label')}</label>
+          <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={f.default_category} onChange={set('default_category')} style={FS} placeholder={t('public_forms.default_category_placeholder')} />
         </div>
         <div>
-          <label style={LS}>{t('public_forms.success_message_label')}</label>
-          <textarea value={f.success_message} onChange={set('success_message')} style={{ ...FS, resize: 'vertical' }} rows={2}
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={LS}>{t('public_forms.success_message_label')}</label>
+          <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={f.success_message} onChange={set('success_message')} style={{ ...FS, resize: 'vertical' }} rows={2}
             placeholder={t('public_forms.success_message_placeholder')} />
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
@@ -259,7 +260,7 @@ export default function PublicFormsPage() {
                 )}
                 <div style={{
                   fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)',
-                  background: 'var(--surface-3)', padding: '4px 10px', borderRadius: 6,
+                  background: 'var(--surface-3)', padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                   display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {getPublicUrl(form.token)}

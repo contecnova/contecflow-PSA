@@ -10,12 +10,9 @@ import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { clientsApi } from '../services/api'
 
-export interface Client {
-  id: string
-  name?: string
-  status?: string
-  [extra: string]: unknown
-}
+// Tipo de respuesta del cliente de API (services/api/tipos.ts, auditoria 2026-11 #39).
+import type { Client } from '../services/api/tipos'
+export type { Client }
 
 export type ClientListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }

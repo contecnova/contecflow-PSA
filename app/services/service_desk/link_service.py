@@ -84,10 +84,6 @@ def get_ticket_link_or_404(db: Session, link_id: str) -> TicketLink:
     return link
 
 
-def get_ticket_link_for_delete(db: Session, link_id: str) -> TicketLink:
-    return get_ticket_link_or_404(db, link_id)
-
-
 def delete_ticket_link(db: Session, link_id: str) -> None:
     lk = get_ticket_link_or_404(db, link_id)
     db.delete(lk)

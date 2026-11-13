@@ -11,8 +11,8 @@
  *
  * URL state: `/sd/workflow-designer?id=<blueprint_id>` selecciona el editor.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, useId } from 'react'
+import type { CSSProperties } from 'react'
 import type { AxiosError } from 'axios'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 import { sdWorkflowDesignerApi, type ApiError } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
-import { Button, Spinner, Page, StatusBadge, useDialogo } from '../../components/ui'
+import { Button, Spinner, Page, StatusBadge, Modal, EmptyState } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 
@@ -146,7 +146,7 @@ function WorkflowNode({ data, selected }: NodeProps<NodoFlujo>) {
   return (
     <div style={{
       background: 'var(--surface-2)', border: `2px solid ${selected ? 'var(--accent)' : v.color}`,
-      borderRadius: 10, padding: '8px 12px', minWidth: 140, maxWidth: 220,
+      borderRadius: 'var(--radius-md)', padding: '8px 12px', minWidth: 140, maxWidth: 220,
       boxShadow: selected ? '0 0 0 3px rgba(59,130,246,0.18)' : '0 2px 6px rgba(0,0,0,0.18)',
       color: 'var(--text-1)', fontSize: 'var(--text-sm)', cursor: 'grab',
     }}>
@@ -233,7 +233,7 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
       <div className="ds-toolbar">
         <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-          <input
+          <input aria-label="Buscar blueprints…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar blueprints…"
@@ -261,7 +261,9 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner /></div>
       ) : filtered.length === 0 ? (
-        <EmptyState search={search} filter={filter} />
+        <EmptyState svgIcon={<GitBranch size={36} />}
+          title={search || filter ? 'No hay blueprints que coincidan' : 'Aún no hay blueprints'}
+          description={search || filter ? 'Prueba con otros términos.' : 'Crea uno desde cero o parte de una plantilla.'} />
       ) : (
         <div className="ds-grid-cards">
           {filtered.map(bp => (
@@ -306,20 +308,6 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
   )
 }
 
-function EmptyState({ search, filter }: { search: string; filter: string }) {
-  return (
-    <div className="ds-empty">
-      <GitBranch size={36} className="ds-empty__icon" />
-      <div className="ds-empty__title">
-        {search || filter ? 'No hay blueprints que coincidan' : 'Aún no hay blueprints'}
-      </div>
-      <div className="ds-empty__desc">
-        {search || filter ? 'Prueba con otros términos.' : 'Crea uno desde cero o parte de una plantilla.'}
-      </div>
-    </div>
-  )
-}
-
 function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: Blueprint; onOpen: () => void; onClone: () => void; onArchive: () => void }) {
   const statusKind = bp.status === 'published' ? 'success'
                     : bp.status === 'draft' ? 'warning' : 'neutral'
@@ -348,7 +336,7 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: Blueprint; onOp
           {PROCESS_LABEL[bp.process_type] || bp.process_type}
         </span>
         <span>v{bp.latest_version}</span>
-        {bp.published_version && <span style={{ color: 'var(--success)' }}>· publicada v{bp.published_version}</span>}
+        {bp.published_version && <span className="u-success">· publicada v{bp.published_version}</span>}
       </div>
       <div className="ds-row"
         role="presentation"
@@ -362,14 +350,15 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: Blueprint; onOp
 }
 
 function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: { name: string }; onClose: () => void; onConfirm: (name: string) => void }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const [name, setName] = useState(`${bp.name} (copia)`)
   return (
-    <Modal title="Clonar blueprint" onClose={onClose}>
+    <Modal open width={480} title="Clonar blueprint" onClose={onClose}>
       <div className="u-stack-12">
         <div>
-          <label style={labelStyle}>{traducir('workflowdesigner.nombre_de_la_copia')}</label>
-          <input autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{traducir('workflowdesigner.nombre_de_la_copia')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -382,7 +371,7 @@ function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: { name: string };
 
 function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onConfirm }: { title: string; message: string; confirmLabel?: string; onClose: () => void; onConfirm: () => void }) {
   return (
-    <Modal title={title} onClose={onClose}>
+    <Modal open width={480} title={title} onClose={onClose}>
       <div className="u-stack-16">
         <p style={{ color: 'var(--text-1)', margin: 0 }}>{message}</p>
         <div className="u-actions-8">
@@ -395,6 +384,7 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onC
 }
 
 function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (bp: Blueprint) => void }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -421,23 +411,23 @@ function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onC
   })
 
   return (
-    <Modal title={traducir('workflowdesigner.nuevo_blueprint')} onClose={onClose}>
+    <Modal open width={480} title={traducir('workflowdesigner.nuevo_blueprint')} onClose={onClose}>
       <div className="u-stack-12">
         <div>
-          <label style={labelStyle}>Nombre</label>
-          <input autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder={traducir('workflowdesigner.p_ej_triaje_de_incidentes')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Nombre</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder={traducir('workflowdesigner.p_ej_triaje_de_incidentes')} />
         </div>
         <div>
-          <label style={labelStyle}>{traducir('workflowdesigner.tipo_de_proceso')}</label>
-          <select value={processType} onChange={e => setProcessType(e.target.value)} style={inputStyle}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{traducir('workflowdesigner.tipo_de_proceso')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={processType} onChange={e => setProcessType(e.target.value)} style={inputStyle}>
             <option value="ticket">Ticket</option>
             <option value="change">Cambio</option>
             <option value="approval">{traducir('workflowdesigner.aprobacion')}</option>
           </select>
         </div>
         <div>
-          <label style={labelStyle}>{traducir('workflowdesigner.descripcion_opcional')}</label>
-          <textarea rows={3} value={description} onChange={e => setDescription(e.target.value)} style={{ ...inputStyle, resize: 'vertical' }} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>{traducir('workflowdesigner.descripcion_opcional')}</label>
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} rows={3} value={description} onChange={e => setDescription(e.target.value)} style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -472,7 +462,7 @@ function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPic
   })
 
   return (
-    <Modal title="Elegir plantilla" onClose={onClose} width={620}>
+    <Modal open title="Elegir plantilla" onClose={onClose} width={620}>
       {isLoading ? <Spinner /> : (
         <div className="u-stack-8">
           {templates.map(tpl => (
@@ -657,7 +647,7 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
               style={{
                 background: tab === t ? 'var(--accent)' : 'transparent',
                 color: tab === t ? 'var(--on-accent-light)' : 'var(--text-2)',
-                border: 'none', padding: '6px 14px', borderRadius: 6,
+                border: 'none', padding: '6px 14px', borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer', fontSize: 'var(--text-xs)', fontWeight: 600,
                 display: 'inline-flex', alignItems: 'center', gap: 4,
               }}>
@@ -795,13 +785,13 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
         ) : runs.length === 0 ? (
           <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-3)' }}>
             <Activity size={32} style={{ marginBottom: 8 }} />
-            <div style={{ fontWeight: 600 }}>{traducir('workflowdesigner.aun_no_hay_ejecuciones')}</div>
+            <div className="u-600">{traducir('workflowdesigner.aun_no_hay_ejecuciones')}</div>
             <div className="u-sm">
               {traducir('workflowdesigner.pulsa_ejecutar_para_iniciar_una_nueva')}
             </div>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+          <table className="u-table-sm">
             <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-2)', zIndex: 1 }}>
               <tr style={{ textAlign: 'left', color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>
                 <th style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 600 }}>Estado</th>
@@ -868,7 +858,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
 
             {runDetail.run.last_error && (
               <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)',
-                border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6,
+                border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-sm)',
                 padding: '6px 10px', fontSize: 'var(--text-xs)' }}>
                 {runDetail.run.last_error}
               </div>
@@ -914,7 +904,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
                 </div>
                 <pre style={{
                   margin: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                  borderRadius: 6, padding: 8, fontSize: 'var(--text-xs)', overflowX: 'auto',
+                  borderRadius: 'var(--radius-sm)', padding: 8, fontSize: 'var(--text-xs)', overflowX: 'auto',
                 }}>{JSON.stringify(runDetail.run.context, null, 2)}</pre>
               </div>
             )}
@@ -948,7 +938,7 @@ function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: Detal
         {branches.map(({ b, label, color }) => (
           <button key={b} onClick={() => onResume(b)} disabled={pending}
             style={{
-              cursor: 'pointer', border: 'none', borderRadius: 6,
+              cursor: 'pointer', border: 'none', borderRadius: 'var(--radius-sm)',
               background: color || 'var(--accent)', color: 'var(--on-accent-light)',
               padding: '6px 12px', fontSize: 'var(--text-xs)', fontWeight: 600,
               opacity: pending ? 0.6 : 1,
@@ -962,6 +952,7 @@ function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: Detal
 }
 
 function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint; onClose: () => void; onStarted?: () => void }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const [contextJson, setContextJson] = useState('{\n  "priority": "P3"\n}')
@@ -982,21 +973,21 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint
     onError: (e: ApiError) => toast.error(e?.response?.data?.detail || e?.message || 'Error'),
   })
   return (
-    <Modal title={traducir('workflowdesigner.iniciar_ejecucion')} onClose={onClose} width={520}>
+    <Modal open title={traducir('workflowdesigner.iniciar_ejecucion')} onClose={onClose} width={520}>
       <div className="u-stack-12">
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="u-row-10">
           <div className="u-flex1">
-            <label style={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
-            <input value={targetType} onChange={e => setTargetType(e.target.value)} style={inputStyle} placeholder="ticket / change / manual" />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={targetType} onChange={e => setTargetType(e.target.value)} style={inputStyle} placeholder="ticket / change / manual" />
           </div>
           <div className="u-flex1">
-            <label style={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
-            <input value={targetId} onChange={e => setTargetId(e.target.value)} style={inputStyle} placeholder="123e4567-…" />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={targetId} onChange={e => setTargetId(e.target.value)} style={inputStyle} placeholder="123e4567-…" />
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Contexto inicial (JSON)</label>
-          <textarea value={contextJson} onChange={e => setContextJson(e.target.value)} rows={6}
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Contexto inicial (JSON)</label>
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={contextJson} onChange={e => setContextJson(e.target.value)} rows={6}
             style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 'var(--text-xs)', resize: 'vertical' }} />
           <div className="u-hint">
             {traducir('workflowdesigner.las_decisiones_del_workflow_lo_evaluaran_p')} <code>priority == 'P1'</code>).
@@ -1062,6 +1053,7 @@ const DISPARADORES_DE_FLUJO = ['created', 'assigned', 'group_assigned', 'status_
 const ESTADOS_DE_TICKET = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled']
 
 function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null; onChange: (patch: Partial<DatosNodo>) => void; onDelete: () => void }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   if (!node) {
     return (
@@ -1086,14 +1078,14 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null;
         <div style={{ fontWeight: 700, color: NODE_VISUAL[t]?.color }}>
           {NODE_VISUAL[t]?.label} <span className="u-text3-xs">· {node.id.slice(0, 10)}</span>
         </div>
-        <button onClick={onDelete} title="Eliminar nodo (Backspace)"
+        <button aria-label="Eliminar nodo (Backspace)" onClick={onDelete} title="Eliminar nodo (Backspace)"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
           <Trash2 size={14} />
         </button>
       </div>
       <div>
-        <label style={labelStyle}>Etiqueta</label>
-        <input value={node.data.label || ''} onChange={e => onChange({ label: e.target.value })} style={inputStyle} />
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Etiqueta</label>
+        <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={node.data.label || ''} onChange={e => onChange({ label: e.target.value })} style={inputStyle} />
       </div>
 
       {/* Campos por tipo */}
@@ -1156,36 +1148,40 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null;
 }
 
 function FieldText({ label, value, onChange, placeholder }: { label: string; value: ValorConfig; onChange: (v: string) => void; placeholder?: string }) {
+  const idCampo = useId()
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
-      <input value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{label}</label>
+      <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
     </div>
   )
 }
 function FieldNumber({ label, value, onChange }: { label: string; value: ValorConfig; onChange: (v: number | null) => void }) {
+  const idCampo = useId()
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
-      <input type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} style={inputStyle} />
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{label}</label>
+      <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} style={inputStyle} />
     </div>
   )
 }
 function FieldSelect({ label, value, onChange, options }: { label: string; value: ValorConfig; onChange: (v: string) => void; options: { v: string; l: string }[] }) {
+  const idCampo = useId()
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
-      <select value={value || ''} onChange={e => onChange(e.target.value)} style={inputStyle}>
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{label}</label>
+      <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={value || ''} onChange={e => onChange(e.target.value)} style={inputStyle}>
         {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     </div>
   )
 }
 function FieldTextarea({ label, value, onChange }: { label: string; value: ValorConfig; onChange: (v: string) => void }) {
+  const idCampo = useId()
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
-      <textarea rows={3} value={value || ''} onChange={e => onChange(e.target.value)} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace', fontSize: 'var(--text-xs)' }} />
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{label}</label>
+      <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} rows={3} value={value || ''} onChange={e => onChange(e.target.value)} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace', fontSize: 'var(--text-xs)' }} />
     </div>
   )
 }
@@ -1248,31 +1244,3 @@ function serializeGraph(nodes: NodoFlujo[], edges: AristaFlujo[]) {
   }
 }
 
-function Modal({ title, onClose, width = 480, children }: { title: ReactNode; onClose: () => void; width?: number; children?: ReactNode }) {
-  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
-  return (
-    <div role="presentation" onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-    }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
-        aria-label={typeof title === 'string' ? title : undefined}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
-        style={{
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 12, padding: 20, width, maxWidth: '90vw', maxHeight: '85vh',
-          display: 'flex', flexDirection: 'column', gap: 12,
-        }}
-      >
-        <div className="u-row-between">
-          <div className="u-md-700">{title}</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
-            <X size={16} />
-          </button>
-        </div>
-        <div style={{ overflowY: 'auto' }}>{children}</div>
-      </div>
-    </div>
-  )
-}

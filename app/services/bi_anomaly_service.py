@@ -18,6 +18,8 @@ import math
 import random
 from typing import Any
 
+from app.core.escalas import nivel_de_abandono
+
 # ── Graceful sklearn import ────────────────────────────────────────────────────
 try:
     from sklearn.ensemble import IsolationForest as _IsolationForest  # type: ignore
@@ -247,7 +249,7 @@ def predict_churn(
         else:
             prob = _rule_based_churn(feat)
 
-        risk_level = "high" if prob >= 0.6 else "medium" if prob >= 0.3 else "low"
+        risk_level = nivel_de_abandono(prob)
         results.append({
             "client_id": client.get("client_id", "unknown"),
             "client_name": client.get("client_name", ""),

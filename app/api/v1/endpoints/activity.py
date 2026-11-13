@@ -55,6 +55,7 @@ from app.services.activity_service import (
     get_new_notifications,
     get_new_activity_events,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -88,7 +89,7 @@ def get_project_activity(
 def get_activity_feed(
     entity_type: str,
     entity_id: str,
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     before: Optional[str] = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),

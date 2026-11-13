@@ -88,7 +88,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
         {deliverableCount > 0 && <StatusBadge color={DELIV_COLOR} caps={false}>{`${deliverableCount} ${t('project_templates.deliverables').toLowerCase()}`}</StatusBadge>}
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div className="u-row-10">
         <button
           onClick={() => setExpanded(v => !v)}
           style={{
@@ -113,7 +113,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
         <div style={{ marginTop: 16, borderTop: '1px solid var(--surface-4)', paddingTop: 14 }}>
           {/* Phases */}
           {tpl.phases?.map((phase, i) => (
-            <div key={i} style={{ marginBottom: 10 }}>
+            <div key={i} className="u-mb-10">
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: PHASE_COLOR, marginBottom: 4 }}>
                 {t('project_templates.phase')} {phase.order}: {phase.name}
               </div>
@@ -269,36 +269,36 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 9999,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 'var(--z-drag)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('projecttemplates.nueva_plantilla_desde_cero')} style={{
-        background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 900,
+        background: 'var(--surface-1)', borderRadius: 'var(--radius-lg)', padding: 24, width: 900,
         maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
         boxShadow: '0 20px 60px rgba(0,0,0,.3)',
       }}>
         <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, marginBottom: 16 }}>{t('projecttemplates.nueva_plantilla_desde_cero')}</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-          <input value={form.name} onChange={set('name')} placeholder="Nombre *" style={inp} />
-          <input value={form.project_type} onChange={set('project_type')} placeholder="Tipo" style={inp} />
-          <input type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} placeholder="Semanas" style={inp} />
-          <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder="Horas" style={inp} />
+          <input aria-label="Nombre *" value={form.name} onChange={set('name')} placeholder="Nombre *" style={inp} />
+          <input aria-label="Tipo" value={form.project_type} onChange={set('project_type')} placeholder="Tipo" style={inp} />
+          <input aria-label="Semanas" type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} placeholder="Semanas" style={inp} />
+          <input aria-label="Horas" type="number" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder="Horas" style={inp} />
         </div>
-        <textarea value={form.description} onChange={set('description')} rows={2} placeholder={t('projecttemplates.descripcion')} style={{ ...inp, width: '100%', resize: 'vertical', marginBottom: 14 }} />
+        <textarea aria-label={t('projecttemplates.descripcion')} value={form.description} onChange={set('description')} rows={2} placeholder={t('projecttemplates.descripcion')} style={{ ...inp, width: '100%', resize: 'vertical', marginBottom: 14 }} />
 
         <div className="u-mb-16">
           <div style={h3}>Fases ({form.phases.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
-            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} placeholder="Nombre fase" style={inp} />
-            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} placeholder={t('projecttemplates.descripcion_fase')} style={inp} />
-            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} placeholder="Semanas" style={inp} />
-            <input type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
+            <input aria-label="Nombre fase" value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} placeholder="Nombre fase" style={inp} />
+            <input aria-label={t('projecttemplates.descripcion_fase')} value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} placeholder={t('projecttemplates.descripcion_fase')} style={inp} />
+            <input aria-label="Semanas" type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} placeholder="Semanas" style={inp} />
+            <input aria-label="Horas" type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8 }}>
-            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_tarea')} style={inp} />
-            <input type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
-            <input value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} placeholder="Skill" style={inp} />
+            <input aria-label={t('projecttemplates.titulo_tarea')} value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_tarea')} style={inp} />
+            <input aria-label="Horas" type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
+            <input aria-label="Skill" value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} placeholder="Skill" style={inp} />
             <button onClick={addTaskToPhase} style={btnSecondary}>+ Tarea</button>
           </div>
           {phase.tasks.length > 0 && (
@@ -314,25 +314,25 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
         <div className="u-mb-16">
           <div style={h3}>Riesgos ({form.risks.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
-            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_riesgo')} style={inp} />
-            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} placeholder={t('projecttemplates.categoria')} style={inp} />
+            <input aria-label={t('projecttemplates.titulo_riesgo')} value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_riesgo')} style={inp} />
+            <input aria-label={t('projecttemplates.categoria')} value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} placeholder={t('projecttemplates.categoria')} style={inp} />
             <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} style={inp}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
             <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} style={inp}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
             <button onClick={addRisk} style={btnSecondary}>+ Riesgo</button>
           </div>
-          <textarea value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder={t('projecttemplates.mitigacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
+          <textarea aria-label={t('projecttemplates.mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder={t('projecttemplates.mitigacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
         </div>
 
         <div className="u-mb-16">
           <div style={h3}>Entregables ({form.deliverables.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
-            <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} placeholder="Nombre" style={inp} />
-            <input value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} placeholder="Formato" style={inp} />
-            <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} placeholder="Semana" style={inp} />
-            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('projecttemplates.facturacion')} style={inp} />
+            <input aria-label="Nombre" value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} placeholder="Nombre" style={inp} />
+            <input aria-label="Formato" value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} placeholder="Formato" style={inp} />
+            <input aria-label="Semana" type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} placeholder="Semana" style={inp} />
+            <input aria-label={t('projecttemplates.facturacion')} type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('projecttemplates.facturacion')} style={inp} />
             <button onClick={addDeliverable} style={btnSecondary}>+ Entregable</button>
           </div>
-          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} placeholder={t('projecttemplates.criterio_aceptacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
+          <textarea aria-label={t('projecttemplates.criterio_aceptacion_opcional')} value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} placeholder={t('projecttemplates.criterio_aceptacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
         </div>
 
         {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: "var(--text-sm)" }}>{error}</div>}
@@ -424,11 +424,11 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 9999,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 'var(--z-drag)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="template-apply-title" style={{
-        background: 'var(--surface-1)', borderRadius: 14, padding: 32, width: 480,
+        background: 'var(--surface-1)', borderRadius: 'var(--radius-lg)', padding: 32, width: 480,
         maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,.3)',
       }}>
         <div id="template-apply-title" style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 20 }}>
@@ -560,7 +560,7 @@ export default function ProjectTemplatesPage() {
       {/* Success banner */}
       {successMsg && (
         <div style={{
-          padding: '12px 18px', borderRadius: 10, background: 'color-mix(in srgb, var(--success) 10%, transparent)',
+          padding: '12px 18px', borderRadius: 'var(--radius-md)', background: 'color-mix(in srgb, var(--success) 10%, transparent)',
           border: '1px solid color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', fontSize: "var(--text-md)",
           marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
@@ -575,7 +575,7 @@ export default function ProjectTemplatesPage() {
         <div style={{
           textAlign: 'center', paddingTop: 60, color: 'var(--text-3)',
         }}>
-          <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>📋</div>
+          <div className="u-empty-icon">📋</div>
           <div style={{ fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: 8 }}>{t('project_templates.empty_title')}</div>
           <div style={{ fontSize: "var(--text-base)" }}>
             {t('project_templates.empty_subtitle')}

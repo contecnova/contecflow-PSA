@@ -13,7 +13,7 @@ from app.api.v1.endpoints import (
     currency_sync, currency_rates,
     scim, governance, abac, abac_admin, security_observability,
     public_forms, developer_portal,
-    marketplace, collaborative, labels, translations, ui,
+    labels, translations, ui,
     resource_demand, jira_integration,
 )
 # Auditoría 2026-08 (hallazgo 22): antes venía de `endpoints/v239/`.
@@ -48,8 +48,6 @@ router.include_router(developer_portal.router,                                  
 
 # ── Customisation & platform tooling ──────────────────────────────────────────
 router.include_router(branding.router,                                      tags=["Branding"])
-router.include_router(marketplace.router,          prefix="/marketplace",           tags=["Marketplace"])
-router.include_router(collaborative.router,        prefix="/collaborative",         tags=["Collaborative"])
 router.include_router(labels.router,               prefix="/labels",                tags=["Labels"])
 router.include_router(translations.router,         prefix="/translations",          tags=["Translations"])
 router.include_router(ui.router,                   prefix="/ui",                    tags=["UI"])

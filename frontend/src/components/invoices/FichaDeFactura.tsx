@@ -16,9 +16,10 @@ import { Button, Modal, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
-import { extractErr, localeActivo } from '../../utils/helpers'
+import { extractErr, formatearMoneda } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
+import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 type Linea = { description: string; quantity: number; unit: string; unit_price: number; discount_pct: number; amount?: number; source_type?: string | null; source_ids?: unknown }
 type Factura = {
   id: string; number: string; status: string; client_name?: string; client_email?: string; client_vat?: string; client_address?: string
@@ -28,14 +29,14 @@ type Factura = {
 }
 const CABECERA = ['client_name', 'client_vat', 'client_email', 'client_address', 'issue_date', 'due_date', 'po_reference', 'notes'] as const
 
-const dinero = (n: number | undefined, moneda = 'EUR') =>
-  (n ?? 0).toLocaleString(localeActivo(), { style: 'currency', currency: moneda || 'EUR' })
+const dinero = (n: number | undefined, moneda: string) => formatearMoneda(n ?? 0, moneda)
 const importe = (l: Linea) => Math.round((Number(l.quantity) || 0) * (Number(l.unit_price) || 0) * (1 - (Number(l.discount_pct) || 0) / 100) * 100) / 100
 
 export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaDeEstado }: {
   id: string; onClose: () => void; onPdf: () => void; onEstado: (status: string) => void
   etiquetaDeEstado: (status: string) => { label: string; color: string }
 }) {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -77,7 +78,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
   return (
     <Modal open onClose={onClose} size="xl"
       title={<span className="u-row-center-10">
-        <span style={{ fontFamily: 'var(--font-mono)' }}>{f.number}</span>
+        <span className="u-mono">{f.number}</span>
         <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, padding: '2px 8px', borderRadius: 20, color: estado.color, border: `1px solid ${estado.color}` }}>{estado.label}</span>
       </span>}>
       <div style={{ display: 'grid', gap: 16 }}>
@@ -106,7 +107,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
             : <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap' }}>{f.client_address || '—'}</div>}
         </label>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+        <table className="u-table-sm">
           <thead><tr style={{ textAlign: 'left', color: 'var(--text-3)', fontSize: 'var(--text-xs)', textTransform: 'uppercase' }}>
             <th style={{ padding: 6 }}>{t('invoices.ficha_concepto')}</th><th style={{ padding: 6, width: 80 }}>{t('invoices.ficha_cantidad')}</th>
             <th style={{ padding: 6, width: 70 }}>{t('invoices.ficha_unidad')}</th><th style={{ padding: 6, width: 110 }}>{t('invoices.ficha_precio')}</th>
@@ -122,13 +123,13 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
                     <td key={k} style={{ padding: 4 }}><input aria-label={t(`invoices.ficha_${k === 'quantity' ? 'cantidad' : k === 'unit' ? 'unidad' : k === 'unit_price' ? 'precio' : 'descuento'}`)}
                       type={k === 'unit' ? 'text' : 'number'} value={String(l[k] ?? '')} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x))} style={campo} /></td>
                   ))}
-                  <td style={{ padding: 6, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(importe(l), f.currency)}</td>
+                  <td style={{ padding: 6, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(importe(l), f.currency || fmtMoneda.moneda)}</td>
                   <td><button type="button" aria-label={t('invoices.ficha_quitar_linea')} onClick={() => setLineas(v => v.filter((_, j) => j !== i))}
                     style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={13} /></button></td>
                 </>) : (<>
                   <td style={{ padding: 6 }}>{l.description}</td><td style={{ padding: 6 }}>{l.quantity}</td><td style={{ padding: 6 }}>{l.unit}</td>
-                  <td style={{ padding: 6, fontFamily: 'var(--font-mono)' }}>{dinero(l.unit_price, f.currency)}</td><td style={{ padding: 6 }}>{l.discount_pct ? `${l.discount_pct}%` : '—'}</td>
-                  <td style={{ padding: 6, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(l.amount, f.currency)}</td>
+                  <td style={{ padding: 6, fontFamily: 'var(--font-mono)' }}>{dinero(l.unit_price, f.currency || fmtMoneda.moneda)}</td><td style={{ padding: 6 }}>{l.discount_pct ? `${l.discount_pct}%` : '—'}</td>
+                  <td style={{ padding: 6, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(l.amount, f.currency || fmtMoneda.moneda)}</td>
                 </>)}
               </tr>
             ))}
@@ -141,13 +142,13 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
           </button>
         )}
         <div style={{ justifySelf: 'end', display: 'grid', gridTemplateColumns: 'auto auto', gap: '4px 18px', fontSize: 'var(--text-sm)' }}>
-          <span className="u-text3">{t('invoices.ficha_subtotal')}</span><span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(subtotal, f.currency)}</span>
+          <span className="u-text3">{t('invoices.ficha_subtotal')}</span><span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(subtotal, f.currency || fmtMoneda.moneda)}</span>
           <span className="u-text3">
             {t('invoices.ficha_impuestos')} {editando
               ? <input aria-label={t('invoices.ficha_impuestos')} type="number" value={String(form.tax_rate ?? 0)} onChange={e => setForm(v => ({ ...v, tax_rate: e.target.value }))} style={{ ...campo, width: 70, display: 'inline-block' }} />
               : `(${f.tax_rate ?? 0}%)`}
-          </span><span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(impuestos, f.currency)}</span>
-          <strong>{t('invoices.total')}</strong><strong style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(total, f.currency)}</strong>
+          </span><span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(impuestos, f.currency || fmtMoneda.moneda)}</span>
+          <strong>{t('invoices.total')}</strong><strong style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(total, f.currency || fmtMoneda.moneda)}</strong>
         </div>
         <label>
           <div style={etiqueta}>{t('invoices.campo_notes')}</div>

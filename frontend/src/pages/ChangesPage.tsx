@@ -17,6 +17,7 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import { alpha } from '../constants/theme'
 import DsBadge from '../components/ui/StatusBadge'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type ImpactLevel = 'low' | 'medium' | 'high' | 'critical' | string
 type ChangeStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'implemented' | string
 type MainTab = 'changes' | 'cab'
@@ -131,6 +132,7 @@ function StatusBadge({ status }: { status?: ChangeStatus }) {
 }
 
 function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; projectId: string | number; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT() as (key: string) => string
   const idPrefix = useId()
   const qc = useQueryClient()
@@ -169,7 +171,7 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; pr
 
   return (
     <Modal open title={isEdit ? `Editar CR — ${cr.code}` : 'Nueva Solicitud de Cambio'} onClose={onClose} width={620}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="u-grid2-14">
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-title`} style={ls}>{t('changes.titulo')}</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('changes.titulo_de_la_solicitud')} aria-label={t('changes.titulo_de_la_solicitud')} />
@@ -193,7 +195,7 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; pr
           {validation.errors.impact && <p className="u-field-error">{validation.errors.impact}</p>}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-cost-impact`} style={ls}>Impacto en coste (€)</label>
+          <label htmlFor={`${idPrefix}-cost-impact`} style={ls}>Impacto en coste ({fmtMoneda.simbolo})</label>
           <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} style={validation.inputStyle(fs, 'cost_impact')} placeholder="Impacto economico" aria-label="Impacto economico" />
           {validation.errors.cost_impact && <p className="u-field-error">{validation.errors.cost_impact}</p>}
         </div>
@@ -274,6 +276,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectI
 
 // ── CAB Board Tab ─────────────────────────────────────────────────────────────
 function CABBoard() {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT() as (key: string) => string
   const { hasRole } = useAuth() as RoleAuth
   // Cerrar es de admin en el servidor. Contra el recuento, o con empate, pide motivo (revisión 2026-11).
@@ -331,7 +334,7 @@ function CABBoard() {
                       <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:6 }}>{cr.title}</div>
                       <div style={{ display:'flex', gap:12, fontSize: "var(--text-sm)" }}>
                         <span style={{ color:ic.color, fontWeight:500 }}>{ic.label} impacto</span>
-                        {cr.cost_impact && <span className="u-danger">+{cr.cost_impact}€</span>}
+                        {cr.cost_impact && <span className="u-danger">+{fmtMoneda(cr.cost_impact)}</span>}
                         {cr.schedule_impact_days && <span className="u-warning">+{cr.schedule_impact_days}d</span>}
                       </div>
                     </div>
@@ -344,14 +347,14 @@ function CABBoard() {
                     {cr.my_vote ? (
                       <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', fontStyle:'italic' }}>Has votado: {cr.my_vote}</span>
                     ) : <>
-                      <button onClick={() => vote({ id:cr.id, vote:'approve' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>✓ Aprobar</button>
-                      <button onClick={() => vote({ id:cr.id, vote:'reject' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>✗ Rechazar</button>
-                      <button onClick={() => vote({ id:cr.id, vote:'abstain' })} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Abstener</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'approve' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:'var(--radius-sm)', padding:'4px 14px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>✓ Aprobar</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'reject' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:'var(--radius-sm)', padding:'4px 14px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>✗ Rechazar</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'abstain' })} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'4px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Abstener</button>
                     </>}
                     {hasRole('admin') && ['submitted', 'under_review'].includes(cr.status ?? '') && (
                       <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-                        <button onClick={() => cerrar(cr, 'approved')} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
-                        <button onClick={() => cerrar(cr, 'rejected')} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
+                        <button onClick={() => cerrar(cr, 'approved')} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:'var(--radius-sm)', padding:'4px 12px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
+                        <button onClick={() => cerrar(cr, 'rejected')} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:'var(--radius-sm)', padding:'4px 12px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
                       </div>
                     )}
                   </div>
@@ -476,7 +479,7 @@ export default function ChangesPage(): JSX.Element {
                 { label: 'Coste adicional', value: fmtCurrency(summary.total_cost_impact), color: 'var(--danger)' },
                 { label: 'Días adicionales', value: `+${summary.total_schedule_impact}d`, color: 'var(--danger)' },
               ].map(({ label, value, color }) => (
-                <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', flex: 1 }}>
+                <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', flex: 1 }}>
                   <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
                 </div>
@@ -497,7 +500,7 @@ export default function ChangesPage(): JSX.Element {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                       <div className="u-flex1">
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{cr.code}</span>
+                          <span className="u-text2-mono-xs">{cr.code}</span>
                           <span className="u-md-700">{cr.title}</span>
                         </div>
                         <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 8 }}>{cr.description}</p>
@@ -507,13 +510,13 @@ export default function ChangesPage(): JSX.Element {
                           {cr.schedule_impact_days && <span className="u-warning">📅 +{cr.schedule_impact_days}d</span>}
                           {cr.requester_name && <span className="u-text2">👤 {cr.requester_name}</span>}
                         </div>
-                        {cr.resolution_notes && <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>💬 {cr.resolution_notes}</div>}
+                        {cr.resolution_notes && <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>💬 {cr.resolution_notes}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                         <StatusBadge status={cr.status} />
                         <div className="u-row-6">
                           {cr.status === 'draft' && <>
-                            <button onClick={() => setEditing(cr)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
+                            <button onClick={() => setEditing(cr)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
                             <Button size="sm" onClick={() => submit(cr)} loading={saving}>Enviar</Button>
                           </>}
                           {['submitted', 'under_review'].includes(cr.status ?? '') && hasRole('admin', 'pm') && (
@@ -522,7 +525,7 @@ export default function ChangesPage(): JSX.Element {
                           {cr.status === 'approved' && (
                             <Button size="sm" onClick={() => implement(cr)}>✓ Implementar</Button>
                           )}
-                          <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta solicitud de cambio?', onConfirm: () => del(cr), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                          <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta solicitud de cambio?', onConfirm: () => del(cr), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                         </div>
                       </div>
                     </div>
@@ -545,7 +548,7 @@ export default function ChangesPage(): JSX.Element {
                 <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                     <div className="u-flex1">
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{cr.project_code} · {cr.project_name} · {cr.code}</div>
+                      <div className="u-text2-xs-mb4">{cr.project_code} · {cr.project_name} · {cr.code}</div>
                       <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 6 }}>{cr.title}</div>
                       <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)" }}>
                         <span style={{ color: impact.color, fontWeight: 700 }}>{impact.label}</span>

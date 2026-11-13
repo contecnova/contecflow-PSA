@@ -272,7 +272,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           </h2>
         </div>
         <span className="u-text3-xs">
-          dashboard_key: <span style={{ fontFamily: 'var(--font-mono)' }}>{dashboardKey}</span>
+          dashboard_key: <span className="u-mono">{dashboardKey}</span>
         </span>
       </div>
 
@@ -294,7 +294,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
         <div>
           <div style={fieldLabel}>{t('bi.collab.add_comment', 'Añadir comentario')}</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <input
+            <input aria-label={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')}
               type="text"
               placeholder={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')}
               value={newComment}
@@ -358,7 +358,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
         <div>
           <div style={fieldLabel}>{t('bi.collab.save_view', 'Guardar vista actual')}</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <input
+            <input aria-label={t('bidashboardcollab.nombre_de_la_vista_compartida')}
               type="text"
               placeholder={t('bidashboardcollab.nombre_de_la_vista_compartida')}
               value={viewName}
@@ -389,8 +389,8 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   borderRadius: 8, gap: 10, flexWrap: 'wrap',
                 }}>
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                    <div className="u-text1-sm-600">{v.name}</div>
+                    <div className="u-text3-xs-mt2">
                       {v.dashboard_key} {v.created_at && `· ${new Date(v.created_at).toLocaleDateString(localeActivo())}`}
                       {v.created_by_name && ` · ${v.created_by_name}`}
                     </div>
@@ -417,14 +417,14 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
         <div>
           <div style={fieldLabel}>{t('bidashboardcollab.compartir_con_un_usuario')}</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <input
+            <input aria-label="user_id"
               type="text"
               placeholder="user_id"
               value={shareUserId}
               onChange={e => setShareUserId(e.target.value)}
               style={{ ...inputBase, flex: '1 1 140px' }}
             />
-            <input
+            <input aria-label="Nombre visible"
               type="text"
               placeholder="Nombre visible"
               value={shareUserName}
@@ -465,11 +465,11 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   borderRadius: 8, gap: 10, flexWrap: 'wrap',
                 }}>
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                    <div className="u-text1-sm-600">
                       {s.target_user_name || s.user_name || s.target_user_id || s.user_id}
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)' }}>{s.target_user_id || s.user_id}</span>
+                    <div className="u-text3-xs-mt2">
+                      <span className="u-mono">{s.target_user_id || s.user_id}</span>
                     </div>
                   </div>
                   <div className="u-row-center-8">
@@ -477,7 +477,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     <span style={chip(PERMISSION_COLOR[s.permission ?? ''] || 'var(--text-3)')}>
                       {PERMISSION_LABEL[s.permission ?? ''] || s.permission}
                     </span>
-                    <button
+                    <button aria-label="Revocar acceso"
                       type="button"
                       onClick={async () => {
                         if (await confirmar({ message: `¿Revocar acceso de ${s.target_user_name || s.user_name}?`, danger: true, confirmLabel: 'Revocar' })) {
@@ -575,9 +575,9 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
                 }}>
                   <div className="u-flex1-min0">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div className="u-row-center-6">
                       <Bell size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                      <span className="u-text1-sm-600">
                         {n.event_type || n.type || 'evento'}
                       </span>
                     </div>

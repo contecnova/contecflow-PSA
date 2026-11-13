@@ -60,7 +60,7 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
       </div>
       <div className="u-stack-10">
         {TEMPLATES.map(t => (
-          <label key={t.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: tpl === t.value ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '12px 16px', cursor: 'pointer' }}>
+          <label key={t.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: tpl === t.value ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '12px 16px', cursor: 'pointer' }}>
             <input type="radio" name="tpl" value={t.value} checked={tpl === t.value} onChange={() => setTpl(t.value)} style={{ marginTop: 3, accentColor: 'var(--accent)', flexShrink: 0 }} />
             <div>
               <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: tpl === t.value ? 'var(--accent)' : 'var(--text-1)' }}>{t.label}</div>
@@ -69,7 +69,7 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
           </label>
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="u-row-end">
         <Button onClick={() => onStart(tpl)} loading={isPending}>
           Iniciar wizard ▶
         </Button>
@@ -86,6 +86,7 @@ interface WizardStepProps {
 }
 
 function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps) {
+  const idCampo = React.useId()
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const steps: WizardStepDef[] = state?.steps ?? []
@@ -147,7 +148,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>Respuestas anteriores</div>
           {Object.entries(state.answers).map(([idx, ans]) => (
             <div key={idx} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>
-              <span style={{ fontWeight: 600 }}>P{Number(idx) + 1}:</span> {String(ans)}
+              <span className="u-600">P{Number(idx) + 1}:</span> {String(ans)}
             </div>
           ))}
         </div>
@@ -159,13 +160,13 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           {stepDef.prompt || stepDef.title || `Paso ${currentStep}`}
         </div>
         {stepDef.hint && (
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}`, borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}`, borderRadius: 'var(--radius-sm)', padding: '8px 12px', marginBottom: 10 }}>
             💡 {stepDef.hint}
           </div>
         )}
 
-        <label style={LS}>Tu respuesta</label>
-        <textarea
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>Tu respuesta</label>
+        <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
           value={answer}
           onChange={e => setAnswer(e.target.value)}
           rows={4}
@@ -187,7 +188,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
         <Button variant="secondary" onClick={getAiHint} loading={aiLoading} disabled={aiLoading}>
           🤖 Sugerencia IA
         </Button>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="u-row-10">
           {isLast ? (
             <Button onClick={() => completeWizard()} loading={completing} disabled={!answer.trim() || submitting}>
               ✅ Finalizar RCA
@@ -258,7 +259,7 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
         <div style={{ textAlign: 'center', padding: 32 }}>
           <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>✅</div>
           <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: COLOR.success, marginBottom: 8 }}>RCA completado</div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
+          <div className="u-text2-base-mb20">
             {traducir('rcawizardmodal.los_campos_del_problema_han_sido_actualizados')}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>

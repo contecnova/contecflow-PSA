@@ -24,6 +24,7 @@ from app.services.scim_service import (
     patch_role_group as _patch_role_group,
     process_bulk_operations as _process_bulk_operations,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(prefix="/scim/v2/{org_id}", tags=["SCIM"])
 
@@ -105,7 +106,7 @@ def list_scim_schemas(
 def list_scim_users(
     org_id: str,
     startIndex: int = Query(default=1, ge=1),
-    count: int = Query(default=100, ge=1, le=200),
+    count: int = Query(default=100, ge=1, le=MAX_TAMANO_DE_PAGINA),
     filter: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
     _auth: None = Depends(_require_scim_token),

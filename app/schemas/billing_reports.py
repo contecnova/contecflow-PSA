@@ -74,78 +74,7 @@ class InvoiceSummaryOut(BaseModel):
                                                  description="Importes sin tipo de cambio a `currency`, por moneda: no se suman")
 
 
-class InvoiceStatusUpdateOut(BaseModel):
-    ok: bool = Field(..., description="Indica si la actualización se realizó correctamente")
-    status: str = Field(..., description="Nuevo estado aplicado a la factura")
-
-
 # ── Approval workflow output schemas ───────────────────────────────────────────
-
-class WorkflowStepOut(BaseModel):
-    id: str
-    step_order: int
-    name: str
-    approver_type: str
-    approver_role: Optional[str] = None
-    approver_user_id: Optional[str] = None
-    approver_user_name: Optional[str] = None
-    is_optional: bool = False
-    timeout_hours: int = 72
-    on_timeout: str = "escalate"
-    model_config = {"from_attributes": True}
-
-
-class WorkflowOut(BaseModel):
-    id: str
-    name: str
-    description: Optional[str] = None
-    entity_type: str
-    is_active: bool = True
-    is_default: bool = False
-    trigger_conditions: Optional[str] = None
-    step_count: int = 0
-    created_at: Optional[str] = None
-    steps: Optional[List[WorkflowStepOut]] = None
-    model_config = {"from_attributes": True}
-
-
-class ApprovalDecisionItemOut(BaseModel):
-    step_order: int
-    approver_id: str
-    approver_name: Optional[str] = None
-    decision: str
-    note: Optional[str] = None
-    decided_at: Optional[str] = None
-
-
-class ApprovalRequestOut(BaseModel):
-    id: str
-    workflow_id: Optional[str] = None
-    entity_type: str
-    entity_id: str
-    entity_summary: Optional[str] = None
-    requested_by: str
-    requester_name: Optional[str] = None
-    current_step: int = 1
-    status: str
-    final_decision: Optional[str] = None
-    final_note: Optional[str] = None
-    completed_at: Optional[str] = None
-    created_at: Optional[str] = None
-    decisions: List[ApprovalDecisionItemOut] = []
-    # Optional fields added by pending-my-action endpoint
-    step_name: Optional[str] = None
-    step_order: Optional[int] = None
-    model_config = {"from_attributes": True}
-
-
-class ApprovalStatsOut(BaseModel):
-    total: int
-    pending: int
-    approved: int
-    rejected: int
-    by_entity_type: Dict[str, int] = {}
-
 
 # ── Report / Import / ITSM output schemas ─────────────────────────────────────
 

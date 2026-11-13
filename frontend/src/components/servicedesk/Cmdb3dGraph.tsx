@@ -246,12 +246,12 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
         marginTop: 18,
         background: 'var(--surface-3)',
         border: '1px solid var(--surface-4)',
-        borderRadius: 10,
+        borderRadius: 'var(--radius-md)',
         padding: '14px 16px',
       }}>
         <div style={fieldLabel}>{t('sd.cmdb3d.blast_radius', 'Radio de impacto (Blast Radius)')}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-          <input
+          <input aria-label="CI ID (ej: ci-app-server-01)"
             type="text"
             placeholder="CI ID (ej: ci-app-server-01)"
             value={blastCiId}

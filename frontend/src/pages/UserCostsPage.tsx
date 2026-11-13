@@ -11,7 +11,7 @@ import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { userCostsApi, apiErrorMsg, unwrapList } from '../services/api'
-import { Button, Modal, Spinner, EmptyState, Input as InputRaw} from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Input} from '../components/ui'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
@@ -20,21 +20,18 @@ import { Wallet, Globe, History, Plus } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import StatusBadge from '../components/ui/StatusBadge'
 
-// Loosely-typed alias: Input infers its props as required.
-const Input = InputRaw as unknown as (props: Record<string, unknown>) => JSX.Element
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 
 type CountryRow = { [k: string]: unknown; id?: string; country_code?: string; country_name?: string; currency?: string; employer_cost_pct?: number; productive_hours_year?: number; is_default?: boolean; notes?: string }
 type SummaryRow = { [k: string]: unknown; user_id: string; full_name?: string; department?: string; cost_per_hour?: number; source?: string }
 type UserRow = { [k: string]: unknown; id: string; full_name?: string }
 type ProfileRow = { [k: string]: unknown; id: string; valid_from?: string; valid_to?: string; is_active?: boolean; notes?: string; gross_annual_salary?: number; currency?: string; employer_cost_pct?: number; productive_hours_year?: number; cost_per_hour?: number; total_annual_cost?: number }
 
-const fmtCur = (v: number | null | undefined, currency = 'EUR', lang = 'es') =>
-  v == null ? '—' : new Intl.NumberFormat(lang, { style: 'currency', currency, maximumFractionDigits: 0 }).format(v)
 
 
 export default function UserCostsPage() {
+  const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
-  const { lang } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [editProfile, setEditProfile] = useState<{ user: UserRow; profile?: ProfileRow } | null>(null) // { user, profile? }
@@ -98,7 +95,7 @@ export default function UserCostsPage() {
         meta={
           (summary && (
             <span>
-              {summary.users_with_cost} {t('usercosts.con_coste')} {summary.users_missing_cost} {t('usercosts.sin_coste_media')} {fmtCur(summary.avg_cost_per_hour, 'EUR', lang)}/h
+              {summary.users_with_cost} {t('usercosts.con_coste')} {summary.users_missing_cost} {t('usercosts.sin_coste_media')} {fmtMoneda(summary.avg_cost_per_hour, { decimales: 0 })}/h
             </span>
           )) as never
         }
@@ -107,10 +104,10 @@ export default function UserCostsPage() {
       {/* KPIs */}
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', marginBottom: 24 }}>
         <KpiBox icon="🧮" label="Coste/hora medio"
-                value={fmtCur(summary?.avg_cost_per_hour, 'EUR', lang)}
+                value={fmtMoneda(summary?.avg_cost_per_hour, { decimales: 0 })}
                 sub={`${summary?.users_with_cost ?? 0} personas`} />
         <KpiBox icon="📊" label="Coste anual total (aprox.)"
-                value={fmtCur(totalAnnualCost, 'EUR', lang)}
+                value={fmtMoneda(totalAnnualCost, { decimales: 0 })}
                 sub="Estimación 1.700 h/año" />
         <KpiBox icon="⚠️" label={t('usercosts.sin_datos_de_coste')}
                 value={summary?.users_missing_cost ?? 0}
@@ -131,7 +128,7 @@ export default function UserCostsPage() {
                     disabled={seedCountriesMut.isPending}>
               Cargar predefinidos
             </Button>
-            <Button size="sm" onClick={() => setEditCountry({ country_code: '', country_name: '', currency: 'EUR', employer_cost_pct: 0.30, productive_hours_year: 1700 })}>
+            <Button size="sm" onClick={() => setEditCountry({ country_code: '', country_name: '', currency: fmtMoneda.moneda, employer_cost_pct: 0.30, productive_hours_year: 1700 })}>
               {t('usercosts.override_pais')}
             </Button>
           </div>
@@ -161,7 +158,7 @@ export default function UserCostsPage() {
       >
         {loadingSummary ? <Spinner /> : (
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="u-table">
               <thead>
                 <tr style={{ background: 'var(--surface-1)', textAlign: 'left' }}>
                   <th style={th}>Persona</th>
@@ -179,7 +176,7 @@ export default function UserCostsPage() {
                       <td style={td}>{u.full_name}</td>
                       <td style={{ ...td, color: 'var(--text-3)' }}>{u.department || '—'}</td>
                       <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                        {u.cost_per_hour ? fmtCur(u.cost_per_hour, 'EUR', lang) : <span className="u-warning">Falta</span>}
+                        {u.cost_per_hour ? fmtMoneda(u.cost_per_hour, { decimales: 0 }) : <span className="u-warning">Falta</span>}
                       </td>
                       <td style={td}>
                         <SourceBadge source={u.source} />
@@ -284,7 +281,7 @@ function CountryCard({ c, onEdit }: { c: CountryRow; onEdit: () => void }) {
       padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6,
     }}>
       <div className="u-row-between">
-        <span style={{ fontWeight: 600 }}>{c.country_code} · {c.country_name}</span>
+        <span className="u-600">{c.country_code} · {c.country_name}</span>
         {c.is_default && <span className="u-text3-xs">predefinido</span>}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 'var(--text-sm)' }}>
@@ -323,14 +320,14 @@ type ProfileForm = {
 }
 
 function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: UserRow; countries: CountryRow[]; existing?: ProfileRow & { country_code?: string; extra_annual_costs?: number }; onClose: () => void; onSaved: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
-  const { lang } = useAppLang()
   const toast = useToast()
   // Los campos numéricos guardan el texto del input al editarlos.
   const [form, setForm] = useState<ProfileForm>({
     valid_from: existing?.valid_from || new Date().toISOString().slice(0, 10),
     country_code: existing?.country_code || '',
-    currency: existing?.currency || 'EUR',
+    currency: existing?.currency || fmtMoneda.moneda,
     gross_annual_salary: existing?.gross_annual_salary || '',
     employer_cost_pct: existing?.employer_cost_pct ?? 0.32,
     extra_annual_costs: existing?.extra_annual_costs ?? 0,
@@ -429,8 +426,8 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
             {t('usercosts.calculo_derivado')}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
-            <Stat label="Coste anual total" value={fmtCur(total, form.currency, lang)} />
-            <Stat label={t('usercosts.coste_por_hora')} value={fmtCur(costPerHour, form.currency, lang)}
+            <Stat label="Coste anual total" value={fmtMoneda(total, { moneda: form.currency, decimales: 0 })} />
+            <Stat label={t('usercosts.coste_por_hora')} value={fmtMoneda(costPerHour, { moneda: form.currency, decimales: 0 })}
                   emphasised />
           </div>
         </div>
@@ -451,12 +448,13 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
 
 // ── Country override editor ─────────────────────────────────────────────────
 function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClose: () => void; onSaved: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
   const toast = useToast()
   const [form, setForm] = useState<{ country_code: string; country_name: string; currency: string; employer_cost_pct: number | string; productive_hours_year: number | string; notes: string }>({
     country_code: preset.country_code || '',
     country_name: preset.country_name || '',
-    currency: preset.currency || 'EUR',
+    currency: preset.currency || fmtMoneda.moneda,
     employer_cost_pct: preset.employer_cost_pct ?? 0.30,
     productive_hours_year: preset.productive_hours_year ?? 1700,
     notes: preset.notes || '',
@@ -548,8 +546,8 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
 
 // ── History of versions per user ────────────────────────────────────────────
 function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () => void; onAddNew: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
-  const { lang } = useAppLang()
   const { data: profiles = [], isLoading } = useQuery<ProfileRow[]>({
     queryKey: ['user-costs-history', user.id],
     queryFn: () => userCostsApi.listProfiles(user.id).then((r: { data: ProfileRow[] }) => r.data),
@@ -570,24 +568,24 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
               display: 'flex', justifyContent: 'space-between',
             }}>
               <div>
-                <div style={{ fontWeight: 600 }}>
+                <div className="u-600">
                   {p.valid_from} → {p.valid_to || 'actual'}
                   {p.is_active && <span style={{
-                    marginLeft: 8, fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 10,
+                    marginLeft: 8, fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-md)',
                     background: 'var(--success-bg)', color: 'var(--success)',
                   }}>vigente</span>}
                 </div>
                 <div className="u-text3-xs">
-                  {fmtCur(p.gross_annual_salary, p.currency, lang)} bruto · {((p.employer_cost_pct ?? 0) * 100).toFixed(1)}% empresa · {p.productive_hours_year}{t('usercosts.h_ano')}
+                  {fmtMoneda(p.gross_annual_salary, { moneda: p.currency, decimales: 0 })} bruto · {((p.employer_cost_pct ?? 0) * 100).toFixed(1)}% empresa · {p.productive_hours_year}{t('usercosts.h_ano')}
                   {p.notes && <> · {p.notes}</>}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                  {fmtCur(p.cost_per_hour, p.currency, lang)} / h
+                  {fmtMoneda(p.cost_per_hour, { moneda: p.currency, decimales: 0 })} / h
                 </div>
                 <div className="u-text3-xs">
-                  {fmtCur(p.total_annual_cost, p.currency, lang)} {t('usercosts.ano')}
+                  {fmtMoneda(p.total_annual_cost, { moneda: p.currency, decimales: 0 })} {t('usercosts.ano')}
                 </div>
               </div>
             </div>
@@ -629,5 +627,5 @@ const td = { padding: '10px 14px', fontSize: 'var(--text-sm)', color: 'var(--tex
 const selectStyle = {
   width: '100%', padding: '8px 12px', fontSize: 'var(--text-sm)',
   background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-  borderRadius: 6, color: 'var(--text-1)', fontFamily: 'inherit',
+  borderRadius: 'var(--radius-sm)', color: 'var(--text-1)', fontFamily: 'inherit',
 }

@@ -14,15 +14,19 @@ from app.models.cab import EmailTemplate
 from app.models.cab import EmailLog
 
 from app.services.cab_service._comun import logger
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 
 # ─── Email helpers ────────────────────────────────────────────────────────────
+
+#: «[Contecflow]» al principio del asunto de los correos del sistema.
+_PREFIJO_DE_ASUNTO = f"[{NOMBRE_DEL_PRODUCTO}]"
 
 SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_task_overdue",
         "name": "Tarea vencida",
-        "subject": "[Contecflow] Tarea vencida: {{task_title}}",
+        "subject": _PREFIJO_DE_ASUNTO + " Tarea vencida: {{task_title}}",
         "category": "automation",
         "variables": ["task_title", "project_name", "assignee_name", "due_date"],
         "is_system": True,
@@ -30,7 +34,7 @@ SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_budget_alert",
         "name": "Alerta de presupuesto",
-        "subject": "[Contecflow] Alerta presupuesto: {{project_name}} al {{pct_used}}%",
+        "subject": _PREFIJO_DE_ASUNTO + " Alerta presupuesto: {{project_name}} al {{pct_used}}%",
         "category": "alert",
         "variables": ["project_name", "budget_total", "budget_used", "pct_used"],
         "is_system": True,
@@ -46,7 +50,7 @@ SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_sla_breach",
         "name": "SLA incumplido",
-        "subject": "[Contecflow] SLA vencido: Ticket #{{ticket_number}}",
+        "subject": _PREFIJO_DE_ASUNTO + " SLA vencido: Ticket #{{ticket_number}}",
         "category": "alert",
         "variables": ["ticket_number", "ticket_title", "assignee_name", "sla_due"],
         "is_system": True,
@@ -62,7 +66,7 @@ SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_report_ready",
         "name": "Informe programado listo",
-        "subject": "[Contecflow] Informe: {{report_name}}",
+        "subject": _PREFIJO_DE_ASUNTO + " Informe: {{report_name}}",
         "category": "report",
         "variables": ["report_name", "generated_at", "period"],
         "is_system": True,
@@ -145,8 +149,8 @@ def _resolve_email_template(db: Session, template_id: Optional[str], variables: 
 def send_email_action(payload, db: Session) -> dict:
     subject, body_html = _resolve_email_template(
         db, payload.template_id, payload.variables or {},
-        payload.subject or "Notificación Contecflow",
-        payload.body_html or "<p>Notificación de Contecflow</p>",
+        payload.subject or f"Notificación {NOMBRE_DEL_PRODUCTO}",
+        payload.body_html or f"<p>Notificación de {NOMBRE_DEL_PRODUCTO}</p>",
     )
     template_id_ref = payload.template_id
 

@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import io
 import logging
-import os
 from typing import BinaryIO
 
+from app.core.config import settings
 from app.services.collaboration._storage import FileStorage, StoredFile
 
 logger = logging.getLogger(__name__)
@@ -27,12 +27,12 @@ class S3FileStorage(FileStorage):
         super().__init__()
         try:
             import boto3
-            self._bucket = os.environ.get("COLLAB_S3_BUCKET")
-            self._prefix = os.environ.get("COLLAB_S3_PREFIX", "collaboration/")
+            self._bucket = settings.COLLAB_S3_BUCKET
+            self._prefix = settings.COLLAB_S3_PREFIX
             kwargs = {
-                "region_name": os.environ.get("COLLAB_S3_REGION", "eu-west-1"),
+                "region_name": settings.COLLAB_S3_REGION,
             }
-            endpoint = os.environ.get("COLLAB_S3_ENDPOINT")
+            endpoint = settings.COLLAB_S3_ENDPOINT
             if endpoint:
                 kwargs["endpoint_url"] = endpoint
             # Lo mismo que `S3Service._build_client`: firma v4 también en las

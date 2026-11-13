@@ -25,7 +25,7 @@ export default function LeccionesDeOrigen({ id, origen = 'project', cerrado = fa
   return (
     <div className="u-stack-12">
       <LeccionesQueAplican contexto={origen} id={id} />
-      <section aria-label={t(`lec.de_este_${origen}`)} style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14, background: 'var(--surface-1)' }}>
+      <section aria-label={t(`lec.de_este_${origen}`)} style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14, background: 'var(--surface-1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <strong className="u-sm">{t(`lec.de_este_${origen}`)}</strong>
           <Button size="sm" variant={cerrado && !lista.length ? 'primary' : 'secondary'} icon={<Plus size={13} />} style={{ marginLeft: 'auto' }} onClick={() => setNueva(true)}>

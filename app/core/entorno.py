@@ -11,6 +11,7 @@ sea un entorno de desarrollo o de pruebas declarado se trata como producción.
 """
 from __future__ import annotations
 
+import os
 import sys
 
 ENTORNOS_SEGUROS = frozenset({"development", "dev", "local", "test", "testing", "demo"})
@@ -25,3 +26,20 @@ def exigir_entorno_no_productivo(operacion: str) -> None:
         print(f"ERROR: {operacion} borra datos y ENVIRONMENT={entorno or '(vacío)'}. "
               f"Sólo se permite en: {', '.join(sorted(ENTORNOS_SEGUROS))}.", file=sys.stderr)
         raise SystemExit(2)
+
+
+def en_pruebas() -> bool:
+    """`TESTING=1`: lo pone `tests/conftest.py` antes de importar la app.
+
+    Segunda auditoría 2026-11 (hallazgo 16): es la única lectura de `TESTING` en
+    `app/` y se queda en el entorno a propósito. No es un ajuste del operador
+    sino una señal del arnés, y las pruebas la cambian en caliente con
+    `monkeypatch.setenv` después de construir `Settings`; por eso se lee en cada
+    llamada.
+    """
+    return os.getenv("TESTING") == "1"
+
+
+def ejecutando_pytest() -> bool:
+    """`PYTEST_CURRENT_TEST` lo pone pytest en cada prueba; no lo controla nadie más."""
+    return bool(os.environ.get("PYTEST_CURRENT_TEST"))

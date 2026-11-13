@@ -99,24 +99,3 @@ def deserialize_tool_calls(raw: Optional[str]) -> List[dict]:
             result.append(tc if isinstance(tc, dict) else {"raw": tc})
     return result
 
-
-def deserialize_tool_results(raw: Optional[str]) -> List[dict]:
-    """Parse ``AIMessage.tool_results`` into validated dicts (BC fallback)."""
-    if not raw:
-        return []
-    try:
-        items = json.loads(raw)
-    except (TypeError, ValueError):
-        _logger.warning("tool_results JSON inválido, devolviendo lista vacía")
-        return []
-    if not isinstance(items, list):
-        _logger.warning("tool_results no es una lista, devolviendo lista vacía")
-        return []
-    result: List[dict] = []
-    for tr in items:
-        try:
-            result.append(ToolResult(**tr).model_dump())
-        except (ValidationError, TypeError):
-            _logger.warning("tool_result no validable, fallback al dict crudo")
-            result.append(tr if isinstance(tr, dict) else {"raw": tr})
-    return result

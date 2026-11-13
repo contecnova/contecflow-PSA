@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.errores import ErrorDeDominio
+from app.services.formato_regional import IDIOMA_DE_RESPALDO, idioma as _idioma_de
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +271,7 @@ def get_sdk_config(db: Session, org_id: str, dashboard_id: str, token: str) -> d
         "sandbox_flags": cfg.get("sandbox_flags", []),
         "csp_frame_ancestors": cfg.get("csp_frame_ancestors", ["self"]),
         "theme": "auto",
-        "locale": "es",
+        "locale": _idioma_de(db, org_id=org_id),
         "sdk_version": "1.0.0",
     }
 
@@ -311,10 +312,13 @@ def frame_ancestors(db: Session, org_id: str) -> str:
     return " ".join(vistos) or "'none'"
 
 
-def pagina(db: Session, org_id: str, dashboard_id: str, token: str) -> str:
-    """HTML de la foto de indicadores para un iframe. Lanza 401 si el token no vale para ese panel."""
+def pagina(db: Session, org_id: str, dashboard_id: str, token: str, get_dashboard_snapshot) -> str:
+    """HTML de la foto de indicadores para un iframe. Lanza 401 si el token no vale para ese panel.
+
+    `get_dashboard_snapshot` lo pasa la ruta (el de `m365_bi_embed_service`, que
+    ya importa este modulo: importarlo aqui cerraba un ciclo).
+    """
     import html
-    from app.services.m365_bi_embed_service import get_dashboard_snapshot
     from app.services.settings_service import get_runtime_str
     claims = validate_embed_token(db, org_id, token)
     if claims.get("org") != org_id or claims.get("dash") != dashboard_id:
@@ -322,8 +326,8 @@ def pagina(db: Session, org_id: str, dashboard_id: str, token: str) -> str:
     # Petición sin usuario: la sesión se acota a la empresa del token.
     db.info.update(organization_id=org_id, is_superadmin=False)
     foto = get_dashboard_snapshot(db, organization_id=org_id, dashboard_id=dashboard_id)
-    idioma = (get_runtime_str(db, "DEFAULT_LANGUAGE", org_id) or "es")[:2]
-    tx = _TEXTOS.get(idioma, _TEXTOS["es"])
+    idioma = (get_runtime_str(db, "DEFAULT_LANGUAGE", org_id) or IDIOMA_DE_RESPALDO)[:2]
+    tx = _TEXTOS.get(idioma, _TEXTOS[IDIOMA_DE_RESPALDO])
     e = html.escape
 
     def numero(v) -> str:

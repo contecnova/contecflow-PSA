@@ -23,6 +23,7 @@ from app.core.deps import get_current_user, get_db, require_any_manager
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
 from app.services import nps_service
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -77,7 +78,7 @@ def submit_nps(
 @router.get("/{client_id}/responses")
 def list_nps_responses(
     client_id: str,
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):

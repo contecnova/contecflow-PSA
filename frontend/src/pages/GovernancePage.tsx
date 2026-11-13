@@ -128,7 +128,7 @@ export default function GovernancePage(): JSX.Element {
           ['audit', `📋 ${t('governance.tab_audit')}`],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -147,7 +147,7 @@ export default function GovernancePage(): JSX.Element {
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                     <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
                     <div className="u-min0">
-                      <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{t(meta.labelKey)}</div>
+                      <div className="u-base-700">{t(meta.labelKey)}</div>
                       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>{t(meta.descKey)}</div>
                     </div>
                   </div>
@@ -217,7 +217,7 @@ export default function GovernancePage(): JSX.Element {
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{t('governance.no_audit_logs')}</div>
           ) : logs.map(l => (
             <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-sm)", alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)" }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
+              <span className="u-text2-mono-xs">{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module ?? '']?.icon} {MODULE_CFG[l.module ?? ''] ? t(MODULE_CFG[l.module ?? ''].labelKey) : l.module}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>
               <span className="u-warning">{(l.tokens_used || 0).toLocaleString(localeActivo())}</span>

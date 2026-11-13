@@ -12,6 +12,7 @@ from app.core.deps import get_db, require_admin, require_internal_user
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import lecciones as svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -72,7 +73,7 @@ class AccionCambioIn(BaseModel):
 def listar(q: Optional[str] = Query(None, max_length=200), estado: Optional[str] = None, tipo: Optional[str] = None,
            categoria: Optional[str] = None, origen_tipo: Optional[str] = None, proyecto_id: Optional[str] = None,
            cliente_id: Optional[str] = None, etiqueta: Optional[str] = None, page: int = Query(1, ge=1),
-           page_size: int = Query(50, ge=1, le=200), db: Session = Depends(get_db),
+           page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA), db: Session = Depends(get_db),
            current_user: User = Depends(require_internal_user)):
     return APIResponse.ok(data=svc.listar(db, current_user, q=q, estado=estado, tipo=tipo, categoria=categoria,
                                           origen_tipo=origen_tipo, proyecto_id=proyecto_id, cliente_id=cliente_id,

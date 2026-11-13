@@ -13,7 +13,7 @@
  *
  * Pattern consistente con voice (#25) y contracts (H22): preview → confirmar.
  */
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useId } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   smartScheduleApi, taskDependenciesApi, tasksApi,
@@ -47,6 +47,7 @@ interface ErrLike {
 }
 
 export default function SmartScheduleModal({ open, onClose, projectId, projectName }: SmartScheduleModalProps) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -191,17 +192,17 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
 
         {/* Controls */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
-          <label className="u-text3-sm">
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-sm">
             {traducir('smartschedulemodal.max_tareas_a_planificar')}
           </label>
-          <input
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
             type="number" min={1} max={100} value={maxTasks}
             onChange={e => setMaxTasks(parseInt(e.target.value, 10) || 20)}
             disabled={isLoading || isApplying}
             style={{
               width: 70, padding: '6px 8px',
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              borderRadius: 6, color: 'var(--text-1)', fontSize: 'var(--text-sm)',
+              borderRadius: 'var(--radius-sm)', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
             }}
           />
           <button
@@ -211,7 +212,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '6px 12px',
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              color: 'var(--text-2)', borderRadius: 6, cursor: isLoading ? 'wait' : 'pointer',
+              color: 'var(--text-2)', borderRadius: 'var(--radius-sm)', cursor: isLoading ? 'wait' : 'pointer',
               fontSize: 'var(--text-sm)',
             }}
           >
@@ -269,7 +270,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                     disabled={isApplying}
                   />
                   <div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                    <div className="u-text1-sm-600">
                       {s._title}
                     </div>
                     {s.rationale && (
@@ -284,7 +285,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                     disabled={isApplying}
                     style={{
                       padding: '6px 8px', background: 'var(--surface-3)',
-                      border: '1px solid var(--surface-4)', borderRadius: 6,
+                      border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
                       color: 'var(--text-1)', fontSize: 'var(--text-xs)',
                     }}
                   />
@@ -294,7 +295,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                     disabled={isApplying}
                     style={{
                       padding: '6px 8px', background: 'var(--surface-3)',
-                      border: '1px solid var(--surface-4)', borderRadius: 6,
+                      border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
                       color: 'var(--text-1)', fontSize: 'var(--text-xs)',
                     }}
                   />

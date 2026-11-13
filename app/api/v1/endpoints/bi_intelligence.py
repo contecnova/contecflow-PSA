@@ -24,6 +24,7 @@ from app.services.ws_service import (
 from app.db.session import get_db, SessionLocal, publicar_contexto_de_tenant
 from app.models.user import User
 from app.services import bi_intelligence_service as svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ router = APIRouter()
 
 class AdvancedPreviewIn(BaseModel):
     preset_id: str = Field(..., min_length=3, max_length=120)
-    limit: int = Field(50, ge=1, le=200)
+    limit: int = Field(50, ge=1, le=MAX_TAMANO_DE_PAGINA)
 
 
 class QueryBuilderFilterIn(BaseModel):
@@ -242,7 +243,17 @@ def phase2_delivery_run_now(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     _ = current_user
-    return APIResponse.ok(data=svc.run_scheduled_delivery_now(db, report_id=report_id))
+    # Segunda auditoria 2026-11 (n.º 20): informe (PDF) + SMTP al worker. Con
+    # cola: 202 `{status: "queued", recipients}`. Sin cola, como siempre.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    from app.services.scheduled_reports import destinatarios_del_informe
+    destinatarios = destinatarios_del_informe(report_id, db)
+    if destinatarios is None:
+        return APIResponse.ok(data={"ok": False, "error": "Informe no encontrado"})
+    resultado = encolar(svc.run_scheduled_delivery_now, report_id=report_id, _sesion=db)
+    if resultado is EN_COLA:
+        return respuesta_en_cola(report_id=report_id, recipients=destinatarios)
+    return APIResponse.ok(data=resultado)
 
 
 # ── BI Phase 2: ML enhanced endpoints ─────────────────────────────────────────
@@ -557,10 +568,20 @@ def send_delivery_now(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
+    # Segunda auditoria 2026-11 (n.º 20): generar el informe + adjunto y
+    # repartirlo (correo, Slack, Teams) va al worker. Con cola: 202
+    # `{status: "queued", schedule_id}`; el resultado queda en el registro de
+    # entregas. Sin cola, como siempre.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
     try:
-        return APIResponse.ok(data=delivery_svc.send_schedule_now(db, organization_id=org_id, schedule_id=schedule_id))
+        delivery_svc.get_schedule(db, organization_id=org_id, schedule_id=schedule_id)
+        resultado = encolar(delivery_svc.send_schedule_now, organization_id=org_id,
+                            schedule_id=schedule_id, _organizacion=org_id, _sesion=db)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if resultado is EN_COLA:
+        return respuesta_en_cola(schedule_id=schedule_id)
+    return APIResponse.ok(data=resultado)
 
 
 @router.get("/bi/delivery/schedules/{schedule_id}/diff", summary="Ver diff del reporte vs último envío")

@@ -6,7 +6,6 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -84,7 +83,51 @@ def _parse_device_name(user_agent: Optional[str]) -> str:
     return f"{navegador} on {sistema}"
 
 
-def _lookup_ip_intel(ip_address: Optional[str], request) -> dict:
+#: Respuestas del servicio de geo-IP por IP: `ip -> (caduca_en, datos)`.
+#: Segunda auditoría 2026-11 (hallazgo 30): cada inicio de sesión y cada
+#: refresco preguntaban a ipapi.co sin caché. Las respuestas fallidas también se
+#: guardan, menos tiempo, para no esperar al servicio caído en cada petición.
+_CACHE_GEOIP: dict[str, tuple[float, dict]] = {}
+_CACHE_GEOIP_MAX = 10_000
+_TTL_GEOIP_FALLO = 300
+
+
+def _consultar_geoip(ip_address: str, db=None) -> dict:
+    """Pregunta al servicio de geo-IP (con caché). `{}` si está apagado o falla.
+
+    Apagado por defecto (`GEOIP_LOOKUP_ENABLED=0`): mandar la IP de cada usuario
+    a un tercero es una transferencia de datos personales que el operador tiene
+    que decidir. Sólo IPs públicas; nunca privadas, de bucle o reservadas.
+    """
+    if not settings.GEOIP_LOOKUP_ENABLED or not _ip_is_public(ip_address):
+        return {}
+    import time
+
+    ahora = time.monotonic()
+    en_cache = _CACHE_GEOIP.get(ip_address)
+    if en_cache and en_cache[0] > ahora:
+        return en_cache[1]
+
+    from app.core.outbound_url import cliente_httpx
+    from app.services.settings_service.runtime import outbound_http_timeout
+
+    datos: dict = {}
+    try:
+        url = settings.GEOIP_LOOKUP_URL.replace("{ip}", ip_address)
+        with cliente_httpx(timeout=outbound_http_timeout(db)) as client:
+            resp = client.get(url)
+        if resp.status_code == 200:
+            datos = resp.json() or {}
+    except Exception as exc:
+        logger.debug("IP intel lookup failed for %s: %s", ip_address, exc)
+    ttl = settings.GEOIP_CACHE_TTL_SECONDS if datos else min(_TTL_GEOIP_FALLO, settings.GEOIP_CACHE_TTL_SECONDS)
+    if len(_CACHE_GEOIP) >= _CACHE_GEOIP_MAX:
+        _CACHE_GEOIP.pop(next(iter(_CACHE_GEOIP)))
+    _CACHE_GEOIP[ip_address] = (ahora + max(ttl, 0), datos)
+    return datos
+
+
+def _lookup_ip_intel(ip_address: Optional[str], request, db=None) -> dict:
     out = {
         "country_code": request.headers.get("cf-ipcountry") or None,
         "region": None,
@@ -92,22 +135,16 @@ def _lookup_ip_intel(ip_address: Optional[str], request) -> dict:
         "ip_asn": request.headers.get("x-asn") or None,
         "ip_org": request.headers.get("x-isp") or request.headers.get("x-org") or None,
     }
-    if not ip_address or not _ip_is_public(ip_address):
+    if not ip_address:
         return out
-
-    try:
-        with httpx.Client(timeout=1.5) as client:
-            resp = client.get(f"https://ipapi.co/{ip_address}/json/")
-        if resp.status_code != 200:
-            return out
-        data = resp.json()
-        out["country_code"] = out["country_code"] or data.get("country_code")
-        out["region"] = data.get("region")
-        out["city"] = data.get("city")
-        out["ip_asn"] = out["ip_asn"] or data.get("asn")
-        out["ip_org"] = out["ip_org"] or data.get("org")
-    except Exception as exc:
-        logger.debug("IP intel lookup failed for %s: %s", ip_address, exc)
+    data = _consultar_geoip(ip_address, db)
+    if not data:
+        return out
+    out["country_code"] = out["country_code"] or data.get("country_code")
+    out["region"] = data.get("region")
+    out["city"] = data.get("city")
+    out["ip_asn"] = out["ip_asn"] or data.get("asn")
+    out["ip_org"] = out["ip_org"] or data.get("org")
     return out
 
 
@@ -258,7 +295,7 @@ def register_or_rotate_user_session(
 ) -> UserSession:
     user_agent = request.headers.get("user-agent") if request else None
     ip_address = _pick_ip_from_request(request) if request else None
-    intel = _lookup_ip_intel(ip_address, request) if request else {
+    intel = _lookup_ip_intel(ip_address, request, db) if request else {
         "country_code": None,
         "region": None,
         "city": None,

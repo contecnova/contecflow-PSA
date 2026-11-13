@@ -54,18 +54,6 @@ class ImputationAlertOut(BaseModel):
 
 # ── Imputation Snapshot Schemas ────────────────────────────────────────────
 
-class ImputationSnapshotOut(BaseModel):
-    user_id: str = Field(..., description="ID del usuario del snapshot")
-    snapshot_date: date = Field(..., description="Fecha del snapshot")
-    total_hours: float = Field(..., description="Total de horas imputadas en la fecha")
-    billable_hours: float = Field(..., description="Horas facturables del snapshot")
-    approved_hours: float = Field(..., description="Horas aprobadas del snapshot")
-    is_complete: bool = Field(..., description="Indica si el snapshot está completo")
-
-    class Config:
-        from_attributes = True
-
-
 # ── Lockout Status Schemas ─────────────────────────────────────────────────
 
 class LockoutStatusOut(BaseModel):
@@ -75,12 +63,3 @@ class LockoutStatusOut(BaseModel):
     locked_date_ranges: list = Field(..., description="Rangos de fechas bloqueadas (anteriores al cutoff)")
     editable_date_ranges: list = Field(..., description="Rangos de fechas editables (posteriores al cutoff)")
 
-
-class ImputationAnalytics(BaseModel):
-    """Daily/weekly/monthly summaries."""
-    period: str = Field(..., description="Periodo del análisis (daily, weekly, monthly)")
-    total_hours: float = Field(..., description="Total de horas imputadas en el periodo")
-    billable_hours: float = Field(..., description="Horas facturables del periodo")
-    approved_hours: float = Field(..., description="Horas aprobadas del periodo")
-    by_project: dict = Field(..., description="Desglose por proyecto {project_id: {hours, billable, approved}}")
-    by_task: dict = Field(..., description="Desglose por tarea {task_id: {hours, billable, approved}}")

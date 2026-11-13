@@ -48,6 +48,7 @@ from app.services.service_desk.workflow_designer_service import (
     list_runs as svc_list_runs,
 )
 from app.services.service_desk import workflow_engine as engine
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -199,7 +200,7 @@ def start_run(
 def list_runs(
     blueprint_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     filas = svc_list_runs(

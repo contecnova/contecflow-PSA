@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 import { es, enUS, zhCN } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
 
@@ -64,20 +64,49 @@ export const fmtRelative = (d: DateInput): string => d
   : '—'
 export const fmtMonth    = (d: DateInput): string => d ? formateadorDeFecha(FORMATOS.month).format(new Date(d)) : '—'
 
-export function getWeekStart(date: Date | string | number = new Date()): string {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  return format(d, 'yyyy-MM-dd')
-}
-
 // ── Number helpers ────────────────────────────────────────────────────────────
 // Separadores de miles y decimales del idioma activo; la moneda es la que se
 // pase, el idioma sólo cambia cómo se escribe.
 export const fmtCurrency = (n: Maybe<number>, currency?: string | null): string => {
   if (!currency) return new Intl.NumberFormat(localeActivo(), { maximumFractionDigits: 0 }).format(n ?? 0)
-  return new Intl.NumberFormat(localeActivo(), { style: 'currency', currency, maximumFractionDigits: 0 }).format(n ?? 0)
+  return formatearMoneda(n, currency, { decimales: 0 })
+}
+
+// ── Moneda ────────────────────────────────────────────────────────────────────
+// Auditoria 2026-11 (#18): EL formateador de importes. La moneda es la del dato
+// (factura, gasto...) o, si no trae, la de la empresa (`useFormatoMoneda()`, que
+// lee useOrgSettings().currency); nunca un '€' o 'EUR' escrito en la pantalla.
+export interface OpcionesMoneda {
+  /** Decimales fijos (min = max). Sin ellos, los de la moneda (2 en EUR/USD). */
+  decimales?: number
+  /** Notacion compacta: 12,3 mil €. */
+  compacto?: boolean
+}
+const _monedas = new Map<string, Intl.NumberFormat>()
+function formateadorDeMoneda(moneda: string, op: OpcionesMoneda = {}): Intl.NumberFormat {
+  const lang = localeActivo()
+  const clave = `${lang}|${moneda}|${op.decimales ?? ''}|${op.compacto ? 1 : 0}`
+  let f = _monedas.get(clave)
+  if (!f) {
+    const o: Intl.NumberFormatOptions = { style: 'currency', currency: moneda }
+    if (op.decimales != null) { o.minimumFractionDigits = op.decimales; o.maximumFractionDigits = op.decimales }
+    if (op.compacto) { o.notation = 'compact'; o.maximumFractionDigits = op.decimales ?? 1 }
+    try { f = new Intl.NumberFormat(lang, o) } catch { f = new Intl.NumberFormat(lang, { ...o, currency: 'EUR' }) }
+    _monedas.set(clave, f)
+  }
+  return f
+}
+
+/** Importe con su moneda en el idioma activo. `null`/`undefined`/NaN -> '—'. */
+export function formatearMoneda(n: Maybe<number | string>, moneda: string, op: OpcionesMoneda = {}): string {
+  if (n == null || n === '' || Number.isNaN(Number(n))) return '—'
+  return formateadorDeMoneda(moneda || 'EUR', op).format(Number(n))
+}
+
+/** El simbolo de una moneda en el idioma activo ('€', 'US$', '£'...). */
+export function simboloMoneda(moneda: string): string {
+  const parte = formateadorDeMoneda(moneda || 'EUR', { decimales: 0 }).formatToParts(0).find((p) => p.type === 'currency')
+  return parte?.value ?? moneda
 }
 
 export const fmtNumber = (n: Maybe<number>, decimals = 1): string =>

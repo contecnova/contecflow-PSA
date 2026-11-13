@@ -12,6 +12,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
 from app.services._pdf_marca import PALETA_POR_DEFECTO
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 
 # ── PDF de informe ───────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ def _estilos_de_informe(paleta):
 
 def _cabecera(title: str, metric_label: str, generated_by: str, est: dict, paleta) -> list:
     return [
-        Paragraph("Contecflow", est["marca"]),
+        Paragraph(NOMBRE_DEL_PRODUCTO, est["marca"]),
         Paragraph(title, est["titulo"]),
         Paragraph(metric_label, est["subtitulo"]),
         Paragraph(
@@ -220,7 +221,7 @@ def _pie(est: dict, paleta) -> list:
         Spacer(1, 20),
         HRFlowable(width="100%", thickness=0.5, color=paleta.color("linea_separadora")),
         Paragraph(
-            f"Contecflow · Informe generado automáticamente · "
+            f"{NOMBRE_DEL_PRODUCTO} · Informe generado automáticamente · "
             f"{datetime.now().strftime('%Y')}",
             est["pie"],
         ),
@@ -233,7 +234,7 @@ def generate_report_pdf(
     data: List[Dict[str, Any]],
     summary: Optional[Dict] = None,
     filters: Optional[Dict] = None,
-    generated_by: str = "Contecflow",
+    generated_by: str = NOMBRE_DEL_PRODUCTO,
     paleta=None,
 ) -> bytes:
     """

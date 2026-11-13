@@ -174,13 +174,14 @@ def test_EL_HALLAZGO_APScheduler_programa_todo_lo_de_celery_beat(monkeypatch):
     m._arrancar_planificador(True, False)
     # Revision 2026-11: APScheduler replica TODO el calendario de beat.
     from app.worker import celery_app
-    replicadas = {k for k in celery_app.conf.beat_schedule} - m._BEAT_YA_EN_APSCHEDULER
+    replicadas = set(celery_app.conf.beat_schedule)
     # 34 desde 2026-11: las 21 entradas fijas del ETL de BI son ahora una.
     assert len(replicadas) > 30, "el guardian no esta mirando"
     faltan = {k for k in replicadas if f"beat_{k}" not in vistos}
     assert not faltan, f"entradas de beat que APScheduler no programa: {sorted(faltan)}"
-    for clave in m._BEAT_YA_EN_APSCHEDULER:
-        assert clave in celery_app.conf.beat_schedule, f"{clave} ya no existe en beat: quitala de la lista"
+    # Segunda auditoria 2026-11 (#45): APScheduler solo replica beat; ningun
+    # `add_job` propio que duplique una entrada.
+    assert set(vistos) == {f"beat_{k}" for k in replicadas}, sorted(set(vistos))
 
 
 # ── Oracle ────────────────────────────────────────────────────────────────────

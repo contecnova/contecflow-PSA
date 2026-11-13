@@ -2,12 +2,12 @@ import { CHART } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useId } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useDocCollab } from '../hooks/useDocCollab'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { wikiApi, projectsApi } from '../services/api'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, useDialogo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BookOpen } from 'lucide-react'
@@ -89,7 +89,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
     if(type==='heading1') return {...base,fontSize: "var(--text-2xl)",fontWeight:800}
     if(type==='heading2') return {...base,fontSize: "var(--text-lg-em)",fontWeight:700}
     if(type==='heading3') return {...base,fontSize: "var(--text-md-em)",fontWeight:700}
-    if(type==='code')     return {...base,fontFamily:'var(--font-mono)',fontSize: "var(--text-base)",background:'var(--surface-1)',padding:'8px 12px',borderRadius:6,color:'var(--success)'}
+    if(type==='code')     return {...base,fontFamily:'var(--font-mono)',fontSize: "var(--text-base)",background:'var(--surface-1)',padding:'8px 12px',borderRadius:'var(--radius-sm)',color:'var(--success)'}
     if(type==='quote')    return {...base,borderLeft:'3px solid var(--accent)',paddingLeft:12,color:'var(--text-2)',fontStyle:'italic'}
     if(type==='callout')  return {...base,background:'var(--accent-muted)',padding:'8px 12px',borderRadius:8,border:'1px solid var(--accent-border-soft)'}
     return {...base,fontSize: "var(--text-md)"}
@@ -171,13 +171,13 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
             }
           </div>
           <select value={block.type} onChange={e=>update(i,'type',e.target.value)}
-            style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 6px',color:'var(--text-2)',fontSize: "var(--text-xs)",cursor:'pointer',flexShrink:0}}>
+            style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'3px 6px',color:'var(--text-2)',fontSize: "var(--text-xs)",cursor:'pointer',flexShrink:0}}>
             {BLOCK_TYPES.map(bt=><option key={bt.type} value={bt.type}>{bt.icon} {bt.label}</option>)}
           </select>
         </div>
       ))}
       <button onClick={()=>add(blocks.length-1)}
-        style={{alignSelf:'flex-start',background: 'transparent',border: '1px solid var(--accent-border)',borderRadius:6,padding:'5px 12px',color: 'var(--accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit',marginTop:8}}>
+        style={{alignSelf:'flex-start',background: 'transparent',border: '1px solid var(--accent-border)',borderRadius:'var(--radius-sm)',padding:'5px 12px',color: 'var(--accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit',marginTop:8}}>
         {traducir('wiki.anadir_bloque')}
       </button>
     </div>
@@ -209,6 +209,7 @@ function renderBlocks(blocks: Block[], traducir: (clave: string) => string) {
 }
 
 function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string; parentId?: string | null; editPage?: WikiPageT | null; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -281,8 +282,8 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
             <input style={is} value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={traducir('wiki.titulo_de_la_pagina')} aria-label={traducir('wiki.titulo_de_la_pagina')}/>
           </div>
           <div>
-            <label style={ls}>Slug</label>
-            <input style={{...is,fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}} value={slug} onChange={e=>setSlug(e.target.value)}/>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Slug</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={{...is,fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}} value={slug} onChange={e=>setSlug(e.target.value)}/>
           </div>
           <div>
             <label style={ls}>Contenido</label>
@@ -322,7 +323,7 @@ function PageTree({ pages, selectedId, onSelect, onNew, level=0 }: { pages: Wiki
             role="button"
             tabIndex={0}
             onKeyDown={e => onKeyboardActivate(e, () => onSelect(p))}
-            style={{display:'flex',alignItems:'center',gap:8,padding:`6px 10px 6px ${10+level*14}px`,borderRadius:6,cursor:'pointer',background:selectedId===p.id?'var(--accent-muted)':'transparent',color:selectedId===p.id?'var(--accent)':'var(--text-1)',fontSize: "var(--text-base)"}}>
+            style={{display:'flex',alignItems:'center',gap:8,padding:`6px 10px 6px ${10+level*14}px`,borderRadius:'var(--radius-sm)',cursor:'pointer',background:selectedId===p.id?'var(--accent-muted)':'transparent',color:selectedId===p.id?'var(--accent)':'var(--text-1)',fontSize: "var(--text-base)"}}>
             <span className="u-text3-xs">📄</span>
             <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.title}</span>
             {p.visibility === 'portal' && <span title="Visible en portal cliente" style={{fontSize: "var(--text-2xs)",color:'var(--accent)'}}>🌐</span>}
@@ -415,14 +416,14 @@ function WikiTagsInline() {
               <div className="u-wrap-6">
                 {COLORS.map(c=>(
                   <button key={c} onClick={()=>setForm(f=>({...f,color:c}))}
-                    style={{width:28,height:28,borderRadius:6,background:c,border:form.color===c?'2px solid #fff':'2px solid transparent',cursor:'pointer'}} />
+                    style={{width:28,height:28,borderRadius:'var(--radius-sm)',background:c,border:form.color===c?'2px solid #fff':'2px solid transparent',cursor:'pointer'}} />
                 ))}
               </div>
             </div>
           </div>
           <div className="u-actions-8">
             <button onClick={()=>{setShowForm(false);setEditing(null)}}
-              style={{background:'transparent',border:'1px solid var(--surface-4)',borderRadius:8,padding:'7px 16px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>Cancelar</button>
+              className="u-btn-outline-sm">Cancelar</button>
             <Button onClick={()=>save(form)} loading={isPending} disabled={!form.name.trim()}>
               {editing?'Actualizar':'Crear'}
             </Button>
@@ -441,11 +442,11 @@ function WikiTagsInline() {
           {traducir('wiki.sin_etiquetas_en_este_espacio')}
         </div>
       ) : (
-        <div style={{display:'flex',flexWrap:'wrap',gap:10}}>
+        <div className="u-wrap-10">
           {tags.map(tag=>(
-            <div key={tag.id} style={{display:'flex',alignItems:'center',gap:8,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:10,padding:'10px 14px'}}>
+            <div key={tag.id} style={{display:'flex',alignItems:'center',gap:8,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-md)',padding:'10px 14px'}}>
               <div style={{width:10,height:10,borderRadius:'50%',background:tag.color||'var(--text-2)',flexShrink:0}}/>
-              <span style={{fontSize: "var(--text-base)",fontWeight:600,color:'var(--text-1)'}}>{tag.name}</span>
+              <span className="u-text1-base-600">{tag.name}</span>
               <span className="u-text2-xs">{tag.pages_count||0} {traducir('wiki.paginas')}</span>
               <button onClick={()=>{setEditing(tag);setForm({name:tag.name||'',color:tag.color||'var(--accent)'});setShowForm(true)}}
                 style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)",padding:'0 2px'}}>✎</button>
@@ -461,6 +462,7 @@ function WikiTagsInline() {
 
 
 export default function WikiPage() {
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -474,6 +476,8 @@ export default function WikiPage() {
   const [editPage,   setEditPage]  = useState<WikiPageT | null>(null)
   const [parentId,   setParentId]  = useState<string | null>(null)
   const [presentMode, setPresentMode] = useState(false)
+  // Auditoria 2026-11 (#41): pantalla completa sin trampa de foco ni Esc.
+  const presentRef = useDialogo<HTMLDivElement>(presentMode, () => setPresentMode(false))
   const [spaceModal, setSpaceModal]= useState(false)
   const [searchQ,    setSearchQ]   = useState('')
   const [searchRes,  setSearchRes] = useState<WikiPageT[] | null>(null)
@@ -531,8 +535,8 @@ export default function WikiPage() {
     <PageShell>
        <PageHeader icon={<BookOpen size={18} />} title={t('wiki.title')} subtitle={t('wiki.subtitle')}
         actions={
-          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-            <div style={{display:'flex',gap:4,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:10,padding:4}}>
+          <div className="u-wrap-center-8">
+            <div style={{display:'flex',gap:4,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-md)',padding:4}}>
               {[['wiki','📚 Wiki'],['tags','🏷 Etiquetas']].map(([id,label])=>(
                 <button key={id} onClick={()=>setWikiMode(id)}
                   style={{padding:'6px 14px',borderRadius:7,border:'none',
@@ -586,7 +590,7 @@ export default function WikiPage() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={e => onKeyboardActivate(e, () => { setSpace(s); setPage(null) })}
-                  style={{padding:'8px 10px',borderRadius:6,cursor:'pointer',marginBottom:2,background:space?.id===s.id?'var(--accent-muted)':'transparent',color:space?.id===s.id?'var(--accent)':'var(--text-1)',fontSize: "var(--text-base)"}}>
+                  style={{padding:'8px 10px',borderRadius:'var(--radius-sm)',cursor:'pointer',marginBottom:2,background:space?.id===s.id?'var(--accent-muted)':'transparent',color:space?.id===s.id?'var(--accent)':'var(--text-1)',fontSize: "var(--text-base)"}}>
                   <div style={{fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>📁 {s.name}</div>
                   <div className="u-text3-xs">{s.page_count||0} {traducir('wiki.paginas')}</div>
                 </div>
@@ -613,9 +617,9 @@ export default function WikiPage() {
             ? <EmptyState icon="📚" title={traducir('wiki.selecciona_un_espacio')} description="Elige un espacio wiki para ver o crear paginas"/>
             : !page
               ? <div style={{textAlign:'center',padding:'48px 24px'}}>
-                  <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>📄</div>
+                  <div className="u-empty-icon">📄</div>
                   <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{space.name}</div>
-                  <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{space.description||'Sin descripción'}</div>
+                  <div className="u-text2-base-mb20">{space.description||'Sin descripción'}</div>
                   <Button onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}}>{traducir('wiki.primera_pagina')}</Button>
                 </div>
               : <div>
@@ -649,11 +653,11 @@ export default function WikiPage() {
       {spaceModal&&(
         <Modal open onClose={()=>setSpaceModal(false)} title={traducir('wiki.nuevo_espacio_wiki')}>
           <div className="u-stack-14">
-            <div><label style={ls}>Nombre</label><input style={is} value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))}/></div>
-            <div><label style={ls}>Slug</label><input style={{...is,fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}} value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))}/></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Slug</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={{...is,fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}} value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
             <div><label style={ls}>{traducir('wiki.descripcion')}</label><input style={is} value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder={traducir('wiki.describe_el_objetivo_del_espacio')} aria-label={traducir('wiki.descripcion_del_espacio')}/></div>
-            <div><label style={ls}>Proyecto (opcional)</label>
-              <select style={is} value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Proyecto (opcional)</label>
+              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
                 <option value="">{traducir('wiki.sin_proyecto')}</option>
                 {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -685,7 +689,7 @@ export default function WikiPage() {
                 </div>
                 <div className="u-flex1">
                   <div style={{fontWeight:500,fontSize: "var(--text-sm)"}}>{v.title}</div>
-                  <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',marginTop:2}}>
+                  <div className="u-text2-xs-mt2">
                     {v.change_note||'Actualización'} · {v.created_at?new Date(v.created_at).toLocaleString(localeActivo()):'—'}
                   </div>
                 </div>
@@ -693,7 +697,7 @@ export default function WikiPage() {
                   ? <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,background:'var(--accent-muted)',color:'var(--accent)'}}>Actual</span>
                   : <button onClick={()=>{ openConfirmGlobal({ message: `¿Restaurar a versión ${v.version_num}? Esto creará una nueva versión con el contenido anterior.`, onConfirm: () => restoreVersion(v.version_num ?? 0), danger: true }) }}
                       disabled={restoring}
-                      style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
+                      style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
                       {restoring?'...':'Restaurar'}
                     </button>
                 }
@@ -716,7 +720,7 @@ export default function WikiPage() {
 
       {/* Modo presentación full-screen */}
       {presentMode && page && (
-        <div style={{ position:'fixed', inset:0, background:'var(--surface-1)', zIndex:999,
+        <div ref={presentRef} role="dialog" aria-modal="true" aria-label={page.title} tabIndex={-1} style={{ position:'fixed', inset:0, background:'var(--surface-1)', zIndex:'var(--z-modal)',
           overflowY:'auto', display:'flex', flexDirection:'column' }}>
           <div style={{ position:'sticky', top:0, background:'var(--surface-2)',
             borderBottom:'1px solid var(--surface-4)', padding:'10px 24px',

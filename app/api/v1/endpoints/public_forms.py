@@ -27,6 +27,7 @@ from app.core.ratelimit import limiter
 from app.models.user import User, UserRole
 from app.services import public_forms_service
 from app.services.widget_de_formulario import TEXTOS
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.services.public_forms_service import serialize_form as _form_out
 from app.core.responses import APIListResponse, APIResponse
 
@@ -193,7 +194,7 @@ def _abierto(response: Response) -> None:
 def _idioma(db: Session, form) -> str:
     from app.services.service_desk.pagina_de_estado_publica import idioma_de
     idioma = idioma_de(db, getattr(form, "organization_id", None))
-    return idioma if idioma in TEXTOS else "es"
+    return idioma if idioma in TEXTOS else IDIOMA_DE_RESPALDO
 
 
 

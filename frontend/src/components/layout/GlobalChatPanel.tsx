@@ -112,6 +112,7 @@ interface Props {
 }
 
 export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull }: Props) {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const { user } = useAuth()
   const toast = useToast()
@@ -466,7 +467,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
           border: '1px solid var(--surface-4)',
           background: 'var(--surface-2)',
           color: 'var(--text-1)',
-          borderRadius: 999,
+          borderRadius: 'var(--radius-full)',
           height: 44,
           padding: '0 14px',
           display: 'inline-flex',
@@ -480,12 +481,12 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         }}
       >
         <MessageSquare size={16} />
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>Chat</span>
+        <span className="u-sm-700">Chat</span>
         {panelBadgeVisible && (
           <span style={{
             minWidth: 18,
             height: 18,
-            borderRadius: 999,
+            borderRadius: 'var(--radius-full)',
             background: 'var(--danger)',
             color: 'var(--on-accent-light)',
             fontSize: 'var(--text-3xs)',
@@ -548,17 +549,17 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               <button
                 onClick={() => setSoundEnabled(v => !v)}
                 title={soundEnabled ? 'Desactivar sonido' : 'Activar sonido'}
-                style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}
+                style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}
               >
                 {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
               </button>
-            <button onClick={onOpenFull} title="Abrir chat completo" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
+            <button aria-label="Abrir chat completo" onClick={onOpenFull} title="Abrir chat completo" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
               <ExternalLink size={14} />
             </button>
-            <button onClick={() => setMinimized(true)} title="Minimizar" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
+            <button aria-label="Minimizar" onClick={() => setMinimized(true)} title="Minimizar" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
               <Minus size={14} />
             </button>
-            <button onClick={onClose} title="Cerrar" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
+            <button aria-label="Cerrar" onClick={onClose} title="Cerrar" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
               <X size={14} />
             </button>
           </div>
@@ -567,14 +568,14 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         <div style={{ padding: 10, borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 8 }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-            <input
+            <input aria-label={t('globalchat.buscar_conversacion')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t('globalchat.buscar_conversacion')}
               style={{ ...fieldStyle, paddingLeft: 30 }}
             />
           </div>
-          <button
+          <button aria-label={t('globalchat.nuevo_chat_directo')}
             onClick={() => setNewDirectOpen(v => !v)}
             title={t('globalchat.nuevo_chat_directo')}
             style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, width: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}
@@ -584,8 +585,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         </div>
 
         <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 8, alignItems: 'center', background: 'var(--surface-2)' }}>
-          <label className="u-text3-xs">Notificaciones</label>
-          <select
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-xs">Notificaciones</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
             value={notifyMode}
             onChange={(e) => updateNotifyMode(e.target.value)}
             style={{ ...fieldStyle, width: 'auto', maxWidth: 140, padding: '4px 8px', fontSize: 'var(--text-xs)' }}
@@ -602,7 +603,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
         {newDirectOpen && (
           <div style={{ padding: 10, borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)' }}>
-            <input
+            <input aria-label="Buscar persona"
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
               placeholder="Buscar persona"
@@ -673,7 +674,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                       <span style={{
                         minWidth: 16,
                         height: 16,
-                        borderRadius: 999,
+                        borderRadius: 'var(--radius-full)',
                         background: 'var(--danger)',
                         color: 'var(--on-accent-light)',
                         fontSize: 'var(--text-3xs)',
@@ -709,7 +710,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                     <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginBottom: 2 }}>
                       {m.author_name || 'Usuario'}
                     </div>
-                    <div style={{ background: mine ? 'var(--accent-muted)' : 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '8px 10px', fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap' }}>
+                    <div style={{ background: mine ? 'var(--accent-muted)' : 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '8px 10px', fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap' }}>
                       {m.body || ''}
                     </div>
                   </div>

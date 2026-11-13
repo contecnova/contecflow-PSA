@@ -145,6 +145,11 @@ def _de_la_empresa(q, organization_id: Optional[str]):
     return q.filter(AIGovernanceConfig.organization_id.is_(None))
 
 
+#: Sin fila, apagados: abren una puerta hacia fuera (revisión 2026-11). Vive aqui
+#: (no en la ruta) para que `app.core.modulos_ia` no importe la API.
+APAGADOS_SIN_CONFIGURAR = {"mcp"}
+
+
 def config_de_modulo(db: Session, organization_id: Optional[str], module: str) -> Optional[AIGovernanceConfig]:
     """La fila de ESA empresa para el módulo (sin empresa: la global).
 

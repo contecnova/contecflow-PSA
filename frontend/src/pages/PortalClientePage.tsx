@@ -7,7 +7,7 @@
  * Auth: separado del backoffice (ClientUser). Ver portalClientContext.jsx.
  */
 import { useEffect, useState } from 'react'
-import type { ChangeEvent, ComponentType } from 'react'
+import type { ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Settings, User, Palette, Globe, ShieldCheck, KeyRound,
@@ -22,26 +22,13 @@ import {
   ClientAuthProvider, LoginScreen,
 } from './portal-client/portalClientContext'
 import {
-  PortalShell as PortalShellRaw, PortalPageHeader as PortalPageHeaderRaw,
-  PortalCard as PortalCardRaw, PortalSection as PortalSectionRaw,
-  PortalButton as PortalButtonRaw, PortalField as PortalFieldRaw,
-  PortalInput as PortalInputRaw, PortalSelect as PortalSelectRaw,
-  PortalBadge as PortalBadgeRaw, PortalBanner as PortalBannerRaw,
+  PortalShell, PortalPageHeader,
+  PortalCard, PortalSection,
+  PortalButton, PortalField,
+  PortalInput, PortalSelect,
+  PortalBadge, PortalBanner,
 } from './portal-client/PortalUI'
 
-// PortalUI's inferred props are all-required; re-typed permissively here
-// (no runtime change).
-type AnyProps = Record<string, unknown>
-const PortalShell = PortalShellRaw as unknown as ComponentType<AnyProps>
-const PortalPageHeader = PortalPageHeaderRaw as unknown as ComponentType<AnyProps>
-const PortalCard = PortalCardRaw as unknown as ComponentType<AnyProps>
-const PortalSection = PortalSectionRaw as unknown as ComponentType<AnyProps>
-const PortalButton = PortalButtonRaw as unknown as ComponentType<AnyProps>
-const PortalField = PortalFieldRaw as unknown as ComponentType<AnyProps>
-const PortalInput = PortalInputRaw as unknown as ComponentType<AnyProps>
-const PortalSelect = PortalSelectRaw as unknown as ComponentType<AnyProps>
-const PortalBadge = PortalBadgeRaw as unknown as ComponentType<AnyProps>
-const PortalBanner = PortalBannerRaw as unknown as ComponentType<AnyProps>
 
 // ── Tipos locales del dominio del portal ─────────────────────────────────────
 interface PortalClientUser {
@@ -413,7 +400,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
           <div className="u-flex1-min0">
             <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800 }}>{client?.full_name}</div>
             <div className="u-text2-sm">{client?.email}</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+            <div className="u-text3-xs-mt2">
               {client?.job_title && `${client.job_title} · `}{client?.company || client?.organization_name}
             </div>
           </div>
@@ -458,7 +445,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
             {savedProfile && (
               <PortalBanner tone="success" title="Perfil actualizado correctamente" />
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="u-row-end">
               <PortalButton icon={<Save size={13} />} loading={saving} onClick={() => saveProfile(form)}>
                 Guardar cambios
               </PortalButton>
@@ -473,7 +460,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '10px 14px',
                     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                    borderRadius: 10,
+                    borderRadius: 'var(--radius-md)',
                   }}>
                     <span className="u-text2-sm">{p.label}</span>
                     <PortalBadge tone={me?.[p.key] ? 'success' : 'default'}>{me?.[p.key] ? 'Sí' : 'No'}</PortalBadge>
@@ -495,7 +482,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
                   <button key={th.id} onClick={() => applyTheme(th.id)} style={{
                     textAlign: 'left',
                     padding: '12px 14px',
-                    borderRadius: 10,
+                    borderRadius: 'var(--radius-md)',
                     border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
                     background: active ? 'var(--accent-muted)' : 'var(--surface-3)',
                     cursor: 'pointer', fontFamily: 'inherit',
@@ -508,7 +495,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
                 )
               })}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="u-row-end">
               <PortalButton icon={<Save size={13} />} onClick={saveAppearance}>Guardar apariencia</PortalButton>
             </div>
           </PortalSection>

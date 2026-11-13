@@ -13,7 +13,7 @@ from app.core.deps import get_current_user, require_admin
 from app.core.responses import APIResponse, APIListResponse
 from app.db.session import get_db
 from app.models.user import User
-from app.services.service_desk.portal_auth_service import get_current_portal_client
+from app.core.deps import get_current_portal_client
 
 router = APIRouter()
 

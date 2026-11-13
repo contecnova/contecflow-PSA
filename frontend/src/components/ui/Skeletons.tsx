@@ -122,50 +122,6 @@ export function SkeletonProjects() {
   )
 }
 
-/* ── Generic page skeleton (header + content block) ──────────────────────────── */
-export function SkeletonPage() {
-  return (
-    <div style={{ padding: '28px 32px' }}>
-      <div style={{ marginBottom: 24 }}>
-        <div className="skeleton-line" style={{ width: 220, height: 22, marginBottom: 8 }} />
-        <div className="skeleton-line" style={{ width: 400, height: 12, opacity: 0.6 }} />
-      </div>
-      <div className="skeleton-rect" style={{ height: 400 }} />
-    </div>
-  )
-}
-
-export interface SkeletonKanbanProps {
-  cols?: number
-}
-
-/* ── Kanban skeleton ──────────────────────────────────────────────────────────── */
-export function SkeletonKanban({ cols = 4 }: SkeletonKanbanProps) {
-  return (
-    <div style={{ padding: '20px 28px' }}>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 18, alignItems: 'center' }}>
-        <div className="skeleton-line" style={{ width: 140, height: 22 }} />
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          {[90, 100, 80].map((w, i) => <div key={i} className="skeleton-rect" style={{ width: w, height: 32 }} />)}
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 12 }}>
-        {Array.from({ length: cols }).map((_, col) => (
-          <div key={col} className="u-stack-8">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0' }}>
-              <div className="skeleton-line" style={{ width: '60%', height: 14 }} />
-              <div className="skeleton-line" style={{ width: 22, height: 22, borderRadius: '50%', marginLeft: 'auto' }} />
-            </div>
-            {Array.from({ length: 3 + (col % 3) }).map((_, i) => (
-              <div key={i} className="skeleton-rect" style={{ height: 70 + (i * 20) % 40, animationDelay: `${(col + i) * 0.05}s` }} />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export interface SkeletonGanttProps {
   rows?: number
 }
@@ -180,7 +136,7 @@ export function SkeletonGantt({ rows = 10 }: SkeletonGanttProps) {
           {[80, 80, 100].map((w, i) => <div key={i} className="skeleton-rect" style={{ width: w, height: 32 }} />)}
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', border: '1px solid var(--surface-3)', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', border: '1px solid var(--surface-3)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
         <div>
           {Array.from({ length: rows }).map((_, i) => (
             <div key={i} style={{ padding: '12px 16px', borderBottom: '1px solid var(--surface-3)', height: 44, display: 'flex', alignItems: 'center' }}>

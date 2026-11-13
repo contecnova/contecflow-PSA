@@ -66,6 +66,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SD_ASSET_REFRESH_DAYS", "int", "Assets — days before an expiry that open a renewal ticket (0: off)"),
         ("SD_EVENT_MAX_ATTEMPTS", "int", "Event delivery — max attempts"),
         ("SD_EVENT_BATCH_SIZE", "int", "Event delivery — events per run"),
+        ("ALERT_CORRELATION_PROBLEM_SCORE", "float", "Alert correlation — score (0-1) to suggest/create a problem (with 3+ tickets)"),
+        ("ALERT_CORRELATION_REVIEW_SCORE", "float", "Alert correlation — score (0-1) to suggest a review"),
     ],
     "automations": [
         ("AUTOMATIONS_ENABLED", "bool", "Rules run on events and on the periodic scan (off: only the simulation)"),
@@ -112,6 +114,9 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("RISK_DELAY_PCT_PER_WEEK", "float", "Predicted delay — probability % per week"),
         ("RISK_CACHE_MINUTES", "int", "Scores are reused for (minutes)"),
         ("RISK_HISTORY_POINTS", "int", "Detail — history points shown"),
+        ("RISK_PROBABILITY_CRITICAL", "float", "Predicted probability (0-1) — critical from (ML, oracle, ticket severity)"),
+        ("RISK_PROBABILITY_HIGH", "float", "Predicted probability (0-1) — high from"),
+        ("RISK_PROBABILITY_MEDIUM", "float", "Predicted probability (0-1) — medium from"),
     ],
     "health": [
         ("HEALTH_NPS_LOOKBACK_DAYS", "int", "NPS lookback (days)"),

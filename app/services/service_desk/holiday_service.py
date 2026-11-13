@@ -51,10 +51,6 @@ def get_holiday_by_id(db: Session, holiday_id: str) -> SDSLAHoliday:
     return holiday
 
 
-def get_holiday_for_delete(db: Session, holiday_id: str) -> SDSLAHoliday:
-    return get_holiday_by_id(db, holiday_id)
-
-
 def delete_holiday(db: Session, holiday_id: str) -> None:
     h = get_holiday_by_id(db, holiday_id)
     db.delete(h)

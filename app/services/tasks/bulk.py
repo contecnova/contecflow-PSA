@@ -7,7 +7,6 @@ Exports:
 from __future__ import annotations
 
 from sqlalchemy.orm import Session, joinedload
-from fastapi import HTTPException
 
 from app.models.project import Project
 from app.models.task import Task
@@ -88,7 +87,7 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
         # reexportación.
         try:
             enforce_abac(db, current_user, "task", task.id, action="update")
-        except (HTTPException, ErrorDeDominio):
+        except ErrorDeDominio:
             skipped.append({"id": task.id, "reason": "abac_denied"})
             continue
 
@@ -97,7 +96,7 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
             # antes la masiva permitía saltos como `cancelled → todo`.
             try:
                 validate_task_transition(task.status, new_status)
-            except (HTTPException, ErrorDeDominio):
+            except ErrorDeDominio:
                 skipped.append({"id": task.id, "reason": "invalid_transition"})
                 continue
             apply_status_side_effects(task, new_status)

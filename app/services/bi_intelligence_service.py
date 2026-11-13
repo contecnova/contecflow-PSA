@@ -754,13 +754,14 @@ def ml_predict_project_overrun_lgbm(
         probabilidades = _riesgo_heuristico(rasgos)
         motor = "heuristic_fallback"
 
+    from app.core.escalas import nivel_por_probabilidad
+
     predicciones = [
         {
             **cabecera,
             "overrun_probability": round(float(riesgo), 3),
-            "risk_level": (
-                "critical" if riesgo >= 0.7 else "high" if riesgo >= 0.4 else "low"
-            ),
+            # Hallazgo 17 (2026-11): era 0,7/0,4 sin «medium»; ahora la escala común.
+            "risk_level": nivel_por_probabilidad(float(riesgo), db=db, org_id=organization_id),
         }
         for cabecera, riesgo in zip(cabeceras, probabilidades)  # noqa: B905
     ]

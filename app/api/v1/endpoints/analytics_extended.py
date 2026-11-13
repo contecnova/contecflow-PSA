@@ -13,12 +13,14 @@ from app.core.errores import ErrorDeDominio
 # por número de versión con seis dominios dentro. La analítica ad-hoc tiene ahora
 # su propio módulo.
 from app.services import adhoc_analytics_service, analytics_service
+from app.api.descargas import respuesta_de_descarga
 from app.services.exportador_tabular import respuesta_tabular
 from app.core.deps import get_current_user, get_db, require_any_manager, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from pydantic import BaseModel
 from app.core import timeutil
+from app.models.user import UserRole
 
 
 
@@ -191,7 +193,7 @@ def get_imputation_analytics(
 ):
     """Get imputation analytics for user or team."""
     # Permission: employees see only their own, managers see their projects, admins see all
-    query_user_id = user_id if user_id and current_user.role in ["admin", "pm"] else current_user.id
+    query_user_id = user_id if user_id and current_user.role in [UserRole.admin, UserRole.pm] else current_user.id
 
     cutoff_date = timeutil.today() - timedelta(days=days_back)
 
@@ -444,8 +446,8 @@ def export_imputations_csv(
             fila += [imp.hourly_rate_snapshot or "", imp.cost_amount or ""]
         filas.append(fila + [imp.description or ""])
 
-    return respuesta_tabular(
-        formato, nombre="imputations", cabecera=cabecera, filas=filas)
+    return respuesta_de_descarga(respuesta_tabular(
+        formato, nombre="imputations", cabecera=cabecera, filas=filas))
 
 
 @router.get("/exports/projects-csv", summary="Export projects to CSV")
@@ -504,8 +506,8 @@ def export_projects_csv(
             ]
         filas.append(fila)
 
-    return respuesta_tabular(
-        formato, nombre="projects", cabecera=cabecera, filas=filas)
+    return respuesta_de_descarga(respuesta_tabular(
+        formato, nombre="projects", cabecera=cabecera, filas=filas))
 
 
 @router.get("/exports/resources-csv", summary="Export resource data to CSV")

@@ -26,13 +26,12 @@ import json
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
-
 from app.core import timeutil
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.mfa import Budget, BudgetLine
 from app.services import presupuestos_preparar as prep
+from app.services.presupuestos_preparar import meses_del_periodo, repartir_por_igual  # noqa: F401  (viven alli: rompe el ciclo)
 from app.services.audit import audit_log
 from app.core.errores import ErrorDeDominio
 
@@ -78,24 +77,6 @@ def _primero(d) -> date:
     if isinstance(d, str):
         d = date.fromisoformat(d[:10])
     return date(d.year, d.month, 1)
-
-
-def meses_del_periodo(desde: date, hasta: date) -> list[str]:
-    salida, y, m = [], desde.year, desde.month
-    while (y, m) <= (hasta.year, hasta.month):
-        salida.append(f"{y}-{m:02d}")
-        y, m = (y, m + 1) if m < 12 else (y + 1, 1)
-    return salida
-
-
-def repartir_por_igual(importe: float, meses: list[str]) -> dict[str, float]:
-    """Partes iguales en céntimos; el redondeo va al último mes para que sumen exacto."""
-    if not meses:
-        return {}
-    cada = round(importe / len(meses), 2)
-    salida = {m: cada for m in meses}
-    salida[meses[-1]] = round(importe - cada * (len(meses) - 1), 2)
-    return salida
 
 
 def _mes_actual() -> str:
@@ -422,7 +403,7 @@ _CABECERA = ("name", "ambito", "department", "area", "project_id", "cliente_id",
 def _aviso_del_padre(db: Session, b: Budget) -> Optional[str]:
     try:
         return prep.comprobar_techo_del_padre(db, b)
-    except (HTTPException, ErrorDeDominio) as e:      # con «bloquear» también se avisa en la ficha
+    except ErrorDeDominio as e:      # con «bloquear» también se avisa en la ficha
         return str(e.detail)
 
 
@@ -476,7 +457,7 @@ def crear(db: Session, u, datos: dict) -> dict:
         prep.aplicar_plantilla(db, b, plantilla)
     if datos.get("copiar_de"):
         prep.copiar_de_otro(db, b, _cargar(db, datos["copiar_de"]), datos.get("base") or "plan",
-                            float(datos.get("ajuste_pct") or 0))
+                            float(datos.get("ajuste_pct") or 0), _real_mensual)
     audit_log(db, u, "CREATE", "budgets", b.id, b.name,
               new_values={"ambito": b.ambito, "plantilla": datos.get("plantilla_id"), "copia_de": datos.get("copiar_de")})
     db.commit()

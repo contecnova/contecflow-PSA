@@ -18,6 +18,10 @@ asimetria de siempre dentro del propio fichero: cuatro endpoints usaban
 `org_scoped_or_404` y otros tres buscaban por id a secas. El que mas importa es
 `push_ticket`: una `JiraConfig` lleva las credenciales de Jira de un cliente, y
 sin acotar se podia empujar un ticket con las de otro.
+
+Auditoria 2026-11 (#34): `sd_jira_configs` es la unica configuracion de Jira.
+La conexion de las tareas de proyecto (`/jira/*`) es la fila con
+`usar_para_tareas`; la prueba de conexion es `jira_service.probar_conexion`.
 """
 from __future__ import annotations
 
@@ -25,7 +29,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -77,6 +81,7 @@ class JiraConfigIn(BaseModel):
     sync_interval_minutes: int = 5
     status_map: Optional[dict] = None
     priority_map: Optional[dict] = None
+    usar_para_tareas: bool = False
 
 
 class JiraConfigPatch(BaseModel):
@@ -90,6 +95,7 @@ class JiraConfigPatch(BaseModel):
     is_active: Optional[bool] = None
     status_map: Optional[dict] = None
     priority_map: Optional[dict] = None
+    usar_para_tareas: Optional[bool] = None
 
 
 class JiraFieldMapIn(BaseModel):
@@ -119,6 +125,7 @@ def _serialize_config(c: JiraConfig) -> dict:
         "sync_assignments": c.sync_assignments,
         "sync_interval_minutes": c.sync_interval_minutes,
         "is_active": c.is_active,
+        "usar_para_tareas": bool(c.usar_para_tareas),
         "last_full_sync_at": c.last_full_sync_at,
         "created_at": c.created_at,
     }
@@ -165,6 +172,7 @@ def create_jira_config(
         "sync_interval_minutes": payload.sync_interval_minutes,
         "status_map_json": json.dumps(payload.status_map) if payload.status_map else None,
         "priority_map_json": json.dumps(payload.priority_map) if payload.priority_map else None,
+        "usar_para_tareas": payload.usar_para_tareas,
     })
     return APIResponse.ok(data=_serialize_config(config))
 
@@ -199,32 +207,17 @@ def test_jira_connection(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    """Verify credentials by calling Jira's /myself endpoint."""
-    import base64
-    import httpx
+    """Verify credentials by calling Jira's /myself endpoint (`jira_service.probar_conexion`)."""
+    from app.core.errores import ErrorDeDominio
+    from app.services import jira_service
 
     config = configuracion_propia(db, current_user, config_id)
-
-    from app.services.service_desk.jira_sync_service import jira_base_url_segura, jira_token_en_claro
-    creds = base64.b64encode(
-        f"{config.jira_email}:{jira_token_en_claro(config)}".encode()
-    ).decode()
-    base_url = jira_base_url_segura(config)  # auditoria 2026-11: SSRF
-
     try:
-        resp = httpx.get(
-            f"{base_url}/rest/api/3/myself",
-            headers={"Authorization": f"Basic {creds}", "Accept": "application/json"},
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return APIResponse.ok(data={"ok": True, "jira_account_id": data.get("accountId"), "display_name": data.get("displayName")})
-    except httpx.HTTPStatusError as exc:
-        return APIResponse.ok(data={"ok": False, "error": f"HTTP {exc.response.status_code}: {exc.response.text[:200]}"})
-    except Exception as exc:
-        logger.warning("Fallo verificando cuenta Jira: %s", exc)
-        return APIResponse.ok(data={"ok": False, "error": str(exc)})
+        r = jira_service.probar_conexion(jira_service.credenciales(config))
+    except ErrorDeDominio as exc:
+        # Contrato de esta ruta: 200 con ok=False (sin el cuerpo remoto, #25).
+        return APIResponse.ok(data={"ok": False, "error": str(exc.detail)})
+    return APIResponse.ok(data={"ok": True, "jira_account_id": r["account_id"], "display_name": r["display_name"]})
 
 
 @router.get("/configs/{config_id}/sync-log", summary="Ver log de sincronización")
@@ -283,22 +276,27 @@ async def receive_jira_webhook(
     request: Request,
     x_atlassian_webhook_token: Optional[str] = Header(None),
     x_hub_signature_256: Optional[str] = Header(None),
+    org: Optional[str] = Query(None, description="Organización (solo acota; autentica el secreto)"),
     db: Session = Depends(get_db),
 ):
     """
     Receives Jira Cloud webhooks (issue_updated, comment_created, etc.)
     and applies changes to the linked Contecflow ticket.
 
-    Authenticated against JIRA_WEBHOOK_SECRET (shared token or body HMAC)
-    before any mutation — unauthenticated requests could otherwise drive
-    cross-tenant ticket changes via a guessed issue key.
+    Auditoria 2026-11 (#14): autentica el secreto de webhook de UNA
+    organizacion (`POST /jira/webhook-secret`) y solo toca los enlaces de las
+    configuraciones de esa organizacion. El `JIRA_WEBHOOK_SECRET` global ya no
+    autentica: lo conocia cualquier cliente que configurase su Jira.
 
     Jira sends: {"webhookEvent": "jira:issue_updated", "issue": {...}}
     """
-    from app.services.jira_service import verify_jira_webhook
+    from app.core.async_db import run_db
+    from app.services.jira_service import organizacion_del_webhook
 
     body = await request.body()
-    if not verify_jira_webhook(body, x_atlassian_webhook_token, x_hub_signature_256):
+    org_id = await run_db(organizacion_del_webhook, db, body,
+                          x_atlassian_webhook_token, x_hub_signature_256, org)
+    if not org_id:
         logger.warning("Jira webhook rejected: invalid/missing authentication token")
         raise HTTPException(403, "Invalid Jira webhook authentication")
 
@@ -315,14 +313,12 @@ async def receive_jira_webhook(
 
     # The handler is async (it awaits the raw body for auth), so the blocking
     # ORM work is offloaded to the threadpool to avoid stalling the event loop.
-    from app.core.async_db import run_db
-    return await run_db(procesar_webhook, db, issue, issue_key)
+    return await run_db(procesar_webhook, db, issue, issue_key, org_id)
 
 
 @router.post("/sync/{config_id}", summary="Sincronización incremental manual")
 def run_manual_sync(
     config_id: str,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
@@ -330,5 +326,11 @@ def run_manual_sync(
     # La configuracion se comprueba antes de encolar: sin esto un administrador
     # disparaba la sincronizacion de la configuracion de otro cliente.
     config = configuracion_propia(db, current_user, config_id)
-    background_tasks.add_task(run_incremental_sync, db, config.id)
+    # Segunda auditoria 2026-11 (n.º 31): antes `add_task(run_incremental_sync,
+    # db, ...)` usaba la sesion de la peticion cuando la peticion ya habia
+    # terminado (y cerrado esa sesion). Ahora viaja el id y el trabajo abre su
+    # propia sesion, con el contexto de la empresa de la configuracion.
+    from app.core.segundo_plano import encolar
+    encolar(run_incremental_sync, config_id=config.id,
+            _organizacion=config.organization_id)
     return APIResponse.ok(data={"ok": True, "message": "Incremental sync started in background"})

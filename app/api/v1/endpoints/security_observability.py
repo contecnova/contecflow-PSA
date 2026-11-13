@@ -41,6 +41,7 @@ from app.services.security_observability import (
     SecurityEventService, SecurityAnalyticsService, get_org_id as _org,
 )
 from app.core.responses import APIResponse, APIListResponse
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(prefix="/soc", tags=["Security Observability"])
 
@@ -193,7 +194,7 @@ def list_events(
     ip_address: Optional[str] = Query(None),
     hours:      int           = Query(24, ge=1, le=720),
     page:       int           = Query(1, ge=1),
-    page_size:  int           = Query(50, ge=1, le=200),
+    page_size:  int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session               = Depends(get_db),
     current_user: User        = Depends(get_current_user),
 ):
@@ -217,7 +218,7 @@ def list_detections(
     severity: Optional[str] = Query(None),
     hours:    int           = Query(168, ge=1, le=8760),
     page:     int           = Query(1, ge=1),
-    page_size:int           = Query(50, ge=1, le=200),
+    page_size:int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session             = Depends(get_db),
     current_user: User      = Depends(get_current_user),
 ):
@@ -306,7 +307,7 @@ def list_incidents(
     status_filter: Optional[str] = Query(None, alias="status"),
     hours:     int  = Query(720, ge=1, le=8760),
     page:      int  = Query(1, ge=1),
-    page_size: int  = Query(50, ge=1, le=200),
+    page_size: int  = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session     = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -365,7 +366,7 @@ def list_login_anomalies(
     unresolved_only: bool          = Query(True),
     hours:           int           = Query(24, ge=1, le=720),
     page:            int           = Query(1, ge=1),
-    page_size:       int           = Query(50, ge=1, le=200),
+    page_size:       int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session                    = Depends(get_db),
     current_user: User             = Depends(get_current_user),
 ):

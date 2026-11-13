@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo } from '../utils/helpers'
@@ -169,6 +169,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
 }
 
 function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: EpicItem[]; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -187,15 +188,15 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label style={ls}>{t('epicgantt.epica_a')}</label>
-            <select style={is} value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('epicgantt.epica_a')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>{t('epicgantt.epica_b_depende_de_a')}</label>
-            <select style={is} value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('epicgantt.epica_b_depende_de_a')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.filter(e => e.id !== form.epic_id).map(e => (
                 <option key={e.id} value={e.id}>{e.title}</option>
@@ -226,8 +227,8 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
         </div>
 
         <div>
-          <label style={ls}>{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
-          <input type="number" style={{...is, width:120}} value={form.lag_days} min={0}
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" style={{...is, width:120}} value={form.lag_days} min={0}
             onChange={e => set('lag_days')(+e.target.value)} />
         </div>
 
@@ -243,6 +244,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
 }
 
 export default function EpicGanttPage(): JSX.Element {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -256,7 +258,7 @@ export default function EpicGanttPage(): JSX.Element {
   const projects = projectsRaw as ProjectItem[]
   const { data: roadmapRaw, isLoading: lRoadmap } = useQuery({
     queryKey: ['epic-gantt', project],
-    queryFn: () => epicsApi.roadmapByProject(project).then(r => r.data).catch(() => null),
+    queryFn: () => epicsApi.roadmap(project).then(r => r.data).catch(() => null),
     enabled: !!project,
   })
   const roadmap = (roadmapRaw ?? null) as RoadmapData | null
@@ -284,8 +286,8 @@ export default function EpicGanttPage(): JSX.Element {
         )} showListExport={false} />
 
       <div style={{...ps, marginBottom:20}}>
-        <label style={ls}>Proyecto</label>
-        <select value={project} onChange={e => setProject(e.target.value)} style={{...is, width:360}}>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Proyecto</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={{...is, width:360}}>
           <option value="">{t('epicgantt.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -296,9 +298,9 @@ export default function EpicGanttPage(): JSX.Element {
 
       {project && !isLoading && epics.length === 0 && (
         <div style={{...ps, textAlign:'center', padding:'48px 24px'}}>
-          <div style={{fontSize: "var(--text-6xl)", marginBottom:16}}>🎯</div>
+          <div className="u-empty-icon">🎯</div>
           <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>{t('epicgantt.sin_epicas')}</div>
-          <div style={{fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:20}}>
+          <div className="u-text2-base-mb20">
             {t('epicgantt.crea_epicas_con_fechas_en_la_seccion')} <strong>{t('epicgantt.epicas')}</strong> {t('epicgantt.para_verlas_en_el_gantt_con_dependencias')}
           </div>
         </div>
@@ -316,8 +318,8 @@ export default function EpicGanttPage(): JSX.Element {
 
           {/* Lista de dependencias */}
           <div style={{...ps, marginTop:16}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-              <div style={{fontSize: "var(--text-md)", fontWeight:600}}>
+            <div className="u-row-between-mb16">
+              <div className="u-md-600">
                 Dependencias ({epicDeps.length})
               </div>
               <Button onClick={() => setShowForm(true)}>{t('epicgantt.anadir')}</Button>

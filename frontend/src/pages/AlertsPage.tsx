@@ -149,7 +149,7 @@ export default function AlertsPage(): JSX.Element {
       </div>
 
       {isLoading ? (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}><Spinner /><span className="u-text2">{t('alerts.loading')}</span></div>
+        <div className="u-row-center-12"><Spinner /><span className="u-text2">{t('alerts.loading')}</span></div>
       ) : alerts.length === 0 ? (
         <EmptyState icon="✅" title={t('alerts.no_alerts')} description={t('alerts.empty_description')} />
       ) : (
@@ -185,19 +185,19 @@ export default function AlertsPage(): JSX.Element {
                     <div className="u-row-8">
                       {sourceUrl && (
                         <button onClick={() => navigate(sourceUrl)}
-                          style={{ background: 'transparent', border: `1px solid ${cfg.border}`, borderRadius: 6, padding: '4px 10px', color: cfg.dot, cursor: 'pointer', fontSize: "var(--text-xs)", display: 'flex', alignItems: 'center', gap: 4 }}>
+                          style={{ background: 'transparent', border: `1px solid ${cfg.border}`, borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: cfg.dot, cursor: 'pointer', fontSize: "var(--text-xs)", display: 'flex', alignItems: 'center', gap: 4 }}>
                           <ExternalLink size={10} /> Ver origen
                         </button>
                       )}
                       {!alert.is_read && (
                         <button onClick={() => markRead(alert.id)}
-                          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                           {t('alerts.mark_as_read')}
                         </button>
                       )}
                       {hasRole('admin', 'pm', 'hr') && (
                         <button onClick={() => resolve(alert.id)}
-                          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600 }}>
+                          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600 }}>
                           Resolver
                         </button>
                       )}

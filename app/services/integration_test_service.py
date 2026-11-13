@@ -26,6 +26,7 @@ from app.services.integration_credentials_service import (
     get_provider_config,
 )
 from app.services.settings_service import outbound_http_timeout
+from app.core.config import settings
 
 logger = logging.getLogger("contecflow.integrations.test")
 
@@ -84,12 +85,12 @@ def _test_ms_graph(cfg: dict, db: Session) -> dict:
     try:
         with httpx.Client(timeout=outbound_http_timeout(db, default=15.0)) as c:
             r = c.post(
-                f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+                f"{settings.MICROSOFT_OAUTH_BASE}/{tenant}/oauth2/v2.0/token",
                 data={
                     "grant_type": "client_credentials",
                     "client_id": client_id,
                     "client_secret": secret,
-                    "scope": "https://graph.microsoft.com/.default",
+                    "scope": f"{settings.MICROSOFT_GRAPH_BASE}/.default",
                 },
             )
         if r.status_code == 200 and "access_token" in r.json():
@@ -182,13 +183,13 @@ def _test_ai_providers(cfg: dict, db: Session) -> dict:
         try:
             with httpx.Client(timeout=outbound_http_timeout(db, default=10.0)) as c:
                 r = c.post(
-                    "https://api.anthropic.com/v1/messages/count_tokens",
+                    f"{settings.ANTHROPIC_API_URL.rstrip('/')}/messages/count_tokens",
                     headers={
                         "x-api-key": ant_key,
                         "anthropic-version": "2023-06-01",
                         "Content-Type": "application/json",
                     },
-                    json={"model": "claude-haiku-4-5", "messages": [{"role": "user", "content": "ping"}]},
+                    json={"model": settings.CONTECFLOW_AI_MODEL, "messages": [{"role": "user", "content": "ping"}]},
                 )
             if r.status_code == 200:
                 return {"ok": True, "detail": "Anthropic API key válida"}
@@ -199,7 +200,7 @@ def _test_ai_providers(cfg: dict, db: Session) -> dict:
     if oai_key:
         try:
             with httpx.Client(timeout=outbound_http_timeout(db, default=10.0)) as c:
-                r = c.get("https://api.openai.com/v1/models", headers={"Authorization": f"Bearer {oai_key}"})
+                r = c.get(f"{settings.OPENAI_API_URL.rstrip('/')}/models", headers={"Authorization": f"Bearer {oai_key}"})
             if r.status_code == 200:
                 return {"ok": True, "detail": "OpenAI API key válida"}
             return {"ok": False, "detail": f"OpenAI HTTP {r.status_code}: {r.text[:200]}"}

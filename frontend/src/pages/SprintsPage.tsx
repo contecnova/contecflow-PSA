@@ -2,7 +2,7 @@
  * SprintsPage — Full Scrum sprint management
  * Views: Backlog | Sprint Activo | Velocity histórico
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
@@ -72,6 +72,7 @@ const _STATUS_CFG = {
 
 // ── Retrospective modal (v25 AI insights) ────────────────────────────────────
 function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId: string; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const [manualNotes, setManualNotes] = useState('')
@@ -102,7 +103,7 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
             { label: 'Bloqueadas', value: m.blocked, color: m.blocked > 0 ? 'var(--danger)' : 'var(--success)' },
             { label: 'Carryover', value: m.carryover, color: m.carryover > 0 ? 'var(--warning)' : 'var(--success)' },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 12px', textAlign: 'center' }}>
+            <div key={s.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: s.color }}>{s.value}</div>
               <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 3, textTransform: 'uppercase' }}>{s.label}</div>
             </div>
@@ -113,9 +114,9 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
       {isLoading ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '24px 0' }}><Spinner /><span className="u-text2-base">{t('sprints.analizando_datos_del_sprint')}</span></div>
       ) : ins && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="u-grid2-10">
           {/* Went well */}
-          <div style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', marginBottom: 8 }}>{t('sprints.que_fue_bien')}</div>
             {ins.went_well?.map((item, i) => (
               <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
@@ -124,7 +125,7 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
             ))}
           </div>
           {/* To improve */}
-          <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--warning)', textTransform: 'uppercase', marginBottom: 8 }}>↑ A mejorar</div>
             {ins.improve?.map((item, i) => (
               <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
@@ -134,7 +135,7 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
           </div>
           {/* Actions */}
           {(ins.actions?.length ?? 0) > 0 && (
-            <div style={{ background: 'rgba(79,142,247,0.06)', border: '1px solid rgba(79,142,247,0.2)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ background: 'color-mix(in srgb, var(--accent) 6%, transparent)', border: '1px solid var(--accent-border-soft)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 8 }}>→ Acciones propuestas</div>
               {ins.actions?.map((a, i) => (
                 <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
@@ -145,7 +146,7 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
           )}
           {/* Risks */}
           {(ins.risks?.length ?? 0) > 0 && (
-            <div style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--danger)', textTransform: 'uppercase', marginBottom: 8 }}>{t('sprints.senales_de_riesgo')}</div>
               {ins.risks?.map((r, i) => (
                 <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
@@ -159,8 +160,8 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
 
       {/* Manual notes */}
       <div>
-        <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{t('sprints.notas_del_equipo')}</label>
-        <textarea
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{t('sprints.notas_del_equipo')}</label>
+        <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
           value={manualNotes}
           onChange={e => setManualNotes(e.target.value)}
           rows={3}
@@ -196,7 +197,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
   const pColor = PRIORITY_COLOR[task.priority || ''] || 'var(--text-2)'
 
   return (
-    <div style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(cfg.color, '30')}`, borderRadius: 10, padding: compact ? '8px 12px' : '12px 14px', cursor: 'pointer', position: 'relative' }}
+    <div style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(cfg.color, '30')}`, borderRadius: 'var(--radius-md)', padding: compact ? '8px 12px' : '12px 14px', cursor: 'pointer', position: 'relative' }}
       onPointerEnter={e => e.currentTarget.style.borderColor = alpha(cfg.color, '60')}
       onPointerLeave={e => e.currentTarget.style.borderColor = alpha(cfg.color, '30')}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -211,7 +212,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
       <div className="u-wrap-8">
         <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: alpha(pColor, '20'), color: pColor }}>{task.priority}</span>
         {(task.story_points ?? 0) > 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>{task.story_points} pts</span>}
-        {task.assignee_name && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>👤 {task.assignee_name.split(' ')[0]}</span>}
+        {task.assignee_name && <span className="u-text2-2xs">👤 {task.assignee_name.split(' ')[0]}</span>}
       </div>
 
       {showMenu && (
@@ -219,7 +220,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
           <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', padding: '4px 8px', marginBottom: 4, textTransform: 'uppercase' }}>Cambiar estado</div>
           {Object.entries(TASK_STATUS_CFG).map(([status, { label, color }]) => (
             <button key={status} onClick={() => { onStatusChange?.(task.id, status); setShowMenu(false) }}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: task.status === status ? alpha(color, '20') : 'transparent', border: 'none', borderRadius: 6, color: task.status === status ? color : 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: task.status === status ? alpha(color, '20') : 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', color: task.status === status ? color : 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
               {label}
             </button>
           ))}
@@ -227,13 +228,13 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
             <>
               <div style={{ height: 1, background: 'var(--surface-4)', margin: '6px 0' }} />
               <button onClick={() => openConfirmGlobal({ message: '¿Mover esta tarea al backlog?', onConfirm: () => { onMoveToBacklog(task.id); setShowMenu(false) }, danger: true })}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: 'transparent', border: 'none', borderRadius: 6, color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 {t('sprints.mover_al_backlog')}
               </button>
             </>
           )}
           <button onClick={() => setShowMenu(false)}
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: 'transparent', border: 'none', borderRadius: 6, color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
             Cerrar
           </button>
         </div>
@@ -303,6 +304,7 @@ function BurndownChart({ sprintId, projectId }: { sprintId: string; projectId: s
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function SprintsPage() {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -423,7 +425,7 @@ export default function SprintsPage() {
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
             {['board','backlog','velocity'].map(v => (
               <button key={v} onClick={() => setActiveView(v)}
-                style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${activeView === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeView === v ? 'var(--accent-muted)' : 'transparent', color: activeView === v ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${activeView === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeView === v ? 'var(--accent-muted)' : 'transparent', color: activeView === v ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {v === 'board' ? '🎯 Tablero' : v === 'backlog' ? '📋 Backlog' : '📊 Velocidad'}
               </button>
             ))}
@@ -444,7 +446,7 @@ export default function SprintsPage() {
           {/* Active sprint */}
           {activeSprint ? (
             <div style={{ marginBottom: 32 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div className="u-row-between-mb16">
                 <div>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
                     <span style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>Sprint {activeSprint.number} — {activeSprint.name}</span>
@@ -500,8 +502,8 @@ export default function SprintsPage() {
                   <div className="u-row-between">
                     <div>
                       <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>Sprint {sprint.number} — {sprint.name}</span>
-                      {sprint.goal && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>🎯 {sprint.goal}</div>}
-                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
+                      {sprint.goal && <div className="u-text2-sm-mt2">🎯 {sprint.goal}</div>}
+                      <div className="u-text2-sm-mt2">
                         {sprint.start_date || 'Sin fecha'} → {sprint.end_date || 'Sin fecha'} · {sprint.task_count} tareas · {sprint.planned_points || 0} pts
                       </div>
                     </div>
@@ -529,11 +531,11 @@ export default function SprintsPage() {
               <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Completados</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
                 {completedSprints.map(s => (
-                  <div key={s.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '12px 16px' }}>
+                  <div key={s.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>Sprint {s.number} — {s.name}</div>
                     <div className="u-text2-sm">{s.start_date} → {s.end_date}</div>
                     <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: "var(--text-sm)" }}>
-                      <span style={{ color: 'var(--success)' }}>✓ {s.completed_points || 0} pts</span>
+                      <span className="u-success">✓ {s.completed_points || 0} pts</span>
                       <span className="u-text2">Velocidad: {s.velocity || '—'}</span>
                     </div>
                   </div>
@@ -563,7 +565,7 @@ export default function SprintsPage() {
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id]) } }}
                     style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 80px 80px 120px', gap: 12, padding: '10px 16px', background: selected ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, alignItems: 'center', cursor: 'pointer' }}>
                     <input type="checkbox" checked={selected} readOnly style={{ cursor: 'pointer' }} />
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{task.code}</span>
+                    <span className="u-text3-mono-xs">{task.code}</span>
                     <span style={{ fontSize: "var(--text-sm)", fontWeight: 500 }}>{task.title}</span>
                     <span style={{ fontSize: "var(--text-xs)", padding: '2px 6px', borderRadius: 4, background: alpha((PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)'), '20'), color: PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)', textAlign: 'center' }}>{task.priority}</span>
                     <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'} pts</span>
@@ -633,7 +635,7 @@ export default function SprintsPage() {
                   const sprint = completedSprints.find(x => x.name === s.name)
                   if (!sprint?.went_well && !sprint?.to_improve) return null
                   return (
-                    <div key={s.sprint} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
+                    <div key={s.sprint} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: 10 }}>
                       <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{s.sprint} — {s.name}</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, fontSize: "var(--text-sm)" }}>
                         {sprint?.went_well && <div><div style={{ color: 'var(--success)', fontWeight: 700, marginBottom: 4 }}>{t('sprints.que_fue_bien')}</div><div className="u-text2">{sprint.went_well}</div></div>}
@@ -653,11 +655,11 @@ export default function SprintsPage() {
       {showCreateSprint && (
         <Modal open title={t('sprints.nuevo_sprint_2')} onClose={() => setShowCreateSprint(false)} width={500}>
           <div className="u-stack-14">
-            <div><label style={ls}>{t('sprints.nombre_del_sprint')}</label><input value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('sprints.nombre_del_sprint_2')} /></div>
-            <div><label style={ls}>{t('sprints.objetivo_del_sprint')}</label><textarea value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('sprints.objetivo_del_sprint_2')} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <div><label style={ls}>Fecha inicio</label><DateInput value={sprintForm.start_date} onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} style={fs} /></div>
-              <div><label style={ls}>Fecha fin</label><DateInput value={sprintForm.end_date} onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))} style={fs} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('sprints.nombre_del_sprint')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('sprints.nombre_del_sprint_2')} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('sprints.objetivo_del_sprint')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('sprints.objetivo_del_sprint_2')} /></div>
+            <div className="u-grid2-14">
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Fecha inicio</label><DateInput id={`${idCampo}-3`} value={sprintForm.start_date} onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} style={fs} /></div>
+              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Fecha fin</label><DateInput id={`${idCampo}-4`} value={sprintForm.end_date} onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))} style={fs} /></div>
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreateSprint(false)}>Cancelar</Button>
@@ -682,7 +684,7 @@ export default function SprintsPage() {
                     return (
                       <label key={task.id} style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 60px 100px', gap: 10, padding: '8px 12px', background: sel ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, cursor: 'pointer', alignItems: 'center' }}>
                         <input type="checkbox" checked={sel} onChange={e => setSelectedBacklogTasks(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))} />
-                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{task.code}</span>
+                        <span className="u-text3-mono-xs">{task.code}</span>
                         <span className="u-sm">{task.title}</span>
                         <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'}pt</span>
                         <span className="u-text2-xs">{task.assignee_name?.split(' ')[0] || '—'}</span>
@@ -692,7 +694,7 @@ export default function SprintsPage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
                   <span className="u-text2-base">{selectedBacklogTasks.length} seleccionadas</span>
-                  <div style={{ display: 'flex', gap: 10 }}>
+                  <div className="u-row-10">
                     <Button variant="secondary" onClick={() => setShowAddTasks(false)}>Cancelar</Button>
                     <Button onClick={() => { addTasksToSprint({ sprintId: showAddTasks || '', taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }} disabled={selectedBacklogTasks.length === 0}>
                       {t('sprints.anadir_al_sprint')}

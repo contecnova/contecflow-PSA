@@ -168,10 +168,6 @@ def update_status_component_record(db: Session, component_id: str, payload: Stat
     return component
 
 
-def get_status_component_for_delete(db: Session, component_id: str) -> StatusPageComponent:
-    return get_status_component_or_404(db, component_id)
-
-
 def delete_status_component(db: Session, component_id: str) -> None:
     c = get_status_component_or_404(db, component_id)
     db.delete(c)

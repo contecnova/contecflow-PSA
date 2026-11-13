@@ -14,7 +14,7 @@ The middleware is registered in app/main.py: `SlowAPIMiddleware` applies
 `RATE_LIMIT_DEFAULT` to every route without its own `@limiter.limit`.
 """
 import logging
-import os
+from app.core.entorno import en_pruebas
 import uuid
 from slowapi import Limiter
 
@@ -34,7 +34,7 @@ def _rate_limit_key(request):
     En pruebas devuelve una clave por petición para que los límites no se
     compartan entre tests.
     """
-    if os.getenv("TESTING") == "1":
+    if en_pruebas():
         return str(uuid.uuid4())
     token = request.cookies.get("access_token") if hasattr(request, "cookies") else None
     if not token:
@@ -58,7 +58,7 @@ def _build_limiter() -> Limiter:
     falling back to in-memory storage for local dev / testing.
     Using Redis ensures limits are shared across all uvicorn workers."""
     from app.core.config import settings  # lazy import to avoid circular dependency at startup
-    is_local_dev = settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1"
+    is_local_dev = settings.ENVIRONMENT == "development" and not en_pruebas()
 
     def _redis_reachable(url: str) -> bool:
         try:
@@ -75,7 +75,7 @@ def _build_limiter() -> Limiter:
             return False
 
     redis_url = settings.REDIS_URL
-    if redis_url and os.getenv("TESTING") != "1":
+    if redis_url and not en_pruebas():
         redis_ok = _redis_reachable(redis_url)
         if redis_ok:
             return Limiter(

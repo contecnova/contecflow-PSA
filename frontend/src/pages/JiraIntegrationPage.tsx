@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useId } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Settings2, CheckCircle, XCircle, RefreshCw, ArrowDownToLine,
+  Settings2, RefreshCw, ArrowDownToLine,
   ArrowUpFromLine, Link2, Eye, EyeOff, AlertTriangle,
 } from 'lucide-react'
 import { jiraApi } from '../services/api'
+import { apiUrlAbsoluta } from '../services/api/urls'
+import { useAuth } from '../context/AuthContext'
+import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
-import { Card, Button, Spinner, EmptyState, Table } from '../components/ui'
+import { Card, Button, Spinner, EmptyState, Table, StatusBadge as DsBadge, ProjectSelect } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { extractErr, localeActivo } from '../utils/helpers'
@@ -69,18 +72,12 @@ const _ls: CSSProperties = {
 }
 
 // ── sub-components ────────────────────────────────────────────────────────────
-function StatusBadge({ ok, t }: { ok?: boolean; t: (clave: string) => string }) {
-  if (ok === null) return null
+function EstadoDeConexion({ ok, t }: { ok?: boolean; t: (clave: string) => string }) {
+  // Auditoria 2026-11 (#41): era un badge hecho a mano; ahora el del kit.
+  if (ok == null) return null
   return ok
-    ? (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-base)", color: 'var(--success)', fontWeight: 600 }}>
-        <CheckCircle size={14} /> {t('jira_integration.connected_status')}
-      </span>
-    ) : (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-base)", color: 'var(--danger)', fontWeight: 600 }}>
-        <XCircle size={14} /> {t('jira_integration.disconnected_status')}
-      </span>
-    )
+    ? <DsBadge kind="success" dot caps={false}>{t('jira_integration.connected_status')}</DsBadge>
+    : <DsBadge kind="danger" dot caps={false}>{t('jira_integration.disconnected_status')}</DsBadge>
 }
 
 function SectionTitle({ children }: { children?: React.ReactNode }) {
@@ -92,7 +89,59 @@ function SectionTitle({ children }: { children?: React.ReactNode }) {
 }
 
 // ── main page ─────────────────────────────────────────────────────────────────
+/**
+ * Secreto del webhook de Jira (auditoria 2026-11, #14). Es por organizacion y
+ * solo lo genera un admin; el servidor lo ensena UNA vez, asi que aqui se
+ * muestra con boton de copiar hasta salir de la pantalla. Generar otro invalida
+ * el anterior (Jira dejaria de autenticar hasta pegar el nuevo).
+ */
+function SecretoDelWebhook() {
+  const { hasRole } = useAuth()
+  const { confirmar } = useConfirm()
+  const toast = useToast()
+  const [datos, setDatos] = useState<{ secret: string; header: string; url: string } | null>(null)
+  const rotar = useMutation({
+    mutationFn: () => jiraApi.rotarSecretoWebhook().then(r => r.data),
+    onSuccess: (d) => {
+      const ruta = (d.webhook_paths?.[0] || '/api/v1/jira/webhook').replace(/^\/api\/v1/, '')
+      setDatos({ secret: d.secret, header: d.header || 'X-Atlassian-Webhook-Token', url: apiUrlAbsoluta(ruta) })
+    },
+    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo generar el secreto del webhook')),
+  })
+  if (!hasRole('admin')) return null
+  const copiar = (texto: string) => {
+    void navigator.clipboard?.writeText(texto).then(() => toast.success('Copiado'), () => toast.error('No se pudo copiar'))
+  }
+  const generar = async () => {
+    const ok = await confirmar({
+      title: 'Generar secreto del webhook',
+      message: 'Se crea un secreto nuevo y el anterior deja de valer: Jira no podrá avisar hasta que pegues el nuevo en su configuración. Se muestra una sola vez.',
+      confirmLabel: 'Generar',
+      danger: true,
+    })
+    if (ok) rotar.mutate()
+  }
+  const caja: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }
+  const codigo: CSSProperties = { flex: 1, minWidth: 0, overflowX: 'auto', whiteSpace: 'nowrap', padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }
+  return (
+    <div style={{ marginTop: 12 }}>
+      <Button variant="secondary" size="sm" onClick={() => void generar()} loading={rotar.isPending}>
+        Generar secreto del webhook
+      </Button>
+      {datos && (
+        <div role="status" style={{ marginTop: 10, padding: '10px 12px', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
+          <div className="u-text2-xs">URL del webhook a configurar en Jira</div>
+          <div style={caja}><code style={codigo}>{datos.url}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.url)}>Copiar</Button></div>
+          <div className="u-text2-xs" style={{ marginTop: 8 }}>Secreto (cabecera <code>{datos.header}</code>). Solo se muestra ahora.</div>
+          <div style={caja}><code style={codigo}>{datos.secret}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.secret)}>Copiar</Button></div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function JiraIntegrationPage(): JSX.Element {
+  const idCampo = useId()
   const isNarrow = useMediaQuery('(max-width: 900px)')
   const t = useAppT()
   const qc = useQueryClient()
@@ -160,11 +209,19 @@ export default function JiraIntegrationPage(): JSX.Element {
     onError: (e) => toast.error(extractErr(e, t('jira_integration.sync_error'))),
   })
 
+  const [proyectoPush, setProyectoPush] = useState('')
   const pushToJira = useMutation({
-    mutationFn: () => jiraApi.push().then(r => r.data),
+    // Auditoria 2026-11: se enviaba sin cuerpo (422: falta project_id) y se leia
+    // `d.pushed`, que el backend no devuelve (es `created`).
+    mutationFn: () => jiraApi.push({ project_id: proyectoPush, jira_project_key: form.jira_project_key || undefined }).then(r => r.data),
     onSuccess: (d) => {
+      if (d?.status === 'queued') {
+        toast.success('Envío a Jira en curso: las tareas aparecerán vinculadas en unos minutos.')
+        setTimeout(() => qc.invalidateQueries({ queryKey: ['jira-linked'] }), 30000)
+        return
+      }
       qc.invalidateQueries({ queryKey: ['jira-linked'] })
-      toast.success(`${t('jira_integration.push_complete')} ${d.pushed} ${t('jira_integration.tasks_pushed')}`)
+      toast.success(`${t('jira_integration.push_complete')} ${d?.created ?? 0} ${t('jira_integration.tasks_pushed')}`)
     },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.push_error'))),
   })
@@ -195,7 +252,7 @@ export default function JiraIntegrationPage(): JSX.Element {
         icon={<Link2 size={18} />}
         title={t('jira_integration.title')}
         subtitle={t('jira_integration.subtitle')}
-        actions={<StatusBadge ok={connStatus ?? undefined} t={t} />}
+        actions={<EstadoDeConexion ok={connStatus ?? undefined} t={t} />}
       showListExport={false}
       />
 
@@ -212,8 +269,8 @@ export default function JiraIntegrationPage(): JSX.Element {
             ) : (
               <form onSubmit={handleSave} className="u-stack-12">
                 <div>
-                  <label style={_ls}>{t('jira_integration.url_label')}</label>
-                  <input
+                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={_ls}>{t('jira_integration.url_label')}</label>
+                  <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
                     type="url"
                     placeholder={t('jira_integration.url_placeholder')}
                     value={form.jira_url}
@@ -222,8 +279,8 @@ export default function JiraIntegrationPage(): JSX.Element {
                   />
                 </div>
                 <div>
-                  <label style={_ls}>{t('jira_integration.email_label')}</label>
-                  <input
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={_ls}>{t('jira_integration.email_label')}</label>
+                  <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
                     type="email"
                     autoComplete="email"
                     placeholder={t('jira_integration.email_placeholder')}
@@ -253,8 +310,8 @@ export default function JiraIntegrationPage(): JSX.Element {
                   </div>
                 </div>
                 <div>
-                  <label style={_ls}>{t('jira_integration.project_key_label')}</label>
-                  <input
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={_ls}>{t('jira_integration.project_key_label')}</label>
+                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
                     type="text"
                     placeholder={t('jira_integration.project_key_placeholder')}
                     value={form.jira_project_key}
@@ -290,7 +347,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
                   background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
-                  borderRadius: 10, cursor: syncPull.isPending ? 'not-allowed' : 'pointer',
+                  borderRadius: 'var(--radius-md)', cursor: syncPull.isPending ? 'not-allowed' : 'pointer',
                   opacity: syncPull.isPending ? 0.5 : 1, width: '100%', textAlign: 'left',
                 }}
               >
@@ -299,17 +356,18 @@ export default function JiraIntegrationPage(): JSX.Element {
                   : <ArrowDownToLine size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                 }
                 <div>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{t('jira_integration.import_button_title')}</div>
+                  <div className="u-text1-base-600">{t('jira_integration.import_button_title')}</div>
                   <div className="u-text3-xs">{t('jira_integration.import_button_subtitle')}</div>
                 </div>
               </button>
+              <ProjectSelect value={proyectoPush} onChange={(id) => setProyectoPush(id)} placeholder="Proyecto a enviar a Jira…" />
               <button
                 onClick={() => pushToJira.mutate()}
-                disabled={pushToJira.isPending}
+                disabled={pushToJira.isPending || !proyectoPush}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
                   background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)',
-                  borderRadius: 10, cursor: pushToJira.isPending ? 'not-allowed' : 'pointer',
+                  borderRadius: 'var(--radius-md)', cursor: pushToJira.isPending ? 'not-allowed' : 'pointer',
                   opacity: pushToJira.isPending ? 0.5 : 1, width: '100%', textAlign: 'left',
                 }}
               >
@@ -318,7 +376,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                   : <ArrowUpFromLine size={16} style={{ color: 'var(--purple)', flexShrink: 0 }} />
                 }
                 <div>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{t('jira_integration.export_button_title')}</div>
+                  <div className="u-text1-base-600">{t('jira_integration.export_button_title')}</div>
                   <div className="u-text3-xs">{t('jira_integration.export_button_subtitle')}</div>
                 </div>
               </button>
@@ -334,6 +392,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                 {t('jira_integration.webhook_note_end')}
               </p>
             </div>
+            <SecretoDelWebhook />
           </Card>
         </div>
 

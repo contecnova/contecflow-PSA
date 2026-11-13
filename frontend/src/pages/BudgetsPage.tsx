@@ -21,17 +21,19 @@ import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import useMediaQuery from '../hooks/useMediaQuery'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import FichaDePresupuesto, { colorDeEstado } from '../components/presupuestos/FichaDePresupuesto'
 import { CampanasDePresupuesto, PlantillasDePresupuesto } from '../components/presupuestos/CampanasYPlantillas'
 import { CuadroDeControl } from '../components/presupuestos/SeguirPresupuesto'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 const campo: CSSProperties = { width: '100%', boxSizing: 'border-box', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 const fila: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(220px, 2fr) 150px 70px 110px repeat(4, 120px)', gap: 10, alignItems: 'center', padding: '10px 12px', fontSize: 'var(--text-sm)' }
 const AMBITOS: AmbitoDePresupuesto[] = ['proyecto', 'proyecto_previsto', 'departamento', 'area']
 
 export default function BudgetsPage() {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const qc = useQueryClient()
   const anioActual = new Date().getFullYear()
@@ -48,7 +50,7 @@ export default function BudgetsPage() {
   // Los años que ofrece el selector salen de los datos (y el actual), no de una lista escrita.
   const anios = useMemo(() => Array.from(new Set([anioActual, ...(todos.data ?? []).map(b => b.year)])).sort(), [todos.data, anioActual])
   const moneda = lista.data?.[0]?.currency
-  const dinero = (n?: number) => (n ?? 0).toLocaleString(localeActivo(), { style: 'currency', currency: moneda || 'EUR', maximumFractionDigits: 0 })
+  const dinero = (n?: number) => fmtMoneda(n ?? 0, { moneda, decimales: 0 })
   const r = resumen.data
   return (
     <PageShell>
@@ -105,7 +107,7 @@ export default function BudgetsPage() {
       {lista.isLoading ? <Spinner /> : lista.isError ? <div role="alert" className="u-danger">{extractErr(lista.error, GENERIC_ERROR_FALLBACK)}</div>
         : (lista.data ?? []).length === 0 ? <EmptyState svgIcon={<PieChart size={26} />} title={t('pres.vacio')} description={t('pres.vacio_texto')} />
         : (
-          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
+          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
             {!estrecho && <div style={{ ...fila, color: 'var(--text-3)', fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase' }}>
               <span>{t('pres.nombre')}</span><span>{t('pres.ambito')}</span><span>{t('pres.version')}</span><span>{t('pres.estado')}</span>
               <span style={{ textAlign: 'right' }}>{t('pres.plan')}</span><span style={{ textAlign: 'right' }}>{t('pres.real')}</span>
@@ -115,7 +117,7 @@ export default function BudgetsPage() {
               <button key={b.id} type="button" onClick={() => setAbierto(b.id)} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>
                 <span style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
                   <strong style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</strong>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{dinero(b.total_plan)}</span>
+                  <span className="u-mono">{dinero(b.total_plan)}</span>
                 </span>
                 <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
                   <span>{t(`pres.ambito_${b.ambito}`)} · v{b.version}</span>
@@ -238,7 +240,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
           <div><span style={lbl}>{t('pres.responsable')}</span>
             <UserSelect value={f.responsable_id} onChange={(uid: string) => setF(v => ({ ...v, responsable_id: uid }))} placeholder={t('pres.responsable_yo')} /></div>
         </div>
-        <fieldset style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <fieldset style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <legend style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: '0 4px' }}>{t('pres.empezar_de')}</legend>
           <div role="radiogroup" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 'var(--text-sm)' }}>
             {(['vacio', 'plantilla', 'copia'] as const).map(o => (

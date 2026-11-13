@@ -42,7 +42,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/time': 'Tiempo', '/imputar': 'Log hours', '/timer': 'Timer', '/timesheets': 'Timesheets',
   '/calendar': 'Calendar', '/absences': 'Absences', '/documents': 'Documents',
   '/expenses': 'Expenses', '/approvals': 'Approvals', '/projects': 'Projects',
-  '/sprints': 'Sprints', '/sprint-planning': 'Sprint Planning AI', '/gantt': 'Gantt',
+  '/sprints': 'Sprints', '/sprint-planning': 'Sprint Planning AI', '/gantt': 'Gantt', '/epic-gantt': 'Epic Gantt',
   '/epics': 'Epics & Roadmap', '/deliverables': 'Deliverables', '/changes': 'Changes',
   '/risks': 'Risks', '/dependencies': 'Dependencies', '/git': 'Git',
   '/wiki': 'Wiki', '/meetings-ai': 'Meeting Assistant',
@@ -94,7 +94,7 @@ const ROUTE_SECTION: Record<string, string> = {
   '/approvals': 'My Work',
   '/projects': 'Projects', '/projects/:id': 'Detalle de proyecto', '/sprints': 'Projects', '/sprint-planning': 'Projects',
   '/raci': 'Projects', '/changelog': 'Projects', '/uat': 'Projects',
-  '/gantt': 'Projects', '/epics': 'Projects', '/deliverables': 'Projects',
+  '/gantt': 'Projects', '/epic-gantt': 'Projects', '/epics': 'Projects', '/deliverables': 'Projects',
   '/changes': 'Projects', '/risks': 'Projects', '/dependencies': 'Projects',
   '/git': 'Projects', '/wiki': 'Projects', '/meetings-ai': 'Projects',
   '/resources': 'Team', '/capacity': 'Team', '/resource-forecast': 'Team', '/resource-scheduler': 'Team',
@@ -288,6 +288,8 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/changelog',       icon: <ScrollText size={SZ} />,      label: 'Changelog',           roles: ['admin','pm','team_lead'] },
     { to: '/uat',            icon: <ClipboardCheck size={SZ} />,  label: 'UAT',                  roles: ['admin','pm','team_lead'] },
     { to: '/gantt',           icon: <BarChart2 size={SZ} />,      label: 'Gantt',               roles: ['admin','pm','team_lead','employee'] },
+    // Auditoria 2026-11 (#45): /epic-gantt existia sin entrada en el menu.
+    { to: '/epic-gantt',      icon: <BarChart2 size={SZ} />,      label: 'Gantt de épicas',     roles: ['admin','pm','team_lead'] },
     { to: '/epics',           icon: <Target size={SZ} />,         label: 'Epics & Roadmap',     roles: ['admin','pm','team_lead'] },
     { to: '/deliverables',    icon: <Package size={SZ} />,        label: 'Deliverables',        roles: ['admin','pm'] },
     { to: '/changes',         icon: <ArrowLeftRight size={SZ} />, label: 'Changes',             roles: ['admin','pm'] },
@@ -554,10 +556,10 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
           paddingBottom: collapsed ? 7 : 5,
           paddingLeft: collapsed ? 9 : 14,
           paddingRight: verEstrella ? 28 : (collapsed ? 9 : 8),
-          borderRadius: 6, textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
+          borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
           background: isActive ? 'var(--accent-muted)' : 'transparent',
           color: isActive ? 'var(--accent)' : 'var(--text-2)',
-          border: `1px solid ${isActive ? 'rgba(79,142,247,0.22)' : 'transparent'}`,
+          border: `1px solid ${isActive ? 'color-mix(in srgb, var(--accent) 22%, transparent)' : 'transparent'}`,
           transition: 'background 0.1s, color 0.1s', whiteSpace: 'nowrap',
           minHeight: 28,
         })}
@@ -671,7 +673,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
               return (
               <NavLink key={item.to} to={item.to || '#'} onClick={() => setHoverOpen(false)}
                 style={({ isActive }) => ({
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6,
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                   textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
                   color: isActive ? 'var(--accent)' : 'var(--text-2)',
                   background: isActive ? 'var(--accent-muted)' : 'transparent',
@@ -956,7 +958,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           style={{
             display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
             background: aiOpen ? 'var(--accent-muted)' : 'var(--surface-3)',
-            border: `1px solid ${aiOpen ? 'rgba(79,142,247,0.35)' : 'var(--surface-4)'}`,
+            border: `1px solid ${aiOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}`,
             borderRadius: 8, color: aiOpen ? 'var(--accent)' : 'var(--text-2)',
             cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit',
           }}
@@ -988,7 +990,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           style={{
             display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
             background: chatOpen ? 'var(--accent-muted)' : 'var(--surface-3)',
-            border: `1px solid ${chatOpen ? 'rgba(79,142,247,0.35)' : 'var(--surface-4)'}`,
+            border: `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}`,
             borderRadius: 8, color: chatOpen ? 'var(--accent)' : 'var(--text-2)',
             cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit',
             position: 'relative',
@@ -999,7 +1001,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           {chatBadgeVisible && (
             <span style={{
               position: 'absolute', top: -5, right: -5,
-              minWidth: 16, height: 16, borderRadius: 999,
+              minWidth: 16, height: 16, borderRadius: 'var(--radius-full)',
               background: 'var(--danger)', color: 'var(--on-accent-light)',
               fontSize: "var(--text-3xs)", fontWeight: 800,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -1027,7 +1029,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
               boxShadow: '0 0 10px var(--success)', animation: 'timerPulse 1.5s ease-in-out infinite',
             }} />
             <Timer size={12} />
-            <span style={{ fontFamily: 'var(--font-mono)' }}>{formatTimerDisplay(timerElapsed)}</span>
+            <span className="u-mono">{formatTimerDisplay(timerElapsed)}</span>
             {topbarTimerSubtitle && (
               <span style={{
                 maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -1117,7 +1119,7 @@ function NavSearch({ value, onChange, text }: { value: string; onChange: (v: str
           width: '100%', boxSizing: 'border-box',
           padding: '5px 8px 5px 24px',
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-          borderRadius: 6, color: 'var(--text-1)', fontSize: "var(--text-xs-h)",
+          borderRadius: 'var(--radius-sm)', color: 'var(--text-1)', fontSize: "var(--text-xs-h)",
           fontFamily: 'inherit', outline: 'none',
         }}
         onFocus={e => e.target.style.borderColor = 'var(--accent)'}
@@ -1167,11 +1169,11 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
             aria-label={itemLabel}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '5px 8px 5px 14px', borderRadius: 6, textDecoration: 'none',
+              padding: '5px 8px 5px 14px', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
               fontSize: "var(--text-sm-h)", fontWeight: 500,
               background: isActive ? 'var(--accent-muted)' : 'transparent',
               color: isActive ? 'var(--accent)' : 'var(--text-2)',
-              border: `1px solid ${isActive ? 'rgba(79,142,247,0.22)' : 'transparent'}`,
+              border: `1px solid ${isActive ? 'color-mix(in srgb, var(--accent) 22%, transparent)' : 'transparent'}`,
               minHeight: 28,
             })}
           >
@@ -1361,7 +1363,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           background: 'var(--warning)', color: 'var(--on-accent-dark)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
           <span>Estás dentro como {user?.full_name ?? user?.email} (soporte: {suplantadoPor}). Todo queda auditado.</span>
           <button type="button" onClick={() => { void salirDeSuplantacion() }}
-            style={{ background: 'var(--on-accent-dark)', color: 'var(--on-accent-light)', border: 'none', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ background: 'var(--on-accent-dark)', color: 'var(--on-accent-light)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '3px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
             Salir
           </button>
         </div>
@@ -1394,7 +1396,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           <div style={{
             width: 27, height: 27, flexShrink: 0, borderRadius: 7, background: 'var(--accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(79,142,247,0.35)',
+            boxShadow: '0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent)',
           }}>
             <svg viewBox="0 0 16 16" width="16" height="16" fill="none">
               <path d="M12 4C10.8 2.9 9.5 2.5 8 2.5C5 2.5 2.5 5 2.5 8C2.5 11 5 13.5 8 13.5C9.5 13.5 10.8 13.1 12 12"
@@ -1458,7 +1460,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                     onClick={() => setWorkspace(key)}
                     style={{
                       border: '1px solid var(--surface-4)',
-                      borderRadius: 999,
+                      borderRadius: 'var(--radius-full)',
                       padding: '2px 7px',
                       fontSize: "var(--text-2xs-h)",
                       cursor: 'pointer',
@@ -1526,7 +1528,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             ariaLabel={collapsed ? text.expand_sidebar : text.collapse_sidebar}
             style={{
               background: 'transparent', border: '1px solid var(--surface-4)',
-              borderRadius: 6, padding: '5px', cursor: 'pointer', color: 'var(--text-3)',
+              borderRadius: 'var(--radius-sm)', padding: '5px', cursor: 'pointer', color: 'var(--text-3)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.1s', width: '100%',
             }}
@@ -1569,7 +1571,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             aria-expanded={mobileOpen}
             aria-controls="mobile-primary-nav"
             style={{
-              position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 100,
+              position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 'var(--z-mobile-nav)',
               background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
               borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             }}

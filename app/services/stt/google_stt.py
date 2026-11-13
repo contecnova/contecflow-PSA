@@ -20,7 +20,6 @@ Encoding inferido del content-type:
 from __future__ import annotations
 
 import base64
-import os
 from typing import Optional
 
 import httpx
@@ -28,12 +27,18 @@ import httpx
 from app.core.config import settings
 from app.services.stt.base import STTError, STTProvider, STTResult
 import logging
+from app.services.settings_service import outbound_ai_timeout
 
 logger = logging.getLogger(__name__)
 
 
+def _a_bcp47(codigo):
+    from app.services.formato_regional import a_bcp47
+    return a_bcp47(codigo)
+
+
 def _google_setting(name: str, default: str = "") -> str:
-    return getattr(settings, name, None) or os.environ.get(name, default) or default
+    return getattr(settings, name, None) or default
 
 
 _ENCODING_MAP = {
@@ -68,7 +73,8 @@ class GoogleSTTProvider(STTProvider):
             except Exception:
                 logger.debug("__init__: fallo best-effort ignorado", exc_info=True)
         self._api_key = api_key or ui_key or _google_setting("GOOGLE_STT_API_KEY")
-        self._default_language = language or ui_lang or _google_setting("GOOGLE_STT_LANGUAGE", "es-ES")
+        self._default_language = language or ui_lang or (_google_setting("GOOGLE_STT_LANGUAGE")
+                                  or _a_bcp47(settings.DEFAULT_LANGUAGE))
 
     def is_available(self) -> bool:
         return bool(self._api_key)
@@ -91,7 +97,7 @@ class GoogleSTTProvider(STTProvider):
         }
 
         try:
-            with httpx.Client(timeout=60) as client:
+            with httpx.Client(timeout=outbound_ai_timeout(default=60)) as client:
                 resp = client.post(
                     "https://speech.googleapis.com/v1/speech:recognize",
                     params={"key": self._api_key},

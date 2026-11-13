@@ -4,6 +4,7 @@ import api from '../services/api'
 import { useToast } from './ToastContext'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { useAppLang } from '../i18n/AppLangContext'
+import { useDialogo } from '../components/ui/useDialogo'
 
 // Prevent Vite from hot-replacing this module individually: a partial HMR reload
 // creates a new context reference while AuthProvider still injects the old one,
@@ -236,27 +237,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     onTimeout: logout,
     warningSeconds: 60,
   })
+  // Auditoria 2026-11 (#41): el aviso de sesion era un overlay sin trampa de
+  // foco ni Esc. Esc = "continuar sesion" (lo mismo que el boton principal).
+  const avisoRef = useDialogo<HTMLDivElement>(showWarning, dismiss)
 
   return (
     <AuthContext.Provider value={{ user, setUser, loading, login, acceptSession, logout, hasRole, canOpen, sessionExpired }}>
       {children}
       {showWarning && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
+        <div role="presentation" style={{
+          position: 'fixed', inset: 0, zIndex: 'var(--z-drag)',
           background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{
+          <div ref={avisoRef} role="alertdialog" aria-modal="true" aria-labelledby="aviso-sesion-titulo" aria-describedby="aviso-sesion-texto" tabIndex={-1} style={{
             background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
             borderRadius: 16, padding: '32px 36px', maxWidth: 400, width: '90%',
             boxShadow: '0 8px 40px rgba(0,0,0,0.4)', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>⏱️</div>
-            <h3 style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+            <div aria-hidden="true" style={{ fontSize: 40, marginBottom: 12 }}>⏱️</div>
+            <h3 id="aviso-sesion-titulo" style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
               {t('authcontext.sesion_a_punto_de_expirar')}
             </h3>
-            <p style={{ color: 'var(--text-2)', margin: '0 0 24px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+            <p id="aviso-sesion-texto" style={{ color: 'var(--text-2)', margin: '0 0 24px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
               {t('authcontext.tu_sesion_se_cerrara_por_inactividad_en')}{' '}
-              <strong style={{ color: secondsLeft <= 15 ? '#ff4757' : 'var(--accent)' }}>
+              <strong style={{ color: secondsLeft <= 15 ? 'var(--danger)' : 'var(--accent)' }}>
                 {secondsLeft}s
               </strong>.
             </p>

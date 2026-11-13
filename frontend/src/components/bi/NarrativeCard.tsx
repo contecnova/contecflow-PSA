@@ -40,7 +40,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
     <div style={{
       background: 'var(--surface-2)',
       border: '1px solid var(--surface-4)',
-      borderRadius: 14,
+      borderRadius: 'var(--radius-lg)',
       overflow: 'hidden',
       ...style,
     }}>
@@ -81,13 +81,13 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
           </div>
         </div>
         <div className="u-row-center-8">
-          <button
+          <button aria-label="Regenerar narrativa"
             onClick={e => { e.stopPropagation(); handleRefresh() }}
             disabled={isFetching}
             title="Regenerar narrativa"
             style={{
               background: 'transparent', border: 'none', cursor: isFetching ? 'not-allowed' : 'pointer',
-              color: 'var(--text-3)', padding: 4, borderRadius: 6,
+              color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius-sm)',
               display: 'flex', alignItems: 'center',
             }}
           >
@@ -104,7 +104,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
             <div className="u-stack-10">
               {[80, 100, 65, 90, 55].map((w, i) => (
                 <div key={i} style={{
-                  height: 12, width: `${w}%`, borderRadius: 6,
+                  height: 12, width: `${w}%`, borderRadius: 'var(--radius-sm)',
                   background: 'var(--surface-4)',
                   animation: 'pulse 1.5s ease-in-out infinite',
                 }} />

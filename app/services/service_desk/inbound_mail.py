@@ -16,6 +16,20 @@ Microsoft 365, ver `buzones.py`) o de una pasarela por webhook:
    SLA, reglas de enrutado y asignacion automatica.
 4. El remitente se reconoce como contacto del portal o como usuario interno.
 5. Los adjuntos se guardan como documentos del ticket.
+
+Auditoria 2026-11 (#32). El remitente es solo la cabecera `From`, que
+cualquiera escribe. Antes: con la direccion de soporte sin organizacion, el
+`[INC-0042]` del asunto se buscaba en TODAS las organizaciones, y un `From`
+con el correo de un agente comentaba como ese agente y cambiaba el estado del
+ticket. Ahora:
+
+- sin organizacion resuelta no se busca ningun ticket ni se reconoce a nadie
+  (se crea uno nuevo, de un externo);
+- el contacto se reconoce solo dentro de la organizacion;
+- si el servidor que recibio el correo dejo `Authentication-Results` (la
+  primera, la de mas arriba) y SPF/DKIM/DMARC no pasan para el dominio del
+  `From`, el correo se trata como de un externo: comenta sin actuar como el
+  agente o el contacto y sin cambiar el estado.
 """
 from __future__ import annotations
 
@@ -84,6 +98,9 @@ class CorreoEntrante:
     para: list[str] = field(default_factory=list)
     cabeceras: dict = field(default_factory=dict)
     adjuntos: list[Adjunto] = field(default_factory=list)
+    #: La `Authentication-Results` de mas arriba: la que anadio NUESTRO servidor
+    #: al recibirlo. Las de debajo pueden venir escritas por el remitente.
+    autenticacion: Optional[str] = None
 
 
 @dataclass
@@ -124,6 +141,7 @@ def desde_mime(crudo: bytes) -> CorreoEntrante:
         para=[p.lower() for p in para if p],
         cabeceras={k.lower(): str(v) for k, v in msg.items()},
         adjuntos=adjuntos,
+        autenticacion=(str((msg.get_all("Authentication-Results") or [""])[0]) or None),
     )
 
 
@@ -139,7 +157,9 @@ def desde_webhook(payload: dict) -> CorreoEntrante:
         for variante in (clave, clave.title()):
             if variante in payload:
                 cabeceras[clave] = str(payload[variante])
+    autenticacion = payload.get("authentication-results") or payload.get("Authentication-Results")
     return CorreoEntrante(
+        autenticacion=str(autenticacion) if autenticacion else None,
         remitente=remitente.strip().lower(), nombre=nombre.strip(),
         asunto=str(payload.get("subject") or payload.get("Subject") or "").strip(),
         texto=str(texto), message_id=str(payload.get("Message-Id") or payload.get("message-id")
@@ -174,6 +194,52 @@ def quitar_cita(texto: str) -> str:
     return "\n".join(lineas).strip()
 
 
+# ── Autenticidad del remitente ───────────────────────────────────────────────
+
+_RESULTADO = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*([a-z]+)([^;]*)", re.IGNORECASE)
+
+
+def _dominio(direccion: str) -> str:
+    return (direccion or "").rsplit("@", 1)[-1].strip().lower()
+
+
+def _alineado(dominio_from: str, dominio: str) -> bool:
+    dominio = (dominio or "").strip().lower().lstrip("@")
+    return bool(dominio) and (dominio == dominio_from or dominio_from.endswith("." + dominio)
+                              or dominio.endswith("." + dominio_from))
+
+
+def autenticacion_del_remitente(correo: CorreoEntrante) -> Optional[bool]:
+    """True si SPF/DKIM/DMARC pasan para el dominio del `From`; False si no; None sin datos.
+
+    Lee solo la `Authentication-Results` de arriba (la del servidor que lo
+    recibio). DMARC `pass` basta; si no hay DMARC, vale un DKIM `pass` con
+    `header.d` del dominio del `From` o un SPF `pass` con `smtp.mailfrom` de ese
+    dominio. Un resultado explicito sin ninguno de esos es False.
+    """
+    crudo = (correo.autenticacion or "").strip()
+    if not crudo:
+        return None
+    dominio_from = _dominio(correo.remitente)
+    hubo_resultado = False
+    for mecanismo, resultado, resto in _RESULTADO.findall(crudo):
+        hubo_resultado = True
+        mecanismo, resultado = mecanismo.lower(), resultado.lower()
+        if resultado != "pass":
+            continue
+        if mecanismo == "dmarc":
+            return True
+        if mecanismo == "dkim":
+            m = re.search(r"header\.(?:d|i)\s*=\s*@?([^\s;]+)", resto, re.IGNORECASE)
+            if m and _alineado(dominio_from, _dominio(m.group(1)) if "@" in m.group(1) else m.group(1)):
+                return True
+        if mecanismo == "spf":
+            m = re.search(r"smtp\.(?:mailfrom|helo)\s*=\s*([^\s;]+)", resto, re.IGNORECASE)
+            if m and _alineado(dominio_from, _dominio(m.group(1)) if "@" in m.group(1) else m.group(1)):
+                return True
+    return False if hubo_resultado else None
+
+
 # ── Organizacion, contacto y ticket ──────────────────────────────────────────
 
 def organizacion_por_direccion(db: Session, direcciones: list[str]) -> Optional[str]:
@@ -200,26 +266,40 @@ class Contacto:
     cliente: Optional[ClientUser] = None
 
 
-def contacto_de(db: Session, correo: CorreoEntrante) -> Contacto:
-    """Quien escribe: contacto del portal, usuario interno o un externo sin cuenta."""
-    from sqlalchemy import func
-
-    cliente = db.query(ClientUser).filter(func.lower(ClientUser.email) == correo.remitente,
-                                          ClientUser.is_active == True).first()  # noqa: E712
-    if cliente is not None:
-        return Contacto(correo.remitente, cliente.full_name, cliente=cliente)
-    usuario = db.query(User).filter(func.lower(User.email) == correo.remitente,
-                                    User.is_active == True).first()  # noqa: E712
-    if usuario is not None:
-        return Contacto(correo.remitente, usuario.full_name, usuario=usuario)
+def _externo(correo: CorreoEntrante) -> Contacto:
     return Contacto(correo.remitente, correo.nombre or correo.remitente)
 
 
-def ticket_citado(db: Session, asunto: str) -> Optional[Ticket]:
+def contacto_de(db: Session, correo: CorreoEntrante, org_id: Optional[str] = None) -> Contacto:
+    """Quien escribe: contacto del portal, usuario interno o un externo sin cuenta.
+
+    Solo se reconoce a alguien de `org_id`; sin organizacion, siempre externo.
+    """
+    from sqlalchemy import func
+
+    if not org_id:
+        return _externo(correo)
+    cliente = db.query(ClientUser).filter(func.lower(ClientUser.email) == correo.remitente,
+                                          ClientUser.organization_id == org_id,
+                                          ClientUser.is_active == True).first()  # noqa: E712
+    if cliente is not None:
+        return Contacto(correo.remitente, cliente.full_name, cliente=cliente)
+    from app.db.session import _miembros_de
+    usuario = db.query(User).filter(func.lower(User.email) == correo.remitente,
+                                    _miembros_de(User, org_id),
+                                    User.is_active == True).first()  # noqa: E712
+    if usuario is not None:
+        return Contacto(correo.remitente, usuario.full_name, usuario=usuario)
+    return _externo(correo)
+
+
+def ticket_citado(db: Session, asunto: str, org_id: Optional[str] = None) -> Optional[Ticket]:
+    """El ticket del `[INC-0042]` del asunto, en `org_id`. Sin organizacion, ninguno."""
     m = _MARCA.search(asunto or "")
-    if not m:
+    if not m or not org_id:
         return None
-    return db.query(Ticket).filter(Ticket.number == f"{m.group(1)}-{m.group(2).zfill(4)}").first()
+    return db.query(Ticket).filter(Ticket.number == f"{m.group(1)}-{m.group(2).zfill(4)}",
+                                   Ticket.organization_id == org_id).first()
 
 
 def clave_del_mensaje(correo: CorreoEntrante) -> str:
@@ -244,7 +324,7 @@ def _es_del_ticket(ticket: Ticket, contacto: Contacto) -> bool:
     return bool(ticket.requester_email) and ticket.requester_email.lower() == contacto.email
 
 
-def _comentar(db: Session, ticket: Ticket, contacto: Contacto, texto: str) -> None:
+def _comentar(db: Session, ticket: Ticket, contacto: Contacto, texto: str, cambia_estado: bool = True) -> None:
     from app.schemas.service_desk import TicketUpdateIn
     from app.services.service_desk.ticket_update_service import apply_ticket_update
 
@@ -254,6 +334,8 @@ def _comentar(db: Session, ticket: Ticket, contacto: Contacto, texto: str) -> No
         author_client_id=contacto.cliente.id if contacto.cliente else None,
         author_name=None if (contacto.usuario or contacto.cliente) else contacto.nombre,
     ))
+    if not cambia_estado:
+        return
     estado = getattr(ticket.status, "value", ticket.status)
     nuevo = None
     if estado in ("pending_client", "pending_third"):
@@ -330,16 +412,21 @@ def procesar(db: Session, org_id: Optional[str], correo: CorreoEntrante) -> Resu
         if motivo:
             resultado = Resultado("ignored", motivo=motivo)
         else:
-            contacto = contacto_de(db, correo)
+            contacto = contacto_de(db, correo, org_id)
+            # Un `From` que no supera la autenticacion de nuestro servidor no
+            # actua como nadie: es un externo y no cambia el estado.
+            fiable = autenticacion_del_remitente(correo) is not False
+            if not fiable:
+                contacto = _externo(correo)
             texto = quitar_cita(correo.texto)
-            citado = ticket_citado(db, correo.asunto)
+            citado = ticket_citado(db, correo.asunto, org_id)
             if citado is not None and _es_del_ticket(citado, contacto):
                 estado = getattr(citado.status, "value", citado.status)
                 if estado in (TicketStatus.closed.value, TicketStatus.cancelled.value):
                     ticket = _crear_ticket(db, org_id, correo, contacto, texto, sigue_a=citado)
                     resultado = Resultado("created", ticket.id, ticket.number)
                 else:
-                    _comentar(db, citado, contacto, texto or "(sin texto)")
+                    _comentar(db, citado, contacto, texto or "(sin texto)", cambia_estado=fiable)
                     ticket = citado
                     resultado = Resultado("commented", ticket.id, ticket.number)
             else:

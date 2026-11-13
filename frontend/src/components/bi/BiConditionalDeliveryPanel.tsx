@@ -35,10 +35,10 @@ interface EvaluateResult {
 }
 
 const S: Record<string, React.CSSProperties> = {
-  card:  { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
+  card:  { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
   input: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   btn:   { padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-  row:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  row:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
 }
 
 export default function BiConditionalDeliveryPanel() {
@@ -85,26 +85,26 @@ export default function BiConditionalDeliveryPanel() {
 
       {/* Create rule form */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginBottom: 20 }}>
-        <input
+        <input aria-label={t('bi.delivery.rule_name', 'Nombre de regla')}
           placeholder={t('bi.delivery.rule_name', 'Nombre de regla')}
           value={form.name}
           onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
           style={S.input}
         />
-        <input
+        <input aria-label={t('bi.delivery.report_id', 'ID de reporte')}
           placeholder={t('bi.delivery.report_id', 'ID de reporte')}
           value={form.report_id}
           onChange={e => setForm(f => ({ ...f, report_id: e.target.value }))}
           style={S.input}
         />
-        <input
+        <input aria-label="Threshold %"
           type="number" min={0} max={100}
           value={form.diff_threshold_pct}
           onChange={e => setForm(f => ({ ...f, diff_threshold_pct: Number(e.target.value) }))}
           placeholder="Threshold %"
           style={S.input}
         />
-        <input
+        <input aria-label="recipient@email.com"
           placeholder="recipient@email.com"
           value={form.recipients}
           onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
@@ -133,8 +133,8 @@ export default function BiConditionalDeliveryPanel() {
           {(data?.items ?? []).map(rule => (
             <div key={rule.id} style={S.row}>
               <div className="u-flex1-min0">
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{rule.name}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>
+                <div className="u-text1-base-600">{rule.name}</div>
+                <div className="u-text3-xs-mt2">
                   {rule.report_id} · {rule.condition_type}
                   {rule.diff_threshold_pct != null && ` (≥${rule.diff_threshold_pct}%)`}
                 </div>
@@ -142,14 +142,14 @@ export default function BiConditionalDeliveryPanel() {
               <div className="u-row-center-10">
                 {evaluateResult[rule.id] && (
                   <span style={{
-                    fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+                    fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 'var(--radius-md)', fontWeight: 600,
                     background: evaluateResult[rule.id].should_deliver ? 'var(--success-bg)' : 'var(--surface-4)',
                     color: evaluateResult[rule.id].should_deliver ? 'var(--success)' : 'var(--text-3)',
                   }}>
                     {evaluateResult[rule.id].should_deliver ? '→ Enviar' : '— Sin cambio'}
                   </span>
                 )}
-                <button
+                <button aria-label="Evaluar ahora"
                   onClick={() => evaluateMutation.mutate(rule.id)}
                   title="Evaluar ahora"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 4, display: 'flex' }}

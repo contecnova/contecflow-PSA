@@ -224,7 +224,7 @@ def borrar_suscripcion_push(db: Session, user, endpoint: str) -> int:
 
 # ── OAuth de integraciones ──────────────────────────────────────────────────
 
-def url_de_oauth(db: Session, user, integration_id: str) -> str:
+def url_de_oauth(db: Session, user, integration_id: str, vinculo: Optional[str] = None) -> str:
     """La URL de autorización del proveedor de esa integración.
 
     Las tres condiciones dan errores distintos a propósito: la integración no
@@ -245,14 +245,14 @@ def url_de_oauth(db: Session, user, integration_id: str) -> str:
         raise ErrorDeDominio(404, "Integración no encontrada")
     if fila.kind not in PROVIDERS:
         raise ErrorDeDominio(400, "Proveedor sin OAuth")
-    url = auth_url_for(fila.kind, fila.id)
+    url = auth_url_for(fila.kind, fila.id, user_id=user.id, org_id=fila.organization_id, vinculo=vinculo)
     if not url:
         raise ErrorDeDominio(503, f"Faltan credenciales OAuth para {fila.kind}")
     return url
 
 
 def guardar_tokens_de_oauth(
-    db: Session, integration_id: str, token_data: dict,
+    db: Session, integration_id: str, token_data: dict, org_id: Optional[str] = None,
 ) -> Optional[str]:
     """Cifra y guarda los tokens del callback. Devuelve la clase, o `None`.
 
@@ -264,9 +264,14 @@ def guardar_tokens_de_oauth(
     escritura es el `state` firmado que `handle_callback` ya validó antes de
     entregar el `integration_id`.
     """
+    # Auditoria 2026-11 (#26): ademas, la integracion tiene que ser de la
+    # organizacion que firmo el `state`.
+    if not org_id:
+        return None
     fila = (
         db.query(CollaborationIntegration)
-        .filter(CollaborationIntegration.id == integration_id)
+        .filter(CollaborationIntegration.id == integration_id,
+                CollaborationIntegration.organization_id == org_id)
         .first()
     )
     if not fila:

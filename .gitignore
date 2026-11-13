@@ -83,3 +83,6 @@ frontend/reports/
 
 # Ficheros que genera la aplicación (PDFs…), no van al repositorio
 /storage/
+
+# Volcados de tsc versionados por error (auditoria 2026-11, #45)
+frontend/ts_errors*.txt

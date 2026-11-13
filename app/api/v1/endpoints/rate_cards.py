@@ -26,6 +26,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.rate_card_service as _svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter(tags=["rate-cards"])
 
@@ -67,7 +68,7 @@ _table_out = _svc.serialize_rate_table
 @router.get("", response_model=APIListResponse[dict], summary="Listar tablas de tarifas")
 def list_rate_tables(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

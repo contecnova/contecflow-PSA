@@ -15,7 +15,6 @@ Llamado por scheduler externo o manualmente vía endpoint admin
 from __future__ import annotations
 
 import logging
-import os
 from datetime import timedelta
 from app.core.timeutil import utcnow
 from typing import Optional
@@ -23,6 +22,8 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.services.settings_service import outbound_http_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def _send(to_email: str, subject: str, html: str) -> bool:
     if not settings.SMTP_HOST or not to_email:
         return False
     from app.services.notification_service import ServidorSmtp, enviar_correo
-    servidor = ServidorSmtp.del_entorno(timeout=30.0)
+    servidor = ServidorSmtp.del_entorno(timeout=outbound_http_timeout(default=30.0))
     return enviar_correo(
         to_email, subject, html, servidor=servidor,
         remitente=settings.SMTP_FROM or settings.NOTIFICATION_EMAIL_FROM,
@@ -42,14 +43,14 @@ def _send(to_email: str, subject: str, html: str) -> bool:
 def _render(notifs, user_name: str) -> str:
     lines = []
     lines.append(f"<p>Hola {user_name or ''},</p>")
-    lines.append(f"<p>Tienes <b>{len(notifs)}</b> notificación(es) sin leer en Contecflow Chat:</p>")
+    lines.append(f"<p>Tienes <b>{len(notifs)}</b> notificación(es) sin leer en {NOMBRE_DEL_PRODUCTO} Chat:</p>")
     lines.append("<ul>")
     for n in notifs[:50]:
         title = (n.title or "Notificación").replace("<", "&lt;")
         body = (n.body or "")[:160].replace("<", "&lt;")
         lines.append(f"<li><b>{title}</b><br><span style='color:#666'>{body}</span></li>")
     lines.append("</ul>")
-    base_url = os.environ.get("APP_PUBLIC_URL", "http://localhost:3000")
+    base_url = settings.APP_PUBLIC_URL
     lines.append(f"<p><a href='{base_url}/chat'>Abrir el chat</a></p>")
     lines.append("<p style='color:#999;font-size:12px'>Configura tu frecuencia de digest en /chat → admin → reglas.</p>")
     return "\n".join(lines)
@@ -107,7 +108,7 @@ def run(db: Session, *, dry_run: bool = False, frequency: Optional[str] = None) 
         if not u or not u.email:
             continue
         html = _render(notifs, u.full_name or u.username or "")
-        subject = f"Contecflow Chat — {len(notifs)} novedades ({freq})"
+        subject = f"{NOMBRE_DEL_PRODUCTO} Chat — {len(notifs)} novedades ({freq})"
         candidates[u.email] = html
         if dry_run:
             sent += 1

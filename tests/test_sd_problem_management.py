@@ -75,31 +75,6 @@ def test_problem_management_service_link_incidents_idempotent(db):
     assert out2["already_linked"] == 1
 
 
-def test_problem_management_service_create_known_error_and_list(db):
-    admin = _admin(db)
-    problem = _mk_problem(db)
-
-    ke = svc.create_known_error(
-        db,
-        problem_id=problem.id,
-        current_user=admin,
-        title="Known auth issue",
-        workaround="Restart auth service",
-        description="Affects login",
-        root_cause="Token cache invalidation",
-        expires_days=30,
-    )
-    db.commit()
-
-    assert ke.problem_id == problem.id
-    assert ke.title == "Known auth issue"
-    assert ke.is_active is True
-
-    rows = svc.get_known_errors_for_problem(db, problem_id=problem.id)
-    assert len(rows) == 1
-    assert rows[0].id == ke.id
-
-
 def test_sd_problems_create_list_link_and_create_change_endpoints(client, admin_token, db):
     create_res = client.post(
         "/api/v1/sd/problems",

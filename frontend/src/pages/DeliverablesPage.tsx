@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -89,10 +89,10 @@ function StatusDropdown({ del, onUpdate }: { del: DeliverableItem; onUpdate: (st
       {open && (
         <>
           <div role="presentation" onMouseDown={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
-          <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 20, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
+          <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 20, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
             {Object.entries(STATUS_CFG).map(([s, c]) => (
               <button key={s} onClick={() => { onUpdate(s); setOpen(false) }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', background: del.status === s ? 'var(--accent-muted)' : 'transparent', border: 'none', borderRadius: 6, padding: '8px 12px', color: del.status === s ? 'var(--accent)' : 'var(--text-1)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ display: 'block', width: '100%', textAlign: 'left', background: del.status === s ? 'var(--accent-muted)' : 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 12px', color: del.status === s ? 'var(--accent)' : 'var(--text-1)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {c.icon} {c.label}
               </button>
             ))}
@@ -104,6 +104,7 @@ function StatusDropdown({ del, onUpdate }: { del: DeliverableItem; onUpdate: (st
 }
 
 function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableItem | null; projectId: string; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -132,7 +133,7 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
 
   return (
     <Modal open title={isEdit ? `Editar entregable` : 'Nuevo Entregable'} onClose={onClose} width={560}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="u-grid2-14">
         <div className="u-col-full">
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={fs} placeholder={t('deliverables.nombre_del_entregable')} aria-label={t('deliverables.nombre_del_entregable')} />
@@ -142,12 +143,12 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
           <input value={form.format} onChange={set('format')} style={fs} placeholder={t('deliverables.formato_de_entrega')} aria-label={t('deliverables.formato_de_entrega')} />
         </div>
         <div>
-          <label style={ls}>Fecha planificada</label>
-          <DateInput value={form.planned_date} onChange={set('planned_date')} style={fs} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Fecha planificada</label>
+          <DateInput id={`${idCampo}-1`} value={form.planned_date} onChange={set('planned_date')} style={fs} />
         </div>
         <div>
-          <label style={ls}>Responsable</label>
-          <select value={form.owner_id} onChange={set('owner_id')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Responsable</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.owner_id} onChange={set('owner_id')} style={fs}>
             <option value="">{t('deliverables.sin_asignar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
@@ -157,8 +158,8 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
           <input value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder={t('deliverables.contacto_del_cliente')} aria-label={t('deliverables.contacto_del_cliente')} />
         </div>
         <div className="u-col-full">
-          <label style={ls}>{t('deliverables.descripcion')}</label>
-          <textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('deliverables.descripcion')}</label>
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
         </div>
         <div className="u-col-full">
           <label style={ls}>{t('deliverables.criterios_de_aceptacion')}</label>
@@ -203,7 +204,7 @@ export default function DeliverablesPage(): JSX.Element {
   const overview = overviewRaw as DeliverableItem[]
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }: { id: string | number; status: string }) => deliverablesApi.updateStatus(selectedProject, id, status),
+    mutationFn: ({ id, status }: { id: string | number; status: string }) => deliverablesApi.updateInProject(selectedProject, id, { status }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', selectedProject] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); qc.invalidateQueries({ queryKey: ['deliverables-uat'] }); },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -225,8 +226,7 @@ export default function DeliverablesPage(): JSX.Element {
 
   const deliverables = delivData?.deliverables || []
   const summary: NonNullable<DeliverablesData['summary']> = delivData?.summary || {}
-  const { sort: ovSort, setSort: setOvSort, sortedData: sortedOverviewRaw } = useSort(overview as unknown as Record<string, unknown>[], 'name')
-  const sortedOverview = sortedOverviewRaw as unknown as DeliverableItem[]
+  const { sort: ovSort, setSort: setOvSort, sortedData: sortedOverview } = useSort(overview, 'name')
 
   return (
     <PageShell>
@@ -262,7 +262,7 @@ export default function DeliverablesPage(): JSX.Element {
                 { label: 'En retraso', value: summary.overdue, color: 'var(--danger)' },
                 { label: 'Completado', value: `${summary.completion_pct}%`, color: 'var(--accent)' },
               ].map(({ label, value, color }) => (
-                <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', flex: 1 }}>
+                <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', flex: 1 }}>
                   <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
                 </div>
@@ -283,7 +283,7 @@ export default function DeliverablesPage(): JSX.Element {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                       <div className="u-flex1">
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{d.code}</span>
+                          <span className="u-text2-mono-xs">{d.code}</span>
                           <span className="u-md-700">{d.name}</span>
                           {d.format && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 20, padding: '1px 8px' }}>{d.format}</span>}
                           {d.overdue && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>⚠ En retraso</span>}
@@ -292,11 +292,11 @@ export default function DeliverablesPage(): JSX.Element {
                         <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)" }}>
                           {d.planned_date && <span style={{ color: d.overdue ? 'var(--danger)' : 'var(--text-2)' }}>📅 Planif: {fmtDate(d.planned_date)}</span>}
                           {d.delivered_date && <span style={{ color: 'var(--purple)' }}>📤 Entregado: {fmtDate(d.delivered_date)}</span>}
-                          {d.accepted_date && <span style={{ color: 'var(--success)' }}>✅ Aceptado: {fmtDate(d.accepted_date)}</span>}
+                          {d.accepted_date && <span className="u-success">✅ Aceptado: {fmtDate(d.accepted_date)}</span>}
                           {d.owner_name && <span className="u-text2">👤 {d.owner_name}</span>}
                           {d.client_contact && <span className="u-text2">🏢 {d.client_contact}</span>}
                         </div>
-                        {d.rejection_reason && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 6, padding: '4px 10px' }}>💬 {d.rejection_reason}</div>}
+                        {d.rejection_reason && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)', padding: '4px 10px' }}>💬 {d.rejection_reason}</div>}
                         {d.acceptance_criteria && <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>✓ {d.acceptance_criteria}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
@@ -308,8 +308,8 @@ export default function DeliverablesPage(): JSX.Element {
                               <Button size="sm" variant="danger" onClick={async () => { const r = await pedirTexto({ title: 'Rechazar entregable', message: 'Indica el motivo del rechazo.', label: 'Motivo del rechazo', required: true, multiline: true, danger: true, confirmLabel: 'Rechazar' }); if (r) reject({ id: d.id, reason: r }) }}>✕ Rechazar</Button>
                             </>
                           )}
-                          {hasRole('admin', 'pm') && <button onClick={() => setEditing(d)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>}
-                          {hasRole('admin', 'pm') && <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este entregable?', onConfirm: () => del(d.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>}
+                          {hasRole('admin', 'pm') && <button onClick={() => setEditing(d)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>}
+                          {hasRole('admin', 'pm') && <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este entregable?', onConfirm: () => del(d.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>}
                         </div>
                       </div>
                     </div>
@@ -325,7 +325,7 @@ export default function DeliverablesPage(): JSX.Element {
         overview.length === 0 ? (
           <EmptyState icon="📦" title={t('deliverables.sin_entregables_en_la_vista_global')} description="No hay entregables registrados en ningun proyecto" />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div className="ds-card ds-card--plano">
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
               <SortableTH col="name" sort={ovSort} onSort={setOvSort}>Entregable</SortableTH>
               <SortableTH col="project_code" sort={ovSort} onSort={setOvSort}>Proyecto</SortableTH>

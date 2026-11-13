@@ -11,6 +11,7 @@ import { useIdleTimeout } from '../../hooks/useIdleTimeout'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { API_BASE_URL } from '../../services/api/urls'
 import StatusBadge from '../../components/ui/StatusBadge'
+import { useDialogo } from '../../components/ui/useDialogo'
 
 type ApiListBody = {
   items: unknown[]
@@ -244,27 +245,29 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
     onTimeout: logout,
     warningSeconds: 60,
   })
+  // Auditoria 2026-11 (#41): trampa de foco y Esc (= continuar sesion).
+  const avisoRef = useDialogo<HTMLDivElement>(showWarning, dismiss)
 
   return (
     <ClientAuthContext.Provider value={{ client, login, logout, isReady }}>
       {children}
       {showWarning && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
+        <div role="presentation" style={{
+          position: 'fixed', inset: 0, zIndex: 'var(--z-drag)',
           background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{
+          <div ref={avisoRef} role="alertdialog" aria-modal="true" aria-labelledby="aviso-portal-titulo" aria-describedby="aviso-portal-texto" tabIndex={-1} style={{
             background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
             borderRadius: 16, padding: '28px 30px', maxWidth: 420, width: '90%',
             boxShadow: '0 8px 40px rgba(0,0,0,0.4)', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>⏱️</div>
-            <h3 style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+            <div aria-hidden="true" style={{ fontSize: 36, marginBottom: 10 }}>⏱️</div>
+            <h3 id="aviso-portal-titulo" style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
               {traducir('portalclientcontext.sesion_a_punto_de_expirar')}
             </h3>
-            <p style={{ color: 'var(--text-2)', margin: '0 0 22px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+            <p id="aviso-portal-texto" style={{ color: 'var(--text-2)', margin: '0 0 22px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
               {traducir('portalclientcontext.tu_sesion_del_portal_se_cerrara_por')}{' '}
-              <strong style={{ color: secondsLeft <= 15 ? '#ff4757' : 'var(--accent)' }}>
+              <strong style={{ color: secondsLeft <= 15 ? 'var(--danger)' : 'var(--accent)' }}>
                 {secondsLeft}s
               </strong>.
             </p>
@@ -300,7 +303,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
 // ── Shared styles ─────────────────────────────────────────────────────────────
 export const S = {
   page: { minHeight: '100vh', background: 'var(--surface-0)', color: 'var(--text-1)', fontFamily: "'Inter', system-ui, sans-serif" },
-  card: { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: 'var(--space-4) var(--space-5)' },
+  card: { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4) var(--space-5)' },
   btn: { background: 'var(--accent)', border: 'none', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--portal-bg)', fontSize: "var(--text-md)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
   btnSec: { background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' },
   input: { background: 'var(--surface-4)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
@@ -414,10 +417,10 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
             ].map((it, i) => (
               <div key={i} style={{
                 background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-                borderRadius: 10, padding: '12px 14px',
+                borderRadius: 'var(--radius-md)', padding: '12px 14px',
               }}>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{it.t}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{it.s}</div>
+                <div className="u-sm-700">{it.t}</div>
+                <div className="u-text3-xs-mt2">{it.s}</div>
               </div>
             ))}
           </div>

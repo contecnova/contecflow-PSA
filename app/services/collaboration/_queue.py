@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import traceback
 from typing import Any, Awaitable, Callable
 from app.core.background import spawn
@@ -31,7 +30,8 @@ class TaskQueue:
         except RuntimeError:
             return  # No loop yet — workers will start lazily on first publish from async context
         self._workers_started = True
-        n = int(os.environ.get("COLLAB_QUEUE_WORKERS", "4"))
+        from app.core.config import settings
+        n = int(settings.COLLAB_QUEUE_WORKERS)
         for _ in range(n):
             # Los workers son de larga vida: perder su referencia era perder
             # capacidad de proceso en silencio (auditoría 2026-08, P2-15).

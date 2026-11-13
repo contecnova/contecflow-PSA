@@ -14,7 +14,7 @@ def seed_v14(db):
 
     # ── Email templates (seed only if empty)
     if db.query(EmailTemplate).count() == 0:
-        email_templates_path = os.getenv("SEED_EMAIL_TEMPLATES_PATH", "seed_email_templates.json")
+        email_templates_path = settings.SEED_EMAIL_TEMPLATES_PATH
         if os.path.exists(email_templates_path):
             with open(email_templates_path, "r") as f:
                 templates_data = json.load(f)

@@ -5,6 +5,8 @@ import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('../services/api', () => ({
+  // useFormatoMoneda lee la moneda de la empresa (/settings/org-defaults).
+  default: { get: () => Promise.resolve({ data: { currency: 'EUR' } }) },
   analyticsApi: { olapKpis: () => Promise.resolve({ data: {
     hours_mtd: 312.5, cost_mtd: 18450, billability_pct: 72.4, active_projects: 7, avg_margin_pct: 31.2,
     high_risk_projects: 2, open_opps: 5, pipeline_weighted: 96000, won_revenue: 240000, source: 'postgres',
@@ -28,6 +30,8 @@ import BIPage from '../pages/BIPage'
 
 describe('BIPage', () => {
   it('enseña los KPI que devuelve el servidor', async () => {
+    // Los importes salen en el idioma activo (localeActivo) con la moneda de la empresa.
+    localStorage.setItem('contecflow_operator_lang', 'en')
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <BIPage />

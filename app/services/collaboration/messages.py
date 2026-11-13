@@ -37,6 +37,7 @@ from app.services.collaboration._storage import scan_dlp
 import logging
 from app.core.background import spawn
 from app.core.errores import ErrorDeDominio
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 logger = logging.getLogger(__name__)
 
@@ -492,7 +493,7 @@ def send_message(
             _publish_async(user_channel(n.user_id), {"type": "notification.new", "payload": {"id": n.id}})
             try:
                 delivered = push_svc.push_to_user(db, n.user_id, {
-                    "title": n.title or "Contecflow Chat",
+                    "title": n.title or f"{NOMBRE_DEL_PRODUCTO} Chat",
                     "body": (n.body or "")[:200],
                     "url": f"/chat?conversation={n.conversation_id or ''}",
                     "tag": n.conversation_id or "",

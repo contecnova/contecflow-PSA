@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.core.outbound_url import abrir, validate_outbound_url
 from app.models.mfa import (
     SlackConfig, SlackNotificationLog,
 )
@@ -28,51 +27,33 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
     """
     Send a message to Slack or Teams.
     Returns (success: bool, error: str|None)
+
+    Auditoria 2026-11 (#35): las dos vias (API con bot token y webhook) salen
+    por `entrega_saliente.enviar_a_webhook` (URL validada, `cliente_httpx`).
     """
-    import urllib.request
-    import urllib.error
+    from app.services.entrega_saliente import enviar_a_webhook
 
     ch = channel or config.default_channel or "#general"
 
     if config.platform == "slack" and config.bot_token:
-        try:
-            data = json.dumps({
-                "channel": ch,
-                "text": text,
-                "username": "Contecflow",
-                "icon_emoji": ":rocket:",
-            }).encode("utf-8")
-            req = urllib.request.Request(  # noqa: S310
-                validate_outbound_url(f"{settings.SLACK_API_BASE}/chat.postMessage", field="SLACK_API_BASE"),
-                data=data,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {config.bot_token}",
-                }
-            )
-            with abrir(req, timeout=5) as resp:  # noqa: S310
-                result = json.loads(resp.read())
-                if result.get("ok"):
-                    return True, None
-                return False, result.get("error", "Slack API error")
-        except Exception:
-            _logger.warning("Fallo enviando mensaje vía Slack bot token", exc_info=True)
+        r = enviar_a_webhook(
+            f"{settings.SLACK_API_BASE}/chat.postMessage",
+            {"channel": ch, "text": text, "username": "Contecflow", "icon_emoji": ":rocket:"},
+            headers={"Authorization": f"Bearer {config.bot_token}"},
+            timeout=5, campo="SLACK_API_BASE",
+        )
+        if r.ok:
+            if (r.datos or {}).get("ok"):
+                return True, None
+            return False, (r.datos or {}).get("error", "Slack API error")
+        _logger.warning("Fallo enviando mensaje vía Slack bot token: %s", r.error)
 
     if config.webhook_url:
-        try:
-            if config.platform == "teams":
-                body = json.dumps({"text": text}).encode("utf-8")
-            else:
-                body = json.dumps({"text": text, "channel": ch}).encode("utf-8")
-            req = urllib.request.Request(  # noqa: S310
-                validate_outbound_url(config.webhook_url, field="webhook_url"), data=body,
-                headers={"Content-Type": "application/json"}
-            )
-            with abrir(req, timeout=5) as resp:  # noqa: S310
-                return resp.status in (200, 201), None
-        except Exception as e:
-            _logger.exception("Webhook delivery failed for platform=%s", config.platform)
-            return False, str(e)
+        body = {"text": text} if config.platform == "teams" else {"text": text, "channel": ch}
+        r = enviar_a_webhook(config.webhook_url, body, timeout=5, estados_ok=(200, 201))
+        if not r.ok:
+            _logger.warning("Webhook delivery failed for platform=%s: %s", config.platform, r.error)
+        return r.ok, r.error
 
     _logger.info("[SLACK SIMULATED] %s → %s: %s", config.platform, ch, text)
     return True, None
@@ -171,15 +152,3 @@ def notify_slack(event_type: str, message: str, channel: Optional[str], source_i
     db.commit()
     return {"ok": sent, "error": error}
 
-
-def get_slack_logs(limit: int, db: Session) -> list:
-    logs = db.query(SlackNotificationLog).order_by(
-        SlackNotificationLog.sent_at.desc()
-    ).limit(limit).all()
-    return [{
-        "id": l.id, "platform": l.config.platform if l.config else "—",
-        "channel": l.channel, "event_type": l.event_type,
-        "status": l.status, "error": l.error,
-        "sent_at": str(l.sent_at)[:16] if l.sent_at else None,
-        "message": (l.message or "")[:80],
-    } for l in logs]

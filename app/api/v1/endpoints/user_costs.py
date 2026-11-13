@@ -32,6 +32,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
 from app.core.config import settings
+from app.core.constantes import HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO, PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO
 import app.services.cost_service as svc
 from app.services.presets_de_pais import actualizar_preset_de_pais
 
@@ -43,8 +44,8 @@ class CountryPresetIn(BaseModel):
     country_code: str
     country_name: str
     currency: str = settings.DEFAULT_CURRENCY
-    employer_cost_pct: float = 0.32
-    productive_hours_year: float = 1700
+    employer_cost_pct: float = PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO
+    productive_hours_year: float = HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
     notes: Optional[str] = None
 
 
@@ -59,9 +60,9 @@ class CountryPresetUpdate(BaseModel):
 class ProfileIn(BaseModel):
     valid_from: Date
     gross_annual_salary: float
-    employer_cost_pct: float = 0.32
+    employer_cost_pct: float = PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO
     extra_annual_costs: float = 0.0
-    productive_hours_year: float = 1700
+    productive_hours_year: float = HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
     country_code: Optional[str] = None
     currency: str = settings.DEFAULT_CURRENCY
     notes: Optional[str] = None
@@ -83,7 +84,7 @@ class PreviewIn(BaseModel):
     gross_annual_salary: float
     employer_cost_pct: float
     extra_annual_costs: float = 0.0
-    productive_hours_year: float = 1700
+    productive_hours_year: float = HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
 
 
 # ── Country presets ──────────────────────────────────────────────────────────

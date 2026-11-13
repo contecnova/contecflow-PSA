@@ -51,8 +51,9 @@ def test_s3service_firma_en_v4_tambien_contra_aws(monkeypatch):
 
 
 def test_colaboracion_presigna_en_v4_y_por_ruta(monkeypatch):
-    monkeypatch.setenv("COLLAB_S3_BUCKET", "contecflow-documents")
-    monkeypatch.setenv("COLLAB_S3_ENDPOINT", "http://127.0.0.1:9003")
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "COLLAB_S3_BUCKET", "contecflow-documents")
+    monkeypatch.setattr(settings, "COLLAB_S3_ENDPOINT", "http://127.0.0.1:9003")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "k")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "s")
     from app.services.collaboration._storage_s3 import S3FileStorage

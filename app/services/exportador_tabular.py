@@ -39,7 +39,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Iterable, Sequence
 
-from fastapi.responses import StreamingResponse
+from app.core.descargas import Descarga
 from app.core.errores import ErrorDeDominio
 
 #: Los dos formatos que entiende. Un tercero se añade aquí y en `_ESCRITORES`.
@@ -118,8 +118,12 @@ def respuesta_tabular(
     nombre: str,
     cabecera: Sequence[str],
     filas: Iterable[Sequence[Any]],
-) -> StreamingResponse:
+) -> Descarga:
     """La descarga, en el formato pedido.
+
+    Devuelve una `Descarga` (bytes y cabeceras), no una respuesta HTTP: el
+    endpoint la sirve con `app.api.descargas.respuesta_de_descarga`
+    (auditoria 2026-11, item 36).
 
     `nombre` va sin extension: la pone esta funcion, y ese es medio motivo de
     que exista — que el nombre del fichero y su contenido no puedan discrepar,
@@ -137,8 +141,8 @@ def respuesta_tabular(
     filas = list(filas)
     contenido = _csv(cabecera, filas) if formato == "csv" else _xlsx(cabecera, filas, nombre)
 
-    return StreamingResponse(
-        iter([contenido]),
+    return Descarga(
+        contenido=contenido,
         media_type=_TIPO_MIME[formato],
-        headers={"Content-Disposition": f"attachment; filename={nombre}.{formato}"},
+        cabeceras={"Content-Disposition": f"attachment; filename={nombre}.{formato}"},
     )

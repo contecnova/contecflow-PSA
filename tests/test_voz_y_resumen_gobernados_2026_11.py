@@ -54,7 +54,7 @@ def test_EL_HALLAZGO_el_resumen_va_por_call_ai_con_la_empresa(db, monkeypatch):
         vistos.append(k)
         return '{"summary": "Se acordó migrar.", "actions": [{"text": "Migrar", "owner": "Ana"}]}'
     monkeypatch.setattr("app.services.ai_provider_service.call_ai", falso)
-    monkeypatch.setenv("OPENAI_API_KEY", "no-debe-usarse")
+    monkeypatch.setattr("app.core.config.settings.OPENAI_API_KEY", "no-debe-usarse")
     resumen, acciones = tr.summarize_text("Hablamos de la migración y Ana se encarga.", db=db, organization_id="1")
     assert resumen == "Se acordó migrar." and acciones == [{"text": "Migrar", "owner": "Ana"}]
     assert vistos[0]["module"] == "meeting_assistant" and vistos[0]["organization_id"] == "1"

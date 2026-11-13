@@ -204,7 +204,7 @@ function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => 
         </Button>
       </div>
       <pre style={{
-        background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10,
+        background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
         padding: '16px 18px', fontSize: "var(--text-sm)", color: 'var(--text-1)', whiteSpace: 'pre-wrap',
         maxHeight: 480, overflowY: 'auto', fontFamily: 'var(--font-mono)', lineHeight: 1.6,
       }}>
@@ -339,7 +339,7 @@ export default function UATPage() {
             { label: 'Bloqueados', value: stats.blocked, color: 'var(--warning)' },
           ].map(k => (
             <div key={k.label} style={{
-              background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10,
+              background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
               padding: '12px 16px', textAlign: 'center',
             }}>
               <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>
@@ -375,7 +375,7 @@ export default function UATPage() {
             return (
               <div key={c.id} style={{
                 background: 'var(--surface-2)', border: `1px solid ${c.status === 'failed' ? 'rgba(248,113,113,0.3)' : c.status === 'passed' ? 'rgba(74,222,128,0.2)' : 'var(--surface-4)'}`,
-                borderRadius: 10, padding: '14px 18px',
+                borderRadius: 'var(--radius-md)', padding: '14px 18px',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div className="u-flex1">
@@ -408,20 +408,20 @@ export default function UATPage() {
                     {/* Quick status buttons */}
                     {c.status !== 'passed' && (
                       <button onClick={() => quickStatus(c, 'passed')}
-                        style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(74,222,128,0.3)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                        style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(74,222,128,0.3)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                         ✅ Pasar
                       </button>
                     )}
                     {c.status !== 'failed' && (
                       <button onClick={() => quickStatus(c, 'failed')}
-                        style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                        style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                         ❌ Fallar
                       </button>
                     )}
                     <button onClick={() => setEditCase(c)}
-                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
+                      style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                     <button onClick={() => setDeleteTarget(c)}
-                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                      style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                   </div>
                 </div>
               </div>
@@ -454,7 +454,7 @@ export default function UATPage() {
       {/* Delete confirmation modal (no browser confirm()) */}
       {deleteTarget && (
         <Modal open onClose={() => setDeleteTarget(null)} title="Eliminar caso UAT" width={420}>
-          <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
+          <p className="u-text2-base-mb20">
             {traducir('uat.eliminar_el_caso')} <strong className="u-text1">&quot;{deleteTarget.title}&quot;</strong>{traducir('uat.esta_accion_no_se_puede_deshacer')}
           </p>
           <div className="u-actions-10">

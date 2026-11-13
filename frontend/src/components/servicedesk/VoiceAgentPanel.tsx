@@ -201,7 +201,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
               loading={creatingTicket}
             >Crear ticket</Button>
           )}
-          <button
+          <button aria-label={t('voiceagent.cerrar_sesion')}
             type="button"
             onClick={() => setShowCloseConfirm(v => !v)}
             title={t('voiceagent.cerrar_sesion')}
@@ -244,12 +244,12 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
       {hasEntities && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
           {entities.email && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '2px 8px' }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 8px' }}>
               ✉ {entities.email}
             </span>
           )}
           {entities.ticket_ref && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 6, padding: '2px 8px', fontFamily: 'var(--font-mono)' }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', fontFamily: 'var(--font-mono)' }}>
               🔗 {entities.ticket_ref}
             </span>
           )}
@@ -305,7 +305,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
       {/* Add turn (sólo si activa) */}
       {session.status === 'active' && (
         <div className="u-row-8">
-          <input
+          <input aria-label={t('voiceagent.anadir_turno_texto_del_usuario')}
             type="text"
             placeholder={t('voiceagent.anadir_turno_texto_del_usuario')}
             value={turnText}
@@ -452,7 +452,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
                 fontFamily: 'var(--font-mono)', fontWeight: 700,
                 color: 'var(--accent)',
                 background: 'var(--accent-muted)',
-                borderRadius: 6, padding: '1px 7px',
+                borderRadius: 'var(--radius-sm)', padding: '1px 7px',
                 minWidth: 28, textAlign: 'center',
               }}>{key}</span>
               <input
@@ -468,7 +468,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
               >
                 {intentList.map(i => <option key={i} value={i}>{i}</option>)}
               </select>
-              <button
+              <button aria-label="Eliminar"
                 type="button"
                 onClick={() => removeDtmf(key)}
                 title="Eliminar"
@@ -485,13 +485,13 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
           borderRadius: 8, padding: '10px 12px',
           display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
         }}>
-          <input
+          <input aria-label="Tecla (ej. 4)"
             type="text" placeholder="Tecla (ej. 4)" value={newKey}
             onChange={e => setNewKey(e.target.value)}
             maxLength={2}
             style={{ ...inputBase, width: 80 }}
           />
-          <input
+          <input aria-label="Etiqueta visible"
             type="text" placeholder="Etiqueta visible" value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
             style={{ ...inputBase, flex: '1 1 200px' }}
@@ -543,7 +543,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
                     <span key={kw} style={{
                       fontSize: 'var(--text-xs)',
                       background: 'var(--surface-4)', color: 'var(--text-2)',
-                      padding: '2px 8px', borderRadius: 999,
+                      padding: '2px 8px', borderRadius: 'var(--radius-full)',
                       display: 'inline-flex', alignItems: 'center', gap: 4,
                     }}>
                       {kw}
@@ -557,7 +557,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
                 </div>
                 {isEditing && (
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                    <input
+                    <input aria-label={t('voiceagent.nueva_keyword')}
                       type="text" placeholder={t('voiceagent.nueva_keyword')} value={newKw}
                       onChange={e => setNewKw(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && addKeyword(intent)}
@@ -806,7 +806,7 @@ export default function VoiceAgentPanel() {
               >Iniciar</Button>
             </div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>
-              {t('voiceagent.para_llamadas_reales_configura_el_webhook_de')} <span style={{ fontFamily: 'var(--font-mono)' }}>POST /sd/voice/webhook/twilio</span> {t('voiceagent.con_tu_phone_number')}
+              {t('voiceagent.para_llamadas_reales_configura_el_webhook_de')} <span className="u-mono">POST /sd/voice/webhook/twilio</span> {t('voiceagent.con_tu_phone_number')}
             </div>
           </div>
 
@@ -840,7 +840,7 @@ export default function VoiceAgentPanel() {
                     borderColor: historyFilter === id ? 'var(--accent)' : 'var(--surface-4)',
                     background: historyFilter === id ? 'var(--accent-muted)' : 'transparent',
                     color: historyFilter === id ? 'var(--accent)' : 'var(--text-2)',
-                    borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'inherit',
                   }}
                 >{label}</button>
               ))}

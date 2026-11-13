@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react'
+import { CSSProperties, useState, useId } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
@@ -14,8 +14,8 @@ type PortalUsersTabProps = {
 
 type ProjectItem = {
   id: string
-  code: string
-  name: string
+  code?: string
+  name?: string
 }
 
 type ClientDetail = {
@@ -95,6 +95,7 @@ const PORTAL_PERMISSIONS: { key: PortalPermissionKey; label: string; desc: strin
 ]
 
 export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
+  const idCampo = useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -170,7 +171,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
 
   return (
     <div>
-      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 10, padding: '14px 18px', marginBottom: 20 }}>
+      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: 20 }}>
         <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 6, color: 'var(--accent)' }}>{t('portalusers.como_accede_el_cliente_al_portal')}</div>
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
           {t('portalusers.1_crea_un_usuario_con_email_y')}<br/>
@@ -179,7 +180,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
           {t('portalusers.4_desde_el_portal_puede_ver_proyectos')}
         </div>
         <button onClick={() => navigator.clipboard.writeText(portalUrl)}
-          style={{ marginTop: 10, background: 'transparent', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '4px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+          style={{ marginTop: 10, background: 'transparent', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '4px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
           {t('portalusers.copiar_url_del_portal')}
         </button>
       </div>
@@ -196,8 +197,8 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
           return (
           <div key={u.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, opacity: u.is_active ? 1 : 0.5 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: u.is_active ? 'var(--accent-muted)' : 'var(--surface-4)',
+              <div className="u-row-center-12">
+                <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: u.is_active ? 'var(--accent-muted)' : 'var(--surface-4)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-17)", fontWeight: 800, color: u.is_active ? 'var(--accent)' : 'var(--text-2)' }}>
                   {u.full_name?.charAt(0)?.toUpperCase() || '?'}
                 </div>
@@ -208,7 +209,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   <div className="u-text2-sm">
                     📧 {u.email}{u.job_title && ` · ${u.job_title}`}
                   </div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>
+                  <div className="u-text3-xs-mt2">
                     {assignedProjects.length > 0 ? `📁 Proyectos: ${assignedProjects.join(' · ')}` : '🔓 Sin proyecto — acceso general al Service Desk'}
                     {u.last_login && <span style={{ marginLeft: 10 }}>{t('portalusers.ultimo_acceso')} <strong className="u-text2">{u.last_login.slice(0, 10)}</strong></span>}
                     {!u.last_login && <span style={{ marginLeft: 10, color: 'rgba(248,113,113,0.50)' }}>· Nunca ha accedido</span>}
@@ -223,22 +224,22 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--surface-4)' }}>
               <button onClick={() => openEdit(u)}
-                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 ✏️ Editar
               </button>
               <button onClick={() => setShowReset({ id: u.id, email: u.email })}
-                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {t('portalusers.cambiar_contrasena')}
               </button>
               <button onClick={() => toggle({ id: u.id, active: !u.is_active })}
-                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: u.is_active ? 'var(--danger)' : 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: u.is_active ? 'var(--danger)' : 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {u.is_active ? '⏸ Suspender acceso' : '▶ Reactivar acceso'}
               </button>
               <button onClick={() => {
                 const text = `Acceso al portal de ${clientName || 'Contecflow'}\n\nURL: ${portalUrl}\nEmail: ${u.email}\n\nContacta con tu gestor para obtener tu contraseña.`
                 navigator.clipboard.writeText(text)
                 toast.info('📋 Info de acceso copiada al portapapeles')
-              }} style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              }} style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {t('portalusers.copiar_datos_de_acceso')}
               </button>
             </div>
@@ -249,7 +250,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
 
       {createdCreds && (
         <Modal open title="Credenciales creadas" onClose={() => setCreatedCreds(null)} width={480}>
-          <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '18px 20px', marginBottom: 16 }}>
+          <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: '18px 20px', marginBottom: 16 }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12, color: 'var(--success)' }}>{t('portalusers.credenciales_de_acceso_al_portal')}</div>
             <div className="u-stack-8">
               <div className="u-row-between">
@@ -262,7 +263,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               </div>
               <div className="u-row-between">
                 <span className="u-text2-sm">{t('portalusers.contrasena')}</span>
-                <strong style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '3px 10px', borderRadius: 6 }}>{createdCreds.password}</strong>
+                <strong style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '3px 10px', borderRadius: 'var(--radius-sm)' }}>{createdCreds.password}</strong>
               </div>
             </div>
           </div>
@@ -287,7 +288,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 style={inp} placeholder={t('portalusers.nueva_contrasena')} aria-label={t('portalusers.nueva_contrasena')} />
             </div>
             <div className="u-actions-8">
-              <button type="button" onClick={() => { setShowReset(null); setNewPassword('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+              <button type="button" onClick={() => { setShowReset(null); setNewPassword('') }} className="u-btn-outline-sm">Cancelar</button>
               <Button type="submit" disabled={newPassword.length < 6 || resetting}>
                 {resetting ? '⟳ Guardando...' : '✓ Cambiar contraseña'}
               </Button>
@@ -302,12 +303,12 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
-              <label style={lbl}>Nombre completo *</label>
-              <input value={editForm?.full_name ?? ''} onChange={e => setEditForm(f => f && ({ ...f, full_name: e.target.value }))} style={inp} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Nombre completo *</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm?.full_name ?? ''} onChange={e => setEditForm(f => f && ({ ...f, full_name: e.target.value }))} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Email *</label>
-              <input type="email" value={editForm?.email ?? ''} onChange={e => setEditForm(f => f && ({ ...f, email: e.target.value }))} style={inp} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Email *</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={editForm?.email ?? ''} onChange={e => setEditForm(f => f && ({ ...f, email: e.target.value }))} style={inp} />
             </div>
             <div>
               <label style={lbl}>Cargo</label>
@@ -317,9 +318,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               <label style={lbl}>{t('portalusers.telefono')}</label>
               <input value={editForm?.phone ?? ''} onChange={e => setEditForm(f => f && ({ ...f, phone: e.target.value }))} style={inp} placeholder="Telefono" aria-label="Telefono" />
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={lbl}>Proyectos asociados</label>
-              <select multiple value={editForm.project_ids || []}
+            <div className="u-col-full">
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>Proyectos asociados</label>
+              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} multiple value={editForm.project_ids || []}
                 onChange={e => setEditForm(f => f && ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
                 style={{ ...inp, height: 38 + Math.min(projects.length, 4) * 28 }}>
                 {projects.map(p => (
@@ -362,8 +363,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
 
           <div className="u-actions-8">
             <button onClick={() => setEditUser(null)}
-              style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
-                padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+              className="u-btn-outline-sm">
               Cancelar
             </button>
             <Button
@@ -395,14 +395,14 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             {t('portalusers.crea_las_credenciales_que_el_cliente_usara')} <strong className="u-text1">{portalUrl}</strong>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-            <div><label style={lbl}>Nombre completo *</label><input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>Nombre completo *</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>{t('portalusers.email_sera_el_usuario_de_login')}</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} placeholder={t('portalusers.email_de_acceso')} aria-label={t('portalusers.email_de_acceso')} /></div>
             <div><label style={lbl}>{t('portalusers.contrasena_2')}</label><input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inp} placeholder="Contrasena temporal" aria-label="Contrasena temporal" /></div>
-            <div><label style={lbl}>{t('portalusers.confirmar_contrasena')}</label><input type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} style={inp} /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>{t('portalusers.confirmar_contrasena')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Cargo</label><input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" /></div>
             <div>
-              <label style={lbl}>Asociar a proyectos (opcional)</label>
-              <select multiple value={form.project_ids} onChange={e => {
+              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={lbl}>Asociar a proyectos (opcional)</label>
+              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} multiple value={form.project_ids} onChange={e => {
                 const options = Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean)
                 setForm(f => ({ ...f, project_ids: options }))
               }} style={{ ...inp, height: 38 + Math.min(projects.length, 4) * 28 }}>
@@ -433,7 +433,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             </div>
           )}
           <div className="u-actions-8">
-            <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowAdd(false)} className="u-btn-outline-sm">Cancelar</button>
             <Button type="submit"
               disabled={!form.full_name || !form.email || !form.password || form.password !== form.confirm_password || isPending}>
               {isPending ? '⟳ Creando...' : '🔐 Crear acceso al portal'}

@@ -30,6 +30,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import httpx
+from app.services.settings_service import outbound_http_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ def _token_de_la_aplicacion() -> str:
         return _token["valor"]
     r = httpx.post(settings.TEAMS_BOT_TOKEN_URL, data={
         "grant_type": "client_credentials", "client_id": settings.TEAMS_BOT_APP_ID,
-        "client_secret": settings.TEAMS_BOT_APP_PASSWORD, "scope": settings.TEAMS_BOT_TOKEN_SCOPE}, timeout=10)
+        "client_secret": settings.TEAMS_BOT_APP_PASSWORD, "scope": settings.TEAMS_BOT_TOKEN_SCOPE}, timeout=outbound_http_timeout(default=10))
     r.raise_for_status()
     datos = r.json()
     _token.update(valor=datos["access_token"], caduca=time.time() + int(datos.get("expires_in", 3600)))
@@ -111,7 +112,7 @@ def enviar(actividad: dict, texto: str, service_url: str) -> bool:
         url += f"/{actividad['id']}"
     try:
         r = httpx.post(url, json=actividad_de_respuesta(actividad, texto),
-                       headers={"Authorization": f"Bearer {_token_de_la_aplicacion()}"}, timeout=10)
+                       headers={"Authorization": f"Bearer {_token_de_la_aplicacion()}"}, timeout=outbound_http_timeout(default=10))
         r.raise_for_status()
         return True
     except Exception:

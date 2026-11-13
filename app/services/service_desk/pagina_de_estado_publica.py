@@ -22,6 +22,8 @@ from __future__ import annotations
 import html
 import json
 
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
+
 TEXTOS = {
     "es": {"titulo": "Estado del servicio", "cargando": "Cargando…", "general": "Estado general",
            "sin_componentes": "No hay componentes públicos.", "no_disponible": "No disponible",
@@ -43,13 +45,13 @@ TEXTOS = {
 
 def idioma_de(db, org_id) -> str:
     from app.services.settings_service import get_runtime_str
-    idioma = (get_runtime_str(db, "DEFAULT_LANGUAGE", org_id) or "es")[:2]
-    return idioma if idioma in TEXTOS else "es"
+    idioma = (get_runtime_str(db, "DEFAULT_LANGUAGE", org_id) or IDIOMA_DE_RESPALDO)[:2]
+    return idioma if idioma in TEXTOS else IDIOMA_DE_RESPALDO
 
 
 def pagina(idioma: str) -> str:
     """La página: sin código en línea; los textos van en `data-textos`."""
-    tx = TEXTOS.get(idioma, TEXTOS["es"])
+    tx = TEXTOS.get(idioma, TEXTOS[IDIOMA_DE_RESPALDO])
     e = html.escape
     return f"""<!doctype html>
 <html lang="{e(idioma)}">

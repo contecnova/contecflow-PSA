@@ -150,8 +150,6 @@ def handle_github_pr(db: Session, payload: dict) -> None:
         if linked_task and linked_task.status not in ("done", "closed", "cancelled"):
             # Revisión 2026-11: por las reglas de transición, como desde la pantalla (antes la pasaba a
             # done desde cualquier estado, también backlog o bloqueada, y sin fecha de cierre).
-            from fastapi import HTTPException
-
             from app.models.task import TaskStatus
             from app.services.tasks.core import apply_status_side_effects, validate_task_transition
             try:
@@ -159,7 +157,7 @@ def handle_github_pr(db: Session, payload: dict) -> None:
                 linked_task.status = TaskStatus.done
                 apply_status_side_effects(linked_task, TaskStatus.done)
                 _logger.info("[Git] Auto-closed task %s on merged PR #%s", effective_task_id, pr_number)
-            except (HTTPException, ErrorDeDominio):
+            except ErrorDeDominio:
                 _logger.info("[Git] PR #%s fusionado: la tarea %s sigue en %s (no puede pasar a done)",
                              pr_number, effective_task_id, linked_task.status)
 

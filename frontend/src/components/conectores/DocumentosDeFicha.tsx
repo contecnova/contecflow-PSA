@@ -22,7 +22,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 import DocumentoContecmind, { descargarOriginal } from './DocumentoContecmind'
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 10, background: 'var(--surface-1)', padding: 14 }
+const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', padding: 14 }
 const fila: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-3)' }
 const titulo: CSSProperties = { fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: 6 }
 const sub: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }
@@ -95,7 +95,7 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
 
   return (
     <section aria-label={t('docs.titulo')} style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <header className="u-wrap-center-8">
         <div style={titulo}><FileText size={15} />{t('docs.titulo')}<span style={{ ...sub, fontWeight: 400 }}>· contecmind</span></div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           {disp.data?.puede_escribir && (
@@ -172,7 +172,7 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{preguntarCarpeta.data.answer || t('docs.sin_respuesta')}</div>
               {preguntarCarpeta.data.citations.map((c, i) => (
                 <button key={i} type="button" onClick={() => setAbierto(c.document_id)}
-                  style={{ textAlign: 'left', background: 'transparent', border: '1px solid var(--surface-3)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: 'var(--text-2)', fontSize: 'var(--text-xs)' }}>
+                  style={{ textAlign: 'left', background: 'transparent', border: '1px solid var(--surface-3)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-2)', fontSize: 'var(--text-xs)' }}>
                   <strong className="u-text1">[{i + 1}] {c.title || c.document_id}{c.page ? ` · ${t('docs.pagina')} ${c.page}` : ''}</strong>
                   <div style={{ marginTop: 2 }}>{c.text}</div>
                 </button>

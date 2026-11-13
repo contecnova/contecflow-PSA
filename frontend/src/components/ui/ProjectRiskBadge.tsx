@@ -108,8 +108,8 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
           position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%',
           transform: 'translateX(-50%)',
           background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-          borderRadius: 10, padding: '10px 14px', width: 240,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000,
+          borderRadius: 'var(--radius-md)', padding: '10px 14px', width: 240,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 'var(--z-modal)',
           fontSize: 'var(--text-xs)', lineHeight: 1.5,
         }}>
           {/* Arrow */}

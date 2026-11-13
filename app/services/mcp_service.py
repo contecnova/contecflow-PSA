@@ -27,6 +27,7 @@ from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 from app.core.errores import ErrorDeDominio
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +128,6 @@ def _texto(datos: dict) -> dict:
 
 
 def _pedir_aprobacion(db: Session, user, nombre: str, argumentos: dict) -> dict:
-    from fastapi import HTTPException
     from app.models.ai_chat import MCPPendingAction
     from app.schemas.approvals import ApprovalRequestIn
     from app.services.approval_engine.requests import create_approval_request
@@ -140,7 +140,7 @@ def _pedir_aprobacion(db: Session, user, nombre: str, argumentos: dict) -> dict:
         req = create_approval_request(
             ApprovalRequestIn(entity_type="mcp_action", entity_id=accion.id, entity_summary=resumen,
                               context={"tool": nombre}), db, user, confirmar=False)
-    except (HTTPException, ErrorDeDominio) as e:
+    except ErrorDeDominio as e:
         db.rollback()
         _auditar(db, user, nombre, argumentos, f"sin flujo de aprobación: {e.detail}", "blocked")
         return _fallo_de_herramienta(
@@ -228,7 +228,7 @@ def despachar(db: Session, user, mensaje: Any, alcances: Optional[list] = None) 
         return _resultado(rid, {
             "protocolVersion": pedida if pedida in SUPPORTED_PROTOCOL_VERSIONS else SUPPORTED_PROTOCOL_VERSIONS[0],
             "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": {"name": "contecflow", "title": "Contecflow", "version": "1"},
+            "serverInfo": {"name": "contecflow", "title": NOMBRE_DEL_PRODUCTO, "version": "1"},
             "instructions": ("Datos de proyectos, tareas, tickets, finanzas y equipo de la empresa, con los "
                              "permisos del usuario dueño de la credencial. Las herramientas get_/search_ leen; "
                              "las que escriben solo aparecen si la empresa lo permite."),

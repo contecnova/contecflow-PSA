@@ -63,7 +63,7 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
   return (
     <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{t('quickcreatemenu.nueva_tarea')}</div>
-      <input
+      <input aria-label={t('quickcreatemenu.titulo_de_la_tarea')}
         ref={inputRef}
         value={title}
         onChange={e => setTitle(e.target.value)}
@@ -196,7 +196,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
                   }}>
                     <Icon size={15} color={color} />
                   </div>
-                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{label}</span>
+                  <span className="u-text1-base-600">{label}</span>
                 </button>
               ))}
             </div>

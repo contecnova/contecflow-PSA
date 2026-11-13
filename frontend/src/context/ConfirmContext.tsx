@@ -58,7 +58,8 @@ export interface PromptOptions {
   /** Si es true, no se puede aceptar con el campo vacío. */
   required?: boolean
   multiline?: boolean
-  inputType?: 'text' | 'number'
+  /** 'password' oculta lo escrito (reautenticacion antes de cambiar el 2FA). */
+  inputType?: 'text' | 'number' | 'password'
   confirmLabel?: string
   danger?: boolean
 }

@@ -181,21 +181,21 @@ export default function IncidentAssignmentPanel() {
           <div style={fieldLabel}>{t('sd.assign.get_recommendations', 'Pedir recomendación')}</div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
-            <input
+            <input aria-label="Ticket ID (uuid)"
               type="text"
               placeholder="Ticket ID (uuid)"
               value={ticketId}
               onChange={e => setTicketId(e.target.value)}
               style={inputBase}
             />
-            <input
+            <input aria-label={t('incidentassignment.titulo_de_la_incidencia_opcional')}
               type="text"
               placeholder={t('incidentassignment.titulo_de_la_incidencia_opcional')}
               value={ticketTitle}
               onChange={e => setTicketTitle(e.target.value)}
               style={inputBase}
             />
-            <textarea
+            <textarea aria-label={t('incidentassignment.descripcion_palabras_clave_opcional_ayuda_al_matching')}
               placeholder={t('incidentassignment.descripcion_palabras_clave_opcional_ayuda_al_matching')}
               value={ticketDescription}
               onChange={e => setTicketDescription(e.target.value)}
@@ -236,7 +236,7 @@ export default function IncidentAssignmentPanel() {
                 <div style={{
                   background: 'color-mix(in srgb, var(--success) 8%, var(--surface-3))',
                   border: '1px solid color-mix(in srgb, var(--success) 30%, var(--surface-4))',
-                  borderRadius: 10, padding: '10px 14px', marginBottom: 10,
+                  borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 10,
                 }}>
                   <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
                     Recomendado
@@ -253,7 +253,7 @@ export default function IncidentAssignmentPanel() {
                     </div>
                   )}
                   <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
-                    {t('incidentassignment.metodo')} <span style={{ fontFamily: 'var(--font-mono)' }}>{recommendation.method_used}</span>
+                    {t('incidentassignment.metodo')} <span className="u-mono">{recommendation.method_used}</span>
                   </div>
                   <div style={{ marginTop: 10 }}>
                     {applySuccess ? (
@@ -308,11 +308,11 @@ export default function IncidentAssignmentPanel() {
                           borderRadius: 8,
                         }}>
                           <div className="u-flex1-min0">
-                            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                            <div className="u-text1-sm-600">
                               {rec.name ?? rec.user_id}
                             </div>
                             {breakdown.length > 0 && (
-                              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                              <div className="u-text3-xs-mt2">
                                 {breakdown.join(' · ')}
                               </div>
                             )}
@@ -325,7 +325,7 @@ export default function IncidentAssignmentPanel() {
                               fontSize: 'var(--text-sm)', fontWeight: 700, color: scoreColor,
                               background: `color-mix(in srgb, ${scoreColor} 15%, transparent)`,
                               border: `1px solid color-mix(in srgb, ${scoreColor} 30%, transparent)`,
-                              borderRadius: 6, padding: '2px 9px',
+                              borderRadius: 'var(--radius-sm)', padding: '2px 9px',
                             }}>{score}%</span>
                           </div>
                         </div>
@@ -366,7 +366,7 @@ export default function IncidentAssignmentPanel() {
             <div style={{
               background: 'var(--surface-3)',
               border: '1px solid var(--surface-4)',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-md)',
               padding: 12,
             }}>
               <ResponsiveContainer width="100%" height={Math.max(180, candidates.length * 28)}>

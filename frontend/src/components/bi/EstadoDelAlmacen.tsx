@@ -42,7 +42,7 @@ export default function EstadoDelAlmacen() {
       </span>
       {user?.role === 'admin' && (
         <button type="button" onClick={() => cargar.mutate()} disabled={cargar.isPending}
-          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '2px 8px', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)' }}>
+          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)' }}>
           {cargar.isPending ? '…' : t('dataexplorer.almacen_cargar')}
         </button>
       )}

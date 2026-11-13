@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useId } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
@@ -18,6 +18,7 @@ function strengthScore(password: string): number {
 const STRENGTH_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#16a34a', '#15803d']
 
 export default function ResetPasswordPage() {
+  const idCampo = useId()
   const t = useAppT()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -156,10 +157,10 @@ export default function ResetPasswordPage() {
 
           {/* Confirm */}
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {t('reset_password.confirm_password_placeholder')}
             </label>
-            <input
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
@@ -178,7 +179,7 @@ export default function ResetPasswordPage() {
           {error && (
             <div role="alert" style={{
               background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-              borderRadius: 10, padding: '10px 14px', color: 'var(--danger)', fontSize: 13,
+              borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--danger)', fontSize: 13,
               display: 'flex', gap: 8,
             }}>
               <span>⚠</span><span>{error}</span>
@@ -188,7 +189,7 @@ export default function ResetPasswordPage() {
           {success && (
             <div role="status" style={{
               background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-              borderRadius: 10, padding: '10px 14px', color: 'var(--success)', fontSize: 13,
+              borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--success)', fontSize: 13,
               display: 'flex', gap: 8,
             }}>
               <span>✓</span><span>{success}</span>

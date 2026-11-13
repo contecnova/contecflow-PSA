@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -60,6 +60,7 @@ const STATUS_CFG = {
 const PRIORITY_COLORS: Record<string, string> = {critical:'var(--danger)',high:'var(--warning)',medium:'var(--warning)',low:'var(--text-2)'}
 
 function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const qc = useQueryClient()
@@ -96,7 +97,6 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
     queryKey: ['sprints', projectId],
     queryFn: () => sprintsApi.list(projectId, {}).then(r => {
       const d = r.data
-      if (Array.isArray(d?.items)) return d.items
       if (Array.isArray(d)) return d
       return []
     }).catch(()=>[]),
@@ -122,32 +122,32 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
         {!result ? (
           <>
             <div>
-              <label style={ls}>{t('sprint_planning.plan_name')}</label>
-              <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('sprint_planning.plan_name')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} />
             </div>
             <div className="u-grid2-12">
               <div>
-                <label style={ls}>{t('sprint_planning.team_capacity_sp')}</label>
-                <input type="number" style={is} value={form.team_capacity}
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('sprint_planning.team_capacity_sp')}</label>
+                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" style={is} value={form.team_capacity}
                   onChange={e => set('team_capacity')(+e.target.value)} min={1} />
               </div>
               <div>
-                <label style={ls}>{t('sprint_planning.sprint_optional')}</label>
-                <select style={is} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
+                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('sprint_planning.sprint_optional')}</label>
+                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
                   <option value="">{t('sprint_planning.no_specific_sprint')}</option>
                   {(sprints as Array<{ id: string | number; name: string }>).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             </div>
             <div style={{padding:'12px 14px',background:'var(--surface-1)',borderRadius:8,border:'1px solid var(--surface-4)',fontSize: "var(--text-sm)",color:'var(--text-2)',lineHeight:1.7}}>
-              <strong style={{color:'var(--accent)'}}>{t('sprint_planning.how_it_works')}:</strong> {t('sprint_planning.how_it_works_desc')}
+              <strong className="u-accent">{t('sprint_planning.how_it_works')}:</strong> {t('sprint_planning.how_it_works_desc')}
               {semEstimate && (
                 <div style={{marginTop:10,padding:'8px 10px',background:'var(--purple-bg)',border:'1px solid var(--purple-border)',borderRadius:8}}>
                   <div style={{color:'var(--purple)',fontWeight:700,marginBottom:4}}>🧠 {t('sprint_planning.semantic_estimate_title')}</div>
                   <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
                     <span>⏱ {t('sprint_planning.base_label')}: <strong className="u-text1">{semEstimate.total_base_hours}h</strong></span>
                     <span>⚠ {t('sprint_planning.risk_label')}: <strong className="u-warning">+{semEstimate.risk_premium_pct}%</strong></span>
-                    <span>📦 {t('sprint_planning.recommended_label')}: <strong style={{color:'var(--success)'}}>{semEstimate.recommended_hours}h</strong></span>
+                    <span>📦 {t('sprint_planning.recommended_label')}: <strong className="u-success">{semEstimate.recommended_hours}h</strong></span>
                     <span>✅ {t('sprint_planning.fits_sprint_label')}: <strong style={{color: semEstimate.fit_in_sprint ? 'var(--success)' : 'var(--danger)'}}>{semEstimate.fit_in_sprint ? t('sprint_planning.yes') : t('sprint_planning.no')}</strong></span>
                   </div>
                 </div>
@@ -155,10 +155,10 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
             </div>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
               <button onClick={estimateBacklog} disabled={estimating || !projectId}
-                style={{background:'transparent',border:'1px solid var(--purple-border-strong)',borderRadius:6,padding:'5px 12px',color:'var(--purple)',fontSize: "var(--text-xs)",cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>
+                style={{background:'transparent',border:'1px solid var(--purple-border-strong)',borderRadius:'var(--radius-sm)',padding:'5px 12px',color:'var(--purple)',fontSize: "var(--text-xs)",cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>
                 {estimating ? `⏳ ${t('sprint_planning.estimating')}` : `🧠 ${t('sprint_planning.estimate_backlog')}`}
               </button>
-              <div style={{display:'flex',gap:10}}>
+              <div className="u-row-10">
                 <Button variant="secondary" onClick={onClose}>{t('sprint_planning.cancel')}</Button>
                 <Button onClick={() => generate()} disabled={isPending || !form.name.trim() || !form.team_capacity}>
                   {isPending ? `✨ ${t('sprint_planning.generating')}` : `✨ ${t('sprint_planning.generate_plan_btn')}`}
@@ -221,6 +221,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
 }
 
 export default function SprintPlanningPage() {
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -259,8 +260,8 @@ export default function SprintPlanningPage() {
         actions={project && <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_plan_action')}</Button>} showListExport={false} />
 
       <div style={{...ps,marginBottom:20}}>
-        <label style={ls}>{t('sprint_planning.project_label')}</label>
-        <select value={project} onChange={e => setProject(e.target.value)} style={{...is,width:360}}>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('sprint_planning.project_label')}</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={{...is,width:360}}>
           <option value="">{t('sprint_planning.select_project_opt')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -271,9 +272,9 @@ export default function SprintPlanningPage() {
 
       {project && !isLoading && plans.length === 0 && (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>✨</div>
+          <div className="u-empty-icon">✨</div>
           <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('sprint_planning.no_plans_title')}</div>
-          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>
+          <div className="u-text2-base-mb20">
             {t('sprint_planning.no_plans_desc')}
           </div>
           <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_first_plan')}</Button>
@@ -291,7 +292,7 @@ export default function SprintPlanningPage() {
                 <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:isExpanded?12:0}}>
                   <div className="u-flex1">
                     <div className="u-row-center-10">
-                      <span style={{fontWeight:600,fontSize: "var(--text-md)"}}>{plan.name}</span>
+                      <span className="u-md-600">{plan.name}</span>
                       <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,
                         background:sc.bg,color:sc.color,fontWeight:600}}>{t('sprint_planning.status_' + plan.status)}</span>
                     </div>

@@ -1,6 +1,6 @@
 import { CHART } from '../constants/theme'
 import { extractErr } from '../utils/helpers'
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -46,6 +46,7 @@ const getColor = (status: string, idx: number) => {
 }
 
 export default function CumulativeFlowPage(): JSX.Element {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -83,15 +84,15 @@ export default function CumulativeFlowPage(): JSX.Element {
       <div style={{...ps,marginBottom:20}}>
         <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end'}}>
           <div style={{flex:'1 1 220px',minWidth:0}}>
-            <label style={ls}>{t('cumulative_flow.project')}</label>
-            <select value={project} onChange={e=>setProject(e.target.value)} style={is}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('cumulative_flow.project')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} style={is}>
               <option value="">{t('cumulative_flow.select_project')}</option>
               {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>{t('cumulative_flow.period')}</label>
-            <select value={days} onChange={e=>setDays(+e.target.value)} style={{...is,width:140}}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('cumulative_flow.period')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={days} onChange={e=>setDays(+e.target.value)} style={{...is,width:140}}>
               <option value={7}>7 {t('common.days')}</option>
               <option value={14}>14 {t('common.days')}</option>
               <option value={30}>30 {t('common.days')}</option>
@@ -113,9 +114,9 @@ export default function CumulativeFlowPage(): JSX.Element {
 
       {project&&!isLoading&&data.length===0&&(
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>📸</div>
+          <div className="u-empty-icon">📸</div>
           <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('cumulative_flow.no_history')}</div>
-          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{t('cumulative_flow.no_history_desc')}</div>
+          <div className="u-text2-base-mb20">{t('cumulative_flow.no_history_desc')}</div>
           <Button onClick={()=>snapshot()} disabled={snapping}>{snapping ? t('cumulative_flow.creating') : t('cumulative_flow.create_first_snapshot')}</Button>
         </div>
       )}
@@ -181,9 +182,9 @@ export default function CumulativeFlowPage(): JSX.Element {
           <div style={{...ps,marginTop:16}}>
             <div style={{fontSize: "var(--text-base)",fontWeight:600,marginBottom:12}}>{t('cumulative_flow.table_title')}</div>
             <div className="u-scroll-x">
-              <table style={{width:'100%',borderCollapse:'collapse',fontSize: "var(--text-sm)"}}>
+              <table className="u-table-sm">
                 <thead>
-                  <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
+                  <tr className="u-border-b">
                     <th style={{textAlign:'left',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>{t('cumulative_flow.col_date')}</th>
                     {statuses.map(st=>(
                       <th key={st} style={{textAlign:'center',padding:'8px 12px',color:getColor(st,statuses.indexOf(st)),fontWeight:600}}>{st.replace(/_/g,' ')}</th>

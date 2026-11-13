@@ -6,7 +6,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 from __future__ import annotations
 
 import json
-import os as _os
+from app.core.config import settings as _settings
 from sqlalchemy.orm import Session
 from app.models.service_desk import ChangeStatus as _ChangeStatus
 from app.models.service_desk import ITSMChangeRequest, ChangeRisk
@@ -71,8 +71,7 @@ ESTADOS_PENDIENTES_DE_CAB = [
 #: abiertos sobre ellos y el historial de incidencias— **y un `commit`**. Sin
 #: tope, una cola acumulada convierte una peticion HTTP en un trabajo de lote de
 #: duracion desconocida.
-TOPE_DE_CAMBIOS_POR_PASADA = int(
-    _os.getenv("CHANGE_BATCH_SCORE_MAX", "100"))
+TOPE_DE_CAMBIOS_POR_PASADA = int(_settings.CHANGE_BATCH_SCORE_MAX)
 
 
 def _cambios_de_la_organizacion(db: Session, current_user):

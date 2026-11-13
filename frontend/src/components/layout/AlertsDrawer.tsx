@@ -95,7 +95,7 @@ export default function AlertsDrawer({ onClose }: Props) {
           </div>
           <button onClick={onClose} aria-label="Cerrar" style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-3)', padding: 4, borderRadius: 6, display: 'flex',
+            color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius-sm)', display: 'flex',
           }}>
             <X size={16} />
           </button>
@@ -145,7 +145,7 @@ export default function AlertsDrawer({ onClose }: Props) {
                     marginBottom: 8, padding: '12px 14px',
                     background: alert.is_read ? 'var(--surface-2)' : cfg.bg,
                     border: `1px solid ${alert.is_read ? 'var(--surface-4)' : cfg.border}`,
-                    borderRadius: 10,
+                    borderRadius: 'var(--radius-md)',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>

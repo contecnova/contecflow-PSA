@@ -107,7 +107,7 @@ const LEVEL_CFG: Record<RiskLevel, RiskCardConfig> = {
 
 function ScoreBar({ value, label, _color }: { value: number; label: string; _color?: string }) {
   return (
-    <div style={{ marginBottom:10 }}>
+    <div className="u-mb-10">
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize: "var(--text-sm)" }}>
         <span className="u-text2">{label}</span>
         <span style={{ fontWeight:500, color: value >= 75 ? 'var(--danger)' : value >= 50 ? 'var(--warning)' : 'var(--success)' }}>{Math.round(value)}%</span>
@@ -180,7 +180,7 @@ function MLPredictionsTab() {
           { label: 'Riesgo moderado',      value: summary.medium || 0, icon: '🟡', color: 'var(--warning)' },
           { label: 'Bajo riesgo',          value: summary.low || 0,    icon: '🟢', color: 'var(--success)' },
         ].map((k, i) => (
-          <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
+          <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
             <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{k.icon}</div>
             <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: k.color || 'var(--text-1)' }}>{k.value}</div>
             <div className="u-text2-xs">{k.label}</div>
@@ -196,7 +196,7 @@ function MLPredictionsTab() {
 
       {/* Projects risk list */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'flex-start' }}>
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="ds-card ds-card--plano">
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
             {t('riskscores.cartera_de_proyectos_ml')}
           </div>
@@ -213,7 +213,7 @@ function MLPredictionsTab() {
                     <div className="u-flex1-min0">
                       <div style={{ fontSize: "var(--text-base)", fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project_name}</div>
                       {p.recommendation && (
-                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>💡 {p.recommendation}</div>
+                        <div className="u-text3-xs-mt2">💡 {p.recommendation}</div>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
@@ -243,7 +243,7 @@ function MLPredictionsTab() {
           </div>
 
           {/* Models */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div className="ds-card ds-card--plano">
             <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
               {t('riskscores.versiones_del_modelo')}
             </div>
@@ -266,7 +266,7 @@ function MLPredictionsTab() {
           </div>
 
           {/* Logs */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div className="ds-card ds-card--plano">
             <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
               {t('riskscores.historial_de_predicciones')}
             </div>
@@ -368,7 +368,7 @@ export default function RiskScoresPage() {
           return (
             <button key={s.level} type="button"
               onClick={() => setFilterLevel(filterLevel === s.level ? 'all' : (s.level as RiskLevel))}
-              style={{ background:cfg.bg, border:`.5px solid ${cfg.border}`, borderRadius:10, padding:'16px 18px', cursor:'pointer', opacity: filterLevel !== 'all' && filterLevel !== s.level ? 0.5 : 1, textAlign:'left', fontFamily:'inherit' }}>
+              style={{ background:cfg.bg, border:`.5px solid ${cfg.border}`, borderRadius:'var(--radius-md)', padding:'16px 18px', cursor:'pointer', opacity: filterLevel !== 'all' && filterLevel !== s.level ? 0.5 : 1, textAlign:'left', fontFamily:'inherit' }}>
               <div style={{ fontSize: "var(--text-2xl)", marginBottom:4 }}>{cfg.icon}</div>
               <div style={{ fontSize: "var(--text-2xl-em)", fontWeight:500, color:cfg.color }}>{s.count}</div>
               <div style={{ fontSize: "var(--text-sm)", color:cfg.color }}>Riesgo {s.label}</div>
@@ -380,12 +380,12 @@ export default function RiskScoresPage() {
       <div style={{ display:'flex', gap:12, marginBottom:20, alignItems:'center' }}>
         {filterLevel !== 'all' && (
           <button onClick={() => setFilterLevel('all')}
-            style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'5px 12px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
+            style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'5px 12px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
             × Quitar filtro
           </button>
         )}
         <button onClick={() => refresh()}
-          style={{ marginLeft:'auto', background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'6px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
+          style={{ marginLeft:'auto', background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'6px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
           {refreshing || isFetching ? '↻ Recalculando...' : '↻ Recalcular todo'}
         </button>
       </div>
@@ -404,8 +404,8 @@ export default function RiskScoresPage() {
                 return (
                   <button key={p.project_id} type="button"
                     onClick={() => setSelected(isSelected ? null : p.project_id)}
-                    style={{ background:'var(--surface-1)', border:`.5px solid ${isSelected ? cfg.border : 'var(--surface-4)'}`, borderRadius:10, padding:'14px 18px', cursor:'pointer', transition:'border-color .2s', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                    style={{ background:'var(--surface-1)', border:`.5px solid ${isSelected ? cfg.border : 'var(--surface-4)'}`, borderRadius:'var(--radius-md)', padding:'14px 18px', cursor:'pointer', transition:'border-color .2s', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
+                    <div className="u-row-center-12">
                       <span style={{ fontSize: "var(--text-xl)" }}>{cfg.icon}</span>
                       <div className="u-flex1">
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
@@ -459,7 +459,7 @@ export default function RiskScoresPage() {
         {/* Panel detalle */}
         {selected && detail && (
           <div style={{ background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12, padding:'20px 22px', position:'sticky', top:80, alignSelf:'start' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <div className="u-row-between-mb16">
               <div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{detail.project_name}</div>
               <button onClick={() => setSelected(null)} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize: "var(--text-lg-em)", color:'var(--text-3)', lineHeight:1 }}>×</button>
             </div>

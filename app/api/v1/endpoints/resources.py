@@ -95,14 +95,6 @@ class TeamHealthMetrics(BaseModel):
     billable_pct: float
 
 
-class SkillGapRecord(BaseModel):
-    skill_id: str
-    skill_name: str
-    required: bool = False
-    available_users: int = 0
-    highest_level: Optional[str] = None
-
-
 class AvailableUserBySkill(BaseModel):
     user_id: str
     user_name: str

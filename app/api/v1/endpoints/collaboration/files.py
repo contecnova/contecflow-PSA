@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIResponse
-from app.core.uploads import UploadProfile, read_and_validate_upload
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.collaboration import AttachmentOut
@@ -29,8 +29,12 @@ from app.services.collaboration._storage import FileStorage
 
 router = APIRouter()
 
+# Auditoria 2026-11: las subidas son `def` (threadpool). Eran `async def` y
+# guardaban en BD, en el almacen de objetos y pasaban el antivirus dentro del
+# bucle de eventos: una subida grande paraba al resto de peticiones.
+
 @router.post("/attachments", response_model=AttachmentOut, summary="Subir adjunto (multipart)")
-async def upload_attachment(
+def upload_attachment(
     conversation_id: str = Form(...),
     message_id: Optional[str] = Form(None),
     file: UploadFile = File(...),
@@ -41,7 +45,7 @@ async def upload_attachment(
     # Lectura acotada + validación de tipo (extensión, MIME declarado, bytes
     # mágicos y coherencia entre ellos). Antes esto no validaba NADA del
     # contenido: bastaba renombrar un ejecutable para subirlo.
-    datos = await read_and_validate_upload(file, UploadProfile.ATTACHMENT)
+    datos = read_and_validate_upload_sync(file, UploadProfile.ATTACHMENT)
     nombre = svc.nombre_para_clave_de_objeto(file.filename)
 
     att, en_cuarentena = svc.crear_adjunto(
@@ -69,7 +73,7 @@ async def upload_attachment(
 
 
 @router.post("/attachments/{attachment_id}/versions", response_model=AttachmentOut, summary="Subir nueva versión")
-async def upload_new_version(
+def upload_new_version(
     attachment_id: str,
     notes: Optional[str] = Form(None),
     file: UploadFile = File(...),
@@ -79,7 +83,7 @@ async def upload_new_version(
 ):
     # Esta vía no tenía ni el tope de 500 MB que sí tenía la de creación: era un
     # `await file.read()` sin límite.
-    datos = await read_and_validate_upload(file, UploadProfile.ATTACHMENT)
+    datos = read_and_validate_upload_sync(file, UploadProfile.ATTACHMENT)
     att, _ = svc.subir_version(
         db, current_user, attachment_id, datos=datos, notas=notes)
     return AttachmentOut(**svc.salida_de_adjunto(db, att))

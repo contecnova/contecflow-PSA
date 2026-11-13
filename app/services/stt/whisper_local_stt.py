@@ -5,9 +5,9 @@ nube. Requiere el binario ``whisper`` (o ``whisper-cli`` de whisper.cpp) en el
 PATH y un fichero de modelo. Lento sin GPU pero gratis y sin red.
 
 Configuración:
-  - ``WHISPER_LOCAL_BIN`` env (default: ``whisper``)
-  - ``WHISPER_LOCAL_MODEL`` env (default: ``base``)
-  - ``WHISPER_LOCAL_LANGUAGE`` env (default: ``es``)
+  - ``WHISPER_LOCAL_BIN`` (si no, ``WHISPER_BIN``; default: ``whisper``)
+  - ``WHISPER_LOCAL_MODEL`` (si no, ``WHISPER_MODEL``; default: ``base``)
+  - ``WHISPER_LOCAL_LANGUAGE`` (default: ``es``); todos en `Settings`
 """
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ import subprocess
 import tempfile
 from typing import Optional
 
+from app.core.config import settings
 from app.services.stt.base import STTError, STTProvider, STTResult
 
 logger = logging.getLogger(__name__)
@@ -32,9 +33,9 @@ class WhisperLocalSTTProvider(STTProvider):
         model: Optional[str] = None,
         language: Optional[str] = None,
     ) -> None:
-        self._binary = binary or os.environ.get("WHISPER_LOCAL_BIN") or os.environ.get("WHISPER_BIN") or "whisper"
-        self._model = model or os.environ.get("WHISPER_LOCAL_MODEL") or os.environ.get("WHISPER_MODEL") or "base"
-        self._language = language or os.environ.get("WHISPER_LOCAL_LANGUAGE") or "es"
+        self._binary = binary or settings.WHISPER_LOCAL_BIN or settings.WHISPER_BIN or "whisper"
+        self._model = model or settings.WHISPER_LOCAL_MODEL or settings.WHISPER_MODEL or "base"
+        self._language = language or settings.WHISPER_LOCAL_LANGUAGE or settings.DEFAULT_LANGUAGE
 
     def is_available(self) -> bool:
         return shutil.which(self._binary) is not None

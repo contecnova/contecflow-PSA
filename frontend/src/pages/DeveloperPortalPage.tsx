@@ -1,7 +1,7 @@
 /**
  * DeveloperPortalPage — Manage OAuth2 applications
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { developerAppsApi, apiUrl, apiUrlAbsoluta } from '../services/api'
@@ -45,11 +45,12 @@ const FS: CSSProperties = {
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
 const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-const MONO: CSSProperties = { fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)', border: '1px solid var(--surface-4)', wordBreak: 'break-all', display: 'block' }
+const MONO: CSSProperties = { fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)', border: '1px solid var(--surface-4)', wordBreak: 'break-all', display: 'block' }
 
 const AVAILABLE_SCOPES = ['read', 'write', 'projects', 'tasks', 'timesheets', 'billing', 'admin']
 
 function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => void }) {
+  const idCampo = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const t = useAppT()
@@ -92,11 +93,11 @@ function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => 
   if (newSecret) return (
     <Modal open title={t('developer.app_created')} onClose={onClose} width={520}>
       <div className="u-stack-16">
-        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: 16 }}>
+        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
           <p style={{ color: 'var(--success)', fontSize: "var(--text-base)", marginBottom: 12, fontWeight: 600 }}>
             {t('developer.secret_warning')}
           </p>
-          <div style={{ marginBottom: 10 }}>
+          <div className="u-mb-10">
             <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_id')}</label>
             <code style={MONO}>{newSecret.client_id}</code>
           </div>
@@ -114,20 +115,20 @@ function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => 
     <Modal open title={isEdit ? t('developer.edit_app', { name: app.name }) : t('developer.new_oauth_app')} onClose={onClose} width={540}>
       <div className="u-stack-14">
         <div>
-          <label style={LS}>{t('developer.app_name_label')}</label>
-          <input value={f.name} onChange={set('name')} style={FS} placeholder={t('developer.app_name_placeholder')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('developer.app_name_label')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} style={FS} placeholder={t('developer.app_name_placeholder')} />
         </div>
         <div>
-          <label style={LS}>{t('developer.app_description_label')}</label>
-          <textarea value={f.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }} rows={2} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('developer.app_description_label')}</label>
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }} rows={2} />
         </div>
         <div>
-          <label style={LS}>{t('developer.app_homepage_label')}</label>
-          <input value={f.homepage_url} onChange={set('homepage_url')} style={FS} placeholder={t('developer.app_homepage_placeholder')} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('developer.app_homepage_label')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.homepage_url} onChange={set('homepage_url')} style={FS} placeholder={t('developer.app_homepage_placeholder')} />
         </div>
         <div>
-          <label style={LS}>{t('developer.app_redirect_label')}</label>
-          <textarea value={f.redirect_uris} onChange={set('redirect_uris')} style={{ ...FS, resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }} rows={3}
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('developer.app_redirect_label')}</label>
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} style={{ ...FS, resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }} rows={3}
             placeholder={t('developer.app_redirect_placeholder')} />
         </div>
         <div>
@@ -270,9 +271,9 @@ export default function DeveloperPortalPage(): JSX.Element {
                 }}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</span>
               </div>
               {app.description && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10, lineHeight: 1.4 }}>{app.description}</p>}
-              <div style={{ marginBottom: 10 }}>
+              <div className="u-mb-10">
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{t('developer.client_id')}</div>
-                <code style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{app.client_id}</code>
+                <code className="u-text2-mono-xs">{app.client_id}</code>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
                 {app.scopes?.map(s => (
@@ -299,7 +300,7 @@ export default function DeveloperPortalPage(): JSX.Element {
       {rotatedSecret && (
         <Modal open title={t('developer.new_secret_generated')} onClose={() => { setRotatedSecret(null); setViewCreds(null) }} width={480}>
           <div className="u-stack-12">
-            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: 14 }}>
+            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: 14 }}>
               <p style={{ color: 'var(--success)', fontSize: "var(--text-base)", marginBottom: 10, fontWeight: 600 }}>
                 {t('developer.save_new_secret')}
               </p>

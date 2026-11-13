@@ -13,19 +13,18 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 import time
 from dataclasses import dataclass
 from typing import Optional
 
+from app.core.config import settings
+
 
 @dataclass
 class LiveKitConfig:
-    # env-driven: LiveKit is an optional realtime backend; credentials kept out of
-    # Settings to avoid forcing every deployment to define LIVEKIT_* envs.
-    url: str = os.environ.get("LIVEKIT_URL", "wss://livekit.local")
-    api_key: Optional[str] = os.environ.get("LIVEKIT_API_KEY")
-    api_secret: Optional[str] = os.environ.get("LIVEKIT_API_SECRET")
+    url: str = settings.LIVEKIT_URL
+    api_key: Optional[str] = settings.LIVEKIT_API_KEY
+    api_secret: Optional[str] = settings.LIVEKIT_API_SECRET
 
 
 CONFIG = LiveKitConfig()

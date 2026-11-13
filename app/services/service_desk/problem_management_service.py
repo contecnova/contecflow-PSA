@@ -18,7 +18,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.service_desk import IncidentToProblem, KnownError, Problem, ProblemRcaTemplate, Ticket
+from app.models.service_desk import IncidentToProblem, Problem, ProblemRcaTemplate, Ticket
 from app.models.user import User
 from app.schemas.service_desk import ProblemIn
 from app.services.service_desk import problem_service
@@ -149,66 +149,7 @@ def get_linked_incidents(
 # ── Known Error DB (sd_known_errors) ─────────────────────────────────────────
 
 
-def create_known_error(
-    db: Session,
-    *,
-    problem_id: str,
-    current_user: User,
-    title: str,
-    workaround: str,
-    description: Optional[str] = None,
-    root_cause: Optional[str] = None,
-    rca_type: Optional[str] = None,
-    affects_json: Optional[str] = None,
-    category_id: Optional[str] = None,
-    expires_days: int = 90,
-) -> KnownError:
-    """Promote a Problem to a Known Error entry in the KEDB."""
-    from datetime import timedelta
-
-    now = datetime.now(timezone.utc)
-    ke = KnownError(
-        id=str(uuid.uuid4()),
-        problem_id=problem_id,
-        title=title,
-        description=description,
-        workaround=workaround,
-        root_cause=root_cause,
-        rca_type=rca_type,
-        affects_json=affects_json,
-        category_id=category_id,
-        published_by=current_user.id,
-        published_at=now,
-        expires_at=now + timedelta(days=expires_days),
-        is_active=True,
-    )
-    db.add(ke)
-    db.flush()
-    return ke
-
-
-def get_known_errors_for_problem(
-    db: Session,
-    *,
-    problem_id: str,
-) -> list[KnownError]:
-    """Return all active KEDB entries for a given problem."""
-    return (
-        db.query(KnownError)
-        .filter(KnownError.problem_id == problem_id, KnownError.is_active.is_(True))
-        .order_by(KnownError.published_at.desc())
-        .all()
-    )
-
-
 # ── RCA Template management (sd_problem_rca_templates) ───────────────────────
-
-
-def list_rca_templates(db: Session, *, active_only: bool = True) -> list[ProblemRcaTemplate]:
-    q = db.query(ProblemRcaTemplate)
-    if active_only:
-        q = q.filter(ProblemRcaTemplate.is_active.is_(True))
-    return q.order_by(ProblemRcaTemplate.name).all()
 
 
 def get_rca_template(db: Session, *, template_id: str) -> Optional[ProblemRcaTemplate]:

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -222,7 +221,3 @@ def restablecer_marca(db: Session, user, org_id: str) -> None:
         db.delete(fila)
         db.commit()
 
-
-def variables_css_seguras(valores: Optional[dict]) -> dict:
-    """Expuesta para que el saneado se pueda probar por separado."""
-    return _variables_css_seguras(valores or {})

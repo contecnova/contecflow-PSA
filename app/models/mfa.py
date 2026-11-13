@@ -1,8 +1,7 @@
 """
 v15 models — all remaining pending features:
   Organization          : Multi-tenancy root — every entity belongs to an org
-  MFAConfig             : TOTP/2FA per user
-  MFABackupCode         : One-time backup codes for MFA
+  MFABackupCode         : One-time backup codes for TOTP (secret lives in users.mfa_secret)
   SlackConfig           : Slack/Teams workspace connection
   SlackNotificationLog  : Audit of Slack messages sent
   Budget                : Multi-period department budgets
@@ -99,41 +98,21 @@ class Organization(Base):
 
 # ── MFA / 2FA ─────────────────────────────────────────────────────────────────
 
-class MFAConfig(Base):
-    """TOTP-based MFA configuration per user."""
-    __tablename__ = "mfa_configs"
-
-    id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
-                          nullable=False, unique=True, index=True)
-    totp_secret  = Column(String(512), nullable=False)  # Fernet-encrypted base32 secret (v2:<salt>.<token>)
-    is_enabled   = Column(Boolean, default=False)       # False until first verification
-    verified_at  = Column(DateTime(timezone=True), nullable=True)
-    last_used_at = Column(DateTime(timezone=True), nullable=True)
-    created_at   = Column(DateTime(timezone=True), server_default=func.now())
-
-    user         = relationship("User", foreign_keys=[user_id])
-    backup_codes = relationship("MFABackupCode", back_populates="mfa_config",
-                                cascade="all, delete-orphan")
-
-    def __repr__(self) -> str:
-        return f"<MFAConfig id={self.id!r} user_id={self.user_id!r}>"
-
+# Auditoria 2026-11: habia dos sistemas TOTP. `mfa_configs` (pantalla /mfa) no
+# lo miraba el login; el unico es `users.mfa_secret` / `users.mfa_enabled`
+# (`/api/v1/auth/mfa/*`). La revision 160 copio los secretos y borro la tabla.
 
 class MFABackupCode(Base):
-    """One-time backup codes (8 per user, each usable once)."""
+    """Codigos de respaldo del TOTP (8 por usuario, cada uno de un solo uso)."""
     __tablename__ = "mfa_backup_codes"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    mfa_id     = Column(String(36), ForeignKey("mfa_configs.id", ondelete="CASCADE"),
+    user_id    = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     code_hash  = Column(String(128), nullable=False)    # bcrypt hash of 8-char code
     used_at    = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    mfa_config = relationship("MFAConfig", back_populates="backup_codes")
 
 
 class WebAuthnCredential(Base):

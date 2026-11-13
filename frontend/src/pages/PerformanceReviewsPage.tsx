@@ -15,7 +15,7 @@
  *   6) HR/Admin cierra el ciclo                  → status `closed` (read-only)
  */
 import type { CSSProperties, ReactNode } from 'react'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useId } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi, usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
@@ -495,6 +495,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
 
 // ── AssignReviewModal: HR/Admin asigna quién evalúa a quién (smart 360°) ───
 function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -554,8 +555,8 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
       <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
         {/* Persona evaluada (primero, para poder calcular elegibilidad) */}
         <div className="ds-field">
-          <label className="ds-field__label">Persona evaluada *</label>
-          <select value={form.reviewee_id}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">Persona evaluada *</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.reviewee_id}
             onChange={e => setForm(f => ({ ...f, reviewee_id: e.target.value }))}
             className="ds-input">
             <option value="">Selecciona…</option>
@@ -598,8 +599,8 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
         {/* Evaluador (oculto si es 'self') — restringido al pool elegible */}
         {!isSelfType && (
           <div className="ds-field">
-            <label className="ds-field__label">Evaluador *</label>
-            <select value={form.reviewer_id}
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Evaluador *</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.reviewer_id}
               onChange={e => setForm(f => ({ ...f, reviewer_id: e.target.value }))}
               className="ds-input"
               disabled={!form.reviewee_id || !!blockedReason}>
@@ -733,6 +734,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
 function QuestionEditModal({ question, onClose, onSave }: {
   question?: Question; onClose: () => void; onSave: (data: QuestionPayload) => void
 }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const isEdit = !!question
   const [form, setForm] = useState(() => ({
@@ -765,25 +767,25 @@ function QuestionEditModal({ question, onClose, onSave }: {
       <div className="ds-stack">
         {!isEdit && (
           <div className="ds-field">
-            <label className="ds-field__label">Identificador (opcional)</label>
-            <input value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))}
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">Identificador (opcional)</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))}
               className="ds-input" placeholder={traducir('performancereviews.se_genera_del_titulo_si_lo_dejas')} />
           </div>
         )}
         <div className="ds-field">
-          <label className="ds-field__label">Pregunta *</label>
-          <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Pregunta *</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.ej_calidad_del_trabajo')} autoFocus />
         </div>
         <div className="ds-field">
-          <label className="ds-field__label">Ayuda (opcional)</label>
-          <input value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))}
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Ayuda (opcional)</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.texto_pequeno_de_apoyo_bajo_la_pregunta')} />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
-            <label className="ds-field__label">Tipo</label>
-            <select value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">Tipo</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}
               className="ds-input">
               {QUESTION_KINDS.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
             </select>
@@ -799,14 +801,14 @@ function QuestionEditModal({ question, onClose, onSave }: {
         {isRatingKind(form.kind) && (
           <div style={styles.twoColGrid}>
             <div className="ds-field">
-              <label className="ds-field__label">{traducir('performancereviews.escala_min')}</label>
-              <input type="number" value={form.scale_min}
+              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{traducir('performancereviews.escala_min')}</label>
+              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.scale_min}
                 onChange={e => setForm(f => ({ ...f, scale_min: e.target.value }))}
                 className="ds-input" placeholder="1" />
             </div>
             <div className="ds-field">
-              <label className="ds-field__label">{traducir('performancereviews.escala_max')}</label>
-              <input type="number" value={form.scale_max}
+              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{traducir('performancereviews.escala_max')}</label>
+              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale_max}
                 onChange={e => setForm(f => ({ ...f, scale_max: e.target.value }))}
                 className="ds-input" placeholder={form.kind === 'rating_10' ? '10' : '5'} />
             </div>
@@ -825,6 +827,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
 
 // ── New360CampaignModal: wizard que crea una campaña con todos sus evaluadores
 function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -926,8 +929,8 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
       <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
         {/* Subject */}
         <div className="ds-field">
-          <label className="ds-field__label">Persona evaluada *</label>
-          <select value={subjectId}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">Persona evaluada *</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={subjectId}
             onChange={e => setSubjectId(e.target.value)}
             className="ds-input">
             <option value="">Selecciona…</option>
@@ -1055,10 +1058,10 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
 
             {/* Anonimización */}
             <div className="ds-field">
-              <label className="ds-field__label">
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">
                 <Lock size={11} style={{ verticalAlign: 'middle' }} /> {traducir('performancereviews.umbral_de_anonimizacion')}
               </label>
-              <input type="number" min={1} max={20} value={threshold}
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={20} value={threshold}
                 onChange={e => setThreshold(e.target.value)}
                 className="ds-input" style={{ width: 100 }} />
               <div className="ds-field__hint">
@@ -1619,6 +1622,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
 
 // ── NewCycleModal ──────────────────────────────────────────────────────────
 function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1659,20 +1663,20 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
     <Modal open onClose={onClose} title={traducir('performancereviews.nuevo_ciclo_de_evaluacion')} width={520}>
       <div className="ds-stack">
         <div className="ds-field">
-          <label className="ds-field__label">Nombre *</label>
-          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">Nombre *</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
-            <label className="ds-field__label">Inicio</label>
-            <DateInput value={form.start_date}
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Inicio</label>
+            <DateInput id={`${idCampo}-2`} value={form.start_date}
               onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
               className="ds-input" />
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">Fin</label>
-            <DateInput value={form.end_date}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Fin</label>
+            <DateInput id={`${idCampo}-3`} value={form.end_date}
               onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
               className="ds-input" />
           </div>
@@ -1983,6 +1987,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
 }
 
 function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -2027,28 +2032,28 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
       width={560}>
       <div className="ds-stack">
         <div className="ds-field">
-          <label className="ds-field__label">{traducir('performancereviews.titulo')}</label>
-          <input value={form.title}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{traducir('performancereviews.titulo')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title}
             onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />
         </div>
         <div className="ds-field">
-          <label className="ds-field__label">Resumen / contexto</label>
-          <textarea value={form.summary}
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Resumen / contexto</label>
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.summary}
             onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
             rows={3} className="ds-input" style={{ resize: 'vertical' }}
             placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
-            <label className="ds-field__label">Fecha objetivo</label>
-            <DateInput value={form.target_date}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Fecha objetivo</label>
+            <DateInput id={`${idCampo}-3`} value={form.target_date}
               onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))}
               className="ds-input" />
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">{traducir('performancereviews.proxima_revision_2')}</label>
-            <DateInput value={form.next_review_at}
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{traducir('performancereviews.proxima_revision_2')}</label>
+            <DateInput id={`${idCampo}-4`} value={form.next_review_at}
               onChange={e => setForm(f => ({ ...f, next_review_at: e.target.value }))}
               className="ds-input" />
           </div>
@@ -2217,7 +2222,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="u-row-end">
           <Button variant="secondary" onClick={onClose}>
             <X size={13} /> Cerrar
           </Button>

@@ -68,10 +68,6 @@ def _tenant_context(db: Session, user: "User" = None) -> dict:
     return _build_tenant_context(db, user)
 
 
-def _get_prompt(db: Session, module: str, default: str) -> str:
-    return _svc.get_prompt(db, module, default)
-
-
 def _check_rate_limit(db: Session, user_id: str, module: str) -> Optional[str]:
     return _svc.check_rate_limit(db, user_id, module)
 

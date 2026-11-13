@@ -18,20 +18,20 @@ from app.services.service_desk.kb_service import (
     update_kb_helpful_vote, delete_kb_article as delete_kb_article_svc,
     list_kb_versions, serialize_kb_versions, rollback_kb_to_version,
 )
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
 
-from app.services.service_desk.portal_auth_service import (  # noqa: E402
-    Lector, get_portal_client_or_user as lector_de_la_kb,
-)
+from app.core.deps import get_portal_client_or_user as lector_de_la_kb  # noqa: E402
+from app.services.service_desk.portal_auth_service import Lector  # noqa: E402
 
 
 @router.get("/kb", summary="Artículos de base de conocimiento")
 def list_kb_articles(
     search: Optional[str] = None, category_id: Optional[str] = None,
     public_only: bool = False, status: Optional[str] = None,
-    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db), authorization: Optional[str] = Header(None),
     lector: Lector = Depends(lector_de_la_kb),
@@ -75,7 +75,13 @@ def calidad_de_la_kb(db: Session = Depends(get_db), _rol: User = Depends(require
 @router.post("/kb/quality/run", summary="Pasar ahora la revisión de caducados y contradicciones (admin)")
 def pasar_calidad(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     from app.services.service_desk.kb_calidad import pasada
-    return APIResponse.ok(data=pasada(db, current_user.organization_id))
+    # Segunda auditoria 2026-11 (n.º 20): la pasada (comparaciones con IA entre
+    # articulos) va al worker. Con cola: 202 `{status: "queued"}`.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    resultado = encolar(pasada, current_user.organization_id, _sesion=db)
+    if resultado is EN_COLA:
+        return respuesta_en_cola()
+    return APIResponse.ok(data=resultado)
 
 
 @router.post("/kb/corrections", summary="Dejar la respuesta buena para una pregunta (se aplica al momento)")

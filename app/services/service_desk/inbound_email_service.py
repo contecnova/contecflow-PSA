@@ -14,12 +14,6 @@ from app.services.service_desk import inbound_mail
 from app.core.errores import ErrorDeDominio
 
 
-def parse_email_address(raw: Optional[str]) -> tuple[str, str]:
-    from email.utils import parseaddr
-    nombre, direccion = parseaddr(raw or "")
-    return nombre.strip(), direccion.strip()
-
-
 def _secreto(db: Session, org_id: Optional[str]) -> str:
     from app.services.integration_credentials_service import get_credential
     return get_credential(db, "webhooks", "inbound_email_secret", org_id=org_id) or ""

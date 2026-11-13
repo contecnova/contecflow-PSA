@@ -17,6 +17,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 import app.services.issue_type_service as _svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -72,7 +73,7 @@ class FTSIndexIn(BaseModel):
 def list_issue_types(
     project_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):

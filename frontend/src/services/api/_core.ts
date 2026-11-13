@@ -1,4 +1,5 @@
-import axios, { type AxiosError, type AxiosRequestConfig } from 'axios'
+import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
+import type { Client, ClientContact, Contract, Epic, RiesgosDelProyecto, Risk, Sprint } from './tipos'
 import { API_BASE_URL } from './urls'
 
 const BASE_URL = API_BASE_URL
@@ -427,39 +428,34 @@ export const integrationsApi = {
   exportProjects:    (params: unknown) => api.get('/analytics/exports/projects-csv', { params, responseType: 'blob' }),
   // Importa issues de Jira como tareas del proyecto (revisión 2026-11: llamaba a
   // una ruta que espera el id de una configuración y siempre daba 404).
-  jiraSync:          (projectId: PathId) => api.post('/jira/sync', { project_id: projectId }),
 }
 
 export const clientsApi = {
-  list:         (params?: QueryParams)     => api.get('/clients', { params }),
-  get:          (id: PathId)         => api.get(`/clients/${id}`),
+  list:         (params?: QueryParams): Promise<AxiosResponse<Client[]>>     => api.get('/clients', { params }),
+  get:          (id: PathId): Promise<AxiosResponse<Client>>         => api.get(`/clients/${id}`),
   create:       (data: unknown)       => api.post('/clients', data),
   update:       (id: PathId, data: unknown)   => api.patch(`/clients/${id}`, data),
   delete:       (id: PathId)         => api.delete(`/clients/${id}`),
-  contacts:     (id: PathId)         => api.get(`/clients/${id}/contacts`),
+  contacts:     (id: PathId): Promise<AxiosResponse<ClientContact[]>>         => api.get(`/clients/${id}/contacts`),
 }
 
 // ── Sprints ───────────────────────────────────────────────────────────────────
 export const sprintsApi = {
-  list:    (projectId: PathId, params?: QueryParams) => api.get('/sprints', { params: { project_id: projectId, ...params } }),
+  list:    (projectId: PathId, params?: QueryParams): Promise<AxiosResponse<Sprint[]>> => api.get('/sprints', { params: { project_id: projectId, ...params } }),
 }
 
 // ── Epics ─────────────────────────────────────────────────────────────────────
 export const epicsApi = {
-  list:            (projectId: PathId) => api.get('/epics', { params: { project_id: projectId } }),
-  get:             (id: PathId)        => api.get(`/epics/${id}`),
+  list:            (projectId: PathId): Promise<AxiosResponse<Epic[]>> => api.get('/epics', { params: { project_id: projectId } }),
+  get:             (id: PathId): Promise<AxiosResponse<Epic>>        => api.get(`/epics/${id}`),
   create:          (data: unknown)      => api.post('/epics', data),
   createForProject:(projectId: PathId, data: unknown) => api.post('/epics', data, { params: { project_id: projectId } }),
   update:          (id: PathId, data: unknown)  => api.patch(`/epics/${id}`, data),
   delete:          (id: PathId)        => api.delete(`/epics/${id}`),
   linkTask:        (id: PathId, taskId: PathId) => api.post(`/epics/${id}/tasks/${taskId}`),
   unlinkTask:      (id: PathId, taskId: PathId) => api.delete(`/epics/${id}/tasks/${taskId}`),
-  // Auditoria 2026-08: llamaba a `/roadmap`, que no existe — y su duplicado
-  // correcto, `roadmapByProject`, estaba en la linea de abajo apuntando a
-  // `/epics/roadmap`. `EpicsPage` usaba el roto. Los dos son ahora la misma
-  // llamada; se conserva `roadmapByProject` para no romper a quien la use.
+  // Auditoria 2026-11 (#45): `roadmapByProject` era la misma llamada; se quita.
   roadmap:         (projectId: PathId) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
-  roadmapByProject:(projectId: PathId) => api.get('/epics/roadmap', { params: { project_id: projectId } }),
   cfd:             (params?: QueryParams)    => api.get('/epics/cfd', { params }),
   cfdSnapshot:     (projectId: PathId) => api.post('/epics/cfd/snapshot', null, { params: { project_id: projectId } }),
   nqlSearch:       (data: unknown)      => api.post('/epics/nql/search', data),
@@ -467,8 +463,8 @@ export const epicsApi = {
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
 export const contractsApi = {
-  list:                (params?: QueryParams)           => api.get('/contracts', { params }),
-  get:                 (id: PathId)               => api.get(`/contracts/${id}`),
+  list:                (params?: QueryParams): Promise<AxiosResponse<Contract[]>>           => api.get('/contracts', { params }),
+  get:                 (id: PathId): Promise<AxiosResponse<Contract>>               => api.get(`/contracts/${id}`),
   create:              (data: unknown)             => api.post('/contracts', data),
   update:              (id: PathId, data: unknown)         => api.patch(`/contracts/${id}`, data),
   delete:              (id: PathId)               => api.delete(`/contracts/${id}`),
@@ -496,8 +492,8 @@ export const expensesApi = {
 
 // ── Risks ─────────────────────────────────────────────────────────────────────
 export const risksApi = {
-  list:         (projectId: PathId, params?: QueryParams) => api.get(`/risks/${projectId}`, { params }),
-  get:          (projectId: PathId, riskId: PathId) => api.get(`/risks/${projectId}/${riskId}`),
+  list:         <R = Risk>(projectId: PathId, params?: QueryParams): Promise<AxiosResponse<RiesgosDelProyecto<R>>> => api.get(`/risks/${projectId}`, { params }),
+  get:          (projectId: PathId, riskId: PathId): Promise<AxiosResponse<Risk>> => api.get(`/risks/${projectId}/${riskId}`),
   create:       (projectId: PathId, data: unknown)   => api.post(`/risks/${projectId}`, data),
   update:       (projectId: PathId, riskId: PathId, data: unknown) => api.patch(`/risks/${projectId}/${riskId}`, data),
   delete:       (projectId: PathId, riskId: PathId) => api.delete(`/risks/${projectId}/${riskId}`),
@@ -532,10 +528,8 @@ export const pipelineApi = {
 export const deliverablesApi = {
   listByProject:   (projectId: PathId) => api.get(`/deliverables/${projectId}`),
   overviewAll:     ()          => api.get('/deliverables/all/overview'),
-  get:             (id: PathId)        => api.get(`/deliverables/${id}`),
   createForProject:(projectId: PathId, data: unknown) => api.post(`/deliverables/${projectId}`, data),
   updateInProject: (projectId: PathId, id: PathId, data: unknown) => api.patch(`/deliverables/${projectId}/${id}`, data),
-  updateStatus:    (projectId: PathId, id: PathId, status: string) => api.patch(`/deliverables/${projectId}/${id}`, { status }),
   deleteFromProject:(projectId: PathId, id: PathId) => api.delete(`/deliverables/${projectId}/${id}`),
   accept:          (projectId: PathId, id: PathId) => api.post(`/deliverables/${projectId}/${id}/accept`),
   reject:          (projectId: PathId, id: PathId, reason: string) => api.post(`/deliverables/${projectId}/${id}/reject`, {}, { params: { reason } }),
@@ -636,7 +630,7 @@ export const ticketsApi = {
   unwatch:   (id: PathId)      => api.delete(`/sd/tickets/${id}/watch`),
   mergeInto: (id: PathId, data: unknown) => api.post(`/sd/tickets/${id}/merge`, data),
   list:    (params?: QueryParams)   => api.get('/sd/tickets', { params }),
-  myQueue: ()         => api.get('/sd/tickets/my-queue'),
+  myQueue: (params?: QueryParams) => api.get('/sd/tickets/my-queue', { params }),
   get:     (id: PathId)       => api.get(`/sd/tickets/${id}`),
   create:  (data: unknown)     => api.post('/sd/tickets', data),
   update:  (id: PathId, data: unknown) => api.patch(`/sd/tickets/${id}`, data),
@@ -883,10 +877,7 @@ export const skillsApi = {
 // ── Enterprise Subcontractors ─────────────────────────────────────────────────
 export const enterpriseSubsApi = {
   dashboard:        ()                     => api.get('/enterprise/subcontractors-dashboard'),
-  list:             ()                     => api.get('/enterprise/subcontractors'),
-  create:           (data: unknown)                 => api.post('/enterprise/subcontractors', data),
-  update:           (id: PathId, data: unknown)             => api.patch(`/enterprise/subcontractors/${id}`, data),
-  delete:           (id: PathId)                   => api.delete(`/enterprise/subcontractors/${id}`),
+  // CRUD de subcontratistas: `subcontractorsApi` (auditoria 2026-11, #45: estaba duplicado aqui).
   workers:          (subId: PathId)                => api.get(`/enterprise/subcontractors/${subId}/workers`),
   createWorker:     (subId: PathId, data: unknown)          => api.post(`/enterprise/subcontractors/${subId}/workers`, data),
   updateWorker:     (id: PathId, data: unknown)             => api.patch(`/enterprise/subcontractors/workers/${id}`, data),
@@ -1020,9 +1011,6 @@ export const biForecastingApi = {
   // The backend forecasts a single metric via POST /bi/forecast {metric, ...}.
   forecast:       (metric: string, params?: QueryParams)     => api.post('/bi/forecast', { metric, ...(params || {}) }),
   multiForecast:  (data: unknown)               => api.post('/bi/forecast/multi', data),
-  // Aliases kept for BiForecastingPanel (same canonical routes).
-  listMetrics:    ()                   => api.get('/bi/forecast/metrics'),
-  run:            (data: unknown)               => api.post('/bi/forecast', data),
 }
 
 // ── BI Anomaly / Churn ────────────────────────────────────────────────────────
@@ -1242,7 +1230,6 @@ export const sdMetricsApi = {
 
 export const sdCatalogApi = {
   list:           ()         => api.get('/sd/catalog'),
-  get:            ()         => api.get('/sd/catalog'),
   createCategory: (data: unknown)     => api.post('/sd/catalog/categories', data),
   updateCategory: (id: PathId, data: unknown) => api.patch(`/sd/catalog/categories/${id}`, data),
   deleteCategory: (id: PathId)       => api.delete(`/sd/catalog/categories/${id}`),
@@ -1360,8 +1347,6 @@ export const sdRoutingApi = {
   create:              (data: unknown)     => api.post('/sd/routing-rules', data),
   update:              (id: PathId, data: unknown) => api.patch(`/sd/routing-rules/${id}`, data),
   delete:              (id: PathId)       => api.delete(`/sd/routing-rules/${id}`),
-  queue:               (params?: QueryParams)   => api.get('/sd/tickets/my-queue', { params }),
-  tickets:             (params?: QueryParams)   => api.get('/sd/tickets', { params }),
   majorIncidents:      ()         => api.get('/sd/major-incidents'),
   createMajorIncident: (data: unknown)     => api.post('/sd/major-incidents', data),
 }
@@ -1439,9 +1424,7 @@ export const apiKeysApi = {
 
 // ── Client Portal ─────────────────────────────────────────────────────────────
 export const portalApi = {
-  clients:              (params?: QueryParams)          => api.get('/portal/clients', { params }),
-  createClient:         (data: unknown)            => api.post('/portal/clients', data),
-  updateClient:         (id: PathId, data: unknown)        => api.patch(`/portal/clients/${id}`, data),
+  // Listar/crear/editar usuarios del portal: `portalClientsApi` (auditoria 2026-11, #45).
   deleteClient:         (id: PathId)              => api.delete(`/portal/clients/${id}`),
   uat:                  (params?: QueryParams)          => api.get('/portal/uat/team', { params }),
   createUat:            (projectId: PathId, data: unknown) => api.post(`/portal/uat/${projectId}`, data),
@@ -1460,7 +1443,6 @@ export const clientExtApi = {
   availableProjects:  (cid: PathId)       => api.get(`/clients/${cid}/projects/available`),
   linkProject:        (cid: PathId, pid: PathId)  => api.post(`/clients/${cid}/projects/${pid}/link`),
   unlinkProject:      (cid: PathId, pid: PathId)  => api.delete(`/clients/${cid}/projects/${pid}/link`),
-  contacts:           (cid: PathId)       => api.get(`/clients/${cid}/contacts`),
   createContact:      (cid: PathId, data: unknown) => api.post(`/clients/${cid}/contacts`, data),
   deleteContact:      (cid: PathId, id: PathId)   => api.delete(`/clients/${cid}/contacts/${id}`),
   licenses:           (cid: PathId)       => api.get(`/clients/${cid}/licenses`),
@@ -1545,7 +1527,14 @@ export const jiraApi = {
   linked:     () => api.get('/jira/linked'),
   test:       () => api.get('/jira/test'),
   sync:       (data: unknown) => api.post('/jira/sync', data),
-  push:       () => api.post('/jira/push'),
+  // JiraPushIn exige project_id (sin cuerpo daba 422). Con cola responde 202
+  // `{status: 'queued'}`; sin cola `{created, skipped, errors}`.
+  push:       (data: { project_id: string; jira_project_key?: string; dry_run?: boolean }): Promise<AxiosResponse<{ status?: string; created?: number; skipped?: number; errors?: number }>> =>
+    api.post('/jira/push', data),
+  // Auditoria 2026-11 (#14, backend): secreto del webhook POR ORGANIZACION; solo
+  // admin; el servidor lo devuelve una unica vez (rotarlo invalida el anterior).
+  rotarSecretoWebhook: (): Promise<AxiosResponse<{ secret: string; header: string; webhook_paths: string[] }>> =>
+    api.post('/jira/webhook-secret'),
 }
 
 // ── SD Workflow Designer ──────────────────────────────────────────────────────
@@ -1704,11 +1693,14 @@ export const smartScheduleApi = {
 }
 
 // ── MFA ───────────────────────────────────────────────────────────────────────
+// Auditoria 2026-11: el unico TOTP es el que exige el login (/auth/mfa/*). Las
+// rutas /mfa/* escribian otra tabla que el login no miraba y se retiraron.
 export const mfaApi = {
-  status: () => api.get('/mfa/status'),
-  setup:  () => api.post('/mfa/setup'),
-  verify: (code: string) => api.post('/mfa/verify', { code }),
-  disable:(code: string) => api.delete('/mfa/disable', { data: { code } }),
+  status: () => api.get('/auth/mfa/status'),
+  // Con un segundo factor ya activo (TOTP o passkey), pide contrasena o codigo (ReautenticacionIn).
+  setup:  (reauth?: { password?: string; code?: string }) => api.post('/auth/mfa/setup', reauth ?? {}),
+  verify: (code: string) => api.post('/auth/mfa/verify-setup', { code }),
+  disable:(code: string) => api.post('/auth/mfa/disable', { code }),
 }
 
 // ── Oracle Predictions ────────────────────────────────────────────────────────

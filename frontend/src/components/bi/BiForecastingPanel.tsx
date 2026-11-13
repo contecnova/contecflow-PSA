@@ -29,7 +29,7 @@ interface ForecastResult {
 const METHODS = ['linear', 'holt', 'prophet'] as const
 
 const S: Record<string, React.CSSProperties> = {
-  card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
+  card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
   input:  { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   select: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none' },
   label:  { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 },
@@ -37,6 +37,7 @@ const S: Record<string, React.CSSProperties> = {
 }
 
 export default function BiForecastingPanel() {
+  const idCampo = React.useId()
   const t              = useAppT()
   const { tokens }     = useChartTheme()
   const [metric, setMetric]   = useState<string>('revenue')
@@ -46,11 +47,11 @@ export default function BiForecastingPanel() {
 
   const { data: metricsData } = useQuery<{ metrics?: string[] }>({
     queryKey: ['bi-forecast-metrics'],
-    queryFn:  () => biForecastingApi.listMetrics().then(r => r.data),
+    queryFn:  () => biForecastingApi.getMetrics().then(r => r.data),
   })
 
   const forecastMutation = useMutation<ForecastResult, unknown, { metric: string; method: string; periods: number }>({
-    mutationFn: (payload) => biForecastingApi.run(payload).then(r => r.data),
+    mutationFn: (payload) => biForecastingApi.forecast(payload.metric, { method: payload.method, periods: payload.periods }).then(r => r.data),
     onSuccess:  (data) => setForecastData(data),
   })
 
@@ -79,8 +80,8 @@ export default function BiForecastingPanel() {
       {/* Controls */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
         <div>
-          <label style={S.label}>{t('bi.forecasting.metric', 'Métrica')}</label>
-          <select value={metric} onChange={e => setMetric(e.target.value)} style={S.select}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={S.label}>{t('bi.forecasting.metric', 'Métrica')}</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => setMetric(e.target.value)} style={S.select}>
             {(metricsData?.metrics ?? ['revenue', 'tickets', 'utilization', 'hours']).map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -88,15 +89,15 @@ export default function BiForecastingPanel() {
         </div>
 
         <div>
-          <label style={S.label}>{t('bi.forecasting.method', 'Método')}</label>
-          <select value={method} onChange={e => setMethod(e.target.value)} style={S.select}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={S.label}>{t('bi.forecasting.method', 'Método')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={method} onChange={e => setMethod(e.target.value)} style={S.select}>
             {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
 
         <div>
-          <label style={S.label}>{t('bi.forecasting.periods', 'Períodos')}</label>
-          <input
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={S.label}>{t('bi.forecasting.periods', 'Períodos')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
             type="number" min={1} max={24}
             value={periods}
             onChange={e => setPeriods(Number(e.target.value))}

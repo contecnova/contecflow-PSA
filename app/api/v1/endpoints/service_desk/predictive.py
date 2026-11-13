@@ -3,17 +3,16 @@
 Severity prediction, resolution time estimation, and SLA breach probability.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
-from app.core.responses import APIListResponse, APIResponse
+from app.core.responses import APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk.predictive_analytics_service import (
     estadisticas_predictivas,
-    get_at_risk_tickets,
     predict_sla_breach,
     predict_ticket,
     run_predictive_scan,
@@ -34,15 +33,6 @@ def predictive_scan(
 ):
     """Re-score all open tickets with predictive models. Same logic as Celery task."""
     return APIResponse.ok(data=run_predictive_scan(db))
-
-
-@router.get("/at-risk", summary="Tickets con mayor probabilidad de incumplir SLA")
-def at_risk_tickets(
-    limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return APIListResponse.ok(items=get_at_risk_tickets(db, limit=limit))
 
 
 @router.get("/tickets/{ticket_id}", summary="Predicción completa para un ticket específico")

@@ -11,7 +11,7 @@ con la unicidad global de `endpoint` y dar un 500. Ver el modulo de servicio.
 from html import escape
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,7 @@ from app.models.user import User
 from app.services.collaboration import _push as push_svc
 from app.services.collaboration import admin as svc
 from app.services.collaboration._integrations import configured_providers, handle_callback
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 router = APIRouter()
 
@@ -48,7 +49,7 @@ def push_subscribe(
 @router.post("/push/test", summary="Disparar push de prueba a mí")
 def push_test(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     n = push_svc.push_to_user(db, current_user.id, {
-        "title": "Contecflow Chat",
+        "title": f"{NOMBRE_DEL_PRODUCTO} Chat",
         "body": "Web Push funcionando ✓",
         "url": "/chat",
     })
@@ -75,7 +76,15 @@ def run_digest(
     db: Session = Depends(get_db),
 ):
     from app.services.collaboration._email_digest import run as run_digest_svc
-    return APIResponse.ok(data=run_digest_svc(db, dry_run=dry_run, frequency=frequency))
+    if dry_run:  # vista previa: no manda nada, se queda en la peticion
+        return APIResponse.ok(data=run_digest_svc(db, dry_run=True, frequency=frequency))
+    # Segunda auditoria 2026-11 (n.º 20): un correo por usuario (SMTP) va al
+    # worker. Con cola: 202 `{status: "queued"}`. Sin cola, como siempre.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    resultado = encolar(run_digest_svc, frequency=frequency, _sesion=db)
+    if resultado is EN_COLA:
+        return respuesta_en_cola(frequency=frequency)
+    return APIResponse.ok(data=resultado)
 
 
 # ── OAuth integraciones ─────────────────────────────────────────────────────
@@ -90,8 +99,18 @@ def oauth_start(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return RedirectResponse(
-        url=svc.url_de_oauth(db, current_user, integration_id), status_code=302)
+    # Auditoria 2026-11 (#26): el `state` queda ligado a este usuario y a este
+    # navegador (cookie HttpOnly que solo viaja al callback).
+    import secrets as _secrets
+    from app.core.config import settings as _settings
+    from app.services.collaboration._integrations import CALLBACK_PATH, COOKIE_DE_VINCULO
+
+    vinculo = _secrets.token_urlsafe(24)
+    respuesta = RedirectResponse(
+        url=svc.url_de_oauth(db, current_user, integration_id, vinculo=vinculo), status_code=302)
+    respuesta.set_cookie(COOKIE_DE_VINCULO, vinculo, max_age=600, path=CALLBACK_PATH, httponly=True,
+                         samesite="lax", secure=_settings.ENVIRONMENT in {"production", "staging"})
+    return respuesta
 
 
 @router.get("/calendar/events", summary="Eventos próximos (Google + M365 agregados)")
@@ -106,6 +125,7 @@ async def calendar_events(
 
 @router.get("/integrations/oauth/callback", summary="Callback OAuth (cualquier proveedor)")
 async def oauth_callback(
+    request: Request,
     state: str = Query(...),
     code: str = Query(...),
     db: Session = Depends(get_db),
@@ -121,12 +141,15 @@ async def oauth_callback(
     """
     from app.core.async_db import run_db
 
-    integration_id, token_data, err = await handle_callback(state, code)
+    from app.services.collaboration._integrations import COOKIE_DE_VINCULO
+
+    integration_id, token_data, err, org_id = await handle_callback(
+        state, code, request.cookies.get(COOKIE_DE_VINCULO))
     if err or not integration_id:
         return HTMLResponse(
             f"<h2>OAuth error</h2><pre>{escape(str(err))}</pre>", status_code=400)
 
-    kind = await run_db(svc.guardar_tokens_de_oauth, db, integration_id, token_data)
+    kind = await run_db(svc.guardar_tokens_de_oauth, db, integration_id, token_data, org_id)
     if kind is None:
         return HTMLResponse("<h2>Integración inexistente</h2>", status_code=404)
     return HTMLResponse(

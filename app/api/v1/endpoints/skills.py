@@ -9,6 +9,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
 from app.services import skill_service
 from app.schemas.skills import SkillIn, UserSkillIn
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ CAT_LABELS = {"technical": "Técnico", "language": "Idioma", "methodology": "Met
 def get_catalog(
     category: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -82,7 +83,7 @@ def delete_skill(
 def get_user_skills(
     user_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -190,7 +191,7 @@ def get_skill_history(
     user_id: str,
     skill_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):

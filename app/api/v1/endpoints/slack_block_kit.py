@@ -21,8 +21,6 @@ def send_slack_block_kit(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    import httpx
-
     event_type = payload.get("event_type", "custom")
     data = payload.get("data", {})
 
@@ -41,12 +39,16 @@ def send_slack_block_kit(
             detail="No Slack webhook URL configured. Set it in Settings -> Integrations -> Slack.",
         )
 
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.post(webhook_url, json=block_kit)
-            resp.raise_for_status()
-    except Exception as exc:
-        logger.warning("Slack block kit delivery failed: %s", exc)
+    # Auditoria 2026-11 (#35): `httpx` directo, sin validar la URL que llega en
+    # el cuerpo (SSRF). Ahora la URL se valida (400 si es interna) y el envio
+    # sale por `entrega_saliente.enviar_a_webhook`, el emisor comun.
+    from app.core.outbound_url import validate_outbound_url
+    from app.services.entrega_saliente import enviar_a_webhook
+
+    validate_outbound_url(webhook_url, field="webhook_url")
+    resultado = enviar_a_webhook(webhook_url, block_kit)
+    if not resultado.ok:
+        logger.warning("Slack block kit delivery failed: %s", resultado.error)
         raise HTTPException(status_code=502, detail="Slack delivery failed")
 
     return {"ok": True, "event_type": event_type, "blocks_count": len(block_kit.get("blocks", []))}

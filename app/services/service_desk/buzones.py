@@ -25,10 +25,12 @@ from app.models.service_desk import InboundMessage
 from app.services import settings_service as _ss
 from app.services.integration_credentials_service import get_provider_config
 from app.services.service_desk import inbound_mail
+from app.services.settings_service import outbound_http_timeout
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-GRAPH = "https://graph.microsoft.com/v1.0"
+GRAPH = f"{settings.MICROSOFT_GRAPH_BASE}/v1.0"
 
 
 @dataclass
@@ -54,7 +56,7 @@ def organizaciones_con_buzon(db: Session) -> list[Optional[str]]:
 # ── IMAP ─────────────────────────────────────────────────────────────────────
 
 def _leer_imap(cfg: dict, maximo: int) -> Iterator[Mensaje]:
-    conexion = imaplib.IMAP4_SSL(cfg["host"], int(cfg.get("port") or 993), timeout=30)
+    conexion = imaplib.IMAP4_SSL(cfg["host"], int(cfg.get("port") or 993), timeout=outbound_http_timeout(default=30))
     try:
         conexion.login(cfg["user"], cfg["password"])
         conexion.select(cfg.get("folder") or "INBOX")
@@ -81,10 +83,10 @@ def _token_graph(db: Session, org_id: Optional[str]) -> str:
     if not (azure.get("tenant_id") and azure.get("client_id") and azure.get("client_secret")):
         raise RuntimeError("Faltan las credenciales de Microsoft 365 (tenant, client id y secret)")
     r = httpx.post(
-        f"https://login.microsoftonline.com/{azure['tenant_id']}/oauth2/v2.0/token",
+        f"{settings.MICROSOFT_OAUTH_BASE}/{azure['tenant_id']}/oauth2/v2.0/token",
         data={"client_id": azure["client_id"], "client_secret": azure["client_secret"],
-              "scope": "https://graph.microsoft.com/.default", "grant_type": "client_credentials"},
-        timeout=20,
+              "scope": f"{settings.MICROSOFT_GRAPH_BASE}/.default", "grant_type": "client_credentials"},
+        timeout=outbound_http_timeout(db, default=20),
     )
     r.raise_for_status()
     return r.json()["access_token"]
@@ -95,7 +97,7 @@ def _leer_graph(db: Session, org_id: Optional[str], cfg: dict, maximo: int) -> I
     if not buzon:
         raise RuntimeError("Falta el buzón de Microsoft 365")
     cabeceras = {"Authorization": f"Bearer {_token_graph(db, org_id)}"}
-    with httpx.Client(base_url=GRAPH, headers=cabeceras, timeout=30) as cliente:
+    with httpx.Client(base_url=GRAPH, headers=cabeceras, timeout=outbound_http_timeout(db, default=30)) as cliente:
         r = cliente.get(f"/users/{buzon}/mailFolders/inbox/messages",
                         params={"$filter": "isRead eq false", "$top": maximo, "$select": "id",
                                 "$orderby": "receivedDateTime"})
@@ -175,7 +177,7 @@ def probar_buzon(db: Session, org_id: Optional[str]) -> dict:
     protocolo = (cfg.get("protocol") or "").strip().lower()
     try:
         if protocolo == "imap":
-            conexion = imaplib.IMAP4_SSL(cfg["host"], int(cfg.get("port") or 993), timeout=20)
+            conexion = imaplib.IMAP4_SSL(cfg["host"], int(cfg.get("port") or 993), timeout=outbound_http_timeout(db, default=20))
             try:
                 conexion.login(cfg["user"], cfg["password"])
                 conexion.select(cfg.get("folder") or "INBOX", readonly=True)
@@ -187,7 +189,7 @@ def probar_buzon(db: Session, org_id: Optional[str]) -> dict:
             buzon = cfg.get("mailbox")
             if not buzon:
                 return {"ok": False, "protocol": "graph", "error": "Falta el buzón de Microsoft 365"}
-            r = httpx.get(f"{GRAPH}/users/{buzon}/mailFolders/inbox", timeout=20,
+            r = httpx.get(f"{GRAPH}/users/{buzon}/mailFolders/inbox", timeout=outbound_http_timeout(db, default=20),
                           headers={"Authorization": f"Bearer {_token_graph(db, org_id)}"})
             r.raise_for_status()
             return {"ok": True, "protocol": "graph", "unread": r.json().get("unreadItemCount")}

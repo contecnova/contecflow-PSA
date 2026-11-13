@@ -20,7 +20,7 @@ export default function Pagination({ page, totalPages, onChange, maxVisible = 7 
     height: 32,
     padding: '0 6px',
     border: '1px solid var(--surface-4)',
-    borderRadius: 6,
+    borderRadius: 'var(--radius-sm)',
     background: 'var(--surface-2)',
     color: 'var(--text-1)',
     cursor: 'pointer',

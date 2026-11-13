@@ -7,7 +7,6 @@ import {
   FolderOpen, Hexagon, Activity, AlertOctagon, Zap, AlertTriangle, ListTodo,
   AlertCircle,
 } from 'lucide-react'
-import type { ComponentType } from 'react'
 import {
   COLOR, DashPageShell, KpiCard, KpiIcon, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
@@ -61,7 +60,6 @@ export default function ProjectsDashboardPage() {
     archived:  t('projects_dashboard.status_archived'),
   }
   const [days, setDays] = useState(30)
-  const iconCompat = <T,>(icon: T) => icon as unknown as ComponentType<{ size?: number; strokeWidth?: number }>
   const params = dateRange(days)
 
   const { data: health = [], isLoading: lh } = useQuery<DashboardProjectHealth[]>({
@@ -142,26 +140,26 @@ export default function ProjectsDashboardPage() {
       <div className="ds-page">
         {/* KPI row */}
         <div className="ds-grid-stats">
-          <KpiCard icon={<KpiIcon icon={iconCompat(Hexagon)} />} label={t('projects_dashboard.kpi_total')}
+          <KpiCard icon={<KpiIcon icon={Hexagon} />} label={t('projects_dashboard.kpi_total')}
             value={total} color="var(--text-1)" accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(Activity)} />} label={t('projects_dashboard.kpi_active')}
+          <KpiCard icon={<KpiIcon icon={Activity} />} label={t('projects_dashboard.kpi_active')}
             value={active} color={COLOR.accent} accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(AlertOctagon)} />} label={t('projects_dashboard.kpi_critical')}
+          <KpiCard icon={<KpiIcon icon={AlertOctagon} />} label={t('projects_dashboard.kpi_critical')}
             value={crit}
             color={crit > 0 ? COLOR.danger : COLOR.success}
             accentBar={crit > 0 ? COLOR.danger : COLOR.success}
             sub={crit > 0 ? t('projects_dashboard.critical_sub_active') : t('projects_dashboard.critical_sub_none')} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(Zap)} />} label={t('projects_dashboard.kpi_at_risk')}
+          <KpiCard icon={<KpiIcon icon={Zap} />} label={t('projects_dashboard.kpi_at_risk')}
             value={warn}
             color={warn > 0 ? COLOR.warning : COLOR.success}
             accentBar={warn > 0 ? COLOR.warning : COLOR.success}
             sub={t('projects_dashboard.at_risk_sub')} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(AlertTriangle)} />} label={t('projects_dashboard.kpi_open_risks')}
+          <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label={t('projects_dashboard.kpi_open_risks')}
             value={risks.length}
             color={highRisks > 0 ? COLOR.danger : risks.length > 0 ? COLOR.warning : COLOR.success}
             accentBar={COLOR.warning}
             sub={highRisks > 0 ? `${highRisks} ${t('projects_dashboard.high_severity_sub')}` : undefined} />
-          <KpiCard icon={<KpiIcon icon={iconCompat(ListTodo)} />} label={t('projects_dashboard.kpi_overdue_tasks')}
+          <KpiCard icon={<KpiIcon icon={ListTodo} />} label={t('projects_dashboard.kpi_overdue_tasks')}
             value={kpis?.tasks_overdue ?? 0}
             color={(kpis?.tasks_overdue ?? 0) > 0 ? COLOR.warning : COLOR.success}
             accentBar={COLOR.warning} />

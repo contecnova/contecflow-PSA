@@ -22,6 +22,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from app.db.base import Base
+from app.core.config import settings
 
 
 # ── NexusAssist ───────────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ class AIConversation(Base):
     title        = Column(String(255), nullable=True)          # auto-generated from first message
     context_type = Column(String(50), default="global")        # global | project | ticket | sprint | invoice
     context_id   = Column(String(36), nullable=True)           # id of the context entity
-    model_used   = Column(String(80), default="claude-haiku-4-5")
+    model_used   = Column(String(80), default=lambda: settings.CONTECFLOW_AI_MODEL)
     total_tokens = Column(Integer, default=0)
     is_archived  = Column(Boolean, default=False)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())

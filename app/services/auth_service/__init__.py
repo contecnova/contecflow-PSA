@@ -39,6 +39,8 @@ from app.services.auth_service.estado_efimero import (  # noqa: F401
     consume_sso_state,
     consume_sso_state_payload,
     login_bucket,
+    LOGIN_ACCOUNT_MULTIPLIER,
+    login_account_bucket,
     login_lock_ttl,
     _redis_circuit_break,
     register_login_failure,
@@ -52,7 +54,12 @@ from app.services.auth_service.estado_efimero import (  # noqa: F401
 
 from app.services.auth_service.mfa import (  # noqa: F401
     organizacion_exige_mfa,
+    exigir_reautenticacion,
     guardar_secreto_de_mfa,
+    generar_codigos_de_respaldo,
+    borrar_codigos_de_respaldo,
+    consumir_codigo_de_respaldo,
+    estado_de_mfa,
     mfa_challenge_query,
     issue_mfa_challenge,
     read_mfa_challenge,
@@ -79,16 +86,16 @@ from app.services.auth_service.tokens_y_cookies import (  # noqa: F401
     create_ephemeral_token,
     read_ephemeral_token,
     COOKIE_OPTS,
-    set_auth_cookies,
-    current_refresh_jti,
+    REFRESH_COOKIE_PATH,
+    REFRESH_COOKIE_PATH_ANTIGUA,
     issue_password_reset_token,
     send_password_reset_email,
+    revocar_sesiones_del_usuario,
     complete_password_reset,
 )
 
 from app.services.auth_service.sesiones_y_usuarios import (  # noqa: F401
     soc_svc,
-    client_ip,
     commit_db,
     lookup_user_by_id_active,
     lookup_user_by_credentials,

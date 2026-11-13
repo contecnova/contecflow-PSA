@@ -94,22 +94,6 @@ def get_known_errors(db: Session) -> list[KnownError]:
     )
 
 
-def get_expiring_known_errors(db: Session, within_days: int = 7) -> list[KnownError]:
-    """Return active KEDB entries whose review date falls within the next N days."""
-    now = datetime.now(timezone.utc)
-    deadline = now + timedelta(days=within_days)
-    return (
-        db.query(KnownError)
-        .filter(
-            KnownError.is_active.is_(True),
-            KnownError.expires_at.isnot(None),
-            KnownError.expires_at <= deadline,
-            KnownError.expires_at >= now,
-        )
-        .all()
-    )
-
-
 def _ensure_known_error_ticket_links(db: Session, known_error: KnownError) -> int:
     """Sync KnownErrorTicket rows from IncidentToProblem links for same problem."""
     links = (
@@ -483,19 +467,3 @@ def run_kedb_expiry_scan(db: Session) -> dict:
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
-
-def get_kedb_stats(db: Session) -> dict:
-    """Return aggregate KEDB statistics for dashboards."""
-    known_errors = get_known_errors(db)
-    expiring = get_expiring_known_errors(db, within_days=30)
-
-    scores = [k.effectiveness_score for k in known_errors if k.effectiveness_score is not None]
-    avg_effectiveness = round(sum(scores) / len(scores), 1) if scores else None
-
-    return {
-        "total_known_errors": len(known_errors),
-        "expiring_within_30d": len(expiring),
-        "avg_effectiveness_score": avg_effectiveness,
-        "with_kb_article": sum(1 for k in known_errors if k.kb_article_id),
-        "with_approved_rca": sum(1 for k in known_errors if k.problem and k.problem.rca_approved_at),
-    }

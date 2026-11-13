@@ -9,7 +9,7 @@ process on the next seed run.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Iterable, Optional
+from typing import Optional
 from xml.sax.saxutils import escape
 
 from sqlalchemy.orm import Session
@@ -636,6 +636,3 @@ def seed_catalogue(db: Session, organization_id: Optional[str] = None,
     return {"created": created, "updated": updated, "skipped": skipped,
             "total": len(PROCESS_CATALOGUE)}
 
-
-def catalogue_keys() -> Iterable[str]:
-    return [e["key"] for e in PROCESS_CATALOGUE]

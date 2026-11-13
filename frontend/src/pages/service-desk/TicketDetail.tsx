@@ -1,13 +1,13 @@
 import type { CSSProperties } from 'react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner, Modal } from '../../components/ui'
-import AIInlineEditorRaw from '../../components/AIInlineEditor'
-import DocumentsPanelRaw from '../../components/DocumentsPanel'
+import AIInlineEditor from '../../components/AIInlineEditor'
+import DocumentsPanel from '../../components/DocumentsPanel'
 import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
 import LeccionesDeOrigen from '../../components/lecciones/LeccionesDeOrigen'
 import { COLOR, alpha } from '../../constants/theme'
@@ -16,8 +16,6 @@ import { useAuth } from '../../context/AuthContext'
 import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 
 // Loosely-typed aliases: these components still infer their props as required.
-const AIInlineEditor = AIInlineEditorRaw as unknown as (props: Record<string, unknown>) => JSX.Element
-const DocumentsPanel = DocumentsPanelRaw as unknown as (props: Record<string, unknown>) => JSX.Element
 const IS_STYLE = INPUT_STYLE as CSSProperties
 const LS_STYLE = LABEL_STYLE as CSSProperties
 
@@ -46,15 +44,15 @@ function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) 
   return (
     <div style={{
       position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 4,
-      background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10,
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.3)', zIndex: 100, maxHeight: 340, overflow: 'hidden',
+      background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
+      boxShadow: '0 -4px 20px rgba(0,0,0,0.3)', zIndex: 'var(--z-mobile-nav)', maxHeight: 340, overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
     }}>
       <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)' }}>
         <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
           aria-label={t('service_desk.canned_search')}
           placeholder={t('service_desk.canned_search')}
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
       </div>
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {responses.length === 0 ? (
@@ -93,6 +91,7 @@ function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) 
 
 // ── SplitTicketModal ──────────────────────────────────────────────────────────
 function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape; onClose: () => void; onCreated?: (data: unknown) => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({
@@ -125,23 +124,23 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
         <div style={{ padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           {t('service_desk.split_desc_original')} <strong className="u-text1">{ticket?.number}</strong>.
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="u-grid2-14">
           <div>
-            <label style={LS}>{t('service_desk.split_title_lbl')} *</label>
-            <input value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))} style={IS} autoFocus />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('service_desk.split_title_lbl')} *</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))} style={IS} autoFocus />
           </div>
           <div>
-            <label style={LS}>{t('service_desk.split_tags_lbl')}</label>
-            <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} style={IS} />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.split_tags_lbl')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} style={IS} />
           </div>
         </div>
         <div>
-          <label style={LS}>{t('service_desk.split_desc_child')}</label>
-          <textarea value={form.new_description} onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))} rows={4} style={{ ...IS, resize: 'vertical' }} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.split_desc_child')}</label>
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.new_description} onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))} rows={4} style={{ ...IS, resize: 'vertical' }} />
         </div>
         <div>
-          <label style={LS}>{t('service_desk.split_desc_original')}</label>
-          <textarea value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} style={{ ...IS, resize: 'vertical' }} />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.split_desc_original')}</label>
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} style={{ ...IS, resize: 'vertical' }} />
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -154,6 +153,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
 
 // ── TicketEditModal ───────────────────────────────────────────────────────────
 function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; onClose: () => void; onSaved: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const initialDynamic = useMemo(() => {
@@ -180,40 +180,40 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
     <Modal open title={`${t('common.edit')} ${ticket.number}`} onClose={onClose} size="lg">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, maxHeight: '75vh', overflowY: 'auto', paddingRight: 4 }}>
         <div className="u-col-full">
-          <label style={LS}>{t('service_desk.ticket_title')} *</label>
-          <input value={form.title} onChange={set('title')} style={IS} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('service_desk.ticket_title')} *</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={IS} />
         </div>
         <div>
-          <label style={LS}>{t('service_desk.ticket_type')}</label>
-          <select value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.ticket_type')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
             {[['incident', `🔴 ${t('service_desk.type_incident')}`], ['service_request', `🔵 ${t('service_desk.type_service_request')}`],
               ['change', `🟡 ${t('service_desk.type_change')}`], ['problem', `🟠 ${t('service_desk.type_problem')}`], ['question', `⚪ ${t('service_desk.type_question')}`]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>{t('service_desk.ticket_priority')}</label>
-          <select value={form.priority} onChange={set('priority')} style={IS}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.ticket_priority')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.priority} onChange={set('priority')} style={IS}>
             {[['p1_critical', `🔴 ${t('service_desk.priority_p1')}`], ['p2_high', `🟠 ${t('service_desk.priority_p2')}`],
               ['p3_medium', `🟡 ${t('service_desk.priority_p3')}`], ['p4_low', `⚪ ${t('service_desk.priority_p4')}`]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>{t('service_desk.edit_urgency')}</label>
-          <select value={form.urgency} onChange={set('urgency')} style={IS}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.edit_urgency')}</label>
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.urgency} onChange={set('urgency')} style={IS}>
             {[['critical', t('service_desk.urgency_critical')], ['high', t('service_desk.urgency_high')], ['medium', t('service_desk.urgency_medium')], ['low', t('service_desk.urgency_low')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>{t('service_desk.edit_impact')}</label>
-          <select value={form.impact} onChange={set('impact')} style={IS}>
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('service_desk.edit_impact')}</label>
+          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} style={IS}>
             {[['enterprise', t('service_desk.impact_enterprise')], ['department', t('service_desk.impact_department')], ['user', t('service_desk.impact_user')], ['minimal', t('service_desk.impact_minimal')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>{t('common.status')}</label>
-          <select value={form.status} onChange={set('status')} style={IS}>
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={LS}>{t('common.status')}</label>
+          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.status} onChange={set('status')} style={IS}>
             {[['new', t('service_desk.status_new')], ['assigned', t('service_desk.status_assigned')], ['in_progress', t('service_desk.status_in_progress')],
               ['pending_client', t('service_desk.status_waiting_client')], ['pending_third', t('service_desk.status_pending_third')],
               ['resolved', t('service_desk.status_resolved')], ['closed', t('service_desk.status_closed')], ['cancelled', t('service_desk.status_cancelled')]
@@ -226,13 +226,13 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
         </div>
         {['resolved', 'closed'].includes(form.status) && (
           <div className="u-col-full">
-            <label style={LS}>{t('service_desk.edit_resolution')}</label>
-            <textarea value={form.resolution} onChange={set('resolution')} rows={3} style={{ ...IS, resize: 'vertical' }} />
+            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={LS}>{t('service_desk.edit_resolution')}</label>
+            <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.resolution} onChange={set('resolution')} rows={3} style={{ ...IS, resize: 'vertical' }} />
           </div>
         )}
         <div className="u-col-full">
-          <label style={LS}>{t('service_desk.edit_tags')}</label>
-          <input value={form.tags} onChange={set('tags')} style={IS} />
+          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={LS}>{t('service_desk.edit_tags')}</label>
+          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.tags} onChange={set('tags')} style={IS} />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -254,8 +254,8 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
           </Button>
         </div>
         <div className="u-col-full">
-          <label style={LS}>{t('ticketdetail.campos_dinamicos_json')}</label>
-          <textarea value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} style={{ ...IS, resize: 'vertical', fontFamily: 'var(--font-mono)' }} />
+          <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={LS}>{t('ticketdetail.campos_dinamicos_json')}</label>
+          <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} style={{ ...IS, resize: 'vertical', fontFamily: 'var(--font-mono)' }} />
         </div>
       </div>
     </Modal>
@@ -265,7 +265,7 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
 // ── TicketDetail (main) ────────────────────────────────────────────────────────
 // Estilo "ghost" alineado con el resto de la app (mismo que ImportPage "Descargar plantilla")
 const qaBtnStyle = {
-  padding: '5px 12px', borderRadius: 6,
+  padding: '5px 12px', borderRadius: 'var(--radius-sm)',
   border: '1px solid var(--accent-border)',
   background: 'transparent', color: 'var(--accent)',
   fontSize: "var(--text-xs)", fontWeight: 600,
@@ -405,7 +405,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     } : {
       position: 'fixed', top: 12, right: 12, width: 560, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
       background: 'var(--surface-0)', border: '1px solid var(--surface-4)', borderRadius: 12,
-      zIndex: 200, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
       boxShadow: '-8px 0 32px rgba(0,0,0,0.25)',
     }}>
       {/* Header */}
@@ -425,7 +425,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
             {ticket && (
               <button onClick={() => setShowEdit(true)}
-                style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
                 ✏ Editar
               </button>
             )}
@@ -461,7 +461,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           {/* Petición madre y tareas de cumplimiento */}
           {ticket.parent && (
             <div style={{ fontSize: 'var(--text-sm)', marginBottom: 12 }}>
-              <a href={`/service-desk?ticket=${ticket.parent.id}`} style={{ color: 'var(--accent)' }}>{t('sd_cfg.ff_parent', { n: ticket.parent.number })}</a>
+              <a href={`/service-desk?ticket=${ticket.parent.id}`} className="u-accent">{t('sd_cfg.ff_parent', { n: ticket.parent.number })}</a>
             </div>
           )}
           {(ticket.fulfillment_tasks ?? []).length > 0 && (
@@ -483,7 +483,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               setRechazando={setRechazando} setMotivo={setMotivo} />
           )}
           {/* SLA status */}
-          <div style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(slaColor, '40')}`, borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(slaColor, '40')}`, borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_response')}</div>
               <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: colorSla(ticket.sla_response_status) }}>
@@ -497,7 +497,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               </div>
             </div>
             {ticket.ola_due && (
-              <div style={{ gridColumn: '1 / -1' }}>
+              <div className="u-col-full">
                 <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('sd_cfg.ola_of_queue', { group: ticket.assigned_group_name ?? '' })}</div>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: colorSla(ticket.ola_breached ? 'breached' : 'ok') }}>
                   {textoSla(ticket.ola_breached ? 'breached' : 'ok')} · {fmtDate(ticket.ola_due)}
@@ -505,7 +505,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               </div>
             )}
             {conUc && (
-              <div style={{ gridColumn: '1 / -1' }}>
+              <div className="u-col-full">
                 <label htmlFor="uc-contrato" style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>
                   {t('sd_cfg.uc_of_vendor')}
                 </label>
@@ -583,7 +583,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
                 {t('ticketdetail.campos_dinamicos')}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="u-grid2-10">
                 {Object.entries(ticket.dynamic_fields).map(([k, v]) => (
                   <div key={k} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
                     <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{k}</div>
@@ -644,9 +644,9 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
               {(ticket.comments || []).map((c: TicketComment) => (
-                <div key={c.id} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
+                <div key={c.id} style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>
+                    <span className="u-text1-sm-600">
                       {c.author_name}
                       {c.is_public === false && <span style={{ marginLeft: 8, fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--warning)' }}>{t('service_desk.internal_note')}</span>}
                     </span>
@@ -663,7 +663,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                   onClose={() => setShowCanned(false)}
                 />
               )}
-              <textarea placeholder={t('service_desk.detail_send_comment')} value={commentText}
+              <textarea aria-label={t('service_desk.detail_send_comment')} placeholder={t('service_desk.detail_send_comment')} value={commentText}
                 onChange={e => setCommentText(e.target.value)} rows={3} style={{ ...IS, resize: 'vertical', marginBottom: 6 }} />
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
@@ -769,7 +769,7 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
   const texto = a.status === 'pending' ? t('sd_cfg.apr_pending', { name: a.approver_name ?? '—' })
     : t(a.status === 'approved' ? 'sd_cfg.apr_approved' : 'sd_cfg.apr_rejected', { name: a.decided_by_name ?? '—' })
   return (
-    <div role="status" style={{ border: `1px solid ${alpha(color, '60')}`, background: alpha(color, '12'), borderRadius: 10,
+    <div role="status" style={{ border: `1px solid ${alpha(color, '60')}`, background: alpha(color, '12'), borderRadius: 'var(--radius-md)',
       padding: '12px 16px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color }}>{texto}</div>
       {a.comment && <div className="u-text2-sm">{a.comment}</div>}
@@ -872,8 +872,8 @@ function SeguirYFusionar({ ticketId }: { ticketId: string }) {
         </span>
         <Button variant="secondary" onClick={() => alternar.mutate()} loading={alternar.isPending}>{sigo ? t('sd_cfg.w_unfollow') : t('sd_cfg.w_follow')}</Button>
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontWeight: 600 }}>{t('sd_cfg.m_title')}</span>
+      <div className="u-wrap-center-8">
+        <span className="u-600">{t('sd_cfg.m_title')}</span>
         <input aria-label={t('sd_cfg.m_number')} placeholder={t('sd_cfg.m_number')} value={numero} onChange={e => setNumero(e.target.value)}
           style={{ ...(INPUT_STYLE as CSSProperties), flex: '1 1 160px' }} />
         <input aria-label={t('sd_cfg.m_reason')} placeholder={t('sd_cfg.m_reason')} value={motivo} onChange={e => setMotivo(e.target.value)}

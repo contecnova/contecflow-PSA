@@ -16,6 +16,7 @@ import io
 import logging
 from datetime import datetime
 from typing import Optional
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 logger = logging.getLogger(__name__)
 
@@ -452,7 +453,7 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     story.append(Spacer(1, 20))
     story.append(HRFlowable(width="100%", thickness=0.5, color=_rl(_rl_colors.lightgrey.hexval())))
     story.append(Paragraph(
-        f"Generado automáticamente por ContecFlow · {datetime.now().strftime('%d/%m/%Y %H:%M UTC')}",
+        f"Generado automáticamente por {NOMBRE_DEL_PRODUCTO} · {datetime.now().strftime('%d/%m/%Y %H:%M UTC')}",
         styles["caption"],
     ))
 

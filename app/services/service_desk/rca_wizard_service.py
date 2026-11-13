@@ -445,6 +445,7 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
             messages=[{"role": "user", "content": prompt}],
             system="You are an ITIL problem manager. Provide concise, actionable RCA guidance.",
             max_tokens=300,
+            organization_id=getattr(problem, "organization_id", None),
         )
         provider_used = result.get("provider", "unknown")
         hint = (_texto(result)).strip()
@@ -558,6 +559,7 @@ def classify_from_wizard(
             messages=[{"role": "user", "content": prompt}],
             system="Classify the root cause. Reply with exactly one word from the allowed list.",
             max_tokens=settings.AI_SHORT_ANSWER_MAX_TOKENS,
+            organization_id=getattr(problem, "organization_id", None),
         )
         raw = (_texto(result)).strip().lower()
         # Accept first word that matches a valid type

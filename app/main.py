@@ -8,7 +8,6 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
-import os
 import time
 from pathlib import Path
 from sqlalchemy import create_engine, inspect, text
@@ -96,12 +95,9 @@ def _read_alembic_heads() -> set[str] | None:
 
 
 def _scheduler_flags() -> tuple[bool, bool]:
-    """Return scheduler enablement flags from environment variables."""
-    enable_apscheduler = os.getenv("ENABLE_APSCHEDULER", "1") == "1"
-    celery_beat_enabled = (
-        os.getenv("ENABLE_CELERY_BEAT", "0") == "1"
-        or os.getenv("CELERY_BEAT", "0") == "1"
-    )
+    """Return scheduler enablement flags (`settings.ENABLE_APSCHEDULER`, `ENABLE_CELERY_BEAT`/`CELERY_BEAT`)."""
+    enable_apscheduler = bool(settings.ENABLE_APSCHEDULER)
+    celery_beat_enabled = bool(settings.ENABLE_CELERY_BEAT or settings.CELERY_BEAT)
     return enable_apscheduler, celery_beat_enabled
 
 
@@ -127,7 +123,7 @@ def _enforce_scheduler_mode_safety() -> None:
     if _scheduler_mode() != "dual":
         return
     # Default to fail in every environment — dev included.
-    fail_on_dual = os.getenv("FAIL_ON_DUAL_SCHEDULER", "1") == "1"
+    fail_on_dual = bool(settings.FAIL_ON_DUAL_SCHEDULER)
     if fail_on_dual:
         raise RuntimeError(
             "Dual scheduler mode detected (APScheduler + Celery Beat). "
@@ -143,7 +139,7 @@ def _enforce_superadmin_bypass_safety() -> None:
     early hard-fail at startup prevents a misconfigured env from silently
     allowing the bypass to take effect at request time.
     """
-    if os.getenv("ENABLE_SUPERADMIN_BYPASS", "0") != "1":
+    if not settings.ENABLE_SUPERADMIN_BYPASS:
         return
     if settings.ENVIRONMENT != "development":
         raise RuntimeError(
@@ -155,6 +151,27 @@ def _enforce_superadmin_bypass_safety() -> None:
             "ENABLE_SUPERADMIN_BYPASS=1 requires a SQLite DATABASE_URL. "
             "Refusing to boot against a non-SQLite database."
         )
+
+
+def _enforce_security_switches_safety() -> None:
+    """Segunda auditoría 2026-11 (hallazgo 16): interruptores de seguridad en producción.
+
+    `DISABLE_CSRF_MIDDLEWARE` en staging/producción no arranca (el bypass de
+    superadmin ya lo impide `_enforce_superadmin_bypass_safety` fuera de
+    development). Apagar el filtro o el sellado de tenant se deja arrancar —es
+    la vía documentada para aislar un fallo— pero queda en CRITICAL.
+    """
+    if settings.ENVIRONMENT not in {"production", "staging"}:
+        return
+    if settings.DISABLE_CSRF_MIDDLEWARE:
+        raise RuntimeError(
+            f"DISABLE_CSRF_MIDDLEWARE=1 is not allowed when ENVIRONMENT={settings.ENVIRONMENT}. "
+            "Refusing to boot."
+        )
+    for interruptor in ("TENANT_AUTO_FILTER_GLOBAL", "TENANT_AUTO_STAMP_ON_INSERT"):
+        if not getattr(settings, interruptor):
+            logger.critical("%s=0 in %s: tenant isolation relies on RLS and explicit filters only.",
+                            interruptor, settings.ENVIRONMENT)
 
 
 # ── Sentry (P1-3) ─────────────────────────────────────────────────────────────
@@ -268,11 +285,13 @@ def _comprobar_deriva_de_esquema(_is_testing, _expected_rev, _enforce_drift) -> 
             raise
 
 
-# Entradas de beat que APScheduler ya programa con su propia funcion.
-_BEAT_YA_EN_APSCHEDULER = {
-    "run-scheduled-reports", "automations-events", "automations-scan", "bpmn-timers",
-    "perf-reminders-daily", "run-alert-engine-daily", "run-key-rotation",
-}
+# Ids de los `add_job` propios que duplicaban 7 entradas de beat (segunda
+# auditoria 2026-11, #45). El job store es SQLAlchemy y persiste: sin retirarlos
+# seguirian corriendo junto a su copia `beat_<clave>`.
+_TRABAJOS_RETIRADOS = (
+    "scheduled_reports", "scheduled_key_rotation", "scheduled_alert_engine",
+    "scheduled_perf_reminders", "automations_events", "automations_scan", "bpmn_timers",
+)
 _DIAS_CELERY = {"0": "sun", "1": "mon", "2": "tue", "3": "wed", "4": "thu", "5": "fri", "6": "sat", "7": "sun"}
 
 
@@ -293,8 +312,6 @@ def _replicar_celery_beat(scheduler) -> int:
     from app.worker import celery_app
     n = 0
     for clave, entrada in celery_app.conf.beat_schedule.items():
-        if clave in _BEAT_YA_EN_APSCHEDULER:
-            continue
         c = entrada["schedule"]
         try:
             trigger = CronTrigger(
@@ -312,6 +329,19 @@ def _replicar_celery_beat(scheduler) -> int:
         )
         n += 1
     return n
+
+
+def _retirar_trabajos_duplicados(scheduler) -> list:
+    """Quita del job store (ya arrancado) los ids de `_TRABAJOS_RETIRADOS`."""
+    from apscheduler.jobstores.base import JobLookupError
+    quitados = []
+    for viejo in _TRABAJOS_RETIRADOS:
+        try:
+            scheduler.remove_job(viejo)
+            quitados.append(viejo)
+        except JobLookupError:
+            pass
+    return quitados
 
 
 def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
@@ -339,10 +369,7 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
         logger.info("⏰ Iniciando scheduler de informes...")
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
-            from apscheduler.triggers.cron import CronTrigger
             from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-            from app.services.scheduled_reports import run_due_reports
-            from app.services.key_management import run_scheduled_rotation
 
             # Use a SQLAlchemy job store so that in multi-worker deployments only
             # one worker executes each job (the others see it already locked/run).
@@ -353,73 +380,22 @@ def _arrancar_planificador(_enable_apscheduler, _celery_beat_enabled):
                 jobstores=jobstores,
                 timezone=settings.DEFAULT_TIMEZONE,
             )
-            _scheduler.add_job(
-                run_due_reports,
-                CronTrigger(minute=0),
-                id="scheduled_reports",
-                replace_existing=True,
-                misfire_grace_time=300,
-                coalesce=True,
-            )
-            _scheduler.add_job(
-                run_scheduled_rotation,
-                CronTrigger(hour=settings.KEY_ROTATION_RUN_HOUR, minute=17),
-                id="scheduled_key_rotation",
-                replace_existing=True,
-                misfire_grace_time=900,
-                coalesce=True,
-            )
-            _scheduler.add_job(
-                "app.services.alert_service:run_alert_engine_job",
-                CronTrigger(hour=8, minute=0),
-                id="scheduled_alert_engine",
-                replace_existing=True,
-                misfire_grace_time=900,
-                coalesce=True,
-            )
-            _scheduler.add_job(
-                "app.services.perf_reminder_service:run_perf_reminders_job",
-                CronTrigger(hour=9, minute=0),
-                id="scheduled_perf_reminders",
-                replace_existing=True,
-                misfire_grace_time=900,
-                coalesce=True,
-            )
-            _scheduler.add_job(
-                "app.services.automation_jobs:procesar_eventos_job",
-                CronTrigger(minute="*"),
-                id="automations_events",
-                replace_existing=True,
-                misfire_grace_time=60,
-                coalesce=True,
-            )
-            _scheduler.add_job(
-                "app.services.automation_jobs:escanear_job",
-                CronTrigger(minute=f"*/{max(1, settings.AUTOMATIONS_SCAN_MINUTES)}"),
-                id="automations_scan",
-                replace_existing=True,
-                misfire_grace_time=300,
-                coalesce=True,
-            )
-            _scheduler.add_job(
-                "app.services.automation_jobs:bpmn_temporizadores_job",
-                CronTrigger(minute="*"),
-                id="bpmn_timers",
-                replace_existing=True,
-                misfire_grace_time=300,
-                coalesce=True,
-            )
-            # Todo lo demas del calendario de Celery beat, replicado (revision
-            # 2026-11): en el modo por defecto (APScheduler) 47 trabajos solo
-            # existian en beat y no corrian nunca: vencimientos de aprobaciones,
-            # escaneo de SLA, eventos de tickets, buzones, ingresos, ETL, ML…
+            # Una sola fuente de verdad: el calendario de Celery beat, replicado
+            # entero (segunda auditoria 2026-11, #45). Antes 7 entradas tenian
+            # ademas su propio `add_job` aqui (y `automation_jobs.py` copiaba el
+            # cuerpo de 3 tareas): dos definiciones que podian divergir.
             _replicar_celery_beat(_scheduler)
             try:
                 from app.core.metrics import attach_apscheduler_metrics
                 attach_apscheduler_metrics(_scheduler)
             except Exception as _metrics_exc:
                 logger.warning("APScheduler metrics hook not attached: %s", _metrics_exc)
-            _scheduler.start()
+            # En pausa hasta retirar del job store persistente los ids viejos,
+            # para que no lleguen a dispararse junto a su copia `beat_<clave>`.
+            _scheduler.start(paused=True)
+            if _scheduler.running:
+                _retirar_trabajos_duplicados(_scheduler)
+                _scheduler.resume()
             logger.info("   ✅ Scheduler activo (informes, rotación, alertas, recordatorios, automatizaciones, analítica y ML)")
             logger.info("✅ Modo scheduler: APScheduler")
         except Exception as e:
@@ -564,10 +540,13 @@ async def lifespan(_app: FastAPI):
     # ── Schema preflight (no in-process migrations) ──────────────────────────
     # Migrations must run outside application startup (CI/CD, init-container, or
     # explicit operator action). Startup only checks for obvious schema drift.
-    import os as _os
-    _is_testing = _os.getenv("TESTING", "0") == "1"
-    _expected_rev = (_os.getenv("EXPECTED_ALEMBIC_REVISION") or "").strip() or None
-    _enforce_drift = _os.getenv("FAIL_ON_SCHEMA_DRIFT", "1" if settings.ENVIRONMENT in {"production", "staging"} else "0") == "1"
+    from app.core.entorno import en_pruebas
+    _is_testing = en_pruebas()
+    _expected_rev = (settings.EXPECTED_ALEMBIC_REVISION or "").strip() or None
+    _enforce_drift = (
+        settings.ENVIRONMENT in {"production", "staging"}
+        if settings.FAIL_ON_SCHEMA_DRIFT is None else bool(settings.FAIL_ON_SCHEMA_DRIFT)
+    )
 
     _comprobar_deriva_de_esquema(_is_testing, _expected_rev, _enforce_drift)
     _avisar_si_rls_desarmada()
@@ -581,6 +560,7 @@ async def lifespan(_app: FastAPI):
     try:
         _enforce_scheduler_mode_safety()
         _enforce_superadmin_bypass_safety()
+        _enforce_security_switches_safety()
     except RuntimeError as _sched_exc:
         logger.error("❌ Startup safety check failed: %s", _sched_exc)
         raise
@@ -630,7 +610,7 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
 # Disabled in production unless EXPOSE_API_DOCS=1 is explicitly set.
 _expose_docs = (
     settings.ENVIRONMENT != "production"
-    or os.getenv("EXPOSE_API_DOCS", "0") == "1"
+    or settings.EXPOSE_API_DOCS
 )
 app = FastAPI(
     title=settings.PROJECT_NAME,

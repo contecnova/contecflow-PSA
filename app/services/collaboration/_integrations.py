@@ -21,7 +21,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import logging
-import os
 import secrets
 import urllib.parse
 from dataclasses import dataclass
@@ -30,6 +29,7 @@ from typing import Optional
 import httpx
 
 from app.core.config import settings
+from app.services.settings_service import outbound_http_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +85,8 @@ PROVIDERS: dict[str, OAuthProvider] = {
         kind="google_calendar",
         client_id_env="GOOGLE_CLIENT_ID", client_secret_env="GOOGLE_CLIENT_SECRET",  # noqa: S106
         redirect_env="GOOGLE_REDIRECT_URI",
-        auth_url="https://accounts.google.com/o/oauth2/v2/auth",
-        token_url="https://oauth2.googleapis.com/token",  # noqa: S106
+        auth_url=f"{settings.GOOGLE_OAUTH_BASE}/o/oauth2/v2/auth",
+        token_url=settings.GOOGLE_TOKEN_URL,
         scopes=[
             "https://www.googleapis.com/auth/calendar.readonly",
             "https://www.googleapis.com/auth/calendar.events",
@@ -97,16 +97,21 @@ PROVIDERS: dict[str, OAuthProvider] = {
         kind="microsoft_365",
         client_id_env="MS365_CLIENT_ID", client_secret_env="MS365_CLIENT_SECRET",  # noqa: S106
         redirect_env="MS365_REDIRECT_URI",
-        auth_url="https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize",
-        token_url="https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",  # noqa: S106
+        auth_url=settings.MICROSOFT_OAUTH_BASE + "/{tenant}/oauth2/v2.0/authorize",
+        token_url=settings.MICROSOFT_OAUTH_BASE + "/{tenant}/oauth2/v2.0/token",  # noqa: S106
         scopes=["offline_access", "Calendars.ReadWrite", "Mail.Send", "User.Read"],
     ),
 }
 
 
-# In-memory pending state -> integration_id (used in callback). For prod with
-# multiple workers move to Redis.
-_PENDING: dict[str, dict] = {}
+# Auditoria 2026-11 (#26): el `state` era aleatorio, guardado en un dict de
+# memoria de proceso (no sobrevivia a varios workers) y no ligado a nadie. Ahora
+# es el de `app.services.oauth_state` —firmado, de un solo uso, con el usuario y
+# la organizacion que iniciaron el flujo— y ademas va ligado al navegador que lo
+# inicio por la cookie `COOKIE_DE_VINCULO` (el callback llega sin sesion).
+_PROPOSITO = "collab_integration"
+COOKIE_DE_VINCULO = "collab_oauth_bind"
+CALLBACK_PATH = _CALLBACK_PATH
 
 
 def _b64url(data: bytes) -> str:
@@ -119,22 +124,26 @@ def _pkce_pair() -> tuple[str, str]:
     return verifier, challenge
 
 
-def auth_url_for(kind: str, integration_id: str) -> Optional[str]:
+def auth_url_for(kind: str, integration_id: str, *, user_id: Optional[str] = None,
+                 org_id: Optional[str] = None, vinculo: Optional[str] = None) -> Optional[str]:
     p = PROVIDERS.get(kind)
     if not p:
         return None
-    # env-driven: per-provider OAuth credentials are looked up dynamically by env var
-    # name (see PROVIDERS table). Not in Settings because providers are pluggable.
-    client_id = os.environ.get(p.client_id_env)
-    redirect = os.environ.get(p.redirect_env) or _default_redirect_uri()
+    # Credenciales por proveedor: el nombre sale de PROVIDERS y el valor de Settings.
+    client_id = getattr(settings, p.client_id_env, None)
+    redirect = getattr(settings, p.redirect_env, None) or _default_redirect_uri()
     if not client_id:
         return None
-    state = secrets.token_urlsafe(24)
+    from app.services import oauth_state
+
     verifier, challenge = _pkce_pair()
-    _PENDING[state] = {"kind": kind, "integration_id": integration_id, "verifier": verifier}
+    state = oauth_state.emitir(
+        _PROPOSITO, user_id=user_id, org_id=org_id, kind=kind, integration_id=integration_id,
+        verifier=verifier, vinculo=oauth_state.huella(vinculo) if vinculo else None,
+    )
     auth_url = p.auth_url
     if kind == "microsoft_365":
-        tenant = os.environ.get("MS365_TENANT_ID", "common")
+        tenant = settings.MS365_TENANT_ID or "common"
         auth_url = auth_url.format(tenant=tenant)
     params = {
         "client_id": client_id,
@@ -150,21 +159,39 @@ def auth_url_for(kind: str, integration_id: str) -> Optional[str]:
     return f"{auth_url}?{urllib.parse.urlencode(params)}"
 
 
-async def handle_callback(state: str, code: str) -> tuple[Optional[str], Optional[dict], str]:
-    """Returns (integration_id, token_data, error)."""
-    pending = _PENDING.pop(state, None)
+def consumir_estado(state: str, vinculo: Optional[str]) -> tuple[Optional[dict], str]:
+    """El estado pendiente, si la firma vale, no se uso y lo trae el mismo navegador."""
+    import hmac as _hmac
+
+    from app.core.errores import ErrorDeDominio
+    from app.services import oauth_state
+
+    try:
+        pending = oauth_state.consumir(_PROPOSITO, state)
+    except ErrorDeDominio:
+        return None, "state desconocido o expirado"
+    esperado = pending.get("vinculo")
+    if not esperado or not vinculo or not _hmac.compare_digest(esperado, oauth_state.huella(vinculo)):
+        return None, "el flujo OAuth no se inició en este navegador"
+    return pending, ""
+
+
+async def handle_callback(state: str, code: str, vinculo: Optional[str] = None,
+                          ) -> tuple[Optional[str], Optional[dict], str, Optional[str]]:
+    """Returns (integration_id, token_data, error, org_id)."""
+    pending, error = consumir_estado(state, vinculo)
     if not pending:
-        return None, None, "state desconocido o expirado"
+        return None, None, error, None
     p = PROVIDERS[pending["kind"]]
-    client_id = os.environ.get(p.client_id_env)
-    client_secret = os.environ.get(p.client_secret_env)
-    redirect = os.environ.get(p.redirect_env) or _default_redirect_uri()
+    client_id = getattr(settings, p.client_id_env, None)
+    client_secret = getattr(settings, p.client_secret_env, None)
+    redirect = getattr(settings, p.redirect_env, None) or _default_redirect_uri()
     if not client_id or not client_secret:
-        return None, None, "credenciales no configuradas"
+        return None, None, "credenciales no configuradas", None
 
     token_url = p.token_url
     if pending["kind"] == "microsoft_365":
-        tenant = os.environ.get("MS365_TENANT_ID", "common")
+        tenant = settings.MS365_TENANT_ID or "common"
         token_url = token_url.format(tenant=tenant)
     body = {
         "grant_type": "authorization_code",
@@ -177,15 +204,16 @@ async def handle_callback(state: str, code: str) -> tuple[Optional[str], Optiona
     if p.extra_token_params:
         body.update(p.extra_token_params)
     try:
-        async with httpx.AsyncClient(timeout=20) as c:
+        async with httpx.AsyncClient(timeout=outbound_http_timeout(default=20)) as c:
             r = await c.post(token_url, data=body, headers={"Accept": "application/json"})
             if r.status_code >= 400:
-                return None, None, f"token exchange falló: {r.status_code} {r.text[:200]}"
+                logger.warning("OAuth token exchange %s: HTTP %s", pending["kind"], r.status_code)
+                return None, None, f"token exchange falló: HTTP {r.status_code}", None
             data = r.json()
-    except Exception as exc:
+    except Exception:
         logger.warning("handle_callback: excepcion ignorada", exc_info=True)
-        return None, None, str(exc)
-    return pending["integration_id"], data, ""
+        return None, None, "token exchange falló", None
+    return pending["integration_id"], data, "", pending.get("org_id")
 
 
 # ── Encryption (Fernet con clave derivada de SECRET_KEY existente) ──────────
@@ -219,5 +247,5 @@ def decrypt(value: str | None) -> Optional[str]:
 def configured_providers() -> dict[str, bool]:
     out = {}
     for kind, p in PROVIDERS.items():
-        out[kind] = bool(os.environ.get(p.client_id_env)) and bool(os.environ.get(p.client_secret_env))
+        out[kind] = bool(getattr(settings, p.client_id_env, None)) and bool(getattr(settings, p.client_secret_env, None))
     return out

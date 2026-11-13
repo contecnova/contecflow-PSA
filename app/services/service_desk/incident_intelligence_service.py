@@ -24,7 +24,6 @@ from app.models.service_desk import (
     TicketPriority,
     TicketStatus,
 )
-from app.services.sla_service import SLA_HOURS
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +41,6 @@ from app.services.service_desk.ticket_category import (  # noqa: E402
 
 
 AUTO_RESOLVE_CONFIDENCE_THRESHOLD = 0.85
-
-# Percentage of SLA window consumed that triggers a proactive breach alert
-SLA_BREACH_WARN_PCT = 0.60
 
 # Time window (minutes) for alert deduplication grouping by CI + category
 ALERT_DEDUP_WINDOW_MINUTES = 5
@@ -364,84 +360,6 @@ def deduplicate_new_ticket(
 
 
 # ── SLA Breach Prediction ─────────────────────────────────────────────────────
-
-def _sla_pct_consumed(ticket: Ticket) -> Optional[float]:
-    """Return the fraction (0-1) of SLA resolution window already consumed.
-
-    Returns None when there is no resolution due date or the ticket is terminal.
-    """
-    if ticket.status in [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]:
-        return None
-    if not ticket.sla_resolution_due:
-        return None
-
-    created = ticket.created_at
-    if created is None:
-        return None
-
-    now = datetime.now(timezone.utc)
-    due = ticket.sla_resolution_due
-    if due.tzinfo is None:
-        due = due.replace(tzinfo=timezone.utc)
-    if created.tzinfo is None:
-        created = created.replace(tzinfo=timezone.utc)
-
-    total_seconds = (due - created).total_seconds()
-    if total_seconds <= 0:
-        return 1.0  # already past due
-
-    elapsed = (now - created).total_seconds()
-    return min(elapsed / total_seconds, 1.0)
-
-
-def predict_sla_at_risk_tickets(db: Session) -> list[dict]:
-    """Return all open tickets that have consumed >= SLA_BREACH_WARN_PCT of their window.
-
-    Only returns tickets whose current `sla_resolution_status` is not already
-    'breached' (those are handled by the escalation engine).
-    """
-    active_statuses = [
-        TicketStatus.new,
-        TicketStatus.assigned,
-        TicketStatus.in_progress,
-        TicketStatus.pending_client,
-        TicketStatus.pending_third,
-    ]
-
-    tickets = (
-        db.query(Ticket)
-        .filter(
-            Ticket.status.in_(active_statuses),
-            Ticket.sla_resolution_due.isnot(None),
-        )
-        .all()
-    )
-
-    at_risk = []
-    for ticket in tickets:
-        pct = _sla_pct_consumed(ticket)
-        if pct is None:
-            continue
-        if pct >= SLA_BREACH_WARN_PCT and ticket.sla_resolution_status != "breached":
-            _resp_h, _res_h = SLA_HOURS.get(str(ticket.priority), (8, 24))
-            at_risk.append({
-                "ticket_id": ticket.id,
-                "ticket_number": ticket.number,
-                "title": ticket.title,
-                "priority": str(ticket.priority),
-                "pct_consumed": round(pct * 100, 1),
-                "sla_resolution_due": (
-                    ticket.sla_resolution_due.isoformat()
-                    if ticket.sla_resolution_due
-                    else None
-                ),
-                "assigned_to_user_id": ticket.assigned_to_user_id,
-                "assigned_group_id": ticket.assigned_group_id,
-            })
-
-    at_risk.sort(key=lambda x: x["pct_consumed"], reverse=True)
-    return at_risk
-
 
 # ── Problem auto-detection ─────────────────────────────────────────────────────
 

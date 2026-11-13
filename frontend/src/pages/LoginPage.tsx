@@ -97,17 +97,17 @@ const st: Record<string, CSSProperties> = {
   },
   errorBanner: {
     background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-    borderRadius: 10, padding: '10px 14px', color: 'var(--danger)',
+    borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--danger)',
     fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8,
   },
   successBanner: {
     background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-    borderRadius: 10, padding: '10px 14px', color: 'var(--success)',
+    borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--success)',
     fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8,
   },
   warningBanner: {
     background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
-    borderRadius: 10, padding: '10px 14px', color: 'var(--warning)',
+    borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--warning)',
     fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 16,
   },
   divider: { display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' },

@@ -7,7 +7,6 @@ import {
   DollarSign, TrendingUp, TrendingDown, CheckCircle2, Building2, Target, FileText,
   Calculator, AlertTriangle, Ruler, X, Plus,
 } from 'lucide-react'
-import type { ComponentType } from 'react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
@@ -17,6 +16,7 @@ import {
 } from '../components/dashboard/DashKit'
 import { alpha } from '../constants/theme'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 interface ClientItem { status?: string }
 // Campos de `pipeline_service` (auditoria 2026-11: se leian `value`/`amount` y
 // `status`, que no vienen: el pipeline salia a 0 y contaba ganadas y perdidas).
@@ -59,19 +59,9 @@ interface RateFormState {
   rate: string
 }
 
-type KpiIconCompat = ComponentType<{ size?: number; strokeWidth?: number }>
-
-const ICON_TRENDING_UP = TrendingUp as unknown as KpiIconCompat
-const ICON_TRENDING_DOWN = TrendingDown as unknown as KpiIconCompat
-const ICON_CHECK_CIRCLE = CheckCircle2 as unknown as KpiIconCompat
-const ICON_BUILDING = Building2 as unknown as KpiIconCompat
-const ICON_TARGET = Target as unknown as KpiIconCompat
-const ICON_FILE_TEXT = FileText as unknown as KpiIconCompat
-const ICON_CALCULATOR = Calculator as unknown as KpiIconCompat
-const ICON_ALERT = AlertTriangle as unknown as KpiIconCompat
-const ICON_RULER = Ruler as unknown as KpiIconCompat
 
 export default function FinanceDashboardPage(): JSX.Element {
+  const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
   const [days, setDays] = useState<number>(90)
   const { lang } = useAppLang()
@@ -127,7 +117,7 @@ export default function FinanceDashboardPage(): JSX.Element {
 
   const qc = useQueryClient()
   const [showRateForm, setShowRateForm] = useState(false)
-  const [rateForm, setRateForm] = useState<RateFormState>({ from_currency: 'EUR', to_currency: 'USD', rate: '' })
+  const [rateForm, setRateForm] = useState<RateFormState>({ from_currency: fmtMoneda.moneda, to_currency: 'USD', rate: '' })
   const { data: ratesRaw = [], isError: e5 } = useQuery({
     queryKey: ['currency-rates'],
     queryFn: () => currencyApi.rates({}).then(r => r.data),
@@ -149,7 +139,7 @@ export default function FinanceDashboardPage(): JSX.Element {
   const costSummary = (costSummaryRaw ?? null) as CostSummary | null
   const { mutate: upsertRate, isPending: savingRate } = useMutation({
     mutationFn: (d: { from_currency: string; to_currency: string; rate: number }) => currencyApi.upsert(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['currency-rates'] }); setShowRateForm(false); setRateForm({ from_currency:'EUR', to_currency:'USD', rate:'' }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['currency-rates'] }); setShowRateForm(false); setRateForm({ from_currency: fmtMoneda.moneda, to_currency:'USD', rate:'' }) },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar tipo de cambio')),
   })
 
@@ -210,25 +200,25 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* KPI row */}
         <div className="ds-grid-stats">
           {(lp || lc) ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
-            <KpiCard icon={<KpiIcon icon={ICON_TRENDING_UP} />} label="Ingresos"
+            <KpiCard icon={<KpiIcon icon={TrendingUp} />} label="Ingresos"
               value={fmtCur(revenue, lang)}
               color={COLOR.accent} accentBar={COLOR.accent} />
-            <KpiCard icon={<KpiIcon icon={ICON_TRENDING_DOWN} />} label="Costes"
+            <KpiCard icon={<KpiIcon icon={TrendingDown} />} label="Costes"
               value={fmtCur(costs, lang)}
               color={COLOR.warning} accentBar={COLOR.warning} />
-            <KpiCard icon={<KpiIcon icon={ICON_CHECK_CIRCLE} />} label="Margen bruto"
+            <KpiCard icon={<KpiIcon icon={CheckCircle2} />} label="Margen bruto"
               value={fmtCur(margin, lang)}
               color={margin >= 0 ? COLOR.success : COLOR.danger}
               accentBar={margin >= 0 ? COLOR.success : COLOR.danger}
               sub={marginPct != null ? `${marginPct}% de margen` : undefined} />
-            <KpiCard icon={<KpiIcon icon={ICON_BUILDING} />} label="Clientes activos"
+            <KpiCard icon={<KpiIcon icon={Building2} />} label="Clientes activos"
               value={activeClients} color={COLOR.accent} accentBar={COLOR.accent}
               sub={`${clients.length} total · hoy`} />
-            <KpiCard icon={<KpiIcon icon={ICON_TARGET} />} label="Pipeline"
+            <KpiCard icon={<KpiIcon icon={Target} />} label="Pipeline"
               value={fmtCur(pipelineValue, lang)}
               color={COLOR.purple} accentBar={COLOR.purple}
               sub={`${openOpportunities} oportunidades abiertas · hoy`} />
-            <KpiCard icon={<KpiIcon icon={ICON_FILE_TEXT} />} label="Facturas pendientes"
+            <KpiCard icon={<KpiIcon icon={FileText} />} label="Facturas pendientes"
               value={fmtCur(pendingAmount, lang)}
               color={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
               accentBar={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
@@ -239,17 +229,17 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* Cost-structure KPIs (admin/hr only) */}
         {costSummary && (
           <div className="ds-grid-stats">
-            <KpiCard icon={<KpiIcon icon={ICON_CALCULATOR} />} label="Coste/hora medio"
+            <KpiCard icon={<KpiIcon icon={Calculator} />} label="Coste/hora medio"
               value={fmtCur(costSummary.avg_cost_per_hour, lang)}
               color={COLOR.accent} accentBar={COLOR.accent}
               sub={`${costSummary.users_with_cost} de ${costSummary.total_users} personas`} />
-            <KpiCard icon={<KpiIcon icon={ICON_ALERT} />} label={t('financedashboard.sin_estructura_de_coste')}
+            <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label={t('financedashboard.sin_estructura_de_coste')}
               value={costSummary.users_missing_cost}
               color={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
               accentBar={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
               sub={costSummary.users_missing_cost > 0 ? 'Margen real incompleto' : 'Margen real fiable'} />
             {revenue > 0 && costSummary.avg_cost_per_hour > 0 && (
-              <KpiCard icon={<KpiIcon icon={ICON_RULER} />} label="Margen real estimado"
+              <KpiCard icon={<KpiIcon icon={Ruler} />} label="Margen real estimado"
                 value={`${Math.round(((revenue - costs) / revenue) * 100)}%`}
                 color={COLOR.purple} accentBar={COLOR.purple}
                 sub="Snapshots actualizados con coste real al imputar" />
@@ -315,7 +305,7 @@ export default function FinanceDashboardPage(): JSX.Element {
       {topProjects.length > 0 && (
         <SectionCard title={t('financedashboard.rentabilidad_por_proyecto')} badge={topProjects.length}>
           <div className="u-scroll-x">
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="u-table">
               <thead>
                 <tr style={{ background: 'var(--surface-3)' }}>
                   {['Proyecto', 'Ingresos', 'Costes', 'Margen', '%'].map((col, i) => (
@@ -352,7 +342,7 @@ export default function FinanceDashboardPage(): JSX.Element {
                         {fmtCur(rev, lang)}
                       </td>
                       <td style={{ padding: '11px 16px', textAlign: 'center' }}>
-                        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-4)', padding: '3px 8px', borderRadius: 6 }}>
+                        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-4)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>
                           {fmtCur(cost, lang)}
                         </span>
                       </td>
@@ -363,7 +353,7 @@ export default function FinanceDashboardPage(): JSX.Element {
                         <span style={{
                           fontSize: "var(--text-sm)", fontWeight: 700, color: mColor,
                           background: alpha(mColor, '18'), border: `1px solid ${alpha(mColor, '30')}`,
-                          borderRadius: 6, padding: '3px 9px',
+                          borderRadius: 'var(--radius-sm)', padding: '3px 9px',
                         }}>{pct}%</span>
                       </td>
                     </tr>

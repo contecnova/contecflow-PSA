@@ -1,13 +1,12 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Announcement
 from app.schemas.service_desk import AnnouncementIn
-from app.services.pagination_service import paginate_query
+from app.services.pagination_service import ConCabeceras, paginate_query
 import logging
 from app.core.errores import ErrorDeDominio
 
@@ -18,7 +17,7 @@ def list_active_announcements(
     db: Session,
     page: int,
     page_size: int,
-    response: Optional[Response] = None,
+    response: Optional[ConCabeceras] = None,
     solo_clientes: bool = False,
 ) -> List[Announcement]:
     now = datetime.now(timezone.utc)

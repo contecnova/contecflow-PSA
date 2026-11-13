@@ -21,7 +21,7 @@ export default function ForbiddenPage(): JSX.Element {
         maxWidth: 640,
         background: 'var(--surface-1)',
         border: '1px solid var(--surface-4)',
-        borderRadius: 14,
+        borderRadius: 'var(--radius-lg)',
         padding: 28,
         boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
       }}>
@@ -38,7 +38,7 @@ export default function ForbiddenPage(): JSX.Element {
         <p style={{ margin: '0 0 22px', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
           {t('forbidden.contact_admin')}
         </p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="u-wrap-10">
           <Link
             to="/"
             style={{

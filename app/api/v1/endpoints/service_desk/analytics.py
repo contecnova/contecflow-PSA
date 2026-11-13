@@ -7,17 +7,11 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
-from app.services.service_desk.stats_service import get_service_desk_stats
 from app.services.service_desk.analytics_service import get_itil_metrics_payload, get_agent_performance_payload
 from app.services.service_desk.dashboard_layout_service import get_layout, save_layout
 from app.services.service_desk.incident_intelligence_service import detect_recurring_incidents
 
 router = APIRouter()
-
-
-@router.get("/stats", summary="Estadísticas del service desk")
-def get_stats(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return APIResponse.ok(data=get_service_desk_stats(db, current_user, days))
 
 
 @router.get("/metrics/itil", summary="Métricas ITIL: MTTR, FCR, SLA compliance, volumen")

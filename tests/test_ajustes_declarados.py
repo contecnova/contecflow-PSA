@@ -98,7 +98,7 @@ def test_el_detector_encuentra_lecturas():
     """Control de que el detector mira de verdad. Si devolviera lista vacía, el
     estructural de arriba pasaría sin comprobar nada."""
     lecturas = _lecturas_de_ajustes()
-    assert len(lecturas) > 20, (
+    assert len(lecturas) > 15, (  # 2026-11: las lecturas de entorno pasaron a settings.X, que este detector no cuenta
         "el detector sólo ha encontrado %d lecturas de ajustes: algo lo ha roto"
         % len(lecturas)
     )

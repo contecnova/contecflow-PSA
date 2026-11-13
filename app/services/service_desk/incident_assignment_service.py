@@ -39,23 +39,6 @@ def _iso_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _keyword_category_score(title: str, description: str, agent_specializations: list[str]) -> float:
-    """Keyword overlap score between ticket and agent specializations."""
-    text = (title + " " + description).lower()
-    if not agent_specializations:
-        return 0.5
-    matches = sum(1 for s in agent_specializations if s.lower() in text)
-    return min(1.0, matches / len(agent_specializations) + 0.1)
-
-
-def _workload_score(active_tickets: int, capacity: int) -> float:
-    """Inverse workload score — lower load = higher score."""
-    if capacity <= 0:
-        return 0.0
-    ratio = active_tickets / capacity
-    return max(0.0, 1.0 - ratio)
-
-
 def _capacity_to_slots(raw_capacity: Any) -> int:
     """Convert weekly capacity value into coarse ticket slots.
 

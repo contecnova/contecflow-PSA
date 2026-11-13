@@ -136,7 +136,7 @@ function RequestModal({ onClose }: { onClose: () => void }) {
         {/* Balance de vacaciones */}
         {balance && form.type === 'vacation' && (
           <div style={{ display: 'flex', gap: 8, padding: '10px 14px',
-            background: 'var(--surface-3)', borderRadius: 10,
+            background: 'var(--surface-3)', borderRadius: 'var(--radius-md)',
             border: '1px solid var(--surface-4)' }}>
             {[
               { label: t('absences.balance_available'), value: balance.days_remaining, color: (balance.days_remaining ?? 0) > 5 ? 'var(--success)' : (balance.days_remaining ?? 0) > 0 ? 'var(--warning)' : 'var(--danger)' },
@@ -146,7 +146,7 @@ function RequestModal({ onClose }: { onClose: () => void }) {
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{value}</div>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{label}</div>
+                <div className="u-text2-2xs">{label}</div>
               </div>
             ))}
           </div>
@@ -268,7 +268,7 @@ function CalendarView({ year, month }: { year: number; month: number }) {
           const holiday = isHoliday(day)
           const isWeekend = (firstDay + day - 1) % 7 >= 5
           return (
-            <div key={day} style={{ minHeight: 52, background: holiday ? 'var(--purple-bg)' : isWeekend ? 'var(--surface-1)' : 'var(--surface-2)', border: `1px solid ${holiday ? 'rgba(167,139,250,0.25)' : 'var(--surface-4)'}`, borderRadius: 6, padding: '4px 6px' }}>
+            <div key={day} style={{ minHeight: 52, background: holiday ? 'var(--purple-bg)' : isWeekend ? 'var(--surface-1)' : 'var(--surface-2)', border: `1px solid ${holiday ? 'rgba(167,139,250,0.25)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-sm)', padding: '4px 6px' }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: holiday ? 'var(--purple)' : isWeekend ? 'var(--text-3)' : 'var(--text-2)', marginBottom: 2 }}>{day}</div>
               {holiday && <div style={{ fontSize: "var(--text-3xs)", color: 'var(--purple)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{holiday.name}</div>}
               {absences.slice(0, 2).map(a => (
@@ -549,13 +549,13 @@ export default function AbsencesPage(): JSX.Element {
                       <div className="u-row-6">
                         {a.status === 'pending' && (
                           <button aria-label={`${t('absences.edit_action')} ${typeLabels(t)[a.type || ""] || a.type}`} onClick={() => setEditingAbsence(a)}
-                            style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
+                            style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)',
                               padding:'3px 10px', color:'var(--accent)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
                             {t('absences.edit_action')}
                           </button>
                         )}
                         {(a.status === 'pending' || a.status === 'approved') && (
-                          <button aria-label={`${t('absences.cancel_action')} ${typeLabels(t)[a.type || ""] || a.type}`} onClick={() => { openConfirmGlobal({ message: t('absences.cancel_confirm'), onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('absences.cancel_action')}</button>
+                          <button aria-label={`${t('absences.cancel_action')} ${typeLabels(t)[a.type || ""] || a.type}`} onClick={() => { openConfirmGlobal({ message: t('absences.cancel_confirm'), onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('absences.cancel_action')}</button>
                         )}
                       </div>
                     </div>
@@ -613,7 +613,7 @@ export default function AbsencesPage(): JSX.Element {
                         <div className="u-text2-sm">
                           {typeLabels(t)[a.type || ""]} · {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
                         </div>
-                        {a.reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
+                        {a.reason && <div className="u-text2-sm-mt2">{a.reason}</div>}
                       </div>
                       <StatusBadge status={a.status} />
                       <Button size="sm" onClick={() => setReviewing(a)}>{t('absences.review_action')}</Button>
@@ -655,7 +655,7 @@ export default function AbsencesPage(): JSX.Element {
           ) : sortedTeamAbs.length === 0 ? (
             <EmptyState icon="🔍" title={t('common.no_results', 'Sin resultados con los filtros aplicados')} />
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+            <div className="ds-card ds-card--plano">
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <SortableTH col="user_name" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.person_col')}</SortableTH>
                 <SortableTH col="type" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.type_label')}</SortableTH>

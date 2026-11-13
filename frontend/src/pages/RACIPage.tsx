@@ -3,7 +3,7 @@
  * Permite definir quién es Responsable, Aprobador, Consultado e Informado
  * para cada entregable, milestone o fase del proyecto.
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi } from '../services/api'
@@ -50,7 +50,7 @@ interface RaciResponse {
 }
 
 const ROLES_META: Record<string, { label: string; short: string; color: string; bg: string; desc: string }> = {
-  R: { label: 'Responsible',  short: 'R', color: 'var(--accent)',   bg: 'rgba(79,142,247,0.15)',  desc: 'Ejecuta el trabajo' },
+  R: { label: 'Responsible',  short: 'R', color: 'var(--accent)',   bg: 'color-mix(in srgb, var(--accent) 15%, transparent)',  desc: 'Ejecuta el trabajo' },
   A: { label: 'Accountable',  short: 'A', color: 'var(--success)',  bg: 'rgba(74,222,128,0.15)',  desc: 'Aprueba y responde' },
   C: { label: 'Consulted',    short: 'C', color: 'var(--warning)',  bg: 'rgba(251,191,36,0.15)',  desc: 'Aporta información' },
   I: { label: 'Informed',     short: 'I', color: 'var(--text-2)',   bg: 'rgba(122,138,170,0.15)', desc: 'Se le comunica' },
@@ -99,6 +99,7 @@ function RoleCell({ role, onClick, editable }: { role?: string; onClick?: () => 
 }
 
 function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdType; users: UserSlim[]; onClose: () => void; onSaved: () => void }) {
+  const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
@@ -126,8 +127,8 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
     <div className="u-stack-14">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
         <div>
-          <label style={lbStyle}>Tipo</label>
-          <select value={form.item_type} onChange={onField('item_type')} style={inputStyle}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbStyle}>Tipo</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.item_type} onChange={onField('item_type')} style={inputStyle}>
             {ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
@@ -138,15 +139,15 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
         <div>
-          <label style={lbStyle}>Persona</label>
-          <select value={form.user_id} onChange={onField('user_id')} style={inputStyle}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbStyle}>Persona</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.user_id} onChange={onField('user_id')} style={inputStyle}>
             <option value="">Selecciona persona...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.department || u.role})</option>)}
           </select>
         </div>
         <div>
-          <label style={lbStyle}>Rol RACI</label>
-          <select value={form.role} onChange={onField('role')} style={inputStyle}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbStyle}>Rol RACI</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.role} onChange={onField('role')} style={inputStyle}>
             {Object.entries(ROLES_META).map(([k, v]) => <option key={k} value={k}>{k} — {v.label}</option>)}
           </select>
         </div>
@@ -263,7 +264,7 @@ export default function RACIPage() {
                   >
                     <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }}>{item.item_label}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: '1px solid var(--surface-4)' }}>
-                      <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 10, background: 'var(--surface-3)', color: 'var(--text-3)', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 'var(--radius-md)', background: 'var(--surface-3)', color: 'var(--text-3)', textTransform: 'uppercase' }}>
                         {ITEM_TYPES.find(t => t.value === item.item_type)?.label || item.item_type}
                       </span>
                     </td>

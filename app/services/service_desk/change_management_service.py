@@ -19,6 +19,7 @@ from enum import Enum
 from sqlalchemy.orm import Session
 from app.core.segundo_plano import encolar
 from app.services.ai_provider_service import call_ai
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 _log = logging.getLogger(__name__)
 
@@ -299,7 +300,7 @@ echo "🔄 INITIATING ROLLBACK FOR CHANGE {change_id}"
 echo "⏰ Timestamp: $(date -u)"
 
 # Step 1: Notify stakeholders (application-level notifications sent automatically)
-echo "📢 Notifying stakeholders via ContecFlow notification service..."
+echo "📢 Notifying stakeholders via {NOMBRE_DEL_PRODUCTO} notification service..."
 
 # Step 2: Validate rollback pre-conditions
 echo "🔍 Validating rollback conditions..."
@@ -492,7 +493,7 @@ def _disparar_rollback(db: Session, change_id: str, state: dict, fase: dict,
     _update_change_status_on_rollback(db, change_id)
     _notify_change_stakeholders(
         db, change_id,
-        subject=f"[ContecFlow] Automatic rollback triggered for change {change_id}",
+        subject=f"[{NOMBRE_DEL_PRODUCTO}] Automatic rollback triggered for change {change_id}",
         body_html=(
             f"<p>An <strong>automatic rollback</strong> has been triggered for change "
             f"<strong>{change_id}</strong>.</p>"
@@ -518,7 +519,7 @@ def _avanzar_puntero_y_cerrar(db: Session, change_id: str, state: dict,
     _update_change_status_on_complete(db, change_id)
     _notify_change_stakeholders(
         db, change_id,
-        subject=f"[ContecFlow] Change {change_id} implemented successfully",
+        subject=f"[{NOMBRE_DEL_PRODUCTO}] Change {change_id} implemented successfully",
         body_html=(
             f"<p>Change <strong>{change_id}</strong> has been "
             f"<strong>successfully implemented</strong>.</p>"
@@ -636,7 +637,7 @@ def trigger_change_rollback(
     _notify_change_stakeholders(
         db,
         change_id,
-        subject=f"[ContecFlow] Rollback triggered for change {change_id}",
+        subject=f"[{NOMBRE_DEL_PRODUCTO}] Rollback triggered for change {change_id}",
         body_html=(
             f"<p>A <strong>manual rollback</strong> has been triggered for change <strong>{change_id}</strong>.</p>"
             f"<p><strong>Reason:</strong> {reason}</p>"

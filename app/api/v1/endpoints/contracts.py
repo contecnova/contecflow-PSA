@@ -11,6 +11,7 @@ from app.models.user import User
 from app.services import contract_service
 from app.services.contract_service import horas_usadas as _horas_usadas, serialize_contract as _contract_out
 from app.schemas.contracts import ContractIn, ContractUpdate, WorkOrderIn
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ def list_contracts(
     client_id: Optional[str] = None,
     status: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -99,6 +99,7 @@ Luis: Sin problema, esta semana lo organizo.
 Pedro: Resumiendo: Carlos revisa infraestructura de Alpha antes del viernes, Ana actualiza el contrato de Beta antes del 30, y Luis organiza la formación. Cerramos.`
 
 function ProcessModal({ onClose }: { onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -115,25 +116,25 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
     <Modal open title={t('meetings_ai.process_title')} onClose={onClose} width={700}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 14 }}>
         <div className="u-col-full">
-          <label style={ls}>{t('meetings_ai.title_label')}</label>
-          <input value={form.title} onChange={s('title')} style={fs} placeholder={t('meetings_ai.title_placeholder')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('meetings_ai.title_label')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={s('title')} style={fs} placeholder={t('meetings_ai.title_placeholder')} />
         </div>
 
         <div>
-          <label style={ls}>{t('meetings_ai.platform_label')}</label>
-          <select value={form.platform} onChange={s('platform')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('meetings_ai.platform_label')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.platform} onChange={s('platform')} style={fs}>
             {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.icon} {p.label}</option>)}
           </select>
         </div>
 
         <div>
-          <label style={ls}>{t('meetings_ai.duration_label')}</label>
-          <input type="number" value={form.duration_minutes} onChange={s('duration_minutes')} style={fs} placeholder={t('meetings_ai.duration_placeholder')} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('meetings_ai.duration_label')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.duration_minutes} onChange={s('duration_minutes')} style={fs} placeholder={t('meetings_ai.duration_placeholder')} />
         </div>
 
         <div className="u-col-full">
-          <label style={ls}>{t('meetings_ai.participants_label')}</label>
-          <input value={form.participants} onChange={s('participants')} style={fs} placeholder={t('meetings_ai.participants_placeholder')} />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('meetings_ai.participants_label')}</label>
+          <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.participants} onChange={s('participants')} style={fs} placeholder={t('meetings_ai.participants_placeholder')} />
         </div>
 
         <div className="u-col-full">
@@ -144,7 +145,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
               📋 {t('meetings_ai.use_demo')}
             </button>
           </div>
-          <textarea value={form.transcript} onChange={s('transcript')} rows={10}
+          <textarea aria-label={t('meetings_ai.transcript_placeholder')} value={form.transcript} onChange={s('transcript')} rows={10}
             style={{ ...fs, resize: 'vertical', lineHeight: 1.5 }}
             placeholder={t('meetings_ai.transcript_placeholder')} />
         </div>
@@ -234,7 +235,7 @@ export default function MeetingsAIPage() {
                   <span style={{ fontSize: "var(--text-lg-em)" }}>{plat.icon}</span>
                   <div className="u-flex1-min0">
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{m.meeting_date?.slice(0, 10) || m.created_at?.slice(0, 10)}</div>
+                    <div className="u-text2-xs-mt2">{m.meeting_date?.slice(0, 10) || m.created_at?.slice(0, 10)}</div>
                   </div>
                 </div>
                 <div className="u-wrap-8">
@@ -255,7 +256,7 @@ export default function MeetingsAIPage() {
         <div className="u-min0">
           {!selected ? (
             <div style={{ ...card, padding: 48, textAlign: 'center' }}>
-              <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🎙</div>
+              <div className="u-empty-icon">🎙</div>
               <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.select_title')}</div>
               <div className="u-text2-sm">{_t('meetings_ai.select_desc')}</div>
             </div>

@@ -50,7 +50,7 @@ function lista(raw?: string | null): string[] {
 function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={activo} style={{
-      padding: '5px 11px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)',
+      padding: '5px 11px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)',
       border: `1px solid ${activo ? 'var(--accent)' : 'var(--surface-4)'}`,
       background: activo ? 'var(--accent-muted)' : 'transparent', color: activo ? 'var(--accent)' : 'var(--text-2)',
     }}>{children}</button>
@@ -111,7 +111,7 @@ export function EscalationConfig() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="u-stack-20">
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 640 }}>{t('sd_cfg.esc_intro')}</div>
         <Button onClick={() => setEditando('nueva')}>+ {t('sd_cfg.esc_new')}</Button>
@@ -151,10 +151,10 @@ export function EscalationConfig() {
         {disparos.length === 0 ? (
           <div className="u-text3-sm">{t('sd_cfg.esc_log_empty')}</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+          <table className="u-table-sm">
             <tbody>
               {disparos.map(d => (
-                <tr key={d.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                <tr key={d.id} className="u-border-b">
                   <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{d.triggered_at ? new Date(d.triggered_at).toLocaleString(localeActivo()) : ''}</td>
                   <td style={{ padding: '7px 8px', fontWeight: 600 }}>{d.ticket_number}</td>
                   <td style={{ padding: '7px 8px', color: 'var(--text-2)' }}>{d.action_taken}</td>
@@ -305,7 +305,7 @@ export function NotificationsConfig() {
   const roles = ['requester', 'agent', 'approver']
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="u-stack-20">
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 640 }}>{t('sd_cfg.ntf_intro')}</div>
         <div role="group" aria-label={t('sd_cfg.ntf_language')} className="u-row-6">
@@ -423,7 +423,7 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
       </div>
       <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <div>{texto.customized && <Button variant="secondary" onClick={onRestaurar}>{t('sd_cfg.ntf_restore')}</Button>}</div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="u-row-10">
           <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
           <Button onClick={() => onGuardar({ subject, body_html: body, is_active: activo })}
             disabled={pendiente || !subject.trim() || !body.trim()} loading={pendiente}>{t('common.save')}</Button>

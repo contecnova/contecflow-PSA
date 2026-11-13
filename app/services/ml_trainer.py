@@ -200,12 +200,14 @@ def train_all_orgs(db: Session) -> list:
 
 # ── Prediction ─────────────────────────────────────────────────────────────────
 
-def _risk_level(cost_prob: float, sched_prob: float) -> str:
-    p = max(cost_prob, sched_prob)
-    if p >= 0.70: return "critical"
-    if p >= 0.50: return "high"
-    if p >= 0.30: return "medium"
-    return "low"
+def _risk_level(cost_prob: float, sched_prob: float, db=None, org_id=None) -> str:
+    """La mayor de las dos probabilidades, por la escala común (`app.core.escalas`).
+
+    Segunda auditoría 2026-11 (hallazgo 17): los cortes propios eran
+    0,70/0,50/0,30; ahora RISK_PROBABILITY_* (0,75/0,50/0,25 por defecto).
+    """
+    from app.core.escalas import nivel_por_probabilidad
+    return nivel_por_probabilidad(max(cost_prob, sched_prob), db=db, org_id=org_id)
 
 
 class _SinCambios(Exception):
@@ -307,7 +309,7 @@ def predict_project(db: Session, project_id: str, organization_id: str,
         ml_result["model_version"] = None
         ml_result["model_accuracy"] = None
 
-    risk = _risk_level(ml_result["cost_overrun_prob"], ml_result["schedule_overrun_prob"])
+    risk = _risk_level(ml_result["cost_overrun_prob"], ml_result["schedule_overrun_prob"], db, organization_id)
 
     # Persist prediction log (best-effort). Revision 2026-11: solo si cambia
     # respecto a la ultima; antes cada vista de la cartera escribia una fila

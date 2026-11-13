@@ -140,87 +140,20 @@ export const CHART = {
 
 export type ChartColorName = keyof typeof CHART
 
-// ── Estados de entidades ──────────────────────────────────────────────────────
-export interface StatusToken {
-  color: string
-  label: string
-}
-
-export const TASK_STATUS: Record<string, StatusToken> = {
-  todo:        { color: COLOR.text3,   label: 'Por hacer'    },
-  in_progress: { color: COLOR.accent,  label: 'En progreso'  },
-  review:      { color: COLOR.warning, label: 'Revisión'     },
-  done:        { color: COLOR.success, label: 'Hecho'        },
-  blocked:     { color: COLOR.danger,  label: 'Bloqueado'    },
-  backlog:     { color: COLOR.surface4,label: 'Backlog'      },
-  cancelled:   { color: COLOR.text4,   label: 'Cancelado'    },
-}
-
-export const TASK_PRIORITY: Record<string, StatusToken> = {
-  low:      { color: COLOR.text2,   label: 'Baja'     },
-  medium:   { color: COLOR.warning, label: 'Media'    },
-  high:     { color: COLOR.danger,  label: 'Alta'     },
-  critical: { color: COLOR.danger,  label: 'Crítica'  },
-}
-
-export const PROJECT_STATUS: Record<string, StatusToken> = {
-  planning:  { color: COLOR.text2,   label: 'Planificación' },
-  active:    { color: COLOR.accent,  label: 'Activo'        },
-  on_hold:   { color: COLOR.warning, label: 'En espera'     },
-  paused:    { color: COLOR.warning, label: 'Pausado'       },
-  completed: { color: COLOR.success, label: 'Completado'    },
-  closed:    { color: COLOR.success, label: 'Cerrado'       },
-  cancelled: { color: COLOR.text3,   label: 'Cancelado'     },
-  archived:  { color: COLOR.text3,   label: 'Archivado'     },
-  at_risk:   { color: COLOR.danger,  label: 'En riesgo'     },
-}
-
-export const TICKET_PRIORITY: Record<string, StatusToken> = {
-  p1_critical: { color: COLOR.danger,  label: 'P1 Crítico' },
-  p2_high:     { color: COLOR.orange,  label: 'P2 Alto'    },
-  p3_medium:   { color: COLOR.warning, label: 'P3 Medio'   },
-  p4_low:      { color: COLOR.text2,   label: 'P4 Bajo'    },
-}
-
-export const TICKET_STATUS: Record<string, StatusToken> = {
-  new:            { color: COLOR.accent,  label: 'Nuevo'        },
-  assigned:       { color: COLOR.accent,  label: 'Asignado'     },
-  in_progress:    { color: COLOR.accent,  label: 'En progreso'  },
-  pending_client: { color: COLOR.warning, label: 'Pend. cliente'},
-  resolved:       { color: COLOR.success, label: 'Resuelto'     },
-  closed:         { color: COLOR.success, label: 'Cerrado'      },
-  cancelled:      { color: COLOR.text3,   label: 'Cancelado'    },
-}
-
-export const RISK_LEVEL: Record<string, StatusToken> = {
-  low:      { color: COLOR.success, label: 'Bajo'    },
-  medium:   { color: COLOR.warning, label: 'Medio'   },
-  high:     { color: COLOR.danger,  label: 'Alto'    },
-  critical: { color: COLOR.danger,  label: 'Crítico' },
-}
-
-// ── Espaciado (px, múltiplos de 4) ────────────────────────────────────────────
-export const SPACE = { xs:4, sm:8, md:12, lg:16, xl:24, xxl:32, xxxl:48 } as const
-
-// ── Radios de borde ───────────────────────────────────────────────────────────
-export const RADIUS = { sm:6, md:10, lg:14, xl:18, full:9999 } as const
-
-// ── Tipografía ────────────────────────────────────────────────────────────────
-export const FONT = {
-  sans: "'DM Sans', system-ui, sans-serif",
-  mono: "'Geist Mono', ui-monospace, monospace",
-  size: { xs:10, sm:11, base:13, md:14, lg:16, xl:20, xxl:24 },
-} as const
+// Auditoria 2026-11 (#45): TASK_STATUS, TASK_PRIORITY, PROJECT_STATUS,
+// TICKET_PRIORITY, TICKET_STATUS, RISK_LEVEL, SPACE, RADIUS, FONT y CARD_STYLE
+// se exportaban y nadie los importaba (los estados viven en cada pantalla y las
+// medidas en los tokens de index.css). Se retiran.
 
 // ── Estilos de formulario reutilizables ──────────────────────────────────────
 // Úsalos como: style={{ ...INPUT_STYLE, width: 200 }}
 export const INPUT_STYLE: CSSProperties = {
   background:   'var(--surface-3)',
   border:       '1px solid var(--surface-4)',
-  borderRadius: RADIUS.md,
+  borderRadius: 'var(--radius-md)',
   padding:      '9px 13px',
   color:        'var(--text-1)',
-  fontSize:     FONT.size.base,
+  fontSize:     'var(--text-base)',
   outline:      'none',
   fontFamily:   'var(--font-sans)',
   width:        '100%',
@@ -228,20 +161,13 @@ export const INPUT_STYLE: CSSProperties = {
 }
 
 export const LABEL_STYLE: CSSProperties = {
-  fontSize:      FONT.size.sm,
+  fontSize:      'var(--text-xs)',
   fontWeight:    600,
   color:         'var(--text-2)',
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
   display:       'block',
   marginBottom:  5,
-}
-
-export const CARD_STYLE: CSSProperties = {
-  background:   'var(--surface-2)',
-  border:       '1px solid var(--surface-4)',
-  borderRadius: RADIUS.lg,
-  padding:      SPACE.xl,
 }
 
 // ── Helper: color semántico de un valor numérico ──────────────────────────────

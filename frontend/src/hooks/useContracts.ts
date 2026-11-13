@@ -5,13 +5,9 @@ import { contractsApi } from '../services/api'
 
 const STALE = 2 * 60 * 1000
 
-export interface Contract {
-  id: string
-  client_id?: string
-  name?: string
-  status?: string
-  [extra: string]: unknown
-}
+// Tipo de respuesta del cliente de API (services/api/tipos.ts, auditoria 2026-11 #39).
+import type { Contract } from '../services/api/tipos'
+export type { Contract }
 
 export type ContractListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }

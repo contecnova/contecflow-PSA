@@ -21,7 +21,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { campo } from './FormularioDePartida'
 import DateInput from '../ui/DateInput'
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }
+const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
 const rejilla: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))', gap: 10, alignItems: 'end' }
 const lbl: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 3 }
 
@@ -47,7 +47,7 @@ export function CampanasDePresupuesto() {
         <label><span style={lbl}>{t('pres.campana_nombre')}</span><input aria-label={t('pres.campana_nombre')} value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} style={campo} /></label>
         <label><span style={lbl}>{t('pres.ejercicio')}</span><input aria-label={t('pres.ejercicio')} type="number" value={f.year} onChange={e => setF(v => ({ ...v, year: e.target.value }))} style={campo} /></label>
         <label><span style={lbl}>{t('pres.fecha_limite')}</span><DateInput aria-label={t('pres.fecha_limite')} value={f.fecha_limite} onChange={e => setF(v => ({ ...v, fecha_limite: e.target.value }))} style={campo} /></label>
-        <label style={{ gridColumn: '1 / -1' }}><span style={lbl}>{t('pres.instrucciones')}</span>
+        <label className="u-col-full"><span style={lbl}>{t('pres.instrucciones')}</span>
           <textarea aria-label={t('pres.instrucciones')} rows={2} value={f.instrucciones} onChange={e => setF(v => ({ ...v, instrucciones: e.target.value }))} style={{ ...campo, resize: 'vertical' }} /></label>
         <div><Button loading={ocupado} disabled={!f.nombre.trim() || !f.fecha_limite || !f.year}
           onClick={() => guardar({ nombre: f.nombre, year: Number(f.year), fecha_limite: f.fecha_limite, instrucciones: f.instrucciones || null })}>{t('pres.abrir_campana')}</Button></div>

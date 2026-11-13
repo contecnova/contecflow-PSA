@@ -26,7 +26,7 @@ export default function PredictionsPage() {
       showListExport={false}
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="u-stack-20">
         <BiForecastingPanel />
         <BiAnomalyPanel />
         <BiConditionalDeliveryPanel />

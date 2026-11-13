@@ -23,6 +23,7 @@ from app.services.collaboration._permissions import (
 from app.services.collaboration._search import search_engine
 from app.services.collaboration import workspaces as ws_svc
 from app.core.responses import APIListResponse, APIResponse
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -378,7 +379,7 @@ def search(
     author_user_id: Optional[str] = None,
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

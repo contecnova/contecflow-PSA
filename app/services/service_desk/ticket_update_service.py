@@ -2,14 +2,16 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models.service_desk import SLAPolicy, Ticket
+from app.models.service_desk import Ticket
 from app.schemas.service_desk import TicketUpdateIn
 from app.services.service_desk.status_compat import normalize_ticket_status
 from app.services.service_desk.dynamic_ticket_fields_service import save_ticket_dynamic_fields
 from app.services.service_desk.ticket_ops_service import save_pending_snapshot
+from app.services.service_desk.sla_del_ticket import (  # noqa: F401  (reexportados)
+    _reanudar_sla_pausado, _recalcular_vencimientos, cambiar_prioridad,
+)
 from app.services.sla_service import (
     PRIORITY_MATRIX,
-    calculate_sla_due as _calculate_sla_due,
     log_history as _log_history,
     norm_enum as _norm_enum,
 )
@@ -48,24 +50,6 @@ def _aware(dt):
     if dt is not None and dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
-
-
-def _reanudar_sla_pausado(ticket, now) -> None:
-    """Acumula el tiempo en pausa y reanuda el reloj del SLA.
-
-    Auditoría 2026-08 (hallazgo 18). Este bloque estaba DUPLICADO literalmente:
-    una vez en la rama `in_progress` y otra en el `else` que cubre el resto de
-    estados. Dos copias del mismo cálculo de minutos son dos sitios donde
-    corregir un error y uno donde olvidarlo.
-    """
-    if not ticket.sla_paused_at:
-        return
-    paused_at = ticket.sla_paused_at
-    if paused_at.tzinfo is None:
-        paused_at = paused_at.replace(tzinfo=timezone.utc)
-    paused_mins = int((now - paused_at).total_seconds() / 60)
-    ticket.sla_pause_minutes = (ticket.sla_pause_minutes or 0) + paused_mins
-    ticket.sla_paused_at = None
 
 
 def _marcar_primera_respuesta(ticket, now) -> None:
@@ -174,43 +158,6 @@ def _recalcular_prioridad(db, ticket, payload) -> None:
     ticket.priority = new_priority
     if new_priority != old_priority:
         _recalcular_vencimientos(db, ticket)
-
-
-def cambiar_prioridad(db, ticket, nueva) -> bool:
-    """Unica via para cambiar la prioridad fuera del PATCH: recalcula los plazos.
-
-    La usan la escalada, el incidente mayor, el triaje de IA, la sincronizacion
-    con Jira y «volver al estado anterior». Devuelve si cambio.
-    """
-    antes = _norm_enum(ticket.priority)
-    ticket.priority = nueva
-    if _norm_enum(ticket.priority) == antes:
-        return False
-    _recalcular_vencimientos(db, ticket)
-    return True
-
-
-def _recalcular_vencimientos(db, ticket) -> None:
-    """Vencimientos del SLA para la prioridad actual, desde la apertura.
-
-    Auditoria 2026-11: fijar la prioridad a mano no los recalculaba (solo lo
-    hacia la matriz de urgencia e impacto), y el ticket seguia venciendo con
-    los plazos de la prioridad anterior.
-    """
-    if ticket.status in ("resolved", "closed", "cancelled"):
-        return
-    sla_policy = (
-        db.query(SLAPolicy).filter(SLAPolicy.id == ticket.sla_policy_id).first()
-        if ticket.sla_policy_id
-        else None
-    )
-    # Se recalcula desde la apertura: cambiar la prioridad no reinicia el reloj.
-    resp_due, res_due = _calculate_sla_due(
-        _norm_enum(ticket.priority), sla_policy, db=db,
-        org_id=ticket.organization_id, start=ticket.created_at,
-    )
-    ticket.sla_response_due = resp_due
-    ticket.sla_resolution_due = res_due
 
 
 def apply_ticket_update(

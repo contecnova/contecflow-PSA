@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 from collections import defaultdict
 from typing import Any, Iterable
 
@@ -23,7 +22,8 @@ class RedisBus(EventBus):
         super().__init__()
         try:
             import redis.asyncio as aioredis  # noqa: F401
-            self._url = url or os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+            from app.core.config import settings
+            self._url = url or settings.REDIS_URL or "redis://localhost:6379/0"
             self._client = None  # lazy
             self._listener_task: asyncio.Task | None = None
             self._pubsub = None

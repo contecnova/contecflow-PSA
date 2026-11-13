@@ -12,8 +12,8 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
-from fastapi.responses import StreamingResponse
 
+from app.core.descargas import Descarga
 from app.models.user import User
 from app.models.imputation import Imputation
 from app.models.project import Project
@@ -675,6 +675,64 @@ def _acotar_por_tenant(db_query, model, current_user, db):
     return db_query
 
 
+# ── Tarifas: la misma regla que el resto de la API (auditoria 2026-11 #27) ────
+#
+# `GET /users/{id}` solo da `hourly_rate` a admin y RR. HH., y la lista de
+# imputaciones quita el coste de las ajenas en proyectos con
+# `can_see_rates = false`. El constructor de informes lo saltaba: un PM pedia
+# la entidad `users` con `hourly_rate` (o `imputations` con
+# `hourly_rate_snapshot`) y tenia la tarifa de toda la plantilla. Tambien se
+# podia deducir filtrando (`hourly_rate gt 40`), asi que filtrar u ordenar por
+# esas columnas sin poder verlas es un 403.
+
+#: Columnas que son la tarifa de una persona: solo admin y RR. HH.
+_TARIFAS_PERSONALES = {"users": {"hourly_rate"}, "imputations": {"hourly_rate_snapshot"}}
+
+
+def _ve_tarifas(user) -> bool:
+    if getattr(user, "is_superadmin", False):
+        return True
+    return getattr(getattr(user, "role", None), "value", getattr(user, "role", None)) in ("admin", "hr")
+
+
+def _proyectos_sin_coste(db: Session, user) -> set:
+    from app.core.permisos_de_proyecto import proyectos_sin_tarifas
+    return proyectos_sin_tarifas(db, user)
+
+
+def _exigir_columnas_de_tarifa_visibles(entity: str, filters: list, sort_column: Optional[str],
+                                        current_user: User, db: Session) -> Optional[str]:
+    """403 si se filtra por una tarifa que no se puede ver. Devuelve el orden a usar."""
+    if _ve_tarifas(current_user):
+        return sort_column
+    vetadas = set(_TARIFAS_PERSONALES.get(entity, set()))
+    if entity == "imputations" and _proyectos_sin_coste(db, current_user):
+        vetadas.add("cost_amount")
+    for f in filters:
+        if _valor_del_filtro(f, "column", "") in vetadas:
+            raise ErrorDeDominio(403, "No puedes filtrar por tarifas o costes que no puedes ver")
+    return None if sort_column in vetadas else sort_column
+
+
+def _ocultar_tarifas(db: Session, current_user: User, entity: str, filas: list,
+                     dicts: List[Dict]) -> List[Dict]:
+    """Quita de cada fila las tarifas y costes que quien pide no puede ver."""
+    if entity not in ("users", "imputations") or _ve_tarifas(current_user):
+        return dicts
+    sin_coste = _proyectos_sin_coste(db, current_user) if entity == "imputations" else set()
+    for fila, d in zip(filas, dicts):
+        if entity == "users":
+            if "hourly_rate" in d:
+                d["hourly_rate"] = None
+            continue
+        propia = getattr(fila, "user_id", None) == current_user.id
+        if "hourly_rate_snapshot" in d and not propia:
+            d["hourly_rate_snapshot"] = None
+        if "cost_amount" in d and not propia and getattr(fila, "project_id", None) in sin_coste:
+            d["cost_amount"] = None
+    return dicts
+
+
 def _preparar_consulta(
     entity: str, columns: List[str], filters: list, sort_column: Optional[str],
     sort_direction: str, current_user: User, db: Session,
@@ -698,6 +756,7 @@ def _preparar_consulta(
             raise ErrorDeDominio(400, f"Columna '{c}' no permitida para la entidad '{entity}'")
 
     db_query = _acotar_por_tenant(db.query(model), model, current_user, db)
+    sort_column = _exigir_columnas_de_tarifa_visibles(entity, filters, sort_column, current_user, db)
 
     for f in filters:
         col_name = _valor_del_filtro(f, "column", "")
@@ -755,7 +814,8 @@ def execute_report(
         entity, columns, filters, sort_column, sort_direction, current_user, db
     )
     filas = db_query.limit(min(limit, _MAX_FILAS_SIN_PAGINAR)).all()
-    return _con_mascaras(db, current_user, entity, _serializar(filas, columns))
+    visibles = _ocultar_tarifas(db, current_user, entity, filas, _serializar(filas, columns))
+    return _con_mascaras(db, current_user, entity, visibles)
 
 
 def execute_report_paginated(
@@ -768,7 +828,8 @@ def execute_report_paginated(
     )
     items, total, pages = paginate_query(db_query, page, page_size)
     return {
-        "items": _con_mascaras(db, current_user, entity, _serializar(items, columns)),
+        "items": _con_mascaras(db, current_user, entity,
+                               _ocultar_tarifas(db, current_user, entity, items, _serializar(items, columns))),
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -794,7 +855,8 @@ def exportar_todo(entity: str, columns: List[str], filters: list, sort_column: O
     return filas[:tope], total
 
 
-def build_csv_response(columns: List[str], rows: List[Dict], entity: str, pagination: dict = None) -> StreamingResponse:
+def build_csv_response(columns: List[str], rows: List[Dict], entity: str, pagination: dict = None) -> Descarga:
+    """El CSV del informe como `Descarga`; el endpoint la sirve (auditoria 2026-11, item 36)."""
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=columns)
     writer.writeheader()
@@ -807,8 +869,8 @@ def build_csv_response(columns: List[str], rows: List[Dict], entity: str, pagina
         headers["X-Page"] = str(pagination.get("page", 1))
         headers["X-Page-Size"] = str(pagination.get("page_size", len(rows)))
         headers["X-Total-Pages"] = str(pagination.get("pages", 1))
-    return StreamingResponse(
-        iter([buf.getvalue()]),
+    return Descarga(
+        contenido=buf.getvalue().encode("utf-8"),
         media_type="text/csv",
-        headers=headers,
+        cabeceras=headers,
     )

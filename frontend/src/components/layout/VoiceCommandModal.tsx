@@ -228,7 +228,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div className="u-row-between-mb16">
           <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>
             {traducir('voicecommandmodal.comando_de_voz')}
           </h3>
@@ -322,7 +322,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         {/* Transcription result */}
         {transcribeResult && (
           <div>
-            <div style={{ marginBottom: 14 }}>
+            <div className="u-mb-14">
               <div style={{
                 fontSize: 'var(--text-xs)', color: 'var(--text-3)',
                 textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4,
@@ -338,7 +338,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
               </div>
             </div>
 
-            <div style={{ marginBottom: 14 }}>
+            <div className="u-mb-14">
               <div style={{
                 fontSize: 'var(--text-xs)', color: 'var(--text-3)',
                 textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4,
@@ -386,7 +386,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                 </div>
               </>
             ) : (
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div className="u-row-end">
                 <button onClick={onClose}
                   style={{
                     background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',

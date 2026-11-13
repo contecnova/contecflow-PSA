@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 import app.services.semantic_engine_service as _svc
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -52,7 +53,7 @@ def update_config(data: SemConfigPatch = Body(...),
         payload["local_model_name"] = "tfidf"
     elif backend == "transformer":
         model_name = (payload.get("local_model_name") or cfg.local_model_name or "").strip()
-        payload["local_model_name"] = model_name if model_name and model_name.lower() != "tfidf" else "all-MiniLM-L6-v2"
+        payload["local_model_name"] = model_name if model_name and model_name.lower() != "tfidf" else settings.EMBEDDING_MODEL_NAME
 
     if "local_model_name" in payload and isinstance(payload["local_model_name"], str):
         payload["local_model_name"] = payload["local_model_name"].strip()

@@ -46,13 +46,14 @@ interface O365ConfigForm {
 }
 
 const S: Record<string, React.CSSProperties> = {
-  card:  { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
+  card:  { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
   input: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   btn:   { padding: '7px 14px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
   label: { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 },
 }
 
 export default function BiO365Panel() {
+  const idCampo = React.useId()
   const t             = useAppT()
   const toast         = useToast()
   const { tokens }    = useChartTheme()
@@ -205,7 +206,7 @@ export default function BiO365Panel() {
                 ['bio365.activos', (adoptionData.active_users ?? 0).toLocaleString(localeActivo())],
                 ['bio365.adopcion', `${(adoptionData.adoption_rate ?? 0).toLocaleString(localeActivo())} %`],
               ] as const).map(([k, v]) => (
-                <div key={k} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
+                <div key={k} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', textAlign: 'center' }}>
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>{t(k)}</div>
                   <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: 'var(--text-1)' }}>{v}</div>
                 </div>
@@ -235,27 +236,27 @@ export default function BiO365Panel() {
         <div className="u-stack-14">
           <div className="u-row-center-8">
             <Settings size={14} style={{ color: 'var(--text-3)' }} />
-            <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>
+            <span className="u-text1-base-600">
               {t('bi.o365.graph_config', 'Microsoft Graph API')}
             </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
             <div>
-              <label style={S.label}>Tenant ID</label>
-              <input type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} style={S.input} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={S.label}>Tenant ID</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} style={S.input} />
             </div>
             <div>
-              <label style={S.label}>Client ID</label>
-              <input type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} style={S.input} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={S.label}>Client ID</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} style={S.input} />
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={S.label}>
+            <div className="u-col-full">
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={S.label}>
                 Client Secret{' '}
                 <span style={{ color: 'var(--warning)', fontWeight: 400, textTransform: 'none', fontSize: "var(--text-2xs)" }}>
                   {t('bio365.secreto_ayuda')}
                 </span>
               </label>
-              <input type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" style={S.input} />
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" style={S.input} />
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>

@@ -78,10 +78,6 @@ def update_oncall_schedule_record(db: Session, schedule_id: str, payload: OnCall
     return schedule
 
 
-def get_oncall_schedule_for_delete(db: Session, schedule_id: str) -> OnCallSchedule:
-    return get_oncall_schedule_by_id(db, schedule_id)
-
-
 def delete_oncall_schedule(db: Session, schedule_id: str) -> None:
     s = get_oncall_schedule_by_id(db, schedule_id)
     db.delete(s)
@@ -109,10 +105,6 @@ def get_oncall_entry_by_id(db: Session, entry_id: str) -> OnCallEntry:
     if not entry:
         raise ErrorDeDominio(404)
     return entry
-
-
-def get_oncall_entry_for_delete(db: Session, entry_id: str) -> OnCallEntry:
-    return get_oncall_entry_by_id(db, entry_id)
 
 
 def delete_oncall_entry(db: Session, entry_id: str) -> None:

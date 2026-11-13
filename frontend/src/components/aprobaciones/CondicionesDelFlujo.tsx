@@ -55,7 +55,7 @@ export default function CondicionesDelFlujo({ workflowId, entityType, actuales, 
   }
   const set = (k: keyof typeof c) => (e: { target: { value: string } }) => setC(v => ({ ...v, [k]: e.target.value }))
   return (
-    <section aria-label={t('aprob.condiciones')} style={{ border: '1px solid var(--surface-4)', borderRadius: 10, padding: 14, marginBottom: 18 }}>
+    <section aria-label={t('aprob.condiciones')} style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14, marginBottom: 18 }}>
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{t('aprob.condiciones')}</div>
       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 10 }}>{t('aprob.condiciones_ayuda')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, alignItems: 'end' }}>

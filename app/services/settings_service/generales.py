@@ -12,10 +12,11 @@ from app.models.settings import AppSetting
 from app.core.config import settings as app_settings
 
 from app.services.settings_service.runtime import invalidate_cache
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 
 DEFAULT_SETTINGS = {
-    "company_name": ("Contecflow", "Nombre de la empresa"),
+    "company_name": (NOMBRE_DEL_PRODUCTO, "Nombre de la empresa"),
     "currency": (app_settings.DEFAULT_CURRENCY, "Moneda principal"),
     "timezone": (app_settings.DEFAULT_TIMEZONE, "Zona horaria"),
     "language": (app_settings.DEFAULT_LANGUAGE, "Idioma de la interfaz"),

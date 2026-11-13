@@ -9,7 +9,6 @@ from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime, timezone
 import logging
-import os
 import secrets
 
 from app.db.session import get_db
@@ -22,6 +21,7 @@ from app.core.security import (
 )
 from app.core.deps import get_current_user
 from app.core.config import settings
+from app.core.entorno import en_pruebas
 from app.core.ratelimit import limiter
 from app.models.user import User
 from app.schemas.auth import (
@@ -38,10 +38,7 @@ from app.services.session_security import register_or_rotate_user_session, revok
 import app.services.auth_service as _svc
 from app.services.auth_service import (
     soc_svc as _soc_svc,
-    client_ip as _client_ip,
     issue_mfa_challenge as _issue_mfa_challenge,
-    current_refresh_jti as _current_refresh_jti,
-    set_auth_cookies as _set_auth_cookies,
     COOKIE_OPTS as _COOKIE_OPTS,
     register_login_failure as _register_login_failure,
     login_lock_ttl as _login_lock_ttl,
@@ -54,6 +51,8 @@ from app.services.auth_service import (
     consume_password_reset_token as _consume_password_reset_token,
     send_password_reset_email as _send_password_reset_email,
 )
+from app.api.cookies_de_sesion import current_refresh_jti as _current_refresh_jti, set_auth_cookies as _set_auth_cookies
+from app.core.network import extract_client_ip as _client_ip
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -111,15 +110,37 @@ def _auditar_en_soc(db: Session, user, request: Request, *, exito: bool) -> None
         logger.warning("SOC %s audit failed for user=%s", cual, user.id, exc_info=True)
 
 
-def _rechazar_credenciales(bucket, *, db=None, user=None, request=None):
+_HASH_FICTICIO: list = []
+
+
+def _gastar_tiempo_de_hash(password: Optional[str]) -> None:
+    """Un bcrypt de mas cuando no hay hash que comprobar.
+
+    Auditoria 2026-11 (#45): un usuario inexistente respondia en ~1 ms y uno
+    existente en lo que tarda bcrypt (~100-300 ms). El mensaje era el mismo,
+    pero el tiempo delataba que cuentas existen.
+    """
+    if not _HASH_FICTICIO:
+        _HASH_FICTICIO.append(get_password_hash(secrets.token_urlsafe(16)))
+    try:
+        verify_password(password or "", _HASH_FICTICIO[0])
+    except Exception:
+        logger.debug("hash ficticio: excepcion ignorada", exc_info=True)
+
+
+def _rechazar_credenciales(bucket, *, cuenta=None, db=None, user=None, request=None):
     """Apunta el intento fallido y rechaza. No vuelve nunca.
 
     Se usa en los dos caminos de fallo —usuario inexistente y contrasena
     incorrecta— para que el mensaje y el consumo de cupo sean identicos. Que los
     dos respondan lo mismo es lo que impide averiguar por el login si un usuario
     existe.
+
+    `cuenta`: el contador por cuenta (todas las IPs), con umbral mas alto.
     """
     lock_for = _register_login_failure(bucket)
+    if cuenta is not None:
+        lock_for = max(lock_for, _register_login_failure(cuenta, _svc.LOGIN_ACCOUNT_MULTIPLIER))
     if user is not None:
         _auditar_en_soc(db, user, request, exito=False)
     if lock_for > 0:
@@ -163,8 +184,8 @@ def _bypass_de_superadmin_aplicable(user, payload: LoginRequest) -> bool:
     return (
         settings.ENVIRONMENT == "development"
         and settings.ENVIRONMENT not in {"staging", "production"}
-        and os.getenv("TESTING") != "1"
-        and os.getenv("ENABLE_SUPERADMIN_BYPASS", "0") == "1"
+        and not en_pruebas()
+        and settings.ENABLE_SUPERADMIN_BYPASS
         and settings.DATABASE_URL.startswith("sqlite")
         and not base_real
         and bool(getattr(user, "is_superadmin", False))
@@ -175,16 +196,17 @@ def _bypass_de_superadmin_aplicable(user, payload: LoginRequest) -> bool:
     )
 
 
-def _exigir_mfa_de_la_organizacion(db: Session, user, tiene_factor: bool) -> None:
+def _exigir_mfa_de_la_organizacion(db: Session, user, tiene_factor: bool, org=None) -> None:
     """Bloquea el login si la organizacion exige MFA y el usuario no tiene ninguno.
 
     Se bloquea en vez de dejar entrar y avisar: la politica de la organizacion
     dice que sin segundo factor no se entra, y un aviso ignorable no es una
-    politica.
+    politica. `org`: la empresa en la que se entra (si no, la del usuario). La
+    usa tambien el callback SSO (auditoria 2026-11 #45).
     """
-    if not user.organization_id or tiene_factor:
+    if tiene_factor or not (org or user.organization_id):
         return
-    if _svc.organizacion_exige_mfa(db, user):
+    if _svc.organizacion_exige_mfa(db, user, org):
         raise HTTPException(
             status_code=403,
             detail=(
@@ -242,8 +264,9 @@ def _abrir_sesion(db: Session, user, request: Request, response: Response, org=N
 @router.post("/login", response_model=TokenResponse, summary="Login con credenciales locales")
 @limiter.limit("5/minute")
 def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
-    bucket = _login_bucket(payload.username, request)
-    lock_ttl = _login_lock_ttl(bucket)
+    bucket = _login_bucket(payload.username, request.client.host if request.client else None)
+    cuenta = _svc.login_account_bucket(payload.username)
+    lock_ttl = max(_login_lock_ttl(bucket), _login_lock_ttl(cuenta))
     if lock_ttl > 0:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -252,7 +275,8 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
 
     user = _svc.lookup_user_by_credentials(db, payload.username)
     if not user or not user.hashed_password:
-        _rechazar_credenciales(bucket)
+        _gastar_tiempo_de_hash(payload.password)
+        _rechazar_credenciales(bucket, cuenta=cuenta)
 
     password_ok = _contrasena_correcta(payload, user)
     if not password_ok and _bypass_de_superadmin_aplicable(user, payload):
@@ -263,9 +287,10 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
         )
 
     if not password_ok:
-        _rechazar_credenciales(bucket, db=db, user=user, request=request)
+        _rechazar_credenciales(bucket, cuenta=cuenta, db=db, user=user, request=request)
 
     _clear_login_failure(bucket)
+    _clear_login_failure(cuenta)
     # En que empresa entra (revision multitenant 2026-11): segun el modo del
     # despliegue, la del host, la del codigo, la unica o la que elija. Un
     # rechazo por empresa responde como una contrasena mala.
@@ -291,7 +316,7 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
 def _segundo_factor_o_sesion(db: Session, user, request: Request, response: Response, org):
     has_totp = bool(user.mfa_enabled and user.mfa_secret)
     has_passkeys = _svc.user_has_passkeys(db, user.id)
-    _exigir_mfa_de_la_organizacion(db, user, has_totp or has_passkeys)
+    _exigir_mfa_de_la_organizacion(db, user, has_totp or has_passkeys, org)
     if has_totp or has_passkeys:
         return _reto_de_segundo_factor(db, user, has_totp, has_passkeys, org)
     return _abrir_sesion(db, user, request, response, org)
@@ -422,6 +447,8 @@ def logout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Auditoria 2026-11 (#22): la cookie de refresco ahora llega aqui (ruta
+    # `/api/v1/auth`), asi que su sesion se revoca de verdad.
     revoke_session_by_jti(
         db=db,
         user_id=current_user.id,
@@ -430,7 +457,8 @@ def logout(
     )
     _svc.commit_db(db)
     response.delete_cookie("access_token", **_COOKIE_OPTS)
-    response.delete_cookie("refresh_token", path="/api/v1/auth/refresh", **_COOKIE_OPTS)
+    response.delete_cookie("refresh_token", path=_svc.REFRESH_COOKIE_PATH, **_COOKIE_OPTS)
+    response.delete_cookie("refresh_token", path=_svc.REFRESH_COOKIE_PATH_ANTIGUA, **_COOKIE_OPTS)
     return {"detail": "Sesión cerrada correctamente"}
 
 
@@ -439,7 +467,7 @@ def logout(
 def password_forgot(request: Request, payload: PasswordForgotRequest, db: Session = Depends(get_db)):
     identifier = (payload.email_or_username or "").strip()
     if identifier:
-        ttl = _register_password_reset_request(_password_reset_bucket(identifier, request))
+        ttl = _register_password_reset_request(_password_reset_bucket(identifier, request.client.host if request.client else None))
         if ttl > 0:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -452,7 +480,14 @@ def password_forgot(request: Request, payload: PasswordForgotRequest, db: Sessio
             try:
                 token = _issue_password_reset_token(user)
                 reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
-                _send_password_reset_email(user.email, reset_link, db=db, org_id=getattr(user, "organization_id", None))
+                # Segunda auditoria 2026-11 (n.º 20): el SMTP sale de la peticion.
+                # Ademas cierra un oraculo de tiempos: la respuesta tardaba lo
+                # que el SMTP solo si la cuenta existia. El worker abre su sesion
+                # (`db`) en la empresa del usuario para leer su servidor SMTP.
+                from app.core.segundo_plano import encolar
+                org_del_usuario = getattr(user, "organization_id", None)
+                encolar(_send_password_reset_email, user.email, reset_link,
+                        org_id=org_del_usuario, _organizacion=org_del_usuario, _sesion=db)
                 audit_log(db, user, "PASSWORD_RESET_REQUEST", "users", user.id, user.full_name)
                 _svc.commit_db(db)
             except Exception as exc:
@@ -537,6 +572,9 @@ def change_password(
         raise HTTPException(403, "Contraseña actual incorrecta")
 
     current_user.hashed_password = get_password_hash(new_pw)
+    # Auditoria 2026-11 (#22): las demas sesiones se cierran; la actual sigue.
+    revocadas = _svc.revocar_sesiones_del_usuario(
+        db, current_user.id, "password_change", salvo_jti=_current_refresh_jti(request))
     _svc.commit_db(db)
 
-    return {"ok": True, "message": "Contraseña actualizada correctamente"}
+    return {"ok": True, "message": "Contraseña actualizada correctamente", "sessions_revoked": revocadas}

@@ -2,6 +2,7 @@
  * DashKit — componentes visuales compartidos para todos los dashboards de sección.
  * Mismo sistema de diseño que MetricsDashboardTab y BIPage.
  */
+import type { LucideIcon } from 'lucide-react'
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { COLOR, alpha } from '../../constants/theme'
@@ -12,7 +13,10 @@ import { localeActivo } from '../../utils/helpers'
 export { COLOR }
 
 interface KpiIconProps {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>
+  /** Un icono de lucide-react. Auditoria 2026-11 (#39): con
+   *  ComponentType<{size?: number}> los iconos de lucide (size: string | number)
+   *  no encajaban y cada pantalla los forzaba con `as unknown as`. */
+  icon: LucideIcon
   size?: number
 }
 
@@ -33,7 +37,7 @@ export const S: Record<string, React.CSSProperties> = {
   card: {
     background: 'var(--surface-2)',
     border: '1px solid var(--surface-4)',
-    borderRadius: 14,
+    borderRadius: 'var(--radius-lg)',
     overflow: 'hidden',
   },
   cardPad: { padding: '20px 24px' },
@@ -180,7 +184,7 @@ interface BarRowProps {
 export function BarRow({ label, count, total, color, displayValue }: BarRowProps) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div className="u-mb-14">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textTransform: 'capitalize' }}>
           {String(label).replace(/_/g, ' ')}
@@ -188,7 +192,7 @@ export function BarRow({ label, count, total, color, displayValue }: BarRowProps
         <div className="u-row-center-8">
           <span style={{
             fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)',
-            background: 'var(--surface-4)', borderRadius: 6, padding: '2px 7px',
+            background: 'var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 7px',
           }}>{displayValue ?? count}</span>
           <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>
             {pct}%
@@ -353,4 +357,4 @@ export function fmtCur(v: number | null | undefined, lang: string = 'es', curren
   }).format(v)
 }
 
-export const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', 'var(--orange)']
+export const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, 'var(--chart-teal)', 'var(--orange)']

@@ -54,7 +54,7 @@ def generar(db, org: str) -> dict:
     from app.models.billing_reports import SodViolation
     from app.models.cab import GDPRRequest, GDPRRequestStatus
     from app.models.enterprise import SSOConfig
-    from app.models.mfa import MFAConfig, Organization, WebAuthnCredential
+    from app.models.mfa import Organization, WebAuthnCredential
     from app.models.user import User, UserRole
     from app.db import cadena_auditoria
     from app.services import ai_provider_service
@@ -72,17 +72,20 @@ def generar(db, org: str) -> dict:
         controles.append(_control("mfa_required", "pass" if exige else "attention", {"require_mfa": exige},
                                   "organizations.require_mfa", ("ISO27001 A.8.5", "SOC2 CC6.1", "ENS op.acc.5")))
         ids = [u for (u,) in activos.with_entities(User.id)]
-        con_totp = {u for (u,) in db.query(MFAConfig.user_id).filter(MFAConfig.user_id.in_(ids),
-                                                                       MFAConfig.is_enabled.is_(True))} if ids else set()
+        # Auditoria 2026-11: lo que exige el login (auth_core._segundo_factor_o_sesion):
+        # `users.mfa_enabled` con `users.mfa_secret`, o una passkey activa. Antes se
+        # contaba `mfa_configs`, el segundo sistema TOTP que el login no miraba.
+        con_totp = {u for (u,) in activos.filter(User.mfa_enabled.is_(True), User.mfa_secret.isnot(None))
+                    .with_entities(User.id)}
         con_llave = {u for (u,) in db.query(WebAuthnCredential.user_id).filter(
-            WebAuthnCredential.user_id.in_(ids)).distinct()} if ids else set()
+            WebAuthnCredential.user_id.in_(ids), WebAuthnCredential.is_active.is_(True)).distinct()} if ids else set()
         cubiertos = len(con_totp | con_llave)
         pct = round(100 * cubiertos / n_activos, 1) if n_activos else 0.0
         minimo = _umbral(db, "COMPLIANCE_MFA_MIN_COVERAGE_PCT", org)
         controles.append(_control("mfa_coverage", "pass" if n_activos and pct >= minimo else "attention",
                                   {"active_users": n_activos, "with_second_factor": cubiertos, "pct": pct,
                                    "totp": len(con_totp), "passkey": len(con_llave), "min_pct": minimo},
-                                  "mfa_configs (is_enabled) + webauthn_credentials, usuarios activos",
+                                  "users.mfa_enabled + users.mfa_secret (TOTP) y webauthn_credentials activas, usuarios activos",
                                   ("ISO27001 A.8.5", "SOC2 CC6.1")))
         sso = db.query(SSOConfig).filter(SSOConfig.organization_id == org, SSOConfig.is_active.is_(True),
                                          SSOConfig.is_deleted.is_(False)).count()

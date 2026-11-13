@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -43,6 +43,7 @@ const TOOLTIP_STYLE = {
 
 
 export default function AgentDashboardPage(): JSX.Element {
+  const idCampo = useId()
   const t = useAppT()
   const [agentId, setAgentId] = useState('')
   const [_inputId, _setInputId] = useState('')
@@ -63,7 +64,7 @@ export default function AgentDashboardPage(): JSX.Element {
 
   const ChartCard = ({ title, height, children }: { title?: string; height?: number; children: ReactElement }) => (
     <div className="ds-card">
-      {title && <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-1)' }}>{title}</div>}
+      {title && <div className="u-text1-base-600">{title}</div>}
       <ResponsiveContainer width="100%" height={height || 200}>{children}</ResponsiveContainer>
     </div>
   )
@@ -78,15 +79,15 @@ export default function AgentDashboardPage(): JSX.Element {
       <div className="ds-card">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
           <div className="ds-field">
-            <label className="ds-field__label">{t('agent_dashboard.agent')}</label>
-            <select value={agentId} onChange={e => setAgentId(e.target.value)} className="ds-input">
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('agent_dashboard.agent')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={agentId} onChange={e => setAgentId(e.target.value)} className="ds-input">
               <option value="">{t('agent_dashboard.select_agent')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
             </select>
           </div>
           <div className="ds-field">
-            <label className="ds-field__label">{t('agent_dashboard.period')}</label>
-            <select value={days} onChange={e => setDays(+e.target.value)} className="ds-input">
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('agent_dashboard.period')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={days} onChange={e => setDays(+e.target.value)} className="ds-input">
               <option value={7}>7 {t('common.days')}</option>
               <option value={14}>14 {t('common.days')}</option>
               <option value={30}>30 {t('common.days')}</option>

@@ -87,7 +87,7 @@ import logging
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from fastapi import BackgroundTasks
+    from app.core.tareas_diferidas import ProgramadorDeTareas
 
 from sqlalchemy.orm import Session
 
@@ -105,7 +105,6 @@ from app.schemas import TaskOut as TaskOutSchema
 from app.services.numbering import next_numbered_code
 from app.services.semantic_classifier import SemanticAssigner
 from datetime import date as _date
-from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
@@ -528,7 +527,7 @@ def _aplicar_fechas_a_tarea(db: Session, cambio: dict, current_user) -> Optional
     if current_user:
         try:
             enforce_abac(db, current_user, "task", task.id, action="update")
-        except (HTTPException, ErrorDeDominio):
+        except ErrorDeDominio:
             return {"id": task.id, "reason": "abac_denied"}
 
     if "start_date" in cambio:
@@ -596,7 +595,7 @@ def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: s
     background_tasks.add_task(_run)
 
 
-def refresh_profile_bg(background_tasks: "BackgroundTasks", db: "Session", user_id: str) -> None:
+def refresh_profile_bg(background_tasks: "ProgramadorDeTareas", db: "Session", user_id: str) -> None:
     """Schedule a semantic profile refresh as a background task."""
 
     def _run():

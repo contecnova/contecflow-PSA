@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.resources import ChangeRequest
 from app.services import change_service
 from app.schemas.changes import CRIn, CRReview
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -97,7 +98,7 @@ class ChangeRequestOut(BaseModel):
 @router.get("/all/pending", response_model=APIListResponse[ChangeRequestOut], summary="Todas las CRs pendientes")
 def get_all_pending(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):

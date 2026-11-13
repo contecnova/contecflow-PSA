@@ -393,13 +393,12 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, clas
 #     via `sin_filtro_de_tenant(session)`, que lo devuelve al salir.
 #   • Set env `TENANT_AUTO_FILTER_GLOBAL=0` to disable the event entirely.
 
-import os as _os
 from contextlib import contextmanager as _contextmanager
 from sqlalchemy import event as _sa_event
 from sqlalchemy import false as _sql_false_expr
 from sqlalchemy.orm import with_loader_criteria as _with_loader_criteria
 
-_TENANT_AUTO_FILTER_GLOBAL = _os.getenv("TENANT_AUTO_FILTER_GLOBAL", "1") == "1"
+_TENANT_AUTO_FILTER_GLOBAL = bool(settings.TENANT_AUTO_FILTER_GLOBAL)
 
 
 def _iter_tenant_scoped_models():
@@ -598,10 +597,6 @@ def is_postgres() -> bool:
     return not _is_sqlite
 
 
-def get_db_type() -> str:
-    return "postgresql" if not _is_sqlite else "sqlite"
-
-
 # ── Auditoria 2026-08: sellar la organizacion al insertar ─────────────────────
 #
 # El filtro de tenant es `organization_id == org`, asi que una fila guardada con
@@ -640,7 +635,7 @@ def get_db_type() -> str:
 # Se puede desactivar con `TENANT_AUTO_STAMP_ON_INSERT=0`, igual que el filtro,
 # para poder aislar un problema sin tocar codigo.
 
-_TENANT_AUTO_STAMP = _os.getenv("TENANT_AUTO_STAMP_ON_INSERT", "1") == "1"
+_TENANT_AUTO_STAMP = bool(settings.TENANT_AUTO_STAMP_ON_INSERT)
 
 
 @_contextmanager
@@ -734,8 +729,10 @@ def exigir_organizacion_activa(session, organization_id) -> None:
     from app.models.mfa import Organization
     org = session.get(Organization, organization_id)
     if org is not None and not org.is_active:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="La organización está desactivada")
+        # Auditoria 2026-11 (item 36): tambien corre fuera de HTTP (Celery,
+        # scripts); `main.py` lo traduce al mismo 403.
+        from app.core.errores import ErrorDeDominio
+        raise ErrorDeDominio(status_code=403, detail="La organización está desactivada")
 
 
 def _org_del_registro(session, obj):

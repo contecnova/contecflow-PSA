@@ -29,6 +29,7 @@ from app.services import bookings_service as svc
 # versión. Los conflictos de reserva y el nivelado del Gantt son planificación de
 # capacidad y viven en su propio módulo.
 from app.services import capacity_planning_service
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -120,7 +121,7 @@ def delete_booking(booking_id: str, db: Session = Depends(get_db),
 @router.get("/sla-schedules", response_model=APIListResponse[dict])
 def list_sla_schedules(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -161,7 +162,7 @@ def delete_holiday(schedule_id: str, holiday_id: str,
 @router.get("/api-keys", response_model=APIListResponse[dict])
 def list_api_keys(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -193,7 +194,7 @@ def revoke_api_key(key_id: str, db: Session = Depends(get_db),
 @router.get("/recurring", response_model=APIListResponse[dict])
 def list_recurring(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -274,4 +275,10 @@ def enqueue_workflow(payload: dict = Body(...), db: Session = Depends(get_db),
 @router.post("/workflows/process-queue")
 def process_workflow_queue(db: Session = Depends(get_db),
                            current_user: User = Depends(require_admin)):
-    return APIResponse.ok(data=svc.process_workflow_queue_record(db))
+    # Segunda auditoria 2026-11 (n.º 20): cada elemento puede mandar correos o
+    # llamar webhooks; la pasada va al worker. Con cola: 202 `{status: "queued"}`.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    resultado = encolar(svc.process_workflow_queue_record, _sesion=db)
+    if resultado is EN_COLA:
+        return respuesta_en_cola()
+    return APIResponse.ok(data=resultado)

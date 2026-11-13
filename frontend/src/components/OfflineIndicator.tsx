@@ -110,7 +110,7 @@ export default function OfflineIndicator() {
             style={{
               background: 'color-mix(in srgb, var(--warning) 30%, var(--surface-1))',
               color: 'var(--warning)',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-md)',
               padding: '1px 7px',
               fontSize: "var(--text-xs)",
               fontWeight: 700,

@@ -1,7 +1,7 @@
 /**
  * EnterprisePage v14 — Webhooks, GDPR, Email, Integraciones, SSO, Audit, API Keys
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, downloadBlob } from '../utils/helpers'
@@ -97,6 +97,7 @@ interface SsoConfig {
 }
 
 function WebhooksTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -121,7 +122,7 @@ function WebhooksTab() {
 
   return (
     <div>
-      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize: "var(--text-base)", color:'var(--accent)' }}>
+      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:'var(--radius-md)', padding:'12px 16px', marginBottom:20, fontSize: "var(--text-base)", color:'var(--accent)' }}>
         {traducir('enterprise.los_webhooks_entrantes_permiten_que_sistemas_externos')}
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
@@ -138,10 +139,10 @@ function WebhooksTab() {
               <span style={{ marginLeft:12, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{t.fire_count} disparos</span>
             </div>
             <div className="u-row-8">
-              <button onClick={() => setShowLogs(showLogs === t.id ? null : t.id)} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
+              <button onClick={() => setShowLogs(showLogs === t.id ? null : t.id)} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
                 {showLogs === t.id ? 'Ocultar' : 'Logs'}
               </button>
-              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar?', onConfirm: () => del(t.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
+              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar?', onConfirm: () => del(t.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
             </div>
           </div>
           {showLogs === t.id && (
@@ -162,10 +163,10 @@ function WebhooksTab() {
       {showCreate && (
         <Modal open title={traducir('enterprise.nuevo_webhook_2')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
-            <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>Slug (URL)</label><input value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" aria-label={traducir('enterprise.slug_del_webhook')} /></div>
-            <div><label style={ls}>Workflow</label>
-              <select value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} style={fs}>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Workflow</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} style={fs}>
                 <option value="">{traducir('enterprise.sin_workflow')}</option>
                 {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
@@ -185,6 +186,7 @@ function WebhooksTab() {
 }
 
 function GDPRTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -211,7 +213,7 @@ function GDPRTab() {
 
   return (
     <div>
-      <div style={{ background:'var(--warning-bg)', border:'.5px solid rgba(251,191,36,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize: "var(--text-base)", color:'var(--warning)' }}>
+      <div style={{ background:'var(--warning-bg)', border:'.5px solid rgba(251,191,36,0.25)', borderRadius:'var(--radius-md)', padding:'12px 16px', marginBottom:20, fontSize: "var(--text-base)", color:'var(--warning)' }}>
         {traducir('enterprise.gestion_de_solicitudes_rgpd_plazo_maximo_de')}
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
@@ -238,25 +240,25 @@ function GDPRTab() {
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_solicitud_rgpd')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
-            <div><label style={ls}>Tipo</label>
-              <select value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} style={fs}>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Tipo</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} style={fs}>
                 <option value="erasure">{traducir('enterprise.derecho_al_olvido_art_17')}</option>
                 <option value="portability">Portabilidad (Art. 20)</option>
                 <option value="access">Acceso (Art. 15)</option>
                 <option value="rectification">{traducir('enterprise.rectificacion_art_16')}</option>
               </select>
             </div>
-            <div><label style={ls}>Usuario</label>
-              <select value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))} style={fs}>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Usuario</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))} style={fs}>
                 <option value="">Seleccionar...</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>)}
               </select>
             </div>
-            <div><label style={ls}>{traducir('enterprise.email_si_ya_no_existe')}</label>
-              <input value={form.subject_email} onChange={e => setForm(f => ({...f, subject_email:e.target.value}))} style={fs} />
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{traducir('enterprise.email_si_ya_no_existe')}</label>
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.subject_email} onChange={e => setForm(f => ({...f, subject_email:e.target.value}))} style={fs} />
             </div>
-            <div><label style={ls}>Notas</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} rows={3} style={{...fs, resize:'vertical'}} />
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Notas</label>
+              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} rows={3} style={{...fs, resize:'vertical'}} />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
@@ -270,6 +272,7 @@ function GDPRTab() {
 }
 
 function EmailTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -338,15 +341,15 @@ function EmailTab() {
         <Modal open title="Enviar email" onClose={() => setShowSend(false)} width={500}>
           <div className="u-stack-14">
             <div><label style={ls}>{traducir('enterprise.para')}</label><input value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder="destinatario@empresa.com" aria-label="Destinatario" /></div>
-            <div><label style={ls}>Plantilla</label>
-              <select value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} style={fs}>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Plantilla</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} style={fs}>
                 <option value="">{traducir('enterprise.sin_plantilla')}</option>
                 {allTpl.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             {!sendForm.template_id && <>
-              <div><label style={ls}>Asunto</label><input value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>HTML</label><textarea value={sendForm.body_html} onChange={e => setSendForm(f => ({...f, body_html:e.target.value}))} rows={4} style={{...fs, resize:'vertical'}} /></div>
+              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Asunto</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>HTML</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={sendForm.body_html} onChange={e => setSendForm(f => ({...f, body_html:e.target.value}))} rows={4} style={{...fs, resize:'vertical'}} /></div>
             </>}
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowSend(false)}>Cancelar</Button>
@@ -358,14 +361,14 @@ function EmailTab() {
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_plantilla_de_email')} onClose={() => setShowCreate(false)} width={560}>
           <div className="u-stack-14">
-            <div><label style={ls}>Nombre</label><input value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Asunto (usa {'{{variable}}'})</label><input value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>{traducir('enterprise.categoria')}</label>
-              <select value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} style={fs}>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Nombre</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Asunto (usa {'{{variable}}'})</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{traducir('enterprise.categoria')}</label>
+              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} style={fs}>
                 {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div><label style={ls}>{traducir('enterprise.html_del_cuerpo')}</label><textarea value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} style={{...fs, resize:'vertical'}} /></div>
+            <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{traducir('enterprise.html_del_cuerpo')}</label><textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} style={{...fs, resize:'vertical'}} /></div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => createTpl(newTpl)} disabled={!newTpl.name || !newTpl.subject || !newTpl.body_html}>Crear</Button>
@@ -378,6 +381,7 @@ function EmailTab() {
 }
 
 function IntegrationsTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -457,11 +461,11 @@ function IntegrationsTab() {
           {integrations.map(integ => {
             const cat = CATALOG.find((c) => c.type === integ.integration_type) || { icon: '🔗', label: integ.integration_type }
             return (
-              <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                   <span style={{ fontSize: "var(--text-xl-em)" }}>{cat.icon}</span>
                   <div>
-                    <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{integ.name || cat.label}</div>
+                    <div className="u-base-700">{integ.name || cat.label}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: integ.is_active ? 'var(--success)' : 'var(--danger)' }}>
                       {integ.is_active ? '● Activa' : '● Inactiva'}
                       {integ.last_sync_at && ` · Último sync: ${integ.last_sync_at.slice(0,10)}`}
@@ -470,15 +474,15 @@ function IntegrationsTab() {
                 </div>
                 <div className="u-row-6">
                   <button onClick={() => testIntegration(integ)} disabled={testing === integ.id}
-                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                     {testing === integ.id ? '⟳' : '🔧 Probar'}
                   </button>
                   <button onClick={() => sync(integ.id)}
-                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                     ↺ Sync
                   </button>
                   <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${integ.name}?`, onConfirm: () => del(integ.id), danger: true }) }}
-                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               </div>
             )
@@ -502,7 +506,7 @@ function IntegrationsTab() {
         {CATALOG.map((cat) => (
           <button key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} }) }}
             type="button"
-            style={{ background: 'var(--surface-1)', border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+            style={{ background: 'var(--surface-1)', border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
             onMouseLeave={e => e.currentTarget.style.borderColor = configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}
           >
@@ -521,8 +525,8 @@ function IntegrationsTab() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginBottom: 14 }}>
             <div>
-              <label style={ls}>{traducir('enterprise.nombre_de_la_integracion')}</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={is} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('enterprise.nombre_de_la_integracion')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={is} />
             </div>
             {configuring.fields?.map(field => (
               <div key={field.key}>
@@ -594,7 +598,7 @@ function CadenaDeAuditoria() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 240 }}>
           <div className="u-md-700">{t('enterprise.cadena_titulo')}</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{t('enterprise.cadena_ayuda')}</div>
+          <div className="u-text2-sm-mt2">{t('enterprise.cadena_ayuda')}</div>
         </div>
         <Button size="sm" onClick={() => verificar()} disabled={!!ocupado}>{ocupado === 'verificar' ? '…' : t('enterprise.cadena_verificar')}</Button>
         <Button size="sm" variant="secondary" onClick={exportar} disabled={!!ocupado}>{ocupado === 'exportar' ? '…' : t('enterprise.cadena_exportar')}</Button>
@@ -611,7 +615,7 @@ function CadenaDeAuditoria() {
           </div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>
             {t('enterprise.cadena_recorridas', { n: resultado.rows_checked })}
-            {resultado.head.entry_hash && <> · {t('enterprise.cadena_cabeza')} #{resultado.head.seq} <code style={{ fontFamily: 'var(--font-mono)' }}>{resultado.head.entry_hash.slice(0, 16)}…</code></>}
+            {resultado.head.entry_hash && <> · {t('enterprise.cadena_cabeza')} #{resultado.head.seq} <code className="u-mono">{resultado.head.entry_hash.slice(0, 16)}…</code></>}
           </div>
           {resultado.expected_head && (
             <div style={{ fontSize: "var(--text-sm)", marginTop: 4, color: resultado.expected_head.found ? 'var(--success)' : 'var(--danger)' }}>
@@ -706,6 +710,7 @@ function AuditTab() {
 }
 
 function APIKeysTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -731,9 +736,9 @@ function APIKeysTab() {
         <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_api_key')}</Button>
       </div>
       {newKey && (
-        <div style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:10, padding:'14px 18px', marginBottom:20 }}>
+        <div style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:'var(--radius-md)', padding:'14px 18px', marginBottom:20 }}>
           <div style={{ fontWeight:500, color:'var(--success)', marginBottom:6 }}>{traducir('enterprise.copiala_ahora_no_se_mostrara_de_nuevo')}</div>
-          <code style={{ fontSize: "var(--text-base)", background:'var(--surface-1)', padding:'8px 12px', borderRadius:6, display:'block', wordBreak:'break-all' }}>{newKey.key}</code>
+          <code style={{ fontSize: "var(--text-base)", background:'var(--surface-1)', padding:'8px 12px', borderRadius:'var(--radius-sm)', display:'block', wordBreak:'break-all' }}>{newKey.key}</code>
           <button onClick={() => setNewKey(null)} style={{ marginTop:8, background:'transparent', border:'none', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Cerrar</button>
         </div>
       )}
@@ -748,7 +753,7 @@ function APIKeysTab() {
               <span className="u-text2">{(k.scopes||[]).join(', ')}</span>
               <span className="u-text2">{k.requests_today||0}/{k.rate_limit_per_day} hoy</span>
               <span className="u-text3">{k.last_used_at || 'Nunca usado'}</span>
-              <button onClick={() => { openConfirmGlobal({ message: 'Revocar clave?', onConfirm: () => revoke(k.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'3px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>Revocar</button>
+              <button onClick={() => { openConfirmGlobal({ message: 'Revocar clave?', onConfirm: () => revoke(k.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:'var(--radius-sm)', padding:'3px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>Revocar</button>
             </div>
           ))}
         </div>
@@ -757,7 +762,7 @@ function APIKeysTab() {
         <Modal open title={traducir('enterprise.nueva_api_key_2')} onClose={() => setShowCreate(false)} width={420}>
           <div className="u-stack-14">
             <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder={traducir('enterprise.nombre_de_la_clave')} aria-label={traducir('enterprise.nombre_de_la_clave')} /></div>
-            <div><label style={ls}>{traducir('enterprise.limite_por_hora')}</label><input type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('enterprise.limite_por_hora')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} style={fs} /></div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button onClick={() => create(form)} disabled={!form.name}>Crear</Button>
@@ -770,6 +775,7 @@ function APIKeysTab() {
 }
 
 function SSOTab() {
+  const idCampo = useId()
   const traducir = useAppT()
   const isNarrow = useMediaQuery('(max-width: 900px)')
   const toast = useToast()
@@ -853,7 +859,7 @@ function SSOTab() {
     oidc:     { label: 'OIDC Genérico',       icon: '🔑', discovery: 'https://your-idp.com/.well-known/openid-configuration' },
   }
 
-  const cardStyle: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }
+  const cardStyle: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: 10 }
   const inputStyle: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
   const labelStyle: CSSProperties = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
 
@@ -886,8 +892,8 @@ function SSOTab() {
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>{editId ? traducir('enterprise.sso_editar') : traducir('enterprise.nuevo_proveedor_sso')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
-              <label style={labelStyle}>Proveedor</label>
-              <select value={form.provider} disabled={!!editId} onChange={e => {
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Proveedor</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.provider} disabled={!!editId} onChange={e => {
                 const info: { label?: string; icon?: string; discovery?: string } = PROVIDER_INFO[e.target.value] || {}
                 setForm(f => ({ ...f, provider: e.target.value, oidc_discovery_url: info.discovery || '' }))
               }} style={inputStyle}>
@@ -895,42 +901,42 @@ function SSOTab() {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>{traducir('enterprise.nombre_para_mostrar_en_login')}</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.label} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{traducir('enterprise.nombre_para_mostrar_en_login')}</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.label} />
             </div>
             <div>
               <label style={labelStyle}>Client ID *</label>
               <input value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} style={inputStyle} placeholder={traducir('enterprise.client_id_del_proveedor')} aria-label={traducir('enterprise.client_id_del_proveedor')} />
             </div>
             <div>
-              <label style={labelStyle}>Client Secret *</label>
-              <input type="password" value={form.oidc_client_secret} onChange={e => setForm(f=>({...f,oidc_client_secret:e.target.value}))} style={inputStyle} />
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Client Secret *</label>
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={form.oidc_client_secret} onChange={e => setForm(f=>({...f,oidc_client_secret:e.target.value}))} style={inputStyle} />
             </div>
             <div className="u-col-full">
-              <label style={labelStyle}>Discovery URL (OpenID Connect)</label>
-              <input value={form.oidc_discovery_url} onChange={e => setForm(f=>({...f,oidc_discovery_url:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.discovery} />
+              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>Discovery URL (OpenID Connect)</label>
+              <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.oidc_discovery_url} onChange={e => setForm(f=>({...f,oidc_discovery_url:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.discovery} />
             </div>
             <div>
-              <label style={labelStyle}>{traducir('enterprise.sso_scopes')}</label>
-              <input value={form.oidc_scopes} onChange={e => setForm(f=>({...f,oidc_scopes:e.target.value}))} style={inputStyle} />
+              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={labelStyle}>{traducir('enterprise.sso_scopes')}</label>
+              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.oidc_scopes} onChange={e => setForm(f=>({...f,oidc_scopes:e.target.value}))} style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>{traducir('enterprise.sso_dominios')}</label>
-              <input value={form.allowed_domains} onChange={e => setForm(f=>({...f,allowed_domains:e.target.value}))} style={inputStyle} placeholder="empresa.com, filial.es" />
+              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={labelStyle}>{traducir('enterprise.sso_dominios')}</label>
+              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.allowed_domains} onChange={e => setForm(f=>({...f,allowed_domains:e.target.value}))} style={inputStyle} placeholder="empresa.com, filial.es" />
             </div>
             <div>
-              <label style={labelStyle}>{traducir('enterprise.sso_rol_defecto')}</label>
-              <select value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))} style={inputStyle}>
+              <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={labelStyle}>{traducir('enterprise.sso_rol_defecto')}</label>
+              <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))} style={inputStyle}>
                 {['employee','team_lead','pm','hr','admin','subcontractor'].map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>{traducir('enterprise.sso_claim_grupos')}</label>
-              <input value={form.groups_claim} onChange={e => setForm(f=>({...f,groups_claim:e.target.value}))} style={inputStyle} />
+              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={labelStyle}>{traducir('enterprise.sso_claim_grupos')}</label>
+              <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.groups_claim} onChange={e => setForm(f=>({...f,groups_claim:e.target.value}))} style={inputStyle} />
             </div>
             <div className="u-col-full">
-              <label style={labelStyle}>{traducir('enterprise.sso_mapeo')}</label>
-              <textarea rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} />
+              <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={labelStyle}>{traducir('enterprise.sso_mapeo')}</label>
+              <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} />
             </div>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
               <input type="checkbox" checked={form.auto_create_users} onChange={e => setForm(f=>({...f,auto_create_users:e.target.checked}))} />
@@ -979,14 +985,14 @@ function SSOTab() {
                   </div>
                 </div>
                 <div className="u-wrap-6">
-                  <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                  <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                     {c.is_active ? traducir('enterprise.sso_desactivar') : traducir('enterprise.sso_activar')}
                   </button>
-                  <button onClick={() => editar(c)} aria-label={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
-                  <button onClick={() => testSSO(c.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                  <button onClick={() => editar(c)} aria-label={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
+                  <button onClick={() => testSSO(c.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                     🔧 Verificar config
                   </button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${c.name || c.provider}?`, onConfirm: () => del(c.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${c.name || c.provider}?`, onConfirm: () => del(c.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               </div>
             </div>

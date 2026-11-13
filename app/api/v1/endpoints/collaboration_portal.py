@@ -42,6 +42,7 @@ from app.schemas.collaboration import (
     SearchResponse,
 )
 from app.services.collaboration import portal as svc
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -59,7 +60,7 @@ def list_conversations(
 def list_messages(
     conversation_id: str,
     before: Optional[str] = None,
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
@@ -127,7 +128,7 @@ def mark_all_read(
 @router.get("/search", response_model=APIResponse[SearchResponse], summary="Búsqueda en mis conversaciones")
 def search(
     q: str = Query("", max_length=500),
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):

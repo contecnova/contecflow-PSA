@@ -43,11 +43,13 @@
   /* Accent — azul índigo refinado (no cyan agresivo) */
   --accent:               #4f8ef7;   /* primary CTA, links activos */
   --accent-dim:           #2d5fd4;
-  --accent-glow:          rgba(79, 142, 247, 0.15);
-  --accent-muted:         rgba(79, 142, 247, 0.08);
-  --accent-border-soft:   rgba(79, 142, 247, 0.20);
-  --accent-border:        rgba(79, 142, 247, 0.30);
-  --accent-border-strong: rgba(79, 142, 247, 0.40);
+  --accent-glow:          color-mix(in srgb, var(--accent) 15%, transparent);
+  --accent-muted:         color-mix(in srgb, var(--accent) 8%, transparent);
+  /* Auditoria 2026-11 (#11): derivados del acento con color-mix para que sigan
+     a cada tema y al acento del perfil (antes eran rgba fijos del azul base). */
+  --accent-border-soft:   color-mix(in srgb, var(--accent) 20%, transparent);
+  --accent-border:        color-mix(in srgb, var(--accent) 30%, transparent);
+  --accent-border-strong: color-mix(in srgb, var(--accent) 40%, transparent);
 
   /* Texto sobre el acento (botón principal, pestaña activa). En los temas
      oscuros, el fondo del tema; el claro lo cambia a blanco. Con un acento
@@ -166,7 +168,7 @@
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.4);
   --shadow-md:  0 4px 16px rgba(0,0,0,0.5);
   --shadow-lg:  0 8px 32px rgba(0,0,0,0.6);
-  --shadow-accent: 0 0 20px rgba(79, 142, 247, 0.12);
+  --shadow-accent: 0 0 20px color-mix(in srgb, var(--accent) 12%, transparent);
 
   /* Page layout — padding raíz por página */
   --page-pad-x:    var(--space-8);   /* 32px */
@@ -302,7 +304,7 @@ button::-moz-focus-inner,
 
 /* ── Selección ────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(79, 142, 247, 0.25);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
   color: var(--text-1);
 }
 
@@ -424,7 +426,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .contecflow-sidebar-item.active {
   background: var(--accent-muted);
   color: var(--accent);
-  border-color: rgba(79, 142, 247, 0.2);
+  border-color: var(--accent-border-soft);
   font-weight: 600;
 }
 
@@ -485,7 +487,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   box-shadow: var(--shadow-md);
 }
 .contecflow-card.accent {
-  border-color: rgba(79, 142, 247, 0.2);
+  border-color: var(--accent-border-soft);
   box-shadow: var(--shadow-accent);
 }
 
@@ -796,7 +798,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
-  box-shadow: 0 2px 12px rgba(79, 142, 247, 0.25);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 25%, transparent);
   position: relative;
   overflow: hidden;
   user-select: none;
@@ -811,8 +813,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   transition: opacity 0.3s;
 }
 .btn-primary:hover::after { opacity: 1; background-position: -100% 0; animation: btn-shimmer 0.6s ease; }
-.btn-primary:hover { box-shadow: 0 4px 20px rgba(79, 142, 247, 0.4); }
-.btn-primary:active { transform: scale(0.97); box-shadow: 0 1px 6px rgba(79, 142, 247, 0.2); }
+.btn-primary:hover { box-shadow: 0 4px 20px var(--accent-border-strong); }
+.btn-primary:active { transform: scale(0.97); box-shadow: 0 1px 6px var(--accent-border-soft); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .btn-secondary {
@@ -1037,8 +1039,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .form-field:focus {
-  border-color: rgba(79, 142, 247, 0.5);
-  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.1);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .form-field::placeholder { color: var(--text-3); }
 .form-field:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1338,7 +1340,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 }
 .density-pill.active {
   background: var(--accent-muted);
-  border-color: rgba(79, 142, 247, 0.3);
+  border-color: var(--accent-border);
   color: var(--accent);
 }
 
@@ -1385,7 +1387,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   position: absolute;
   top: -120px; left: -120px;
   width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(79,142,247,0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 70%);
   pointer-events: none;
 }
 .login-brand-panel::after {
@@ -1977,3 +1979,46 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .u-row-between { display: flex; align-items: center; justify-content: space-between; }
 .u-warning { color: var(--warning); }
 .u-min0 { min-width: 0; }
+
+/* Utilidades u-*, segunda tanda (auditoria 2026-11, #42). Generadas desde
+   PATRONES de scripts/codemods/estilos-a-clases.mjs: mismos valores. */
+.u-btn-outline-sm { background: transparent; border: 1px solid var(--surface-4); border-radius: 8px; color: var(--text-2); cursor: pointer; font-family: inherit; font-size: var(--text-sm); padding: 7px 16px; }
+.u-sm-700 { font-size: var(--text-sm); font-weight: 700; }
+.u-grid2-14 { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+.u-text3-xs-mt2 { color: var(--text-3); font-size: var(--text-xs); margin-top: 2px; }
+.u-text1-sm-600 { color: var(--text-1); font-size: var(--text-sm); font-weight: 600; }
+.u-border-b { border-bottom: 1px solid var(--surface-4); }
+.u-row-between-mb16 { align-items: center; display: flex; justify-content: space-between; margin-bottom: 16px; }
+.u-cell-nowrap { padding: 10px 8px; white-space: nowrap; }
+.u-mb-14 { margin-bottom: 14px; }
+.u-empty-icon { font-size: var(--text-6xl); margin-bottom: 16px; }
+.u-wrap-center-8 { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.u-text2-xs-mt2 { color: var(--text-2); font-size: var(--text-xs); margin-top: 2px; }
+.u-pad-10-12 { padding: 10px 12px; }
+.u-text2-xs-mb4 { color: var(--text-2); font-size: var(--text-xs); margin-bottom: 4px; }
+.u-text1-base-600 { color: var(--text-1); font-size: var(--text-base); font-weight: 600; }
+.u-600 { font-weight: 600; }
+.u-text2-base-mb20 { color: var(--text-2); font-size: var(--text-base); margin-bottom: 20px; }
+.u-stack-20 { display: flex; flex-direction: column; gap: 20px; }
+.u-mono { font-family: var(--font-mono); }
+.u-accent { color: var(--accent); }
+.u-row-end { display: flex; justify-content: flex-end; }
+.u-wrap-10 { display: flex; flex-wrap: wrap; gap: 10px; }
+.u-text2-sm-mt2 { color: var(--text-2); font-size: var(--text-sm); margin-top: 2px; }
+.u-row-center-6 { align-items: center; display: flex; gap: 6px; }
+.u-row-center-12 { align-items: center; display: flex; gap: 12px; }
+.u-md-600 { font-size: var(--text-md); font-weight: 600; }
+.u-table { border-collapse: collapse; width: 100%; }
+.u-mb-10 { margin-bottom: 10px; }
+.u-text2-mono-xs { color: var(--text-2); font-family: var(--font-mono); font-size: var(--text-xs); }
+.u-base-700 { font-size: var(--text-base); font-weight: 700; }
+.u-text3-mono-xs { color: var(--text-3); font-family: var(--font-mono); font-size: var(--text-xs); }
+.u-table-sm { border-collapse: collapse; font-size: var(--text-sm); width: 100%; }
+.u-grid2-10 { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.u-row-10 { display: flex; gap: 10px; }
+.u-mb-12 { margin-bottom: 12px; }
+.u-text2-2xs { color: var(--text-2); font-size: var(--text-2xs); }
+.u-success { color: var(--success); }
+/* "Card armada inline" (surface-2 + borde + radio 12 + overflow hidden) sin
+   el padding ni el flex de .ds-card: se ve como el estilo en linea que sustituye. */
+.ds-card.ds-card--plano { display: block; padding: 0; gap: 0; border-radius: 12px; overflow: hidden; }

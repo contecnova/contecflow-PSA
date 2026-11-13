@@ -5,7 +5,7 @@ reporting, and finance modules.
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    billing_reports, bookings, cab, mfa, custom_fields, epics,
+    billing_reports, bookings, cab, custom_fields, epics,
     # Auditoria 2026-08 (hallazgo 22): estos siete estaban dentro de `mfa`,
     # un router de 38 rutas y ocho dominios. Los paths no han cambiado.
     organizations, slack, budgets, ai_planning, scenarios, pdf_export,
@@ -39,7 +39,8 @@ router.include_router(cab.router,                                          tags=
 # CRUD de organizaciones estaba escondido ahi, y por eso nadie noto que le faltaba
 # la guarda de superadministrador — fue la causa proxima del P0 numero 1.
 # Los paths son EXACTAMENTE los mismos: ABAC y GRC derivan el modulo de la ruta.
-router.include_router(mfa.router,                                          tags=["MFA"])
+# Auditoria 2026-11: fuera `mfa.router` (/mfa/*, segundo sistema TOTP que el
+# login no miraba). El TOTP vive en /auth/mfa/* (routers/auth_mfa.py).
 router.include_router(organizations.router,                                tags=["Organizaciones"])
 router.include_router(slack.router,                                        tags=["Slack"])
 router.include_router(budgets.router,                                      tags=["Presupuestos"])

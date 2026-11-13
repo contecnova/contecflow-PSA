@@ -11,9 +11,9 @@ import api from '../services/api'
 
 interface Resumen { request_id: string; entity_type: string; summary?: string | null; step: number; approver: string }
 
-const caja: CSSProperties = { maxWidth: 460, margin: '10vh auto', padding: 28, borderRadius: 14,
+const caja: CSSProperties = { maxWidth: 460, margin: '10vh auto', padding: 28, borderRadius: 'var(--radius-lg)',
   background: 'var(--surface-1)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', fontFamily: 'inherit' }
-const boton = (fondo: string): CSSProperties => ({ flex: 1, padding: '10px 14px', borderRadius: 10, border: 'none',
+const boton = (fondo: string): CSSProperties => ({ flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-md)', border: 'none',
   background: fondo, color: 'var(--on-accent-light)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' })
 
 function mensajeDe(e: unknown): string {
@@ -59,7 +59,7 @@ export default function AprobacionPorCorreoPage() {
           <textarea id="nota" rows={3} value={nota} onChange={e => setNota(e.target.value)}
             style={{ width: '100%', boxSizing: 'border-box', margin: '6px 0 16px', padding: 10, borderRadius: 8,
               background: 'var(--surface-2)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', fontFamily: 'inherit' }} />
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="u-row-10">
             <button type="button" disabled={enviando} onClick={() => { void decidir('approved') }} style={boton('var(--success)')}>Aprobar</button>
             <button type="button" disabled={enviando} onClick={() => { void decidir('rejected') }} style={boton('var(--danger)')}>Rechazar</button>
           </div>

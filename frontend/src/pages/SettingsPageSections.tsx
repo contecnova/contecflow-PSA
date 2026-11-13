@@ -14,11 +14,13 @@ import { useAppLang } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import SeccionDeAjustes from './settings-sections/SeccionDeAjustes'
 import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection, RuntimeFlagsSection, IntegrationCredentialsSection } from './settings-sections/SettingsAdvancedSections'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
@@ -30,13 +32,13 @@ const styles: Record<string, CSSProperties> = {
   colGap16: { display: 'flex', flexDirection: 'column', gap: 16 },
   rowEndsCenter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   rowFlexEnd: { display: 'flex', justifyContent: 'flex-end', gap: 10 },
-  btnDelete: { background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" },
-  btnEdit: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" },
-  addPanel10: { display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' },
-  addPanelBasic: { padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 },
-  saveBtn: { background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' },
-  cancelBtnSm: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" },
-  cardListItem: { display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 },
+  btnDelete: { background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" },
+  btnEdit: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" },
+  addPanel10: { display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap', alignItems: 'flex-end' },
+  addPanelBasic: { padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' },
+  saveBtn: { background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 14px', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' },
+  cancelBtnSm: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" },
+  cardListItem: { display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' },
   mutedCenter: { fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center' },
   pill: { fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 20, padding: '1px 8px', marginLeft: 8 },
   sectionTitleUpper: { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' },
@@ -169,24 +171,6 @@ type MetricForm = { label: string; description: string; operand_a: string; opera
 
 type InputChange = ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
 
-function Section({ icon, title, description, children }: { icon?: React.ReactNode; title?: React.ReactNode; description?: React.ReactNode; children?: React.ReactNode }) {
-  return (
-    <div className="ds-card" style={{ marginBottom: 'var(--space-6)' }}>
-      <div className="ds-stack-sm" style={{ marginBottom: 'var(--space-3)' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-          fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-1)',
-        }}>
-          {icon && <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--accent)' }}>{icon}</span>}
-          <span>{title}</span>
-        </div>
-        {description && <div className="ds-muted">{description}</div>}
-      </div>
-      {children}
-    </div>
-  )
-}
-
 // ── General settings ──────────────────────────────────────────────────────────
 
 const LABELS: Record<string, string> = {
@@ -222,7 +206,7 @@ function GeneralSection() {
   const visible = (settings || []).filter(s => isUserFacingSetting(s.key))
 
   return (
-    <Section icon="⚙️" title={t('settings.configuracion_general')} description="Parámetros globales de la organización">
+    <SeccionDeAjustes icon="⚙️" title={t('settings.configuracion_general')} description="Parámetros globales de la organización">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
         {visible.map(s => <SettingField key={s.key} setting={s} label={LABELS[s.key] || s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
       </div>
@@ -231,7 +215,7 @@ function GeneralSection() {
           {t('settings.sin_parametros_generales_configurados')}
         </div>
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -243,15 +227,15 @@ function SettingField({ setting, label, onSave }: { setting: SettingOut; label: 
   return (
     <div style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-      borderRadius: 10, padding: '12px 16px',
+      borderRadius: 'var(--radius-md)', padding: '12px 16px',
       minWidth: 0, overflow: 'hidden',
     }}>
       <label style={ls}>{label}</label>
       {editing ? (
         <div className="u-row-8">
           <input value={val} onChange={e => setVal(e.target.value)} style={{ ...fs, flex: 1, minWidth: 0 }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
-          <button onClick={() => { onSave(val); setEditing(false) }} style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '0 12px', color: 'var(--surface-0)', cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>✓</button>
-          <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>✕</button>
+          <button onClick={() => { onSave(val); setEditing(false) }} style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 12px', color: 'var(--surface-0)', cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>✓</button>
+          <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>✕</button>
         </div>
       ) : (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
@@ -323,7 +307,7 @@ function UsersSection() {
     return hasInMemberships || hasPrimary
   })
   return (
-    <Section title="Usuarios" description="Gestiona accesos y datos del equipo">
+    <SeccionDeAjustes title="Usuarios" description="Gestiona accesos y datos del equipo">
       <div className="ds-toolbar" style={{ marginBottom: 'var(--space-4)' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={14} aria-hidden style={{
@@ -369,7 +353,7 @@ function UsersSection() {
             const orgs = Array.isArray(u.organizations) ? u.organizations : []
             const primaryOrgId = u.organization_id || ''
             return (
-            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${u.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 10, opacity: u.is_active ? 1 : 0.6 }}>
+            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${u.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 'var(--radius-md)', opacity: u.is_active ? 1 : 0.6 }}>
               <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${roleColor}, var(--surface-0))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
                 {u.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
@@ -409,8 +393,8 @@ function UsersSection() {
               {u.department && <span className="u-text2-xs">{u.department}</span>}
               {!u.is_active && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>Inactivo</span>}
               <button onClick={() => setEditUser(u)} style={styles.btnEdit}>✏️ Editar</button>
-              {u.is_active ? <button onClick={() => openConfirmGlobal({ message: `¿Desactivar a "${u.full_name}"?`, onConfirm: () => deactivate(u.id) })} style={{ background: 'none', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>⏸ Desactivar</button>
-                : <button onClick={() => deactivate(u.id)} style={{ background: 'none', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>▶ Activar</button>}
+              {u.is_active ? <button onClick={() => openConfirmGlobal({ message: `¿Desactivar a "${u.full_name}"?`, onConfirm: () => deactivate(u.id) })} style={{ background: 'none', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>⏸ Desactivar</button>
+                : <button onClick={() => deactivate(u.id)} style={{ background: 'none', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>▶ Activar</button>}
               <button onClick={() => openConfirmGlobal({ title: '⚠️ Eliminar permanentemente', message: `¿Eliminar permanentemente a "${u.full_name}"? Esta acción no se puede deshacer.`, onConfirm: () => deletePermanent(u.id), danger: true })} style={styles.btnDelete}>🗑 Eliminar</button>
             </div>
           )})}
@@ -418,7 +402,7 @@ function UsersSection() {
       )}
       <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
       {editUser && editUserFetched && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} user={editUserDetail ? { ...editUser, ...editUserDetail } : editUser} onClose={() => setEditUser(null)} onSave={data => updateUser({ id: editUser.id, data })} isPending={updating} />}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -471,6 +455,8 @@ interface UserFormModalProps {
 }
 
 function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [], esSuperadmin = false }: UserFormModalProps) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const isEdit = !!user
   const [form, setForm] = useState<UserFormValues>({
@@ -520,36 +506,36 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${user.full_name}` : 'Nuevo Usuario'} width={580}>
       <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div className="u-col-full"><label style={ls}>Nombre completo *</label><input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />{errField('full_name')}</div>
-        <div><label style={ls}>Usuario *</label><input value={form.username} onChange={set('username')} style={validation.inputStyle(fs, 'username')} />{errField('username')}</div>
-        <div><label style={ls}>Email *</label><input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />{errField('email')}</div>
-        <div><label style={ls}>Rol</label><select value={form.role} onChange={set('role')} style={validation.inputStyle(fs, 'role')}>
+        <div className="u-grid2-14">
+        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre completo *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />{errField('full_name')}</div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Usuario *</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.username} onChange={set('username')} style={validation.inputStyle(fs, 'username')} />{errField('username')}</div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Email *</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />{errField('email')}</div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Rol</label><select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.role} onChange={set('role')} style={validation.inputStyle(fs, 'role')}>
           {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>{errField('role')}</div>
-        <div><label style={ls}>Rol personalizado (cierra módulos)</label><select value={form.custom_role_id} onChange={set('custom_role_id')} style={fs}>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Rol personalizado (cierra módulos)</label><select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.custom_role_id} onChange={set('custom_role_id')} style={fs}>
           <option value="">Ninguno — el de su rol base</option>
           {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select></div>
-        <div><label style={ls}>Departamento</label><select value={form.department} onChange={set('department')} style={fs}>
+        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Departamento</label><select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.department} onChange={set('department')} style={fs}>
           <option value="">{t('settings.sin_departamento')}</option>
           {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select></div>
-        <div><label style={ls}>Cargo</label><input value={form.job_title} onChange={set('job_title')} style={fs} /></div>
-        <div><label style={ls}>Horas semanales</label><input type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={validation.inputStyle(fs, 'weekly_capacity_hours')} />{errField('weekly_capacity_hours')}</div>
-        <div><label style={ls}>Tarifa €/hora</label><input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} />{errField('hourly_rate')}</div>
+        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Cargo</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} style={fs} /></div>
+        <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>Horas semanales</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={validation.inputStyle(fs, 'weekly_capacity_hours')} />{errField('weekly_capacity_hours')}</div>
+        <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>Tarifa {fmtMoneda.simbolo}/hora</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} />{errField('hourly_rate')}</div>
         {esSuperadmin && <>
         <div className="u-col-full">
-          <label style={ls}>{t('settings.organizaciones_seleccion_multiple')}</label>
-          <select multiple value={form.organization_ids} onChange={setOrganizations} style={{ ...fs, minHeight: 112 }}>
+          <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>{t('settings.organizaciones_seleccion_multiple')}</label>
+          <select id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} multiple value={form.organization_ids} onChange={setOrganizations} style={{ ...fs, minHeight: 112 }}>
             {organizations.filter(o => o.is_active !== false).map(o => (
               <option key={o.id} value={o.id}>{o.name} ({o.slug})</option>
             ))}
           </select>
         </div>
         <div className="u-col-full">
-          <label style={ls}>{t('settings.organizacion_principal')}</label>
-          <select value={form.organization_id} onChange={set('organization_id')} style={fs}>
+          <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={ls}>{t('settings.organizacion_principal')}</label>
+          <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.organization_id} onChange={set('organization_id')} style={fs}>
             <option value="">{t('settings.sin_organizacion_principal')}</option>
             {form.organization_ids.map(orgId => {
               const org = organizations.find(o => o.id === orgId)
@@ -559,13 +545,13 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         </div>
         </>}
         <div className="u-col-full">
-          <label style={ls}>Zona horaria</label>
-          <select value={form.timezone} onChange={set('timezone')} style={fs}>
+          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={ls}>Zona horaria</label>
+          <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.timezone} onChange={set('timezone')} style={fs}>
             <option value="">{t('settings.usa_la_zona_de_la_organizacion')}</option>
             {COMMON_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
-        {!isEdit && <div className="u-col-full"><label style={ls}>{t('settings.contrasena')}</label><input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
+        {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={ls}>{t('settings.contrasena')}</label><input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={isPending}>
@@ -591,13 +577,13 @@ function RolesSection() {
   const { mutate: deleteRole } = useMutation({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-roles'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
-    <Section icon="🔐" title="Roles y permisos" description="Cierra módulos por rol. Los roles de sistema se aplican a todos los de ese rol base; un rol personalizado se asigna a una persona en Usuarios y manda sobre el de su rol base. Solo restringe: nunca da más de lo que permite el rol base. Al rol admin no se le cierra nada.">
+    <SeccionDeAjustes icon="🔐" title="Roles y permisos" description="Cierra módulos por rol. Los roles de sistema se aplican a todos los de ese rol base; un rol personalizado se asigna a una persona en Usuarios y manda sobre el de su rol base. Solo restringe: nunca da más de lo que permite el rol base. Al rol admin no se le cierra nada.">
       <div style={styles.colGap8}>
         {isLoading ? <Spinner /> : roles.map(r => (
-          <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(r.color, '30')}`, borderRadius: 10 }}>
+          <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(r.color, '30')}`, borderRadius: 'var(--radius-md)' }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
             <div className="u-flex1">
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{r.name}</div>
+              <div className="u-base-700">{r.name}</div>
               {r.description && <div className="u-text2-sm">{r.description}</div>}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                 {Object.entries(r.module_access || {}).filter(([, v]) => v).slice(0, 8).map(([m]) => (
@@ -611,17 +597,18 @@ function RolesSection() {
             {!r.is_system && <button onClick={() => deleteRole(r.id)} style={styles.btnDelete}>🗑</button>}
           </div>
         ))}
-        <button onClick={() => setShowCreate(true)} style={{ padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 10, background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear rol personalizado</button>
+        <button onClick={() => setShowCreate(true)} style={{ padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear rol personalizado</button>
       </div>
       {(showCreate || editRole) && (
         <RoleFormModal role={editRole} modules={modules} onClose={() => { setShowCreate(false); setEditRole(null) }}
           onSave={data => { const fn = editRole ? () => advancedConfigApi.updateRole(editRole.id, data) : () => advancedConfigApi.createRole(data); fn().then(() => { qc.invalidateQueries({ queryKey: ['custom-roles'] }); setShowCreate(false); setEditRole(null) }) }} />
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
 function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | null; modules: ModuleOption[]; onClose: () => void; onSave: (data: RoleForm) => void }) {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const [form, setForm] = useState<RoleForm>({ name: role?.name || '', description: role?.description || '', color: /^#[0-9a-fA-F]{6}$/.test(role?.color) ? role.color : COLOR_DATO_POR_DEFECTO, module_access: role?.module_access || {} })
   const toggleModule = (m: string) => setForm(f => ({ ...f, module_access: { ...f.module_access, [m]: !f.module_access[m] } }))
@@ -630,10 +617,10 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
     <Modal open title={role ? `Editar rol — ${role.name}` : 'Nuevo rol'} onClose={onClose} width={560}>
       <div style={styles.colGap14}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} disabled={role?.is_system} /></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} disabled={role?.is_system} /></div>
           <div><label style={ls}>Color</label><div className="u-row-8"><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
         </div>
-        <div><label style={ls}>{t('settings.descripcion')}</label><input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} /></div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} /></div>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
             <label style={ls}>{t('settings.modulos_accesibles')}</label>
@@ -643,7 +630,7 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
             {modules.map(m => (
-              <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: form.module_access[m.id] ? 'var(--accent-muted)' : 'var(--surface-3)', borderRadius: 6, border: `1px solid ${form.module_access[m.id] ? 'var(--accent)' : 'var(--surface-4)'}`, fontSize: "var(--text-sm)" }}>
+              <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: form.module_access[m.id] ? 'var(--accent-muted)' : 'var(--surface-3)', borderRadius: 'var(--radius-sm)', border: `1px solid ${form.module_access[m.id] ? 'var(--accent)' : 'var(--surface-4)'}`, fontSize: "var(--text-sm)" }}>
                 <input type="checkbox" checked={!!form.module_access[m.id]} onChange={() => toggleModule(m.id)} />
                 {m.label}
               </label>
@@ -671,6 +658,7 @@ const THRESHOLD_CONDITIONS = ['threshold_above', 'threshold_below']
 const NOTIFY_FIELDS: ReadonlyArray<readonly [NotifyKey, string]> = [['notify_admin', 'Admin'], ['notify_pm', 'PM'], ['notify_hr', 'RRHH'], ['notify_employee', 'Empleado'], ['notify_email', '📧 Email']]
 
 function AlertConfigSection() {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -718,15 +706,15 @@ function AlertConfigSection() {
   }
 
   return (
-    <Section icon="🔔" title="Alertas" description="Configura notificaciones, umbrales y reglas personalizadas">
+    <SeccionDeAjustes icon="🔔" title="Alertas" description="Configura notificaciones, umbrales y reglas personalizadas">
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap10}>
           {configs.map(cfg => (
-            <div key={cfg.alert_type} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${cfg.is_enabled ? alpha(SEV_CFG[cfg.severity], '30') : 'var(--surface-4)'}`, borderRadius: 10, opacity: cfg.is_enabled ? 1 : 0.6 }}>
+            <div key={cfg.alert_type} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${cfg.is_enabled ? alpha(SEV_CFG[cfg.severity], '30') : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', opacity: cfg.is_enabled ? 1 : 0.6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
-                    <span style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{cfg.label}</span>
+                    <span className="u-base-700">{cfg.label}</span>
                     <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[cfg.severity], background: alpha(SEV_CFG[cfg.severity], '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{cfg.severity}</span>
                   </div>
                   {cfg.description && <div className="u-text2-sm">{cfg.description}</div>}
@@ -742,11 +730,11 @@ function AlertConfigSection() {
                     <div className="u-row-center-8">
                       <label className="u-text2-xs">Umbral:</label>
                       <input type="number" defaultValue={cfg.threshold_value} onBlur={e => update({ type: cfg.alert_type, data: { threshold_value: +e.target.value } })}
-                        style={{ width: 70, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', textAlign: 'center' }} />
+                        style={{ width: 70, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', textAlign: 'center' }} />
                       <span className="u-text2-xs">{cfg.threshold_unit}</span>
                     </div>
                   )}
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <div className="u-wrap-10">
                     {NOTIFY_FIELDS.map(([key, label]) => (
                       <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: "var(--text-xs)", color: cfg[key] ? 'var(--text-1)' : 'var(--text-2)' }}>
                         <input type="checkbox" checked={!!cfg[key]} onChange={e => update({ type: cfg.alert_type, data: { [key]: e.target.checked } })} />
@@ -765,7 +753,7 @@ function AlertConfigSection() {
       <div style={{ marginTop: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>Reglas personalizadas</div>
+            <div className="u-base-700">Reglas personalizadas</div>
             <div className="u-text2-sm">{t('settings.alertas_basadas_en_metricas_del_sistema')}</div>
           </div>
           <Button onClick={() => setShowCreate(true)}>{t('settings.nueva_alerta')}</Button>
@@ -775,7 +763,7 @@ function AlertConfigSection() {
         ) : (
           <div style={styles.colGap8}>
             {rules.map(rule => (
-              <div key={rule.id} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: `1px solid ${rule.enabled ? alpha(SEV_CFG[rule.severity], '30') : 'var(--surface-4)'}`, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, opacity: rule.enabled ? 1 : 0.6 }}>
+              <div key={rule.id} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: `1px solid ${rule.enabled ? alpha(SEV_CFG[rule.severity], '30') : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, opacity: rule.enabled ? 1 : 0.6 }}>
                 <div className="u-flex1-min0">
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
                     <span className="u-base-600">{rule.name}</span>
@@ -802,42 +790,42 @@ function AlertConfigSection() {
         <Modal open title={t('settings.nueva_regla_de_alerta')} onClose={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }} width={480}>
           <div style={styles.colGap14}>
             <div>
-              <label style={ls}>Nombre</label>
-              <input value={ruleForm.name} onChange={setR('name')} style={fs} placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={ruleForm.name} onChange={setR('name')} style={fs} placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} />
             </div>
             <div>
-              <label style={ls}>{t('settings.metrica')}</label>
-              <select value={ruleForm.metric_key} onChange={setR('metric_key')} style={fs}>
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.metrica')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={ruleForm.metric_key} onChange={setR('metric_key')} style={fs}>
                 <option value="">{t('settings.selecciona_una_metrica')}</option>
                 {metrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
               </select>
             </div>
             <div className="u-grid2-12">
               <div>
-                <label style={ls}>{t('settings.condicion')}</label>
-                <select value={ruleForm.condition} onChange={setR('condition')} style={fs}>
+                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('settings.condicion')}</label>
+                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={ruleForm.condition} onChange={setR('condition')} style={fs}>
                   {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
               {THRESHOLD_CONDITIONS.includes(ruleForm.condition) && (
                 <div>
-                  <label style={ls}>Umbral</label>
-                  <input type="number" value={ruleForm.threshold} onChange={setR('threshold')} style={fs} placeholder="0" />
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Umbral</label>
+                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={ruleForm.threshold} onChange={setR('threshold')} style={fs} placeholder="0" />
                 </div>
               )}
             </div>
             <div className="u-grid2-12">
               <div>
-                <label style={ls}>Severidad</label>
-                <select value={ruleForm.severity} onChange={setR('severity')} style={fs}>
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Severidad</label>
+                <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={ruleForm.severity} onChange={setR('severity')} style={fs}>
                   <option value="info">Info</option>
                   <option value="warning">Warning</option>
                   <option value="critical">Critical</option>
                 </select>
               </div>
               <div>
-                <label style={ls}>Cooldown (minutos)</label>
-                <input type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} style={fs} min={5} />
+                <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Cooldown (minutos)</label>
+                <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} style={fs} min={5} />
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
@@ -847,12 +835,14 @@ function AlertConfigSection() {
           </div>
         </Modal>
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
 // ── Rate tables section ───────────────────────────────────────────────────────
 function RateTablesSection() {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -884,26 +874,26 @@ function RateTablesSection() {
   const setEntryForm = (v: SetStateAction<EntryForm>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ entryForm: v(s.entryForm) }) : { entryForm: v })
 
   return (
-    <Section icon="💶" title="Tarifas internas" description="Mantiene tablas de coste y facturacion">
+    <SeccionDeAjustes icon="💶" title="Tarifas internas" description="Mantiene tablas de coste y facturacion">
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap16}>
           {tables.map(tabla => (
             <div key={tabla.id} style={{ background: 'var(--surface-2)', border: `1px solid ${tabla.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div>
-                  <span style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{tabla.name}</span>
+                  <span className="u-md-600">{tabla.name}</span>
                   {tabla.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
                   <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>{tabla.applies_to === 'role' ? 'Por rol' : tabla.applies_to === 'department' ? 'Por departamento' : 'Por cliente'}</span>
                 </div>
                 <div className="u-row-8">
-                  <button onClick={() => setAddingEntry(tabla.id)} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>＋ Tarifa</button>
-                  <button onClick={() => deleteTable(tabla.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button onClick={() => setAddingEntry(tabla.id)} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>＋ Tarifa</button>
+                  <button onClick={() => deleteTable(tabla.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 30px', gap: 8 }}>
                 <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 8px' }}>Etiqueta</div>
-                <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Coste €/h</div>
-                <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Factura €/h</div>
+                <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Coste {fmtMoneda.simbolo}/h</div>
+                <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Factura {fmtMoneda.simbolo}/h</div>
                 <div></div>
                 {(tabla.entries || []).map(e => (
                   editingEntryId === e.id ? (
@@ -918,9 +908,9 @@ function RateTablesSection() {
                     </React.Fragment>
                   ) : (
                     <React.Fragment key={e.id}>
-                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 6, fontSize: "var(--text-base)" }}>{e.label}</div>
-                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 6, fontSize: "var(--text-base)", textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{e.cost_rate ? `${e.cost_rate}€` : '—'}</div>
-                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 6, fontSize: "var(--text-base)", textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{e.billing_rate ? `${e.billing_rate}€` : '—'}</div>
+                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-base)" }}>{e.label}</div>
+                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-base)", textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{e.cost_rate ? fmtMoneda(e.cost_rate) : '—'}</div>
+                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-base)", textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{e.billing_rate ? fmtMoneda(e.billing_rate) : '—'}</div>
                       <div style={{display:'flex',gap:3}}>
                         <button onClick={() => { setEditingEntryId(e.id); setEditEntryForm({ label: e.label, cost_rate: e.cost_rate||'', billing_rate: e.billing_rate||'' }) }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
                         <button onClick={() => deleteEntry({ tableId: tabla.id, entryId: e.id })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-md)" }}>×</button>
@@ -942,19 +932,20 @@ function RateTablesSection() {
               )}
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)', alignItems: 'flex-end' }}>
             <div style={{ flex: 2 }}><label style={ls}>Nombre tabla</label><input value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_tabla')} aria-label={t('settings.nombre_de_la_tabla')} /></div>
-            <div className="u-flex1"><label style={ls}>Aplica a</label><select value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
+            <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Aplica a</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
             <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>Crear tabla</Button>
           </div>
         </div>
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
 // ── Vacation policies section ─────────────────────────────────────────────────
 function VacationSection() {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -973,7 +964,7 @@ function VacationSection() {
   const { mutate: updateBalance } = useMutation({ mutationFn: ({ userId, days }: { userId: string; days: number }) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries({ queryKey: ['vacation-balances', year] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
-    <Section icon="🏖️" title="Vacaciones y permisos" description="Configura politicas y saldos del equipo">
+    <SeccionDeAjustes icon="🏖️" title="Vacaciones y permisos" description="Configura politicas y saldos del equipo">
       <div className="u-mb-20">
         <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12 }}>{t('settings.politicas_configuradas')}</div>
         <div style={styles.colGap8}>
@@ -982,7 +973,7 @@ function VacationSection() {
               <div className="u-flex1">
                 <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{p.name}</span>
                 {p.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
+                <div className="u-text2-sm-mt2">
                   {p.days_per_year} {t('settings.dias_ano')} {p.carries_over ? `· Acumula hasta ${p.max_carryover_days || '∞'} días` : '· No acumula'}
                 </div>
               </div>
@@ -990,10 +981,10 @@ function VacationSection() {
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 10, marginTop: 12, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 10, marginTop: 12, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 2 }}><label style={ls}>Nombre</label><input value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_politica')} aria-label={t('settings.nombre_de_la_politica')} /></div>
-          <div className="u-flex1"><label style={ls}>{t('settings.dias_ano_2')}</label><input type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
-          <div className="u-flex1"><label style={ls}>{t('settings.max_acumulacion')}</label><input type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
+          <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('settings.dias_ano_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
+          <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.max_acumulacion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-sm)" }}><input type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy(f => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
           <Button onClick={() => { createPolicy(newPolicy); setNewPolicy({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false }) }} disabled={!newPolicy.name}>Crear</Button>
         </div>
@@ -1002,12 +993,12 @@ function VacationSection() {
       {/* Balances */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{t('settings.saldos_del_equipo')}</div>
+          <div className="u-base-700">{t('settings.saldos_del_equipo')}</div>
           <select value={year} onChange={e => setYear(+e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}>
             {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="ds-card ds-card--plano">
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             <span>Persona</span><span>Asignados</span><span>Tomados</span><span>Pendientes</span><span>Disponibles</span><span>Editar</span>
           </div>
@@ -1022,12 +1013,12 @@ function VacationSection() {
               <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{b.days_pending}d</span>
               <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: b.days_remaining <= 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>{b.days_remaining}d</span>
               <input type="number" defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
-                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', textAlign: 'center' }} />
+                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', textAlign: 'center' }} />
             </div>
           ))}
         </div>
       </div>
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -1042,11 +1033,11 @@ function NumberingSection() {
   const ENTITY_LABELS: Record<string, string> = { project: 'Proyecto', task: 'Tarea', contract: 'Contrato', opportunity: 'Oportunidad', change_request: 'Control de cambios', deliverable: 'Entregable', risk: 'Riesgo' }
 
   return (
-    <Section icon="🔢" title="Numeracion" description="Prefijos y contadores automaticos">
+    <SeccionDeAjustes icon="🔢" title="Numeracion" description="Prefijos y contadores automaticos">
       {isLoading ? <Spinner /> : (
         <div style={styles.colGap10}>
           {seqs.map(s => (
-            <div key={s.entity} style={{ display: 'flex', gap: 14, alignItems: 'flex-end', padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+            <div key={s.entity} style={{ display: 'flex', gap: 14, alignItems: 'flex-end', padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ width: 120, flexShrink: 0 }}>
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{ENTITY_LABELS[s.entity] || s.entity}</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{s.next_preview}</div>
@@ -1061,19 +1052,20 @@ function NumberingSection() {
                 </label>
               </div>
               <div style={{ flexShrink: 0 }}>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>Contador: {s.current_value}</div>
-                <button onClick={() => { openConfirmGlobal({ message: `¿Resetear contador de ${ENTITY_LABELS[s.entity] || s.entity} a 0?`, onConfirm: () => reset(s.entity), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Resetear</button>
+                <div className="u-text2-xs-mb4">Contador: {s.current_value}</div>
+                <button onClick={() => { openConfirmGlobal({ message: `¿Resetear contador de ${ENTITY_LABELS[s.entity] || s.entity} a 0?`, onConfirm: () => reset(s.entity), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Resetear</button>
               </div>
             </div>
           ))}
         </div>
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
 // ── Custom fields section ─────────────────────────────────────────────────────
 function CustomFieldsSection() {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1111,7 +1103,7 @@ function CustomFieldsSection() {
   const byEntity = fields.reduce<Record<string, CustomField[]>>((a, f) => { if (!a[f.entity]) a[f.entity] = []; a[f.entity].push(f); return a }, {})
 
   return (
-    <Section icon="🧩" title="Campos personalizados" description="Define campos extra para entidades">
+    <SeccionDeAjustes icon="🧩" title="Campos personalizados" description="Define campos extra para entidades">
       {isLoading ? <Spinner /> : (
         <div className="u-mb-20">
           {Object.entries(byEntity).map(([entity, entityFields]) => (
@@ -1146,9 +1138,9 @@ function CustomFieldsSection() {
                             onChange={e=>setEditFieldForm(f=>({...f,is_required:e.target.checked}))} />Obligatorio
                         </label>
                         <button onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name}
-                          style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>✓ Guardar</button>
+                          style={{background:'var(--accent)',border:'none',borderRadius:'var(--radius-sm)',padding:'5px 12px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>✓ Guardar</button>
                         <button onClick={() => setEditingFieldId(null)}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'5px 9px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
+                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'5px 9px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
                       </div>
                     )}
                   </React.Fragment>
@@ -1159,17 +1151,17 @@ function CustomFieldsSection() {
           {fields.length === 0 && <EmptyState svgIcon={<Layers size={36} />} title={t('settings.empty_custom_fields_title')} description={t('settings.empty_custom_fields_desc')} />}
         </div>
       )}
-      <div style={{ padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
+      <div style={{ padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12 }}>{t('settings.anadir_campo_personalizado')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
-          <div><label style={ls}>Entidad</label><select value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={fs}>{ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Entidad</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={fs}>{ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></div>
           <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} /></div>
           <div><label style={ls}>Clave</label><input value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} style={fs} placeholder="Clave interna" aria-label="Clave interna" /></div>
-          <div><label style={ls}>Tipo</label><select value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} style={fs}>{TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Tipo</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} style={fs}>{TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
           <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>{t('settings.anadir')}</Button>
         </div>
       </div>
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -1195,7 +1187,7 @@ function TemplatesSection() {
   const setSelected = (v: SetStateAction<ProjectTemplate | null>) => setUi(s => ({ ...s, selected: typeof v === 'function' ? v(s.selected) : v }))
 
   return (
-    <Section icon="📐" title="Plantillas" description="Define plantillas de proyecto y fases">
+    <SeccionDeAjustes icon="📐" title="Plantillas" description="Define plantillas de proyecto y fases">
       {isLoading ? <Spinner /> : templates.length === 0 ? (
         <EmptyState svgIcon={<Sparkles size={36} />} title={t('settings.empty_templates_title')} description={t('settings.empty_templates_desc')} />
       ) : (
@@ -1216,22 +1208,23 @@ function TemplatesSection() {
               </div>
               <div className="u-row-8">
                 <Button size="sm" onClick={e => { e.stopPropagation(); setSelected(t) }}>Ver detalle</Button>
-                <button onClick={e => { e.stopPropagation(); deleteTemplate(t.id) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                <button onClick={e => { e.stopPropagation(); deleteTemplate(t.id) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
               </div>
             </div>
           ))}
         </div>
       )}
-      <button onClick={() => setShowCreate(true)} style={{ width: '100%', padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 10, background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear plantilla</button>
+      <button onClick={() => setShowCreate(true)} style={{ width: '100%', padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear plantilla</button>
       {showCreate && <CreateTemplateModal isSaving={creatingTemplate} onClose={() => setShowCreate(false)} onSave={createTemplate} />}
       {selected && <TemplateDetailModal template={selected} onClose={() => setSelected(null)} />}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
 type CreateTemplateUi = { form: TemplateForm; phase: PhaseInput; task: TaskInput; risk: RiskInput; deliverable: DeliverableInput }
 
 function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: () => void; onSave: (data: TemplatePayload) => void; isSaving?: boolean }) {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const [ui, setUi] = React.useReducer(
     (s: CreateTemplateUi, p: Partial<CreateTemplateUi> | ((s: CreateTemplateUi) => Partial<CreateTemplateUi>)): CreateTemplateUi => {
@@ -1338,11 +1331,11 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
       <div style={styles.colGap16}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12 }}>
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder={t('settings.nombre_de_la_plantilla')} aria-label={t('settings.nombre_de_la_plantilla')} /></div>
-          <div><label style={ls}>Tipo proyecto</label><select value={form.project_type} onChange={set('project_type')} style={fs}><option value="consulting">consulting</option><option value="development">development</option><option value="maintenance">maintenance</option><option value="internal">internal</option><option value="rd">rd</option></select></div>
-          <div><label style={ls}>Semanas estimadas</label><input type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} style={fs} /></div>
-          <div><label style={ls}>Horas estimadas</label><input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} /></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Tipo proyecto</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')} style={fs}><option value="consulting">consulting</option><option value="development">development</option><option value="maintenance">maintenance</option><option value="internal">internal</option><option value="rd">rd</option></select></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Semanas estimadas</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} style={fs} /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Horas estimadas</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} /></div>
         </div>
-        <div><label style={ls}>{t('settings.descripcion')}</label><textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('settings.descripcion')}</label><textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
 
         {/* Phases */}
         <div>
@@ -1392,7 +1385,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
             <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} style={fs}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
             <Button size="sm" onClick={addRisk} disabled={!risk.title}>+ Riesgo</Button>
           </div>
-          <textarea value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.plan_de_mitigacion_opcional')} />
+          <textarea aria-label={t('settings.plan_de_mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.plan_de_mitigacion_opcional')} />
         </div>
 
         {/* Deliverables */}
@@ -1405,7 +1398,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
             <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('settings.facturacion')} aria-label={t('settings.porcentaje_facturacion')} />
             <Button size="sm" onClick={addDeliverable} disabled={!deliverable.name}>+ Entregable</Button>
           </div>
-          <textarea value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.criterio_de_aceptacion_opcional')} />
+          <textarea aria-label={t('settings.criterio_de_aceptacion_opcional')} value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.criterio_de_aceptacion_opcional')} />
         </div>
 
         <div style={styles.rowFlexEnd}>
@@ -1423,7 +1416,7 @@ function TemplateDetailModal({ template, onClose }: { template: ProjectTemplate;
       {template.description && <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 16 }}>{template.description}</p>}
       <div className="u-stack-12">
         {template.phases?.map(p => (
-          <div key={p.id} style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '12px 16px' }}>
+          <div key={p.id} style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
             <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 8 }}>📋 {p.name}</div>
             {p.tasks?.map(t => (
               <div key={t.id} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', padding: '3px 8px', borderLeft: '2px solid var(--surface-4)', marginBottom: 3 }}>
@@ -1442,6 +1435,7 @@ function TemplateDetailModal({ template, onClose }: { template: ProjectTemplate;
 
 // ── Offices section ───────────────────────────────────────────────────────────
 function OfficesSection() {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1462,13 +1456,13 @@ function OfficesSection() {
   const TIMEZONES = ['Europe/Madrid', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'Asia/Shanghai']
 
   return (
-    <Section icon="🏢" title="Sedes" description="Gestiona oficinas y zonas horarias">
+    <SeccionDeAjustes icon="🏢" title="Sedes" description="Gestiona oficinas y zonas horarias">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
         {offices.map(o => (
           <div key={o.id}>
             {editingId === o.id ? (
               <div style={{ display: 'flex', gap: 8, padding: '10px 12px', background: 'var(--accent-muted)',
-                border: '1px solid var(--accent-glow)', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div style={{ flex: 2, minWidth: 120 }}><label style={ls}>Nombre *</label>
                   <input value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={fs} autoFocus /></div>
                 <div style={{ flex: 1, minWidth: 90 }}><label style={ls}>{t('settings.pais')}</label>
@@ -1487,14 +1481,14 @@ function OfficesSection() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
                 <span style={{ fontSize: "var(--text-xl)" }}>🏢</span>
                 <div className="u-flex1">
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{o.name}</div>
+                  <div className="u-base-700">{o.name}</div>
                   <div className="u-text2-xs">{o.city}{o.country ? `, ${o.country}` : ''} · {o.timezone}</div>
                 </div>
                 <button onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }}
-                  style={{ background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)" }}>✏</button>
+                  style={{ background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'3px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)" }}>✏</button>
                 <button onClick={() => del(o.id)} style={styles.btnDelete}>🗑</button>
               </div>
             )}
@@ -1505,16 +1499,17 @@ function OfficesSection() {
       <div style={styles.addPanel10}>
         <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_sede')} aria-label={t('settings.nombre_de_la_sede')} /></div>
         <div className="u-flex1"><label style={ls}>{t('settings.pais')}</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
-        <div className="u-flex1"><label style={ls}>Ciudad</label><input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
-        <div className="u-flex1"><label style={ls}>Zona horaria</label><select value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+        <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Ciudad</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
+        <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Zona horaria</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
         <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
 // ── Task types section ────────────────────────────────────────────────────────
 function TaskTypesSection() {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1533,15 +1528,15 @@ function TaskTypesSection() {
   const setEditForm = (v: SetStateAction<TaskTypeEdit>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
 
   return (
-    <Section icon="🏷️" title={t('settings.tipos_de_tarea')} description="Gestiona etiquetas y tipos facturables">
+    <SeccionDeAjustes icon="🏷️" title={t('settings.tipos_de_tarea')} description="Gestiona etiquetas y tipos facturables">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
           {types.map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface-2)', border: `1px solid ${alpha(t.color, '40')}`, borderRadius: 10 }}>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface-2)', border: `1px solid ${alpha(t.color, '40')}`, borderRadius: 'var(--radius-md)' }}>
               <span style={{ fontSize: "var(--text-lg-em)" }}>{t.icon}</span>
               <div>
                 <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: t.color }}>{t.name}</div>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t.is_billable_default ? 'Facturable' : 'No facturable'}</div>
+                <div className="u-text2-2xs">{t.is_billable_default ? 'Facturable' : 'No facturable'}</div>
               </div>
               <button onClick={() => { setEditingId(t.id); setEditForm({ name: t.name, icon: t.icon, color: t.color, is_billable_default: t.is_billable_default }) }}
                 style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-sm)", marginLeft: 2 }}>✏</button>
@@ -1552,10 +1547,10 @@ function TaskTypesSection() {
       )}
       {editingId && (
         <div style={{ display:'flex', gap:8, padding:'10px 14px', background:'var(--accent-muted)',
-          border:'1px solid var(--accent-glow)', borderRadius:10, marginBottom:8, flexWrap:'wrap', alignItems:'flex-end' }}>
-          <div><label style={ls}>Nombre *</label><input value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={{...fs,width:130}} autoFocus /></div>
-          <div><label style={ls}>Icono</label><input value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} style={{...fs,width:55}} /></div>
-          <div><label style={ls}>Color</label><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:COLOR_DATO_POR_DEFECTO} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
+          border:'1px solid var(--accent-glow)', borderRadius:'var(--radius-md)', marginBottom:8, flexWrap:'wrap', alignItems:'flex-end' }}>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={{...fs,width:130}} autoFocus /></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Icono</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} style={{...fs,width:55}} /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Color</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:COLOR_DATO_POR_DEFECTO} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
           <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",paddingBottom:4}}><input type="checkbox" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />Facturable</label>
           <button onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} style={styles.saveBtn}>✓ Guardar</button>
           <button onClick={() => setEditingId(null)} style={styles.cancelBtnSm}>Cancelar</button>
@@ -1569,7 +1564,7 @@ function TaskTypesSection() {
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", paddingBottom: 4 }}><input type="checkbox" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
         <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
       </div>
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -1604,37 +1599,37 @@ function DepartmentsSection() {
   return (
     <>
     <AreasSection />
-    <Section icon="🏢" title="Departamentos" description="Estructura interna de la organizacion">
+    <SeccionDeAjustes icon="🏢" title="Departamentos" description="Estructura interna de la organizacion">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
           {data.map(d => (
             <div key={d.id}>
               {editingId === d.id ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', flexWrap: 'wrap',
-                  background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10 }}>
+                  background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)' }}>
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                     style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} autoFocus />
                   <input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                     style={{ ...fs, flex: 3, minWidth: 0, padding: '5px 9px' }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
                   {selectorDeArea(editForm.area_id, v => setEditForm(f => ({ ...f, area_id: v })))}
                   <button onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name}
-                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px',
+                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 12px',
                       color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
                   <button onClick={() => setEditingId(null)}
-                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6,
+                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
                       padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap',
-                  background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+                  background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
                   <span style={{ flex: 1, fontSize: "var(--text-base)", fontWeight: 600 }}>{d.name}</span>
                   {nombreDeArea(d.area_id) && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', border: '1px solid currentColor', borderRadius: 99, padding: '0 8px' }}>{nombreDeArea(d.area_id)}</span>}
                   {d.description && <span className="u-text2-sm">{d.description}</span>}
                   <button onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }}
-                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6,
+                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
                       padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                   <button onClick={() => del(d.id)}
-                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6,
+                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)',
                       padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               )}
@@ -1643,13 +1638,13 @@ function DepartmentsSection() {
           {data.length === 0 && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>{t('settings.sin_departamentos')}</div>}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
+      <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
         <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} />
         <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
         {selectorDeArea(form.area_id, v => setForm(f => ({ ...f, area_id: v })))}
         <Button onClick={() => { create({ ...form, area_id: form.area_id || null }); setForm({ name: '', description: '', area_id: '' }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
-    </Section>
+    </SeccionDeAjustes>
     </>
   )
 }
@@ -1666,24 +1661,24 @@ function AreasSection() {
     catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
   }
   return (
-    <Section icon="🧭" title={t('settings.areas')} description={t('settings.areas_ayuda')}>
+    <SeccionDeAjustes icon="🧭" title={t('settings.areas')} description={t('settings.areas_ayuda')}>
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
           {areas.map(a => (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
               {editando?.id === a.id ? (
                 <>
                   <input value={editando.name} onChange={e => setEditando({ id: a.id, name: e.target.value })} aria-label={t('settings.nombre_del_area')} style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }} autoFocus />
                   <button onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(() => setEditando(null))} disabled={!editando.name.trim()}
-                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px', color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
-                  <button onClick={() => setEditando(null)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
+                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
+                  <button onClick={() => setEditando(null)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
                 </>
               ) : (
                 <>
                   <span className="u-base-600">{a.name}</span>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{a.departamentos.length ? a.departamentos.join(', ') : t('settings.area_sin_departamentos')}</span>
-                  <button onClick={() => setEditando({ id: a.id, name: a.name })} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
-                  <button onClick={() => ejecutar(() => presupuestosApi.borrarArea(a.id))} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button onClick={() => setEditando({ id: a.id, name: a.name })} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
+                  <button onClick={() => ejecutar(() => presupuestosApi.borrarArea(a.id))} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </>
               )}
             </div>
@@ -1691,11 +1686,11 @@ function AreasSection() {
           {areas.length === 0 && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>{t('settings.sin_areas')}</div>}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
+      <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
         <input value={nombre} onChange={e => setNombre(e.target.value)} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder={t('settings.nombre_del_area')} aria-label={t('settings.nombre_del_area')} />
         <Button onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: nombre })).then(() => setNombre(''))} disabled={!nombre.trim()}>{t('settings.anadir')}</Button>
       </div>
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -1706,6 +1701,7 @@ const OPERATOR_LABELS: Record<string, string> = { '+': 'Suma', '-': 'Resta', '*'
 const EMPTY_METRIC: MetricForm = { label: '', description: '', operand_a: '', operator: '/', operand_b_type: 'metric', operand_b: '', scale: 1 }
 
 function MetricsSection() {
+  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1749,14 +1745,14 @@ function MetricsSection() {
   }
 
   return (
-    <Section icon="📊" title={t('settings.metricas')} description="Métricas del sistema disponibles para alertas y análisis">
+    <SeccionDeAjustes icon="📊" title={t('settings.metricas')} description="Métricas del sistema disponibles para alertas y análisis">
       {/* Built-in metrics */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>{t('settings.metricas_del_sistema')}{builtinMetrics.length})</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
           {builtinMetrics.map(m => (
             <div key={m.key} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{m.label}</div>
+              <div className="u-text1-sm-600">{m.label}</div>
               <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'monospace', marginTop: 2 }}>{m.key}</div>
             </div>
           ))}
@@ -1781,11 +1777,11 @@ function MetricsSection() {
                 : f.operand_b
               const scale = parseFloat(String(f.scale)) !== 1 ? ` × ${f.scale}` : ''
               return (
-                <div key={cm.key} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div key={cm.key} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                   <div className="u-flex1-min0">
                     <div style={{ fontWeight: 600, fontSize: "var(--text-base)", marginBottom: 2 }}>{cm.label}</div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'monospace' }}>({la} {f.operator} {lb}){scale}</div>
-                    {cm.description && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>{cm.description}</div>}
+                    {cm.description && <div className="u-text3-xs-mt2">{cm.description}</div>}
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                     <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontFamily: 'monospace' }}>{cm.key}</span>
@@ -1802,38 +1798,38 @@ function MetricsSection() {
         <Modal open title={t('settings.nueva_metrica_personalizada')} onClose={() => { setShowCreate(false); setForm(EMPTY_METRIC) }} width={500}>
           <div style={styles.colGap14}>
             <div>
-              <label style={ls}>Nombre</label>
-              <input value={form.label} onChange={setF('label')} style={fs} placeholder="Ej: Ratio coste-ingreso" />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.label} onChange={setF('label')} style={fs} placeholder="Ej: Ratio coste-ingreso" />
             </div>
             <div>
-              <label style={ls}>{t('settings.descripcion_opcional')}</label>
-              <input value={form.description} onChange={setF('description')} style={fs} placeholder={t('settings.para_que_sirve_esta_metrica')} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.descripcion_opcional')}</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={setF('description')} style={fs} placeholder={t('settings.para_que_sirve_esta_metrica')} />
             </div>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
               <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 12 }}>{t('settings.formula_a_operador_b_escala')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 10, alignItems: 'end', marginBottom: 12 }}>
                 <div>
-                  <label style={ls}>{t('settings.metrica_a')}</label>
-                  <select value={form.operand_a} onChange={setF('operand_a')} style={fs}>
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('settings.metrica_a')}</label>
+                  <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.operand_a} onChange={setF('operand_a')} style={fs}>
                     <option value="">— Selecciona —</option>
                     {builtinMetrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={ls}>Op.</label>
-                  <select value={form.operator} onChange={setF('operator')} style={{ ...fs, width: 70 }}>
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Op.</label>
+                  <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.operator} onChange={setF('operator')} style={{ ...fs, width: 70 }}>
                     {Object.entries(OPERATOR_LABELS).map(([k, v]) => <option key={k} value={k}>{k} ({v})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={ls}>Tipo B</label>
-                  <select value={form.operand_b_type} onChange={setF('operand_b_type')} style={fs}>
+                  <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Tipo B</label>
+                  <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.operand_b_type} onChange={setF('operand_b_type')} style={fs}>
                     <option value="metric">{t('settings.otra_metrica')}</option>
                     <option value="constant">Constante</option>
                   </select>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="u-grid2-10">
                 <div>
                   <label style={ls}>{form.operand_b_type === 'metric' ? 'Métrica B' : 'Valor constante'}</label>
                   {form.operand_b_type === 'metric' ? (
@@ -1846,12 +1842,12 @@ function MetricsSection() {
                   )}
                 </div>
                 <div>
-                  <label style={ls}>Escala (× resultado)</label>
-                  <input type="number" value={form.scale} onChange={setF('scale')} style={fs} placeholder="1" step="any" />
+                  <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Escala (× resultado)</label>
+                  <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale} onChange={setF('scale')} style={fs} placeholder="1" step="any" />
                 </div>
               </div>
               {preview && (
-                <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--surface-3)', borderRadius: 6, fontSize: "var(--text-xs)", color: 'var(--accent)', fontFamily: 'monospace' }}>
+                <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-xs)", color: 'var(--accent)', fontFamily: 'monospace' }}>
                   Vista previa: {preview}
                 </div>
               )}
@@ -1863,7 +1859,7 @@ function MetricsSection() {
           </div>
         </Modal>
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -1957,7 +1953,7 @@ function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: Pr
         ))}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="u-row-end">
           <Button size="sm" type="submit" loading={isSaving}>Guardar {provider.label}</Button>
         </div>
       </form>
@@ -2002,12 +1998,12 @@ function ESignSettingsSection() {
   }
 
   return (
-    <Section icon="✍" title={t('settings.firma_electronica')} description="Configura las credenciales de los proveedores de firma electrónica. Los cambios se aplican inmediatamente.">
+    <SeccionDeAjustes icon="✍" title={t('settings.firma_electronica')} description="Configura las credenciales de los proveedores de firma electrónica. Los cambios se aplican inmediatamente.">
       {isLoading ? (
         <Spinner />
       ) : (
         <>
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 20 }}>
             <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 6 }}>Modo manual siempre disponible</div>
             <div className="u-text2-sm">
               {t('settings.sin_credenciales_las_solicitudes_se_gestionan_en')}
@@ -2017,7 +2013,7 @@ function ESignSettingsSection() {
           <div className="u-mb-20">
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>{t('settings.webhooks_de_sincronizacion_de_estado')}</div>
             <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('settings.configura_en_el_panel_de_tu_proveedor')}</div>
+              <div className="u-text2-xs-mb4">{t('settings.configura_en_el_panel_de_tu_proveedor')}</div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)', marginBottom: 2 }}>DocuSign Connect: <span className="u-text1">{apiUrl('/esign/webhooks/docusign')}</span></div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)' }}>Adobe Sign: <span className="u-text1">{apiUrl('/esign/webhooks/adobe')}</span></div>
             </div>
@@ -2036,7 +2032,7 @@ function ESignSettingsSection() {
           ))}
         </>
       )}
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 
@@ -2063,20 +2059,20 @@ function SessionSecuritySection() {
   const idleMinutes = parseInt(find('idle_timeout_minutes') || '30', 10)
 
   return (
-    <Section icon="🔒" title={t('settings.seguridad_de_sesion')} description="Controla el cierre automático por inactividad">
+    <SeccionDeAjustes icon="🔒" title={t('settings.seguridad_de_sesion')} description="Controla el cierre automático por inactividad">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 520 }}>
 
         {/* Toggle idle timeout */}
         <div style={{
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 10, padding: '16px 20px',
+          borderRadius: 'var(--radius-md)', padding: '16px 20px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
         }}>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>
               {t('settings.cierre_de_sesion_por_inactividad')}
             </div>
-            <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)', marginTop: 2 }}>
+            <div className="u-text3-xs-mt2">
               {t('settings.cierra_la_sesion_automaticamente_si_el_usuario')}
             </div>
           </div>
@@ -2103,7 +2099,7 @@ function SessionSecuritySection() {
         {/* Timeout duration selector */}
         <div style={{
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 10, padding: '16px 20px',
+          borderRadius: 'var(--radius-md)', padding: '16px 20px',
           opacity: idleEnabled ? 1 : 0.45,
           pointerEvents: idleEnabled ? 'auto' : 'none',
         }}>
@@ -2133,7 +2129,7 @@ function SessionSecuritySection() {
         </div>
 
       </div>
-    </Section>
+    </SeccionDeAjustes>
   )
 }
 

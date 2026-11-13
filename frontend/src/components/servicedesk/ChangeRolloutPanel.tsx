@@ -271,9 +271,9 @@ export default function ChangeRolloutPanel() {
         </Button>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
+      <div className="u-mb-14">
         <div style={fieldLabel}>{t('changerollout.filtrar_por_change_request')}</div>
-        <input
+        <input aria-label="Change Request ID (uuid)"
           type="text"
           placeholder="Change Request ID (uuid)"
           value={changeRequestFilter}
@@ -292,14 +292,14 @@ export default function ChangeRolloutPanel() {
         }}>
           <div style={fieldLabel}>{t('sd.rollout.new_plan', 'Nuevo plan de rollout')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-            <input
+            <input aria-label="Change Request ID"
               type="text"
               placeholder="Change Request ID"
               value={form.change_request_id}
               onChange={e => setForm(f => ({ ...f, change_request_id: e.target.value }))}
               style={{ ...inputBase, gridColumn: '1 / -1' }}
             />
-            <input
+            <input aria-label={t('changerollout.nombre_del_plan_opcional')}
               type="text"
               placeholder={t('changerollout.nombre_del_plan_opcional')}
               value={form.name}
@@ -369,7 +369,7 @@ export default function ChangeRolloutPanel() {
                         ? 'color-mix(in srgb, var(--purple) 8%, var(--surface-3))'
                         : 'var(--surface-3)',
                       border: `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}`,
-                      borderRadius: 10,
+                      borderRadius: 'var(--radius-md)',
                       cursor: 'pointer',
                       fontFamily: 'inherit',
                       transition: 'border-color .15s, background .15s',
@@ -378,7 +378,7 @@ export default function ChangeRolloutPanel() {
                     onMouseLeave={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--surface-4)' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                      <span className="u-text1-sm-600">
                         {plan.title || plan.name || plan.id}
                       </span>
                       <span style={chip(meta.color)}>{meta.label}</span>
@@ -412,7 +412,7 @@ export default function ChangeRolloutPanel() {
             </div>
 
             {/* Phases progress */}
-            <div style={{ marginBottom: 14 }}>
+            <div className="u-mb-14">
               <div style={fieldLabel}>{t('sd.rollout.phases', 'Progreso de fases')}</div>
               {(selectedPlan.rollout_phases || []).length === 0 ? (
                 <div className="u-text3-xs">{t('changerollout.sin_fases_definidas')}</div>
@@ -441,14 +441,14 @@ export default function ChangeRolloutPanel() {
                           flexShrink: 0,
                         }}>{phaseStatus === 'completed' ? '✓' : i + 1}</div>
                         <div className="u-flex1-min0">
-                          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 600 }}>
+                          <div className="u-text1-sm-600">
                             {phase.name}
                             <span style={{ marginLeft: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 400 }}>
                               {phase.target_pct}% · {phase.duration_minutes}min
                             </span>
                           </div>
                           {phase.description && (
-                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                            <div className="u-text3-xs-mt2">
                               {phase.description}
                             </div>
                           )}

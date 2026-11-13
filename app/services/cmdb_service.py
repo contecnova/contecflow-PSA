@@ -207,16 +207,6 @@ def create_wiki_export_job(page_id: str, user_id: str, db: Session) -> dict:
     }
 
 
-def list_wiki_export_jobs(user_id: str, db: Session) -> list:
-    jobs = db.query(WikiExportJob).filter(
-        WikiExportJob.created_by == user_id
-    ).order_by(WikiExportJob.created_at.desc()).limit(20).all()
-    return [{"id": j.id, "page_id": j.page_id, "status": j.status,
-             "file_path": j.file_path,
-             "created_at": j.created_at.isoformat() if j.created_at else None}
-            for j in jobs]
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 # KANBAN
 # ──────────────────────────────────────────────────────────────────────────────

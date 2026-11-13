@@ -95,14 +95,14 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
         style={{ display:'flex', gap:12, padding:'12px 16px',
           background: 'var(--surface-2)',
           border:`1px solid ${alpha(cfg.color, '25')}`,
-          borderRadius:10, cursor:'pointer',
+          borderRadius:'var(--radius-md)', cursor:'pointer',
           transition:'all .15s', marginBottom:4, width:'100%', textAlign:'left', fontFamily:'inherit' }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '50') }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '25') }}>
         <div style={{ width:8, height:8, borderRadius:'50%',
           background: cfg.color,
           flexShrink:0, marginTop:8, alignSelf:'flex-start' }} />
-        <div style={{ width:36, height:36, borderRadius:10, flexShrink:0,
+        <div style={{ width:36, height:36, borderRadius:'var(--radius-md)', flexShrink:0,
           background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}`,
           display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
           {cfg.icon}
@@ -127,7 +127,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
       style={{ display:'flex', gap:12, padding:'12px 16px',
         background: isUnread ? 'var(--surface-2)' : 'transparent',
         border:`1px solid ${isUnread ? alpha(cfg.color, '25') : 'transparent'}`,
-        borderRadius:10, cursor: isUnread ? 'pointer' : 'default',
+        borderRadius:'var(--radius-md)', cursor: isUnread ? 'pointer' : 'default',
         transition:'all .15s', marginBottom:4 }}
       >
       {/* Badge indicador de no leído */}
@@ -135,7 +135,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
         background: isUnread ? cfg.color : 'transparent',
         flexShrink:0, marginTop:8, alignSelf:'flex-start' }} />
       {/* Icono tipo */}
-      <div style={{ width:36, height:36, borderRadius:10, flexShrink:0,
+      <div style={{ width:36, height:36, borderRadius:'var(--radius-md)', flexShrink:0,
         background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}`,
         display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
         {cfg.icon}
@@ -191,7 +191,7 @@ function GroupedNotifList({ notifications, onMarkRead }: { notifications: Notifi
               <span style={{ fontSize: "var(--text-md)" }}>{cfg.icon}</span>
               <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cfg.label}</span>
               {unread > 0 && (
-                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, background: cfg.color, color: 'var(--on-accent-light)', borderRadius: 10, padding: '1px 7px', marginLeft: 2 }}>{unread}</span>
+                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, background: cfg.color, color: 'var(--on-accent-light)', borderRadius: 'var(--radius-md)', padding: '1px 7px', marginLeft: 2 }}>{unread}</span>
               )}
               <div style={{ flex: 1, height: 1, background: 'var(--surface-4)', marginLeft: 4 }} />
             </div>
@@ -385,7 +385,7 @@ export default function NotificationsPage() {
             borderRadius:12, padding:'14px 18px' }}>
             <div style={{ fontSize: "var(--text-2xl-em)", fontWeight:800, color:kpi.color,
               fontFamily: 'var(--font-mono)' }}>{kpi.value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
+            <div className="u-text2-sm-mt2">{kpi.label}</div>
           </div>
         ))}
       </div>
@@ -395,7 +395,7 @@ export default function NotificationsPage() {
         {FILTERS.map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
             style={{ padding:'7px 14px', borderRadius:8, fontSize: "var(--text-sm)", fontWeight:600,
-              border:`1px solid ${filter===f.id?'rgba(79,142,247,.4)':'var(--surface-4)'}`,
+              border:`1px solid ${filter===f.id?'var(--accent-border-strong)':'var(--surface-4)'}`,
               background:filter===f.id?'var(--accent-muted)':'transparent',
               color:filter===f.id?'var(--accent)':'var(--text-2)',
               cursor:'pointer', fontFamily:'inherit' }}>

@@ -9,6 +9,7 @@ from sqlalchemy.sql import func
 import uuid
 
 from app.db.base import Base
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 
 class OrgBranding(Base):
@@ -20,7 +21,7 @@ class OrgBranding(Base):
                              nullable=False, unique=True, index=True)
 
     # Visual identity
-    app_name          = Column(String(100), default="Contecflow")
+    app_name          = Column(String(100), default=NOMBRE_DEL_PRODUCTO)
     tagline           = Column(String(255), nullable=True)
     logo_url          = Column(String(500), nullable=True)
     favicon_url       = Column(String(500), nullable=True)

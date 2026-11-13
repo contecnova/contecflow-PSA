@@ -12,11 +12,14 @@ import { startRegistration, webauthnSupported } from '../../lib/webauthn'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
+import { useConfirm } from '../../context/ConfirmContext'
+import { pedirReautenticacion, esFalloDeReautenticacion } from './reautenticacion'
 
 export default function PasskeysSection() {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
+  const { pedirTexto } = useConfirm()
   const [nombre, setNombre] = useState('')
   const [editando, setEditando] = useState<{ id: string; name: string } | null>(null)
   const { data: lista = [] } = useQuery({
@@ -27,14 +30,20 @@ export default function PasskeysSection() {
 
   const { mutate: anadir, isPending: anadiendo } = useMutation({
     mutationFn: async () => {
-      const { data } = await authApi.passkeyRegisterStart()
+      // El servidor pide la contrasena (o un codigo TOTP) antes de dar de alta
+      // un factor nuevo. Cancelar el dialogo no es un error.
+      const reauth = await pedirReautenticacion(pedirTexto)
+      if (!reauth) return null
+      const { data } = await authApi.passkeyRegisterStart(reauth)
       const credential = await startRegistration(data.options)
       return authApi.passkeyRegisterFinish({
         webauthn_challenge_token: data.webauthn_challenge_token, credential, name: nombre.trim() || undefined,
       })
     },
-    onSuccess: () => { setNombre(''); refrescar(); toast.success(t('passkeys.added')) },
-    onError: (e: unknown) => toast.error(extractErr(e, t('passkeys.error'))),
+    onSuccess: (r) => { if (!r) return; setNombre(''); refrescar(); toast.success(t('passkeys.added')) },
+    onError: (e: unknown) => toast.error(esFalloDeReautenticacion(e)
+      ? 'Contraseña o código incorrectos: no se ha añadido la passkey.'
+      : extractErr(e, t('passkeys.error'))),
   })
   const { mutate: renombrar } = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => authApi.passkeyRename(id, name),
@@ -70,9 +79,9 @@ export default function PasskeysSection() {
                   </span>
                 </span>
                 <button type="button" aria-label={`${t('passkeys.rename')} ${p.name || ''}`} onClick={() => setEditando({ id: p.id, name: p.name || '' })}
-                  style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', color: 'var(--text-2)' }}>✏</button>
+                  style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', cursor: 'pointer', color: 'var(--text-2)' }}>✏</button>
                 <button type="button" aria-label={`${t('passkeys.remove')} ${p.name || ''}`} onClick={() => quitar(p.id)}
-                  style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', color: 'var(--danger)' }}>🗑</button>
+                  style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', cursor: 'pointer', color: 'var(--danger)' }}>🗑</button>
               </>
             )}
           </li>

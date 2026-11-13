@@ -12,6 +12,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.cab import EmailTemplate
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.services.service_desk.plantillas_aviso import IDIOMAS, POR_DEFECTO, VARIABLES
 from app.services.service_desk.ticket_event_processor import renderizar
 from app.core.errores import ErrorDeDominio
@@ -48,7 +49,7 @@ def listar(db: Session, org_id: Optional[str]) -> list[dict]:
         idiomas = {}
         for idioma in IDIOMAS:
             fila = _fila(db, code, idioma, org_id)
-            asunto, cuerpo = textos.get(idioma) or textos["es"]
+            asunto, cuerpo = textos.get(idioma) or textos[IDIOMA_DE_RESPALDO]
             idiomas[idioma] = {
                 "subject": fila.subject if fila else asunto,
                 "body_html": fila.body_html if fila else cuerpo,

@@ -163,7 +163,7 @@ export default function OraclePage() {
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '14px 18px' }}>
             <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
+            <div className="u-text2-xs-mt2">{k.label}</div>
           </div>
         ))}
       </div>
@@ -201,7 +201,7 @@ export default function OraclePage() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['all', 'critical', 'high', 'medium', 'low'].map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${filter===s ? alpha(SEV[s]?.color, '60') || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
+            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${filter===s ? alpha(SEV[s]?.color, '60') || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
             {s === 'all' ? `Todos (${preds.length})` : `${SEV[s]?.label} (${preds.filter(p=>p.severity===s).length})`}
           </button>
         ))}
@@ -222,7 +222,7 @@ export default function OraclePage() {
                     <span style={{ fontSize: "var(--text-xl-em)" }}>{ti.icon}</span>
                     <div>
                       <div className="u-md-700">{p.title}</div>
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
+                      <div className="u-text2-xs-mt2">
                         {ti.label} · {p.entity_type} {p.entity_name ? `— ${p.entity_name}` : ''}
                       </div>
                     </div>
@@ -234,7 +234,7 @@ export default function OraclePage() {
                     )}
                     {!p.is_acknowledged && (
                       <button onClick={() => p.id && ack(p.id)}
-                        style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-2)' }}>
+                        style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-2)' }}>
                         ✓ Reconocer
                       </button>
                     )}

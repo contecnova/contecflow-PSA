@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
-import { clientExtApi, contractsApi, licensesApi, portalApi, wsApi, apiWsUrl } from '../../services/api'
+import { clientExtApi, clientsApi, contractsApi, type ClientContact, type Contract, licensesApi, portalApi, wsApi, apiWsUrl } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
@@ -15,6 +15,7 @@ import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 
+import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -55,15 +56,6 @@ interface ClientDetail {
   projects?: unknown[]
 }
 
-interface ClientContact {
-  id: string
-  full_name: string
-  email?: string | null
-  phone?: string | null
-  job_title?: string | null
-  role: string
-  is_primary?: boolean
-}
 interface ContactForm { full_name: string; email: string; phone: string; job_title: string; role: string; is_primary: boolean }
 
 interface LinkedLicense {
@@ -88,7 +80,8 @@ interface LinkedContract {
   start_date?: string | null
   end_date?: string | null
 }
-interface Contract { id: string; title?: string | null; client_name?: string | null; status: string }
+// Contrato: el tipo del cliente de API. Auditoria 2026-11 (#39): aqui se leia
+// `title`, que el backend no envia (contract_service da `name`): el selector salia sin nombre.
 
 /** `uat_out` + `project_name` (list_uat_team). */
 interface TeamUatSession {
@@ -222,11 +215,11 @@ export function ProjectsTab({ cid }: { cid: string }) {
 
   return (
     <div>
-      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 'var(--radius-md)', padding: '10px 16px', marginBottom: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
         {traducir('clients.un_proyecto_solo_puede_estar_vinculado_a')}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="u-row-between-mb16">
         <div className="u-text2-base">{linked.length} proyecto(s) vinculado(s)</div>
         <Button onClick={() => { setShowLink(s => !s); refetchAvailable() }} size="sm">
           {showLink ? '✕ Cerrar' : '+ Vincular proyecto'}
@@ -265,7 +258,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.code}</span>
+                  <span className="u-text2-mono-xs">{p.code}</span>
                   <span className="u-md-700">{p.name}</span>
                   <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusColor[p.status] || 'var(--text-2)'), '20'), color: statusColor[p.status] || 'var(--text-2)', fontWeight: 700 }}>
                     {statusLabel[p.status] || p.status}
@@ -275,7 +268,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
                   {p.start_date && `${p.start_date} → ${p.end_date || 'en curso'}`}
                 </div>
               </div>
-              <button onClick={() => { openConfirmGlobal({ message: `¿Desvincular "${p.name}" de este cliente?`, onConfirm: () => unlink(p.id), danger: true }) }} style={{ fontSize: "var(--text-xs)", padding: '4px 10px', borderRadius: 6, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button onClick={() => { openConfirmGlobal({ message: `¿Desvincular "${p.name}" de este cliente?`, onConfirm: () => unlink(p.id), danger: true }) }} style={{ fontSize: "var(--text-xs)", padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Desvincular
               </button>
             </div>
@@ -287,6 +280,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
 }
 
 export function ContactsTab({ cid }: { cid: string }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
@@ -295,7 +289,7 @@ export function ContactsTab({ cid }: { cid: string }) {
 
   const { data: contacts = [], isLoading } = useQuery<ClientContact[]>({
     queryKey: ['client-contacts', cid],
-    queryFn: () => clientExtApi.contacts(cid).then(r => r.data),
+    queryFn: () => clientsApi.contacts(cid).then(r => r.data),
   })
   const { mutate: add } = useMutation({
     mutationFn: (d: ContactForm) => clientExtApi.createContact(cid, d).then(r => r.data),
@@ -318,7 +312,7 @@ export function ContactsTab({ cid }: { cid: string }) {
   if (isLoading) return <Spinner />
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="u-row-between-mb16">
         <div className="u-text2-base">{contacts.length} contacto(s)</div>
         <Button onClick={() => setShowAdd(true)} size="sm">{traducir('clients.anadir_contacto')}</Button>
       </div>
@@ -326,8 +320,8 @@ export function ContactsTab({ cid }: { cid: string }) {
         <EmptyState icon="👤" title={traducir('clients.sin_contactos')} description="Anade un contacto principal para este cliente" />
       ) : contacts.map(ct => (
         <div key={ct.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: alpha((roleColor[ct.role] || 'var(--text-2)'), '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: roleColor[ct.role] || 'var(--text-2)' }}>
+          <div className="u-row-center-12">
+            <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: alpha((roleColor[ct.role] || 'var(--text-2)'), '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: roleColor[ct.role] || 'var(--text-2)' }}>
               {ct.full_name?.charAt(0) || '?'}
             </div>
             <div>
@@ -349,12 +343,12 @@ export function ContactsTab({ cid }: { cid: string }) {
       {showAdd && (
         <Modal open title={traducir('clients.nuevo_contacto')} onClose={() => setShowAdd(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div><label style={lbl}>Nombre completo *</label><input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>{traducir('clients.telefono')}</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Cargo</label><input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Rol</label>
-              <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp}>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Nombre completo *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Email</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>{traducir('clients.telefono')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inp} /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>Cargo</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>Rol</label>
+              <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp}>
                 {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
               </select>
             </div>
@@ -366,7 +360,7 @@ export function ContactsTab({ cid }: { cid: string }) {
             </div>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowAdd(false)} className="u-btn-outline-sm">Cancelar</button>
             <Button onClick={() => add(form)} disabled={!form.full_name}>{traducir('clients.anadir')}</Button>
           </div>
         </Modal>
@@ -376,6 +370,7 @@ export function ContactsTab({ cid }: { cid: string }) {
 }
 
 export function LicensesTab({ cid }: { cid: string }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -428,9 +423,9 @@ export function LicensesTab({ cid }: { cid: string }) {
       ))}
       {showLink && (
         <Modal open title="Vincular licencia" onClose={() => setShowLink(false)} width={440}>
-          <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>Licencia</label>
-            <select value={selectedLic} onChange={e => setSelectedLic(e.target.value)} style={inp}>
+          <div className="u-mb-14">
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Licencia</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedLic} onChange={e => setSelectedLic(e.target.value)} style={inp}>
               <option value="">Seleccionar...</option>
               {available.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
@@ -440,7 +435,7 @@ export function LicensesTab({ cid }: { cid: string }) {
             <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} />
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowLink(false)} className="u-btn-outline-sm">Cancelar</button>
             <Button onClick={() => link({ license_id: selectedLic, notes: licNote })} disabled={!selectedLic}>Vincular</Button>
           </div>
         </Modal>
@@ -450,6 +445,7 @@ export function LicensesTab({ cid }: { cid: string }) {
 }
 
 export function ContractsTab({ cid }: { cid: string }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -457,7 +453,7 @@ export function ContractsTab({ cid }: { cid: string }) {
   const [selectedCon, setSelectedCon] = useState('')
 
   const { data: linked = [] } = useQuery<LinkedContract[]>({ queryKey: ['client-contracts', cid], queryFn: () => clientExtApi.contracts(cid).then(r => r.data) })
-  const { data: allCons = [] } = useQuery<Contract[]>({ queryKey: ['contracts'], queryFn: () => contractsApi.list(undefined).then(r => r.data?.items ?? r.data ?? []) })
+  const { data: allCons = [] } = useQuery<Contract[]>({ queryKey: ['contracts'], queryFn: () => contractsApi.list(undefined).then(r => r.data ?? []) })
 
   const { mutate: link } = useMutation({
     mutationFn: (d: { contract_id: string }) => clientExtApi.linkContract(cid, d),
@@ -501,14 +497,14 @@ export function ContractsTab({ cid }: { cid: string }) {
       {showLink && (
         <Modal open title="Vincular contrato" onClose={() => setShowLink(false)} width={440}>
           <div className="u-mb-16">
-            <label style={lbl}>Contrato</label>
-            <select value={selectedCon} onChange={e => setSelectedCon(e.target.value)} style={inp}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Contrato</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedCon} onChange={e => setSelectedCon(e.target.value)} style={inp}>
               <option value="">Seleccionar...</option>
-              {available.map(c => <option key={c.id} value={c.id}>{c.title || c.client_name} — {c.status}</option>)}
+              {available.map(c => <option key={c.id} value={c.id}>{c.name || c.client_name} — {c.status}</option>)}
             </select>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowLink(false)} className="u-btn-outline-sm">Cancelar</button>
             <Button onClick={() => link({ contract_id: selectedCon })} disabled={!selectedCon}>Vincular</Button>
           </div>
         </Modal>
@@ -556,6 +552,7 @@ export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDeta
 }
 
 export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: ClientProjectRef[] }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
 
@@ -582,8 +579,8 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
         <>
           {projects.length > 1 && (
             <div className="u-mb-16">
-              <label style={lbl}>Proyecto</label>
-              <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Proyecto</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
             </div>
@@ -599,7 +596,7 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                   <div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{s.code}</span>
+                      <span className="u-text2-mono-xs">{s.code}</span>
                       <span className="u-md-700">{s.title}</span>
                     </div>
                     {s.description && <div className="u-text2-sm">{s.description.slice(0, 120)}</div>}
@@ -634,6 +631,8 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
 }
 
 export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientProjectRef[] }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -729,7 +728,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
             <div className="u-flex1">
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
                 <IconFR />
-                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
+                <span className="u-text2-mono-xs">{fr.code}</span>
                 <span className="u-md-700">{fr.title}</span>
               </div>
               {fr.project_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>📁 {fr.project_name}</div>}
@@ -758,8 +757,8 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{fr.description?.slice(0, 200)}</div>
           {fr.pm_response && (
             <div style={{ marginTop: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-              <strong style={{ color: 'var(--success)' }}>{traducir('clients.respuesta_del_equipo')}</strong> {fr.pm_response}
-              {fr.estimated_cost && <span style={{ marginLeft: 8, color: 'var(--warning)' }}>· {fr.estimated_cost}€</span>}
+              <strong className="u-success">{traducir('clients.respuesta_del_equipo')}</strong> {fr.pm_response}
+              {fr.estimated_cost && <span style={{ marginLeft: 8, color: 'var(--warning)' }}>· {fmtMoneda(fr.estimated_cost)}</span>}
               {fr.estimated_delivery_weeks && <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· {fr.estimated_delivery_weeks} semanas</span>}
             </div>
           )}
@@ -792,11 +791,11 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
             <div><label style={ls}>{traducir('clients.respuesta_analisis')}</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('clients.respuesta_del_equipo_2')} aria-label={traducir('clients.respuesta_del_equipo_2')} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               <div><label style={ls}>Horas estimadas</label><input type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" /></div>
-              <div><label style={ls}>Coste estimado €</label><input type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Coste" aria-label="Coste estimado" /></div>
+              <div><label style={ls}>Coste estimado ({fmtMoneda.simbolo})</label><input type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Coste" aria-label="Coste estimado" /></div>
               <div><label style={ls}>Semanas entrega</label><input type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label={traducir('clients.semanas_de_entrega')} /></div>
             </div>
-            <div><label style={ls}>Estado</label>
-              <select value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} style={fs}>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Estado</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} style={fs}>
                 <option value="estimated">{traducir('clients.presupuestada_pendiente_aprobacion_cliente')}</option>
                 <option value="rejected">{traducir('clients.rechazada_no_factible')}</option>
               </select>
@@ -819,7 +818,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
               <div><b>{traducir('clients.titulo')}</b> {crDetail.title}</div>
               <div><b>{traducir('clients.descripcion')}</b> {crDetail.description}</div>
               <div><b>Impacto:</b> {crDetail.impact_label || crDetail.impact || '—'}</div>
-              <div><b>Coste impacto:</b> {crDetail.cost_impact != null ? crDetail.cost_impact + ' €' : '—'}</div>
+              <div><b>Coste impacto:</b> {crDetail.cost_impact != null ? fmtMoneda(crDetail.cost_impact) : '—'}</div>
               <div><b>Impacto en plazo:</b> {crDetail.schedule_impact_days != null ? crDetail.schedule_impact_days + ' días' : '—'}</div>
               <div><b>{traducir('clients.notas_resolucion')}</b> {crDetail.resolution_notes || '—'}</div>
               <div><b>Fechas:</b> {CR_FECHAS.map(f => crDetail[f] && (<span key={f} style={{ marginRight: 10 }}>{f.replace('_at', '')}: {crDetail[f]}</span>))}</div>
@@ -851,6 +850,7 @@ export function PortalMensajesTab({ cid, projects }: { cid: string; projects: Cl
 }
 
 export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: ClientProjectRef[] }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
   const { data: docs = [], isLoading } = useQuery<TeamPortalDocument[]>({
@@ -866,8 +866,8 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
     <div>
       {projects.length > 1 && (
         <div className="u-mb-16">
-          <label style={lbl}>Proyecto</label>
-          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Proyecto</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
@@ -879,7 +879,7 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
         ? <EmptyState icon="📄" title={traducir('clients.sin_documentos')} description="No hay documentos compartidos en el portal para este proyecto" />
         : docs.map(d => (
           <div key={d.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div className="u-row-center-12">
               <span style={{ fontSize: "var(--text-2xl)" }}>{catIcon[d.category] || '📄'}</span>
               <div>
                 <div className="u-md-700">{d.title}</div>
@@ -890,7 +890,7 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
               </div>
             </div>
             {d.file_url && (
-              <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', color: 'var(--accent)', textDecoration: 'none', background: 'var(--accent-muted)' }}>
+              <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', color: 'var(--accent)', textDecoration: 'none', background: 'var(--accent-muted)' }}>
                 ⬇ Descargar
               </a>
             )}
@@ -901,6 +901,7 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
 }
 
 export function PortalSettingsTab({ cid }: { cid: string }) {
+  const idCampo = useId()
   const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -974,23 +975,23 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
       <div className="u-stack-16">
         <div style={{ ...panel, padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>🌍 Idioma y SLA</div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>{traducir('clients.idioma_por_defecto_del_portal')}</label>
-            <select value={defaultLang} onChange={e => setDefaultLang(e.target.value)} style={inp}>
+          <div className="u-mb-14">
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{traducir('clients.idioma_por_defecto_del_portal')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={defaultLang} onChange={e => setDefaultLang(e.target.value)} style={inp}>
               {languages.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
             </select>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>{traducir('clients.se_aplica_a_nuevos_usuarios_cada_usuario')}</div>
           </div>
           <div>
-            <label style={lbl}>Tier SLA</label>
-            <select value={slaTier} onChange={e => setSlaTier(e.target.value)} style={inp}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Tier SLA</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={slaTier} onChange={e => setSlaTier(e.target.value)} style={inp}>
               <option value="">{traducir('clients.sin_tier')}</option>
               <option value="bronze">🥉 Bronze — 24h respuesta</option>
               <option value="silver">🥈 Silver — 8h respuesta</option>
               <option value="gold">🥇 Gold — 4h respuesta</option>
               <option value="enterprise">💎 Enterprise — 1h respuesta 24/7</option>
             </select>
-            {slaTier && <div style={{ marginTop: 6, fontSize: "var(--text-xs)", padding: '6px 10px', borderRadius: 6, background: alpha((SLA_COLOR[slaTier] || 'var(--text-2)'), '15'), color: SLA_COLOR[slaTier] || 'var(--text-2)' }}>
+            {slaTier && <div style={{ marginTop: 6, fontSize: "var(--text-xs)", padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: alpha((SLA_COLOR[slaTier] || 'var(--text-2)'), '15'), color: SLA_COLOR[slaTier] || 'var(--text-2)' }}>
               Tier activo: <strong>{slaTier.toUpperCase()}</strong>
             </div>}
           </div>
@@ -1012,8 +1013,8 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             </label>
           ))}
           <div style={{ marginTop: 4 }}>
-            <label style={lbl}>{traducir('clients.max_usuarios_de_portal')}</label>
-            <input type="number" min={1} max={100} value={maxUsers} onChange={e => setMaxUsers(+e.target.value)} style={inp} />
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>{traducir('clients.max_usuarios_de_portal')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min={1} max={100} value={maxUsers} onChange={e => setMaxUsers(+e.target.value)} style={inp} />
           </div>
         </div>
 

@@ -15,6 +15,7 @@ from app.core.errores import ErrorDeDominio
 
 
 from app.services.approval_engine._base import _apply_entity_final_decision, _is_authorized, _notify_requester_approved, _record_sod_violation, find_default_workflow, log_financial_approval_event, logger, notify_approver, scope_request_query
+from app.models.user import UserRole
 
 def create_approval_request(payload, db: Session, current_user: User, confirmar: bool = True) -> dict:
     """
@@ -377,7 +378,7 @@ def cancel_approval_request(db: Session, request_id: str, current_user: User):
     ).filter(ApprovalRequest.id == request_id).first()
     if not req:
         raise ErrorDeDominio(404)
-    if req.requested_by != current_user.id and current_user.role not in ("admin", "pm"):
+    if req.requested_by != current_user.id and current_user.role not in (UserRole.admin, UserRole.pm):
         raise ErrorDeDominio(403)
     req.status = "cancelled"
     req.completed_at = datetime.now(timezone.utc)

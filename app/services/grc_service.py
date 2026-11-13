@@ -88,17 +88,17 @@ def ensure_matrix_seeded(db: Session, default_matrix: dict) -> None:
         db.commit()
 
 
-def ensure_matrix_covers_all_modules(db: Session, default_matrix: dict) -> int:
+def ensure_matrix_covers_all_modules(db: Session, default_matrix: dict, fastapi_app) -> int:
     """Completa los valores globales para TODOS los módulos que expone la API.
 
     Auditoría 2026-08 (hallazgo 28): la lista de módulos se deriva del router
     (app/core/grc_catalog.py). Las casillas nuevas nacen con ``allowed=True``:
     la matriz es un control ADITIVO que solo puede quitar permiso. Devuelve
-    cuántas filas creó. Idempotente.
+    cuántas filas creó. Idempotente. `fastapi_app` lo pasa la ruta
+    (`request.app`): importar `app.main` desde un servicio invertía las capas.
     """
     from app.core.grc_catalog import discover_module_actions
     from app.db.session import sin_filtro_de_tenant
-    from app.main import app as fastapi_app
 
     por_modulo = discover_module_actions(fastapi_app)
     roles = list(default_matrix.keys())
@@ -327,23 +327,6 @@ def list_audit_log_db(
 
 
 # ── Permission check (internal utility) ──────────────────────────────────────
-
-def check_permission_db(
-    db: Session,
-    role: str,
-    module: str,
-    action: str,
-    default_matrix: dict,
-) -> bool:
-    """
-    Return True if role has permission for (module, action).
-    Falls back to default_matrix if DB has no matching row.
-    """
-    row = get_role_permission(db, role, module, action)
-    if row is not None:
-        return row.allowed
-    return default_matrix.get(role, {}).get(module, {}).get(action, False)
-
 
 # ── Serialization helpers ───────────────────────────────────────────────────────────
 

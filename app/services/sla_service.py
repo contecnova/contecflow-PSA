@@ -584,6 +584,9 @@ def get_client_from_token(authorization: Optional[str], db: Session) -> "Optiona
         )
         if payload.get("type") != "client":
             return None
+        from app.services.client_portal_service.autenticacion import token_de_cliente_revocado
+        if token_de_cliente_revocado(payload):  # auditoria 2026-11 #23
+            return None
         return db.query(ClientUser).filter(
             ClientUser.id == payload.get("sub"),
             ClientUser.is_active == True,

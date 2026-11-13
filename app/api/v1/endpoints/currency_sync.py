@@ -16,7 +16,13 @@ def sync_ecb_exchange_rates(
 ):
     from app.services.exchange_rate_service import sync_ecb_rates
 
-    result = sync_ecb_rates(db, force=force)
+    # Segunda auditoria 2026-11 (n.º 20): la descarga del BCE va al worker. Con
+    # cola: 202 `{status: "queued"}` (un fallo queda en el log del worker, ya no
+    # es un 502). Sin cola, como siempre.
+    from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola
+    result = encolar(sync_ecb_rates, force=force, _sesion=db)
+    if result is EN_COLA:
+        return respuesta_en_cola()
     if not result.get("ok"):
         raise HTTPException(status_code=502, detail=result.get("error", "ECB fetch failed"))
     return APIResponse.ok(data=result)

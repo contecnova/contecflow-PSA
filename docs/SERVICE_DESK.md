@@ -323,7 +323,6 @@ Medido en `app/worker.py` (03-11-2026). Las horas van en `DEFAULT_TIMEZONE`.
 | `problem_auto_detect` | cada hora (:05) | Propone problemas a partir de incidentes repetidos. |
 | `routing_outcome_scan` | cada hora (:20) | Registra el resultado de las asignaciones para la recomendada. |
 | `analytics_snapshot` | cada hora (:50) | Foto de métricas ITSM. |
-| `catalog_popularity_update` | 6 h | Popularidad de los servicios del catálogo. |
 | `kedb_expiry_scan` | diario, 06:30 | Errores conocidos caducados. |
 | `kedb_effectiveness_scan` | diario, 07:00 | Eficacia de los workarounds. |
 | `compliance_check` | lunes, 06:00 | Informe de cumplimiento ITSM. |

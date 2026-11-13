@@ -32,7 +32,7 @@ _MODELOS_POR_DEFECTO = os.path.join(os.path.dirname(os.path.dirname(os.path.dirn
 
 
 def _cargar_modelos() -> dict:
-    ruta = os.getenv("AI_MODELS_CATALOG_PATH") or _MODELOS_POR_DEFECTO
+    ruta = settings.AI_MODELS_CATALOG_PATH or _MODELOS_POR_DEFECTO
     with open(ruta, encoding="utf-8") as fichero:
         return json.load(fichero)
 

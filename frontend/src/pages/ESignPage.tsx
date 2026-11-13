@@ -3,7 +3,7 @@
  * Lists all envelopes, allows creating signature requests on documents.
  */
 
-import { CSSProperties, ChangeEvent, useState } from 'react'
+import { CSSProperties, ChangeEvent, useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { documentsApi } from '../services/api'
@@ -132,6 +132,7 @@ const ls: CSSProperties = {
 }
 
 function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCreated: (envelope: Envelope) => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState<CreateEnvelopeForm>({
     document_id: '',
@@ -181,32 +182,32 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
     <Modal open title={t('esign.create_title')} onClose={onClose} width={560}>
       <div className="u-stack-14">
         <div>
-          <label style={ls}>{t('esign.document')}</label>
-          <select value={form.document_id} onChange={setField('document_id')} style={fs}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('esign.document')}</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.document_id} onChange={setField('document_id')} style={fs}>
             <option value="">{t('esign.select_document')}</option>
             {documents.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>{t('esign.subject')}</label>
-          <input value={form.subject} onChange={setField('subject')} style={fs} placeholder={t('esign.subject_ph')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('esign.subject')}</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject} onChange={setField('subject')} style={fs} placeholder={t('esign.subject_ph')} />
         </div>
         <div>
-          <label style={ls}>{t('esign.message')}</label>
-          <textarea value={form.message} onChange={setField('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('esign.message_ph')} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('esign.message')}</label>
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.message} onChange={setField('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('esign.message_ph')} />
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <div className="u-wrap-10">
           <div style={{ flex: 1, minWidth: 160 }}>
-            <label style={ls}>{t('esign.provider')}</label>
-            <select value={form.provider} onChange={setField('provider')} style={fs}>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('esign.provider')}</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.provider} onChange={setField('provider')} style={fs}>
               <option value="manual">{t('esign.provider_manual')}</option>
               <option value="docusign">DocuSign</option>
               <option value="adobe_sign">Adobe Sign</option>
             </select>
           </div>
           <div style={{ width: 120, maxWidth: '100%' }}>
-            <label style={ls}>{t('esign.valid_days')}</label>
-            <input type="number" value={form.expires_days} onChange={setField('expires_days')} style={fs} min={1} max={30} />
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('esign.valid_days')}</label>
+            <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.expires_days} onChange={setField('expires_days')} style={fs} min={1} max={30} />
           </div>
         </div>
 
@@ -217,9 +218,9 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
           </div>
           {signers.map((s, i: number) => (
             <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-              <input value={s.name} onChange={e => setSigner(i, 'name', e.target.value)}
+              <input aria-label={t('esign.signer_name_ph')} value={s.name} onChange={e => setSigner(i, 'name', e.target.value)}
                 placeholder={t('esign.signer_name_ph')} style={{ ...fs, flex: 1 }} />
-              <input value={s.email} onChange={e => setSigner(i, 'email', e.target.value)}
+              <input aria-label={t('esign.signer_email_ph')} value={s.email} onChange={e => setSigner(i, 'email', e.target.value)}
                 placeholder={t('esign.signer_email_ph')} type="email" style={{ ...fs, flex: 1 }} />
               <input value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
                 type="number" min={1} style={{ ...fs, width: 56 }} title={t('esign.signer_order_ph')} />
@@ -311,9 +312,9 @@ export default function ESignPage(): JSX.Element {
             { label: 'Pendientes',  value: stats.pending,   color: 'var(--info)' },
             { label: 'Rechazadas',  value: stats.declined,  color: 'var(--danger)' },
           ].map(k => (
-            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '13px 16px' }}>
+            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '13px 16px' }}>
               <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
+              <div className="u-text2-xs-mt2">{k.label}</div>
             </div>
           ))}
         </div>
@@ -323,8 +324,8 @@ export default function ESignPage(): JSX.Element {
         <EmptyState icon="✍" title={t('esign.empty_title')}
           description={t('esign.empty_desc')} />
       ) : (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
+          <table className="u-table">
             <thead>
               <tr>
                 {['Asunto', 'Proveedor', 'Firmantes', 'Estado', 'Enviado', 'Vence', ''].map(h => (
@@ -414,7 +415,7 @@ export default function ESignPage(): JSX.Element {
                   ) : detail.provider === 'manual' ? (
                     <button
                       onClick={() => markSigned({ envelopeId: detail.id, signerId: s.id })}
-                      style={{ background: 'var(--success-bg)', border: 'none', borderRadius: 6, color: 'var(--success)', padding: '4px 10px', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
+                      style={{ background: 'var(--success-bg)', border: 'none', borderRadius: 'var(--radius-sm)', color: 'var(--success)', padding: '4px 10px', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                       Marcar firmado
                     </button>
                   ) : (

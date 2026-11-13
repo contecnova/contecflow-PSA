@@ -41,11 +41,9 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.services.abac import ABACService
 from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger("contecflow.abac.enforce")
@@ -85,7 +83,7 @@ def _denegar(user: User, resource_type: str, resource_id, action: str,
         ).inc()
     except Exception:
         logger.debug("enforce_abac: fallo best-effort ignorado", exc_info=True)
-    raise HTTPException(status_code=403, detail="Access denied")
+    raise ErrorDeDominio(status_code=403, detail="Access denied")
 
 
 def evaluar(db: Session, user: User, org_id, resource_type: str, resource_id, action: str,
@@ -95,6 +93,7 @@ def evaluar(db: Session, user: User, org_id, resource_type: str, resource_id, ac
     Revisión 2026-11: la usan `enforce_abac` y el explicador de accesos (este
     con `auditar=False`, para no escribir decisiones que nadie tomó).
     """
+    from app.services.abac import ABACService  # core no importa servicios al cargarse (#43)
     svc = ABACService(db=db, org_id=str(org_id))
     if not svc.list_policies(active_only=True):
         return True, [], None
@@ -142,14 +141,14 @@ def enforce_abac(
             db, user, getattr(user, "organization_id", None),
             resource_type, resource_id, action,
         )
-    except (HTTPException, ErrorDeDominio):
+    except ErrorDeDominio:
         raise
     except Exception as exc:
         logger.error(
             "ABAC evaluation error for %s/%s — denying by default: %s",
             resource_type, resource_id, exc, exc_info=True,
         )
-        raise HTTPException(
+        raise ErrorDeDominio(
             status_code=403,
             detail="Access temporarily unavailable — please try again or contact support",
         )

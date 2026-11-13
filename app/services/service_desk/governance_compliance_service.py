@@ -626,10 +626,17 @@ def generate_compliance_report(
 
 
 def _persist_compliance_report(db: Session, report: dict) -> None:
-    """Save compliance report to sd_compliance_reports if table/model exists."""
+    """Guarda el informe en `sd_compliance_reports`.
+
+    La organizacion la pone el sellado desde el contexto de la sesion: el
+    worker lo genera una vez por organizacion (segunda auditoria 2026-11, #33;
+    antes salia un unico informe de todas, con `organization_id` NULL). Un
+    fallo al guardar se propaga: antes era un aviso y la tarea salia bien.
+    """
     try:
         from app.models.service_desk import ComplianceReport
         rec = ComplianceReport(
+            organization_id=db.info.get("organization_id"),
             id=str(uuid4()),
             generated_at=datetime.now(tz=timezone.utc),
             period_days=report["period_days"],
@@ -639,9 +646,10 @@ def _persist_compliance_report(db: Session, report: dict) -> None:
         )
         db.add(rec)
         db.commit()
-    except Exception as exc:
+    except Exception:
         db.rollback()
-        logger.warning("Could not persist compliance report: %s", exc)
+        logger.error("No se pudo guardar el informe de cumplimiento", exc_info=True)
+        raise
 
 
 # ── Executive dashboard ───────────────────────────────────────────────────────

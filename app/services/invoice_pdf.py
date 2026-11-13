@@ -20,6 +20,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
 from app.services._pdf_marca import PALETA_DE_FACTURA
+from app.core.constantes import NOMBRE_DEL_PRODUCTO, NOMBRE_COMPLETO_DEL_PRODUCTO
 
 
 # ── PDF de factura ───────────────────────────────────────────────────────────
@@ -294,8 +295,8 @@ def generate_invoice_pdf(
     po_reference: Optional[str] = None,
     period_from=None,
     period_to=None,
-    company_name: str = "Contecflow PSA",
-    generated_by: str = "Contecflow",
+    company_name: str = NOMBRE_COMPLETO_DEL_PRODUCTO,
+    generated_by: str = NOMBRE_DEL_PRODUCTO,
     paleta=None,
     simbolo: Optional[str] = None,
 ) -> bytes:
@@ -339,8 +340,8 @@ def generate_invoice_pdf(
     return buffer.getvalue()
 
 
-def pdf_de_factura(db, inv, lineas=None, *, org_id=None, company_name: str = "Contecflow PSA",
-                   paleta=None, generated_by: str = "Contecflow") -> bytes:
+def pdf_de_factura(db, inv, lineas=None, *, org_id=None, company_name: str = NOMBRE_COMPLETO_DEL_PRODUCTO,
+                   paleta=None, generated_by: str = NOMBRE_DEL_PRODUCTO) -> bytes:
     """El PDF de una `Invoice` guardada: la unica traduccion fila → `generate_invoice_pdf`.
 
     Auditoria 2026-11 (hallazgo 23). La misma traduccion (lineas, moneda y su

@@ -132,11 +132,12 @@ def _aviso_al_canal(db: Session, request, step) -> None:
     try:
         from app.services.integrations import notify_event
         solicitante = db.query(User.full_name).filter(User.id == request.requested_by).first()
+        # Auditoria 2026-11 (#29): al canal de la organizacion de la aprobacion.
         notify_event("approval.required", {
             "id": request.id, "title": request.entity_summary or request.entity_id,
             "entity_type": request.entity_type, "step": f"{step.step_order} · {step.name}",
             "requester": solicitante[0] if solicitante else "—",
-        }, db)
+        }, db, organization_id=getattr(request, "organization_id", None))
     except Exception:
         logger.warning("No se pudo avisar al canal de la aprobacion %s", request.id, exc_info=True)
 
@@ -146,6 +147,13 @@ def aprobadores_del_paso(request, step, db: Session) -> set:
     if step is None:
         return set()
     q = db.query(User.id).filter(User.is_active == True)  # noqa: E712
+    # Auditoria 2026-11 (#29): en un job o con sesion de superadmin no hay
+    # filtro de tenant, y «aprueba el rol admin» avisaba a los admin de todas
+    # las organizaciones. Se acota a la de la solicitud.
+    org_de_la_solicitud = getattr(request, "organization_id", None)
+    if org_de_la_solicitud:
+        from app.db.session import _miembros_de
+        q = q.filter(_miembros_de(User, org_de_la_solicitud))
     tipo = step.approver_type or ""
     ids: set = set()
     if tipo == "user" and step.approver_user_id:

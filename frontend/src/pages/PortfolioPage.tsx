@@ -22,6 +22,7 @@ import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
 type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
 
@@ -83,7 +84,6 @@ type PortfolioDashboardData = {
 
 // ── utils ──────────────────────────────────────────────────────────────────────
 const _fmt  = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtE = (n: number | string | null | undefined) => n == null ? '—' : `${Number(n).toLocaleString(localeActivo(), { maximumFractionDigits: 0 })} €`;
 const fmtI = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
 const RAG: Record<string, { color: string; label: string; Icon: LucideIcon }> = {
@@ -115,6 +115,8 @@ function RagPill({ rag }: { rag: RagLevel }) {
 
 // ── Create/edit portfolio modal ────────────────────────────────────────────────
 function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem | null; onClose: () => void; onSave: (data: PortfolioFormData) => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = React.useId()
   const t = useAppT()
   const [form, setForm] = useState<PortfolioFormData>(initial
     ? {
@@ -132,25 +134,25 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose);
 
   return (
-    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-create-title" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
+    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-create-title" style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-lg)', padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
         <div id="portfolio-create-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 20 }}>{initial ? 'Editar cartera' : 'Nueva cartera'}</div>
         <div className="u-stack-14">
-          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder={t('portfolio.nombre_de_la_cartera')} /></div>
-          <div><label style={ls}>{t('portfolio.descripcion')}</label><textarea value={form.description || ''} onChange={set('description')} style={{ ...fs, resize: 'vertical', minHeight: 70 }} /></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={fs} placeholder={t('portfolio.nombre_de_la_cartera')} /></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('portfolio.descripcion')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description || ''} onChange={set('description')} style={{ ...fs, resize: 'vertical', minHeight: 70 }} /></div>
           <div className="u-grid2-12">
-            <div><label style={ls}>Estado</label>
-              <select value={form.status} onChange={set('status')} style={fs}>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Estado</label>
+              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} style={fs}>
                 <option value="planning">{t('portfolio.planificacion')}</option>
                 <option value="active">Activo</option>
                 <option value="archived">Archivado</option>
               </select>
             </div>
-            <div><label style={ls}>Presupuesto total (€)</label><input type="number" value={form.budget_total || ''} onChange={set('budget_total')} style={fs} placeholder="Ej: 500000" /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Presupuesto total ({fmtMoneda.simbolo})</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.budget_total || ''} onChange={set('budget_total')} style={fs} placeholder="Ej: 500000" /></div>
           </div>
           <div className="u-grid2-12">
-            <div><label style={ls}>Fecha inicio</label><DateInput value={form.start_date || ''} onChange={set('start_date')} style={fs} /></div>
-            <div><label style={ls}>Fecha fin</label><DateInput value={form.end_date || ''} onChange={set('end_date')} style={fs} /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Fecha inicio</label><DateInput id={`${idCampo}-5`} value={form.start_date || ''} onChange={set('start_date')} style={fs} /></div>
+            <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Fecha fin</label><DateInput id={`${idCampo}-6`} value={form.end_date || ''} onChange={set('end_date')} style={fs} /></div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
@@ -188,9 +190,9 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-add-project-title" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-add-project-title" style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-lg)', padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
         <div id="portfolio-add-project-title" style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 14 }}>{t('portfolio.anadir_proyecto_a_la_cartera')}</div>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proyectos..."
+        <input aria-label="Buscar proyectos..." value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proyectos..."
           style={{ padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", marginBottom: 12 }} />
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {available.map(p => (
@@ -215,6 +217,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
 
 // ── Portfolio dashboard ────────────────────────────────────────────────────────
 function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | number; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
   const toast = useToast();
   const t = useAppT()
   const qc = useQueryClient();
@@ -239,7 +242,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
   if (!portfolioId) return null;
 
   return (
-    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 40, overflowY: 'auto' }} onMouseDown={onClose}>
+    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 40, overflowY: 'auto' }} onMouseDown={onClose}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-dashboard-title" style={{ background: 'var(--surface-1)', borderRadius: 16, padding: 32, width: 900, maxWidth: '96vw', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', marginBottom: 40 }} onMouseDown={e => e.stopPropagation()}>
         {isLoading && <div className="u-text3">Cargando dashboard…</div>}
         {dash && <>
@@ -263,7 +266,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
           {/* KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
             {[
-              { label: 'Presupuesto total', value: fmtE(dash.budget_envelope), sub: `Gastado: ${fmtE(dash.budget_spent)}`, Icon: DollarSign, color: dash.budget_pct > 100 ? 'var(--danger)' : 'var(--text-1)' },
+              { label: 'Presupuesto total', value: fmtMoneda(dash.budget_envelope, { decimales: 0 }), sub: `Gastado: ${fmtMoneda(dash.budget_spent, { decimales: 0 })}`, Icon: DollarSign, color: dash.budget_pct > 100 ? 'var(--danger)' : 'var(--text-1)' },
               { label: '% Gastado',   value: `${dash.budget_pct}%`, sub: dash.budget_pct > 90 ? '⚠ Cerca del límite' : 'Dentro de presupuesto', Icon: BarChart2, color: dash.budget_pct > 100 ? 'var(--danger)' : dash.budget_pct > 85 ? 'var(--warning)' : 'var(--success)' },
               { label: 'En riesgo',   value: dash.health_counts.red || 0, sub: `${dash.health_counts.yellow || 0} en atención`, Icon: AlertTriangle, color: dash.health_counts.red > 0 ? 'var(--danger)' : 'var(--text-1)' },
               { label: 'En control',  value: dash.health_counts.green || 0, sub: `${dash.project_count} total`, Icon: CheckCircle, color: 'var(--success)' },
@@ -309,7 +312,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                         }}>
                         <td style={{ padding: '11px 14px' }}><RagPill rag={p.rag} /></td>
                         <td style={{ padding: '11px 14px', fontWeight: 600 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className="u-row-center-6">
                             {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                             {p.project_name}
                           </span>
@@ -324,8 +327,8 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                         </td>
                         <td style={{ padding: '11px 14px', fontWeight: 600, color: p.cpi == null ? 'var(--text-3)' : p.cpi >= 0.9 ? 'var(--success)' : 'var(--danger)' }}>{fmtI(p.cpi)}</td>
                         <td style={{ padding: '11px 14px', fontWeight: 600, color: p.spi == null ? 'var(--text-3)' : p.spi >= 0.9 ? 'var(--success)' : 'var(--danger)' }}>{fmtI(p.spi)}</td>
-                        <td style={{ padding: '11px 14px', color: 'var(--text-2)' }}>{fmtE(p.bac)}</td>
-                        <td style={{ padding: '11px 14px', color: 'var(--text-2)' }}>{fmtE(p.ac)}</td>
+                        <td style={{ padding: '11px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.bac, { decimales: 0 })}</td>
+                        <td style={{ padding: '11px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.ac, { decimales: 0 })}</td>
                         <td style={{ padding: '11px 14px' }}>
                           {nextMs ? (
                             <span className="u-text2-xs">
@@ -378,6 +381,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PortfolioPage() {
+  const fmtMoneda = useFormatoMoneda()
   const toast = useToast();
   const t = useAppT() as (key: string) => string
   const qc = useQueryClient();
@@ -412,7 +416,7 @@ export default function PortfolioPage() {
     <PageShell style={{ maxWidth: 1100, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="u-row-center-12">
           <Briefcase size={22} color="var(--accent)" />
           <div>
             <h1 style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, margin: 0 }}>{t('portfolio.title')}</h1>
@@ -438,7 +442,7 @@ export default function PortfolioPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>
           {portfolios.map(p => (
             <div key={p.id} style={{
-              background: 'var(--surface-2)', borderRadius: 14, padding: '20px 22px',
+              background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', padding: '20px 22px',
               cursor: 'pointer', transition: 'box-shadow 0.2s, transform 0.15s',
               border: '1px solid transparent',
             }}
@@ -473,7 +477,7 @@ export default function PortfolioPage() {
               {p.budget_total != null && (
                 <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 10 }}>
                   <DollarSign size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Presupuesto: <strong className="u-text1">{Number(p.budget_total).toLocaleString(localeActivo(), { maximumFractionDigits: 0 })} €</strong>
+                  Presupuesto: <strong className="u-text1">{fmtMoneda(p.budget_total, { decimales: 0 })}</strong>
                 </div>
               )}
 
@@ -482,7 +486,7 @@ export default function PortfolioPage() {
                   style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                   Editar
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="u-row-center-12">
                   <button onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:`¿Eliminar cartera "${p.name}"?`,onConfirm:()=>deletePortfolio(p.id),danger:true}) }}
                     style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                     Eliminar

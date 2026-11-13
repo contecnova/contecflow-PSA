@@ -2,7 +2,7 @@
  * TrainingPage — Formación y Certificaciones
  * Catálogo de cursos, inscripciones por usuario, certificaciones con alertas de caducidad
  */
-import { CSSProperties, useState } from 'react'
+import { CSSProperties, useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingApi, usersApi } from '../services/api'
@@ -19,6 +19,7 @@ import { sanitizeUrl } from '../utils/security'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type TrainingStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled'
 
 interface CourseItem {
@@ -75,6 +76,8 @@ const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:
 const LS: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }
 
 function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose: () => void }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -96,8 +99,8 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar curso' : 'Nuevo curso'} width={520}>
       <div className="u-stack-12">
-        <div><label style={LS}>{t('training.titulo')}</label>
-          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={IS} autoFocus /></div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('training.titulo')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={IS} autoFocus /></div>
         <div><label style={LS}>Proveedor</label>
           <input value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} style={IS} placeholder={t('training.nombre_del_proveedor')} aria-label={t('training.nombre_del_proveedor')} /></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
@@ -105,7 +108,7 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
             <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={IS} placeholder="Categoria" aria-label="Categoria" /></div>
           <div><label style={LS}>Horas</label>
             <input type="number" value={form.duration_h} onChange={e => setForm(f => ({ ...f, duration_h: e.target.value }))} style={IS} placeholder={t('training.horas_del_curso')} aria-label={t('training.horas_del_curso')} /></div>
-          <div><label style={LS}>Coste €</label>
+          <div><label style={LS}>Coste ({fmtMoneda.simbolo})</label>
             <input type="number" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} style={IS} placeholder={t('training.coste_del_curso')} aria-label={t('training.coste_del_curso')} /></div>
         </div>
         <div><label style={LS}>URL</label>
@@ -120,6 +123,7 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
 }
 
 function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?: string | number | null; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -147,22 +151,22 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar certificación' : 'Nueva certificación'} width={500}>
       <div className="u-stack-12">
-        {!userId && <div><label style={LS}>Usuario *</label>
-          <select value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={IS}>
+        {!userId && <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>Usuario *</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={IS}>
             <option value="">Seleccionar…</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select></div>}
-        <div><label style={LS}>{t('training.nombre_certificacion')}</label>
-          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={IS} autoFocus /></div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('training.nombre_certificacion')}</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={IS} autoFocus /></div>
+        <div className="u-grid2-10">
           <div><label style={LS}>Organismo emisor</label>
             <input value={form.issuer} onChange={e => setForm(f => ({ ...f, issuer: e.target.value }))} style={IS} placeholder="Entidad emisora" aria-label="Entidad emisora" /></div>
-          <div><label style={LS}>ID certificado</label>
-            <input value={form.cert_id} onChange={e => setForm(f => ({ ...f, cert_id: e.target.value }))} style={IS} /></div>
-          <div><label style={LS}>Obtenida</label>
-            <DateInput value={form.obtained_at} onChange={e => setForm(f => ({ ...f, obtained_at: e.target.value }))} style={IS} /></div>
-          <div><label style={LS}>Caduca</label>
-            <DateInput value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} style={IS} /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>ID certificado</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.cert_id} onChange={e => setForm(f => ({ ...f, cert_id: e.target.value }))} style={IS} /></div>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>Obtenida</label>
+            <DateInput id={`${idCampo}-4`} value={form.obtained_at} onChange={e => setForm(f => ({ ...f, obtained_at: e.target.value }))} style={IS} /></div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>Caduca</label>
+            <DateInput id={`${idCampo}-5`} value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} style={IS} /></div>
         </div>
         <div><label style={LS}>{t('training.url_verificacion')}</label>
           <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://verificacion.com/certificado" aria-label={t('training.url_de_verificacion')} /></div>
@@ -176,6 +180,7 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
 }
 
 export default function TrainingPage() {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const qc = useQueryClient()
   const { user, hasRole } = useAuth()
@@ -234,16 +239,16 @@ export default function TrainingPage() {
       {tab === 'certs' && (expired.length > 0 || expiringSoon.length > 0) && (
         <div className="u-mb-20">
           {expired.map((c) => (
-            <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6, background:'var(--danger-bg)', border:'1px solid var(--danger-border)', borderRadius:10, alignItems:'center' }}>
+            <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6, background:'var(--danger-bg)', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-md)', alignItems:'center' }}>
               <span>🔴</span>
-              <div className="u-flex1"><span style={{ fontSize: 'var(--text-base)', fontWeight:700 }}>{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
+              <div className="u-flex1"><span className="u-base-700">{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
               <span style={{ fontSize: 'var(--text-sm)', color:'var(--danger)', fontWeight:700 }}>Caducada</span>
             </div>
           ))}
           {expiringSoon.map((c) => (
-            <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6, background:'var(--orange-bg)', border:'1px solid var(--orange-border)', borderRadius:10, alignItems:'center' }}>
+            <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6, background:'var(--orange-bg)', border:'1px solid var(--orange-border)', borderRadius:'var(--radius-md)', alignItems:'center' }}>
               <span>🟡</span>
-              <div className="u-flex1"><span style={{ fontSize: 'var(--text-base)', fontWeight:700 }}>{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
+              <div className="u-flex1"><span className="u-base-700">{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
               <span style={{ fontSize: 'var(--text-sm)', color:'var(--warning)', fontWeight:700 }}>Caduca en {c.days_until_expiry}d</span>
             </div>
           ))}
@@ -279,7 +284,7 @@ export default function TrainingPage() {
                 <div className="u-wrap-8">
                   {c.category && <span style={{ fontSize: 'var(--text-2xs)', fontWeight:700, padding:'2px 7px', borderRadius:20, background:'var(--accent-muted)', color:'var(--accent)' }}>{c.category}</span>}
                   {c.duration_h && <span className="u-text2-xs">⏱ {c.duration_h}h</span>}
-                  {c.cost && c.cost > 0 && <span style={{ fontSize: 'var(--text-xs)', color:'var(--success)' }}>💶 {c.cost}€</span>}
+                  {c.cost && c.cost > 0 && <span style={{ fontSize: 'var(--text-xs)', color:'var(--success)' }}>💶 {fmtMoneda(c.cost)}</span>}
                   {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', color:'var(--accent)' }}>🔗 Ver</a>}
                   <span style={{ fontSize: 'var(--text-2xs)', color:'var(--text-3)', marginLeft:'auto' }}>{c.enrolled || 0} inscritos</span>
                 </div>
@@ -293,7 +298,7 @@ export default function TrainingPage() {
         enrollments.length === 0 ? (
           <EmptyState icon="👤" title={t('training.sin_inscripciones')} description="Todavia no hay empleados inscritos en cursos" />
         ) : (
-          <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
+          <div className="ds-card ds-card--plano">
             <Table
               data={enrollments}
               columns={[
@@ -318,18 +323,18 @@ export default function TrainingPage() {
         ) : (
           <div className="u-stack-8">
             {certs.map((c) => (
-              <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', background:'var(--surface-2)', borderRadius:10, border:`1px solid ${c.is_expired ? 'var(--danger-border)' : c.expiring_soon ? 'var(--orange-border)' : 'var(--surface-4)'}` }}>
+              <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', background:'var(--surface-2)', borderRadius:'var(--radius-md)', border:`1px solid ${c.is_expired ? 'var(--danger-border)' : c.expiring_soon ? 'var(--orange-border)' : 'var(--surface-4)'}` }}>
                 <div style={{ fontSize: 'var(--text-2xl)' }}>🏅</div>
                 <div className="u-flex1-min0">
-                  <div style={{ fontSize: 'var(--text-base)', fontWeight:700 }}>{c.name}{c.issuer && <span style={{ fontSize: 'var(--text-xs)', color:'var(--text-2)', marginLeft:8 }}>{c.issuer}</span>}</div>
-                  <div style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginTop:2 }}>{c.user_name}{c.cert_id && <span style={{ marginLeft:8, fontFamily:'var(--font-mono)', fontSize: 'var(--text-xs)' }}>#{c.cert_id}</span>}{c.obtained_at && <span style={{ marginLeft:8 }}>· Obtenida: {c.obtained_at}</span>}</div>
+                  <div className="u-base-700">{c.name}{c.issuer && <span style={{ fontSize: 'var(--text-xs)', color:'var(--text-2)', marginLeft:8 }}>{c.issuer}</span>}</div>
+                  <div className="u-text2-sm-mt2">{c.user_name}{c.cert_id && <span style={{ marginLeft:8, fontFamily:'var(--font-mono)', fontSize: 'var(--text-xs)' }}>#{c.cert_id}</span>}{c.obtained_at && <span style={{ marginLeft:8 }}>· Obtenida: {c.obtained_at}</span>}</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
                   {c.expires_at ? <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>{c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}</div> : <div className="u-text3-xs">{t('training.no_expiry')}</div>}
                 </div>
                 {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', color:'var(--accent)', whiteSpace:'nowrap' }}>🔗 Verificar</a>}
-                <button onClick={() => { setEditingCert(c); setShowCertModal(true) }} style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>✏</button>
-                <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar?', onConfirm: () => delCert(c.id), danger: true }) }} style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:6, padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>🗑</button>
+                <button onClick={() => { setEditingCert(c); setShowCertModal(true) }} style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>✏</button>
+                <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar?', onConfirm: () => delCert(c.id), danger: true }) }} style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>🗑</button>
               </div>
             ))}
           </div>

@@ -8,7 +8,6 @@ API: POST {OPENAI_API_URL}/audio/transcriptions
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 import httpx
@@ -16,8 +15,25 @@ import httpx
 from app.core.config import settings
 from app.services.stt.base import STTError, STTProvider, STTResult
 import logging
+from app.services.settings_service import outbound_ai_timeout
 
 logger = logging.getLogger(__name__)
+
+#: Clave de OpenAI recuperada de la base (`_puente_de_clave_openai_heredada` de
+#: `ai_modules`). Antes se publicaba en `os.environ["OPENAI_API_KEY"]` y se leía
+#: de ahí; segunda auditoría 2026-11 (hallazgo 16): se guarda aquí y la leen
+#: este proveedor y el respaldo de subtítulos del chat.
+_clave_heredada: str = ""
+
+
+def publicar_clave_heredada(clave: str) -> None:
+    global _clave_heredada
+    _clave_heredada = clave or ""
+
+
+def clave_openai_de_proceso() -> str:
+    """`OPENAI_API_KEY` de `Settings` o, si falta, la heredada de la base."""
+    return settings.OPENAI_API_KEY or _clave_heredada
 
 
 class OpenAISTTProvider(STTProvider):
@@ -37,12 +53,11 @@ class OpenAISTTProvider(STTProvider):
         self._model = (
             model
             or ui_model
-            or os.environ.get("OPENAI_STT_MODEL")
-            or getattr(settings, "OPENAI_STT_MODEL", None)
-            or "gpt-4o-mini-transcribe"
+            or settings.OPENAI_STT_MODEL
+            or type(settings).model_fields["OPENAI_STT_MODEL"].default
         )
-        self._api_key = api_key or ui_key or settings.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY", "")
-        self._base_url = settings.OPENAI_API_URL or "https://api.openai.com/v1"
+        self._api_key = api_key or ui_key or clave_openai_de_proceso()
+        self._base_url = settings.OPENAI_API_URL or type(settings).model_fields["OPENAI_API_URL"].default
 
     def is_available(self) -> bool:
         return bool(self._api_key)
@@ -56,7 +71,7 @@ class OpenAISTTProvider(STTProvider):
             data["language"] = language
 
         try:
-            with httpx.Client(timeout=60) as client:
+            with httpx.Client(timeout=outbound_ai_timeout(default=60)) as client:
                 resp = client.post(
                     f"{self._base_url}/audio/transcriptions",
                     headers={"Authorization": f"Bearer {self._api_key}"},

@@ -96,10 +96,6 @@ def update_canned_response_record(db: Session, canned_id: str, payload: CannedRe
     return canned
 
 
-def get_canned_response_for_delete(db: Session, canned_id: str) -> CannedResponse:
-    return get_canned_response_by_id(db, canned_id)
-
-
 def delete_canned_response(db: Session, canned_id: str) -> None:
     c = get_canned_response_by_id(db, canned_id)
     c.is_active = False

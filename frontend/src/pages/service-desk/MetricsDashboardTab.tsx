@@ -2,7 +2,8 @@ import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sdMetricsApi } from '../../services/api'
-import { Spinner, useSort, SortableTH } from '../../components/ui'
+import { Spinner, EmptyState, useSort, SortableTH, ariaSort } from '../../components/ui'
+import { KpiCard } from '../../components/dashboard/DashKit'
 import { COLOR, alpha } from '../../constants/theme'
 import PageShell from '../../components/layout/PageShell'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -27,7 +28,7 @@ const S: Record<string, CSSProperties> = {
   card: {
     background: 'var(--surface-2)',
     border: '1px solid var(--surface-4)',
-    borderRadius: 14,
+    borderRadius: 'var(--radius-lg)',
     overflow: 'hidden',
   },
   cardPad: { padding: '20px 24px' },
@@ -71,55 +72,10 @@ function PeriodButton({ active, label, onClick }: { active: boolean; label: Reac
   )
 }
 
-function KpiCard({ label, value, sub, color, icon, accentBar }: { label?: ReactNode; value?: ReactNode; sub?: ReactNode; color?: string; icon?: ReactNode; accentBar?: string }) {
-  const bar = accentBar ?? color ?? COLOR.accent
-  return (
-    <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 3, background: bar, borderRadius: '14px 14px 0 0' }} />
-      <div style={{ ...S.cardPad, flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div className="u-row-center-8">
-          {icon && (
-            <span style={{
-              fontSize: "var(--text-lg-em)",
-              background: alpha(bar, '18'),
-              borderRadius: 8,
-              padding: '5px 7px',
-              lineHeight: 1,
-            }}>
-              {icon}
-            </span>
-          )}
-          <span style={{
-            fontSize: "var(--text-2xs)",
-            fontWeight: 700,
-            color: 'var(--text-3)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.09em',
-          }}>
-            {label}
-          </span>
-        </div>
-        <div style={{
-          fontSize: "var(--text-34)",
-          fontWeight: 700,
-          color: color || 'var(--text-1)',
-          lineHeight: 1.1,
-          letterSpacing: '-0.5px',
-        }}>
-          {value ?? '—'}
-        </div>
-        {sub && (
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.4 }}>{sub}</div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function BarRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div className="u-mb-14">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textTransform: 'capitalize' }}>
           {label.replace(/_/g, ' ')}
@@ -130,7 +86,7 @@ function BarRow({ label, count, total, color }: { label: string; count: number; 
             fontWeight: 700,
             color: 'var(--text-1)',
             background: 'var(--surface-4)',
-            borderRadius: 6,
+            borderRadius: 'var(--radius-sm)',
             padding: '2px 7px',
           }}>
             {count}
@@ -214,7 +170,7 @@ function AgentAvatar({ name }: { name?: string }) {
     .map((w: string) => w[0])
     .join('')
     .toUpperCase()
-  const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', 'var(--orange)']
+  const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, 'var(--chart-teal)', 'var(--orange)']
   const idx = (name || '').charCodeAt(0) % colors.length
   return (
     <div style={{
@@ -277,25 +233,6 @@ function StarRating({ value }: { value: number | null }) {
 }
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
-function EmptyState() {
-  const { t } = useAppLang()
-  return (
-    <div style={{
-      textAlign: 'center',
-      padding: '80px 24px',
-      color: 'var(--text-3)',
-    }}>
-      <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16, opacity: 0.4 }}>📊</div>
-      <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>
-        {t('metricsdashboard.sin_datos_de_metricas')}
-      </div>
-      <div style={{ fontSize: "var(--text-base)", maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>
-        {t('metricsdashboard.crea_y_gestiona_tickets_para_ver_las')}
-      </div>
-    </div>
-  )
-}
-
 /* ── Main component ───────────────────────────────────────────────────────── */
 type ItilMetrics = {
   sla_compliance_pct?: number
@@ -350,7 +287,7 @@ export default function MetricsDashboardTab() {
     )
   }
 
-  if (!metrics) return <EmptyState />
+  if (!metrics) return <EmptyState icon="📊" title={t('metricsdashboard.sin_datos_de_metricas')} description={t('metricsdashboard.crea_y_gestiona_tickets_para_ver_las')} />
 
   const slaColor = (metrics.sla_compliance_pct ?? 100) >= 95
     ? COLOR.success
@@ -367,7 +304,7 @@ export default function MetricsDashboardTab() {
   const totalTickets = metrics.volume?.total || 1
 
   /* palette for type bars */
-  const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', 'var(--orange)']
+  const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, 'var(--chart-teal)', 'var(--orange)']
 
   return (
     <PageShell>
@@ -559,7 +496,7 @@ export default function MetricsDashboardTab() {
           </div>
         ) : (
           <div className="u-scroll-x">
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="u-table">
               <thead>
                 <tr style={{ background: 'var(--surface-3)' }}>
                   {[
@@ -570,7 +507,7 @@ export default function MetricsDashboardTab() {
                     { col: 'avg_csat', label: 'CSAT' },
                     { col: 'sla_breaches', label: 'Breaches SLA' },
                   ].map(({ col, label }) => (
-                    <th
+                    <th aria-sort={ariaSort(agentSort, col)}
                       key={col}
                       style={{
                         padding: '10px 16px',
@@ -628,7 +565,7 @@ export default function MetricsDashboardTab() {
                         color: 'var(--text-2)',
                         background: 'var(--surface-4)',
                         padding: '3px 8px',
-                        borderRadius: 6,
+                        borderRadius: 'var(--radius-sm)',
                         whiteSpace: 'nowrap',
                       }}>
                         {fmtMinutes(a.mttr_minutes)}
@@ -650,7 +587,7 @@ export default function MetricsDashboardTab() {
                           color: COLOR.danger,
                           background: COLOR.dangerBg,
                           border: `1px solid ${COLOR.dangerBorder}`,
-                          borderRadius: 6,
+                          borderRadius: 'var(--radius-sm)',
                           padding: '3px 9px',
                         }}>
                           ⚠ {a.sla_breaches}
@@ -665,7 +602,7 @@ export default function MetricsDashboardTab() {
                           color: COLOR.success,
                           background: COLOR.successBg,
                           border: `1px solid ${COLOR.successBorder}`,
-                          borderRadius: 6,
+                          borderRadius: 'var(--radius-sm)',
                           padding: '3px 9px',
                         }}>
                           ✓ 0

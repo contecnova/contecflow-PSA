@@ -16,11 +16,9 @@
     "lucide-react": "^0.394.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-grid-layout": "^2.2.3",
     "react-router-dom": "^7.18.3",
     "react-window": "^1.8.10",
     "recharts": "^2.12.7",
-    "y-websocket": "^3.0.0",
     "yjs": "^13.6.30",
     "zod": "^3.25.76"
   },
@@ -50,8 +48,7 @@
     "type-coverage": "^2.29.7",
     "typescript": "^6.0.3",
     "vite": "^7.1.12",
-    "vitest": "^4.1.5",
-    "workbox-window": "^7.1.0"
+    "vitest": "^4.1.5"
   },
   "scripts": {
     "dev": "vite",

@@ -13,9 +13,7 @@ from app.services.session_security import parse_risk_reasons
 from app.core.responses import APIListResponse
 
 import app.services.auth_service as _svc
-from app.services.auth_service import (
-    current_refresh_jti as _current_refresh_jti,
-)
+from app.api.cookies_de_sesion import current_refresh_jti as _current_refresh_jti
 
 router = APIRouter()
 

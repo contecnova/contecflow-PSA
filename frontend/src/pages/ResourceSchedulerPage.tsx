@@ -9,7 +9,7 @@
  * - Inline panel to set project + hours_per_day on new/edit booking
  * - Keyboard: Esc cancels drag · Delete removes selected booking
  */
-import { useState, useRef, useCallback, useMemo, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect, type MouseEvent as ReactMouseEvent, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import api, { projectsApi, unwrapList, type ApiError, type ProjectListItem } from '../services/api'
@@ -19,6 +19,7 @@ import { Spinner, EmptyState, useDialogo } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { alpha } from '../constants/theme'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ const UTIL_COLORS = [
 ]
 
 const PROJECT_PALETTE = [
-  '#4f8ef7','#34d399','#f59e0b','#f87171','#a78bfa',
+  'var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)',
   'var(--sky-blue)','var(--orange)','var(--success)','#c084fc','var(--coral)',
 ]
 
@@ -143,8 +144,8 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
       style={{
         position: 'absolute',
         left: x, top: 6, height: ROW_H - 12, width: w,
-        background: color + (isSelected ? 'ff' : 'cc'),
-        borderRadius: 6,
+        background: alpha(color, isSelected ? 'ff' : 'cc'),
+        borderRadius: 'var(--radius-sm)',
         border: isSelected ? `2px solid #fff` : `1px solid ${color}`,
         display: 'flex', alignItems: 'center', padding: '0 8px',
         cursor: 'grab', userSelect: 'none', overflow: 'hidden',
@@ -174,6 +175,7 @@ interface BookingPanelProps {
 }
 
 function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, t }: BookingPanelProps) {
+  const idCampo = useId()
   const [projectId, setProjectId] = useState(booking.project_id || '')
   const [hoursPerDay, setHours]   = useState(booking.hours_per_day || 8)
   const [bookingType, setType]    = useState(booking.booking_type || 'soft')
@@ -182,7 +184,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
 
   return (
     <div ref={dialogRef} role="dialog" aria-modal="true" style={{
-      position: 'fixed', zIndex: 200,
+      position: 'fixed', zIndex: 'var(--z-dropdown)',
       left: Math.min(position.x + 8, window.innerWidth - 260),
       top:  Math.min(position.y + 8, window.innerHeight - 280),
       width: 240,
@@ -195,10 +197,10 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
         {isNew ? t('resource_scheduler.new_booking') : t('resource_scheduler.edit_booking')}
       </div>
 
-      <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.project')}</label>
-      <select value={projectId} onChange={e => setProjectId(e.target.value)} style={{
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.project')}</label>
+      <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => setProjectId(e.target.value)} style={{
         width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-        borderRadius: 6, padding: '5px 8px', color: 'var(--text-1)',
+        borderRadius: 'var(--radius-sm)', padding: '5px 8px', color: 'var(--text-1)',
         fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', marginBottom: 10,
       }}>
         <option value="">{t('resource_scheduler.no_project')}</option>
@@ -207,10 +209,10 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
         ))}
       </select>
 
-      <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.hours_per_day')}</label>
-      <input type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} style={{
+      <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.hours_per_day')}</label>
+      <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} style={{
         width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-        borderRadius: 6, padding: '5px 8px', color: 'var(--text-1)',
+        borderRadius: 'var(--radius-sm)', padding: '5px 8px', color: 'var(--text-1)',
         fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box',
       }} />
 
@@ -221,7 +223,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
             flex: 1, padding: '4px 0', border: `1px solid ${bookingType === typeOption ? 'var(--accent)' : 'var(--surface-4)'}`,
             background: bookingType === typeOption ? 'var(--accent-muted)' : 'transparent',
             color: bookingType === typeOption ? 'var(--accent)' : 'var(--text-3)',
-            borderRadius: 6, cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit', fontWeight: bookingType === typeOption ? 700 : 400,
+            borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit', fontWeight: bookingType === typeOption ? 700 : 400,
           }}>
             {typeOption === 'soft' ? t('resource_scheduler.tentative') : t('resource_scheduler.confirmed')}
           </button>
@@ -508,12 +510,12 @@ export default function ResourceSchedulerPage() {
           title={t('resource_scheduler.title')}
           subtitle={viewMode === 'assign' ? t('resource_scheduler.subtitle_assign') : t('resource_scheduler.subtitle_scheduler')}
           actions={
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="u-wrap-center-8">
               {/* View mode toggle */}
               {['scheduler', 'assign'].map(mode => (
                 <button key={mode} onClick={() => setViewMode(mode)} style={{
-                  padding: '4px 12px', borderRadius: 6,
-                  border: `1px solid ${viewMode === mode ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
+                  padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                  border: `1px solid ${viewMode === mode ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`,
                   background: viewMode === mode ? 'var(--accent-muted)' : 'transparent',
                   color: viewMode === mode ? 'var(--accent)' : 'var(--text-3)',
                   fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'var(--font-sans)',
@@ -533,8 +535,8 @@ export default function ResourceSchedulerPage() {
               )}
               {[8, 12, 16, 24].map(w => (
                 <button key={w} onClick={() => setWeeks(w)} style={{
-                  padding: '4px 10px', borderRadius: 6,
-                  border: `1px solid ${weeks === w ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
+                  padding: '4px 10px', borderRadius: 'var(--radius-sm)',
+                  border: `1px solid ${weeks === w ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`,
                   background: weeks === w ? 'var(--accent-muted)' : 'transparent',
                   color: weeks === w ? 'var(--accent)' : 'var(--text-3)',
                   fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'var(--font-sans)',
@@ -549,7 +551,7 @@ export default function ResourceSchedulerPage() {
 
       {/* Legend */}
       <div style={{ padding: '0 24px 8px', display: 'flex', gap: 16, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
-        {[[t('resource_scheduler.legend_available'),'var(--surface-4)'],[t('resource_scheduler.legend_lt_50'),'#1e4a7a'],[t('resource_scheduler.legend_50_80'),'#2d6099'],[t('resource_scheduler.legend_80_100'),'#4f8ef7'],[t('resource_scheduler.legend_overloaded'),'var(--orange)']].map(([l,c]) => (
+        {[[t('resource_scheduler.legend_available'),'var(--surface-4)'],[t('resource_scheduler.legend_lt_50'),'#1e4a7a'],[t('resource_scheduler.legend_50_80'),'#2d6099'],[t('resource_scheduler.legend_80_100'),'var(--accent)'],[t('resource_scheduler.legend_overloaded'),'var(--orange)']].map(([l,c]) => (
           <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
             <div style={{ width: 12, height: 12, borderRadius: 3, background: c }} />{l}
           </span>
@@ -569,7 +571,7 @@ export default function ResourceSchedulerPage() {
         /* ── Assign view: drag person chip → project row ───────────────────── */
         <div style={{ flex: 1, display: 'flex', flexDirection: narrow ? 'column' : 'row', overflow: 'hidden', padding: '0 24px 24px', gap: 16 }}>
           {/* People panel */}
-          <div style={{ ...(narrow ? { maxHeight: 180 } : { width: 160 }), flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }}>
+          <div style={{ ...(narrow ? { maxHeight: 180 } : { width: 160 }), flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }}>
             <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
               {t('resource_scheduler.people')}
             </div>
@@ -598,7 +600,7 @@ export default function ResourceSchedulerPage() {
                   <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {u.user_name.split(' ')[0]}
                   </div>
-                  <div style={{ fontSize: "var(--text-3xs)", color: u.avg_load_pct >= 100 ? '#f87171' : 'var(--text-4)' }}>
+                  <div style={{ fontSize: "var(--text-3xs)", color: u.avg_load_pct >= 100 ? 'var(--danger)' : 'var(--text-4)' }}>
                     {u.avg_load_pct}%
                   </div>
                 </div>
@@ -608,7 +610,7 @@ export default function ResourceSchedulerPage() {
 
           {/* Project rows grid */}
           <div ref={gridRef} style={{ flex: 1, overflowX: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
               {/* Corner */}
               <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: 'var(--surface-0)', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
                 <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.project')}</span>
@@ -621,7 +623,7 @@ export default function ResourceSchedulerPage() {
                     <div key={i} style={{
                       width: CELL_W, flexShrink: 0, borderLeft: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
                       height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 4px 6px',
-                      background: isToday ? 'rgba(79,142,247,0.08)' : 'transparent',
+                      background: isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
                     }}>
                       {i === 0 || w.getDate() <= 7 ? (
                         <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)', marginBottom: 2 }}>
@@ -639,7 +641,7 @@ export default function ResourceSchedulerPage() {
               {/* Project rows */}
               {projects.slice(0, 40).map(proj => {
                 const projBookings = bookings.filter(b => b.project_id === proj.id)
-                const color = projectColorMap[proj.id] || '#4f8ef7'
+                const color = projectColorMap[proj.id] || 'var(--accent)'
                 return (
                   <div key={proj.id} style={{ display: 'contents' }}>
                     <div style={{
@@ -692,7 +694,7 @@ export default function ResourceSchedulerPage() {
         </div>
       ) : (
         <div ref={gridRef} style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
 
             {/* Label column header */}
             <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: 'var(--surface-0)', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
@@ -707,7 +709,7 @@ export default function ResourceSchedulerPage() {
                   <div key={i} style={{
                     width: CELL_W, flexShrink: 0, borderLeft: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
                     height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 4px 6px',
-                    background: isToday ? 'rgba(79,142,247,0.08)' : 'transparent',
+                    background: isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
                   }}>
                     {i === 0 || w.getDate() <= 7 ? (
                       <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)', marginBottom: 2 }}>
@@ -766,7 +768,7 @@ export default function ResourceSchedulerPage() {
                           style={{
                             width: CELL_W, flexShrink: 0, height: '100%',
                             borderLeft: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
-                            background: isDrag ? 'rgba(79,142,247,0.25)' : utilColor(loadPct),
+                            background: isDrag ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : utilColor(loadPct),
                             cursor: 'crosshair',
                             transition: isDrag ? 'none' : 'background 0.15s',
                           }}
@@ -781,7 +783,7 @@ export default function ResourceSchedulerPage() {
                         booking={b}
                         weekStart={weekDates[0]}
                         weekCount={weeks}
-                        color={projectColorMap[b.project_id] || '#4f8ef7'}
+                        color={projectColorMap[b.project_id] || 'var(--accent)'}
                         t={t}
                         isSelected={selectedBooking?.id === b.id}
                         onMouseDown={e => handleBookingMouseDown(e, b)}

@@ -1,4 +1,3 @@
-import type { ComponentType } from 'react'
 import { CSSProperties, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -35,7 +34,6 @@ type HeroProps = { navigate: (path: string) => void; userName?: string | null; t
 type ActivityFooterProps = { pendingAbsences: number; t: (key: string) => string }
 type TrendRowProps = { row: DashboardTrendRow; max: number; t: (key: string) => string }
 
-const DASH_ICON = (icon: unknown) => icon as ComponentType<{ size?: number; strokeWidth?: number }>
 
 const heroCardStyle: CSSProperties = {
   gap: 'var(--space-4)',
@@ -112,11 +110,11 @@ function Hero({ navigate, userName, t }: HeroProps) {
             padding: '10px 18px', borderRadius: 'var(--radius-md)',
             background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
             fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
-            boxShadow: '0 1px 3px rgba(79,142,247,0.3)', whiteSpace: 'nowrap',
+            boxShadow: '0 1px 3px var(--accent-border)', whiteSpace: 'nowrap',
             transition: 'transform 0.1s var(--easing), box-shadow 0.15s var(--easing)',
           }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,142,247,0.4)' }}
-          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(79,142,247,0.3)' }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px var(--accent-border-strong)' }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px var(--accent-border)' }}
         >
           <Clock size={14} /> {t('work_dashboard.shortcut_log_hours')}
         </button>
@@ -298,39 +296,39 @@ export default function WorkDashboardPage(): JSX.Element {
         <div className="ds-grid-stats">
           {isLoading ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
             <KpiCard
-              icon={<KpiIcon icon={DASH_ICON(CheckCircle2)} />} label={t('work_dashboard.kpi_open_tasks')}
+              icon={<KpiIcon icon={CheckCircle2} />} label={t('work_dashboard.kpi_open_tasks')}
               value={tasksOpen}
               color={tasksOpen > 10 ? COLOR.warning : 'var(--text-1)'}
               accentBar={COLOR.accent}
               action={{ label: t('work_dashboard.action_view_tasks'), to: '/tasks?view=list&mine=1&status=open' }} />
             <KpiCard
-              icon={<KpiIcon icon={DASH_ICON(AlertTriangle)} />} label={t('work_dashboard.kpi_overdue_tasks')}
+              icon={<KpiIcon icon={AlertTriangle} />} label={t('work_dashboard.kpi_overdue_tasks')}
               value={tasksOverdue}
               color={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
               accentBar={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
               sub={tasksOverdue > 0 ? t('work_dashboard.needs_attention') : t('work_dashboard.all_up_to_date')}
               action={tasksOverdue > 0 ? { label: t('work_dashboard.action_review_overdue'), to: '/tasks?view=list&mine=1&status=open&overdue=1' } : undefined} />
             <KpiCard
-              icon={<KpiIcon icon={DASH_ICON(Clock)} />} label={t('work_dashboard.kpi_hours_week')}
+              icon={<KpiIcon icon={Clock} />} label={t('work_dashboard.kpi_hours_week')}
               value={hoursWeek.toFixed(1)}
               color={hoursColor} accentBar={hoursColor}
               sub={weekDateRangeLabel() ? `${weekDateRangeLabel()} · ${t('work_dashboard.target_short')}: ${hoursTarget}h` : `${t('work_dashboard.target_word')}: ${hoursTarget}h`}
               action={{ label: t('work_dashboard.shortcut_log_hours'), to: '/imputar' }} />
             <KpiCard
-              icon={<KpiIcon icon={DASH_ICON(Calendar)} />} label={t('work_dashboard.kpi_hours_month')}
+              icon={<KpiIcon icon={Calendar} />} label={t('work_dashboard.kpi_hours_month')}
               value={totalHoursMonth.toFixed(1)}
               color={COLOR.accent} accentBar={COLOR.accent}
               sub={prev > 0 ? `${t('work_dashboard.previous_month')}: ${prev.toFixed(1)}h` : undefined}
               action={{ label: t('work_dashboard.action_view_timesheets'), to: '/timesheets' }} />
             <KpiCard
-              icon={<KpiIcon icon={DASH_ICON(Bell)} />} label={t('work_dashboard.kpi_approvals')}
+              icon={<KpiIcon icon={Bell} />} label={t('work_dashboard.kpi_approvals')}
               value={pendingApprv}
               color={pendingApprv > 0 ? COLOR.warning : COLOR.success}
               accentBar={pendingApprv > 0 ? COLOR.warning : COLOR.success}
               sub={pendingApprv > 0 ? t('work_dashboard.pending_my_action') : t('work_dashboard.no_pending')}
               action={pendingApprv > 0 ? { label: t('work_dashboard.action_review'), to: '/approvals' } : undefined} />
             <KpiCard
-              icon={<KpiIcon icon={DASH_ICON(Wallet)} />} label={t('work_dashboard.kpi_pending_expenses')}
+              icon={<KpiIcon icon={Wallet} />} label={t('work_dashboard.kpi_pending_expenses')}
               value={pendingExp}
               color={pendingExp > 0 ? COLOR.purple : COLOR.success}
               accentBar={COLOR.purple}

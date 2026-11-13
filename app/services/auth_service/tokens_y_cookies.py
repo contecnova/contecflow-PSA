@@ -7,11 +7,9 @@ from datetime import datetime, timezone
 import base64
 import uuid
 from typing import Optional
-from fastapi import Request, Response
 from jose import jwt as jose_jwt, JWTError
 from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.core.security import decode_token
 from app.models.user import User
 from app.services.key_management import get_jwt_signing_key, get_jwt_verification_keys
 from app.core.errores import ErrorDeDominio
@@ -22,6 +20,7 @@ from app.services.auth_service.estado_efimero import (
     store_password_reset_jti,
 )
 from app.services.auth_service._comun import logger
+from app.core.constantes import NOMBRE_COMPLETO_DEL_PRODUCTO
 
 
 # ── Base64url helpers ─────────────────────────────────────────────────────────
@@ -80,6 +79,15 @@ def read_ephemeral_token(token: str, expected_type: str) -> dict:
 
 # ── Auth cookies ──────────────────────────────────────────────────────────────
 
+#: Ruta de la cookie de refresco. Auditoria 2026-11 (#22): era
+#: `/api/v1/auth/refresh`, asi que el navegador no la mandaba a `/auth/logout`,
+#: `/auth/switch-organization`, `/auth/change-password` ni al panel de sesiones:
+#: cerrar sesion no revocaba el refresco (seguia sirviendo 30 dias) y «revocar
+#: las demas» revocaba tambien la actual. Ahora cubre todo `/api/v1/auth`.
+REFRESH_COOKIE_PATH = "/api/v1/auth"
+#: La ruta antigua, para borrar la cookie que quede en los navegadores.
+REFRESH_COOKIE_PATH_ANTIGUA = "/api/v1/auth/refresh"
+
 COOKIE_OPTS = {
     "httponly": True,
     "samesite": "lax",
@@ -89,51 +97,8 @@ COOKIE_OPTS = {
 }
 
 
-def set_auth_cookies(response: Response, access_token: str, refresh_token: str, db: Optional[Session] = None, org_id: Optional[str] = None) -> None:
-    if db is not None:
-        from app.services.settings_service import get_runtime_int
-        access_minutes = get_runtime_int(db, "ACCESS_TOKEN_EXPIRE_MINUTES", org_id) or settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        refresh_days   = get_runtime_int(db, "REFRESH_TOKEN_EXPIRE_DAYS",   org_id) or settings.REFRESH_TOKEN_EXPIRE_DAYS
-    else:
-        access_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        refresh_days   = settings.REFRESH_TOKEN_EXPIRE_DAYS
-    response.set_cookie(
-        "access_token",
-        access_token,
-        max_age=access_minutes * 60,
-        **COOKIE_OPTS,
-    )
-    # Audit (Sprint 3-4): refresh cookie is only ever sent to the dedicated
-    # refresh endpoint via same-origin XHR, so SameSite=Strict is safe here and
-    # blocks it from riding along on any cross-site navigation.
-    response.set_cookie(
-        "refresh_token",
-        refresh_token,
-        max_age=refresh_days * 86400,
-        path="/api/v1/auth/refresh",
-        **{**COOKIE_OPTS, "samesite": "strict"},
-    )
-    # Audit #C1: also mint a CSRF token cookie on every login/refresh. The
-    # cookie is readable by JS so the SPA can echo it back via X-CSRF-Token
-    # when CSRF_DOUBLE_SUBMIT=1 is enabled. No-op effect on clients that don't
-    # opt in; pure preparation.
-    try:
-        from app.core.csrf import issue_csrf_cookie
-        issue_csrf_cookie(response)
-    except Exception:
-        # Never block auth on CSRF token minting issues — log and continue.
-        import logging as _logging
-        _logging.getLogger("app.services.auth_service").warning("issue_csrf_cookie failed", exc_info=True)
-
-
-def current_refresh_jti(request: Request) -> Optional[str]:
-    raw_refresh = request.cookies.get("refresh_token")
-    if not raw_refresh:
-        return None
-    token_data = decode_token(raw_refresh)
-    if not token_data or token_data.get("type") != "refresh":
-        return None
-    return token_data.get("jti")
+# `set_auth_cookies` y `current_refresh_jti` estan en `app/api/cookies_de_sesion.py`
+# (auditoria 2026-11, item 36): escribir y leer cookies es capa HTTP.
 
 
 # ── Password reset ────────────────────────────────────────────────────────────
@@ -152,9 +117,9 @@ def issue_password_reset_token(user: User) -> str:
 
 
 def send_password_reset_email(recipient: str, reset_link: str, db: Optional[Session] = None, org_id: Optional[str] = None) -> None:
-    subject = "Contecflow PSA - Restablecer contraseña"
+    subject = f"{NOMBRE_COMPLETO_DEL_PRODUCTO} - Restablecer contraseña"
     body = (
-        "Has solicitado restablecer tu contraseña de Contecflow PSA.\n\n"
+        f"Has solicitado restablecer tu contraseña de {NOMBRE_COMPLETO_DEL_PRODUCTO}.\n\n"
         f"Enlace de restablecimiento (válido {PASSWORD_RESET_TTL_SECONDS // 60} minutos):\n"
         f"{reset_link}\n\n"
         "Si no solicitaste este cambio, ignora este correo."
@@ -176,7 +141,28 @@ def send_password_reset_email(recipient: str, reset_link: str, db: Optional[Sess
 
 # ── Password reset ────────────────────────────────────────────────────────────
 
+def revocar_sesiones_del_usuario(db: Session, user_id: str, motivo: str,
+                                 salvo_jti: Optional[str] = None) -> int:
+    """Revoca todos los refrescos activos del usuario (menos `salvo_jti`). No confirma.
+
+    Auditoria 2026-11 (#22): cambiar o restablecer la contrasena no cerraba
+    ninguna sesion: quien la tuviera robada seguia dentro hasta 30 dias.
+    """
+    from app.models.sessions import UserSession
+
+    ahora = datetime.now(timezone.utc)
+    q = db.query(UserSession).filter(UserSession.user_id == user_id, UserSession.revoked_at.is_(None))
+    if salvo_jti:
+        q = q.filter(UserSession.refresh_token_jti != salvo_jti)
+    filas = q.all()
+    for fila in filas:
+        fila.revoked_at = ahora
+        fila.revoke_reason = motivo[:255]
+    return len(filas)
+
+
 def complete_password_reset(db: Session, user: User, new_hash: str) -> None:
-    """Update user password hash and commit."""
+    """Update user password hash, revoke every session, and commit."""
     user.hashed_password = new_hash
+    revocar_sesiones_del_usuario(db, user.id, "password_reset")
     db.commit()

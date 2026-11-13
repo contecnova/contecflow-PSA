@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.descargas import respuesta_de_descarga
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import require_admin_or_pm, get_current_user, get_db, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
@@ -108,13 +109,13 @@ def export_report(
     if page is not None:
         result = _svc.execute_report_paginated(q.entity, q.columns, q.filters, *orden, page, page_size, current_user, db)
         _registrar_acceso(request, current_user, db, "export", q, len(result["items"]))
-        return _svc.build_csv_response(q.columns, result["items"], q.entity, pagination=result)
+        return respuesta_de_descarga(_svc.build_csv_response(q.columns, result["items"], q.entity, pagination=result))
     # Revisión 2026-11: la pantalla no pide página y se exportaban las 2.000
     # primeras filas sin decirlo. Sin página se exporta todo, hasta el tope.
     filas, total = _svc.exportar_todo(q.entity, q.columns, q.filters, *orden, current_user, db)
     _registrar_acceso(request, current_user, db, "export", q, len(filas))
-    return _svc.build_csv_response(q.columns, filas, q.entity, pagination={"total": total, "page": 1,
-                                                                           "page_size": len(filas), "pages": 1})
+    return respuesta_de_descarga(_svc.build_csv_response(
+        q.columns, filas, q.entity, pagination={"total": total, "page": 1, "page_size": len(filas), "pages": 1}))
 
 
 @router.get("/templates", summary="Listar plantillas de informes")

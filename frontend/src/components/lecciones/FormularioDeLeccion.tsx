@@ -34,7 +34,7 @@ export function TablaDeHechos({ hechos }: { hechos: Hecho[] }) {
   const t = useAppT()
   if (!hechos.length) return <div className="u-text3-sm">{t('lec.sin_hechos')}</div>
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+    <table className="u-table-sm">
       <tbody>{hechos.map(h => (
         <tr key={h.etiqueta} style={{ borderTop: '1px solid var(--surface-3)' }}>
           <td style={{ padding: '5px 8px 5px 0', color: 'var(--text-3)', verticalAlign: 'top', whiteSpace: 'nowrap' }}>{h.etiqueta}</td>

@@ -2,7 +2,7 @@
  * IntakeFormPage — Public-facing form, no auth required.
  * Route: /intake/:token
  */
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -42,6 +42,7 @@ const FS: CSSProperties = {
 const LS: CSSProperties = { fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 }
 
 export default function IntakeFormPage(): JSX.Element {
+  const idCampo = useId()
   const { token } = useParams<{ token: string }>()
   const t = useAppT()
 
@@ -103,31 +104,31 @@ export default function IntakeFormPage(): JSX.Element {
         </div>
 
         <div className="u-stack-16">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="u-grid2-14">
             <div>
-              <label style={LS}>{t('intake_form.name_label')}</label>
-              <input value={fields.submitter_name} onChange={set('submitter_name')} style={FS} placeholder={t('intake_form.name_placeholder')} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('intake_form.name_label')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={fields.submitter_name} onChange={set('submitter_name')} style={FS} placeholder={t('intake_form.name_placeholder')} />
             </div>
             <div>
-              <label style={LS}>{t('intake_form.email_label')}</label>
-              <input type="email" value={fields.submitter_email} onChange={set('submitter_email')} style={FS} placeholder={t('intake_form.email_placeholder')} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('intake_form.email_label')}</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={fields.submitter_email} onChange={set('submitter_email')} style={FS} placeholder={t('intake_form.email_placeholder')} />
             </div>
           </div>
 
           <div>
-            <label style={LS}>{t('intake_form.subject_label')}</label>
-            <input value={fields.subject} onChange={set('subject')} style={FS} placeholder={t('intake_form.subject_placeholder')} required />
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('intake_form.subject_label')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={fields.subject} onChange={set('subject')} style={FS} placeholder={t('intake_form.subject_placeholder')} required />
           </div>
 
           <div>
-            <label style={LS}>{t('intake_form.description_label')}</label>
-            <textarea value={fields.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }}
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('intake_form.description_label')}</label>
+            <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={fields.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }}
               rows={5} placeholder={t('intake_form.description_placeholder')} />
           </div>
 
           <div>
-            <label style={LS}>{t('intake_form.priority_label')}</label>
-            <select value={fields.priority || form.default_priority} onChange={set('priority')} style={FS}>
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('intake_form.priority_label')}</label>
+            <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={fields.priority || form.default_priority} onChange={set('priority')} style={FS}>
               <option value="low">{t('intake_form.priority_low')}</option>
               <option value="medium">{t('intake_form.priority_medium')}</option>
               <option value="high">{t('intake_form.priority_high')}</option>
@@ -146,7 +147,7 @@ export default function IntakeFormPage(): JSX.Element {
             disabled={isPending || !fields.subject}
             style={{
               background: isPending ? 'var(--text-3)' : 'var(--accent)',
-              color: 'var(--on-accent-light)', border: 'none', borderRadius: 10,
+              color: 'var(--on-accent-light)', border: 'none', borderRadius: 'var(--radius-md)',
               padding: '12px 24px', fontSize: "var(--text-md)", fontWeight: 700,
               cursor: isPending || !fields.subject ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit', transition: 'background 0.2s',

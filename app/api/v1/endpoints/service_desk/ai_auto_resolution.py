@@ -57,6 +57,7 @@ from app.services.service_desk.auto_resolucion_operaciones import (
     registrar_valoracion,
     validar_auto_resolucion,
 )
+from app.models.user import UserRole
 
 router = APIRouter(tags=["Service Desk - AI Auto-Resolution"])
 _logger = logging.getLogger("sd_auto_resolution_endpoint")
@@ -120,7 +121,7 @@ def analyze_ticket_for_ai_resolution(
     # Authorization: user must be assigned to ticket or be admin
     if (
         ticket.assigned_to_user_id != current_user.id
-        and current_user.role not in ["admin", "support"]
+        and current_user.role not in [UserRole.admin]  # 2026-11: "support" no existe en UserRole; nunca coincidia
     ):
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -150,7 +151,7 @@ def apply_ai_auto_resolution(
 
     Only admins or L3 support can apply auto-resolution.
     """
-    if current_user.role not in ["admin", "support"]:
+    if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
         raise HTTPException(status_code=403, detail="Only admins/support can apply auto-resolution")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
@@ -187,7 +188,7 @@ def run_auto_resolution_job(
         "failed": count,
     }
     """
-    if current_user.role != "admin":
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Only admins can run this job")
 
     return APIResponse.ok(data=lanzar_trabajo(
@@ -215,7 +216,7 @@ def validate_ticket_auto_resolution(
 
     Returns: {validated, reopened, ticket_id, ticket_number}
     """
-    if current_user.role not in ["admin", "support"]:
+    if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
         raise HTTPException(status_code=403, detail="Not authorized")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
@@ -246,7 +247,7 @@ def submit_auto_resolution_feedback(
 
     Body: {"success": true | false}
     """
-    if current_user.role not in ["admin", "support"]:
+    if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
         raise HTTPException(status_code=403, detail="Not authorized")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
@@ -272,7 +273,7 @@ def get_auto_resolution_statistics(
 
     Returns: {total_auto_resolved, total_feedback, success_rate, buckets}
     """
-    if current_user.role != "admin":
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
     org = _organizacion_de(current_user)
@@ -292,7 +293,7 @@ def get_auto_resolution_config_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Admin only")
     return APIResponse.ok(data=get_auto_resolution_config(db))
 
@@ -309,7 +310,7 @@ def update_auto_resolution_config_endpoint(
     db: Session = Depends(get_db),
     _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
-    if current_user.role != "admin":
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
     payload = body.model_dump(exclude_unset=True)
@@ -337,7 +338,7 @@ def run_auto_close_job_endpoint(
 
     Admin-only. Returns: {closed, validated, errors}
     """
-    if current_user.role != "admin":
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
     stats = cerrar_resueltos(db, _organizacion_de(current_user))

@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Cookie, Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -205,3 +205,62 @@ def get_current_client(
     from app.db.session import publicar_contexto_de_tenant
     publicar_contexto_de_tenant(db, client, es_cliente=True)
     return client
+
+
+# ── Portal de cliente ────────────────────────────────────────────────────────
+# Auditoria 2026-11 (item 36): estas dos dependencias vivian en
+# `app/services/service_desk/portal_auth_service.py`, que importaba
+# `Depends`/`Header`/`Cookie`/`Request`. Leer cabeceras y cookies es HTTP: vive
+# aqui. La logica (resolver el token, `Lector`) sigue en el servicio.
+
+def get_current_portal_client(
+    authorization: Optional[str] = Header(None),
+    portal_access_token: Optional[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    """Dependencia FastAPI para el cliente autenticado del portal.
+
+    Usar SIEMPRE esta dependencia en lugar de llamar a `require_portal_client`
+    dentro del handler. Motivos:
+
+    - La authz queda en el grafo de dependencias, así que es auditable por
+      herramientas (ver tests/test_route_auth_coverage.py) y aparece en OpenAPI.
+    - Es imposible olvidar la llamada o descartar su valor de retorno, que es
+      exactamente el fallo que provocó los IDOR de CSAT y comentarios de portal
+      (auditoría 2026-07, docs/AUDIT_2026_07_FULL.md §1.1 y §1.2).
+
+    Auditoria 2026-11: publica la organizacion del cliente en la sesion, como
+    `get_portal_client_or_user`. Sin esto lo que creaba el portal (tickets)
+    quedaba sin organizacion.
+    """
+    from app.db.session import publicar_contexto_de_tenant
+    from app.services.service_desk.portal_auth_service import require_portal_client
+    cliente = require_portal_client(authorization, portal_access_token, db)
+    publicar_contexto_de_tenant(db, cliente, es_cliente=True)
+    return cliente
+
+
+def get_portal_client_or_user(
+    request: Request,
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+    portal_access_token: Optional[str] = Cookie(None),
+):
+    """Un cliente del portal (con su organizacion publicada) o un usuario. Si no, 401.
+
+    Auditoria 2026-11 (medido con un cliente sin cookies): el catalogo y la base
+    de conocimiento se servian sin login, y sin sesion no hay filtro de
+    organizacion: cualquiera leia el contenido interno de todas. Un visitante
+    anonimo no se puede acotar a ninguna organizacion, asi que no lee.
+    """
+    from app.db.session import publicar_contexto_de_tenant
+    from app.services.service_desk.portal_auth_service import Lector, resolve_portal_client
+
+    cliente = resolve_portal_client(authorization, portal_access_token, db)
+    if cliente is not None:
+        publicar_contexto_de_tenant(db, cliente, es_cliente=True)
+        return Lector(cliente=cliente)
+    credenciales = None
+    if authorization and authorization.lower().startswith("bearer "):
+        credenciales = HTTPAuthorizationCredentials(scheme="Bearer", credentials=authorization.split(" ", 1)[1].strip())
+    return Lector(usuario=get_current_user(request, credenciales, db))

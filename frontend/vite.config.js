@@ -53,48 +53,20 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 900,
       rollupOptions: {
         output: {
+          // Auditoria 2026-11 (#19): solo se nombran los vendor que necesita el
+          // arranque (React, router, react-query, axios). Antes todas las paginas
+          // de src/pages caian en route-*/route-misc (3 MB) y todo node_modules sin
+          // regla en vendor-core; como el shell importa modulos compartidos que
+          // vivian en esos chunks, index.html los precargaba enteros y las rutas
+          // "lazy" no lo eran. Ahora Rollup trocea por import() dinamico: cada
+          // pagina y cada libreria pesada (recharts, d3, bpmn, xyflow, livekit,
+          // yjs...) va en su propio chunk y solo se descarga al visitarla.
           manualChunks(id) {
-            if (id.includes('/src/pages/')) {
-              if (id.includes('/pages/service-desk/')) return 'route-service-desk'
-              if (id.includes('/pages/portal-client/') || id.includes('PortalClientePage') || id.includes('PortalPublicViewPage')) return 'route-portal'
-              if (id.includes('/pages/BI') || id.includes('DataExplorerPage') || id.includes('PredictionsPage') || id.includes('DataPlatformPage') || id.includes('DataGovernancePage')) return 'route-bi'
-              if (id.includes('AIHubPage') || id.includes('NexusAgentPage') || id.includes('OraclePage') || id.includes('MeetingsAIPage') || id.includes('ContractsAIPage') || id.includes('SemanticEnginePage')) return 'route-ai'
-              if (id.includes('ProjectsPage') || id.includes('TasksPage') || id.includes('GanttPage') || id.includes('Sprint') || id.includes('Kanban')) return 'route-delivery'
-              if (id.includes('ProfitabilityPage') || id.includes('RevenuePage') || id.includes('BudgetsPage') || id.includes('InvoicesPage') || id.includes('ExpensesPage')) return 'route-finance'
-              // NO trocear route-misc por dominio todavía (auditoría 2026-08 §7.b).
-              // Se probó agrupando en route-settings/collab/process/people/itsm/
-              // governance: el tamaño mejora (route-misc 666 -> 481 kB gzip), pero
-              // los avisos de "Circular chunk" de rollup pasan de 7 a 11, porque las
-              // páginas se importan entre sí a través de componentes compartidos.
-              // Nota: esos 7 ya existen hoy, no los introduce el troceo — pero
-              // añadir 4 ciclos más a un grafo ya circular por 185 kB no compensa,
-              // y el orden de carga resultante no es verificable sin probar la app.
-              // Requisito previo: extraer lo compartido entre páginas a módulos
-              // propios, resolver los 7 ciclos actuales, y luego reintentar.
-              return 'route-misc'
-            }
             if (!id.includes('node_modules')) return
-            if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react'
-            if (id.includes('lucide-react')) return 'vendor-icons'
-            if (id.includes('recharts')) return 'vendor-recharts'
-            if (id.includes('react-grid-layout') || id.includes('react-window')) return 'vendor-layout'
-            if (id.includes('yjs') || id.includes('y-websocket')) return 'vendor-realtime'
-            if (id.includes('html2canvas')) return 'vendor-html2canvas'
-            if (id.includes('@tanstack')) return 'vendor-react-query'
+            if (/[\/]node_modules[\/](react|react-dom|scheduler)[\/]/.test(id)) return 'vendor-react'
             if (id.includes('react-router')) return 'vendor-router'
-            if (id.includes('axios')) return 'vendor-axios'
-            if (id.includes('date-fns')) return 'vendor-date'
-            if (id.includes('zod')) return 'vendor-validation'
-            // Auditoría 2026-08 §7.b: estas no tenían regla (plotly y echarts salieron del
-            // proyecto en 2026-11, #31) y caían todas en
-            // vendor-core, que llegó a 6,4 MB (1,95 MB gzip). Son librerías pesadas
-            // y de uso puntual (una o dos rutas cada una), así que separarlas evita
-            // pagarlas en la carga inicial.
-            if (id.includes('bpmn-js') || id.includes('diagram-js') || id.includes('bpmn-moddle')) return 'vendor-bpmn'
-            if (id.includes('@xyflow')) return 'vendor-flow'
-            if (id.includes('livekit-client')) return 'vendor-livekit'
-            if (id.includes('/d3-') || id.includes('/d3/')) return 'vendor-d3'
-            return 'vendor-core'
+            if (id.includes('@tanstack')) return 'vendor-react-query'
+            if (id.includes('/axios/')) return 'vendor-axios'
           },
         },
       },

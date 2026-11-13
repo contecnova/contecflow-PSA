@@ -27,14 +27,3 @@ class VoiceCommandPayload(BaseModel):
 class SmartScheduleRequest(BaseModel):
     project_id: Optional[str] = Field(None, description="ID del proyecto a planificar")
     max_tasks: int = Field(20, description="Número máximo de tareas a considerar en la planificación")
-
-class OverrunPredictionOut(BaseModel):
-    project_id: str = Field(..., description="ID del proyecto evaluado")
-    project_name: str = Field(..., description="Nombre del proyecto evaluado")
-    cost_overrun_prob: float = Field(..., description="Probabilidad estimada de desviación de coste")
-    schedule_overrun_prob: float = Field(..., description="Probabilidad estimada de desviación de plazos")
-    cost_overrun_pct: float = Field(..., description="Porcentaje estimado de desviación de coste")
-    schedule_overrun_days: int = Field(..., description="Días estimados de retraso sobre el plan")
-    confidence: str = Field(..., description="Nivel de confianza cualitativo de la predicción")
-    signals: list = Field(..., description="Señales o indicadores que justifican la predicción")
-    recommendation: str = Field(..., description="Recomendación accionable derivada del análisis")

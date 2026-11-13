@@ -52,7 +52,7 @@ const chip = (color: string): CSSProperties => ({
 })
 // Texto solo para lectores de pantalla (la aplicación no tiene clase para ello).
 const srOnly: CSSProperties = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }
-const iconBtn: CSSProperties = { background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)" }
+const iconBtn: CSSProperties = { background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)" }
 
 type CI = {
   id: string; code?: string; name?: string; ci_type?: string; status?: string
@@ -270,7 +270,7 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
         ) : (
           <div style={{display:'flex',flexDirection:'column',gap:4}}>
             {rels.map(r => (
-              <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,fontSize: "var(--text-sm)"}}>
+              <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:'var(--radius-sm)',fontSize: "var(--text-sm)"}}>
                 <RelLinea r={r} ciId={item.id} />
                 <button aria-label={t('cmdb.delete_relation')}
                   onClick={() => openConfirmGlobal({ message: t('cmdb.delete_relation_q'), onConfirm: () => deleteRel(r.id), danger: true })}
@@ -296,7 +296,7 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
             <Button onClick={() => createRel()} disabled={isPending || !toId} loading={isPending}>{t('cmdb.add_relation')}</Button>
           </div>
         </div>
-        <div style={{display:'flex',justifyContent:'flex-end'}}>
+        <div className="u-row-end">
           <Button variant="secondary" onClick={onClose}>{t('cmdb.close')}</Button>
         </div>
       </div>
@@ -326,7 +326,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
           {entries.map(e => {
             const color = ACTION_COLOR[e.action ?? ''] || 'var(--text-2)'
             return (
-              <div key={e.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+              <div key={e.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                   <span style={{ ...chip(color), fontWeight: 700 }}>{etiqueta('action_', e.action)}</span>
                   <span className="u-text2-xs">
@@ -339,7 +339,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
                   <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)', wordBreak: 'break-word' }}>
                     <code style={{ background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>{e.field}</code>
                     {e.old_value && <span> · <span className="u-danger">−{e.old_value}</span></span>}
-                    {e.new_value && <span> → <span style={{ color: 'var(--success)' }}>+{e.new_value}</span></span>}
+                    {e.new_value && <span> → <span className="u-success">+{e.new_value}</span></span>}
                   </div>
                 )}
               </div>
@@ -374,10 +374,10 @@ function CILinkedAssets({ ciId }: { ciId: string }) {
       ) : (
         <div className="u-stack-6">
           {assets.map(a => (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
               <div className="u-flex1-min0">
                 <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-                {a.serial_number ? <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>S/N {String(a.serial_number)}</div> : null}
+                {a.serial_number ? <div className="u-text2-2xs">S/N {String(a.serial_number)}</div> : null}
               </div>
               {a.status ? <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', background: 'var(--surface-4)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{String(a.status)}</span> : null}
             </div>
@@ -448,15 +448,15 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
         </div>
 
         {newToken && (
-          <div style={{ marginTop: 16, background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 10, padding: '14px 18px' }}>
+          <div style={{ marginTop: 16, background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
             <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)', textTransform: 'uppercase', marginBottom: 8 }}>
               {t('cmdb.token_de_registro_usalo_una_sola_vez')}
             </div>
-            <code style={{ display: 'block', fontSize: "var(--text-sm)", color: 'var(--text-1)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '8px 12px', borderRadius: 6 }}>
+            <code style={{ display: 'block', fontSize: "var(--text-sm)", color: 'var(--text-1)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}>
               {newToken}
             </code>
             <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 8 }}>
-              {t('cmdb.ejecuta_el_agente_con')} <code style={{ fontFamily: 'var(--font-mono)' }}>CMDB_TOKEN={newToken} ./cmdb-agent</code>
+              {t('cmdb.ejecuta_el_agente_con')} <code className="u-mono">CMDB_TOKEN={newToken} ./cmdb-agent</code>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setNewToken(null)} style={{ marginTop: 10 }}>{t('cmdb.hide_token')}</Button>
           </div>
@@ -476,7 +476,7 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+              <tr className="u-border-b">
                 <th style={th}>{t('cmdb.nombre_del_agente')}</th>
                 <th style={th}>{t('cmdb.platform')}</th>
                 <th style={th}>{t('cmdb.status')}</th>
@@ -487,7 +487,7 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
             </thead>
             <tbody>
               {agents.map(ag => (
-                <tr key={ag.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                <tr key={ag.id} className="u-border-b">
                   <td style={{ ...td, fontWeight: 600, color: 'var(--text-1)' }}>{ag.name}</td>
                   <td style={td}>{ag.os_type || '—'}</td>
                   <td style={td}>
@@ -568,7 +568,7 @@ function ClasesTab() {
           </div>
         </div>
       ))}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div className="u-wrap-10">
         <Button variant="secondary" onClick={() => setFilas([...actuales, { key: '', label: '', field_type: 'text' }])}>{t('cmdb.classes_add')}</Button>
         <Button onClick={() => guardar()} loading={isPending} disabled={filas === null || isPending}>{t('cmdb.save')}</Button>
       </div>
@@ -583,7 +583,7 @@ function Red({ item }: { item: CI }) {
   return (
     <>
       {item.hostname && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}}>{item.hostname}{a.port ? `:${a.port}` : ''}</div>}
-      {item.ip_address && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{item.ip_address}</div>}
+      {item.ip_address && <div className="u-text2-mono-xs">{item.ip_address}</div>}
       {extra && <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',overflow:'hidden',textOverflow:'ellipsis',maxWidth:200}}>{String(extra)}</div>}
       {!item.hostname && !item.ip_address && !extra && '—'}
     </>
@@ -838,7 +838,7 @@ export default function CMDBPage(): JSX.Element {
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
           <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{todos.length ? t('cmdb.no_match') : t('cmdb.no_cis')}</div>
           {!todos.length && <>
-            <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{t('cmdb.registra_servidores_aplicaciones_bases_de_datos_y')}</div>
+            <div className="u-text2-base-mb20">{t('cmdb.registra_servidores_aplicaciones_bases_de_datos_y')}</div>
             <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('cmdb.new_ci')}</Button>
           </>}
         </div>
@@ -846,7 +846,7 @@ export default function CMDBPage(): JSX.Element {
         <div style={{...ps, overflowX:'auto', position:'relative'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize: "var(--text-base)"}}>
             <thead>
-              <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
+              <tr className="u-border-b">
               {columnas.map(([key, label]) => (
                 <th key={key} aria-sort={sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                   style={{textAlign:'left',padding:0,whiteSpace:'nowrap'}}>
@@ -862,12 +862,12 @@ export default function CMDBPage(): JSX.Element {
             </thead>
             <tbody>
               {sortedItems.map(item => (
-                  <tr key={item.id} style={{borderBottom:'1px solid var(--surface-4)'}}>
-                    <td style={{padding:'10px 12px'}}>
+                  <tr key={item.id} className="u-border-b">
+                    <td className="u-pad-10-12">
                       <div className="u-row-center-8">
                         <span style={{fontSize: "var(--text-lg)"}} aria-hidden>{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
                         <div className="u-min0">
-                          <div style={{fontWeight:600}}>{item.name}</div>
+                          <div className="u-600">{item.name}</div>
                           <div className="u-text2-xs">
                             {item.code}{item.is_discovered ? ` · ${t('cmdb.discovered', { provider: item.discovery_provider ?? '' })}` : ''}
                           </div>
@@ -875,16 +875,16 @@ export default function CMDBPage(): JSX.Element {
                       </div>
                     </td>
                     <td style={{padding:'10px 12px',color:'var(--text-2)',fontSize: "var(--text-sm)"}}>{etiqueta('type_', item.ci_type)}</td>
-                    <td style={{padding:'10px 12px'}}>
+                    <td className="u-pad-10-12">
                       <span style={chip(STATUS_COLOR[item.status ?? ''] || 'var(--text-2)')}>{etiqueta('st_', item.status)}</span>
                       {item.drift_detected_at && <span style={{...chip('var(--warning)'), marginLeft: 6}}>{t('cmdb.drift')}</span>}
                     </td>
-                    <td style={{padding:'10px 12px'}}>
+                    <td className="u-pad-10-12">
                       {item.environment ? <span style={chip(ENV_COLOR[item.environment] || 'var(--text-2)')}>{etiqueta('env_', item.environment)}</span> : '—'}
                     </td>
                     <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}><Red item={item} /></td>
                     <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)',fontFamily:'var(--font-mono)'}}>{item.version||'—'}</td>
-                    <td style={{padding:'10px 12px'}}>
+                    <td className="u-pad-10-12">
                       <div className="u-row-6">
                         <button onClick={() => setHistoryItem(item)} style={iconBtn} aria-label={t('cmdb.ver_historial_de_cambios')} title={t('cmdb.ver_historial_de_cambios')}>📋</button>
                         <button onClick={() => setRelItem(item)} style={iconBtn} aria-label={t('cmdb.relationships')} title={t('cmdb.relationships')}>🔗</button>

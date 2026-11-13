@@ -12,7 +12,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { portalApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
+import { portalApi, portalClientsApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
 import { useTabListKeys } from '../components/ui/Tabs'
 import {
@@ -28,6 +28,7 @@ import { alpha } from '../constants/theme'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
@@ -183,7 +184,7 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
   const [editingClient, setEditingClient] = useState<ClientePortal | null>(null)
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['portal-clients', projectId],
-    queryFn: () => portalApi.clients({ project_id: projectId }).then((r): ClientePortal[] => r.data),
+    queryFn: () => portalClientsApi.list({ project_id: projectId }).then((r): ClientePortal[] => r.data),
     enabled: !!projectId,
   })
   const { mutate: deleteClient } = useMutation({
@@ -192,14 +193,14 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: toggleActive } = useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) => portalApi.updateClient(id, { is_active: active }),
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => portalClientsApi.update(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="u-row-between-mb16">
         <div className="u-text2-base">{clients.length} {t('client_portal.contacts_count')}</div>
         <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.add_contact')}</Button>
       </div>
@@ -216,22 +217,22 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
                 <div className="u-md-700">{c.full_name}</div>
                 <div className="u-text2-sm">{c.job_title || t('client_portal.role_unknown')} · {c.company || c.project_name} · {c.email}</div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: "var(--text-xs)" }}>
-                  {c.can_approve_deliverables && <span style={{ color: 'var(--success)' }}>{`✓ ${t('client_portal.perm_approve')}`}</span>}
-                  {c.can_request_changes && <span style={{ color: 'var(--accent)' }}>{`✓ ${t('client_portal.perm_request')}`}</span>}
+                  {c.can_approve_deliverables && <span className="u-success">{`✓ ${t('client_portal.perm_approve')}`}</span>}
+                  {c.can_request_changes && <span className="u-accent">{`✓ ${t('client_portal.perm_request')}`}</span>}
                   {c.can_view_budget && <span className="u-warning">{`✓ ${t('client_portal.perm_view_budget')}`}</span>}
                 </div>
               </div>
               {c.last_login && <div className="u-text2-xs">{`${t('client_portal.last_access')}: ${fmtDate(c.last_login)}`}</div>}
               <div className="u-row-8">
                 <button onClick={() => setEditingClient(c)}
-                  style={{ background: 'none', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                  style={{ background: 'none', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-3)', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                   {`✏ ${t('client_portal.edit')}`}
                 </button>
                 <button onClick={() => toggleActive({ id: c.id, active: !c.is_active })}
-                  style={{ background: 'none', border: `1px solid ${c.is_active ? 'var(--warning-border)' : 'var(--success-border)'}`, borderRadius: 6, padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                  style={{ background: 'none', border: `1px solid ${c.is_active ? 'var(--warning-border)' : 'var(--success-border)'}`, borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                   {c.is_active ? `⏸ ${t('client_portal.suspend')}` : `▶ ${t('client_portal.activate')}`}
                 </button>
-                <button onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-bg)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                <button onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-bg)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-3)', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
               </div>
             </div>
           ))}
@@ -244,6 +245,7 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
 }
 
 function CreateClientModal({ projectId, onClose }: { projectId: string; onClose: () => void }) {
+  const idCampo = React.useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -263,7 +265,7 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: z.infer<typeof portalClientCreateSchema> & { project_id: string; project_ids: string[] }) => portalApi.createClient(data),
+    mutationFn: (data: z.infer<typeof portalClientCreateSchema> & { project_id: string; project_ids: string[] }) => portalClientsApi.create(data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -278,23 +280,23 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
 
   return (
     <Modal open title={t('client_portal.create_contact_title')} onClose={onClose} width={560}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="u-grid2-14">
         <div className="u-col-full">
-          <label style={ls}>{t('client_portal.label_full_name')} *</label>
-          <input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.label_full_name')} *</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
           {validation.errors.full_name && <p className="u-field-error">{validation.errors.full_name}</p>}
         </div>
         <div>
-          <label style={ls}>{t('client_portal.label_email')} *</label>
-          <input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.label_email')} *</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
           {validation.errors.email && <p className="u-field-error">{validation.errors.email}</p>}
         </div>
-        <div><label style={ls}>{t('client_portal.label_job_title')}</label><input value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
-        <div><label style={ls}>{t('client_portal.label_company')}</label><input value={form.company} onChange={set('company')} style={fs} /></div>
-        <div><label style={ls}>{t('client_portal.label_phone')}</label><input value={form.phone} onChange={set('phone')} style={fs} /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} style={fs} /></div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} style={fs} /></div>
         <div className="u-col-full">
-          <label style={ls}>{t('client_portal.label_password')} *</label>
-          <input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} placeholder={t('client_portal.password_placeholder')} />
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('client_portal.label_password')} *</label>
+          <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} placeholder={t('client_portal.password_placeholder')} />
           {validation.errors.password && <p className="u-field-error">{validation.errors.password}</p>}
         </div>
         {allProjects.length > 1 && (
@@ -336,13 +338,14 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
 
 // ── UAT Management ────────────────────────────────────────────────────────────
 function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; onClose: () => void; onSaved: () => void }) {
+  const idCampo = React.useId()
   const t = useAppT()
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-list'],
     queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => r.data),
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: z.infer<typeof portalClientEditSchema>) => portalApi.updateClient(client.id, data),
+    mutationFn: (data: z.infer<typeof portalClientEditSchema>) => portalClientsApi.update(client.id, data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -380,23 +383,23 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
 
   return (
     <Modal open title={`${t('client_portal.edit')} — ${client.full_name}`} onClose={onClose} width={560}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="u-grid2-14">
         <div className="u-col-full">
-          <label style={ls}>{t('client_portal.label_full_name')} *</label>
-          <input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.label_full_name')} *</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
           {validation.errors.full_name && <p className="u-field-error">{validation.errors.full_name}</p>}
         </div>
         <div>
-          <label style={ls}>{t('client_portal.label_email')} *</label>
-          <input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.label_email')} *</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
           {validation.errors.email && <p className="u-field-error">{validation.errors.email}</p>}
         </div>
-        <div><label style={ls}>{t('client_portal.label_job_title')}</label><input value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
-        <div><label style={ls}>{t('client_portal.label_company')}</label><input value={form.company} onChange={set('company')} style={fs} /></div>
-        <div><label style={ls}>{t('client_portal.label_phone')}</label><input value={form.phone} onChange={set('phone')} style={fs} /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} style={fs} /></div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} style={fs} /></div>
         <div className="u-col-full">
-          <label style={ls}>{t('client_portal.additional_projects_access')}</label>
-          <select
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('client_portal.additional_projects_access')}</label>
+          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`}
             multiple
             value={form.project_ids}
             onChange={e => setForm(f => ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
@@ -407,8 +410,8 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
           </select>
         </div>
         <div className="u-col-full">
-          <label style={ls}>{t('client_portal.label_password')}</label>
-          <input type="password" value={form.password} onChange={set('password')} style={fs} placeholder={t('client_portal.password_placeholder')} />
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('client_portal.label_password')}</label>
+          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="password" value={form.password} onChange={set('password')} style={fs} placeholder={t('client_portal.password_placeholder')} />
           <div className="u-hint">{t('client_portal.password_placeholder')}</div>
         </div>
         <div className="u-col-full">
@@ -450,7 +453,7 @@ function UATTab({ projectId }: { projectId: string }) {
   })
   const { data: deliverables = [] } = useQuery({
     queryKey: ['deliverables-uat', projectId],
-    queryFn: () => deliverablesApi.get(projectId).then((r): Entregable[] => r.data.deliverables || []),
+    queryFn: () => deliverablesApi.listByProject(projectId).then((r): Entregable[] => r.data.deliverables || []),
     enabled: !!projectId,
   })
   // Always read live data so UATDetailModal reflects updates without reopening
@@ -474,7 +477,7 @@ function UATTab({ projectId }: { projectId: string }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 3 }}>
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{s.code}</span>
+                    <span className="u-text2-mono-xs">{s.code}</span>
                     <span className="u-md-700">{s.title}</span>
                     {s.overdue && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>{`⚠ ${t('client_portal.uat_overdue')}`}</span>}
                   </div>
@@ -506,6 +509,7 @@ function UATTab({ projectId }: { projectId: string }) {
 }
 
 function CreateUATModal({ projectId, deliverables, onClose }: { projectId: string; deliverables: Entregable[]; onClose: () => void }) {
+  const idCampo = React.useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -542,25 +546,25 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
       <div className="u-stack-14">
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
           <div>
-            <label style={ls}>{t('client_portal.uat_label_title')} *</label>
-            <input value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('client_portal.uat_placeholder_title')} />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.uat_label_title')} *</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('client_portal.uat_placeholder_title')} />
             {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
           </div>
-          <div><label style={ls}>{t('client_portal.uat_label_deliverable')}</label>
-            <select value={form.deliverable_id} onChange={set('deliverable_id')} style={fs}>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.uat_label_deliverable')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.deliverable_id} onChange={set('deliverable_id')} style={fs}>
               <option value="">{t('client_portal.uat_unlinked')}</option>
               {deliverables.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
             </select>
           </div>
         </div>
-        <div><label style={ls}>{t('client_portal.uat_label_description')}</label><textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.uat_label_description')}</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
         <div className="u-grid2-12">
-          <div><label style={ls}>{t('client_portal.uat_label_test_env_url')}</label><input value={form.test_environment} onChange={set('test_environment')} style={fs} placeholder={t('client_portal.uat_placeholder_test_env_url')} /></div>
-          <div><label style={ls}>{t('client_portal.uat_label_test_credentials')}</label><input value={form.test_credentials} onChange={set('test_credentials')} style={fs} placeholder={t('client_portal.uat_placeholder_test_credentials')} /></div>
-          <div><label style={ls}>{t('client_portal.uat_label_available_from')}</label><DateInput value={form.available_from} onChange={set('available_from')} style={validation.inputStyle(fs, 'available_from')} /></div>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.uat_label_test_env_url')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.test_environment} onChange={set('test_environment')} style={fs} placeholder={t('client_portal.uat_placeholder_test_env_url')} /></div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('client_portal.uat_label_test_credentials')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.test_credentials} onChange={set('test_credentials')} style={fs} placeholder={t('client_portal.uat_placeholder_test_credentials')} /></div>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('client_portal.uat_label_available_from')}</label><DateInput id={`${idCampo}-6`} value={form.available_from} onChange={set('available_from')} style={validation.inputStyle(fs, 'available_from')} /></div>
           <div>
-            <label style={ls}>{t('client_portal.uat_label_deadline')}</label>
-            <DateInput value={form.deadline} onChange={set('deadline')} style={validation.inputStyle(fs, 'deadline')} />
+            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('client_portal.uat_label_deadline')}</label>
+            <DateInput id={`${idCampo}-7`} value={form.deadline} onChange={set('deadline')} style={validation.inputStyle(fs, 'deadline')} />
             {validation.errors.deadline && <p className="u-field-error">{validation.errors.deadline}</p>}
           </div>
         </div>
@@ -570,8 +574,8 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
           {testCases.map((tc, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 30px', gap: 8, marginBottom: 8, padding: 10, background: 'var(--surface-3)', borderRadius: 8 }}>
               <input value={tc.title} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, title: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_title_placeholder').replace('{index}', String(i + 1))} />
-              <input value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, steps: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
-              <input value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, expected_result: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
+              <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, steps: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
+              <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, expected_result: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
               <button onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)" }}>×</button>
             </div>
           ))}
@@ -613,7 +617,7 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
       </div>
 
       {initialSession.client_notes && (
-        <div style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+        <div style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16 }}>
           <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase' }}>{t('client_portal.uat_detail_client_notes')}</div>
           <p style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{initialSession.client_notes}</p>
         </div>
@@ -668,7 +672,7 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
                     </div>
                     {issue.status === 'open' && (
                       <select defaultValue={issue.status} onChange={e => updateIssue({ id: issue.id, status: e.target.value })}
-                        style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: 'var(--space-2) var(--space-2)', color: 'var(--text-1)', fontSize: "var(--text-xs)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                        style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-2)', color: 'var(--text-1)', fontSize: "var(--text-xs)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
                         <option value="open">{t('client_portal.uat_issue_open')}</option>
                         <option value="fixed">{t('client_portal.uat_issue_fixed')}</option>
                         <option value="deferred">{t('client_portal.uat_issue_deferred')}</option>
@@ -693,6 +697,8 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
 
 // ── Feature Requests Tab ──────────────────────────────────────────────────────
 function FeatureRequestsTab({ projectId }: { projectId: string }) {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = React.useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -731,7 +737,7 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div className="u-flex1">
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
+                    <span className="u-text2-mono-xs">{fr.code}</span>
                     <span className="u-md-700">{fr.title}</span>
                   </div>
                   <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '0 0 6px' }}>{fr.description}</p>
@@ -778,14 +784,14 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
       {responding && (
         <Modal open title={`${t('client_portal.fr_modal_title')}: ${responding.title}`} onClose={() => setResponding(null)} width={520}>
           <div className="u-stack-14">
-            <div><label style={ls}>{t('client_portal.fr_label_response')} *</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder={t('client_portal.fr_response_placeholder')} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.fr_label_response')} *</label><textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder={t('client_portal.fr_response_placeholder')} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div><label style={ls}>{t('client_portal.fr_label_hours')}</label><input type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Ej: 8" /></div>
-              <div><label style={ls}>{t('client_portal.fr_label_cost')} €</label><input type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Ej: 1200" /></div>
-              <div><label style={ls}>{t('client_portal.fr_label_weeks')}</label><input type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Ej: 4" /></div>
+              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.fr_label_hours')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Ej: 8" /></div>
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.fr_label_cost')} ({fmtMoneda.simbolo})</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Ej: 1200" /></div>
+              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.fr_label_weeks')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Ej: 4" /></div>
             </div>
-            <div><label style={ls}>{t('client_portal.fr_label_status')}</label>
-              <select value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} style={fs}>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('client_portal.fr_label_status')}</label>
+              <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} style={fs}>
                 <option value="estimated">{t('client_portal.fr_status_estimated')}</option>
                 <option value="reviewing">{t('client_portal.fr_status_reviewing')}</option>
                 <option value="rejected">{t('client_portal.fr_status_rejected')}</option>
@@ -821,6 +827,7 @@ function MessagesTab({ projectId }: { projectId: string }) {
 
 // ── Documents Tab ─────────────────────────────────────────────────────────────
 function DocumentsTab({ projectId }: { projectId: string }) {
+  const idCampo = React.useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -858,14 +865,14 @@ function DocumentsTab({ projectId }: { projectId: string }) {
       {isLoading ? <Spinner /> : docs.length === 0 ? (
         <EmptyState svgIcon={<FileText size={36} />} title={t('client_portal.docs_empty_title')} description={t('client_portal.docs_empty_desc')} />
       ) : (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="ds-card ds-card--plano">
           {docs.map((doc, i) => {
             const color = CAT_COLORS[doc.category] || 'var(--text-2)'
             return (
               <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < docs.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
                 <span style={{ fontSize: "var(--text-xl-em)", flexShrink: 0 }}>{CAT_LABELS[doc.category]?.split(' ')[0] || '📄'}</span>
                 <div className="u-flex1">
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{doc.title}</div>
+                  <div className="u-base-700">{doc.title}</div>
                   <div className="u-text2-xs">
                     <span style={{ color, fontWeight: 600 }}>{CAT_LABELS[doc.category]?.replace(/^\S+\s/, '') || doc.category}</span>
                     {doc.file_name && ` · ${doc.file_name}`}
@@ -878,7 +885,7 @@ function DocumentsTab({ projectId }: { projectId: string }) {
                   </span>
                 )}
                 {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", textDecoration: 'none' }}>
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-3)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", textDecoration: 'none' }}>
                     {`⬇ ${t('client_portal.docs_download')}`}
                   </a>
                 )}
@@ -891,14 +898,14 @@ function DocumentsTab({ projectId }: { projectId: string }) {
       {showAdd && (
         <Modal open title={t('client_portal.docs_modal_title')} onClose={() => setShowAdd(false)} width={480}>
           <div className="u-stack-14">
-            <div><label style={ls}>{t('client_portal.docs_label_title')} *</label><input value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} style={fs} /></div>
-            <div><label style={ls}>{t('client_portal.docs_label_category')}</label>
-              <select value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} style={fs}>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.docs_label_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} style={fs} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.docs_label_category')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} style={fs}>
                 {Object.entries(CAT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
-            <div><label style={ls}>{t('client_portal.docs_label_file_url')}</label><input value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} style={fs} placeholder="https://..." /></div>
-            <div><label style={ls}>{t('client_portal.docs_label_file_name')}</label><input value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} style={fs} placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.docs_label_file_url')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} style={fs} placeholder="https://..." /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.docs_label_file_name')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} style={fs} placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
               <input type="checkbox" checked={docForm.requires_signature} onChange={e => setDocForm(f => ({ ...f, requires_signature: e.target.checked }))} />
               {t('client_portal.docs_requires_signature')}
@@ -944,8 +951,8 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
 
   return (
     <div>
-      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10, padding: 'var(--space-3) var(--space-4)', marginBottom: 20, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-        <strong style={{ color: 'var(--accent)' }}>{`ℹ ${t('client_portal.wiki_info_title')}`}</strong>
+      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', marginBottom: 20, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
+        <strong className="u-accent">{`ℹ ${t('client_portal.wiki_info_title')}`}</strong>
         {' '}— {t('client_portal.wiki_info_desc')}
       </div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
@@ -960,7 +967,7 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
         <EmptyState svgIcon={<BookOpen size={36} />} title={t('client_portal.wiki_empty_title')} description={t('client_portal.wiki_empty_desc')} />
       )}
       {pages.length > 0 && (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="ds-card ds-card--plano">
           {pages.map((page, i) => (
             <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
               <span style={{ fontSize: "var(--text-lg)" }}>📄</span>
@@ -971,7 +978,7 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
               <div className="u-row-6">
                 {Object.entries(VIS).map(([val, cfg]) => (
                   <button key={val} onClick={() => setVis({ id: page.id, visibility: val })}
-                    style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${(page.visibility || 'team') === val ? alpha(cfg.color, '60') : 'var(--surface-4)'}`, background: (page.visibility || 'team') === val ? alpha(cfg.color, '15') : 'transparent', color: (page.visibility || 'team') === val ? cfg.color : 'var(--text-3)', fontSize: "var(--text-xs)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${(page.visibility || 'team') === val ? alpha(cfg.color, '60') : 'var(--surface-4)'}`, background: (page.visibility || 'team') === val ? alpha(cfg.color, '15') : 'transparent', color: (page.visibility || 'team') === val ? cfg.color : 'var(--text-3)', fontSize: "var(--text-xs)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {cfg.label}
                   </button>
                 ))}
@@ -1004,10 +1011,10 @@ function StatsPanel({ projectId }: { projectId: string }) {
         { label: t('client_portal.stat_avg_satisfaction'), value: stats.avg_satisfaction ? `${stats.avg_satisfaction}/5` : '—', color: 'var(--success)', icon: '⭐' },
         { label: t('client_portal.stat_avg_nps'), value: stats.avg_nps ?? '—', color: stats.avg_nps >= 8 ? 'var(--success)' : stats.avg_nps >= 6 ? 'var(--warning)' : 'var(--danger)', icon: '📊' },
       ].map(({ label, value, color, icon }) => (
-        <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 'var(--space-3) var(--space-4)', flex: 1, minWidth: 120 }}>
+        <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', flex: 1, minWidth: 120 }}>
           <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{icon}</div>
           <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{label}</div>
+          <div className="u-text2-xs-mt2">{label}</div>
         </div>
       ))}
     </div>

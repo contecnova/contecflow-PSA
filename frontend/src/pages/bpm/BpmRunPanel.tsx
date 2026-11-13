@@ -128,7 +128,7 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
             ]}
           />
           {data.status === 'running' && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="u-row-end">
               <Button variant="secondary" onClick={() => cancel()}>{t('bpm.cancelar_instancia')}</Button>
             </div>
           )}

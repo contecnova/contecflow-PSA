@@ -1,7 +1,7 @@
 import { CHART_COLORS_EXTENDED, COLOR, alpha } from '../constants/theme'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -61,6 +61,7 @@ const daysBetween = (a?: string, b?: string) => {
 }
 
 function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: EpicItem | null; onClose: () => void }) {
+  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -101,23 +102,23 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
   return (
     <Modal open onClose={onClose} title={isEdit ? t('epics.edit_epic') : t('epics.new_epic')}>
       <div className="u-stack-14">
-        <div><label style={ls}>{t('epics.title_label')}</label><input style={is} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/></div>
-        <div><label style={ls}>{t('common.description')}</label><textarea style={{...is,height:70,resize:'vertical'}} value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('epics.title_label')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/></div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={{...is,height:70,resize:'vertical'}} value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
         <div className="u-grid2-12">
-          <div><label style={ls}>{t('common.status')}</label>
-            <select style={is} value={form.status} onChange={e=>set('status')(e.target.value as EpicStatus)}>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('common.status')}</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={form.status} onChange={e=>set('status')(e.target.value as EpicStatus)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
-          <div><label style={ls}>{t('common.priority')}</label>
-            <select style={is} value={form.priority} onChange={e=>set('priority')(e.target.value as EpicPriority)}>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('common.priority')}</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} style={is} value={form.priority} onChange={e=>set('priority')(e.target.value as EpicPriority)}>
               {Object.entries(PRIORITY_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
         </div>
         <div className="u-grid2-12">
-          <div><label style={ls}>{t('epics.start_date')}</label><DateInput style={is} value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
-          <div><label style={ls}>{t('epics.end_date')}</label><DateInput style={is} value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('epics.start_date')}</label><DateInput id={`${idCampo}-5`} style={is} value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('epics.end_date')}</label><DateInput id={`${idCampo}-6`} style={is} value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
         </div>
         <div><label style={ls}>{t('epics.color_label')}</label>
           <div className="u-wrap-8">
@@ -251,6 +252,7 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
 }
 
 export default function EpicsPage(): JSX.Element {
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -316,8 +318,8 @@ export default function EpicsPage(): JSX.Element {
 
       {/* Selector proyecto */}
       <div style={{...ps,marginBottom:20}}>
-        <label style={ls}>{t('epics.project_label')}</label>
-        <select value={project} onChange={e=>setProject(e.target.value)} style={{...is,width:360}}>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('epics.project_label')}</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} style={{...is,width:360}}>
           <option value="">{t('epics.select_project_placeholder')}</option>
           {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -328,9 +330,9 @@ export default function EpicsPage(): JSX.Element {
 
       {project&&!isLoading&&epics.length===0&&(
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>🎯</div>
+          <div className="u-empty-icon">🎯</div>
           <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('epics.no_epics')}</div>
-          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{t('epics.no_epics_desc')}</div>
+          <div className="u-text2-base-mb20">{t('epics.no_epics_desc')}</div>
           {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.create_first')}</Button>}
         </div>
       )}
@@ -370,7 +372,7 @@ export default function EpicsPage(): JSX.Element {
                     <div style={{width:4,height:48,borderRadius:2,background:epic.color,flexShrink:0,marginTop:2}}/>
                     <div className="u-flex1">
                       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
-                        <span style={{fontWeight:600,fontSize: "var(--text-md)"}}>{epic.title}</span>
+                        <span className="u-md-600">{epic.title}</span>
                         <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,background:st.bg,color:st.color}}>{st.label}</span>
                         <span style={{fontSize: "var(--text-xs)",color:pri.color}}>⬆ {pri.label}</span>
                       </div>
@@ -378,7 +380,7 @@ export default function EpicsPage(): JSX.Element {
                       <div style={{display:'flex',alignItems:'center',gap:20,fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
                         {epic.start_date&&<span>📅 {epic.start_date} → {epic.end_date||t('epics.no_end_date')}</span>}
                         <span>📌 {epic.task_count||0} {t('epics.tasks_count')}</span>
-                        {(epic.task_count ?? 0)>0&&<span style={{color:'var(--success)'}}>{progress}% {t('epics.completed_label')}</span>}
+                        {(epic.task_count ?? 0)>0&&<span className="u-success">{progress}% {t('epics.completed_label')}</span>}
                       </div>
                       {(epic.task_count ?? 0)>0&&(
                         <div style={{marginTop:8,height:4,background:'var(--surface-4)',borderRadius:2,overflow:'hidden'}}>
@@ -388,9 +390,9 @@ export default function EpicsPage(): JSX.Element {
                     </div>
                     {canEdit && <div style={{display:'flex',gap:6,flexShrink:0}}>
                       <button onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}
-                        style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.edit')}</button>
+                        style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.edit')}</button>
                       <button onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}
-                        style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.delete')}</button>
+                        style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.delete')}</button>
                     </div>}
                   </div>
                 </button>

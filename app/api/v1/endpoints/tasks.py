@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
 import logging
+from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 logger = logging.getLogger(__name__)
 
@@ -288,7 +289,7 @@ def update_task(
 @router.get("/{task_id}/movement-log", response_model=APIListResponse[TaskMovementLogOut], summary="Historial de movimientos de tarea")
 def get_movement_log(
     task_id: str,
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

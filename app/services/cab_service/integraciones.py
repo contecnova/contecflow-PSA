@@ -163,7 +163,8 @@ def sync_accounting(db: Session, config, payload: dict):
     return sum(1 for f in filas if f["status"] == "synced"), errores
 
 
-_ESTADO_DESDE_JIRA = {"done": "done", "in progress": "in_progress", "to do": "todo", "in review": "in_review"}
+# Auditoria 2026-11 (#34): el mapa comun de `jira_service` (antes, una copia con cuatro estados).
+from app.services.jira_service import JIRA_STATUS_MAP as _ESTADO_DESDE_JIRA  # noqa: E402
 
 
 def sync_jira(db: Session, config, payload: dict):

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useToast } from '../context/ToastContext'
 import ResourceHeatmap from '../components/ResourceHeatmap'
@@ -16,6 +16,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
+import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 const ROLES = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }))
 
 type RiskMeta = { label: string; color: string; bg: string; border: string }
@@ -44,7 +45,7 @@ function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
   return (
     <div style={{
       background: 'var(--surface-2)', border: `1px solid ${m.border}`,
-      borderRadius: 14, padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start',
+      borderRadius: 'var(--radius-lg)', padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start',
     }}>
       <Avatar name={member.full_name} size={38} url={undefined} />
       <div className="u-flex1-min0">
@@ -87,7 +88,7 @@ function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
         {(member.factors?.length ?? 0) > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
             {member.factors!.map((f: string, i: number) => (
-              <span key={i} style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 10,
+              <span key={i} style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 'var(--radius-md)',
                 background: 'var(--surface-3)', color: 'var(--text-2)' }}>{f}</span>
             ))}
           </div>
@@ -191,6 +192,7 @@ type Resource = {
 }
 
 function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Resource; onEdit: (r: Resource) => void; showRates: boolean; canEdit: boolean }) {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const load = resource.current_load_pct ?? 0
   const loadColor = load > 100 ? 'var(--danger)' : load > 85 ? 'var(--warning)' : load > 60 ? 'var(--accent)' : 'var(--success)'
@@ -198,7 +200,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
     <div style={{
       background: 'var(--surface-2)',
       border: `1px solid ${load > 100 ? 'rgba(248,113,113,0.35)' : 'var(--surface-4)'}`,
-      borderRadius: 14, padding: 20,
+      borderRadius: 'var(--radius-lg)', padding: 20,
       boxShadow: load > 100 ? '0 0 20px rgba(248,113,113,0.08)' : '0 2px 8px rgba(0,0,0,0.15)',
       transition: 'border-color .15s, box-shadow .15s',
     }}>
@@ -235,7 +237,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
           { label: 'Horas/sem', value: `${resource.hours_this_week?.toFixed(1) ?? 0}h`, color: 'var(--text-1)' },
           { label: 'Proyectos', value: resource.active_projects ?? 0,                   color: 'var(--text-1)' },
         ].map(m => (
-          <div key={m.label} style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '10px 12px', textAlign: 'center' }}>
+          <div key={m.label} style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '10px 12px', textAlign: 'center' }}>
             <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: m.color, lineHeight: 1.1 }}>{m.value}</div>
             <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{m.label}</div>
           </div>
@@ -251,7 +253,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
       {showRates && resource.user?.hourly_rate && (
         <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--surface-3)', borderRadius: 8, fontSize: "var(--text-sm)", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="u-text3">Tarifa</span>
-          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)', fontWeight: 700 }}>{resource.user.hourly_rate}€/h</span>
+          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)', fontWeight: 700 }}>{fmtMoneda(resource.user.hourly_rate)}/h</span>
         </div>
       )}
     </div>
@@ -340,6 +342,8 @@ interface SmartMatchResult {
 interface SkillItem { id?: string; name: string }
 
 function SmartMatchTab() {
+  const fmtMoneda = useFormatoMoneda()
+  const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState<SmartMatchForm>({ skills: [], role: '', hours_needed: 40, start_date: '', end_date: '', max_hourly_rate: '' })
@@ -367,7 +371,7 @@ function SmartMatchTab() {
 
   const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14 }
+  const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)' }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 24 }}>
@@ -376,11 +380,11 @@ function SmartMatchTab() {
           <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 4 }}>🧠 SmartMatch</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 20 }}>{t('resources.encuentra_los_mejores_recursos_para_tu_proyecto')}</div>
 
-          <div style={{ marginBottom: 14 }}>
+          <div className="u-mb-14">
             <label style={labelStyle}>Skills requeridos</label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
               {form.skills.map(s => (
-                <span key={s} style={{ background: 'var(--accent-muted)', border: '1px solid rgba(79,142,247,0.25)', borderRadius: 20, padding: '3px 10px', fontSize: "var(--text-sm)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span key={s} style={{ background: 'var(--accent-muted)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 20, padding: '3px 10px', fontSize: "var(--text-sm)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {s}
                   <button onClick={() => removeSkill(s)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, fontSize: "var(--text-md)", lineHeight: 1 }}>×</button>
                 </span>
@@ -400,9 +404,9 @@ function SmartMatchTab() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>Rol</label>
-            <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inputStyle}>
+          <div className="u-mb-14">
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Rol</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inputStyle}>
               <option value="">Cualquier rol</option>
               <option value="employee">Empleado / Consultor</option>
               <option value="pm">Project Manager</option>
@@ -411,10 +415,10 @@ function SmartMatchTab() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-            <div><label style={labelStyle}>Horas necesarias</label><input type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} style={inputStyle} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>Horas necesarias</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} style={inputStyle} /></div>
             <div><label style={labelStyle}>{t('resources.tarifa_max_h')}</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder="Tarifa maxima" aria-label="Tarifa maxima" /></div>
-            <div><label style={labelStyle}>Inicio</label><DateInput value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} /></div>
-            <div><label style={labelStyle}>Fin</label><DateInput value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={inputStyle} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Inicio</label><DateInput id={`${idCampo}-3`} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>Fin</label><DateInput id={`${idCampo}-4`} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={inputStyle} /></div>
           </div>
 
           <Button onClick={() => search({ ...form, max_hourly_rate: form.max_hourly_rate ? +form.max_hourly_rate : undefined })} loading={isPending} disabled={isPending} style={{ width: '100%' }}>
@@ -426,7 +430,7 @@ function SmartMatchTab() {
       <div>
         {!results && !isPending && (
           <div style={{ ...panelStyle, padding: '48px', textAlign: 'center' }}>
-            <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🎯</div>
+            <div className="u-empty-icon">🎯</div>
             <div style={{ fontSize: "var(--text-md)", color: 'var(--text-2)' }}>{t('resources.configura_los_criterios_y_pulsa_buscar_recursos')}</div>
           </div>
         )}
@@ -437,7 +441,7 @@ function SmartMatchTab() {
             {(results.candidates || []).map((c, i) => (
               <div key={c.user_id} style={{ ...panelStyle, padding: '18px 22px', marginBottom: 12, border: `1px solid ${alpha(scoreColor(c.scores.overall), '30')}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div className="u-row-center-12">
                     <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg,${alpha(scoreColor(c.scores.overall), '40')},${alpha(scoreColor(c.scores.overall), '20')})`, border: `1px solid ${alpha(scoreColor(c.scores.overall), '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: scoreColor(c.scores.overall) }}>{i + 1}</div>
                     <div>
                       <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{c.user_name}</div>
@@ -458,7 +462,7 @@ function SmartMatchTab() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  {(c.hourly_rate ?? 0) > 0 && <span>💰 {c.hourly_rate}€/h</span>}
+                  {(c.hourly_rate ?? 0) > 0 && <span>💰 {fmtMoneda(c.hourly_rate)}/h</span>}
                   <span>⏱ {c.availability_hours}h disponibles</span>
                   <span>📋 {c.active_tasks} tareas activas</span>
                   {(c.matched_skills?.length ?? 0) > 0 && <span>✓ {c.matched_skills!.join(', ')}</span>}
@@ -474,6 +478,7 @@ function SmartMatchTab() {
 }
 
 export default function ResourcesPage() {
+  const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const [resTab, setResTab] = useState('team')
   const { hasRole } = useAuth()
@@ -531,7 +536,7 @@ export default function ResourcesPage() {
       {resTab === 'heatmap' ? <ResourceHeatmap /> : resTab === 'smartmatch' ? <SmartMatchTab /> : resTab === 'burnout' ? <BurnoutMonitorTab /> : (
         <>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
+            <input aria-label={t('resources.buscar_por_nombre_cargo_o_departamento')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
               style={{ flex: '1 1 220px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }} />
             <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
@@ -582,7 +587,7 @@ export default function ResourcesPage() {
                   </div>
                   <span className="u-text2-sm">{r.user?.department || '—'}</span>
                   <span className="u-text2-sm">{r.user?.role || '—'}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div className="u-row-center-6">
                     <div style={{ flex: 1, height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${Math.min(r.current_load_pct ?? 0, 100)}%`, background: (r.current_load_pct ?? 0) > 100 ? 'var(--danger)' : (r.current_load_pct ?? 0) > 80 ? 'var(--warning)' : 'var(--success)', borderRadius: 3 }} />
                     </div>
@@ -590,7 +595,7 @@ export default function ResourcesPage() {
                   </div>
                   <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.hours_this_week || 0}h</span>
                   <span className="u-sm">{r.active_projects || 0}</span>
-                  {hasRole('admin', 'hr') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.user?.hourly_rate ? `${r.user.hourly_rate}€` : '—'}</span>}
+                  {hasRole('admin', 'hr') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.user?.hourly_rate ? fmtMoneda(r.user.hourly_rate) : '—'}</span>}
                 </div>
               ))}
               </div>

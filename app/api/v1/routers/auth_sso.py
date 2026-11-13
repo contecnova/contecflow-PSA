@@ -29,8 +29,8 @@ from app.services.auth_service import (
     register_sso_state as _register_sso_state,
     consume_sso_state_payload as _consume_sso_state_payload,
     validate_https_discovery_url as _validate_https_discovery_url,
-    set_auth_cookies as _set_auth_cookies,
 )
+from app.api.cookies_de_sesion import set_auth_cookies as _set_auth_cookies
 from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
@@ -459,6 +459,15 @@ def sso_callback(
         # Enforce MFA for SSO users too (TOTP or WebAuthn passkeys).
         has_totp    = bool(user.mfa_enabled and user.mfa_secret)
         has_passkeys = _svc.user_has_passkeys(db, user.id)
+        # Auditoria 2026-11 (#45): la organizacion que exige MFA tambien lo
+        # exige por SSO; antes el login por contrasena bloqueaba y el SSO no.
+        if not (has_totp or has_passkeys) and _svc.organizacion_exige_mfa(db, user, org):
+            _svc.commit_db(db)
+            raise HTTPException(
+                status_code=403,
+                detail=("Tu organización requiere MFA. Configura un autenticador "
+                        "(TOTP o passkey) antes de poder iniciar sesión."),
+            )
         if has_totp or has_passkeys:
             methods = []
             if has_totp:
