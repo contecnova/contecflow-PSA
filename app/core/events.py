@@ -247,7 +247,8 @@ def _enqueue_webhooks(db: Any, event: SystemEvent) -> None:
     """
     try:
         from app.services.webhooks import fire_webhook
-        enqueued = fire_webhook(db, event.event_type, event.to_dict(), project_id=event.project_id)
+        enqueued = fire_webhook(db, event.event_type, event.to_dict(), project_id=event.project_id,
+                                organization_id=event.org_id)
         logger.debug("Event %s enqueued %s webhook task(s)", event.event_type, enqueued)
     except Exception as exc:
         logger.debug("Webhook enqueue for %s failed: %s", event.event_type, exc)

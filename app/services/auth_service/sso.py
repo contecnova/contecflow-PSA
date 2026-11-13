@@ -234,6 +234,15 @@ def create_or_update_sso_user(db: Session, config, email: str, name, claims: dic
         return user
     if not user.is_active:
         raise ErrorDeDominio(403, "Usuario desactivado")
+    # Auditoria 2026-11: el IdP lo controla el admin de una empresa; no puede
+    # emitir la identidad del superadmin de la plataforma.
+    if user.is_superadmin:
+        raise ErrorDeDominio(403, "El superadministrador no puede entrar por SSO")
+    # Patron nOAuth: si la cuenta ya esta ligada a un `sub`, otro `sub` con el
+    # mismo email (p. ej. otro tenant de Azure) no entra.
+    sub = claims.get("sub")
+    if user.sso_subject and sub and user.sso_subject != sub:
+        raise ErrorDeDominio(403, "Esta cuenta está vinculada a otra identidad del proveedor SSO")
     org = db.query(Organization).filter(Organization.id == user.organization_id).first()
     if org is not None and not org.is_active:
         raise ErrorDeDominio(403, "La organización de este usuario está desactivada")

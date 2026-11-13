@@ -129,7 +129,7 @@ EXENCIONES_ESPERADAS = {
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.
     # 42 desde 2026-11-09: POST /git/webhooks/{github|gitlab}/{slug}, firmados con
     # el secreto de cada empresa.
-    "superficie: sin sujeto autenticado": 43,  # 2026-11: + webhook de Stripe (firma)  # +1 2026-11: elegir empresa tras la contraseña; +1 decidir desde el correo
+    "superficie: sin sujeto autenticado": 44,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

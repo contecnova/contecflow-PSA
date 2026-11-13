@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 from sqlalchemy.orm import Session
+from app.core.errores import ErrorDeDominio
 from app.models.settings import CustomProjectType, CustomProjectStatus, CustomTaskStatus, Department, Holiday
 
 
@@ -37,6 +38,25 @@ DEFAULT_TASK_STATUSES = [
 
 # ── Project types ─────────────────────────────────────────────────────────────
 
+def _exigir_propio(db: Session, item) -> None:
+    """Auditoria 2026-11: las filas globales (organization_id NULL) se leen en
+    todas las empresas; un PM de cualquiera las editaba o desactivaba para todas.
+    Solo el superadmin toca las globales; cada empresa, las suyas."""
+    if db.info.get("is_superadmin"):
+        return
+    org = db.info.get("organization_id")
+    if item.organization_id is None:
+        raise ErrorDeDominio(403, "Es un valor del sistema, común a todas las empresas: crea uno propio en lugar de cambiarlo")
+    if not org or item.organization_id != org:
+        raise ValueError("not_found")
+
+
+def _sellar(db: Session, datos: dict) -> dict:
+    """Las altas son de la empresa de quien las crea (el sellado automatico
+    excluye estos modelos porque incluyen las filas globales)."""
+    return {**datos, "organization_id": db.info.get("organization_id")} if not db.info.get("is_superadmin") else datos
+
+
 def get_project_types(db: Session) -> list:
     if db.query(CustomProjectType).count() == 0:
         for i, (value, label, color) in enumerate(DEFAULT_PROJECT_TYPES):
@@ -53,7 +73,7 @@ def create_project_type(payload_dict: dict, db: Session) -> CustomProjectType:
         CustomProjectType.is_active == True
     ).first():
         raise ValueError("Ya existe un tipo con ese valor")
-    item = CustomProjectType(**payload_dict)
+    item = CustomProjectType(**_sellar(db, payload_dict))
     db.add(item); db.commit(); db.refresh(item)
     return item
 
@@ -62,6 +82,7 @@ def update_project_type(item_id: str, payload_dict: dict, db: Session) -> Custom
     item = db.query(CustomProjectType).filter(CustomProjectType.id == item_id).first()
     if not item:
         raise ValueError("not_found")
+    _exigir_propio(db, item)
     for k, v in payload_dict.items():
         setattr(item, k, v)
     db.commit(); db.refresh(item)
@@ -72,6 +93,7 @@ def delete_project_type(item_id: str, db: Session) -> dict:
     item = db.query(CustomProjectType).filter(CustomProjectType.id == item_id).first()
     if not item:
         raise ValueError("not_found")
+    _exigir_propio(db, item)
     item.is_active = False
     db.commit()
     return {"ok": True}
@@ -95,7 +117,7 @@ def create_project_status(payload_dict: dict, db: Session) -> CustomProjectStatu
         CustomProjectStatus.is_active == True
     ).first():
         raise ValueError("Ya existe un estado con ese valor")
-    item = CustomProjectStatus(**payload_dict)
+    item = CustomProjectStatus(**_sellar(db, payload_dict))
     db.add(item); db.commit(); db.refresh(item)
     return item
 
@@ -104,6 +126,7 @@ def update_project_status(item_id: str, payload_dict: dict, db: Session) -> Cust
     item = db.query(CustomProjectStatus).filter(CustomProjectStatus.id == item_id).first()
     if not item:
         raise ValueError("not_found")
+    _exigir_propio(db, item)
     for k, v in payload_dict.items():
         setattr(item, k, v)
     db.commit(); db.refresh(item)
@@ -114,6 +137,7 @@ def delete_project_status(item_id: str, db: Session) -> dict:
     item = db.query(CustomProjectStatus).filter(CustomProjectStatus.id == item_id).first()
     if not item:
         raise ValueError("not_found")
+    _exigir_propio(db, item)
     item.is_active = False
     db.commit()
     return {"ok": True}
@@ -137,7 +161,7 @@ def create_task_status(payload_dict: dict, db: Session) -> CustomTaskStatus:
         CustomTaskStatus.is_active == True
     ).first():
         raise ValueError("Ya existe un estado con ese valor")
-    item = CustomTaskStatus(**payload_dict)
+    item = CustomTaskStatus(**_sellar(db, payload_dict))
     db.add(item); db.commit(); db.refresh(item)
     return item
 
@@ -146,6 +170,7 @@ def update_task_status(item_id: str, payload_dict: dict, db: Session) -> CustomT
     item = db.query(CustomTaskStatus).filter(CustomTaskStatus.id == item_id).first()
     if not item:
         raise ValueError("not_found")
+    _exigir_propio(db, item)
     for k, v in payload_dict.items():
         setattr(item, k, v)
     db.commit(); db.refresh(item)
@@ -156,6 +181,7 @@ def delete_task_status(item_id: str, db: Session) -> dict:
     item = db.query(CustomTaskStatus).filter(CustomTaskStatus.id == item_id).first()
     if not item:
         raise ValueError("not_found")
+    _exigir_propio(db, item)
     item.is_active = False
     db.commit()
     return {"ok": True}

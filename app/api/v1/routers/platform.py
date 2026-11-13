@@ -20,6 +20,7 @@ from app.api.v1.endpoints import (
 from app.api.v1.endpoints import branding
 from app.api.v1.endpoints import conectores
 from app.api.v1.endpoints import lecciones
+from app.api.v1.endpoints import errores_del_frontend
 
 router = APIRouter()
 
@@ -55,3 +56,4 @@ router.include_router(ui.router,                   prefix="/ui",                
 router.include_router(resource_demand.router,      prefix="/resource-demand",       tags=["Resource Demand"])
 router.include_router(conectores.router,           prefix="/conectores",            tags=["Conectores contecmind y contecintelligence"])
 router.include_router(lecciones.router,            prefix="/lessons",               tags=["Lecciones aprendidas"])
+router.include_router(errores_del_frontend.router, prefix="/client-errors",         tags=["Errores del frontend"])

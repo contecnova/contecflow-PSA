@@ -73,6 +73,7 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     # ── Webhooks entrantes: firmados con HMAC dentro del handler ─────────────
     ("POST", "/api/v1/git/webhooks/github"): "HMAC de GitHub",
     ("POST", "/api/v1/invoices/stripe/webhook"): "firma Stripe-Signature (payments_service)",
+    ("POST", "/api/v1/client-errors"): "informe de error del frontend: solo log, tamaño y frecuencia limitados",
     ("POST", "/api/v1/git/webhooks/gitlab"): "token de GitLab",
     ("POST", "/api/v1/git/webhooks/github/{slug}"): "HMAC de GitHub con el secreto de esa empresa",
     ("POST", "/api/v1/git/webhooks/gitlab/{slug}"): "token de GitLab con el secreto de esa empresa",

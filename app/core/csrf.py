@@ -50,6 +50,7 @@ _DEFAULT_EXEMPT_PREFIXES = (
     "/api/v1/integrations-hub/teams",
     "/api/v1/esign/webhooks/",  # auditoria 2026-11: las rutas reales son /esign/webhooks/{docusign,adobe}
     "/api/v1/invoices/stripe/webhook",
+    "/api/v1/client-errors",  # 2026-11: informe de error del frontend, solo escribe en el log
     "/api/v1/service-desk/voice/twilio",
     "/api/v1/service-desk/multichannel/inbound",
     "/api/v1/collaboration/bots/",

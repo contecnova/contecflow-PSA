@@ -729,8 +729,11 @@ def _nodo_llamada_http(n: _Nodo) -> tuple[str, dict, int]:
             logger.debug("_nodo_llamada_http: excepcion ignorada", exc_info=True)
             body = body_template
     try:
-        import httpx  # noqa: WPS433
-        with httpx.Client(timeout=10.0) as cli:
+        # Auditoria 2026-11: la URL la escribe un PM y la respuesta se guarda en el
+        # run (500 caracteres): era SSRF con lectura (metadatos cloud, red interna).
+        from app.core.outbound_url import cliente_httpx, validate_outbound_url
+        validate_outbound_url(url or "", field="url del nodo http_call")
+        with cliente_httpx(timeout=10.0) as cli:
             r = cli.request(
                 method, url,
                 json=body if isinstance(body, (dict, list)) else None,

@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import type { ComponentType, ErrorInfo, ReactNode } from 'react'
 import { traducirSinHook } from '../i18n/traducirSinHook'
+import { apiUrl } from '../services/api/urls'
 
 /**
  * RouteBoundary — per-section error boundary.
@@ -59,9 +60,9 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
         ts: new Date().toISOString(),
       }
       if (typeof fetch === 'function') {
-        // fetch directo a propósito: informe con `keepalive` desde un error boundary, fuera de /api/v1 y sin depender de los interceptores del cliente (un 401 aquí no debe disparar el refresco de sesión).
+        // fetch directo a propósito: informe con `keepalive` desde un error boundary a POST /api/v1/client-errors (público, solo log) y sin depender de los interceptores del cliente (un 401 aquí no debe disparar el refresco de sesión).
         // eslint-disable-next-line no-restricted-syntax
-        fetch('/api/logs/frontend-error', {
+        fetch(apiUrl('/client-errors'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

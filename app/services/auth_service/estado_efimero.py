@@ -221,10 +221,40 @@ def _redis_circuit_break(reason: str) -> None:
     _redis_client = None  # _redis_client_init stays True; backoff aplica
 
 
+_POLITICA_CACHE: dict = {"hasta": 0.0, "valor": None}
+
+
+def _politica_de_bloqueo() -> tuple[int, int, int]:
+    """(intentos, ventana, bloqueo) del ajuste en caliente, con `.env` de respaldo.
+
+    Auditoria 2026-11: se leia el valor estatico de Settings, asi que cambiar
+    estos ajustes en Ajustes > Seguridad no tenia ningun efecto. Cache de 60 s
+    para no abrir una sesion en cada fallo.
+    """
+    ahora = time.time()
+    if _POLITICA_CACHE["valor"] is not None and _POLITICA_CACHE["hasta"] > ahora:
+        return _POLITICA_CACHE["valor"]
+    valor = (settings.LOGIN_MAX_ATTEMPTS, settings.LOGIN_ATTEMPT_WINDOW_SECONDS, settings.LOGIN_LOCKOUT_SECONDS)
+    try:
+        from app.db.session import SessionLocal
+        from app.services.settings_service import get_runtime_int
+        db = SessionLocal()
+        try:
+            valor = tuple(max(1, get_runtime_int(db, k, default=v) or v) for k, v in zip(
+                ("LOGIN_MAX_ATTEMPTS", "LOGIN_ATTEMPT_WINDOW_SECONDS", "LOGIN_LOCKOUT_SECONDS"), valor))
+        finally:
+            db.close()
+    except Exception:
+        logging.getLogger(__name__).warning("politica de bloqueo: se usan los valores de .env", exc_info=True)
+    _POLITICA_CACHE.update(hasta=ahora + 60, valor=valor)
+    return valor
+
+
 def register_login_failure(bucket: str) -> int:
     """Register failed login and return lockout seconds if account got locked."""
     if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
         return 0
+    max_intentos, ventana, bloqueo = _politica_de_bloqueo()
     r = get_sso_redis()
     fail_key = f"{LOGIN_FAIL_PREFIX}{bucket}"
     lock_key = f"{LOGIN_LOCK_PREFIX}{bucket}"
@@ -232,11 +262,11 @@ def register_login_failure(bucket: str) -> int:
         try:
             fails = int(r.incr(fail_key))
             if fails == 1:
-                r.expire(fail_key, settings.LOGIN_ATTEMPT_WINDOW_SECONDS)
-            if fails >= settings.LOGIN_MAX_ATTEMPTS:
-                r.setex(lock_key, settings.LOGIN_LOCKOUT_SECONDS, "1")
+                r.expire(fail_key, ventana)
+            if fails >= max_intentos:
+                r.setex(lock_key, bloqueo, "1")
                 r.delete(fail_key)
-                return settings.LOGIN_LOCKOUT_SECONDS
+                return bloqueo
             return 0
         except Exception as exc:
             logging.getLogger(__name__).warning("register_login_failure: excepcion ignorada", exc_info=True)
@@ -248,15 +278,15 @@ def register_login_failure(bucket: str) -> int:
         if not state or state.get("window_until", 0) < now:
             state = {
                 "count": 0,
-                "window_until": now + settings.LOGIN_ATTEMPT_WINDOW_SECONDS,
+                "window_until": now + ventana,
                 "lock_until": 0,
             }
         state["count"] = int(state.get("count", 0)) + 1
-        if state["count"] >= settings.LOGIN_MAX_ATTEMPTS:
+        if state["count"] >= max_intentos:
             state["count"] = 0
-            state["lock_until"] = now + settings.LOGIN_LOCKOUT_SECONDS
+            state["lock_until"] = now + bloqueo
             _login_fail_fallback[bucket] = state
-            return settings.LOGIN_LOCKOUT_SECONDS
+            return bloqueo
         _login_fail_fallback[bucket] = state
     return 0
 

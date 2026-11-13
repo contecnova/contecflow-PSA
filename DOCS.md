@@ -69,6 +69,18 @@ Cada regla tiene un test que falla si se rompe.
 
 `ai_provider_service/` (9 módulos): su `__init__` propaga a los submódulos lo que se asigne al paquete (`monkeypatch.setattr(svc, ...)`), para que los parches de los tests sigan valiendo. Es un mecanismo poco habitual; si se quita, hay que apuntar los parches al submódulo.
 
+### Segunda auditoría 2026-11: cambios de comportamiento
+- **SSO:** el alta solo admite la organización de quien la crea (antes, cualquiera: toma de cuentas en otra empresa). El superadmin nunca entra por SSO. Si la cuenta ya está ligada a un `sub`, otro `sub` con el mismo email se rechaza (patrón nOAuth).
+- **Correlación de alertas:** el job programado recorre empresa a empresa; nunca agrupa tickets de varias.
+- **Webhooks salientes:** solo los de la organización del evento; un evento sin organización no se entrega.
+- **Catálogos (estados y tipos de proyecto, estados de tarea):** las filas globales solo las cambia el superadmin (403 para el resto); las altas son de la empresa de quien las crea.
+- **Nodo `http_call` de workflows:** URL validada y conexión por `cliente_httpx` (SSRF).
+- **Bloqueo de login:** `LOGIN_MAX_ATTEMPTS`, `LOGIN_ATTEMPT_WINDOW_SECONDS` y `LOGIN_LOCKOUT_SECONDS` se leen del ajuste en caliente (caché de 60 s); antes solo del `.env`.
+- **Tipos de cambio:** nueva tarea `actualizar-tipos-de-cambio` (16:30) que descarga los del BCE si `EXCHANGE_RATES_AUTO_UPDATE` está activo.
+- **Autorresolución manual:** usa `SD_AUTONOMY_RESOLVE_THRESHOLD` de la organización (0,80 por defecto) en lugar de 0,65 fijo; se puede forzar.
+- **Errores del frontend:** `POST /api/v1/client-errors` (público, solo log, 30/min). Antes iban a una ruta inexistente.
+Tests: `tests/test_auditoria_2026_11_segunda.py`.
+
 ## 3. Estructura del repositorio
 - `app/`: backend
 - `alembic/`: migraciones de base de datos

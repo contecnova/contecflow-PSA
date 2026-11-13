@@ -462,7 +462,21 @@ def run_correlation_scan_job(db: Session, *, organization_id: Optional[str] = No
     - Calls merge_cluster_to_problem() and commits
 
     Returns: {clusters_found, problems_created, errors}
+
+    Auditoria 2026-11: el job programado llamaba sin organizacion y la sesion
+    del worker no filtra, asi que agrupaba tickets de varias empresas en un mismo
+    Problem (y mandaba sus titulos a la IA de una). Sin organizacion se recorre
+    empresa a empresa; nunca se agrupa entre empresas.
     """
+    if organization_id is None:
+        orgs = [o for (o,) in db.query(Ticket.organization_id).filter(
+            Ticket.organization_id.isnot(None)).distinct()]
+        total = {"clusters_found": 0, "problems_created": 0, "errors": 0}
+        for org in orgs:
+            parcial = run_correlation_scan_job(db, organization_id=org)
+            for k in total:
+                total[k] += parcial.get(k, 0)
+        return total
     clusters = cluster_open_alerts(db, organization_id=organization_id, window_hours=DEFAULT_WINDOW_HOURS)
 
     # Semantic enrichment pass

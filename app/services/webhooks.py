@@ -37,6 +37,7 @@ def fire_webhook(
     event: str,
     payload: dict,
     project_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
 ) -> int:
     """Find matching active webhooks and dispatch the event payload.
 
@@ -46,7 +47,14 @@ def fire_webhook(
 
     Returns the number of webhook tasks successfully enqueued.
     """
-    hooks = db.query(Webhook).filter(Webhook.is_active == True).all()
+    # Auditoria 2026-11: sin filtro de organizacion, un webhook con "*" recibia
+    # los eventos de todas las empresas cuando se emitian desde un job o un
+    # superadmin (sesion sin filtro). Sin organizacion no se entrega nada.
+    if not organization_id:
+        logger.warning("fire_webhook(%s) sin organizacion: no se entrega", event)
+        return 0
+    hooks = db.query(Webhook).filter(Webhook.is_active == True,  # noqa: E712
+                                     Webhook.organization_id == organization_id).all()
     enqueued_count = 0
 
     for hook in hooks:

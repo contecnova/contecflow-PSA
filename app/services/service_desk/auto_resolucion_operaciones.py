@@ -47,7 +47,12 @@ def aplicar_auto_resolucion(db: Session, ticket: Ticket, current_user, force: bo
     # Analyze first
     analysis = analyze_ticket_for_resolution(db, ticket, current_user)
 
-    if analysis["confidence"] < 0.65 and not force:
+    # Auditoria 2026-11: era 0.65 fijo, distinto del 0.80 configurable del agente
+    # autonomo: el mismo ticket se resolvia o no segun el camino. Ahora ambos usan
+    # SD_AUTONOMY_RESOLVE_THRESHOLD de la organizacion; quien lo pide puede forzar.
+    from app.services.settings_service import get_runtime_float
+    umbral = get_runtime_float(db, "SD_AUTONOMY_RESOLVE_THRESHOLD", ticket.organization_id) or 0.80
+    if analysis["confidence"] < umbral and not force:
         raise ErrorDeDominio(
             status_code=400,
             detail=f"Confidence too low ({analysis['confidence']*100:.1f}%). "

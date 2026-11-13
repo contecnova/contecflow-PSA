@@ -188,6 +188,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.purgar_empresas_caducadas",
         "schedule": crontab(hour=2, minute=40),
     },
+    # Tipos de cambio del BCE (auditoria 2026-11: EXCHANGE_RATES_AUTO_UPDATE se
+    # editaba en Ajustes y no habia ningun trabajo que lo leyera).
+    "actualizar-tipos-de-cambio": {
+        "task": "app.worker.actualizar_tipos_de_cambio",
+        "schedule": crontab(hour=16, minute=30),  # el BCE publica hacia las 16:00 CET
+    },
     # Retención y bloqueo legal (revisión 2026-11).
     "aplicar-retencion": {
         "task": "app.worker.aplicar_retencion",
@@ -1620,6 +1626,21 @@ def purgar_empresas_caducadas():
     """Borra los datos de las empresas cuya cuarentena de baja ha vencido."""
     from app.services.baja_de_empresa_service import purgar_caducadas_job
     purgar_caducadas_job()
+
+
+@celery_app.task(name="app.worker.actualizar_tipos_de_cambio")
+def actualizar_tipos_de_cambio():
+    """Descarga los tipos del BCE si EXCHANGE_RATES_AUTO_UPDATE esta activo."""
+    from app.db.session import worker_db_session
+    from app.services.exchange_rate_service import sync_ecb_rates
+    from app.services.settings_service import get_runtime_bool
+    with worker_db_session() as db:
+        if not get_runtime_bool(db, "EXCHANGE_RATES_AUTO_UPDATE", default=False):
+            return {"skipped": "EXCHANGE_RATES_AUTO_UPDATE desactivado"}
+        resultado = sync_ecb_rates(db)
+        if not resultado.get("ok"):
+            raise RuntimeError(f"tipos de cambio BCE: {resultado}")
+        return resultado
 
 
 @celery_app.task(name="app.worker.aplicar_retencion")

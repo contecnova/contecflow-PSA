@@ -5,6 +5,8 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 from __future__ import annotations
 
+from app.core.errores import ErrorDeDominio
+
 from sqlalchemy.orm import Session
 from app.core.encryption import encrypt_value
 from app.models.enterprise import SSOConfig
@@ -74,6 +76,11 @@ def create_sso_config(payload, current_user, db: Session) -> dict:
     data = {k: (_json.dumps(v) if k == "role_mapping" and v else v) for k, v in payload.model_dump().items()}
     if current_user.organization_id and not data.get("organization_id"):
         data["organization_id"] = current_user.organization_id
+    # Auditoria 2026-11 (critico): el alta aceptaba cualquier organization_id del
+    # cuerpo (la edicion ya lo comprobaba). El admin de A creaba un SSO de B con
+    # su propio IdP y entraba como cualquier usuario de B.
+    if not getattr(current_user, "is_superadmin", False) and data.get("organization_id") != current_user.organization_id:
+        raise ErrorDeDominio(403, "No puedes configurar SSO para otra organización")
     if data.get("oidc_client_secret"):
         data["oidc_client_secret"] = encrypt_value(data["oidc_client_secret"])
     config = SSOConfig(created_by=current_user.id, **data)
