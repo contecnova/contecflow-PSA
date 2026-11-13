@@ -2,6 +2,7 @@
  * Shared context, auth, API client, and styles for the client portal.
  * Import from here in all portal-client sub-pages.
  */
+import { PRODUCT_FULL_NAME, PRODUCT_NAME } from '../../constants/brand'
 import React, { createContext, useContext, useState, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
 import axios, { type AxiosResponse } from 'axios'
@@ -397,7 +398,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
             fontSize: 'var(--text-xl-em)', fontWeight: 800, color: 'var(--on-accent-light)',
           }}>◈</div>
           <div>
-            <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 800 }}>Contecflow</div>
+            <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 800 }}>{PRODUCT_NAME}</div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Portal cliente</div>
           </div>
         </div>
@@ -426,7 +427,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
           </div>
         </div>
         <div className="u-text3-xs">
-          © {new Date().getFullYear()} Contecflow PSA — Portal cliente
+          © {new Date().getFullYear()} {PRODUCT_FULL_NAME} — Portal cliente
         </div>
       </div>
 

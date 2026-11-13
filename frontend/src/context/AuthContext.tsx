@@ -5,6 +5,7 @@ import { useToast } from './ToastContext'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useDialogo } from '../components/ui/useDialogo'
+import { SESSION_EXPIRED_NOTICE_MS } from '../constants/timings'
 
 // Prevent Vite from hot-replacing this module individually: a partial HMR reload
 // creates a new context reference while AuthProvider still injects the old one,
@@ -169,7 +170,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(null)
       setSessionExpired(true)
       // Auto-clear the banner after 4 seconds so the login page is clean
-      setTimeout(() => setSessionExpired(false), 4000)
+      setTimeout(() => setSessionExpired(false), SESSION_EXPIRED_NOTICE_MS)
     }
     window.addEventListener('auth:session-expired', handler)
     return () => window.removeEventListener('auth:session-expired', handler)

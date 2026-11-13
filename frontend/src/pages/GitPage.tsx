@@ -13,6 +13,7 @@ import { Spinner, EmptyState, Table } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
+import { UI_FEEDBACK_MS } from '../constants/timings'
 
 type PrStatus = 'open' | 'draft' | 'merged' | 'closed'
 type DeployStatus = 'pending' | 'running' | 'success' | 'failure' | 'cancelled'
@@ -301,7 +302,7 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
   const [copied, setCopied] = useState(false)
   const url = webhook ? `${window.location.origin}${webhook.ruta}` : '…'
   const copy = () => {
-    navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+    navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), UI_FEEDBACK_MS) })
   }
   return (
     <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>

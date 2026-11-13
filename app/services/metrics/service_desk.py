@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.user import User
 from app.models.service_desk import Ticket
 from sqlalchemy import case
@@ -132,7 +133,7 @@ def metric_tickets_by_agent(
         Ticket,
         Ticket.assigned_to_user_id == User.id
     ).filter(
-        Ticket.status.notin_(["closed", "resolved"])
+        Ticket.status.notin_(ESTADOS_DE_TICKET_RESUELTOS)
     )
     if project_ids is not None:
         q = q.filter(Ticket.project_id.in_(project_ids))

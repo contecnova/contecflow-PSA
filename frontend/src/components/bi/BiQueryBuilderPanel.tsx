@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biQueryBuilderApi } from '../../services/api'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Table } from '../ui'
+import { STALE_DEFAULT_MS } from '../../constants/timings'
 
 const TABS = [
   { id: 'builder', label: '🔧 Constructor' },
@@ -100,7 +101,7 @@ export default function BiQueryBuilderPanel() {
   const { data: schema } = useQuery<Schema>({
     queryKey: ['bi-qb-schema'],
     queryFn: () => biQueryBuilderApi.getSchema({}).then((r) => r.data as Schema),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const datasets = useMemo<DatasetMeta[]>(() => schema?.datasets ?? [], [schema])

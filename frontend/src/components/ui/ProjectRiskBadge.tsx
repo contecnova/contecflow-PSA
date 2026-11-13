@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query'
 import { predictionsApi } from '../../services/api'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
+import { STALE_5_MIN_MS } from '../../constants/timings'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
@@ -61,7 +62,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
     queryKey: ['ml-risk', projectId],
     // TODO type: predictionsApi is JS-typed; cast response to RiskData.
     queryFn: () => predictionsApi.overrunRisk(projectId).then((r: { data: RiskData }) => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
     retry: false,
     enabled: !!projectId && hasData,
   })

@@ -13,6 +13,8 @@ import SmartScheduleModal from '../components/SmartScheduleModal'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
+import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
+import { DEFAULT_PAGE_SIZE } from '../constants/pagination'
 
 // LoadBar's inferred props are all-required; expose a loose signature for callers.
 const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: number; label?: string; color?: string }) => JSX.Element
@@ -136,11 +138,11 @@ function TasksTab({ projectId }: { projectId?: string }) {
   const t = useAppT()
   const { data, isLoading } = useQuery<Task[]>({
     queryKey: ['project-detail-tasks', projectId],
-    queryFn: () => tasksApi.list({ project_id: projectId, page_size: 50 }).then(r => {
+    queryFn: () => tasksApi.list({ project_id: projectId, page_size: DEFAULT_PAGE_SIZE }).then(r => {
       const d = r.data as unknown as Task[] | { items?: Task[] }
       return Array.isArray(d) ? d : (d?.items || [])
     }),
-    staleTime: 30_000,
+    staleTime: STALE_SHORT_MS,
   })
 
   const tasks = data || []
@@ -211,7 +213,7 @@ function TeamTab({ projectId }: { projectId?: string }) {
       const d = r.data as Member[] | { members?: Member[]; items?: Member[] }
       return Array.isArray(d) ? d : (d?.members || d?.items || [])
     }),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
@@ -266,7 +268,7 @@ function RisksTab({ projectId }: { projectId?: string }) {
     // Auditoria 2026-11 (#39): el endpoint devuelve `{risks, summary}`; se leia
     // como lista o `{items}` y la pestana de riesgos salia siempre vacia.
     queryFn: () => risksApi.list<Risk>(projectId, undefined).then(r => r.data?.risks ?? []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
@@ -444,7 +446,7 @@ export default function ProjectDetailPage() {
   const { data: project, isLoading } = useQuery<Project>({
     queryKey: ['project', id],
     queryFn: () => projectsApi.get(id!).then(r => r.data),
-    staleTime: 30_000,
+    staleTime: STALE_SHORT_MS,
   })
 
   const { mutate: updateProject, isPending: saving } = useMutation({

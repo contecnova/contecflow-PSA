@@ -7,6 +7,7 @@ import { KpiCard } from '../../components/dashboard/DashKit'
 import { COLOR, alpha } from '../../constants/theme'
 import PageShell from '../../components/layout/PageShell'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { STALE_DEFAULT_MS } from '../../constants/timings'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function fmtMinutes(m: number | null | undefined) {
@@ -265,7 +266,7 @@ export default function MetricsDashboardTab() {
       const { d_from, d_to } = dateRange(days)
       return sdMetricsApi.itil({ date_from: d_from, date_to: d_to }).then(r => r.data as ItilMetrics)
     },
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: agents } = useQuery<AgentPerf[]>({
@@ -274,7 +275,7 @@ export default function MetricsDashboardTab() {
       const { d_from, d_to } = dateRange(days)
       return sdMetricsApi.agentPerformance({ date_from: d_from, date_to: d_to }).then(r => r.data as AgentPerf[])
     },
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { sort: agentSort, setSort: setAgentSort, sortedData: sortedAgents } = useSort<AgentPerf>(agents || [], 'total', 'desc')

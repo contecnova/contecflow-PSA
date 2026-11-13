@@ -17,6 +17,7 @@ import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { STALE_5_MIN_MS } from '../constants/timings'
 const ROLES = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }))
 
 type RiskMeta = { label: string; color: string; bg: string; border: string }
@@ -106,7 +107,7 @@ function BurnoutMonitorTab() {
     queryFn: () => burnoutRiskApi.get(
       filter !== 'all' ? { min_risk_level: filter } : undefined
     ).then(r => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
   const { mutate: recompute, isPending } = useMutation({
     mutationFn: () => burnoutRiskApi.compute(),

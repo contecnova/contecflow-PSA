@@ -22,6 +22,8 @@ import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import type { CSSProperties } from 'react'
 import { localeActivo } from '../utils/helpers'
+import { POLL_DEFAULT_MS } from '../constants/timings'
+import { NPS_CLIENTS_LIST_SIZE } from '../constants/pagination'
 
 interface ClientItem {
   id: string | number
@@ -142,13 +144,13 @@ export default function NPSPage() {
   const { data: leaderboardRaw = [] } = useQuery({
     queryKey: ['health-leaderboard'],
     queryFn: () => npsApi.leaderboard().then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
   const leaderboard = leaderboardRaw as LeaderboardItem[]
 
   const { data: clientsRaw = [] } = useQuery({
     queryKey: ['clients-list-nps'],
-    queryFn: () => clientsApi.list({ page_size: 300 }).then(r => r.data ?? []),
+    queryFn: () => clientsApi.list({ page_size: NPS_CLIENTS_LIST_SIZE }).then(r => r.data ?? []),
   })
   const clients = clientsRaw as ClientItem[]
 

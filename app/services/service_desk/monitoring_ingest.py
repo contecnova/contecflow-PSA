@@ -27,6 +27,7 @@ from typing import Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_ABIERTOS
 from app.models.service_desk import ConfigurationItem, MonitoringAlert, Ticket, TicketComment
 from app.services import settings_service as _ss
 from app.services.service_desk.ticket_events import como_organizacion
@@ -34,7 +35,7 @@ from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
-_ABIERTOS = ("new", "assigned", "in_progress", "pending_client", "pending_third")
+_ABIERTOS = ESTADOS_DE_TICKET_ABIERTOS
 
 
 @dataclass
@@ -64,8 +65,28 @@ def organizacion_del_token(db: Session, token: Optional[str]) -> Optional[str]:
     for fila in filas:
         valor = _resolve_value(fila, campo)
         if valor and hmac.compare_digest(str(valor), token):
-            return fila.organization_id
+            return _empresa_de_la_alerta(db, fila.organization_id)
     raise ErrorDeDominio(403, "Token de monitorización inválido")
+
+
+def _empresa_de_la_alerta(db: Session, org_id: Optional[str]) -> str:
+    """La empresa a la que van las alertas del token.
+
+    Revision multitenant 2026-11b: un token GLOBAL (sin empresa) devolvia None
+    y el proceso corria sin filtro: la deduplicacion casaba alertas abiertas de
+    cualquier empresa y los tickets nuevos quedaban sin ella. Con una sola
+    empresa activa es esa; con varias, el token tiene que ser de una. Y una
+    empresa desactivada no recibe alertas.
+    """
+    from app.db.session import exigir_organizacion_activa
+    if org_id is None:
+        from app.services.git_service import unica_empresa
+        org_id = unica_empresa(db)
+        if org_id is None:
+            raise ErrorDeDominio(403, "Token de monitorización global con varias empresas: "
+                                      "configúralo en la empresa que recibe las alertas")
+    exigir_organizacion_activa(db, org_id)
+    return org_id
 
 
 # ── Formatos ─────────────────────────────────────────────────────────────────

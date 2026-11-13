@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
+import { STALE_DEFAULT_MS } from '../constants/timings'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -115,7 +116,7 @@ function RequestModal({ onClose }: { onClose: () => void }) {
   const { data: balance } = useQuery<VacationBalance | null>({
     queryKey: ['vacation-balance-my'],
     queryFn: () => absencesApi.vacationBalance().then(r => r.data as VacationBalance).catch(() => null),
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { mutate, isPending, error } = useMutation({

@@ -2,6 +2,7 @@ import { CHART } from '../../constants/theme'
 import { useDialogo } from './useDialogo'
 import React from 'react'
 import { X } from 'lucide-react'
+import { DATA_TABLE_PAGE_SIZE } from '../../constants/pagination'
 
 export { default as Confirm } from './Confirm'
 export { default as IconButton } from './IconButton'
@@ -751,7 +752,7 @@ interface DataTableProps<T> {
   pageSize?: number
 }
 
-export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', emptyTitle = 'Sin datos', pageSize = 15 }: DataTableProps<T>) {
+export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', emptyTitle = 'Sin datos', pageSize = DATA_TABLE_PAGE_SIZE }: DataTableProps<T>) {
   const [sort, setSort] = React.useState<{ col: string | null; dir: 'asc' | 'desc' }>({ col: null, dir: 'asc' })
   const [page, setPage] = React.useState(0)
   const [filter, setFilter] = React.useState('')

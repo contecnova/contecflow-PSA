@@ -7,6 +7,7 @@ import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucid
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Table } from '../ui'
+import { STALE_DEFAULT_MS } from '../../constants/timings'
 
 const EXAMPLE_QUESTIONS = [
   '¿Cuáles son los 5 proyectos con más horas imputadas este mes?',
@@ -291,7 +292,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
 function PasarAContecintelligence({ pregunta }: { pregunta: string }) {
   const { t } = useAppLang()
   const navigate = useNavigate()
-  const disp = useQuery({ queryKey: ['conectores', 'ci-disponible'], queryFn: conectoresApi.ciDisponible, staleTime: 60_000, retry: false })
+  const disp = useQuery({ queryKey: ['conectores', 'ci-disponible'], queryFn: conectoresApi.ciDisponible, staleTime: STALE_DEFAULT_MS, retry: false })
   if (!disp.data?.configurado || !disp.data.pasar_preguntas) return null
   return (
     <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', borderRadius: 8, background: 'var(--surface-2)', border: '1px dashed var(--surface-4)' }}>

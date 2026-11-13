@@ -11,6 +11,8 @@ import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { Cpu, X, Search, Plus, Activity } from 'lucide-react'
 import { alpha } from '../constants/theme'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { POLL_DEFAULT_MS, STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS, STALE_SHORT_MS } from '../constants/timings'
+import { AUDIT_LOG_PAGE_SIZE } from '../constants/pagination'
 
 const PMETA = PROVIDER_META as Record<string, { name: string; icon: string; color: string }>
 const PDOCS = PROVIDER_DOCS as Record<string, string>
@@ -418,17 +420,17 @@ function GovernanceTab() {
   const { data: policiesRaw = [], isLoading: loadingPolicies } = useQuery<AiPolicy[] | { items?: AiPolicy[] }>({
     queryKey: ['ai-governance', 'policies'],
     queryFn: () => aiGovernanceApi.policies().then(r => r.data).catch(() => []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const { data: auditLogRaw = [], isLoading: loadingAudit } = useQuery<AiAuditEntry[] | { items?: AiAuditEntry[] }>({
-    queryKey: ['ai-governance', 'audit-log', { limit: 50 }],
-    queryFn: () => aiGovernanceApi.auditLog({ limit: 50 }).then(r => r.data).catch(() => []),
-    staleTime: 30_000,
+    queryKey: ['ai-governance', 'audit-log', { limit: AUDIT_LOG_PAGE_SIZE }],
+    queryFn: () => aiGovernanceApi.auditLog({ limit: AUDIT_LOG_PAGE_SIZE }).then(r => r.data).catch(() => []),
+    staleTime: STALE_SHORT_MS,
   })
   const { data: stats = null, isLoading: loadingStats } = useQuery({
     queryKey: ['ai-governance', 'audit-log-stats'],
     queryFn: () => aiGovernanceApi.auditLogStats().then(r => r.data).catch(() => null),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const policies = Array.isArray(policiesRaw) ? policiesRaw : (policiesRaw.items || [])
@@ -556,7 +558,7 @@ export default function AIHubPage(): JSX.Element {
     queryKey: ['predictive-obs-health'],
     queryFn: () => predictiveObservabilityApi.health({}).then(r => r.data).catch(() => null),
     enabled: tab === 'observability',
-    staleTime: 120_000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const { mutate: triggerRetrain, isPending: retraining } = useMutation({
     mutationFn: () => predictiveObservabilityApi.triggerRetrain(),
@@ -1034,7 +1036,7 @@ function GastoDeHoy() {
   const { data } = useQuery<{ spent_usd: number; budget_usd: number; warn_pct: number; used_pct: number | null; blocked: boolean }>({
     queryKey: ['ai-spend-today'],
     queryFn: () => aiProvidersApi.spendToday().then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
   if (!data) return null
   const avisa = data.used_pct !== null && data.used_pct >= data.warn_pct

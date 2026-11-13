@@ -554,6 +554,10 @@ def rotate_agent(
 ):
     """Invalidate the current token and generate a new one.  Returned once only."""
     result = rotate_agent_token(db, agent_id, _org(current_user))
+    # Revisión GRC 2026-11b: rotar el token del agente no dejaba rastro.
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "SECRET_ROTATED", "cmdb_agent", agent_id, result.get("name"),
+              new_values={"token_prefix": result.get("token_prefix")})
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
 

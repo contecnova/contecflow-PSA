@@ -497,7 +497,20 @@ async def adobe_webhook(
     # cuerpo no se cree: se lee de la API de Adobe. Si no se puede, 503 y Adobe
     # reintenta; nunca se aplica un estado sin confirmar.
     from app.core.async_db import run_db
-    raw_status = await run_db(esign_service.adobe_agreement_status, db, str(provider_id))
+    # Revision multitenant 2026-11b: primero el sobre, y con el la empresa: las
+    # credenciales de Adobe con las que se pregunta son las SUYAS. Antes se
+    # preguntaba sin empresa y salian las de la primera que las tuviera.
+    env = await run_db(esign_service.get_envelope_by_provider_id, db, provider_id)
+    if not env:
+        _logger.warning(f"[eSign] Adobe webhook: agreement {provider_id} no encontrado")
+        raise HTTPException(404, f"Agreement {provider_id} no encontrado")
+    from app.services.service_desk.ticket_events import como_organizacion
+
+    def _estado_en_su_empresa():
+        with como_organizacion(db, env.organization_id):
+            return esign_service.adobe_agreement_status(db, str(provider_id))
+
+    raw_status = await run_db(_estado_en_su_empresa)
     if raw_status is None:
         raise HTTPException(503, "No se pudo confirmar el estado con Adobe Sign")
     raw_status = raw_status.lower()
@@ -516,10 +529,6 @@ async def adobe_webhook(
 
     # Audit #C7: same pattern as DocuSign webhook above — offload DB to threadpool.
     try:
-        env = await run_db(esign_service.get_envelope_by_provider_id, db, provider_id)
-        if not env:
-            _logger.warning(f"[eSign] Adobe webhook: agreement {provider_id} no encontrado")
-            raise HTTPException(404, f"Agreement {provider_id} no encontrado")
         await run_db(esign_service.update_envelope_from_webhook, db, env, new_status)
         _logger.info(f"[eSign] Adobe Sign webhook: agreement {provider_id} → {new_status}")
     # intentional: chained re-raise preserves context

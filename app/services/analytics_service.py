@@ -110,8 +110,15 @@ def cache_set(key: str, value: dict, ttl_seconds: int = None) -> None:
 
 def build_cache_key(namespace: str, current_user, payload: dict) -> str:
     serialized = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
-    org_id = getattr(current_user, "organization_id", None) or current_user.id
-    return f"{namespace}:{org_id}:{serialized}"
+    # Revision multitenant 2026-11b: un superadmin calcula sin filtro de tenant
+    # (todas las empresas) y lo guardaba bajo la clave de SU empresa: sus
+    # usuarios recibian despues las cifras de toda la plataforma. Su ambito es
+    # otro, y su clave tambien.
+    if getattr(current_user, "is_superadmin", False):
+        ambito = "plataforma"
+    else:
+        ambito = getattr(current_user, "organization_id", None) or f"u-{current_user.id}"
+    return f"{namespace}:{ambito}:{serialized}"
 
 
 # ── Date helpers ──────────────────────────────────────────────────────────────

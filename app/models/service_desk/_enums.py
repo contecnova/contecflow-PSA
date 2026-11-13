@@ -21,11 +21,30 @@ class TicketStatus(str, enum.Enum):
     cancelled = "cancelled"
 
 
+# Grupos de estados de ticket (barrido «nada en duro» 2026-11). Antes, unas 50
+# tuplas literales repartidas por los servicios. Son `str`, para usarlas igual
+# en `Ticket.status.in_(...)` que contra `status.value`.
+#: Resuelto, con o sin cierre formal.
+ESTADOS_DE_TICKET_RESUELTOS = (TicketStatus.resolved.value, TicketStatus.closed.value)
+#: Ya no esta abierto: resuelto, cerrado o cancelado.
+ESTADOS_DE_TICKET_CERRADOS = ESTADOS_DE_TICKET_RESUELTOS + (TicketStatus.cancelled.value,)
+#: Abierto: todo lo que no esta cerrado (incluye los dos «pendiente de»).
+ESTADOS_DE_TICKET_ABIERTOS = tuple(s.value for s in TicketStatus if s.value not in ESTADOS_DE_TICKET_CERRADOS)
+#: Esperando a otro (cliente o tercero).
+ESTADOS_DE_TICKET_EN_ESPERA = (TicketStatus.pending_client.value, TicketStatus.pending_third.value)
+#: En curso del lado del equipo: abierto y sin esperar a nadie.
+ESTADOS_DE_TICKET_EN_CURSO = tuple(s for s in ESTADOS_DE_TICKET_ABIERTOS if s not in ESTADOS_DE_TICKET_EN_ESPERA)
+
+
 class TicketPriority(str, enum.Enum):
     p1_critical = "p1_critical"
     p2_high = "p2_high"
     p3_medium = "p3_medium"
     p4_low = "p4_low"
+
+
+#: Prioridades de mayor a menor (para recorrerlas en informes).
+PRIORIDADES_DE_TICKET = tuple(p.value for p in TicketPriority)
 
 
 class TicketUrgency(str, enum.Enum):
@@ -84,6 +103,10 @@ class ProblemStatus(str, enum.Enum):
     known_error = "known_error"
     resolved = "resolved"
     closed = "closed"
+
+
+#: Problema resuelto, con o sin cierre formal.
+ESTADOS_DE_PROBLEMA_RESUELTOS = (ProblemStatus.resolved.value, ProblemStatus.closed.value)
 
 
 class KBStatus(str, enum.Enum):
@@ -149,6 +172,10 @@ class MajorIncidentStatus(str, enum.Enum):
     active   = "active"
     resolved = "resolved"
     closed   = "closed"
+
+
+#: Incidente mayor resuelto, con o sin cierre formal.
+ESTADOS_DE_INCIDENTE_MAYOR_RESUELTOS = (MajorIncidentStatus.resolved.value, MajorIncidentStatus.closed.value)
 
 
 class OnCallRotationType(str, enum.Enum):

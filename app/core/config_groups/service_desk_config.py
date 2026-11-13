@@ -88,6 +88,17 @@ class ServiceDeskSettingsMixin:
     # renovacion. 0 lo apaga.
     SD_ASSET_REFRESH_DAYS: int = Field(default=7, ge=0, env="SD_ASSET_REFRESH_DAYS")
 
+    # ── Autorresolucion con IA (valores por defecto) ─────────────────────────
+    # Cada empresa los cambia en su configuracion de autorresolucion
+    # (`sd.auto_resolution.config::<empresa>`); esto es solo el punto de partida.
+    SD_AUTO_CLOSE_HOURS_AFTER_RESOLUTION: int = Field(default=72, ge=1, le=720, env="SD_AUTO_CLOSE_HOURS_AFTER_RESOLUTION")
+    SD_VALIDATION_WINDOW_HOURS: int = Field(default=48, ge=1, le=720, env="SD_VALIDATION_WINDOW_HOURS")
+
+    # ── Errores conocidos (KEDB) ─────────────────────────────────────────────
+    # Dias hasta la revision de un error conocido al publicarlo o revisarlo
+    # (si la peticion no trae otro valor). Ajuste en vivo por empresa.
+    KEDB_DEFAULT_REVIEW_DAYS: int = Field(default=90, ge=7, le=365, env="KEDB_DEFAULT_REVIEW_DAYS")
+
     # ── Bandeja de eventos ───────────────────────────────────────────────────
     SD_EVENT_MAX_ATTEMPTS: int = Field(default=5, env="SD_EVENT_MAX_ATTEMPTS")
     SD_EVENT_BATCH_SIZE: int = Field(default=200, env="SD_EVENT_BATCH_SIZE")

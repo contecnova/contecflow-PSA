@@ -15,6 +15,7 @@ import { useAppT } from '../i18n/AppLangContext';
 import { localeActivo } from '../utils/helpers';
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { STALE_DEFAULT_MS } from '../constants/timings'
 type IdType = string | number
 type HealthKey = 'green' | 'yellow' | 'red' | 'grey'
 
@@ -216,7 +217,7 @@ export default function EVMPage(): JSX.Element {
   const { data: portfolioRaw = [], isLoading } = useQuery({
     queryKey: ['evm-portfolio'],
     queryFn: () => projectsApi.evmPortfolio().then(r => r.data),
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
   });
   const portfolio = portfolioRaw as EvmData[]
 

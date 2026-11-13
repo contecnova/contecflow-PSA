@@ -12,6 +12,7 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from './ui/DateInput'
+import { POLL_DEFAULT_MS } from '../constants/timings'
 
 interface ProjectItem {
   id: string | number
@@ -218,7 +219,7 @@ export default function ResourceHeatmap() {
   const { data: heatmapData } = useQuery<HeatmapData>({
     queryKey: ['heatmap', weeks],
     queryFn: () => api.get('/bookings/heatmap', { params: { weeks } }).then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
   const isLoading = !heatmapData
 

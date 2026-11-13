@@ -230,13 +230,14 @@ async def fire_webhook(
 
     # Fire the workflow/rule in background
     if trigger.workflow_id:
-        background_tasks.add_task(_execute_workflow_from_webhook, trigger.workflow_id, payload_json)
+        background_tasks.add_task(_execute_workflow_from_webhook, trigger.workflow_id, payload_json,
+                                  trigger.organization_id)
 
     return APIResponse.ok(data={"ok": True, "fired": True, "trigger": trigger.name})
 
 
-def _execute_workflow_from_webhook(workflow_id: str, context: dict):
-    return _svc.execute_workflow_from_webhook(workflow_id, context)
+def _execute_workflow_from_webhook(workflow_id: str, context: dict, organization_id: str | None = None):
+    return _svc.execute_workflow_from_webhook(workflow_id, context, organization_id)
 
 
 @router.get("/webhooks/{trigger_id}/logs", summary="Historial de llamadas al webhook")
@@ -261,9 +262,15 @@ def rotate_webhook_trigger_slug(
     that many days. Omit for a non-expiring slug.
     """
     try:
-        return APIResponse.ok(data=_svc.rotate_webhook_trigger_slug(trigger_id, expires_in_days, db))
+        datos = _svc.rotate_webhook_trigger_slug(trigger_id, expires_in_days, db)
     except ValueError as e:
         raise HTTPException(404, str(e))
+    # Revisión GRC 2026-11b: rotar la URL secreta del webhook no dejaba rastro.
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "SECRET_ROTATED", "webhook_trigger", trigger_id,
+              new_values={"expires_in_days": expires_in_days})
+    db.commit()
+    return APIResponse.ok(data=datos)
 
 
 @router.delete("/webhooks/{trigger_id}", summary="Eliminar webhook trigger")

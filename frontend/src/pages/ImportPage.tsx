@@ -10,6 +10,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Upload } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { CLOCK_TICK_MS } from '../constants/timings'
 
 interface ImportTemplate {
   columns: string[]
@@ -73,7 +74,7 @@ function ImportTab() {
     }
     const id = setInterval(() => {
       setOpElapsed(Math.floor((Date.now() - opStartedAt) / 1000))
-    }, 1000)
+    }, CLOCK_TICK_MS)
     return () => clearInterval(id)
   }, [opStartedAt])
 

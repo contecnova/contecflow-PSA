@@ -16,17 +16,35 @@ aparece en el catálogo el día que se añade su primera ruta, sin que nadie ten
 que acordarse de registrarlo. No hay mapeo que mantener ni que se pueda podrir.
 
 ── Exenciones ────────────────────────────────────────────────────────────────
-No se crea una segunda lista: se reutiliza `ABAC_EXEMPT_PREFIXES`, que ya
-enumera con su motivo los prefijos sin principal `User` (login, portal de
-cliente, webhooks firmados, SCIM, WebSocket, catálogos públicos). Esos motivos
-valen igual para GRC, y `tests/test_abac_coverage.py` ya vigila que la lista no
-acumule prefijos obsoletos. Una sola fuente de verdad para las exenciones.
+Revisión GRC 2026-11b. Antes se reutilizaba `ABAC_EXEMPT_PREFIXES`, con la idea
+de que enumeraba los prefijos sin principal `User`. Dejó de ser cierto: ABAC
+exime también rutas CON usuario que no tienen recurso por fila (conectores,
+lecciones, instancias BPMN, colaboración, MCP), y prefijos mixtos enteros
+(`/webhooks`, `/forms`) cuya gestión es de un administrador y sólo una subruta
+es pública. GRC no gobernaba ninguno de ellos: desmarcar una casilla ahí no
+tenía dónde aplicarse. Ahora GRC tiene su lista, más estrecha: sólo lo que no
+tiene principal `User` o cuyo cierre dejaría la aplicación sin entrada. Una
+ruta pública dentro de un prefijo gobernado no se ve afectada: sin usuario,
+`enforce_grc_matrix` no decide nada. `tests/test_grc_revision_2026_11b.py`
+vigila que ningún prefijo de esta lista quede obsoleto.
 """
 from __future__ import annotations
 
 from typing import Iterable, Optional
 
-from app.core.abac_registry import ABAC_EXEMPT_PREFIXES
+GRC_EXEMPT_PREFIXES: dict[str, str] = {
+    "/api/v1/auth":           "flujo de autenticación: cerrarlo dejaría a ese rol sin poder entrar",
+    "/api/v1/portal":         "principal ClientUser, no User",
+    "/api/v1/portal-ai":      "principal ClientUser, no User",
+    "/api/v1/scim":           "token de máquina SCIM (RFC 7644)",
+    "/api/v1/ws":             "WebSocket, autenticado por ticket en el handshake",
+    "/api/v1/client-errors":  "público: sólo registra el error de render en el log",
+    "/api/v1/webhooks/fire":  "webhook público firmado; la gestión de /webhooks sí se gobierna",
+    "/api/v1/forms/public":   "formulario público por token de capacidad; la gestión de /forms sí se gobierna",
+    "/api/v1/ui":             "etiquetas de UI que necesita la propia interfaz",
+    "/api/v1/translations":   "catálogo i18n que necesita la propia interfaz",
+    "/api/v1/labels":         "stub 501",
+}
 
 # Las seis acciones del modelo GRC. Es el vocabulario de la matriz, no una
 # lista de rutas: no crece con el producto.
@@ -41,7 +59,7 @@ _EXPORT_HINTS: tuple[str, ...] = ("export", "download", "/pdf", "excel", "xlsx",
 
 def is_exempt(path: str) -> bool:
     """¿Está el path fuera del alcance de GRC, con motivo declarado?"""
-    return any(path == p or path.startswith(p + "/") for p in ABAC_EXEMPT_PREFIXES)
+    return any(path == p or path.startswith(p + "/") for p in GRC_EXEMPT_PREFIXES)
 
 
 def module_for_path(path: str) -> Optional[str]:
@@ -129,6 +147,7 @@ def discover_module_actions(app) -> dict[str, set[str]]:
 
 __all__: Iterable[str] = (
     "GRC_ACTIONS",
+    "GRC_EXEMPT_PREFIXES",
     "action_for",
     "discover_module_actions",
     "discover_modules",

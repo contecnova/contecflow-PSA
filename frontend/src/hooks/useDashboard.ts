@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { dashboardApi } from '../services/api'
+import { POLL_SLOW_MS } from '../constants/timings'
 
 const STALE = 2 * 60 * 1000 // 2 min — dashboard/analytics data
 
@@ -11,7 +12,7 @@ export function useKpis(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['kpis'],
     queryFn: () => dashboardApi.kpis().then((r: { data: unknown }) => r.data),
-    refetchInterval: 1000 * 60 * 5, // every 5 min
+    refetchInterval: POLL_SLOW_MS, // every 5 min
     staleTime: STALE,
   })
 }

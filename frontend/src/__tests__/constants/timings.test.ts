@@ -27,6 +27,7 @@ describe('constants/timings', () => {
     // Catch-all: any accidental NaN / negative / zero slips here.
     for (const [name, value] of Object.entries(T)) {
       if (typeof value !== 'number') continue;
+      if (name === 'STALE_ALWAYS') { expect(value).toBe(0); continue; }
       expect(Number.isFinite(value), `${name} must be finite`).toBe(true);
       expect(value, `${name} must be > 0`).toBeGreaterThan(0);
     }

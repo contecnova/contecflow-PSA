@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ._registro import register_metric
 from ._monthly import agrupar_por_mes, serie_de_cuentas
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.core import timeutil
 
 
@@ -177,7 +178,7 @@ def metric_tasks_overdue_by_assignee(
         today = timeutil.today()
         q = db.query(Task.assignee_id, func.count(Task.id).label("cnt")).filter(
             Task.due_date < today,
-            Task.status.notin_(["done", "cancelled"]),
+            Task.status.notin_(ESTADOS_DE_TAREA_TERMINADOS),
         )
         if project_id:
             q = q.filter(Task.project_id == project_id)
@@ -250,7 +251,7 @@ def metric_tasks_by_assignee(
         from app.models.user import User
 
         q = db.query(Task.assignee_id, func.count(Task.id).label("cnt")).filter(
-            Task.status.notin_(["done", "cancelled"]),
+            Task.status.notin_(ESTADOS_DE_TAREA_TERMINADOS),
         )
         if project_id:
             q = q.filter(Task.project_id == project_id)

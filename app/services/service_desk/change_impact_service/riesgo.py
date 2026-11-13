@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.service_desk import (
     CIRelation,
     ConfigurationItem,
@@ -136,7 +137,7 @@ def _open_tickets_on_cis(db: Session, ci_ids: list[str]) -> int:
         db.query(func.count(Ticket.id))
         .filter(
             Ticket.ci_id.in_(ci_ids),
-            Ticket.status.notin_(["resolved", "closed"]),
+            Ticket.status.notin_(ESTADOS_DE_TICKET_RESUELTOS),
         )
         .scalar()
         or 0

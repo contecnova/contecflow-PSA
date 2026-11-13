@@ -12,6 +12,7 @@ import PageShell from '../components/layout/PageShell'
 import { ShieldCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { FULL_LIST_SIZE } from '../constants/pagination'
 
 type IdType = string | number
 
@@ -169,7 +170,7 @@ export default function ProjectPermissionsPage() {
 
   const { data: allUsersRaw = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list({ page_size: 500 }).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => usersApi.list({ page_size: FULL_LIST_SIZE }).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
   const allUsers = allUsersRaw as UserItem[]
 

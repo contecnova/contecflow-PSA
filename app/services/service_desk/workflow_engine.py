@@ -451,9 +451,15 @@ def tick_waiting(db: Session) -> int:
         .all()
     )
     n = 0
+    from app.services.service_desk.ticket_events import como_organizacion
     for r in rows:
         try:
-            resume(db, r, branch="next")
+            # Revision multitenant 2026-11b: cada run sigue en SU empresa. Sin
+            # esto los pasos nuevos quedaban con organizacion NULL (invisibles
+            # en el historial del run) y los ejecutores leian sin filtro.
+            with como_organizacion(db, r.organization_id):
+                resume(db, r, branch="next")
+                db.flush()  # el sellado corre en el flush: dentro de su empresa
             n += 1
         except Exception as exc:
             logger.warning("tick_waiting: run %s failed: %s", r.id, exc)

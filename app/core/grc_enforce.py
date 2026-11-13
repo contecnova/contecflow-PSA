@@ -41,7 +41,7 @@ ofrece es real y comprobable: lo que un administrador prohíbe, queda prohibido.
    posibilidad de arreglarse desde la interfaz. Es la única regla que la matriz
    no puede sobrescribir, y está aquí, a la vista.
 3. Los prefijos sin principal `User` (login, portal de cliente, webhooks
-   firmados, SCIM, WebSocket) quedan fuera: ver `grc_catalog.is_exempt`.
+   firmados, SCIM, WebSocket) quedan fuera: ver `grc_catalog.GRC_EXEMPT_PREFIXES`.
 """
 from __future__ import annotations
 

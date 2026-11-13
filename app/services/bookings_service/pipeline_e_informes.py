@@ -6,6 +6,8 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from app.services.sla_service import ventana_de_riesgo_sla
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_ABIERTOS, ESTADOS_DE_TICKET_RESUELTOS, PRIORIDADES_DE_TICKET
 from app.core.config import settings
 from app.models.pipeline import Opportunity, OpportunityStage
 from app.models.project import Project, ProjectStatus
@@ -101,7 +103,7 @@ def get_pipeline_revenue_forecast(db) -> dict:
 # ── ITSM Aging ────────────────────────────────────────────────────────────────
 
 def get_ticket_aging_report(db) -> dict:
-    open_statuses = ["new", "assigned", "in_progress", "pending_client"]
+    open_statuses = ESTADOS_DE_TICKET_ABIERTOS
     tickets = db.query(Ticket).options(joinedload(Ticket.assigned_to)).filter(Ticket.status.in_(open_statuses)).all()
     now = datetime.now(timezone.utc)
     aging_buckets = {
@@ -142,19 +144,19 @@ def get_ticket_aging_report(db) -> dict:
 def get_wallboard_data(db) -> dict:
     now = datetime.now(timezone.utc)
     today = now.date()
-    open_statuses = ["new", "assigned", "in_progress", "pending_client"]
+    open_statuses = ESTADOS_DE_TICKET_ABIERTOS
     tickets_open  = db.query(Ticket).filter(Ticket.status.in_(open_statuses)).all()
     today_start   = datetime.combine(today, _time(0, 0, 0), tzinfo=timezone.utc)
     today_end     = today_start + timedelta(days=1)
     tickets_today = db.query(Ticket).filter(Ticket.created_at >= today_start, Ticket.created_at < today_end).all()
     resolved_today = db.query(Ticket).filter(
         Ticket.resolved_at >= today_start, Ticket.resolved_at < today_end,
-        Ticket.status.in_(["resolved", "closed"])
+        Ticket.status.in_(ESTADOS_DE_TICKET_RESUELTOS)
     ).all()
     sla_breached = [t for t in tickets_open if t.sla_resolution_due and t.sla_resolution_due < now]
-    sla_at_risk  = [t for t in tickets_open if t.sla_resolution_due and now < t.sla_resolution_due <= now + timedelta(hours=2)]
+    sla_at_risk  = [t for t in tickets_open if t.sla_resolution_due and now < t.sla_resolution_due <= now + ventana_de_riesgo_sla(db)]
     by_priority  = {pri: sum(1 for t in tickets_open if t.priority == pri)
-                    for pri in ["p1_critical", "p2_high", "p3_medium", "p4_low"]}
+                    for pri in PRIORIDADES_DE_TICKET}
     by_agent: dict = {}
     for t in tickets_open:
         if t.assigned_to_user_id:

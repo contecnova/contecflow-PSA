@@ -65,6 +65,13 @@ def _tablas_con_organizacion():
     return [t for t in Base.metadata.sorted_tables if "organization_id" in t.c]
 
 
+def _tablas_con_org_id():
+    """Tablas cuya columna de empresa se llama `org_id` (con FK a organizations)."""
+    return [t for t in Base.metadata.sorted_tables
+            if "organization_id" not in t.c and "org_id" in t.c
+            and any(fk.column.table.name == "organizations" for fk in t.c.org_id.foreign_keys)]
+
+
 def _tablas_de_sus_usuarios():
     """Tablas sin `organization_id` que cuelgan de `users`: (tabla, columnas hacia users)."""
     out = []
@@ -117,9 +124,18 @@ def exportar(db: Session, org_id: str) -> bytes:
             if filas:
                 zf.writestr(f"{t.name}.json", json.dumps(filas, ensure_ascii=False, indent=1, default=str))
                 resumen[t.name] = len(filas)
+        # Revision multitenant 2026-11b: las tablas cuya columna de empresa es
+        # `org_id` (seguridad, ABAC, guardarrailes de IA) tambien son suyas: la
+        # purga ya las borraba, pero el export no las llevaba.
+        for t in _tablas_con_org_id():
+            filas = [{k: _a_json(v) for k, v in f._mapping.items()}
+                     for f in db.execute(sa.select(t).where(t.c.org_id == org_id))]
+            if filas:
+                zf.writestr(f"{t.name}.json", json.dumps(filas, ensure_ascii=False, indent=1, default=str))
+                resumen[t.name] = len(filas)
         for t, cols in _tablas_de_sus_usuarios():
-            if not borrar:
-                break
+            if not borrar or t.name in resumen:
+                continue
             cond = sa.or_(*[c.in_(borrar) for c in cols])
             filas = [{k: _a_json(v) for k, v in f._mapping.items()} for f in db.execute(sa.select(t).where(cond))]
             if filas:
@@ -234,21 +250,32 @@ def purgar_caducadas(db: Session) -> list:
     hechas = []
     vencidas = [o for (o,) in db.query(Organization.id).filter(
         Organization.deletion_purge_after.isnot(None), Organization.deletion_purge_after <= ahora).all()]
+    fallos: dict = {}
     for org_id in vencidas:
         try:
             filas = purgar(db, org_id)
             hechas.append({"organization_id": org_id, "rows": sum(filas.values())})
             _log.warning("Empresa %s borrada tras su cuarentena: %d filas", org_id, sum(filas.values()))
-        except Exception:
+        except BloqueoLegalImpidePurga as exc:
+            # Esperado: sigue en cuarentena hasta que se levante el bloqueo.
+            db.rollback()
+            _log.warning("Empresa %s con bloqueo legal (%s): no se borra", org_id, exc)
+        except Exception as exc:
             db.rollback()
             _log.exception("No se pudo borrar la empresa %s; se reintenta mañana", org_id)
+            fallos[org_id] = f"{type(exc).__name__}: {exc}"[:300]
+    if fallos:
+        # Revision multitenant 2026-11b: se registraba y la tarea quedaba en
+        # SUCCESS (regla #37 del worker). Las demas ya se borraron.
+        from app.services.trabajos_de_fondo import FalloEnOrganizaciones
+        raise FalloEnOrganizaciones("purgar_empresas_caducadas", fallos, {"hechas": hechas})
     return hechas
 
 
-def purgar_caducadas_job() -> None:
+def purgar_caducadas_job() -> list:
     from app.db.session import worker_db_session
     with worker_db_session() as db:
-        purgar_caducadas(db)
+        return purgar_caducadas(db)
 
 
 def obtener(db: Session, org_id: str) -> Organization:

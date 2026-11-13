@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import json
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.core.config import settings as _settings
 import statistics
 from datetime import datetime, timezone
@@ -379,7 +380,7 @@ TOPE_DE_TICKETS_ANALIZADOS = int(_settings.PREDICTIVE_STATS_MAX_TICKETS)
 UMBRAL_DE_RIESGO_DE_SLA = 0.55
 
 #: Los estados que **no** son un ticket abierto.
-ESTADOS_CERRADOS = ["resolved", "closed"]
+ESTADOS_CERRADOS = ESTADOS_DE_TICKET_RESUELTOS
 
 
 def estadisticas_predictivas(db: Session, current_user) -> dict:

@@ -13,6 +13,7 @@ import {
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { STALE_DEFAULT_MS } from '../constants/timings'
 
 const STATUS_COLORS: Record<string, string> = {
   active:    COLOR.accent,
@@ -65,7 +66,7 @@ export default function ProjectsDashboardPage() {
   const { data: health = [], isLoading: lh } = useQuery<DashboardProjectHealth[]>({
     queryKey: ['proj-dash-health', days],
     queryFn: () => dashboardApi.projectsHealth(params).then(r => r.data).catch(() => []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: allProjects = [] } = useAllProjects() as { data: ProjectItem[] }
@@ -73,14 +74,14 @@ export default function ProjectsDashboardPage() {
   const { data: byTypeRaw, isLoading: lt } = useQuery<TypeRow[]>({
     queryKey: ['proj-dash-type', days],
     queryFn: () => analyticsApi.query('projects_by_type', params).then(r => r.data?.rows || []).catch(() => []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const byType: TypeRow[] = byTypeRaw ?? []
 
   const { data: kpis } = useQuery({
     queryKey: ['proj-dash-kpis', days],
     queryFn: () => dashboardApi.kpis().then(r => r.data).catch(() => ({})),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: risks = [] } = useQuery<RiskRow[]>({
@@ -88,7 +89,7 @@ export default function ProjectsDashboardPage() {
     queryFn: () => risksApi.portfolioAll().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
     }).catch(() => []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   if (lh || lt) return (

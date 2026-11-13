@@ -9,6 +9,7 @@ import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { usersApi } from '../services/api'
 import type { UserCreatePayload } from '../services/api/users'
+import { STALE_5_MIN_MS, STALE_REFERENCE_DATA_MS } from '../constants/timings'
 
 export interface User {
   id: string
@@ -27,7 +28,7 @@ export function useUsers(params: UserListParams = {}): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['users', params],
     queryFn: () => usersApi.list(params).then((r: { data: unknown }) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -36,7 +37,7 @@ export function useAllUsers(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list({}).then((r: { data: unknown }) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -49,7 +50,7 @@ export function useUser(id: string | undefined): UseQueryResult<unknown> {
     // nunca es undefined. Sin esa garantia habria que cambiar la firma.
     queryFn: () => usersApi.get(id!).then((r: { data: unknown }) => r.data),
     enabled: !!id,
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
 }
 

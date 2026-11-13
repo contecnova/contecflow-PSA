@@ -128,6 +128,9 @@ def _log_timeout_audit_event(req, step, action: str, now: datetime, db: Session)
         step_order=step.step_order,
         note=f"Acción automática por timeout: {action}",
         created_at=now,
+        # Revision multitenant 2026-11b: se escribe fuera del contexto de la
+        # solicitud (sin sellado) y quedaba con NULL: su empresa no la veia.
+        organization_id=req.organization_id,
     ))
 
 def _step_is_expired(step, req, now: datetime) -> bool:

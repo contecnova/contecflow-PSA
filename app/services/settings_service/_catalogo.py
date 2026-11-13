@@ -32,6 +32,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SLA_PREDICTION_HOURS_LOW", "int", "Prediction — hours window (low)"),
         ("SLA_PREDICTION_SEVERITY_CRITICAL_H", "float", "Prediction — severity threshold (critical h)"),
         ("SLA_PREDICTION_SEVERITY_HIGH_H", "float", "Prediction — severity threshold (high h)"),
+        ("SLA_AT_RISK_WINDOW_HOURS", "float", "Wallboard and SLA panel — an open ticket due within these hours is at risk"),
     ],
     "service_desk": [
         ("SD_NOTIFY_REQUESTER_ON_CREATE", "bool", "Email the requester when a ticket is created"),
@@ -64,6 +65,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SD_KB_CONTRADICTION_MAX_PAIRS", "int", "Knowledge — article pairs checked with AI per daily run (0: off)"),
         ("SD_TIME_TO_TIMESHEET", "bool", "Time on tickets with a project goes to the agent's timesheet"),
         ("SD_ASSET_REFRESH_DAYS", "int", "Assets — days before an expiry that open a renewal ticket (0: off)"),
+        ("KEDB_DEFAULT_REVIEW_DAYS", "int", "Known errors — days until review when publishing or reviewing one (7-365)"),
         ("SD_EVENT_MAX_ATTEMPTS", "int", "Event delivery — max attempts"),
         ("SD_EVENT_BATCH_SIZE", "int", "Event delivery — events per run"),
         ("ALERT_CORRELATION_PROBLEM_SCORE", "float", "Alert correlation — score (0-1) to suggest/create a problem (with 3+ tickets)"),
@@ -86,6 +88,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("TENANT_DELETION_QUARANTINE_DAYS", "int", "Company deletion — quarantine before its data is erased (days)"),
         ("IMPERSONATION_ENABLED", "bool", "Platform support may sign in as a company user (with a reason, audited)"),
         ("IMPERSONATION_MAX_MINUTES", "int", "Sign in as — maximum session length (minutes)"),
+        ("ORG_DEFAULT_MAX_USERS", "int", "New company — default user limit"),
+        ("ORG_DEFAULT_MAX_PROJECTS", "int", "New company — default project limit"),
     ],
     "audit": [
         ("AUDIT_EXPORT_MAX_ROWS", "int", "Audit log — maximum rows in the signed export (the most recent)"),
@@ -175,6 +179,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("DEFAULT_TAX_RATE", "float", "Default tax rate (%)"),
         ("DEFAULT_WORKING_HOURS_PER_DAY", "float", "Working hours/day"),
         ("DEFAULT_WEEKLY_CAPACITY_HOURS", "float", "Weekly capacity (h)"),
+        ("DEFAULT_PRODUCTIVE_HOURS_YEAR", "float", "Staff cost — productive hours per year when the cost profile and country preset say nothing"),
+        ("DEFAULT_EMPLOYER_COST_PCT", "float", "Staff cost — employer cost on gross salary (0.32 = 32 %) when the profile and country preset say nothing"),
         ("SCENARIO_CAPACITY_ROLES", "str", "Scenarios — roles whose capacity counts (comma separated)"),
         ("DEFAULT_VACATION_DAYS_PER_YEAR", "int", "Vacation days/year"),
         ("DEFAULT_IMPUTATION_LOCKOUT_DAYS", "int", "Imputation lockout (days)"),

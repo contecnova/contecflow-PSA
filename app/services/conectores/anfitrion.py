@@ -127,8 +127,21 @@ def puede_escribir(db: Session, producto: Producto, usuario) -> bool:
 
 # ── Tokens ────────────────────────────────────────────────────────────────────
 
+def _clave_de_aplicacion(producto: Producto, cfg: dict) -> tuple:
+    """Clave de la cache del token de aplicacion.
+
+    Revision multitenant 2026-11b: con (producto, url, client_id) de clave, el
+    administrador de otra empresa que escribiera la url y el client_id de esta
+    con un secreto cualquiera reutilizaba su token: el secreto no se comprobaba
+    nunca. La huella del secreto entra en la clave.
+    """
+    import hashlib
+    huella = hashlib.sha256(str(cfg["client_secret"]).encode()).hexdigest()
+    return (producto.clave, cfg["base_url"], cfg["client_id"], huella)
+
+
 def _token_de_aplicacion(producto: Producto, cfg: dict, plazo: float) -> str:
-    clave = (producto.clave, cfg["base_url"], cfg["client_id"])
+    clave = _clave_de_aplicacion(producto, cfg)
     with _lock:
         guardado = _tokens_de_aplicacion.get(clave)
         if guardado and guardado[0] > time.monotonic() + _MARGEN_S:
@@ -336,7 +349,7 @@ def probar(db: Session, producto: Producto, org_id: Optional[str]) -> dict:
             return {"ok": False, "codigo": "no_listo",
                     "detail": f"{producto.clave} está vivo pero no puede atender: {producto.ruta_listo} "
                               f"responde {listo.status_code} {listo.text[:200]}"}
-        _tokens_de_aplicacion.pop((producto.clave, cfg["base_url"], cfg["client_id"]), None)
+        _tokens_de_aplicacion.pop(_clave_de_aplicacion(producto, cfg), None)
         _token_de_aplicacion(producto, cfg, plazo)
     except ErrorDeConector as e:
         return {"ok": False, "codigo": e.codigo, "detail": e.detalle}

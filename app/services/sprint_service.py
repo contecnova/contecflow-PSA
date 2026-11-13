@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import Optional, List
 
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.models.task import Task
 from app.models.sprints import Sprint, SprintTask, SprintStatus
 from app.models.project import Project
@@ -225,7 +226,7 @@ def get_project_backlog_tasks(db: Session, project_id: str) -> List[Task]:
         .options(joinedload(Task.assignee))
         .filter(
             Task.project_id == project_id,
-            Task.status.notin_(["done", "cancelled"]),
+            Task.status.notin_(ESTADOS_DE_TAREA_TERMINADOS),
             Task.id.notin_(sprint_task_ids),
         )
         .order_by(Task.priority.desc(), Task.created_at)

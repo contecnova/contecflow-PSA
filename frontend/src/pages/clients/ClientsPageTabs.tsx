@@ -16,6 +16,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
+import { STALE_ALWAYS, WS_RECONNECT_DELAY_MS } from '../../constants/timings'
 const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -183,7 +184,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
   const { data: linked = [], isLoading: loadingLinked } = useQuery<ClientProjectRow[]>({
     queryKey: ['client-projects-linked', cid],
     queryFn: () => clientExtApi.projects(cid).then(r => r.data),
-    staleTime: 0,
+    staleTime: STALE_ALWAYS,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   })
@@ -191,7 +192,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
   const { data: available = [], isLoading: loadingAvail, refetch: refetchAvailable } = useQuery<ClientProjectRow[]>({
     queryKey: ['client-projects-available', cid],
     queryFn: () => clientExtApi.availableProjects(cid).then(r => r.data),
-    staleTime: 0,
+    staleTime: STALE_ALWAYS,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   })
@@ -647,7 +648,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
       wsApi.ticket().then((res: { data: { ticket: string } }) => {
         const ticket = res.data.ticket
         ws = new window.WebSocket(apiWsUrl(`/ws/notifications?ticket=${ticket}`))
-        ws.onclose = () => { reconnectTimer = setTimeout(connectWS, 5000) }
+        ws.onclose = () => { reconnectTimer = setTimeout(connectWS, WS_RECONNECT_DELAY_MS) }
         ws.onerror = () => { ws!.close() }
         ws.onmessage = (ev) => {
           try {

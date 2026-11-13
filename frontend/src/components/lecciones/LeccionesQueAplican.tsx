@@ -16,6 +16,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import FichaDeLeccion from './FichaDeLeccion'
+import { LIVE_VALIDATION_DEBOUNCE_MS, STALE_SHORT_MS } from '../../constants/timings'
 
 const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14, background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 10 }
 const chip: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-2)', border: '1px solid var(--surface-4)', borderRadius: 99, padding: '1px 8px' }
@@ -31,12 +32,12 @@ export default function LeccionesQueAplican({ contexto, id, campos }: {
   const [camposQuietos, setCamposQuietos] = useState(campos)
   const firma = JSON.stringify(campos ?? {})
   useEffect(() => {
-    const h = setTimeout(() => setCamposQuietos(JSON.parse(firma)), 600)
+    const h = setTimeout(() => setCamposQuietos(JSON.parse(firma)), LIVE_VALIDATION_DEBOUNCE_MS)
     return () => clearTimeout(h)
   }, [firma])
   const clave = ['lecciones', 'recomendaciones', contexto, id ?? JSON.stringify(camposQuietos ?? {})]
   const q = useQuery({
-    queryKey: clave, retry: false, staleTime: 30_000,
+    queryKey: clave, retry: false, staleTime: STALE_SHORT_MS,
     queryFn: () => contexto === 'nuevo_proyecto' ? leccionesApi.recomendacionesNuevo(camposQuietos ?? {}) : leccionesApi.recomendaciones(contexto, id!),
     enabled: contexto === 'nuevo_proyecto' ? Object.values(camposQuietos ?? {}).some(Boolean) : !!id,
   })

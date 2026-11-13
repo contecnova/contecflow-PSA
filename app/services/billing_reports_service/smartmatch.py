@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.core.config import settings
 from app.models.user import User
 from app.models.task import Task
@@ -160,7 +161,7 @@ def smartmatch(payload: dict, db: Session) -> dict:
     tareas_por_usuario = {
         fila.assignee_id: fila.count
         for fila in db.query(Task.assignee_id, func.count(Task.id).label("count"))
-        .filter(Task.status.notin_(["done", "cancelled"]))
+        .filter(Task.status.notin_(ESTADOS_DE_TAREA_TERMINADOS))
         .group_by(Task.assignee_id).all()
     }
 

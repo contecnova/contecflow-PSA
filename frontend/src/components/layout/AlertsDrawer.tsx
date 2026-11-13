@@ -6,6 +6,7 @@ import { fmtRelative } from '../../utils/helpers'
 import { useAuth } from '../../context/AuthContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Drawer } from '../ui'
+import { POLL_FREQUENT_MS } from '../../constants/timings'
 
 interface SeverityCfg {
   dot: string
@@ -48,7 +49,7 @@ export default function AlertsDrawer({ onClose }: Props) {
   const { data: alerts = [], isLoading } = useQuery<AlertItem[]>({
     queryKey: ['alerts-drawer'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const { mutate: resolve } = useMutation({

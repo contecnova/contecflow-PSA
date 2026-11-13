@@ -188,11 +188,30 @@ def organizacion_de_la_peticion(db: Session, user, payload: dict, request) -> Op
         del_host = organizacion_por_host(db, request)
         if del_host is not None and del_host.id != org:
             raise ErrorDeDominio(403, "Esta sesión es de otra organización")
+    return _fijar_en_memoria(user, org)
+
+
+def _fijar_en_memoria(user, org: Optional[str]) -> Optional[str]:
     if org != user.organization_id:
         from sqlalchemy.orm.attributes import set_committed_value
-        user._organizacion_de_ficha = user.organization_id
+        user._organizacion_de_ficha = _de_ficha(user)
         set_committed_value(user, "organization_id", org)
     return org
+
+
+def fijar_organizacion_activa(db: Session, user, org: Optional[str]) -> Optional[str]:
+    """Fuera de HTTP (worker, WebSocket): `user` trabaja en `org` si sigue perteneciendo.
+
+    Revision multitenant 2026-11b. Lo que se encola o se abre desde una
+    peticion (el agente en segundo plano) recargaba al usuario y publicaba su
+    empresa de FICHA: con pertenencias en varias, el trabajo pedido en B leia y
+    escribia A. Devuelve la empresa fijada; si ya no pertenece, la de su ficha.
+    """
+    if getattr(user, "is_superadmin", False) or not org:
+        return getattr(user, "organization_id", None)
+    if org != _de_ficha(user) and not pertenece(db, user, org):
+        return _de_ficha(user)
+    return _fijar_en_memoria(user, org)
 
 
 def emitir_tokens(user, org: Optional[str]) -> tuple[str, str, str]:

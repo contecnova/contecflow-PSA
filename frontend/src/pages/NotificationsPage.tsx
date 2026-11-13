@@ -11,7 +11,7 @@ import PageShell from '../components/layout/PageShell'
 import { Bell } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
-import { DEFAULT_PAGE_SIZE } from '../constants/timings'
+import { DEFAULT_PAGE_SIZE, POLL_DEFAULT_MS, WS_PING_INTERVAL_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 
@@ -225,13 +225,13 @@ export default function NotificationsPage() {
     queryFn: () => api.get('/enterprise/notifications', {
       params: { page_size: DEFAULT_PAGE_SIZE, ...(filter !== 'all' && { is_read: filter === 'read' }) }
     }).then(r => r.data).catch(() => ({ notifications:[], unread_count:0 })),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 
   const { data: alertsRaw = [], isLoading: alertsLoading } = useQuery<AlertItem[]>({
     queryKey: ['alerts-count'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
@@ -317,7 +317,7 @@ export default function NotificationsPage() {
           }
         } catch { /* noop */ }
       }
-      ping = setInterval(() => socket.readyState === 1 && socket.send(JSON.stringify({ type:'ping' })), 30000)
+      ping = setInterval(() => socket.readyState === 1 && socket.send(JSON.stringify({ type:'ping' })), WS_PING_INTERVAL_MS)
     }).catch(() => { /* WS optional; polling fallback already active */ })
     return () => {
       cancelled = true

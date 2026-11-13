@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { ticketsApi } from '../services/api'
+import { POLL_DEFAULT_MS } from '../constants/timings'
 
 const STALE = 60 * 1000  // 1 min — tickets change more frequently
 
@@ -72,7 +73,7 @@ export function useTicketMyQueue(): UseQueryResult<unknown> {
     queryKey: ['sd-tickets-my-queue'],
     queryFn: () => ticketsApi.myQueue().then((r: { data: unknown }) => r.data),
     staleTime: STALE,
-    refetchInterval: 60 * 1000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 }
 

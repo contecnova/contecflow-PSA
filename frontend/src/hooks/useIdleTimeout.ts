@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
+import { CLOCK_TICK_MS } from '../constants/timings'
 
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'] as const
 
@@ -64,7 +65,7 @@ export function useIdleTimeout({
           }
           return s - 1
         })
-      }, 1000)
+      }, CLOCK_TICK_MS)
     }, warnMs)
 
     // Force logout when totalMs have elapsed

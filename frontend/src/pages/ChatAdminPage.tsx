@@ -17,6 +17,8 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useTabListKeys } from '../components/ui/Tabs'
 import { Table } from '../components/ui'
 import DateInput from '../components/ui/DateInput'
+import { POLL_FREQUENT_MS } from '../constants/timings'
+import { CHAT_AUDIT_LIMIT } from '../constants/pagination'
 
 type TabId = 'retention' | 'legal_hold' | 'integrations' | 'webhooks' | 'audit' | 'ediscovery'
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
@@ -510,7 +512,7 @@ function WebhooksTab() {
 
 function AuditTab() {
   const t = useAppT() as (key: string, params?: Record<string, unknown>) => string
-  const { data = [] } = useQuery<AuditEventItem[]>({ queryKey: ['audit'], queryFn: () => collabApi.listAudit(200) as Promise<AuditEventItem[]>, refetchInterval: 30000 })
+  const { data = [] } = useQuery<AuditEventItem[]>({ queryKey: ['audit'], queryFn: () => collabApi.listAudit(CHAT_AUDIT_LIMIT) as Promise<AuditEventItem[]>, refetchInterval: POLL_FREQUENT_MS })
   const verify = useMutation<AuditVerifyResult>({
     mutationFn: () => collabApi.verifyAudit() as Promise<AuditVerifyResult>,
   })

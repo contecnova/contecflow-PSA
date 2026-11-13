@@ -14,6 +14,7 @@ import PageShell from '../components/layout/PageShell'
 import { AlertOctagon, Brain } from 'lucide-react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
+import { PREDICTION_LOGS_LIMIT } from '../constants/pagination'
 
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
@@ -142,7 +143,7 @@ function MLPredictionsTab() {
   })
   const { data: logs = [], isLoading: lLogs } = useQuery<MlPredictionLog[]>({
     queryKey: ['ml-logs'],
-    queryFn: () => predictionsApi.logs({ limit: 30 }).then(r => r.data as MlPredictionLog[]).catch(() => []),
+    queryFn: () => predictionsApi.logs({ limit: PREDICTION_LOGS_LIMIT }).then(r => r.data as MlPredictionLog[]).catch(() => []),
   })
   const { mutate: train, isPending: training } = useMutation({
     mutationFn: () => predictionsApi.train(),

@@ -264,6 +264,11 @@ PROCESS_CATALOGUE: list[dict] = [
 
 
 # ── BPMN XML generator ────────────────────────────────────────────────────────
+#: `targetNamespace` de los diagramas generados; el frontend usa el mismo
+#: (`frontend/src/constants/bpmn.ts`). Barrido 2026-11.
+BPMN_TARGET_NAMESPACE = "http://contecflow/bpmn"
+
+
 def clave_unica(db, clave: str, organization_id) -> str:
     """Una clave de proceso libre en esa organizacion, con sufijo si hace falta.
 
@@ -399,7 +404,7 @@ def build_bpmn_xml(process_key: str, process_name: str, steps: list[str]) -> str
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                   id="Definitions_{process_key}"
-                  targetNamespace="http://contecflow/bpmn">
+                  targetNamespace="{BPMN_TARGET_NAMESPACE}">
   <bpmn:process id="{proc_id}" name="{escape(process_name)}" isExecutable="false">
     {_proceso_bpmn(elementos, flujos)}
   </bpmn:process>

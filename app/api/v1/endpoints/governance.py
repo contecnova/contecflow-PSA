@@ -110,6 +110,7 @@ def upsert_policy_pack(
         resource_name=pack_key,
         new_values={"enabled": payload.is_enabled, "version": payload.pack_version},
     )
+    db.commit()   # revisión GRC 2026-11b: el servicio ya había confirmado y la entrada se perdía
     return APIResponse.ok(data={"ok": True, "pack_key": pack_key})
 
 
@@ -150,6 +151,7 @@ def create_evidence(
         resource_name=payload.control_id,
         new_values={"framework": framework, "type": payload.evidence_type},
     )
+    db.commit()   # revisión GRC 2026-11b: el servicio ya había confirmado y la entrada se perdía
     return APIResponse.ok(data={"id": evidence.id, "artifact_hash": evidence.artifact_hash})
 
 

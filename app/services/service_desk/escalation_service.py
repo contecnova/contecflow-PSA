@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS, ESTADOS_DE_TICKET_RESUELTOS
 from app.models.service_desk import (
     AgentGroupMember,
     EscalationAction,
@@ -136,7 +137,7 @@ _ABIERTOS = (
     TicketStatus.new, TicketStatus.assigned, TicketStatus.in_progress,
     TicketStatus.pending_client, TicketStatus.pending_third,
 )
-_CERRADOS = {"resolved", "closed"}
+_CERRADOS = ESTADOS_DE_TICKET_RESUELTOS
 
 
 def _v(x):
@@ -153,7 +154,7 @@ def _fue_reabierto(db: Session, ticket: Ticket) -> bool:
         TicketHistory.ticket_id == ticket.id,
         TicketHistory.field_name == "status",
         TicketHistory.old_value.in_(list(_CERRADOS)),
-        TicketHistory.new_value.notin_(list(_CERRADOS) + ["cancelled"]),
+        TicketHistory.new_value.notin_(ESTADOS_DE_TICKET_CERRADOS),
     ).first() is not None
 
 

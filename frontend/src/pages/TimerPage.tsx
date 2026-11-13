@@ -13,7 +13,7 @@ import { Timer } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
-import { DEFAULT_PAGE_SIZE, LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS } from '../constants/timings'
+import { DEFAULT_PAGE_SIZE, LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, POLL_DEFAULT_MS, CLOCK_TICK_MS } from '../constants/timings'
 import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
 
@@ -335,7 +335,7 @@ export default function TimerPage() {
       const items: TimerHistoryItem[] = Array.isArray(data) ? data : ((data as { items?: TimerHistoryItem[] }).items || [])
       return items.filter((imp) => imp.timer_session_id)
     }),
-    refetchInterval: 60_000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 
   useEffect(() => {
@@ -344,7 +344,7 @@ export default function TimerPage() {
     const tick = () => setElapsed(computeElapsed(currentTimer))
     tick()
     if (!currentTimer.paused_at) {
-      intervalRef.current = setInterval(tick, 1000)
+      intervalRef.current = setInterval(tick, CLOCK_TICK_MS)
     }
     return () => clearInterval(intervalRef.current ?? undefined)
   }, [currentTimer])

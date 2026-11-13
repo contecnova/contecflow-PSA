@@ -30,6 +30,7 @@ import { collabApi } from '../services/collaborationApi'
 import { useAppT } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import StatusBadge from '../components/ui/StatusBadge'
+import { CLOCK_TICK_MS } from '../constants/timings'
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
@@ -98,7 +99,7 @@ export default function CallPage(): JSX.Element {
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const startedAt = Date.now()
-    const t = setInterval(() => setDuration(Math.floor((Date.now() - startedAt) / 1000)), 1000)
+    const t = setInterval(() => setDuration(Math.floor((Date.now() - startedAt) / 1000)), CLOCK_TICK_MS)
     return () => clearInterval(t)
   }, [])
 

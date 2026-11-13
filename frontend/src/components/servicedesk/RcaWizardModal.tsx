@@ -18,6 +18,7 @@ import { Button, Spinner, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { STALE_ALWAYS } from '../../constants/timings'
 
 // TODO type: problemsApi RCA wizard payloads — needs shared types
 interface WizardStepDef {
@@ -226,7 +227,7 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
       }
       return payload as WizardState
     },
-    staleTime: 0,
+    staleTime: STALE_ALWAYS,
     retry: false,
   })
 

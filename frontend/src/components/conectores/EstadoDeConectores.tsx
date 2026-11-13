@@ -16,6 +16,7 @@ import type { EstadoProducto } from '../../services/api'
 import { Button, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { fmtDate } from '../../utils/helpers'
+import { POLL_DEFAULT_MS } from '../../constants/timings'
 
 const tarjeta: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14, background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }
 const sub: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }
@@ -23,7 +24,7 @@ const num: CSSProperties = { fontSize: 'var(--text-lg)', fontWeight: 700, color:
 
 export default function EstadoDeConectores() {
   const t = useAppT()
-  const estado = useQuery({ queryKey: ['conectores', 'estado'], queryFn: conectoresApi.estado, refetchInterval: 60_000 })
+  const estado = useQuery({ queryKey: ['conectores', 'estado'], queryFn: conectoresApi.estado, refetchInterval: POLL_DEFAULT_MS })
   if (estado.isLoading) return <Spinner size={18} />
   if (estado.isError) return <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{mensajeDeConector(estado.error, t('conectores.error'))}</div>
   const d = estado.data!

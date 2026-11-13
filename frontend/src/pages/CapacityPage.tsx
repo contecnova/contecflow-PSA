@@ -21,6 +21,7 @@ import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
+import { STALE_SHORT_MS } from '../constants/timings'
 
 type UserItem = {
   id: string | number
@@ -322,7 +323,7 @@ export default function CapacityPage(): JSX.Element {
       week_from: weekStarts[0],
       week_to:   weekStarts[weekStarts.length - 1],
     }).then(r => r.data as CapacityPlan[]),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
 
   const { mutate: movePlan } = useMutation({

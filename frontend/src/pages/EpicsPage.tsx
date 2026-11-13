@@ -14,6 +14,7 @@ import PageShell from '../components/layout/PageShell'
 import { Layers } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
+import { FULL_LIST_SIZE } from '../constants/pagination'
 
 type EpicStatus = 'open' | 'in_progress' | 'done' | 'cancelled'
 type EpicPriority = 'low' | 'medium' | 'high' | 'critical'
@@ -149,7 +150,7 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
   const [elegida, setElegida] = useState('')
   const ficha = useQuery({ queryKey: ['epic', epic.id], queryFn: () => epicsApi.get(epic.id).then(r => r.data as { tasks?: { id: string; title: string; status: string }[] }) })
   const tareas = useQuery({ queryKey: ['tasks', projectId, 'epic'], enabled: canEdit,
-    queryFn: () => tasksApi.list({ project_id: projectId, page_size: 500 }).then(r => {
+    queryFn: () => tasksApi.list({ project_id: projectId, page_size: FULL_LIST_SIZE }).then(r => {
       const d = r.data as { items?: { id: string; title: string }[] } | { id: string; title: string }[]
       return Array.isArray(d) ? d : (d?.items ?? [])
     }) })

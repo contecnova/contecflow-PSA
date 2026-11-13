@@ -11,7 +11,7 @@ import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, fmtNumber, extractErr} from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
-import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS } from '../constants/timings'
+import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, UI_FEEDBACK_SAVED_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 
@@ -322,7 +322,7 @@ export default function ImputarPage(): JSX.Element {
       setSaved(true)
       setDuplicateError(null)
       setForceDuplicate(false)
-      setTimeout(() => setSaved(false), 2500)
+      setTimeout(() => setSaved(false), UI_FEEDBACK_SAVED_MS)
       setForm(f => ({ ...f, task_id: '', hours: 0, description: '' }))
       qc.invalidateQueries({ queryKey: ['my-week'] })
       qc.invalidateQueries({ queryKey: ['imputations-today'] })
@@ -348,7 +348,7 @@ export default function ImputarPage(): JSX.Element {
       try {
         await queueImputation(form)
         setSaved(true)
-        setTimeout(() => setSaved(false), 2500)
+        setTimeout(() => setSaved(false), UI_FEEDBACK_SAVED_MS)
         setForm(f => ({ ...f, task_id: '', hours: 0, description: '' }))
         toast.success('Sin conexi\u00f3n — la imputaci\u00f3n se sincronizar\u00e1 autom\u00e1ticamente')
       } catch {

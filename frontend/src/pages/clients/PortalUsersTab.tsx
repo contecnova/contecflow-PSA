@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '../../constants/brand'
 import { CSSProperties, useState, useId } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -236,7 +237,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 {u.is_active ? '⏸ Suspender acceso' : '▶ Reactivar acceso'}
               </button>
               <button onClick={() => {
-                const text = `Acceso al portal de ${clientName || 'Contecflow'}\n\nURL: ${portalUrl}\nEmail: ${u.email}\n\nContacta con tu gestor para obtener tu contraseña.`
+                const text = `Acceso al portal de ${clientName || PRODUCT_NAME}\n\nURL: ${portalUrl}\nEmail: ${u.email}\n\nContacta con tu gestor para obtener tu contraseña.`
                 navigator.clipboard.writeText(text)
                 toast.info('📋 Info de acceso copiada al portapapeles')
               }} style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>

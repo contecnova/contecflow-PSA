@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext'
 import { Spinner } from '../../components/ui'
 import { ticketsApi } from '../../services/api'
 import { alpha } from '../../constants/theme'
+import { STALE_SHORT_MS } from '../../constants/timings'
 
 const PRIO_COLOR: Record<string, string> = { p1_critical: 'var(--danger)', p2_high: 'var(--orange)', p3_medium: 'var(--warning)', p4_low: 'var(--text-2)' }
 const PRIO_LABEL: Record<string, string> = { p1_critical: 'P1', p2_high: 'P2', p3_medium: 'P3', p4_low: 'P4' }
@@ -65,7 +66,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
         })
         return { cols, total: Number(r.meta?.total ?? tickets.length), vistos: tickets.length }
       }),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
   const raw = tablero?.cols ?? {}
 

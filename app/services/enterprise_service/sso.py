@@ -104,16 +104,21 @@ def update_sso_config(config_id: str, payload, current_user, db: Session) -> dic
         data["oidc_client_secret"] = encrypt_value(data["oidc_client_secret"])
     for k, v in data.items():
         setattr(config, k, v)
+    # Revisión GRC 2026-11b: crear SSO se auditaba; cambiarlo (o rotar su
+    # secreto) y borrarlo, no. Del secreto sólo consta que cambió.
+    audit_log(db, current_user, "UPDATE", "sso_configs", config.id, config.provider,
+              new_values={k: ("***" if k == "oidc_client_secret" else v) for k, v in data.items()})
     db.commit()
     return serialize_sso(config)
 
 
-def delete_sso_config(config_id: str, db: Session) -> dict:
+def delete_sso_config(config_id: str, db: Session, current_user=None) -> dict:
     config = db.query(SSOConfig).filter(SSOConfig.id == config_id, SSOConfig.is_deleted == False).first()
     if not config:
         raise ValueError("not_found")
     config.is_active = False
     config.is_deleted = True
+    audit_log(db, current_user, "DELETE", "sso_configs", config.id, config.provider)
     db.commit()
     return {"ok": True, "message": "Configuracion SSO eliminada correctamente"}
 

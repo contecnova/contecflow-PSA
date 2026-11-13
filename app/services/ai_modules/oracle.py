@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_EN_CURSO
 from app.models.ai_chat import (
     AIPrediction,
 )
@@ -322,7 +323,7 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
         Project, user_org,
     ).all()
     open_tickets = _scope_query_by_org(
-        db.query(Ticket).filter(Ticket.status.in_(["new", "assigned", "in_progress"])),
+        db.query(Ticket).filter(Ticket.status.in_(ESTADOS_DE_TICKET_EN_CURSO)),
         Ticket, user_org,
     ).all()
     active_users = _scope_query_by_org(

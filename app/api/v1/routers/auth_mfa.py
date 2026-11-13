@@ -417,6 +417,11 @@ def webauthn_register_finish(
     if current_user.mfa_secret and not current_user.mfa_enabled:
         current_user.mfa_secret = None
     current_user.mfa_enabled = True
+    # Revisión GRC 2026-11b: alta y baja de passkey son cambios del segundo
+    # factor, igual que MFA_ENABLED/MFA_DISABLED, y no dejaban rastro.
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "PASSKEY_ADDED", "users", current_user.id, current_user.email,
+              new_values={"credential_id": credential_id, "name": nickname})
     _svc.commit_db(db)
     return {"ok": True, "message": "Passkey registrada correctamente"}
 
@@ -469,6 +474,10 @@ def webauthn_delete_credential(
     remaining = _svc.has_remaining_active_credentials(db, current_user.id, credential_id)
     if not remaining and not current_user.mfa_secret:
         current_user.mfa_enabled = False
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "PASSKEY_REMOVED", "users", current_user.id, current_user.email,
+              old_values={"credential_id": cred.id, "name": cred.name},
+              new_values={"mfa_enabled": bool(current_user.mfa_enabled)})
     _svc.commit_db(db)
     return {"ok": True}
 

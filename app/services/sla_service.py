@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import cast, func, Integer
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.core.config import settings
 from app.models.client_portal import ClientUser
 from app.models.service_desk import Ticket
@@ -114,6 +115,20 @@ def get_sla_hours(db: Optional[Session], org_id: Optional[str] = None) -> dict[s
         "p3_medium":   (g(db, "SLA_P3_RESPONSE_HOURS", org_id), g(db, "SLA_P3_RESOLUTION_HOURS", org_id)),
         "p4_low":      (g(db, "SLA_P4_RESPONSE_HOURS", org_id), g(db, "SLA_P4_RESOLUTION_HOURS", org_id)),
     }
+
+
+def ventana_de_riesgo_sla(db: Optional[Session], org_id: Optional[str] = None) -> timedelta:
+    """Ventana «a punto de vencer» de los paneles (wallboard, panel de SLA).
+
+    Un ticket abierto cuyo vencimiento cae dentro de esta ventana cuenta como en
+    riesgo. Ajuste `SLA_AT_RISK_WINDOW_HOURS` (2 h por defecto); antes, `hours=2`
+    escrito en cada panel. La empresa sale de la sesion si no se pasa.
+    """
+    if db is None:
+        return timedelta(hours=settings.SLA_AT_RISK_WINDOW_HOURS)
+    from app.services import settings_service as _ss
+    org_id = org_id or db.info.get("organization_id")
+    return timedelta(hours=_ss.get_runtime_float(db, "SLA_AT_RISK_WINDOW_HOURS", org_id))
 
 
 # ── Pure utilities ────────────────────────────────────────────────────────────
@@ -630,7 +645,7 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
     )
     res_sla = (
         _estado_mostrado(t.sla_resolution_due, t.sla_pause_minutes, t.sla_resolution_status, t.sla_paused_at, now)
-        if t.sla_resolution_due and t.status not in ["resolved", "closed", "cancelled"]
+        if t.sla_resolution_due and t.status not in ESTADOS_DE_TICKET_CERRADOS
         else "ok"
     )
 

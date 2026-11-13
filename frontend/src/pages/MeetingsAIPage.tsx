@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '../constants/brand'
 import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { extractErr } from '../utils/helpers'
@@ -182,7 +183,7 @@ export default function MeetingsAIPage() {
   const detail = (detailRaw ?? null) as MeetingDetail | null
   const { mutate: createTasks, isPending: creating } = useMutation({
     mutationFn: (id: string | number) => meetingsAIApi.createTasks(id).then(r => r.data),
-    onSuccess: (data: CreateTasksResponse) => { qc.invalidateQueries({ queryKey: ['ai-meeting', selected] }); toast.success(`✅ ${data.tasks_created || 0} tareas creadas en Contecflow`) },
+    onSuccess: (data: CreateTasksResponse) => { qc.invalidateQueries({ queryKey: ['ai-meeting', selected] }); toast.success(`✅ ${data.tasks_created || 0} tareas creadas en ${PRODUCT_NAME}`) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

@@ -19,6 +19,7 @@ import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { STALE_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 
 // ── Colores por rol ───────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
@@ -513,7 +514,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
         : usersApi.myApprovalChain()
     ).then(r => r.data as unknown as ApprovalChainData),
     enabled: true,
-    staleTime: 10000,
+    staleTime: STALE_LIVE_MS,
   })
 
   const filteredUsers = useMemo(() => {
@@ -719,13 +720,13 @@ export default function OrgChartPage() {
   const { data: chartData, isLoading: loadingChart } = useQuery<OrgChartData>({
     queryKey: ['org-chart'],
     queryFn: () => usersApi.orgChart().then(r => ((r.data as { data?: OrgChartData })?.data ?? r.data) as OrgChartData),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
 
   const { data: allUsers = [] } = useQuery<OrgUser[]>({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
 
   const nodes: OrgUser[] = chartData?.nodes || []

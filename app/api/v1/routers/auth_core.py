@@ -375,6 +375,14 @@ def switch_organization(request: Request, response: Response, payload: CambioIn,
     jti = _current_refresh_jti(request)
     if jti:
         revoke_session_by_jti(db=db, user_id=current_user.id, refresh_token_jti=jti, reason="switch_organization")
+    # Revisión GRC 2026-11b: cambiar de empresa en la sesión no dejaba rastro.
+    # Va a la empresa de destino; lo confirma `_abrir_sesion`.
+    from app.services.audit import audit_log
+    destino = getattr(org, "id", org)
+    entrada = audit_log(db, current_user, "ORG_SWITCH", "users", current_user.id, current_user.email,
+                        new_values={"organization_id": destino})
+    if destino:
+        entrada.organization_id = destino
     return _abrir_sesion(db, current_user, request, response, org)
 
 

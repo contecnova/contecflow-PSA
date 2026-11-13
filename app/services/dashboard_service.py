@@ -48,7 +48,10 @@ _kpi_cache_lock = Lock()
 def get_global_kpis(db: Session, current_user: Optional[User] = None):
 
     org = _org_id(current_user)
-    cache_key = f"{timeutil.today().isoformat()}:{org}"
+    # Revision multitenant 2026-11b: superadmin (todas) y usuario sin empresa
+    # (ninguna) daban los dos `None` y compartian entrada.
+    plataforma = bool(getattr(current_user, "is_superadmin", False))
+    cache_key = f"{timeutil.today().isoformat()}:{org}:{'plataforma' if plataforma else 'empresa'}"
     with _kpi_cache_lock:
         if cache_key in _kpi_cache:
             return _kpi_cache[cache_key]

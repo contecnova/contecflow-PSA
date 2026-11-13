@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_EN_CURSO
 from app.models.billing_reports import ApprovalRequest, Invoice
 from app.models.clients import Client
 from app.models.financial import ProjectMilestone, Timesheet
@@ -151,7 +152,7 @@ def _seccion_proyectos(ctx: _Alcance):
 def _seccion_tickets(ctx: _Alcance):
     """Tickets abiertos, con su responsable resuelto."""
     can_see_org_wide, db, org_id, user = ctx.can_see_org_wide, ctx.db, ctx.org_id, ctx.user
-    q_ticket = db.query(Ticket).filter(Ticket.status.in_(["new", "assigned", "in_progress"]))
+    q_ticket = db.query(Ticket).filter(Ticket.status.in_(ESTADOS_DE_TICKET_EN_CURSO))
     q_ticket = _filter_by_org(q_ticket, Ticket, org_id)
     if user and not can_see_org_wide:
         q_ticket = q_ticket.filter(Ticket.assigned_to_user_id == user.id)

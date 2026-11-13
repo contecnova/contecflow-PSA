@@ -13,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { LayoutTemplate } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
+import { SUCCESS_MESSAGE_LONG_MS, SUCCESS_MESSAGE_MS } from '../constants/timings'
 
 const PHASE_COLOR = 'var(--accent)'
 const TASK_COLOR  = 'var(--success)'
@@ -539,7 +540,7 @@ export default function ProjectTemplatesPage() {
         .replace('{project_code}', result.project_code)
     )
     queryClient.invalidateQueries({ queryKey: ['projects'] })
-    setTimeout(() => setSuccessMsg(null), 6000)
+    setTimeout(() => setSuccessMsg(null), SUCCESS_MESSAGE_LONG_MS)
   }
 
   return (
@@ -609,7 +610,7 @@ export default function ProjectTemplatesPage() {
             setShowCreate(false)
             queryClient.invalidateQueries({ queryKey: ['project-templates'] })
             setSuccessMsg('Plantilla creada correctamente')
-            setTimeout(() => setSuccessMsg(null), 5000)
+            setTimeout(() => setSuccessMsg(null), SUCCESS_MESSAGE_MS)
           }}
         />
       )}

@@ -2817,6 +2817,7 @@ const en = {
     informe_control_gdpr_requests: "GDPR requests on time",
     informe_control_ai_spend_cap: "AI spend cap",
     informe_control_backups: "Backups",
+    informe_control_retention: "Retention and legal hold",
     acceso_pestana: "Explain access",
     acceso_intro: "Pick a person and an operation: the permission layers are walked in the order they act, and the one that decides is named.",
     acceso_usuario: "Person…",

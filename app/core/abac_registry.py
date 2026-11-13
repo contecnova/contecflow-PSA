@@ -206,8 +206,12 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
 
     # Sin usuario autenticado en la request: el middleware se salta la comprobación
     # cuando request.state.user es None, así que registrarlos no aportaría nada.
-    "/api/v1/webhooks":        "webhook público firmado con HMAC",
-    "/api/v1/forms":           "formularios públicos por token de capacidad",
+    # Revisión GRC 2026-11b: el prefijo es mixto. Sólo `/fire/{slug}` y
+    # `/public/{token}` son públicos; la gestión exige admin (webhooks) o
+    # admin/PM (formularios), la matriz GRC sí la gobierna, y borrar un
+    # disparador llama a `enforce_abac("cab_webhook")`.
+    "/api/v1/webhooks":        "disparo público firmado (/fire); gestión require_admin, sin recurso ABAC por ruta",
+    "/api/v1/forms":           "envío público por token (/public); gestión require_admin_or_pm, sin recurso ABAC por ruta",
     "/api/v1/scim":            "token de máquina SCIM (RFC 7644)",
     "/api/v1/ws":              "WebSocket, autenticado por ticket en el handshake",
 

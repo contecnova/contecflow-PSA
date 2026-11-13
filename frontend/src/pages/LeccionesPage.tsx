@@ -18,6 +18,7 @@ import { fmtDate, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import FormularioDeLeccion from '../components/lecciones/FormularioDeLeccion'
 import FichaDeLeccion, { ColorDeEstado } from '../components/lecciones/FichaDeLeccion'
+import { STALE_5_MIN_MS } from '../constants/timings'
 
 const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 const fila: CSSProperties = { display: 'grid', gridTemplateColumns: '90px minmax(0, 1fr) 130px 120px 110px', gap: 12, alignItems: 'center', padding: '10px 12px', borderTop: '1px solid var(--surface-3)', fontSize: 'var(--text-sm)' }
@@ -54,7 +55,7 @@ export default function LeccionesPage() {
 function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
   const t = useAppT()
   const [f, setF] = useState({ q: '', estado: '', tipo: '', categoria: '' })
-  const cfg = useQuery({ queryKey: ['lecciones', 'config'], queryFn: leccionesApi.config, staleTime: 300_000 })
+  const cfg = useQuery({ queryKey: ['lecciones', 'config'], queryFn: leccionesApi.config, staleTime: STALE_5_MIN_MS })
   const q = useQuery({ queryKey: ['lecciones', 'lista', f], queryFn: () => leccionesApi.listar(Object.fromEntries(Object.entries(f).filter(([, v]) => v))) })
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(v => ({ ...v, [k]: e.target.value }))
   return (

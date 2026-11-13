@@ -32,6 +32,11 @@ def audit_log(
     Actions: CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, APPROVE,
              REJECT, SUBMIT, ASSIGN, ESCALATE, VIEW_FINANCIAL
     """
+    suplantador = (getattr(db, "info", None) or {}).get("suplantado_por")
+    if suplantador:
+        # «Entrar como» (revision multitenant 2026-11b): la accion figura a nombre
+        # del usuario suplantado, y aqui queda quien la hizo de verdad.
+        metadata = {**(metadata or {}), "impersonated_by": suplantador}
     entry = AuditLog(
         user_id=user.id if user else None,
         user_name=user.full_name if user else "System",

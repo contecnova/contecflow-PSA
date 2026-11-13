@@ -26,6 +26,7 @@ import DetalleDeGasto from '../components/gastos/DetalleDeGasto'
 import PoliticasDeGasto from '../components/gastos/PoliticasDeGasto'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
+import { POLL_FREQUENT_MS } from '../constants/timings'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const CATEGORIES: Record<string, { label: string; icon: string; color: string }> = {
@@ -462,7 +463,7 @@ function PendingApproval() {
   const { data: raw = [], isLoading } = useQuery<Expense[]>({
     queryKey: ['expenses-pending'],
     queryFn: () => expensesApi.pending().then(r => r.data),
-    refetchInterval: 30000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
   const expenses: Expense[] = Array.isArray(raw) ? raw : []
   const [pendSearch, setPendSearch] = useState('')

@@ -7,9 +7,9 @@ la plataforma aunque el cliente tuviera su marca configurada.
 
 Ahora la paleta viene de `_pdf_marca` y el llamador puede pasar la del tenant.
 Los tres tintes propios de este documento —el gris de cuerpo, el sombreado de
-filas y el fondo verdoso del sello— se quedan aqui como constantes con nombre:
-no estan en la paleta compartida porque solo los usa este documento, y meterlos
-alli para un unico llamador seria sobreajustarla.
+filas y el fondo verdoso del sello— viven desde 2026-11 en `_pdf_marca`
+(`TINTES_DE_FIRMA`), con los mismos valores: toda la paleta de documentos en un
+solo sitio.
 """
 import io
 from datetime import datetime
@@ -20,14 +20,14 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
-from app.services._pdf_marca import PALETA_POR_DEFECTO
+from app.services._pdf_marca import PALETA_POR_DEFECTO, TINTES_DE_FIRMA
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
 
 #: Tintes propios de este documento; ver la nota de la cabecera.
-_GRIS_DE_CUERPO = "#374151"
-_SOMBREADO_DE_FILA = "#f9fafb"
-_FONDO_DEL_SELLO = "#f0fdf9"
-_FONDO_DE_EVIDENCIA = "#f8fafc"
+_GRIS_DE_CUERPO = TINTES_DE_FIRMA["gris_de_cuerpo"]
+_SOMBREADO_DE_FILA = TINTES_DE_FIRMA["sombreado_de_fila"]
+_FONDO_DEL_SELLO = TINTES_DE_FIRMA["fondo_del_sello"]
+_FONDO_DE_EVIDENCIA = PALETA_POR_DEFECTO.fila_alterna
 
 
 def generate_signed_pdf(

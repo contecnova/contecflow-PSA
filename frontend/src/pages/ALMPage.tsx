@@ -19,6 +19,8 @@ import { useOrgSettings } from '../hooks/useOrgSettings'
 import { alpha } from '../constants/theme'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
+import { POLL_DEFAULT_MS } from '../constants/timings'
+import { FULL_LIST_SIZE } from '../constants/pagination'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 type CatalogoIcono = { label: string; icon: string }
@@ -266,7 +268,7 @@ function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const { data: dash = {}, isLoading } = useQuery<AlmDashboardData>({
     queryKey: ['alm-dashboard'],
     queryFn: () => almExtApi.dashboard().then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
   const kpis: AlmKpis = dash.kpis || {}
   const renewals = dash.upcoming_renewals || []
@@ -1161,7 +1163,7 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> 
     next_maintenance_date: asset?.next_maintenance_date || '', maintenance_contract: asset?.maintenance_contract || '',
   })
   // Los CIs de la CMDB: el activo físico y el elemento que sostiene.
-  const { data: cis = [] } = useQuery<CmdbItem[]>({ queryKey: ['cmdb-items', 'todos'], queryFn: () => cmdbApi.sdList({ page_size: 500 }).then(r => r.data ?? []) })
+  const { data: cis = [] } = useQuery<CmdbItem[]>({ queryKey: ['cmdb-items', 'todos'], queryFn: () => cmdbApi.sdList({ page_size: FULL_LIST_SIZE }).then(r => r.data ?? []) })
   const validation = useFormValidation(almAssetSchema)
   const s = (k: keyof typeof form) => (e: CambioDeCampo) => {
     setForm(f => ({ ...f, [k]: e.target.value }))

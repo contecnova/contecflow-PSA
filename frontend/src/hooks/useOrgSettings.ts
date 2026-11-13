@@ -8,6 +8,8 @@
 import { useQuery } from '@tanstack/react-query'
 // TODO type: api service is still JS; treat default export as untyped axios instance.
 import api from '../services/api'
+import { STALE_5_MIN_MS } from '../constants/timings'
+import { browserTimezone } from '../constants/timezones'
 
 export interface OrgSettings {
   currency: string
@@ -24,7 +26,8 @@ export interface OrgSettings {
 
 const FALLBACK: OrgSettings = {
   currency: 'EUR',
-  timezone: 'Europe/Madrid',
+  // Mientras no responde el servidor: la zona del navegador (la de la empresa llega de /settings/org-defaults).
+  timezone: browserTimezone(),
   language: 'es',
   working_hours_per_day: 8,
   weekly_capacity_hours: 40,
@@ -37,7 +40,7 @@ export function useOrgSettings(): OrgSettings {
   const { data } = useQuery<Partial<OrgSettings>>({
     queryKey: ['org-defaults'],
     queryFn: () => api.get('/settings/org-defaults').then((r: { data: Partial<OrgSettings> }) => r.data),
-    staleTime: 5 * 60 * 1000, // 5 min
+    staleTime: STALE_5_MIN_MS, // 5 min
     retry: 1,
   })
   return { ...FALLBACK, ...(data ?? {}) }

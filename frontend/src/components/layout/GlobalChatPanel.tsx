@@ -6,6 +6,8 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { useChatRealtime } from '../../context/ChatRealtimeContext'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { ANIMATION_FAST_MS, NOTIFICATION_BEEP_MS, POLL_ACTIVE_CHAT_MS, POLL_FREQUENT_MS, STALE_DEFAULT_MS, TYPING_SWEEP_PANEL_MS } from '../../constants/timings'
+import { CHAT_MESSAGES_PAGE_SIZE, MENTION_SUGGESTIONS_COMPACT_LIMIT } from '../../constants/pagination'
 
 const LS_MIN_KEY = 'chat_global_minimized'
 const LS_LAST_CONV_KEY = 'chat_global_last_conversation'
@@ -162,7 +164,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
       setPanelBadgeVisible(true)
       return undefined
     }
-    const id = setTimeout(() => setPanelBadgeVisible(false), 120)
+    const id = setTimeout(() => setPanelBadgeVisible(false), ANIMATION_FAST_MS)
     return () => clearTimeout(id)
   }, [unread])
 
@@ -188,7 +190,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
           setTimeout(() => {
             osc.stop()
             ctx.close().catch(() => {})
-          }, 120)
+          }, NOTIFICATION_BEEP_MS)
         }
       } catch {
         // ignore audio failures
@@ -234,7 +236,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     queryKey: ['collab-conversations'],
     queryFn: () => collabApi.listConversations() as Promise<Conversation[]>,
     enabled: open,
-    refetchInterval: open ? 30_000 : false,
+    refetchInterval: open ? POLL_FREQUENT_MS : false,
   })
 
   const visibleConversations = useMemo(() => {
@@ -278,7 +280,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
     queryKey: ['collab-notification-rules'],
     queryFn: () => collabApi.listRules() as Promise<NotificationRule[]>,
     enabled: open,
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   useEffect(() => {
@@ -324,16 +326,16 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   const { data: messages = [] } = useQuery<ChatMessage[]>({
     queryKey: ['collab-messages', activeConvId],
-    queryFn: () => collabApi.listMessages(activeConvId, { limit: 50 }) as Promise<ChatMessage[]>,
+    queryFn: () => collabApi.listMessages(activeConvId, { limit: CHAT_MESSAGES_PAGE_SIZE }) as Promise<ChatMessage[]>,
     enabled: open && !!activeConvId,
-    refetchInterval: open && activeConvId ? 20_000 : false,
+    refetchInterval: open && activeConvId ? POLL_ACTIVE_CHAT_MS : false,
   })
 
   const { data: members = [] } = useQuery<ConversationMember[]>({
     queryKey: ['collab-conversation-members', activeConvId],
     queryFn: () => collabApi.listConversationMembers(activeConvId) as Promise<ConversationMember[]>,
     enabled: open && !!activeConvId,
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const memberNames = useMemo(() => {
@@ -372,7 +374,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         }
         return next
       })
-    }, 1500)
+    }, TYPING_SWEEP_PANEL_MS)
     return () => clearInterval(id)
   }, [])
 
@@ -435,7 +437,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   const { data: suggestions = { users: [] } } = useQuery<{ users: UserSuggestion[] }>({
     queryKey: ['chat-global-user-suggestions', userSearch],
-    queryFn: () => collabApi.mentionSuggestions({ q: userSearch, limit: 8 }) as Promise<{ users: UserSuggestion[] }>,
+    queryFn: () => collabApi.mentionSuggestions({ q: userSearch, limit: MENTION_SUGGESTIONS_COMPACT_LIMIT }) as Promise<{ users: UserSuggestion[] }>,
     enabled: open && newDirectOpen,
   })
 

@@ -99,6 +99,9 @@ def organizacion_del_webhook(db: Session, body: bytes, token_header: Optional[st
     for fila in filas:
         secreto = decrypt_value(fila.value) if fila.value else None
         if secreto and verify_jira_webhook(body, token_header, signature_header, secreto):
+            # Una empresa desactivada no recibe webhooks (revision 2026-11b).
+            from app.db.session import exigir_organizacion_activa
+            exigir_organizacion_activa(db, fila.organization_id)
             return fila.organization_id
     return None
 

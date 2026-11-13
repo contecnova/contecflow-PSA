@@ -7,6 +7,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.core.config import settings
 from app.models.financial import CapacityPlan, Timesheet, TimesheetStatus
 from app.models.imputation import Imputation
@@ -335,7 +336,7 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
     # Lo que queda sin terminar vuelve al backlog; una cancelada sigue cancelada
     # (revisión 2026-11: antes también la reabría).
     incomplete = [st for st in en_el_sprint
-                  if str(getattr(st.task.status, "value", st.task.status)) not in ("done", "cancelled")]
+                  if str(getattr(st.task.status, "value", st.task.status)) not in ESTADOS_DE_TAREA_TERMINADOS]
     for st in incomplete:
         st.task.status = "backlog"
 

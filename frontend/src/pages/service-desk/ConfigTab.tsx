@@ -16,6 +16,7 @@ import ConfigPaginaDeEstado from './ConfigPaginaDeEstado'
 import { PRIORITY_LABEL, PBadge, etiquetaSd } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 import DateInput from '../../components/ui/DateInput'
+import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
 
 // ── Local types ─────────────────────────────────────────────────────────────
 type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; approval_user_id?: string | null; is_visible_to_clients?: boolean; fulfillment_tasks?: { title: string; group_id: string }[] }
@@ -399,7 +400,7 @@ function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: 
   const [destino, setDestino] = useState('')
   const { data: opciones = [] } = useQuery<{ id: string; name?: string; title?: string }[]>({
     queryKey: ['sla-assign-targets', tipo],
-    queryFn: () => (tipo === 'client' ? clientsApi.list({ page_size: 200 }) : contractsApi.list({ page_size: 200 }))
+    queryFn: () => (tipo === 'client' ? clientsApi.list({ page_size: SELECTOR_LIST_SIZE }) : contractsApi.list({ page_size: SELECTOR_LIST_SIZE }))
       .then(r => r.data as { id: string; name?: string; title?: string }[]),
   })
   const asignar = useMutation({

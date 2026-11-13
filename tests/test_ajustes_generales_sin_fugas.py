@@ -30,11 +30,16 @@ def test_un_empleado_solo_ve_los_ajustes_generales_y_ningun_secreto(client, dev_
     assert "tok-SECRETO" not in str(filas)
 
 
-def test_el_administrador_ve_el_estado_interno_pero_enmascarado(client, admin_token, db):
+def test_el_administrador_ve_el_estado_interno_pero_enmascarado(client, superadmin_token, admin_token, db):
     _sembrar(db)
-    filas = {f["key"]: f["value"] for f in client.get(URL, headers=auth(admin_token)).json()["items"]}
+    filas = {f["key"]: f["value"] for f in client.get(URL, headers=auth(superadmin_token)).json()["items"]}
     assert filas["esign.docusign_access_token"] == "••••••••"
     assert filas["security.jwt_keyring"] == "••••••••"
+    assert filas["idle_timeout_minutes"] == "30"
+    # Revision multitenant 2026-11b: el estado interno GLOBAL es de la
+    # plataforma; el administrador de una empresa no lo ve (ni enmascarado).
+    filas = {f["key"]: f["value"] for f in client.get(URL, headers=auth(admin_token)).json()["items"]}
+    assert "security.jwt_keyring" not in filas and "esign.docusign_access_token" not in filas
     assert filas["idle_timeout_minutes"] == "30"
 
 

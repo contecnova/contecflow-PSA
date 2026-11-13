@@ -37,3 +37,8 @@ class SLASettingsMixin:
     SLA_PREDICTION_WARNING_PCT: float = Field(default=0.70, env="SLA_PREDICTION_WARNING_PCT")
     SLA_PREDICTION_SEVERITY_CRITICAL_H: float = Field(default=1.0, env="SLA_PREDICTION_SEVERITY_CRITICAL_H")
     SLA_PREDICTION_SEVERITY_HIGH_H: float = Field(default=4.0, env="SLA_PREDICTION_SEVERITY_HIGH_H")
+
+    # ── Paneles ──────────────────────────────────────────────────────────────
+    # Ventana «a punto de vencer» del wallboard y del panel de SLA (antes `hours=2`
+    # en cada uno). El panel de SLA cuenta una segunda franja hasta el doble.
+    SLA_AT_RISK_WINDOW_HOURS: float = Field(default=2.0, env="SLA_AT_RISK_WINDOW_HOURS")

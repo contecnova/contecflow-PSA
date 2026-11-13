@@ -15,6 +15,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { fmtDate as formatDate } from '../../utils/helpers'
 import { tamano } from './DocumentosDeFicha'
+import { OBJECT_URL_REVOKE_DELAY_MS } from '../../constants/timings'
 
 export async function descargarOriginal(id: string, nombre: string) {
   const r = await conectoresApi.original(id)
@@ -25,7 +26,7 @@ export async function descargarOriginal(id: string, nombre: string) {
   a.href = url
   a.download = deCabecera || nombre
   a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  setTimeout(() => URL.revokeObjectURL(url), OBJECT_URL_REVOKE_DELAY_MS)
 }
 
 const etiqueta: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }

@@ -6,6 +6,7 @@ import httpx
 from datetime import date
 
 from sqlalchemy.orm import Session
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.core.config import settings
 from app.models.financial import ProjectMilestone
 from app.models.task import Task
@@ -173,7 +174,7 @@ def get_active_tasks_for_project(db: Session, project_id: str, limit: int = 200)
         db.query(Task)
         .filter(
             Task.project_id == project_id,
-            Task.status.notin_(["done", "cancelled"]),
+            Task.status.notin_(ESTADOS_DE_TAREA_TERMINADOS),
         )
         .limit(limit)
         .all()

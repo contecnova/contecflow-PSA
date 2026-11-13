@@ -18,6 +18,7 @@ from typing import Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.core.config import settings
 from app.models.user import User
 from app.models.alm import ALMLicense
@@ -320,7 +321,7 @@ def get_client_360(client_id: str, db: Session) -> dict:
     activos = [p for p in proyectos if p.status == "active"]
 
     tickets = db.query(Ticket).filter(Ticket.client_id == client_id).all()
-    abiertos = [t for t in tickets if t.status not in ("resolved", "closed")]
+    abiertos = [t for t in tickets if t.status not in ESTADOS_DE_TICKET_RESUELTOS]
     recientes = [
         t for t in tickets
         if t.created_at and _con_zona(t.created_at) > hace_30_dias
@@ -407,7 +408,7 @@ def delete_client(cid: str, current_user: User, db: Session) -> dict:
 
     open_ticket_count = db.query(func.count(Ticket.id)).filter(
         Ticket.client_id == cid,
-        Ticket.status.notin_(["resolved", "closed"]),
+        Ticket.status.notin_(ESTADOS_DE_TICKET_RESUELTOS),
     ).scalar() or 0
     if open_ticket_count > 0:
         dependencies.append(f"{open_ticket_count} ticket(s) abiertos")

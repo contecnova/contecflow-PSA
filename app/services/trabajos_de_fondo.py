@@ -68,9 +68,15 @@ def en_cada_organizacion(tarea: str, trabajo: Trabajo, *,
     from app.db import session as _sesion
     from app.services.service_desk.ticket_events import como_organizacion
 
+    with _sesion.worker_db_session() as db:
+        activas = organizaciones_activas(db)
     if organizaciones is None:
-        with _sesion.worker_db_session() as db:
-            organizaciones = organizaciones_activas(db)
+        organizaciones = activas
+    else:
+        # Revision multitenant 2026-11b: una lista explicita (las que tienen
+        # Jira, p. ej.) no se saltaba el filtro de activas: una empresa
+        # desactivada seguia sincronizando.
+        organizaciones = [o for o in organizaciones if o in set(activas)]
     organizaciones = list(organizaciones)
 
     resultados: dict = {}

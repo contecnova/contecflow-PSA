@@ -10,6 +10,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { PBadge, PRIORITY_LABEL, SBadge, etiquetaSd } from './sdUtils'
+import { POLL_DEFAULT_MS, POLL_FREQUENT_MS, SEARCH_DEBOUNCE_MS, STALE_NEAR_LIVE_MS } from '../../constants/timings'
 
 // PBadge y SBadge vienen de sdUtils. Auditoría 2026-11: aquí había una copia
 // local de los dos (y de sus mapas de color), y por eso la lista seguía
@@ -75,7 +76,7 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
   const [page, setPage] = useState(1)
   const [busqueda, setBusqueda] = useState('')
   useEffect(() => {
-    const espera = setTimeout(() => { setBusqueda(search.trim()); setPage(1) }, 300)
+    const espera = setTimeout(() => { setBusqueda(search.trim()); setPage(1) }, SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(espera)
   }, [search])
   useEffect(() => { setPage(1) }, [filterPrio, filterStatus, filterType])
@@ -100,8 +101,8 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
         page_size: TICKETS_POR_PAGINA,
       }).then(leer)
     },
-    staleTime: 15000,
-    refetchInterval: 60000,
+    staleTime: STALE_NEAR_LIVE_MS,
+    refetchInterval: POLL_DEFAULT_MS,
   })
   const tickets = useMemo(() => pagina?.items ?? [], [pagina])
   const total = pagina?.total ?? 0
@@ -186,7 +187,7 @@ export function MajorIncidents() {
   const { data: mis = [], isLoading } = useQuery<MI[]>({
     queryKey: ['sd-major-incidents'],
     queryFn: () => sdRoutingApi.majorIncidents().then(r => r.data as MI[]),
-    refetchInterval: 30000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const activeMis = mis.filter(m => m.status === 'active')

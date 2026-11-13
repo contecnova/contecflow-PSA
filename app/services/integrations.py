@@ -9,6 +9,7 @@ Funciones:
   - transition_jira_issue(config, issue_key, transition_name)
   - notify_event(event_type, entity, db) → despacha a todas las integraciones activas
 """
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.core.config import settings
 import json
 import logging
@@ -37,7 +38,7 @@ def send_slack_message(
     webhook_url: str,
     text: str,
     blocks: Optional[list] = None,
-    username: str = "Contecflow",
+    username: str = NOMBRE_DEL_PRODUCTO,
     icon_emoji: str = ":triangular_ruler:",
 ) -> dict:
     """Envía un mensaje a Slack via Incoming Webhook (`entrega_saliente.enviar_a_webhook`)."""
@@ -65,7 +66,7 @@ def build_slack_blocks(title: str, fields: list, color: str = "#00d4ff", url: st
     if url:
         blocks.append({
             "type": "actions",
-            "elements": [{"type": "button", "text": {"type": "plain_text", "text": "Ver en Contecflow"},
+            "elements": [{"type": "button", "text": {"type": "plain_text", "text": f"Ver en {NOMBRE_DEL_PRODUCTO}"},
                           "url": url, "style": "primary"}]
         })
     return blocks
@@ -675,7 +676,7 @@ def slack_log_time_from_text(db, text: str, user) -> dict:
     import uuid
 
     if not user:
-        return {"response_type": "ephemeral", "text": "❌ No encontré tu usuario en Contecflow. Contacta con el admin."}
+        return {"response_type": "ephemeral", "text": f"❌ No encontré tu usuario en {NOMBRE_DEL_PRODUCTO}. Contacta con el admin."}
 
     hours_match = re.search(r'(\d+(?:[.,]\d+)?)', text)
     if not hours_match:
@@ -760,7 +761,7 @@ def slack_help_response() -> dict:
     return {
         "response_type": "ephemeral",
         "text": (
-            "*Comandos disponibles de Contecflow:*\n"
+            f"*Comandos disponibles de {NOMBRE_DEL_PRODUCTO}:*\n"
             "• `/contecflow tarea <título> [#PRJ-code]` — Crear tarea\n"
             "• `/contecflow tiempo <horas> [#PRJ-code] [descripción]` — Registrar tiempo\n"
             "• `/contecflow ticket <asunto>` — Crear ticket en Service Desk\n"

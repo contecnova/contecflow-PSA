@@ -47,6 +47,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_EN_ESPERA
 from app.models.client_portal import ClientUser
 from app.models.service_desk import (
     InboundMessage,
@@ -338,7 +339,7 @@ def _comentar(db: Session, ticket: Ticket, contacto: Contacto, texto: str, cambi
         return
     estado = getattr(ticket.status, "value", ticket.status)
     nuevo = None
-    if estado in ("pending_client", "pending_third"):
+    if estado in ESTADOS_DE_TICKET_EN_ESPERA:
         nuevo = "in_progress"   # el cliente ha contestado: el reloj vuelve a correr
     elif estado == "resolved" and _ss.get_runtime_bool(db, "SD_REOPEN_ON_REPLY", ticket.organization_id):
         nuevo = "in_progress"

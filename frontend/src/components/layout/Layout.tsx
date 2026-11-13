@@ -1,3 +1,4 @@
+import { useAppName } from '../../hooks/useAppName'
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -33,6 +34,7 @@ import {
   Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck,
   CalendarRange, Plus, Inbox, Database, Wallet, MessageSquareText, Lightbulb,
 } from 'lucide-react'
+import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 
 const ROUTE_LABELS: Record<string, string> = {
   '/work-dashboard': 'Dashboard', '/projects-dashboard': 'Dashboard',
@@ -651,7 +653,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
   }
   const handleLeave = () => {
     if (!collapsed) return
-    hoverTimer.current = setTimeout(() => setHoverOpen(false), 150)
+    hoverTimer.current = setTimeout(() => setHoverOpen(false), DROPDOWN_DELAY_MS)
   }
 
   if (collapsed) {
@@ -665,7 +667,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
         {hoverOpen && (
           <div className="nav-hover-preview" style={{ left: 52, top: hoverTop - 4 }}
             onPointerEnter={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); setHoverOpen(true) }}
-            onPointerLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), 150) }}
+            onPointerLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), DROPDOWN_DELAY_MS) }}
           >
             <div className="nav-hover-title">{groupLabel}</div>
             {realVisible.map(item => {
@@ -830,7 +832,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
       setChatBadgeVisible(true)
       return undefined
     }
-    const id = setTimeout(() => setChatBadgeVisible(false), 120)
+    const id = setTimeout(() => setChatBadgeVisible(false), ANIMATION_FAST_MS)
     return () => clearTimeout(id)
   }, [chatUnread])
 
@@ -846,21 +848,21 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
     queryKey: ['breadcrumb-project', projectId],
     queryFn: () => projectsApi.get(projectId as string).then(r => r.data),
     enabled: !!projectId,
-    staleTime: 300_000,
+    staleTime: STALE_5_MIN_MS,
   })
 
   const { data: timerProject } = useQuery({
     queryKey: ['topbar-timer-project', activeTimer?.project_id],
     queryFn: () => projectsApi.get(activeTimer?.project_id as string).then(r => r.data),
     enabled: !!activeTimer?.project_id && !activeTimer?.project_name,
-    staleTime: 300_000,
+    staleTime: STALE_5_MIN_MS,
   })
 
   const { data: timerTask } = useQuery({
     queryKey: ['topbar-timer-task', activeTimer?.task_id],
     queryFn: () => tasksApi.get(activeTimer?.task_id as string).then(r => r.data),
     enabled: !!activeTimer?.task_id && !activeTimer?.task_name,
-    staleTime: 300_000,
+    staleTime: STALE_5_MIN_MS,
   })
 
   const topbarProjectLabel = activeTimer?.project_name || timerProject?.name || (activeTimer?.project_id ? `Proyecto #${activeTimer.project_id}` : null)
@@ -1188,6 +1190,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
 }
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
+  const appName = useAppName()
   const { user, logout, hasRole, canOpen = () => true } = useAuth()
   const navigate = useNavigate()
   const { prefs, save } = useUserPreferences()
@@ -1207,7 +1210,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { data: traduccionesDeLaEmpresa } = useQuery({
     queryKey: ['app-translations'],
     queryFn: () => api.get('/settings/app-translations').then((r: { data: Record<string, Record<string, unknown>> }) => r.data),
-    enabled: !!user, staleTime: 5 * 60 * 1000, retry: false,
+    enabled: !!user, staleTime: STALE_5_MIN_MS, retry: false,
   })
   useEffect(() => {
     if (traduccionesDeLaEmpresa) setCustomTranslations(traduccionesDeLaEmpresa as Record<string, Record<string, unknown>>)
@@ -1278,9 +1281,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { data: activeTimer } = useQuery<ActiveTimer | null>({
     queryKey: ['timer-current'],
     queryFn: () => api.get('/imputations/timer/current').then(r => r.data).catch(() => null),
-    refetchInterval: 5_000,
+    refetchInterval: POLL_FAST_MS,
     retry: false,
-    staleTime: 10_000,
+    staleTime: STALE_LIVE_MS,
   })
 
   useEffect(() => {
@@ -1290,7 +1293,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     }
     const tick = () => setTimerElapsed(computeTimerElapsed(activeTimer as TimerState))
     tick()
-    const id = setInterval(tick, 1000)
+    const id = setInterval(tick, CLOCK_TICK_MS)
     return () => clearInterval(id)
   }, [activeTimer])
   const [isOverlayNav, setIsOverlayNav] = useState<boolean>(() => {
@@ -1407,7 +1410,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </div>
           {!collapsed && (
             <span style={{ fontWeight: 700, fontSize: "var(--text-md-h)", letterSpacing: '-0.02em',
-              color: 'var(--text-1)', whiteSpace: 'nowrap', userSelect: 'none' }}>Contecflow</span>
+              color: 'var(--text-1)', whiteSpace: 'nowrap', userSelect: 'none' }}>{appName}</span>
           )}
           {isOverlayNav && mobileOpen && (
             <IconButton

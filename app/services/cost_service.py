@@ -24,7 +24,7 @@ from app.models.user import User
 from app.models.user_cost import CountryEmployerCost, UserCostProfile
 from app.core.asignacion import es_asignable
 from app.core.errores import ErrorDeDominio
-from app.core.constantes import HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
+from app.core.config import settings as _settings
 
 
 # ── Default presets seeded on first run ──────────────────────────────────────
@@ -51,11 +51,26 @@ DEFAULT_COUNTRY_PRESETS: list[dict] = cargar_presets_de_pais()
 
 
 # ── Cost computation ─────────────────────────────────────────────────────────
+def costes_por_defecto(db: Optional[Session], org_id: Optional[str] = None) -> tuple[float, float]:
+    """(sobrecoste de empresa, horas productivas al año) por defecto de la empresa.
+
+    Ajustes `DEFAULT_EMPLOYER_COST_PCT` y `DEFAULT_PRODUCTIVE_HOURS_YEAR` (por
+    empresa, en vivo); sin sesion, los de Settings. Mandan sobre ellos la ficha
+    de coste y el preset del pais.
+    """
+    if db is None:
+        return _settings.DEFAULT_EMPLOYER_COST_PCT, _settings.DEFAULT_PRODUCTIVE_HOURS_YEAR
+    from app.services import settings_service as _ss
+    org_id = org_id or db.info.get("organization_id")
+    return (_ss.get_runtime_float(db, "DEFAULT_EMPLOYER_COST_PCT", org_id),
+            _ss.get_runtime_float(db, "DEFAULT_PRODUCTIVE_HOURS_YEAR", org_id))
+
+
 def derive_cost(gross_annual_salary: float, employer_cost_pct: float,
                 extra_annual_costs: float, productive_hours_year: float) -> tuple[float, float]:
     """Return (total_annual_cost, cost_per_hour)."""
     total = (gross_annual_salary or 0) * (1 + (employer_cost_pct or 0)) + (extra_annual_costs or 0)
-    hrs = productive_hours_year if productive_hours_year and productive_hours_year > 0 else HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
+    hrs = productive_hours_year if productive_hours_year and productive_hours_year > 0 else _settings.DEFAULT_PRODUCTIVE_HOURS_YEAR
     return round(total, 2), round(total / hrs, 2)
 
 
@@ -134,7 +149,7 @@ def list_country_presets(db: Session, organization_id: Optional[str] = None) -> 
 # ── CRUD helpers ────────────────────────────────────────────────────────────
 def create_profile(db: Session, *, user_id: str, valid_from: Date,
                    gross_annual_salary: float, employer_cost_pct: float,
-                   extra_annual_costs: float = 0.0, productive_hours_year: float = HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO,
+                   extra_annual_costs: float = 0.0, productive_hours_year: Optional[float] = None,
                    country_code: Optional[str] = None, currency: Optional[str] = None,
                    notes: Optional[str] = None,
                    organization_id: Optional[str] = None,
@@ -143,6 +158,8 @@ def create_profile(db: Session, *, user_id: str, valid_from: Date,
     if not currency:
         from app.core.config import settings
         currency = settings.DEFAULT_CURRENCY
+    if productive_hours_year is None:
+        productive_hours_year = costes_por_defecto(db, organization_id)[1]
     total, per_hour = derive_cost(gross_annual_salary, employer_cost_pct,
                                   extra_annual_costs, productive_hours_year)
 

@@ -17,6 +17,7 @@ import MarkdownText from '../../components/ui/MarkdownText'
 import { COLOR, alpha } from '../../constants/theme'
 import { etiquetaSd, SBadge } from './sdUtils'
 import StatusBadge from '../../components/ui/StatusBadge'
+import { DELAYED_REFETCH_MS, STALE_SHORT_MS } from '../../constants/timings'
 
 type Priority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low' | string
 type ProblemStatus = 'open' | 'investigating' | 'known_error' | 'resolved' | 'closed' | string
@@ -85,7 +86,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
   const { data: tickets, isLoading } = useQuery<LinkedTicket[]>({
     queryKey: ['sd-ke-tickets', kedbId],
     queryFn: () => sdKbApi.knownErrorTickets(kedbId).then(r => r.data as LinkedTicket[]).catch(() => []),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
   if (isLoading) return <div style={{ padding: '8px 0' }}><Spinner /></div>
   if (!tickets?.length) return (
@@ -467,7 +468,7 @@ function KB() {
   const { data: articles = [], isLoading } = useQuery<KbArticle[]>({
     queryKey: ['sd-kb', search],
     queryFn: () => sdKbApi.list({ search: search || undefined }).then(r => r.data as KbArticle[]),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
   const { mutate: deleteArticle } = useMutation({
     mutationFn: (id: string | number) => sdKbApi.delete(id),
@@ -605,7 +606,7 @@ type Aviso = { id: string; kind: 'stale' | 'contradiction'; article_number?: str
 type Calidad = { gaps: Hueco[]; corrections: Correccion[]; findings: Aviso[]; counts: { gaps: number; corrections: number; findings: number } }
 
 function useCalidad() {
-  return useQuery<Calidad>({ queryKey: ['sd-kb-quality'], queryFn: () => sdKbApi.quality().then(r => r.data as Calidad), staleTime: 30000 })
+  return useQuery<Calidad>({ queryKey: ['sd-kb-quality'], queryFn: () => sdKbApi.quality().then(r => r.data as Calidad), staleTime: STALE_SHORT_MS })
 }
 
 function SelectorDeVista({ vista, setVista }: { vista: string; setVista: (v: 'articulos' | 'calidad') => void }) {
@@ -653,7 +654,7 @@ function CalidadKB() {
     onSuccess: (r: { data?: { status?: string } }) => {
       if (r?.data?.status === 'queued') {
         toast.success('Revisión de calidad en curso: los resultados aparecerán en unos minutos.')
-        setTimeout(refrescar, 30000)
+        setTimeout(refrescar, DELAYED_REFETCH_MS)
         return
       }
       refrescar()

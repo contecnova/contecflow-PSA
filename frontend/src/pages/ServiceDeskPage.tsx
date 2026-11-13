@@ -26,6 +26,7 @@ import ChangeRolloutPanel from '../components/servicedesk/ChangeRolloutPanel'
 import AutoResolutionPanel from '../components/servicedesk/AutoResolutionPanel'
 import AlertCorrelationPanel from '../components/servicedesk/AlertCorrelationPanel'
 import { localeActivo } from '../utils/helpers'
+import { POLL_DEFAULT_MS } from '../constants/timings'
 
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
@@ -54,7 +55,7 @@ export default function ServiceDeskPage() {
   const { data: porAprobar = [] } = useQuery<PorAprobar[]>({
     queryKey: ['sd-approvals-mine'],
     queryFn: () => sdApprovalsApi.mine().then(r => r.data as PorAprobar[]),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 
   useEffect(() => {

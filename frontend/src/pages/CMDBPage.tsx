@@ -14,6 +14,8 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 // Solo tipos: se borran al compilar y no rompen la carga diferida del grafo.
 import type { RawNode, RawEdge } from '../components/cmdb/CMDBTopologyGraph'
+import { POLL_LIVE_MS, STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
+import { FULL_LIST_SIZE } from '../constants/pagination'
 // Auditoría 2026-08 (hallazgo 19). Este import era ESTÁTICO, y
 // CMDBTopologyGraph depende de react-plotly.js → plotly.js. Medido sobre el
 // build: eso ponía un import estático de `vendor-plotly` (4.633 kB, el 38 % de
@@ -76,7 +78,7 @@ function useCamposDeClase() {
   return useQuery<CamposDeClase>({
     queryKey: ['cmdb-class-fields'],
     queryFn: () => cmdbApi.classFields().then(r => r.data),
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
   })
 }
 
@@ -361,7 +363,7 @@ function CILinkedAssets({ ciId }: { ciId: string }) {
   const { data: assets = [], isLoading } = useQuery<LinkedAsset[]>({
     queryKey: ['ci-assets', ciId],
     queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data?.assets ?? r.data ?? []),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
   if (isLoading) return null
   return (
@@ -402,7 +404,7 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
   const { data: agents = [], isLoading } = useQuery<Agente[]>({
     queryKey: ['cmdb-agents'],
     queryFn: () => cmdbApi.agents().then(r => r.data ?? []),
-    refetchInterval: 15000,
+    refetchInterval: POLL_LIVE_MS,
   })
   const nombreCI = (id?: string) => items.find(i => i.id === id)?.name
 
@@ -623,12 +625,12 @@ export default function CMDBPage(): JSX.Element {
   // relación y de topología, y el nombre del CI de cada agente.
   const { data: todos = [] } = useQuery<CI[]>({
     queryKey: ['cmdb-items', 'todos'],
-    queryFn: () => cmdbApi.sdList({ page_size: 500 }).then(r => r.data ?? []),
+    queryFn: () => cmdbApi.sdList({ page_size: FULL_LIST_SIZE }).then(r => r.data ?? []),
   })
   const { data: items = [], isLoading } = useQuery<CI[]>({
     queryKey: ['cmdb-items', filterType, filterStatus, searchQ],
     queryFn: () => {
-      const p: Record<string, string | number> = { page_size: 500 }
+      const p: Record<string, string | number> = { page_size: FULL_LIST_SIZE }
       if (filterType)   p.ci_type = filterType
       if (filterStatus) p.status  = filterStatus
       if (searchQ)      p.q       = searchQ

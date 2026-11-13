@@ -16,6 +16,7 @@ import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { alpha } from '../constants/theme'
+import { STALE_DEFAULT_MS } from '../constants/timings'
 
 type IdType = string | number
 
@@ -187,7 +188,7 @@ export default function RACIPage() {
     queryKey: ['users-slim'],
     queryFn: () => api.get('/users').then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
     enabled: true,
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const usersData = usersRaw as UserSlim[]
 

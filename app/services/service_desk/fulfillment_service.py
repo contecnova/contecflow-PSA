@@ -15,11 +15,12 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import AgentGroup, ServiceItem, Ticket
 from app.core.errores import ErrorDeDominio
 
 ORIGEN = "fulfillment"
-_HECHOS = {"resolved", "closed", "cancelled"}
+_HECHOS = ESTADOS_DE_TICKET_CERRADOS
 
 
 def validar_tareas(db: Session, tareas: Optional[list]) -> Optional[str]:

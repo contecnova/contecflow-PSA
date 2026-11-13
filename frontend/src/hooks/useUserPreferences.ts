@@ -9,6 +9,7 @@ import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { applyAccent, applyDensity } from '../utils/appearance'
 import { ELEGIDO_KEY } from '../i18n/AppLangContext'
+import { PREFERENCES_SAVE_DEBOUNCE_MS, STALE_5_MIN_MS } from '../constants/timings'
 
 export type ThemeMode = 'freight' | 'dark' | 'light' | 'high-contrast' | 'midnight' | 'slate' | 'system' | string
 export type UIDensity = 'compact' | 'normal' | 'comfortable' | string
@@ -49,7 +50,7 @@ export function useUserPreferences(): UseUserPreferencesResult {
   const { data: prefs = DEFAULTS, isLoading } = useQuery<UserPreferences>({
     queryKey: ['user-preferences'],
     queryFn: () => api.get('/users/me/preferences').then((r: { data: UserPreferences }) => r.data).catch(() => DEFAULTS),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
     enabled: !!user?.id,
   })
 
@@ -108,7 +109,7 @@ export function useUserPreferences(): UseUserPreferencesResult {
     if (patch.ui_density) applyDensity(patch.ui_density)
     // Debounce el guardado en backend
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => saveMutation(patch), 500)
+    saveTimer.current = setTimeout(() => saveMutation(patch), PREFERENCES_SAVE_DEBOUNCE_MS)
   }, [qc, saveMutation])
 
   // Cancel pending debounced save on unmount to avoid state updates on unmounted component

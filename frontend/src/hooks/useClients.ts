@@ -12,6 +12,7 @@ import { clientsApi } from '../services/api'
 
 // Tipo de respuesta del cliente de API (services/api/tipos.ts, auditoria 2026-11 #39).
 import type { Client } from '../services/api/tipos'
+import { STALE_5_MIN_MS, STALE_REFERENCE_DATA_MS } from '../constants/timings'
 export type { Client }
 
 export type ClientListParams = Record<string, unknown>
@@ -28,7 +29,7 @@ export function useClients(params: ClientListParams = {}): UseQueryResult<Client
   return useQuery<Client[]>({
     queryKey: ['clients', params],
     queryFn: () => clientsApi.list(params).then((r: { data?: { items?: Client[] } | Client[] | null }) => unwrapList<Client>(r)),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -37,7 +38,7 @@ export function useAllClients(): UseQueryResult<Client[]> {
   return useQuery<Client[]>({
     queryKey: ['clients'],
     queryFn: () => clientsApi.list({}).then((r: { data?: { items?: Client[] } | Client[] | null }) => unwrapList<Client>(r)),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -47,7 +48,7 @@ export function useClient(id: string | undefined): UseQueryResult<unknown> {
     queryKey: ['client', id],
     queryFn: () => clientsApi.get(id).then((r: { data: unknown }) => r.data),
     enabled: !!id,
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
 }
 

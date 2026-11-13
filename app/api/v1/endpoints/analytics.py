@@ -1085,17 +1085,21 @@ def delete_ask_example(example_id: str, db: Session = Depends(get_db),
 @router.get("/olap/status", summary="Última carga del almacén analítico y filas de la empresa")
 def olap_status(current_user: User = Depends(require_internal_user)):
     from app.services.olap.etl import estado
-    return APIResponse.ok(data=estado(current_user.organization_id))
+    return APIResponse.ok(data=estado(current_user.organization_id,
+                                      plataforma=bool(getattr(current_user, "is_superadmin", False))))
 
 
 @router.post("/olap/refresh", summary="Recargar ya el almacén analítico desde la base (admin)")
 def olap_refresh(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     from app.db.session import sin_filtro_de_tenant
-    from app.services.olap.etl import run_full_etl
+    from app.services.olap.etl import resumen_de_carga, run_full_etl
     # La carga es de TODAS las empresas (el almacén es uno; cada consulta lleva
-    # el filtro de su empresa), igual que el trabajo nocturno.
+    # el filtro de su empresa), igual que el trabajo nocturno. Sus totales son
+    # de toda la plataforma: solo un superadmin los ve (revisión 2026-11b).
     with sin_filtro_de_tenant(db):
-        return APIResponse.ok(data=run_full_etl(db))
+        resultado = run_full_etl(db)
+    return APIResponse.ok(data=resumen_de_carga(
+        resultado, bool(getattr(current_user, "is_superadmin", False))))
 
 
 @router.get("/olap/kpis", summary="KPIs del OLAP (DuckDB)")

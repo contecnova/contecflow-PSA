@@ -17,6 +17,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import settings as _settings
 from app.models.service_desk import (
     IncidentToProblem,
     KBArticle,
@@ -30,8 +31,15 @@ from app.models.service_desk import (
 
 _logger = logging.getLogger(__name__)
 
-# Days until a KEDB entry should be reviewed after publication
-KEDB_DEFAULT_REVIEW_DAYS = 90
+# Days until a KEDB entry should be reviewed after publication. Ajuste
+# `KEDB_DEFAULT_REVIEW_DAYS` (por empresa); esto es el respaldo sin sesion.
+KEDB_DEFAULT_REVIEW_DAYS = _settings.KEDB_DEFAULT_REVIEW_DAYS
+
+
+def dias_de_revision_kedb(db, org_id=None) -> int:
+    """Dias de revision por defecto de la empresa (ajuste en vivo)."""
+    from app.services import settings_service as _ss
+    return int(_ss.get_runtime_int(db, "KEDB_DEFAULT_REVIEW_DAYS", org_id or db.info.get("organization_id")))
 
 
 # ── Query helpers ─────────────────────────────────────────────────────────────
@@ -164,7 +172,7 @@ def promote_to_known_error(
     problem: Problem,
     *,
     workaround: Optional[str] = None,
-    review_days: int = KEDB_DEFAULT_REVIEW_DAYS,
+    review_days: Optional[int] = None,
     auto_kb: bool = True,
 ) -> dict:
     """
@@ -182,6 +190,8 @@ def promote_to_known_error(
     if workaround:
         problem.workaround = workaround
 
+    if review_days is None:
+        review_days = dias_de_revision_kedb(db, getattr(problem, "organization_id", None))
     now = datetime.now(timezone.utc)
     problem.status = ProblemStatus.known_error
     problem.kedb_published_at = now
@@ -395,13 +405,15 @@ def mark_kedb_reviewed(
     db: Session,
     problem: Problem,
     *,
-    extend_days: int = KEDB_DEFAULT_REVIEW_DAYS,
+    extend_days: Optional[int] = None,
 ) -> dict:
     """
     Record a manual review of a KEDB entry and extend the review window.
 
     Returns updated expiry information.
     """
+    if extend_days is None:
+        extend_days = dias_de_revision_kedb(db, getattr(problem, "organization_id", None))
     now = datetime.now(timezone.utc)
     problem.kedb_reviewed_at = now
     problem.kedb_expires_at = now + timedelta(days=extend_days)

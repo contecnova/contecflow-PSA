@@ -28,6 +28,7 @@ import logging
 import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
+from app.models.service_desk._enums import ESTADOS_DE_INCIDENTE_MAYOR_RESUELTOS, ESTADOS_DE_PROBLEMA_RESUELTOS
 from app.core.errores import ErrorDeDominio
 
 
@@ -559,11 +560,11 @@ def pendientes(db: Session, usuario) -> list[dict]:
         cuando = p.end_date_real or (p.updated_at.date() if getattr(p, "updated_at", None) else None)
         if cuando is None or cuando >= desde_fecha:
             poner("project", p.id, p.code, p.name, cuando)
-    for pr in scope_problem_query(db.query(Problem), db, usuario).filter(Problem.status.in_(("resolved", "closed"))).all():
+    for pr in scope_problem_query(db.query(Problem), db, usuario).filter(Problem.status.in_(ESTADOS_DE_PROBLEMA_RESUELTOS)).all():
         cuando = getattr(pr, "resolved_at", None) or getattr(pr, "updated_at", None)
         if cuando is None or _aware(cuando) >= desde:
             poner("problem", pr.id, pr.number, pr.title, cuando)
-    for m in db.query(MajorIncident).filter(MajorIncident.status.in_(("resolved", "closed"))).all():
+    for m in db.query(MajorIncident).filter(MajorIncident.status.in_(ESTADOS_DE_INCIDENTE_MAYOR_RESUELTOS)).all():
         if m.resolved_at is None or _aware(m.resolved_at) >= desde:
             poner("major_incident", m.id, m.number, m.title, m.resolved_at)
     for s in db.query(Sprint).filter(Sprint.status == "completed").all():

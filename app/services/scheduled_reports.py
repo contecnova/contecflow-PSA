@@ -194,7 +194,16 @@ def _destinatarios_de(report) -> list[str]:
 
 
 def _organizacion_del_informe(report, db) -> Optional[str]:
-    """La organización de quien creó el informe, que es la que acota sus datos."""
+    """La organización del informe, que es la que acota sus datos.
+
+    Revisión multitenant 2026-11b: antes era la empresa de FICHA de quien lo
+    creó. Con pertenencias en varias empresas eso mandaba los KPIs de otra, y
+    si el creador ya no existía salía None y los KPIs OLAP de TODAS las
+    empresas (sin filtro) iban a los destinatarios.
+    """
+    propia = getattr(report, "organization_id", None) or (getattr(db, "info", None) or {}).get("organization_id")
+    if propia:
+        return propia
     try:
         from app.models.user import User
 
@@ -222,6 +231,9 @@ def _execute_report(report: ScheduledReport, db) -> None:
     report_type = getattr(report, "report_type", None) or "custom"
     destinatarios = _destinatarios_de(report)
     org_id = _organizacion_del_informe(report, db)
+    if not org_id:
+        # Sin empresa, los KPIs y el PDF saldrían de todas (fail-closed).
+        raise RuntimeError(f"El informe '{report.name}' no tiene organización: no se envía")
 
     # Los KPIs se piden siempre, aunque no haya correo: el resumen de Slack los
     # usa y no depende del PDF.

@@ -35,6 +35,7 @@ import {
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import type { ApiError } from '../../services/api'
+import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../../constants/timings'
 
 // ── Lo que devuelven los endpoints del portal que usa la pizarra ─────────────
 interface DashProject {
@@ -202,42 +203,42 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   const { data: projectFull } = useQuery<PortalProjectFull>({
     queryKey: ['portal-dashboard-project'],
     queryFn: () => CLIENT_API.get('/portal/project').then(r => r.data),
-    enabled: projReady, staleTime: 30000,
+    enabled: projReady, staleTime: STALE_SHORT_MS,
   })
   const { data: invoices = [] } = useQuery<DashInvoice[]>({
     queryKey: ['portal-dashboard-invoices'],
     queryFn: () => CLIENT_API.get('/portal/invoices').then(r => r.data),
-    enabled: projReady, staleTime: 30000,
+    enabled: projReady, staleTime: STALE_SHORT_MS,
   })
   const { data: tickets = [] } = useQuery<DashTicket[]>({
     queryKey: ['portal-dashboard-tickets'],
     queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data),
-    enabled: projReady, staleTime: 30000,
+    enabled: projReady, staleTime: STALE_SHORT_MS,
   })
   const { data: uats = [] } = useQuery<DashUat[]>({
     queryKey: ['portal-dashboard-uat'],
     queryFn: () => CLIENT_API.get('/portal/uat').then(r => r.data),
-    enabled: projReady, staleTime: 30000,
+    enabled: projReady, staleTime: STALE_SHORT_MS,
   })
   const { data: frs = [] } = useQuery<DashFeatureRequest[]>({
     queryKey: ['portal-dashboard-frs'],
     queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data),
-    enabled: projReady, staleTime: 30000,
+    enabled: projReady, staleTime: STALE_SHORT_MS,
   })
   const { data: docs = [] } = useQuery<DashDocument[]>({
     queryKey: ['portal-dashboard-docs'],
     queryFn: () => CLIENT_API.get('/portal/documents').then(r => r.data),
-    enabled: projReady, staleTime: 30000,
+    enabled: projReady, staleTime: STALE_SHORT_MS,
   })
   const { data: announcements = [] } = useQuery<DashAnnouncement[]>({
     queryKey: ['portal-dashboard-anns'],
     queryFn: () => CLIENT_API.get('/sd/announcements').then(r => r.data),
-    enabled: projReady, staleTime: 60000,
+    enabled: projReady, staleTime: STALE_DEFAULT_MS,
   })
   const { data: surveys = [] } = useQuery<DashSurvey[]>({
     queryKey: ['portal-dashboard-surveys'],
     queryFn: () => CLIENT_API.get('/portal/surveys').then(r => r.data),
-    enabled: projReady, staleTime: 60000,
+    enabled: projReady, staleTime: STALE_DEFAULT_MS,
   })
 
   // Loading skeleton

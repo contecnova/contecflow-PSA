@@ -110,21 +110,36 @@ def _filtros_booleanos():
     )
 
 
-def _acotar_por_conversacion(q, db, parsed, organization_id, conversation_ids):
-    """`in:` manda sobre el filtro del panel, y sin respaldo si no resuelve.
+def conversaciones_a_buscar(db, parsed, organization_id, conversation_ids) -> Optional[list]:
+    """Las conversaciones donde se busca, o None si no se acota.
 
-    El `elif` es deliberado: si alguien escribe `in:general` y el nombre no
-    existe, NO se cae al filtro de conversaciones del panel — la busqueda se
-    hace sin acotar. Es discutible, pero es el comportamiento actual.
+    `conversation_ids` es la lista de las que quien busca puede ver (la pasan
+    todos los llamadores); None es «sin acotar» (uso interno).
+
+    Revision multitenant 2026-11b: `in:` SUSTITUIA esa lista. Con un nombre que
+    no resolvia la busqueda quedaba sin acotar (un cliente del portal con
+    `in:nada` leia los mensajes de toda la empresa, de otros clientes e
+    internos), y con uno que si resolvia se leia esa conversacion aunque no
+    fuera suya (un DM ajeno). Ahora `in:` solo estrecha dentro de lo visible, y
+    una lista vacia es «ninguna», no «todas».
     """
-    from app.models.collaboration import CollaborationMessage as M
-
     if parsed.in_target:
         cid = _resolve_in_target(db, parsed.in_target, organization_id)
-        return q.filter(M.conversation_id == cid) if cid else q
-    if conversation_ids:
-        return q.filter(M.conversation_id.in_(conversation_ids))
-    return q
+        if conversation_ids is None:
+            return [cid] if cid else None
+        return [cid] if cid and cid in set(conversation_ids) else ([] if cid else list(conversation_ids))
+    return None if conversation_ids is None else list(conversation_ids)
+
+
+def _acotar_por_conversacion(q, db, parsed, organization_id, conversation_ids):
+    """`in:` estrecha dentro de las conversaciones visibles (ver `conversaciones_a_buscar`)."""
+    from sqlalchemy import false
+    from app.models.collaboration import CollaborationMessage as M
+
+    ids = conversaciones_a_buscar(db, parsed, organization_id, conversation_ids)
+    if ids is None:
+        return q
+    return q.filter(M.conversation_id.in_(ids)) if ids else q.filter(false())
 
 
 def _acotar_por_autor(q, db, parsed, organization_id, author_user_id):
@@ -355,8 +370,9 @@ class OpenSearchSearch:
         gana lo que ha escrito la persona.
         """
         filtros = []
-        if conversation_ids:
-            filtros.append({"terms": {"conversation_id": conversation_ids}})
+        if conversation_ids is not None:
+            # Lista vacia = ninguna conversacion visible: `terms` vacio no casa nada.
+            filtros.append({"terms": {"conversation_id": list(conversation_ids)}})
         if author_user_id:
             filtros.append({"term": {"user_id": author_user_id}})
         if parsed.has_attachment:
@@ -406,10 +422,7 @@ class OpenSearchSearch:
         parsed = parse_query(query or "")
         # Los operadores `in:` y `from:` se resuelven igual que en los motores
         # SQL: el indice guarda identificadores, no nombres.
-        if parsed.in_target:
-            cid = _resolve_in_target(db, parsed.in_target, organization_id)
-            if cid:
-                conversation_ids = [cid]
+        conversation_ids = conversaciones_a_buscar(db, parsed, organization_id, conversation_ids)
         if parsed.from_author:
             uid = _resolve_author(db, parsed.from_author, organization_id)
             if uid:

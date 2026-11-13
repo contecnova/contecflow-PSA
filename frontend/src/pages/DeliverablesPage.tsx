@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
+import { FULL_LIST_SIZE } from '../constants/pagination'
 
 interface ProjectItem {
   id: string | number
@@ -109,7 +110,7 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!del?.id
-  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list({ page_size: 500 }).then(r => r.data) })
+  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list({ page_size: FULL_LIST_SIZE }).then(r => r.data) })
   const users = usersRaw as UserItem[]
   const [form, setForm] = useState<DeliverableFormState>({
     name: del?.name || '',

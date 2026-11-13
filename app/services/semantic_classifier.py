@@ -22,6 +22,7 @@ import re
 from collections import defaultdict
 from typing import Optional
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.core.config import settings
 from app.models.resources import UserSkill
 from app.models.semantic_engine import SemConfig, SemEmbeddingCache, SemFeedback, SemProfile
@@ -458,7 +459,7 @@ class SemanticAssigner(ServiceBase):
 
         resolved = self.db.query(Ticket).filter(
             Ticket.assigned_to_user_id == user_id,
-            Ticket.status.in_(["resolved", "closed"])
+            Ticket.status.in_(ESTADOS_DE_TICKET_RESUELTOS)
         ).order_by(Ticket.resolved_at.desc()).limit(30).all()
         for t in resolved[:15]:  # Bug 5 fix: use 15 items instead of 5
             parts.append(f"Ticket resuelto: {t.title}")

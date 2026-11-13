@@ -59,7 +59,11 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     # «Entrar como»: corta las rutas de credenciales y deja constancia en la peticion.
     from app.services.entrada_service import comprobar_suplantacion
-    comprobar_suplantacion(payload, request)
+    suplantador = comprobar_suplantacion(payload, request)
+    if suplantador:
+        # Revision multitenant 2026-11b: lo que se hace «entrando como» queda en
+        # la auditoria con quien lo hizo de verdad (ver `audit.audit_log`).
+        db.info["suplantado_por"] = suplantador
 
     if not user:
         raise HTTPException(
@@ -97,7 +101,8 @@ def get_current_user(
     return user
 
 
-def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str, alcances: list, tipo: str) -> User:
+def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str, alcances: list, tipo: str,
+                                    empresa: Optional[str] = None) -> User:
     from app.core import credenciales_delegadas as _delegadas
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
@@ -109,7 +114,16 @@ def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str,
         db.info["organization_id"] = None
         db.info["is_superadmin"] = True
     else:
-        db.info["organization_id"] = getattr(user, "organization_id", None)
+        # Revision multitenant 2026-11b: la credencial trabaja en la empresa en
+        # la que se creo, no en la de la ficha de su dueño (con pertenencias en
+        # varias, una clave creada en B leia y escribia A). Si el dueño ya no
+        # pertenece a ella, la credencial no vale.
+        from app.services.entrada_service import organizacion_de_la_peticion, pertenece
+        if empresa and empresa != user.organization_id and not pertenece(db, user, empresa):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="El dueño de la credencial ya no pertenece a su organización")
+        db.info["organization_id"] = organizacion_de_la_peticion(
+            db, user, {"org": empresa} if empresa else {}, request)
         db.info["is_superadmin"] = False
         from app.db.session import exigir_organizacion_activa
         exigir_organizacion_activa(db, db.info["organization_id"])

@@ -8,6 +8,7 @@
  * 3. Idioma
  * 4. Seguridad (cambio de contraseña, MFA)
  */
+import { PRODUCT_NAME } from '../../constants/brand'
 import React, { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api, { usersApi, authApi } from '../../services/api'
@@ -27,7 +28,7 @@ import { localeActivo } from '../../utils/helpers'
 // ── Temas disponibles ─────────────────────────────────────────────────────────
 const THEMES = [
   { id: 'freight',       label: 'Freight Pro',    icon: '🚚', desc: 'Estilo ERP industrial (principal)' },
-  { id: 'dark',          label: 'Oscuro clásico', icon: '🌙', desc: 'Azul pizarra de Contecflow' },
+  { id: 'dark',          label: 'Oscuro clásico', icon: '🌙', desc: `Azul pizarra de ${PRODUCT_NAME}` },
   { id: 'midnight',      label: 'Midnight',        icon: '🌌', desc: 'Oscuro profundo, casi negro' },
   { id: 'slate',         label: 'Slate',           icon: '⬛', desc: 'Gris neutro estilo GitHub' },
   { id: 'light',         label: 'Claro',           icon: '☀️', desc: 'Fondo blanco, texto oscuro' },

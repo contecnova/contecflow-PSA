@@ -5,6 +5,7 @@ import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle } from 'lucide
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import MarkdownText from '../ui/MarkdownText'
+import { STALE_AI_NARRATIVE_MS } from '../../constants/timings'
 
 // TODO type: analyticsApi.narrative response — needs shared type
 interface NarrativeData {
@@ -27,7 +28,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
   const { data, isLoading, isError, isFetching } = useQuery<NarrativeData>({
     queryKey: ['bi-narrative', lang, forceRefresh],
     queryFn: () => analyticsApi.narrative({ lang, force_refresh: forceRefresh }).then(r => r.data),
-    staleTime: 55 * 60 * 1000,
+    staleTime: STALE_AI_NARRATIVE_MS,
     retry: 1,
   })
 

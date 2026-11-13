@@ -96,12 +96,26 @@ def validate_https_discovery_url(discovery_url: str) -> str:
 
 # ── SSO helpers ───────────────────────────────────────────────────────────────
 
-def get_active_sso_providers(db: Session):
+def get_active_sso_providers(db: Session, request=None):
     """Return list of active SSO provider dicts."""
     # Auditoria 2026-11: leia `c.name`, que no existia, y la excepcion dejaba
     # el login sin botones. SAML no esta implementado: no se ofrece.
-    configs = db.query(SSOConfig).filter(SSOConfig.is_active == True, SSOConfig.is_deleted == False,
-                                         SSOConfig.provider != "saml").all()
+    from sqlalchemy import or_, select
+    from app.models.mfa import Organization
+    consulta = db.query(SSOConfig).filter(
+        SSOConfig.is_active == True, SSOConfig.is_deleted == False, SSOConfig.provider != "saml",
+        # Revision multitenant 2026-11b: ni los de empresas desactivadas…
+        or_(SSOConfig.organization_id.is_(None),
+            SSOConfig.organization_id.in_(select(Organization.id).where(Organization.is_active == True))))  # noqa: E712
+    if request is not None:
+        # …ni, en modo subdominio, los de otras empresas: el host ya dice cual.
+        from app.services import entrada_service as _entrada
+        if _entrada.modo() == "subdomain":
+            del_host = _entrada.organizacion_por_host(db, request)
+            if del_host is not None:
+                consulta = consulta.filter(or_(SSOConfig.organization_id.is_(None),
+                                               SSOConfig.organization_id == del_host.id))
+    configs = consulta.all()
     return [
         {
             "id":       c.id,

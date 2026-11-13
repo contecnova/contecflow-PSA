@@ -1,12 +1,13 @@
 """Herramientas de tickets de service desk."""
 from __future__ import annotations
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_EN_CURSO
 from app.models.service_desk import Ticket
 from app.models.user import User
 
 
 def _get_open_tickets(tool_input, db, user, now, is_financial_role):
-    q = db.query(Ticket).filter(Ticket.status.in_(["new","assigned","in_progress"]))
+    q = db.query(Ticket).filter(Ticket.status.in_(ESTADOS_DE_TICKET_EN_CURSO))
     if tool_input.get("priority"): q = q.filter(Ticket.priority == tool_input["priority"])
     if tool_input.get("assignee_id"): q = q.filter(Ticket.assigned_to_user_id == tool_input["assignee_id"])
     tickets = q.order_by(Ticket.created_at.asc()).limit(tool_input.get("limit", 15)).all()
@@ -37,7 +38,7 @@ def _reassign_tickets(tool_input, db, user, now, is_financial_role):
     if not from_user: return {"error": f"Usuario no encontrado: {tool_input['from_user_name']}"}
     if not to_user:   return {"error": f"Usuario no encontrado: {tool_input['to_user_name']}"}
     tickets = db.query(Ticket).filter(
-        Ticket.assigned_to_user_id == from_user.id, Ticket.status.in_(["new","assigned","in_progress"])
+        Ticket.assigned_to_user_id == from_user.id, Ticket.status.in_(ESTADOS_DE_TICKET_EN_CURSO)
     ).all()
     for t in tickets: t.assigned_to_user_id = to_user.id
     db.flush()

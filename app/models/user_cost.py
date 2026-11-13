@@ -20,7 +20,6 @@ from sqlalchemy.sql import func
 
 from app.db.base import Base
 from app.core.config import settings
-from app.core.constantes import HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO, PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO
 
 
 class CountryEmployerCost(Base):
@@ -40,8 +39,8 @@ class CountryEmployerCost(Base):
     country_code = Column(String(2), nullable=False, index=True)   # ISO-3166 alpha-2
     country_name = Column(String(80), nullable=False)
     currency = Column(String(3), nullable=False, default=settings.DEFAULT_CURRENCY)    # default currency for that country
-    employer_cost_pct = Column(Float, nullable=False, default=PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO)         # SS empresa + others
-    productive_hours_year = Column(Float, nullable=False, default=HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO)     # billable hrs/year
+    employer_cost_pct = Column(Float, nullable=False, default=settings.DEFAULT_EMPLOYER_COST_PCT)         # SS empresa + others
+    productive_hours_year = Column(Float, nullable=False, default=settings.DEFAULT_PRODUCTIVE_HOURS_YEAR)     # billable hrs/year
     notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -70,9 +69,9 @@ class UserCostProfile(Base):
 
     # Inputs
     gross_annual_salary = Column(Float, nullable=False)              # salary in `currency`
-    employer_cost_pct = Column(Float, nullable=False, default=PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO)  # 0.32 = 32%
+    employer_cost_pct = Column(Float, nullable=False, default=settings.DEFAULT_EMPLOYER_COST_PCT)  # 0.32 = 32%
     extra_annual_costs = Column(Float, nullable=False, default=0.0)  # bonus, gear, training prorated
-    productive_hours_year = Column(Float, nullable=False, default=HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO)
+    productive_hours_year = Column(Float, nullable=False, default=settings.DEFAULT_PRODUCTIVE_HOURS_YEAR)
 
     # Derived (cached at write to avoid recomputing on every read)
     total_annual_cost = Column(Float, nullable=False)

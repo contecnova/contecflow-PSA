@@ -30,6 +30,8 @@ import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { useDialogo } from '../components/ui'
+import { POLL_DEFAULT_MS, POLL_FREQUENT_MS, POLL_SLOW_MS, PRESENCE_POLL_MS, STALE_1_HOUR_MS, STALE_5_MIN_MS, STALE_DEFAULT_MS, TYPING_IDLE_MS, TYPING_SWEEP_MS } from '../constants/timings'
+import { CHAT_MESSAGES_PAGE_SIZE, CHAT_SEARCH_LIMIT, CHAT_THREAD_MESSAGES_LIMIT, MENTION_SUGGESTIONS_LIMIT, MENTION_SUGGESTIONS_MEMBERS_LIMIT } from '../constants/pagination'
 
 // ── Entity types ────────────────────────────────────────────────────────────
 // The collaboration API client returns untyped data (`r.data` / `unknown[]`),
@@ -160,43 +162,43 @@ export default function ChatPage(): JSX.Element {
   useQuery({
     queryKey: ['collab-workspace'],
     queryFn:  () => collabApi.getWorkspace(),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: conversations = [], isLoading: loadingConvs } = useQuery({
     queryKey: ['collab-conversations'],
     queryFn:  () => collabApi.listConversations() as Promise<Conv[]>,
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const { data: teams = [] } = useQuery({
     queryKey: ['collab-teams'],
     queryFn:  () => collabApi.listTeams() as Promise<Team[]>,
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: channels = [] } = useQuery({
     queryKey: ['collab-channels'],
     queryFn:  () => collabApi.listChannels(undefined) as Promise<Channel[]>,
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: presence = [] } = useQuery({
     queryKey: ['collab-presence'],
     queryFn:  () => collabApi.listPresence() as Promise<Presence[]>,
-    refetchInterval: 60_000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['collab-notifications'],
     queryFn:  () => collabApi.listNotifications(false) as Promise<CollabNotification[]>,
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const { data: bots = [] } = useQuery({
     queryKey: ['collab-bots'],
     queryFn:  () => collabApi.listBots() as Promise<ChatBot[]>,
-    staleTime: 5 * 60_000,
+    staleTime: STALE_5_MIN_MS,
   })
 
   // Conversación activa = ?conv= de la URL si es válida; si no, primer canal disponible
@@ -256,7 +258,7 @@ export default function ChatPage(): JSX.Element {
     // Heartbeat
     const hb = setInterval(() => {
       if (!stopped && document.visibilityState === 'visible') setStatus('online')
-    }, 60_000)
+    }, PRESENCE_POLL_MS)
     return () => {
       stopped = true
       document.removeEventListener('visibilitychange', onVis)
@@ -616,7 +618,7 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
 
   const { data: suggestions = { users: [], groups: [] } } = useQuery({
     queryKey: ['mention-suggestions-modal', search],
-    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 12 }) as Promise<MentionSuggestions>,
+    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: MENTION_SUGGESTIONS_LIMIT }) as Promise<MentionSuggestions>,
   })
   const { data: teams = [] } = useQuery({
     queryKey: ['collab-teams'],
@@ -823,7 +825,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
 
   const { data: suggestions = { users: [] } } = useQuery({
     queryKey: ['mention-suggestions-add-members', search],
-    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: 16 }) as Promise<MentionSuggestions>,
+    queryFn: () => collabApi.mentionSuggestions({ q: search, limit: MENTION_SUGGESTIONS_MEMBERS_LIMIT }) as Promise<MentionSuggestions>,
   })
   // Si no nos pasan existingUserIds, los obtenemos del servidor para evitar
   // que el listado proponga gente ya dentro del grupo.
@@ -1059,9 +1061,9 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['collab-messages', conv?.id],
-    queryFn:  () => collabApi.listMessages(conv!.id, { limit: 50 }) as Promise<Msg[]>,
+    queryFn:  () => collabApi.listMessages(conv!.id, { limit: CHAT_MESSAGES_PAGE_SIZE }) as Promise<Msg[]>,
     enabled:  !!conv?.id,
-    refetchInterval: 30_000, // fallback polling — WS invalida casi siempre
+    refetchInterval: POLL_FREQUENT_MS, // fallback polling — WS invalida casi siempre
   })
 
   // Parse @mentions from raw text → { mention_user_ids, is_everyone }
@@ -1178,7 +1180,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
     realtime.send({ type: 'typing', conversation_id: conv.id, active: true })
     const t = setTimeout(() => {
       realtime.send({ type: 'typing', conversation_id: conv.id, active: false })
-    }, 4000)
+    }, TYPING_IDLE_MS)
     return () => clearTimeout(t)
   }, [draft, conv?.id, realtime])
 
@@ -1210,7 +1212,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
         for (const [k, v] of Object.entries(prev)) if (v > cutoff) next[k] = v
         return next
       })
-    }, 2000)
+    }, TYPING_SWEEP_MS)
     return () => clearInterval(id)
   }, [])
 
@@ -1781,7 +1783,7 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
   const [q, setQ] = useState('')
   const { data: result, isFetching } = useQuery({
     queryKey: ['collab-search', q],
-    queryFn: () => collabApi.search({ q, limit: 30 }) as Promise<{ hits?: SearchHit[] }>,
+    queryFn: () => collabApi.search({ q, limit: CHAT_SEARCH_LIMIT }) as Promise<{ hits?: SearchHit[] }>,
     enabled: q.trim().length >= 2,
   })
   const hits: SearchHit[] = result?.hits || []
@@ -1959,9 +1961,9 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
   const [reply, setReply] = useState('')
   const { data: thread = [] } = useQuery({
     queryKey: ['collab-thread', conv?.id, rootId],
-    queryFn: () => collabApi.listMessages(conv.id, { thread_root: rootId, limit: 200 }) as Promise<Msg[]>,
+    queryFn: () => collabApi.listMessages(conv.id, { thread_root: rootId, limit: CHAT_THREAD_MESSAGES_LIMIT }) as Promise<Msg[]>,
     enabled: !!conv?.id && !!rootId,
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
   const send = useMutation({
     mutationFn: () => collabApi.sendMessage({ conversation_id: conv.id, parent_message_id: rootId, body: reply }),
@@ -2010,7 +2012,7 @@ function SlashMenu({ draft, onPick }: { draft: string; onPick: (cmd: string) => 
   const { data: help = { commands: [] } } = useQuery<{ commands: SlashCommand[] }>({
     queryKey: ['collab-slash-help'],
     queryFn:  () => collabApi.slashHelp() as Promise<{ commands: SlashCommand[] }>,
-    staleTime: 60 * 60_000,
+    staleTime: STALE_1_HOUR_MS,
   })
   const term = draft.replace('/', '').toLowerCase()
   const cmds = help.commands.filter(c => c.name.replace('/', '').toLowerCase().startsWith(term))
@@ -2075,7 +2077,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
   const { data: calendar } = useQuery<CalendarData>({
     queryKey: ['collab-calendar'],
     queryFn: () => collabApi.calendarEvents(7) as Promise<CalendarData>,
-    refetchInterval: 5 * 60_000,
+    refetchInterval: POLL_SLOW_MS,
   })
   const { data: decisions = [] } = useQuery({
     queryKey: ['collab-decisions-context'],
@@ -2084,7 +2086,7 @@ function ContextPanel({ conv }: { conv: Conv }) {
   const { data: presenceList = [] } = useQuery({
     queryKey: ['collab-presence'],
     queryFn: () => collabApi.listPresence() as Promise<Presence[]>,
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
   const onlineUsers = presenceList.filter(p => p.user_id && p.status && p.status !== 'offline')
 

@@ -3,6 +3,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { biIntelligenceApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Table } from '../ui'
+import { STALE_5_MIN_MS } from '../../constants/timings'
+import { VISUAL_QUERY_ROW_LIMIT } from '../../constants/pagination'
 
 // TODO type: biIntelligenceApi.queryBuilderSchema payload — needs shared type
 interface ColumnDef {
@@ -85,7 +87,7 @@ export default function VisualQueryBuilderWidget() {
   const schemaQuery = useQuery<BuilderSchema>({
     queryKey: ['bi-intelligence-query-builder-schema'],
     queryFn: () => biIntelligenceApi.queryBuilderSchema().then((r) => r.data),
-    staleTime: 5 * 60_000,
+    staleTime: STALE_5_MIN_MS,
   })
 
   const previewMutation = useMutation({
@@ -182,7 +184,7 @@ export default function VisualQueryBuilderWidget() {
       columns,
       filters: normalizedFilters,
       sort,
-      limit: 100,
+      limit: VISUAL_QUERY_ROW_LIMIT,
     }
   }
 

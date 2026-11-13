@@ -28,6 +28,7 @@ import { initOfflineSync } from './services/offlineQueue'
 // TODO type: services/api still JS
 import api from './services/api'
 import './index.css'
+import { GC_DEFAULT_MS, STALE_SHORT_MS } from './constants/timings'
 
 // Initialize offline sync — auto-syncs queued imputations when the browser comes back online
 const _bootOfflineSync = () => {
@@ -142,8 +143,8 @@ function RootBoundary({ children }: { children?: ReactNode }) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime:            30 * 1000,      // 30s — datos siempre frescos
-      gcTime:               5 * 60 * 1000,  // 5min cache
+      staleTime:            STALE_SHORT_MS,      // 30s — datos siempre frescos
+      gcTime:               GC_DEFAULT_MS,  // 5min cache
       refetchOnWindowFocus: true,            // refrescar al volver a la ventana
       retry:                1,
     },

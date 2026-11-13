@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import Ticket
 from app.models.user import User
 from app.services.service_desk.status_compat import normalize_ticket_status
@@ -83,7 +84,7 @@ def build_ticket_list_query(
         # Un ticket cerrado no incumple: el SLA se mide mientras está vivo.
         ahora = datetime.now(timezone.utc)
         q = q.filter(
-            Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
             or_(Ticket.sla_response_due < ahora, Ticket.sla_resolution_due < ahora),
         )
 

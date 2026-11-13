@@ -4,6 +4,8 @@ import api, { alertsApi, mentionsApi } from '../services/api'
 // TODO type: AuthContext still JSX/JS — useAuth typing inferred as any.
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from '../constants/queryKeys'
+import { POLL_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
+import { COUNT_ONLY_PAGE_SIZE } from '../constants/pagination'
 
 interface AlertItem {
   id?: string
@@ -45,19 +47,19 @@ export default function useNotificationBadges(): NotificationBadges {
       if (Array.isArray(d)) return d
       return d?.items ?? []
     }),
-    refetchInterval: 60_000,
-    staleTime: 30 * 1000,
+    refetchInterval: POLL_DEFAULT_MS,
+    staleTime: STALE_SHORT_MS,
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
   const { data: notificationsData } = useQuery<NotificationsData>({
     queryKey: queryKeys.notifications.badges(),
     queryFn: () =>
-      api.get('/enterprise/notifications', { params: { page_size: 1 } })
+      api.get('/enterprise/notifications', { params: { page_size: COUNT_ONLY_PAGE_SIZE } })
         .then((r: { data: NotificationsData }) => r.data || { unread_count: 0 })
         .catch(() => ({ unread_count: 0 } as NotificationsData)),
-    refetchInterval: 60_000,
-    staleTime: 30 * 1000,
+    refetchInterval: POLL_DEFAULT_MS,
+    staleTime: STALE_SHORT_MS,
     enabled: canQueryProtected,
   })
 
@@ -65,8 +67,8 @@ export default function useNotificationBadges(): NotificationBadges {
     queryKey: queryKeys.approvals.pending(),
     queryFn: () =>
       api.get('/approvals/requests/pending-my-action').then((r: { data: unknown[] }) => r.data || []).catch(() => [] as unknown[]),
-    refetchInterval: 60_000,
-    staleTime: 30 * 1000,
+    refetchInterval: POLL_DEFAULT_MS,
+    staleTime: STALE_SHORT_MS,
     enabled: canQueryProtected,
   })
 
@@ -75,8 +77,8 @@ export default function useNotificationBadges(): NotificationBadges {
     queryKey: ['mentions-unread'],
     queryFn: () =>
       mentionsApi.mentions(true).then((r: { data: unknown[] }) => r.data || []).catch(() => [] as unknown[]),
-    refetchInterval: 60_000,
-    staleTime: 30 * 1000,
+    refetchInterval: POLL_DEFAULT_MS,
+    staleTime: STALE_SHORT_MS,
     enabled: canQueryProtected,
   })
 

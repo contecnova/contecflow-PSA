@@ -4,6 +4,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import (
     AgentGroupMember, Ticket, TicketComment, TicketHistory,
 )
@@ -79,7 +80,7 @@ def my_queue_payload(db: Session, current_user: User, ticket_out) -> list[dict]:
         )
         .filter(
             Ticket.assigned_to_user_id == current_user.id,
-            Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
         )
         .order_by(Ticket.priority, Ticket.created_at)
         .all()
@@ -135,7 +136,7 @@ def my_queue_prioritized_payload(db: Session, current_user: User, ticket_out) ->
         )
         .filter(
             Ticket.assigned_to_user_id == current_user.id,
-            Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
         )
         .all()
     )

@@ -14,6 +14,8 @@ import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi, apiUrlAbsoluta } from '../../services/api'
 import DateInput from '../../components/ui/DateInput'
+import { POLL_DEFAULT_MS } from '../../constants/timings'
+import { MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
 type Turno = { id: string; user_id: string; user_name?: string; start_dt: string; end_dt: string; notes?: string | null }
 type Calendario = { id: string; name: string; group_id: string; group_name?: string; is_active: boolean; entries: Turno[] }
@@ -38,7 +40,7 @@ export function GuardiasConfig() {
     queryKey: ['sd-oncall'], queryFn: () => sdOnCallApi.schedules().then(r => r.data as Calendario[]),
   })
   const { data: ahora = [] } = useQuery<Ahora[]>({
-    queryKey: ['sd-oncall-now'], queryFn: () => sdOnCallApi.current().then(r => r.data as Ahora[]), refetchInterval: 60000,
+    queryKey: ['sd-oncall-now'], queryFn: () => sdOnCallApi.current().then(r => r.data as Ahora[]), refetchInterval: POLL_DEFAULT_MS,
   })
   const { data: colas = [] } = useQuery<Cola[]>({ queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data as Cola[]) })
   const { data: personas = [] } = useQuery<Persona[]>({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data as unknown as Persona[]) })
@@ -147,7 +149,7 @@ export function MonitorizacionConfig() {
   const toast = useToast()
   const url = apiUrlAbsoluta('/sd/events/prometheus')
   const { data: alertas = [], isLoading } = useQuery<Alerta[]>({
-    queryKey: ['sd-monitoring-alerts'], queryFn: () => sdMonitoringApi.alerts(30).then(r => r.data as Alerta[]), refetchInterval: 60000,
+    queryKey: ['sd-monitoring-alerts'], queryFn: () => sdMonitoringApi.alerts(MONITORING_ALERTS_LIMIT).then(r => r.data as Alerta[]), refetchInterval: POLL_DEFAULT_MS,
   })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

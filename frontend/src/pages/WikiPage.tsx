@@ -14,6 +14,7 @@ import { BookOpen } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { FOCUS_DEFER_MS } from '../constants/timings'
 
 type Block = { type: string; content?: string }
 type WikiPageT = { [k: string]: unknown; id: string; title?: string; slug?: string; content?: Block[]; visibility?: string; updated_at?: string; children?: WikiPageT[] }
@@ -131,7 +132,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                               const rep=wrap[0]+(sel===label?'texto':sel)+wrap[1]
                               const nv=ta.value.slice(0,s)+rep+ta.value.slice(en)
                               update(i,'content',nv)
-                              setTimeout(()=>{ta.focus();ta.setSelectionRange(s,s+rep.length)},10)
+                              setTimeout(()=>{ta.focus();ta.setSelectionRange(s,s+rep.length)},FOCUS_DEFER_MS)
                             }}
                             title={title}
                             style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',

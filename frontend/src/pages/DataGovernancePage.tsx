@@ -25,6 +25,8 @@ import BiGdprPanel from '../components/bi/BiGdprPanel'
 import BiGovernancePanel from '../components/bi/BiGovernancePanel'
 import BiDashboardCollabPanel from '../components/bi/BiDashboardCollabPanel'
 import { localeActivo } from '../utils/helpers'
+import { STALE_LIVE_MS, STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
+import { AUDIT_LOG_PAGE_SIZE } from '../constants/pagination'
 
 type ItemsResponse<T> = {
   items: T[]
@@ -150,51 +152,51 @@ export default function DataGovernancePage(): JSX.Element {
   const { data: commentsData, refetch: refetchComments } = useQuery<ItemsResponse<CommentItem>>({
     queryKey: ['data-gov-comments', commentWidget],
     queryFn: () => biCollaborationApi.listComments({ dashboard_key: 'executive', widget_id: commentWidget }).then(r => r.data as ItemsResponse<CommentItem>).catch(() => ({ items: [] })),
-    staleTime: 15_000,
+    staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: sharedViewsData, refetch: refetchSharedViews } = useQuery<ItemsResponse<SharedView>>({
     queryKey: ['data-gov-shared-views', sharedViewsTick, showInactiveSharedViews],
     queryFn: () => biCollaborationApi.listSharedViews({ include_inactive: showInactiveSharedViews }).then(r => r.data as ItemsResponse<SharedView>).catch(() => ({ items: [] })),
-    staleTime: 15_000,
+    staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: governance } = useQuery<GovernanceOverview | null>({
     queryKey: ['data-gov-overview'],
     queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data as GovernanceOverview).catch(() => null),
-    staleTime: 30_000,
+    staleTime: STALE_SHORT_MS,
   })
   const { refetch: refetchRules } = useQuery<unknown>({
     queryKey: ['data-gov-rules'],
     queryFn: () => biCollaborationApi.governanceRules().then(r => r.data).catch(() => null),
-    staleTime: 30_000,
+    staleTime: STALE_SHORT_MS,
   })
   const { data: governanceRun, refetch: refetchGovRun } = useQuery<GovernanceRunResult>({
     queryKey: ['data-gov-run', govRunTick],
     queryFn: () => biCollaborationApi.lastGovernanceRun().then(r => (r.data?.result || null) as GovernanceRunResult).catch(() => null),
-    staleTime: 10_000,
+    staleTime: STALE_LIVE_MS,
   })
 
   // Governance audit queries
   const { data: govAuditData } = useQuery<ItemsResponse<AuditEvent>>({
     queryKey: ['data-gov-audit', govAuditTick, govAuditUserFilter],
     queryFn: () => biGovernanceAuditApi.getAccessHistory(
-      govAuditUserFilter.trim() ? { user_id: govAuditUserFilter.trim(), limit: 50 } : { limit: 50 }
+      govAuditUserFilter.trim() ? { user_id: govAuditUserFilter.trim(), limit: AUDIT_LOG_PAGE_SIZE } : { limit: AUDIT_LOG_PAGE_SIZE }
     ).then(r => r.data as ItemsResponse<AuditEvent>).catch(() => ({ items: [] })),
-    staleTime: 15_000,
+    staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: govLineageData, refetch: refetchGovLineage } = useQuery<ItemsResponse<LineageEdge>>({
     queryKey: ['data-gov-lineage', govAuditTick],
     queryFn: () => biGovernanceAuditApi.listLineage().then(r => r.data as ItemsResponse<LineageEdge>).catch(() => ({ items: [] })),
-    staleTime: 15_000,
+    staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: govFieldData, refetch: refetchGovFields } = useQuery<ItemsResponse<FieldSensitivity>>({
     queryKey: ['data-gov-fields', govAuditTick],
     queryFn: () => biGovernanceAuditApi.listFieldSensitivity().then(r => r.data as ItemsResponse<FieldSensitivity>).catch(() => ({ items: [] })),
-    staleTime: 15_000,
+    staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: bookmarks } = useQuery<ItemsResponse<BookmarkItem>>({
     queryKey: ['data-gov-bookmarks', bookmarksTick],
     queryFn: () => biBookmarksApi.list().then(r => r.data as ItemsResponse<BookmarkItem>).catch(() => ({ items: [] })),
-    staleTime: 30_000,
+    staleTime: STALE_SHORT_MS,
   })
 
   // Unas rutas devuelven la lista ya desenvuelta por el interceptor y otras

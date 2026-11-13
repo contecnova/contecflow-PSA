@@ -87,6 +87,38 @@ PALETA_DE_FACTURA = PaletaDeDocumento(
     }
 )
 
+# La variante de los informes programados (`report_pdf_service`). Barrido 2026-11:
+# antes eran constantes sueltas de ese fichero. Sus grises y su azul difieren de
+# la paleta base (`#1e293b`/`#64748b`/`#4f8ef7` frente a `#1a1a2e`/`#6b7280`/
+# `#00d4ff`) y se conservan: unificarlos cambiaria un documento que recibe el
+# cliente. El acento y la cabecera los sustituye la marca de la empresa.
+PALETA_DE_INFORME = PaletaDeDocumento(
+    **{
+        **{c: getattr(PALETA_POR_DEFECTO, c) for c in PALETA_POR_DEFECTO.__slots__},
+        "acento": "#4f8ef7",
+        "texto_principal": "#1e293b",
+        "texto_secundario": "#64748b",
+    }
+)
+
+# Colores de ESTADO de los documentos (no son marca: un aviso pintado con el color
+# de marca deja de leerse como aviso). Verde, ambar y rojo.
+COLOR_DE_EXITO = "#22c55e"
+COLOR_DE_AVISO = "#f59e0b"
+COLOR_DE_PELIGRO = "#ef4444"
+
+#: El papel: fondo de las filas pares de una tabla.
+COLOR_DE_PAPEL = "#ffffff"
+
+# Tintes del certificado de firma (`signature_pdf`): gris de cuerpo, sombreado de
+# fila y fondo del sello. Valores de antes, sin cambiar. El fondo de la evidencia
+# es `fila_alterna` de la paleta base (el mismo `#f8fafc`).
+TINTES_DE_FIRMA = {
+    "gris_de_cuerpo": "#374151",
+    "sombreado_de_fila": "#f9fafb",
+    "fondo_del_sello": "#f0fdf9",
+}
+
 
 # ── La marca del cliente en sus documentos ───────────────────────────────────
 #

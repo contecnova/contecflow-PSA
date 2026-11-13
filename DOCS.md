@@ -84,6 +84,37 @@ Cada regla tiene un test que falla si se rompe.
 `ai_provider_service/` (9 módulos): su `__init__` propaga a los submódulos lo que se asigne al paquete (`monkeypatch.setattr(svc, ...)`), para que los parches de los tests sigan valiendo. Es un mecanismo poco habitual; si se quita, hay que apuntar los parches al submódulo.
 
 ### Segunda auditoría 2026-11: cambios de comportamiento
+
+- Barrido «nada en duro» (cierre): estados de ticket, problema, incidente mayor y tarea en tuplas
+  derivadas de los enums (`ESTADOS_DE_TICKET_*`, `PRIORIDADES_DE_TICKET`, `ESTADOS_DE_PROBLEMA_RESUELTOS`,
+  `ESTADOS_DE_INCIDENTE_MAYOR_RESUELTOS` en `models/service_desk/_enums.py`; `ESTADOS_DE_TAREA_TERMINADOS`
+  en `models/task.py`), 46 ficheros migrados. Cambio: el panel de SLA y el wallboard cuentan como
+  abiertos también los tickets `pending_third` (antes solo hasta `pending_client`). Las tuplas de tarea
+  pierden un `"closed"` que una tarea no puede tener (sin efecto).
+- Ventana «en riesgo» del wallboard y del panel de SLA: ajuste `SLA_AT_RISK_WINDOW_HOURS` (2 h, por
+  empresa, grupo `sla`); la segunda franja del panel es el doble (antes 2 h y 4 h fijas). Mismo resultado por defecto.
+- Frontend: intervalos de refresco/caché y tamaños de página en `constants/timings.ts` y
+  `constants/pagination.ts` (mismos valores).
+- PDF: los colores de los informes programados y del certificado de firma viven en
+  `_pdf_marca` (`PALETA_DE_INFORME`, `COLOR_DE_EXITO/AVISO/PELIGRO/PAPEL`, `TINTES_DE_FIRMA`) con
+  los mismos hex: no cambia el aspecto. No se unificaron con la paleta base porque sus grises y su
+  azul difieren (`#1e293b`/`#64748b`/`#4f8ef7` frente a `#1a1a2e`/`#6b7280`/`#00d4ff`).
+- `NOMBRE_DEL_PRODUCTO` sale de `settings.PROJECT_NAME` (antes el literal "Contecflow"); lo usan
+  también los prompts de IA y los textos de Slack/Teams. La marca de la empresa sigue mandando donde
+  ya mandaba. `/contecflow` (comando de barra) no cambia.
+- Ajustes nuevos con el valor de siempre: `SD_AUTO_CLOSE_HOURS_AFTER_RESOLUTION` (72) y
+  `SD_VALIDATION_WINDOW_HOURS` (48) como base de la config de autorresolución de cada empresa;
+  `KEDB_DEFAULT_REVIEW_DAYS` (90, por empresa; la petición puede omitir `review_days`/`extend_days`);
+  `DEFAULT_PRODUCTIVE_HOURS_YEAR` (1700) y `DEFAULT_EMPLOYER_COST_PCT` (0.32), por empresa (perfiles,
+  presets y simulación de coste los usan cuando no se envían); `ORG_DEFAULT_MAX_USERS` (25) y
+  `ORG_DEFAULT_MAX_PROJECTS` (100), de plataforma.
+- Frontend: zona por defecto = la de la empresa (`/settings/org-defaults`) y, mientras carga, la del
+  navegador (antes 'Europe/Madrid'); los selectores ofrecen todas las zonas IANA
+  (`constants/timezones.ts`, antes tres listas cortas distintas). El idioma por defecto del agente de
+  voz es el de la empresa. La cabecera muestra el `app_name` de la marca de la empresa
+  (`useAppName`); el resto de textos de marca usan `constants/brand.ts`. `targetNamespace` BPMN:
+  `http://contecflow/bpmn` en los dos lados (el frontend escribía `http://contecflow.io/bpmn`; no
+  había diagramas guardados en la base local para comprobar más; la etiqueta no afecta a la lectura).
 - **SSO:** el alta solo admite la organización de quien la crea (antes, cualquiera: toma de cuentas en otra empresa). El superadmin nunca entra por SSO. Si la cuenta ya está ligada a un `sub`, otro `sub` con el mismo email se rechaza (patrón nOAuth).
 - **Correlación de alertas:** el job programado recorre empresa a empresa; nunca agrupa tickets de varias.
 - **Webhooks salientes:** solo los de la organización del evento; un evento sin organización no se entrega.
@@ -549,10 +580,23 @@ ordenadas de la más difícil de olvidar a la más discrecional:
 
 **1. Aislamiento entre tenants** — `app/db/session.py::TenantSession`.
 Filtra toda consulta ORM por organización, en `query()` (SA 1.x) y en `execute()`
-(SA 2.0). Cubre los 414 modelos con organización (403 por `organization_id`, 11 por `org_id`) de 415. Es **fail-closed**: si un modelo no se puede
+(SA 2.0). Cubre los 416 modelos con organización (405 por `organization_id`, 11 por `org_id`) de 417 (medido en la revisión multitenant 2026-11b; ya no queda ninguno que dependa solo de `project_id`/`user_id`). Es **fail-closed**: si un modelo no se puede
 aislar, la consulta lanza `TenantIsolationError` en lugar de ejecutarse sin
 filtro. La única exención (`Organization`, que ES el tenant) se declara en el
 propio modelo con `_tenant_exempt = True` y sus rutas llevan guarda manual.
+La tercera capa (`do_orm_execute`, la que cubre cargas que se cuelan por las otras)
+también filtra los 11 de `org_id` desde 2026-11b; antes solo los de `organization_id`.
+
+Fuera de la petición (worker, webhooks, bots) no hay filtro hasta que alguien
+publica la empresa: `en_cada_organizacion` (solo empresas **activas**, también
+cuando se le pasa la lista), `como_organizacion` por fila, o
+`publicar_contexto_de_tenant` por sujeto. Revisión 2026-11b
+(`tests/test_multitenant_revision_2026_11b.py`): la empresa de un evento saliente
+es la explícita, la de la sesión o la del proyecto, nunca la de ficha de un
+superadmin; claves de API, tokens de aplicación y el agente en segundo plano
+trabajan en la empresa en la que se crearon (no en la de ficha del dueño); lo que
+se hace «entrando como» queda auditado con `impersonated_by`; webhooks entrantes
+(CAB, Jira, monitorización) rechazan empresas desactivadas y sellan su empresa.
 
 **2. RBAC** — `app/core/deps.py`. `require_admin`, `require_any_manager`,
 `require_superadmin`… en la firma del endpoint, o comprobaciones de rol dentro
@@ -572,8 +616,13 @@ capas.
 Módulo y acción se **derivan de la ruta** (`app/core/grc_catalog.py`): el módulo
 del primer segmento del path, la acción del método HTTP matizado por el path para
 distinguir `aprobar` y `exportar`. No hay lista que mantener — un dominio nuevo
-entra en la matriz el día que se añade su primera ruta. Cobertura: los 109
-dominios no exentos de la API.
+entra en la matriz el día que se añade su primera ruta. Cobertura: todos los
+dominios no exentos de la API (111 medidos en la revisión GRC 2026-11b). Las
+exenciones son propias de GRC (`GRC_EXEMPT_PREFIXES`: login, portal de cliente,
+SCIM, WebSocket, las subrutas públicas de webhooks y formularios, catálogos de
+UI) y no la lista de ABAC, que exime también rutas con usuario. Las casillas
+globales de un módulo cuya ruta se borra se retiran solas, y la pantalla pinta
+los módulos que da la API.
 
 **4. ABAC** — `app/core/abac_dependency.py` y `abac_enforce.py`.
 Política de grano fino que un cliente activa si quiere. Es **fail-open**: sin
@@ -614,14 +663,19 @@ Puntos de entrada:
 - `app/api/v1/endpoints/grc.py` — API de GRC y SoD
 
 ### Segregación de Funciones (SoD)
-La regla nuclear se aplica en `app/services/approval_engine/requests.py`: el
-solicitante no puede aprobar su propia solicitud (403). Está escrita en el código,
-no sale de la tabla `SodRule`.
+La regla nuclear se aplica en la bandeja (`app/services/approval_engine/requests.py`)
+y en las rutas de aprobación directa (`approval_engine._base.exigir_que_no_sea_suyo`:
+ausencias, imputaciones, documentos, hitos, traspasos de presupuesto, cambios):
+el solicitante no puede aprobar su propia solicitud (403). Está escrita en el
+código, no sale de la tabla `SodRule`.
 
-Limitación conocida: las reglas SoD que crea un administrador sólo se consultan
-con el patrón `crear`/`aprobar` sobre la misma entidad, y sólo para registrar la
-violación. Una regla entre módulos distintos ("no puede crear facturas y aprobar
-gastos") todavía no se evalúa. Ver `tests/test_grc_coverage.py`.
+La infracción se registra con un único registrador
+(`grc_sod.record_self_approval_violation_for_request`), en la empresa de la
+regla, traduciendo la entidad a su módulo GRC (`expense` → `expenses`,
+`leave`/`absence` → `absences`). Limitación conocida: sólo se consultan reglas
+con el mismo módulo a los dos lados y `aprobar` en el segundo; una regla entre
+módulos distintos ("no puede crear facturas y aprobar gastos") sólo la ve
+`/grc/sod-check`. Ver `tests/test_grc_coverage.py`.
 
 ### Rotación de claves
 - `scripts/rotate_keys.sh`

@@ -21,6 +21,7 @@ import { useAppLang } from '../i18n/AppLangContext'
 import StatusBadge from '../components/ui/StatusBadge'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { SELECTOR_LIST_SIZE } from '../constants/pagination'
 
 type CountryRow = { [k: string]: unknown; id?: string; country_code?: string; country_name?: string; currency?: string; employer_cost_pct?: number; productive_hours_year?: number; is_default?: boolean; notes?: string }
 type SummaryRow = { [k: string]: unknown; user_id: string; full_name?: string; department?: string; cost_per_hour?: number; source?: string }
@@ -51,7 +52,7 @@ export default function UserCostsPage() {
 
   const { data: users = [] } = useQuery<UserRow[]>({
     queryKey: ['users-list-for-costs'],
-    queryFn: () => api.get('/users', { params: { page_size: 200 } }).then(unwrapList).catch(() => []) as Promise<UserRow[]>,
+    queryFn: () => api.get('/users', { params: { page_size: SELECTOR_LIST_SIZE } }).then(unwrapList).catch(() => []) as Promise<UserRow[]>,
   })
 
   const seedCountriesMut = useMutation({

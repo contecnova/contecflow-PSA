@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.core.timeutil import utcnow
 from typing import Any, Dict
 
@@ -110,7 +111,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
         if not client_tickets:
             client_tickets = recent_tickets[:50]
         resolved = [t for t in client_tickets
-                    if str(getattr(t.status, "value", t.status)) in ("resolved", "closed")]
+                    if str(getattr(t.status, "value", t.status)) in ESTADOS_DE_TICKET_RESUELTOS]
         sla_ok = [t for t in resolved
                   if hasattr(t, "sla_breached") and not t.sla_breached]
         ticket_score = round((len(sla_ok) / max(len(resolved), 1)) * 100, 1) if resolved else s.HEALTH_DEFAULT_NO_DATA

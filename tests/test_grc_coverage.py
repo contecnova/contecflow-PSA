@@ -3,7 +3,7 @@
 La versión anterior de este fichero constataba que la matriz de permisos NO se
 aplicaba y que cubría 15 de 126 dominios. Las dos cosas están resueltas: la
 matriz se aplica (ver tests/test_grc_enforcement.py, que lo prueba por HTTP) y la
-cobertura se deriva de las rutas, así que alcanza los 109 dominios no exentos.
+cobertura se deriva de las rutas, así que alcanza todos los dominios no exentos.
 
 Lo que queda aquí es la parte de SoD que sigue siendo parcial. Está escrito para
 que la limitación sea visible y para que el día que se cierre, el test avise en
@@ -42,23 +42,24 @@ def test_el_motor_de_aprobaciones_bloquea_la_autoaprobacion():
 def test_las_reglas_sod_entre_modulos_distintos_no_se_evaluan():
     """Limitación conocida, no un contrato a preservar.
 
-    La consulta de SodRule fija `module_a == module_b == entity_type` y las
-    acciones a 'crear'/'aprobar', así que una regla como "no puede crear facturas
-    y aprobar gastos" (módulos distintos) nunca se evalúa. Además sólo se
-    consulta DESPUÉS del bloqueo de auto-aprobación, para registrar la violación.
+    El registrador único (`grc_sod.regla_de_autoaprobacion`, revisión GRC
+    2026-11b) exige `module_b == module_a` (la entidad o su módulo GRC) y
+    `aprobar` en el segundo lado, así que una regla como "no puede crear
+    facturas y aprobar gastos" (módulos distintos) nunca se evalúa en tiempo de
+    ejecución; sólo la ve la comprobación estática `/grc/sod-check`.
 
     Si este test falla, alguien generalizó la evaluación: buena noticia. Actualiza
     el fichero y la cabecera de app/api/v1/endpoints/grc.py.
     """
-    f = REPO / "app" / "services" / "approval_engine" / "_base.py"
+    f = REPO / "app" / "services" / "grc_sod.py"
     txt = f.read_text(encoding="utf-8")
-    assert 'SodRule.action_a == "crear"' in txt and 'SodRule.action_b == "aprobar"' in txt, (
+    assert "SodRule.module_b == SodRule.module_a" in txt and 'SodRule.action_b == "aprobar"' in txt, (
         "cambió la consulta de SodRule; comprueba si ahora se evalúan reglas "
         "personalizadas entre módulos y actualiza este fichero."
     )
-    assert "SodRule.module_a == req.entity_type" in txt, (
-        "la consulta ya no fija module_a a la propia entidad: puede que ahora sí "
-        "se evalúen reglas entre módulos distintos."
+    base = (REPO / "app" / "services" / "approval_engine" / "_base.py").read_text(encoding="utf-8")
+    assert base.count("record_self_approval_violation_for_request(") >= 2, (
+        "la bandeja y las rutas de aprobación directa deben registrar con el mismo registrador"
     )
 
 

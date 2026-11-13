@@ -3,6 +3,7 @@ Semantic engine service — business logic extracted from semantic_engine.py rou
 """
 from sqlalchemy.orm import Session
 import json
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.project import ProjectMember
 from app.models.semantic_engine import SemConfig
 from app.models.semantic_engine import SemEmbeddingCache
@@ -151,7 +152,7 @@ def auto_generate_profiles(db: Session, *, organization_id=None, is_superadmin: 
 
         resolved = db.query(Ticket).filter(
             Ticket.assigned_to_user_id == u.id,
-            Ticket.status.in_(["resolved", "closed"])
+            Ticket.status.in_(ESTADOS_DE_TICKET_RESUELTOS)
         ).order_by(Ticket.resolved_at.desc()).limit(20).all()
         for t in resolved[:5]:
             parts.append(f"Ticket resuelto: {t.title}")

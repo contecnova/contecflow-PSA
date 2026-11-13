@@ -11,6 +11,7 @@ import { ListTodo } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
 import { alpha } from '../constants/theme'
+import { LARGE_PAGE_SIZE } from '../constants/pagination'
 
 interface ProjectItem {
   id: string | number
@@ -76,7 +77,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
     setEstimating(true)
     try {
       // Obtener TODAS las tareas del backlog (con y sin story_points)
-      const tasksRes = await tasksApi.list({ project_id: projectId, status: 'todo', page_size: 200 })
+      const tasksRes = await tasksApi.list({ project_id: projectId, status: 'todo', page_size: LARGE_PAGE_SIZE })
       const tasks = (tasksRes.data ?? []) as unknown as Array<{ id: string | number; title: string; description?: string; story_points?: number }>
       if (!tasks.length) { toast.info(t('sprint_planning.no_todo_tasks')); return }
       const res = await semanticApi.estimateSprint({

@@ -18,6 +18,7 @@ import hmac
 import logging
 import re
 from datetime import datetime
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.core.timeutil import utcnow
 from typing import Optional
 
@@ -147,7 +148,7 @@ def handle_github_pr(db: Session, payload: dict) -> None:
     effective_task_id = task_id or (existing.task_id if existing else None)
     if action == "closed" and pr_data.get("merged") and effective_task_id:
         linked_task = db.query(Task).filter(Task.id == effective_task_id).first()
-        if linked_task and linked_task.status not in ("done", "closed", "cancelled"):
+        if linked_task and linked_task.status not in ESTADOS_DE_TAREA_TERMINADOS:
             # Revisión 2026-11: por las reglas de transición, como desde la pantalla (antes la pasaba a
             # done desde cualquier estado, también backlog o bloqueada, y sin fecha de cierre).
             from app.models.task import TaskStatus

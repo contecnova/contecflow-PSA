@@ -15,6 +15,7 @@ import { ClipboardCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { alpha } from '../constants/theme'
+import { UI_FEEDBACK_MS } from '../constants/timings'
 
 type UATStatus = 'pending' | 'passed' | 'failed' | 'blocked' | 'skipped'
 type UATPriority = 'critical' | 'high' | 'medium' | 'low'
@@ -193,7 +194,7 @@ function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => 
   const handleCopy = () => {
     navigator.clipboard.writeText(report?.text || '').then(() => {
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setTimeout(() => setCopied(false), UI_FEEDBACK_MS)
     })
   }
   return (

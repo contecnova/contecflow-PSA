@@ -22,6 +22,7 @@ import {
   ticketsApi, problemsApi,
   subcontractorsApi,
 } from '../../services/api'
+import { STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS } from '../../constants/timings'
 
 const SELECT_STYLE: CSSProperties = {
   width: '100%',
@@ -120,7 +121,7 @@ export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar 
       if (Array.isArray(d)) return d
       return d?.items ?? []
     }),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -160,7 +161,7 @@ export function UserSelect({ value = '', onChange, placeholder = 'Seleccionar us
   const { data: rawUsers = [], isLoading } = useQuery<UserEntity[]>({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then((r: { data: UserEntity[] }) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 
   let users = filterRole
@@ -208,7 +209,7 @@ export function ProjectSelect({ value = '', onChange, placeholder = 'Seleccionar
       if (Array.isArray(d)) return d
       return d?.items ?? []
     }),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 
   const projects = filterStatus
@@ -256,7 +257,7 @@ export function SprintSelect({ value = '', onChange, projectId, placeholder = 'S
       return d?.items ?? []
     }),
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -285,7 +286,7 @@ export function EpicSelect({ value = '', onChange, projectId, placeholder = 'Sel
     queryKey: ['epics', projectId],
     queryFn: () => epicsApi.list(projectId).then((r: { data: EpicEntity[] }) => r.data),
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -316,7 +317,7 @@ export function ContractSelect({ value = '', onChange, placeholder = 'Selecciona
       if (Array.isArray(d)) return d
       return d?.items ?? []
     }),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -349,7 +350,7 @@ export function MilestoneSelect({ value = '', onChange, projectId, placeholder =
       return d?.items ?? []
     }),
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -382,7 +383,7 @@ export function TaskSelect({ value = '', onChange, projectId, placeholder = 'Sel
       if (Array.isArray(d)) return d
       return d?.items ?? []
     }),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -409,7 +410,7 @@ export function AssetSelect({ value = '', onChange, placeholder = 'Seleccionar a
   const { data: assets = [], isLoading } = useQuery<AssetEntity[]>({
     queryKey: ['alm-assets'],
     queryFn: () => assetsApi.list(undefined).then((r: { data: AssetEntity[] }) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -436,7 +437,7 @@ export function LicenseSelect({ value = '', onChange, placeholder = 'Seleccionar
   const { data: licenses = [], isLoading } = useQuery<LicenseEntity[]>({
     queryKey: ['alm-licenses'],
     queryFn: () => licensesApi.list(undefined).then((r: { data: LicenseEntity[] }) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -463,7 +464,7 @@ export function VendorSelect({ value = '', onChange, placeholder = 'Seleccionar 
   const { data: vendors = [], isLoading } = useQuery<VendorEntity[]>({
     queryKey: ['alm-vendors'],
     queryFn: () => vendorsApi.list(undefined).then((r: { data: VendorEntity[] }) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -490,7 +491,7 @@ export function TicketSelect({ value = '', onChange, placeholder = 'Seleccionar 
   const { data: tickets = [], isLoading } = useQuery<TicketEntity[]>({
     queryKey: ['sd-tickets', {}],
     queryFn: () => ticketsApi.list(undefined).then((r: { data: TicketEntity[] }) => r.data),
-    staleTime: 60 * 1000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -517,7 +518,7 @@ export function ProblemSelect({ value = '', onChange, placeholder = 'Seleccionar
   const { data: problems = [], isLoading } = useQuery<ProblemEntity[]>({
     queryKey: ['sd-problems'],
     queryFn: () => problemsApi.list(undefined).then((r: { data: ProblemEntity[] }) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value
@@ -544,7 +545,7 @@ export function SubcontractorSelect({ value = '', onChange, placeholder = 'Selec
   const { data: subs = [], isLoading } = useQuery<SubcontractorEntity[]>({
     queryKey: ['subcontractors'],
     queryFn: () => subcontractorsApi.list(undefined).then((r: { data: SubcontractorEntity[] }) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value

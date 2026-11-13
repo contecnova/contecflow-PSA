@@ -145,6 +145,33 @@ class SystemEvent:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _organizacion_del_evento(db: Any, actor: Any, org_id: Optional[str],
+                             project_id: Optional[str]) -> Optional[str]:
+    """La empresa del evento: la explicita, la de la sesion, la del proyecto.
+
+    Revision multitenant 2026-11b. Antes era `org_id or actor.organization_id`:
+    un superadmin (sesion sin empresa) que tocaba un proyecto de la empresa X
+    disparaba los webhooks de SU empresa de ficha con los datos de X. La
+    empresa de ficha del actor solo vale si no es superadmin.
+    """
+    if org_id:
+        return org_id
+    info = getattr(db, "info", None) or {}
+    if info.get("organization_id"):
+        return info["organization_id"]
+    if project_id and hasattr(db, "get"):
+        try:
+            from app.models.project import Project
+            proyecto = db.get(Project, project_id)
+            if proyecto is not None and getattr(proyecto, "organization_id", None):
+                return proyecto.organization_id
+        except Exception:
+            logger.debug("emit_event: proyecto %s sin empresa resoluble", project_id, exc_info=True)
+    if actor is not None and not getattr(actor, "is_superadmin", False):
+        return getattr(actor, "organization_id", None)
+    return None
+
+
 def emit_event(
     db: Any,
     event_type: str,
@@ -167,7 +194,8 @@ def emit_event(
         event_type:    Event type string (use EventType constants).
         payload:       Domain-specific event data.
         actor:         User that triggered the event (optional).
-        org_id:        Override organization scope (defaults to actor.organization_id).
+        org_id:        Override organization scope (defaults: session org, project org,
+                       actor org unless superadmin — see `_organizacion_del_evento`).
         resource_type: Type of the affected resource (e.g. "portfolio").
         resource_id:   ID of the affected resource.
         project_id:    Project scope for webhook filtering.
@@ -178,7 +206,7 @@ def emit_event(
             payload=payload,
             actor_id=getattr(actor, "id", None),
             actor_name=getattr(actor, "full_name", None),
-            org_id=org_id or getattr(actor, "organization_id", None),
+            org_id=_organizacion_del_evento(db, actor, org_id, project_id),
             resource_type=resource_type,
             resource_id=resource_id,
             project_id=project_id,

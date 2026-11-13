@@ -11,6 +11,7 @@ import { CLIENT_API, S as PORTAL_STYLES } from '../../pages/portal-client/portal
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useDialogo } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
+import { POLL_FREQUENT_MS, WS_HEARTBEAT_MS } from '../../constants/timings'
 
 // Formas del backend: app/services/portal_conversation_service (serializacion.py, politicas.py).
 
@@ -458,7 +459,7 @@ export function GovernedConversationInbox({
   const { data: conversationsData, isLoading: loadingConversations } = useQuery<Conversation[]>({
     queryKey: listQueryKey,
     queryFn: () => apiClient.get<Conversation[]>(listPath, { params: filters }).then((response) => response.data).catch((): Conversation[] => []),
-    refetchInterval: enableRealtime ? false : 30000,
+    refetchInterval: enableRealtime ? false : POLL_FREQUENT_MS,
   })
   const conversations: Conversation[] = conversationsData || EMPTY_LIST
 
@@ -592,7 +593,7 @@ export function GovernedConversationInbox({
           if (socket && socket.readyState === window.WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'ping' }))
           }
-        }, 25000)
+        }, WS_HEARTBEAT_MS)
       } catch {
         // Polling remains as fallback.
         if (!closed && attempt < MAX_ATTEMPTS) {

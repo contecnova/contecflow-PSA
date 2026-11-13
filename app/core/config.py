@@ -10,6 +10,7 @@ from app.core.config_groups import (
     ServiceDeskSettingsMixin,
     AutomationsSettingsMixin,
     EscalasSettingsMixin,
+    EmpresaSettingsMixin,
     INTERRUPTORES_DE_PROCESO,
     ProcesoSettingsMixin,
 )
@@ -24,6 +25,7 @@ class Settings(
     AutomationsSettingsMixin,
     ProcesoSettingsMixin,
     EscalasSettingsMixin,
+    EmpresaSettingsMixin,
     BaseSettings,
 ):
     """

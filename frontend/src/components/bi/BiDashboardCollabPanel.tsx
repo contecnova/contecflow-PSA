@@ -25,6 +25,7 @@ import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
+import { POLL_LIVE_MS } from '../../constants/timings'
 
 type ApiError = { response?: { data?: { detail?: string } } }
 
@@ -171,7 +172,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     queryKey: ['bi-collab-notifications', dashboardKey],
     queryFn: () => biCollaborationApi.listNotifications({ dashboard_key: dashboardKey, include_read: false }).then(r => r.data),
     enabled: tab === 'notifications',
-    refetchInterval: 15_000,
+    refetchInterval: POLL_LIVE_MS,
   })
 
   const addCommentMutation = useMutation<unknown, ApiError, { dashboard_key: string; widget_id: string; message: string }>({

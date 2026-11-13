@@ -18,6 +18,8 @@ import GanttChart from '../components/GanttChart'
 import { useAuth } from '../context/AuthContext'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { Sparkles } from 'lucide-react'
+import { STALE_DEFAULT_MS, STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
+import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
 
 interface ProjectItem {
   id: string | number
@@ -77,11 +79,11 @@ export default function GanttPage(): JSX.Element {
   const { data: rawTasks = [], isLoading } = useQuery<TaskItem[]>({
     queryKey: ['gantt-tasks', projectId],
     queryFn:  () => {
-      const params = { page_size: 300, ...(projectId ? { project_id: projectId } : {}) }
+      const params = { page_size: SCHEDULE_TASKS_LIST_SIZE, ...(projectId ? { project_id: projectId } : {}) }
       return tasksApi.list(params)
           .then(r => Array.isArray(r.data) ? (r.data as unknown as TaskItem[]) : (((r.data as unknown as { items?: TaskItem[] })?.items || []) as TaskItem[]))
     },
-    staleTime: 15000,
+    staleTime: STALE_NEAR_LIVE_MS,
   })
 
         const { data: dependencies = [] } = useQuery<DependencyItem[]>({
@@ -92,7 +94,7 @@ export default function GanttPage(): JSX.Element {
             .then(r => (Array.isArray(r.data) ? (r.data as DependencyItem[]) : []))
             .catch(() => [])
         : Promise.resolve([]),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
 
   // Item #47: sugerencias IA (overdue/stalled) por proyecto. Solo cargamos
@@ -107,7 +109,7 @@ export default function GanttPage(): JSX.Element {
             .catch(() => ({ suggestions: [] }))
         : Promise.resolve({ suggestions: [] }),
     enabled: !!projectId,
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   // Map task_id → suggestion para lookup O(1) en GanttChart.

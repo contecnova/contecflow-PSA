@@ -52,14 +52,21 @@ except ImportError:
 # documento que se manda al cliente; y `SUCCESS`, `WARNING` y `DANGER` son
 # estado, no marca — un aviso pintado con el color de marca deja de leerse como
 # aviso.
-ACCENT    = "#4f8ef7"
-SUCCESS   = "#22c55e"
-WARNING   = "#f59e0b"
-DANGER    = "#ef4444"
-TEXT_MAIN = "#1e293b"
-TEXT_GREY = "#64748b"
-ROW_ALT   = "#f8fafc"
-ROW_EVEN  = "#ffffff"
+#
+# Barrido 2026-11: los valores viven ahora en `_pdf_marca` (PALETA_DE_INFORME y
+# los colores de estado), con los mismos hex; aqui solo quedan los nombres.
+from app.services._pdf_marca import (  # noqa: E402
+    COLOR_DE_AVISO, COLOR_DE_EXITO, COLOR_DE_PAPEL, COLOR_DE_PELIGRO, PALETA_DE_INFORME,
+)
+
+ACCENT    = PALETA_DE_INFORME.acento
+SUCCESS   = COLOR_DE_EXITO
+WARNING   = COLOR_DE_AVISO
+DANGER    = COLOR_DE_PELIGRO
+TEXT_MAIN = PALETA_DE_INFORME.texto_principal
+TEXT_GREY = PALETA_DE_INFORME.texto_secundario
+ROW_ALT   = PALETA_DE_INFORME.fila_alterna
+ROW_EVEN  = COLOR_DE_PAPEL
 
 
 def _rl(hex_color: str):

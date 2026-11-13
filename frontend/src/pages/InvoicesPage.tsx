@@ -18,6 +18,8 @@ import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { STALE_DEFAULT_MS } from '../constants/timings'
+import { ACCOUNTING_PUSH_BATCH_SIZE, SELECTOR_LIST_SIZE } from '../constants/pagination'
 interface InvoiceLine {
   description: string
   quantity: number
@@ -110,11 +112,11 @@ function InvoicesTab() {
   const { data: syncStatusRaw } = useQuery({
     queryKey: ['accounting-sync-status'],
     queryFn: () => accountingApi.syncStatus().then(r => r.data).catch(() => null),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const syncStatus = (syncStatusRaw ?? null) as SyncStatus | null
   const { mutate: syncBulk, isPending: syncing } = useMutation({
-    mutationFn: () => accountingApi.pushBulk({ provider: syncProvider, limit: 100 }),
+    mutationFn: () => accountingApi.pushBulk({ provider: syncProvider, limit: ACCOUNTING_PUSH_BATCH_SIZE }),
     onSuccess: (res: { data?: { synced?: number } }) => toast.success(t('invoices.sync_success', { count: res.data?.synced || 0, provider: syncProvider })),
     onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('invoices.sync_error')),
   })
@@ -134,7 +136,7 @@ function InvoicesTab() {
   const summary = (summaryRaw ?? null) as InvoiceSummary | null
   const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(unwrapList) })
   const projects = projectsRaw as ProjectItem[]
-  const { data: clientsRaw = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: 200 }).then(unwrapList) })
+  const { data: clientsRaw = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: SELECTOR_LIST_SIZE }).then(unwrapList) })
   const clients = clientsRaw as ClientItem[]
 
   const { mutate: create, isPending } = useMutation({

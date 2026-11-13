@@ -32,6 +32,7 @@ import { useToast } from '../../context/ToastContext'
 import { Button, Spinner, Page, StatusBadge, Modal, EmptyState } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
+import { ANIMATION_NORMAL_MS, FIT_VIEW_DELAY_MS, LIVE_VALIDATION_DEBOUNCE_MS, POLL_RUN_DETAIL_MS, POLL_RUN_LIST_MS } from '../../constants/timings'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
 const NODE_VISUAL: Record<string, { color: string; icon: string; label: string }> = {
@@ -547,7 +548,7 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
     }))
     setNodes(n)
     setEdges(e)
-    setTimeout(() => fitView({ padding: 0.25, duration: 200 }), 100)
+    setTimeout(() => fitView({ padding: 0.25, duration: ANIMATION_NORMAL_MS }), FIT_VIEW_DELAY_MS)
   }, [head, setNodes, setEdges, fitView])
 
   // Validación en vivo (debounced)
@@ -558,7 +559,7 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
         const r = await sdWorkflowDesignerApi.validate(graph)
         setValidation(r.data)
       } catch { /* noop */ }
-    }, 600)
+    }, LIVE_VALIDATION_DEBOUNCE_MS)
     return () => clearTimeout(t)
   }, [nodes, edges])
 
@@ -741,13 +742,13 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ['sd-wf-runs', blueprintId],
     queryFn: () => sdWorkflowDesignerApi.runs({ blueprint_id: blueprintId }).then((r): EjecucionFlujo[] => r.data),
-    refetchInterval: 8_000,
+    refetchInterval: POLL_RUN_LIST_MS,
   })
   const { data: runDetail } = useQuery({
     queryKey: ['sd-wf-run', activeRunId],
     queryFn: () => sdWorkflowDesignerApi.run(activeRunId).then((r): DetalleEjecucion => r.data),
     enabled: !!activeRunId,
-    refetchInterval: 4_000,
+    refetchInterval: POLL_RUN_DETAIL_MS,
   })
 
   const resume = useMutation({

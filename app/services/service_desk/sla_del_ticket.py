@@ -6,6 +6,7 @@ Aqui no dependen de ninguno de los dos; `ticket_update_service` los reexporta.
 """
 from datetime import timezone
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import SLAPolicy
 from app.services.sla_service import calculate_sla_due as _calculate_sla_due, norm_enum as _norm_enum
 
@@ -49,7 +50,7 @@ def _recalcular_vencimientos(db, ticket) -> None:
     hacia la matriz de urgencia e impacto), y el ticket seguia venciendo con
     los plazos de la prioridad anterior.
     """
-    if ticket.status in ("resolved", "closed", "cancelled"):
+    if ticket.status in ESTADOS_DE_TICKET_CERRADOS:
         return
     sla_policy = (
         db.query(SLAPolicy).filter(SLAPolicy.id == ticket.sla_policy_id).first()

@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Optional
 
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.services.bi_smart_alerts.metrics._contexto import _Ctx, logger
 
 
@@ -212,7 +213,7 @@ def _serie_tasks_overdue(ctx: _Ctx) -> Optional[list[float]]:
             ).all()
             bkt: dict[str,float] = defaultdict(float)
             for dd, st in rows:
-                if dd and str(getattr(st,"value",st)) not in ("done","cancelled"):
+                if dd and str(getattr(st,"value",st)) not in ESTADOS_DE_TAREA_TERMINADOS:
                     bkt[f"{dd.year:04d}-{dd.month:02d}"] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:

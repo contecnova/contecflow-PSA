@@ -61,8 +61,9 @@ class OrgCreate(BaseModel):
     name: str
     slug: str
     plan: str = "starter"
-    max_users: int = 25
-    max_projects: int = 100
+    # Sin valor: ajustes de plataforma ORG_DEFAULT_MAX_USERS / ORG_DEFAULT_MAX_PROJECTS (25 / 100).
+    max_users: Optional[int] = None
+    max_projects: Optional[int] = None
     admin_email: Optional[str] = None
     admin_name: Optional[str] = None
     domain: Optional[str] = None
@@ -99,7 +100,13 @@ def create_organization(
     current_user: User = Depends(require_superadmin),
 ):
     try:
-        return APIResponse.ok(data=_orgs.create_organization(payload.model_dump(), current_user, db))
+        from app.services.settings_service import get_runtime_int
+        datos = payload.model_dump()
+        if datos.get("max_users") is None:
+            datos["max_users"] = get_runtime_int(db, "ORG_DEFAULT_MAX_USERS")
+        if datos.get("max_projects") is None:
+            datos["max_projects"] = get_runtime_int(db, "ORG_DEFAULT_MAX_PROJECTS")
+        return APIResponse.ok(data=_orgs.create_organization(datos, current_user, db))
     except ValueError as e:
         raise HTTPException(400, str(e))
 

@@ -1,3 +1,5 @@
+import pytest
+
 from tests.conftest import auth
 
 from app.models.settings import AppSetting
@@ -100,7 +102,10 @@ def test_health_endpoint_prioritizes_insufficient_data_status(client, admin_toke
     assert data["overall_status"] == "insufficient_data"
 
 
-def test_trigger_retrain_endpoint_executes_cycle(client, admin_token, db, monkeypatch):
+def test_trigger_retrain_endpoint_executes_cycle(client, superadmin_token, db, monkeypatch):
+    # Revision multitenant 2026-11b: el ciclo de TODAS las empresas solo lo lanza
+    # un superadmin; el admin de una empresa evalua la suya (test de abajo).
+    admin_token = superadmin_token
     import app.api.v1.endpoints.predictive_observability as ep_module
 
     calls = {"n": 0}
@@ -126,6 +131,19 @@ def test_trigger_retrain_endpoint_executes_cycle(client, admin_token, db, monkey
     assert data["organizations"] == 1
     assert data["itsm_retrained"] == 1
     assert calls["n"] == 1
+
+
+def test_el_admin_de_una_empresa_solo_reevalua_la_suya(client, admin_token, db, monkeypatch):
+    import app.api.v1.endpoints.predictive_observability as ep_module
+    import app.services.predictive_retraining_service as svc
+    vistas = []
+    monkeypatch.setattr(ep_module, "run_periodic_evaluation_and_retraining",
+                        lambda db_: pytest.fail("el ciclo global no es del admin de una empresa"))
+    monkeypatch.setattr(svc, "evaluar_y_reentrenar_organizacion",
+                        lambda db_, org: vistas.append(org) or {"organization_id": org})
+    res = client.post("/api/v1/bi/predictive/observability/trigger-retrain", headers=auth(admin_token))
+    assert res.status_code == 200, res.text
+    assert vistas == ["1"]
 
 
 def test_non_admin_is_rejected(client, pm_token, db):

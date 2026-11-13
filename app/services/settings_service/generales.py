@@ -61,7 +61,7 @@ def es_ajuste_general(key: str) -> bool:
     return bool(key) and "." not in key and "::" not in key and not es_sensible(key)
 
 
-def ajustes_generales_para(db: Session, es_admin: bool) -> list[dict]:
+def ajustes_generales_para(db: Session, es_admin: bool, es_superadmin: bool = False) -> list[dict]:
     """`GET /settings/general` sin fugas.
 
     Auditoria 2026-11: lo usa todo usuario con sesion (el tiempo de
@@ -69,11 +69,20 @@ def ajustes_generales_para(db: Session, es_admin: bool) -> list[dict]:
     tokens y secretos de DocuSign/Adobe, el anillo de claves JWT y el estado
     interno de otros servicios. Ahora quien no es administrador ve solo los
     ajustes generales, y nadie ve el valor de una clave sensible.
+
+    Revision multitenant 2026-11b: el estado interno GLOBAL (fila sin empresa,
+    clave con punto o `::`) es de la plataforma y a veces lleva datos de todas
+    las empresas (`predictive.retraining.last_eval` con los ids y metricas de
+    cada una; `bi.bookmarks.share_tokens.<empresa>` con el id de cada una en la
+    clave). El administrador de una empresa ve el de SU empresa; el global,
+    solo un superadmin.
     """
     filas = get_general_settings(db)
     salida = []
     for f in filas:
         if not es_admin and not es_ajuste_general(f.key):
+            continue
+        if not es_superadmin and f.organization_id is None and not es_ajuste_general(f.key):
             continue
         valor = f.value
         if es_sensible(f.key) and valor:

@@ -14,6 +14,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { useTabListKeys } from '../../components/ui/Tabs'
 import { etiquetaSd } from './sdUtils'
 import DateInput from '../../components/ui/DateInput'
+import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
 
 type ChangeId = string | number
 type ChangeRisk = 'low' | 'medium' | 'high' | 'critical' | string
@@ -219,7 +220,7 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
   })
   const ts = useAppT()
   const { data: cis = [] } = useQuery<{ id: string; name: string; code?: string }[]>({
-    queryKey: ['sd-cmdb-items'], queryFn: () => cmdbApi.sdList({ page_size: 200 }).then(r => r.data as { id: string; name: string; code?: string }[]),
+    queryKey: ['sd-cmdb-items'], queryFn: () => cmdbApi.sdList({ page_size: SELECTOR_LIST_SIZE }).then(r => r.data as { id: string; name: string; code?: string }[]),
   })
   const { data: versiones = [] } = useQuery<{ id: string; name: string; version?: string | null; status: string }[]>({
     queryKey: ['sd-releases'], queryFn: () => sdChangePlanningApi.releases().then(r => r.data as { id: string; name: string; version?: string | null; status: string }[]),

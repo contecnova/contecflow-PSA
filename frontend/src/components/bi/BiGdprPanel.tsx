@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { localeActivo } from '../../utils/helpers'
 import useMediaQuery from '../../hooks/useMediaQuery'
+import { POLL_DEFAULT_MS } from '../../constants/timings'
 
 // TODO type: biGdprApi payloads — needs shared types
 interface DsrItem {
@@ -471,7 +472,7 @@ function StatsTab() {
   const { data, isLoading } = useQuery<GdprStats>({
     queryKey: ['bi-gdpr-stats'],
     queryFn:  () => biGdprApi.getStats().then(r => r.data as GdprStats),
-    refetchInterval: 60_000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 
   const byType = useMemo(() => {

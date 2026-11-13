@@ -6,6 +6,7 @@
  *
  * Auth: separado del backoffice (ClientUser). Ver portalClientContext.jsx.
  */
+import { PRODUCT_NAME } from '../constants/brand'
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -28,6 +29,7 @@ import {
   PortalInput, PortalSelect,
   PortalBadge, PortalBanner,
 } from './portal-client/PortalUI'
+import { STALE_DEFAULT_MS, STALE_SHORT_MS, UI_FEEDBACK_LONG_MS, WS_HEARTBEAT_MS } from '../constants/timings'
 
 
 // ── Tipos locales del dominio del portal ─────────────────────────────────────
@@ -119,39 +121,39 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
   const { data: surveys = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-surveys'],
     queryFn: () => CLIENT_API.get('/portal/surveys').then(r => r.data as PortalListItem[]),
-    enabled: !!client, staleTime: 60000,
+    enabled: !!client, staleTime: STALE_DEFAULT_MS,
   })
 
   // Badges para sidebar y topbar
   const { data: dash } = useQuery<PortalDashboardData>({
     queryKey: ['portal-dashboard'],
     queryFn: () => CLIENT_API.get('/portal/dashboard').then(r => r.data as PortalDashboardData),
-    enabled: !!client, staleTime: 30000, refetchOnWindowFocus: false,
+    enabled: !!client, staleTime: STALE_SHORT_MS, refetchOnWindowFocus: false,
   })
   const { data: tickets = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-sd-tickets'],
     queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data as PortalListItem[]),
-    enabled: !!client, staleTime: 30000,
+    enabled: !!client, staleTime: STALE_SHORT_MS,
   })
   const { data: docs = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-docs-client'],
     queryFn: () => CLIENT_API.get('/portal/documents').then(r => r.data as PortalListItem[]),
-    enabled: !!client, staleTime: 30000,
+    enabled: !!client, staleTime: STALE_SHORT_MS,
   })
   const { data: invoices = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-invoices'],
     queryFn: () => CLIENT_API.get('/portal/invoices').then(r => r.data as PortalListItem[]),
-    enabled: !!client, staleTime: 30000,
+    enabled: !!client, staleTime: STALE_SHORT_MS,
   })
   const { data: frs = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-frs-client'],
     queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data as PortalListItem[]),
-    enabled: !!client, staleTime: 30000,
+    enabled: !!client, staleTime: STALE_SHORT_MS,
   })
   const { data: uats = [] } = useQuery<PortalListItem[]>({
     queryKey: ['portal-uat'],
     queryFn: () => CLIENT_API.get('/portal/uat').then(r => r.data as PortalListItem[]),
-    enabled: !!client, staleTime: 30000,
+    enabled: !!client, staleTime: STALE_SHORT_MS,
   })
 
   const pendingSurveys = surveys.filter(s => s.status === 'pending').length
@@ -214,7 +216,7 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
           if (socket && socket.readyState === window.WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'ping' }))
           }
-        }, 25000)
+        }, WS_HEARTBEAT_MS)
       } catch {
         if (!cancelled && attempt < MAX_ATTEMPTS) {
           const delay = Math.min(1000 * 2 ** (attempt - 1), 30000)
@@ -300,7 +302,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     { code: 'pl', label: 'Polski' },   { code: 'zh', label: '中文' },
   ]
   const THEMES = [
-    { id: 'freight', label: 'Freight Pro', desc: 'Tema principal de Contecflow', icon: '🚚' },
+    { id: 'freight', label: 'Freight Pro', desc: `Tema principal de ${PRODUCT_NAME}`, icon: '🚚' },
     { id: 'dark',    label: 'Oscuro',      desc: 'Estilo oscuro clásico',         icon: '🌙' },
     { id: 'midnight', label: 'Midnight',   desc: 'Oscuro profundo',               icon: '🌌' },
     { id: 'slate',   label: 'Slate',       desc: 'Gris neutro',                   icon: '⬛' },
@@ -328,7 +330,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-me'] })
       setSavedProfile(true)
-      setTimeout(() => setSavedProfile(false), 3000)
+      setTimeout(() => setSavedProfile(false), UI_FEEDBACK_LONG_MS)
     },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -345,7 +347,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       } catch { /* noop */ }
       if (changeLang) changeLang(pendingLang)
       setSavedLanguage(true)
-      setTimeout(() => setSavedLanguage(false), 3000)
+      setTimeout(() => setSavedLanguage(false), UI_FEEDBACK_LONG_MS)
     },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al cambiar idioma')),
   })

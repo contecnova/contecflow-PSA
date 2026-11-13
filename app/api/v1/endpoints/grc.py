@@ -23,24 +23,28 @@ El módulo y la acción de cada permiso se DERIVAN de la ruta (ver
 app/core/grc_catalog.py): el módulo del primer segmento del path, la acción del
 método HTTP matizado por el path para distinguir `aprobar` y `exportar`.
 
-Eso lleva la cobertura de los 15 módulos que enumeraba DEFAULT_MATRIX a los 109
-dominios no exentos que expone la API — antes quedaban fuera áreas
-financieramente sensibles como budgets, revenue, profitability, accounting,
-revenue-recognition, user-costs, rate-cards, imputations, pipeline, gdpr y
-organizations. Y no hay lista que mantener: un dominio nuevo entra en la matriz
-el día que se añade su primera ruta.
+Eso lleva la cobertura de los 15 módulos que enumeraba DEFAULT_MATRIX a todos
+los dominios no exentos que expone la API (111 medidos en la revisión GRC
+2026-11b) — antes quedaban fuera áreas financieramente sensibles como budgets,
+revenue, profitability, accounting, revenue-recognition, user-costs, rate-cards,
+imputations, pipeline, gdpr y organizations. Y no hay lista que mantener: un
+dominio nuevo entra en la matriz el día que se añade su primera ruta, y las
+casillas globales de un dominio cuya ruta se borra se retiran solas
+(`grc_service.ensure_matrix_covers_all_modules`).
 
-DEFAULT_MATRIX sigue siendo la opinión inicial sobre esos 15 módulos; el resto se
+DEFAULT_MATRIX es la opinión inicial sobre una docena de módulos; el resto se
 siembra permisivo para que activar la aplicación no cierre de golpe lo que nunca
 se configuró. `tests/test_grc_enforcement.py` prueba por HTTP que denegar una
 casilla produce un 403 de verdad.
 
 ── Segregación de Funciones (SoD) ────────────────────────────────────────────
-Su regla nuclear se aplica en el motor de aprobaciones: el solicitante no puede
-aprobar su propia solicitud (403). Esa regla está escrita en el código, no sale
-de la tabla SodRule. Las reglas SoD que se crean aquí se consultan con el patrón
-crear/aprobar sobre la misma entidad para registrar la violación; una regla entre
-módulos distintos aún no se evalúa (limitación conocida, ver
+Su regla nuclear se aplica en el motor de aprobaciones y en las rutas de
+aprobación directa (`approval_engine.exigir_que_no_sea_suyo`): el solicitante no
+puede aprobar su propia solicitud (403). Esa regla está escrita en el código, no
+sale de la tabla SodRule. La infracción se registra, en la empresa de la regla,
+con un único registrador (`grc_sod.record_self_approval_violation_for_request`)
+que traduce la entidad a su módulo GRC (`expense` → `expenses`). Una regla
+entre módulos distintos sólo la evalúa `/sod-check` (limitación conocida, ver
 tests/test_grc_coverage.py).
 
 Expone:
@@ -72,10 +76,17 @@ router = APIRouter(tags=["GRC"])
 
 # ── Default permission matrix (used for DB seeding) ──────────────────────────
 #  Format: role -> module -> action -> allowed (bool)
+#
+# Revisión GRC 2026-11b: se quitaron los módulos `service_desk` y `hr`, que no
+# corresponden a ninguna ruta (el Service Desk vive en /sd y las ausencias en
+# /absences): sus casillas se sembraban, se pintaban y no gobernaban nada. No
+# se renombraron a `sd`/`absences` a propósito: sus valores en False habrían
+# pasado a DENEGAR de verdad (p. ej. que un PM pida sus ausencias). Esos
+# módulos nacen permitidos, como el resto; restringirlos es decisión de producto.
 DEFAULT_MATRIX = {
     "admin":     { m: {a: True  for a in ["ver","crear","editar","eliminar","aprobar","exportar"]}
                    for m in ["projects","tasks","timesheets","invoices","expenses","resources",
-                              "service_desk","contracts","clients","reports","settings","approvals","alm","hr","grc"] },
+                              "contracts","clients","reports","settings","approvals","alm","grc"] },
     "pm":        {
         "projects":    {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
         "tasks":       {"ver":True,"crear":True,"editar":True,"eliminar":True, "aprobar":False,"exportar":True},
@@ -83,14 +94,12 @@ DEFAULT_MATRIX = {
         "invoices":    {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":False,"exportar":True},
         "expenses":    {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":True,"exportar":True},
         "resources":   {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
-        "service_desk":{"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
         "contracts":   {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
         "clients":     {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
         "reports":     {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
         "settings":    {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "approvals":   {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":False},
         "alm":         {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":False,"exportar":True},
-        "hr":          {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
         "grc":         {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
     },
     "team_lead": {
@@ -100,14 +109,12 @@ DEFAULT_MATRIX = {
         "invoices":    {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
         "expenses":    {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
         "resources":   {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":False,"exportar":True},
-        "service_desk":{"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
         "contracts":   {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "clients":     {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "reports":     {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
         "settings":    {"ver":False,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "approvals":   {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":False},
         "alm":         {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":False,"exportar":True},
-        "hr":          {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":False,"exportar":True},
         "grc":         {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
     },
     "employee": {
@@ -117,14 +124,12 @@ DEFAULT_MATRIX = {
         "invoices":    {"ver":False,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "expenses":    {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":False,"exportar":False},
         "resources":   {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
-        "service_desk":{"ver":True,"crear":True,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "contracts":   {"ver":False,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "clients":     {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "reports":     {"ver":False,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "settings":    {"ver":False,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "approvals":   {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "alm":         {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
-        "hr":          {"ver":True,"crear":True,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "grc":         {"ver":False,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
     },
     "hr": {
@@ -134,37 +139,29 @@ DEFAULT_MATRIX = {
         "invoices":    {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
         "expenses":    {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
         "resources":   {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
-        "service_desk":{"ver":True,"crear":True,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
         "contracts":   {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "clients":     {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "reports":     {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
         "settings":    {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":False},
         "approvals":   {"ver":True,"crear":True,"editar":False,"eliminar":False,"aprobar":True,"exportar":False},
         "alm":         {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
-        "hr":          {"ver":True,"crear":True,"editar":True,"eliminar":False,"aprobar":True,"exportar":True},
         "grc":         {"ver":True,"crear":False,"editar":False,"eliminar":False,"aprobar":False,"exportar":True},
     },
-    "client": {
-        m: {a: False for a in ["ver","crear","editar","eliminar","aprobar","exportar"]}
-        for m in ["projects","tasks","timesheets","invoices","expenses","resources",
-                  "service_desk","contracts","clients","reports","settings","approvals","alm","hr","grc"]
-    },
+    # Revisión GRC 2026-11b: el rol `subcontractor` (UserRole) no tenía fila y la
+    # pantalla lo pintaba todo en rojo sin que se aplicara nada. Sin opinión
+    # propia: sus casillas nacen permitidas (la matriz sólo resta) y el
+    # administrador puede cerrarlas. El antiguo rol `client` se quitó: el
+    # cliente entra por el portal (`ClientUser`, exento de GRC) y sus filas no
+    # gobernaban nada.
+    "subcontractor": {},
 }
-# Override client ver on specific modules
-DEFAULT_MATRIX["client"]["projects"]["ver"] = True
-DEFAULT_MATRIX["client"]["invoices"]["ver"] = True
-DEFAULT_MATRIX["client"]["service_desk"]["ver"] = True
-DEFAULT_MATRIX["client"]["service_desk"]["crear"] = True
-DEFAULT_MATRIX["client"]["contracts"]["ver"] = True
-DEFAULT_MATRIX["client"]["clients"]["ver"] = True
-DEFAULT_MATRIX["client"]["reports"]["ver"] = True
 
 DEFAULT_SOD_RULES = [
     {"module_a":"invoices","action_a":"crear","module_b":"invoices","action_b":"aprobar","risk":"high","description":"Quien crea facturas no debe aprobarlas (riesgo de fraude)","roles_conflict":["pm"]},
     {"module_a":"expenses","action_a":"crear","module_b":"expenses","action_b":"aprobar","risk":"high","description":"Quien registra gastos no debe aprobarlos","roles_conflict":[]},
     {"module_a":"contracts","action_a":"crear","module_b":"contracts","action_b":"aprobar","risk":"high","description":"Quien crea contratos no debe aprobarlos sin supervisión","roles_conflict":["pm"]},
     {"module_a":"resources","action_a":"editar","module_b":"timesheets","action_b":"aprobar","risk":"medium","description":"Gestión de recursos y aprobación de horas puede generar conflicto","roles_conflict":[]},
-    {"module_a":"hr","action_a":"editar","module_b":"hr","action_b":"aprobar","risk":"high","description":"Gestión de RRHH y aprobación de ausencias/nóminas","roles_conflict":["hr"]},
+    {"module_a":"absences","action_a":"editar","module_b":"absences","action_b":"aprobar","risk":"high","description":"Gestión de RRHH y aprobación de ausencias","roles_conflict":["hr"]},
     {"module_a":"settings","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"Quien configura el sistema no debe aprobar solicitudes críticas sin doble validación","roles_conflict":["admin"]},
     {"module_a":"timesheets","action_a":"crear","module_b":"timesheets","action_b":"aprobar","risk":"high","description":"El empleado no debe aprobar sus propios timesheets","roles_conflict":["pm","team_lead"]},
     {"module_a":"grc","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"Quien modifica la matriz GRC no debe poder auto-aprobar sus propias solicitudes","roles_conflict":["admin"]},
@@ -185,10 +182,9 @@ def _org(user) -> Optional[str]:
 
 def _ensure_matrix_seeded(db: Session, request: Request):
     grc_svc.ensure_matrix_seeded(db, DEFAULT_MATRIX)
-    # Completa la matriz para los 109 módulos que expone la API, derivados del
-    # router (auditoría 2026-08, hallazgo 28). DEFAULT_MATRIX sólo opina sobre 15,
-    # así que sin esto un administrador no tenía ni una casilla que configurar en
-    # budgets, revenue, profitability, accounting, gdpr… Es idempotente.
+    # Completa la matriz para todos los módulos que expone la API, derivados del
+    # router (auditoría 2026-08, hallazgo 28), y retira las casillas globales que
+    # ya no gobiernan nada (revisión GRC 2026-11b). Es idempotente.
     grc_svc.ensure_matrix_covers_all_modules(db, DEFAULT_MATRIX, request.app)
 
 
@@ -250,12 +246,17 @@ def get_permissions(
 ):
     _ensure_matrix_seeded(db, request)
     rows = grc_svc.get_all_permissions(db, _org(current_user))
+    # Revisión GRC 2026-11b: sólo lo que gobierna algo hoy (una excepción de la
+    # empresa sobre un módulo ya borrado no se pinta).
+    vivas = grc_svc.celdas_vivas(request.app, DEFAULT_MATRIX)
 
     # Build nested dict: role -> module -> action -> allowed
     matrix: dict = {}
     for row in rows:
-        matrix.setdefault(row.role, {}).setdefault(row.module, {})[row.action] = row.allowed
-    return APIResponse.ok(data={"matrix": matrix})
+        if (row.role, row.module, row.action) in vivas:
+            matrix.setdefault(row.role, {}).setdefault(row.module, {})[row.action] = row.allowed
+    modulos = sorted({m for (_, m, _) in vivas})
+    return APIResponse.ok(data={"matrix": matrix, "modules": modulos, "roles": list(DEFAULT_MATRIX)})
 
 
 @router.patch("/permissions/{role}/{module}/{action}", summary="Actualizar un permiso")
@@ -267,6 +268,11 @@ def update_permission(
     current_user: User = Depends(require_admin),
 ):
     _ensure_matrix_seeded(db, request)
+    # Revisión GRC 2026-11b: una casilla que no corresponde a ninguna ruta (o a
+    # un rol inexistente) se guardaba igual y no gobernaba nada.
+    if (role, module, action) not in grc_svc.celdas_vivas(request.app, DEFAULT_MATRIX):
+        from app.core.errores import ErrorDeDominio
+        raise ErrorDeDominio(422, f"'{role}/{module}/{action}' no corresponde a ningún rol y operación de la API")
     row, old_val = grc_svc.upsert_permission(db, role, module, action, body.allowed, current_user.id,
                                              _org(current_user))
     _log_grc(db, current_user.id, "permission_changed", "role_permission",
@@ -338,6 +344,11 @@ def update_sod_rule(
     current_user: User = Depends(require_admin),
 ):
     rule = grc_svc.get_sod_rule_or_404(db, rule_id)
+    # Revisión GRC 2026-11b: editar o borrar una regla SoD no dejaba rastro.
+    _log_grc(db, current_user.id, "sod_rule_updated", "sod_rule", rule.id,
+             {k: v for k, v in payload.items() if k in ("risk", "description", "is_active", "roles_conflict",
+                                                        "mitigated_by_workflow_id")},
+             severity="warning")
     grc_svc.update_sod_rule_db(db, rule, payload)
     return APIResponse.ok(data=_rule_out(rule))
 
@@ -350,6 +361,9 @@ def delete_sod_rule(
 ):
     enforce_abac(db, current_user, "grc_sod_rule", rule_id, action="delete")
     rule = grc_svc.get_sod_rule_or_404(db, rule_id)
+    _log_grc(db, current_user.id, "sod_rule_deleted", "sod_rule", rule.id,
+             {"module_a": rule.module_a, "action_a": rule.action_a, "module_b": rule.module_b,
+              "action_b": rule.action_b}, severity="critical")
     grc_svc.delete_sod_rule_db(db, rule)
     return APIResponse.ok(data={"ok": True})
 
@@ -373,7 +387,7 @@ def sod_check(
     violations = []
     for rule in rules:
         # Check each role
-        for role in ["admin", "pm", "team_lead", "employee", "hr", "client"]:
+        for role in DEFAULT_MATRIX:   # los roles de la matriz (UserRole), no una lista aparte
             perm_a = grc_svc.get_role_permission(db, role, rule.module_a, rule.action_a, _org(current_user))
             perm_b = grc_svc.get_role_permission(db, role, rule.module_b, rule.action_b, _org(current_user))
             if perm_a and perm_a.allowed and perm_b and perm_b.allowed:

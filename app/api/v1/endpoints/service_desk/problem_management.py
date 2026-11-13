@@ -42,7 +42,7 @@ class ProblemToChangeIn(BaseModel):
 
 class PromoteToKEDBIn(BaseModel):
     workaround: Optional[str] = None
-    review_days: int = Field(90, ge=7, le=365)
+    review_days: Optional[int] = Field(None, ge=7, le=365)  # sin valor: KEDB_DEFAULT_REVIEW_DAYS de la empresa
     auto_kb: bool = True
 
 
@@ -51,7 +51,7 @@ class ApproveRCAIn(BaseModel):
 
 
 class MarkKEDBReviewedIn(BaseModel):
-    extend_days: int = Field(90, ge=7, le=365)
+    extend_days: Optional[int] = Field(None, ge=7, le=365)  # sin valor: KEDB_DEFAULT_REVIEW_DAYS de la empresa
 
 
 # ── RCA Wizard payloads ───────────────────────────────────────────────────────

@@ -127,7 +127,7 @@ def _clave_de_api(db: Session, crudo: str):
     clave.requests_today = (clave.requests_today or 0) + 1
     clave.requests_this_hour = (clave.requests_this_hour or 0) + 1
     clave.last_used_at = ahora
-    return clave.user_id, json.loads(clave.scopes or '["read"]'), "api_key"
+    return clave.user_id, json.loads(clave.scopes or '["read"]'), "api_key", clave.organization_id
 
 
 def _token_de_aplicacion(db: Session, crudo: str):
@@ -143,11 +143,15 @@ def _token_de_aplicacion(db: Session, crudo: str):
     app = db.query(OAuthApp).filter(OAuthApp.id == token.app_id).first()
     if app is None or not app.is_active:
         raise _no("La aplicación del token está desactivada")
-    return token.user_id, json.loads(token.scopes or '["read"]'), "oauth"
+    return token.user_id, json.loads(token.scopes or '["read"]'), "oauth", token.organization_id
 
 
 def resolver(db: Session, request: Request, crudo: Optional[str]):
-    """(user_id, alcances, tipo) si `crudo` (o `X-API-Key`) es una credencial delegada; None si no."""
+    """(user_id, alcances, tipo, empresa) si `crudo` (o `X-API-Key`) es una credencial delegada; None si no.
+
+    `empresa` es la de la credencial (en la que se creo), no la de la ficha del
+    dueño: revision multitenant 2026-11b.
+    """
     cabecera = request.headers.get("x-api-key")
     if cabecera:
         return _clave_de_api(db, cabecera.strip())

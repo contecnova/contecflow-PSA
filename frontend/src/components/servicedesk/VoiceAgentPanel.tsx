@@ -29,6 +29,8 @@ import { Phone, Mic, StopCircle, Plus, ExternalLink, Edit2, Trash2 } from 'lucid
 import { Card, Button, Tabs, Spinner, EmptyState, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { localeActivo } from '../../utils/helpers'
+import { POLL_LIVE_MS } from '../../constants/timings'
+import { useOrgSettings } from '../../hooks/useOrgSettings'
 
 // TODO type: voiceAgentApi payloads — needs shared types
 interface VoiceTurn {
@@ -338,6 +340,9 @@ interface ConfigEditorProps {
   saving: boolean
 }
 
+/** Idiomas (BCP-47) que ofrece el selector del agente de voz. */
+const VOICE_LANGUAGES = ['es-ES', 'en-US', 'ca-ES', 'fr-FR', 'pt-PT']
+
 function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
   const t = useAppT()
   const [draft, setDraft] = useState<VoiceAgentConfig | null>(null)
@@ -346,11 +351,14 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
   const [newIntent, setNewIntent] = useState<string>('incident')
   const [editingIntent, setEditingIntent] = useState<string | null>(null)
   const [newKw, setNewKw] = useState<string>('')
+  // Sin idioma configurado: el de la empresa, en la variante que ofrece el selector.
+  const { language: idiomaOrg } = useOrgSettings()
+  const idiomaPorDefecto = VOICE_LANGUAGES.find(l => l.split('-')[0] === idiomaOrg) ?? VOICE_LANGUAGES[0]
 
   useEffect(() => {
     if (config && !draft) setDraft({
       greeting: config.greeting || '',
-      language: config.language || 'es-ES',
+      language: config.language || idiomaPorDefecto,
       max_silence_seconds: config.max_silence_seconds ?? 10,
       dtmf_menu: { ...(config.dtmf_menu || {}) },
       intent_keywords: Object.fromEntries(
@@ -684,7 +692,7 @@ export default function VoiceAgentPanel() {
   const { data: sessionsData, isLoading } = useQuery({
     queryKey: ['voice-sessions', historyFilter],
     queryFn: () => voiceAgentApi.listSessions(historyFilter ? { status: historyFilter } : {}).then(r => r.data),
-    refetchInterval: 15_000,
+    refetchInterval: POLL_LIVE_MS,
   })
 
   const { data: config } = useQuery({

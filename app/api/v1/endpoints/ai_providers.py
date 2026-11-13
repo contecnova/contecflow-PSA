@@ -5,6 +5,7 @@ import time
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.core.deps import get_current_user, require_admin, require_internal_user
 from app.db.session import get_db
 from app.core.config import settings
@@ -405,7 +406,7 @@ def unified_chat(data: dict = Body(...), db: Session = Depends(get_db),
     messages = data.get("messages", [])
     if not messages:
         raise HTTPException(400, "messages requerido")
-    system   = data.get("system", "Eres NexusAssist, el asistente IA de Contecflow.")
+    system   = data.get("system", f"Eres NexusAssist, el asistente IA de {NOMBRE_DEL_PRODUCTO}.")
     module   = data.get("module", "chat")
     provider_id = data.get("provider_id")
     model    = data.get("model")

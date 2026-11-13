@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.core.timeutil import utcnow
 from typing import Dict
 
@@ -38,7 +39,7 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
 
     for t in tasks:
         status_val = str(getattr(t.status, "value", t.status))
-        if status_val in ("done", "closed", "cancelled"):
+        if status_val in ESTADOS_DE_TAREA_TERMINADOS:
             continue
 
         if t.due_date and t.due_date < today:

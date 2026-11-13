@@ -23,6 +23,7 @@ import { localeActivo } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { POLL_DEFAULT_MS } from '../constants/timings'
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
 type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
 
@@ -228,7 +229,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
     queryKey: ['portfolio-dashboard', portfolioId],
     queryFn: () => portfolioApi.dashboard(portfolioId).then(r => r.data),
     enabled: !!portfolioId,
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   });
 
   const { mutate: removeProject } = useMutation({

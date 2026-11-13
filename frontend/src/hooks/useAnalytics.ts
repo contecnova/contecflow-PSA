@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { analyticsApi } from '../services/api'
+import { STALE_10_MIN_MS, STALE_5_MIN_MS } from '../constants/timings'
 
 const STALE = 2 * 60 * 1000
 
@@ -20,7 +21,7 @@ export function useAnalyticsFilterOptions(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['analytics-filter-options'],
     queryFn: () => analyticsApi.filterOptions().then((r: { data: unknown }) => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
 }
 
@@ -28,7 +29,7 @@ export function useHoursWeek(params: AnalyticsParams = {}): UseQueryResult<unkno
   return useQuery({
     queryKey: ['analytics-hours-week', params],
     queryFn: () => analyticsApi.hoursWeek(params).then((r: { data: unknown }) => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
 }
 
@@ -36,7 +37,7 @@ export function useUtilization(params: AnalyticsParams = {}): UseQueryResult<unk
   return useQuery({
     queryKey: ['analytics-utilization', params],
     queryFn: () => analyticsApi.utilization(params).then((r: { data: unknown }) => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
 }
 
@@ -100,6 +101,6 @@ export function useAnalyticsCatalogue(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['analytics-catalogue'],
     queryFn: () => analyticsApi.catalogue().then((r: { data: unknown }) => r.data),
-    staleTime: 10 * 60 * 1000,
+    staleTime: STALE_10_MIN_MS,
   })
 }

@@ -11,6 +11,7 @@ import PageShell from '../components/layout/PageShell'
 import { GitMerge } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { FULL_LIST_SIZE } from '../constants/pagination'
 
 // Los tipos del Gantt y el autoplanificador (revisión 2026-11): antes ofrecía tipos de Jira que no se podían guardar.
 type DependencyType = 'FS' | 'SS' | 'FF' | 'SF'
@@ -265,7 +266,7 @@ export default function DependenciesPage(): JSX.Element {
   const { data: tasks = [] } = useQuery<TaskItem[]>({
     queryKey: ['tasks-list', project],
     queryFn: () => project
-      ? tasksApi.list({ project_id: project, limit: 500 })
+      ? tasksApi.list({ project_id: project, limit: FULL_LIST_SIZE })
           .then(r => Array.isArray(r.data) ? r.data : [])
           .catch(() => [])
       : Promise.resolve([]),

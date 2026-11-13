@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.service_desk import Ticket
 from app.schemas.service_desk import TicketUpdateIn
 from app.services.service_desk.status_compat import normalize_ticket_status
@@ -212,9 +213,9 @@ def apply_ticket_update(
         _log_history(db, ticket_id, "dynamic_fields", "updated", "updated", current_user_id)
 
     return {
-        "refresh_profile": normalized_status in ("resolved", "closed") and bool(ticket.assigned_to_user_id),
+        "refresh_profile": normalized_status in ESTADOS_DE_TICKET_RESUELTOS and bool(ticket.assigned_to_user_id),
         "reassigned": bool(payload.assigned_to_user_id and old_assigned_to and payload.assigned_to_user_id != old_assigned_to),
-        "record_routing_outcome": normalized_status in ("resolved", "closed"),
+        "record_routing_outcome": normalized_status in ESTADOS_DE_TICKET_RESUELTOS,
     }
 
 

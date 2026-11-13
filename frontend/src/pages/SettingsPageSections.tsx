@@ -19,6 +19,7 @@ import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSectio
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { timezoneOptions } from '../constants/timezones'
 import { COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -406,15 +407,6 @@ function UsersSection() {
   )
 }
 
-const COMMON_TIMEZONES = [
-  'Europe/Madrid', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Rome',
-  'Europe/Warsaw', 'Europe/Amsterdam', 'Europe/Brussels', 'Europe/Lisbon',
-  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
-  'America/Sao_Paulo', 'America/Buenos_Aires', 'America/Mexico_City',
-  'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata', 'Asia/Dubai',
-  'Australia/Sydney', 'Pacific/Auckland',
-]
-
 // Zod schema mirroring backend UserBase/UserCreate (app/schemas/users.py)
 const userFormSchemaBase = z.object({
   username: z.string().trim().min(1, 'El usuario es obligatorio').max(150, 'Máximo 150 caracteres'),
@@ -548,7 +540,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
           <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={ls}>Zona horaria</label>
           <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.timezone} onChange={set('timezone')} style={fs}>
             <option value="">{t('settings.usa_la_zona_de_la_organizacion')}</option>
-            {COMMON_TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+            {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
         {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={ls}>{t('settings.contrasena')}</label><input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
@@ -1453,7 +1445,6 @@ function OfficesSection() {
   const setForm = (v: SetStateAction<OfficeForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
   const setEditingId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
   const setEditForm = (v: SetStateAction<OfficeForm>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
-  const TIMEZONES = ['Europe/Madrid', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'Asia/Shanghai']
 
   return (
     <SeccionDeAjustes icon="🏢" title="Sedes" description="Gestiona oficinas y zonas horarias">
@@ -1471,7 +1462,7 @@ function OfficesSection() {
                   <input value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} style={fs} /></div>
                 <div style={{ flex: 1, minWidth: 160 }}><label style={ls}>Zona horaria</label>
                   <select value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} style={fs}>
-                    {TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}
+                    {timezoneOptions(editForm.timezone).map(t => <option key={t} value={t}>{t}</option>)}
                   </select></div>
                 <div style={{ display: 'flex', gap: 6, paddingBottom: 1 }}>
                   <button onClick={() => update({ id: o.id, data: editForm })} disabled={!editForm.name}
@@ -1500,7 +1491,7 @@ function OfficesSection() {
         <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_sede')} aria-label={t('settings.nombre_de_la_sede')} /></div>
         <div className="u-flex1"><label style={ls}>{t('settings.pais')}</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
         <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Ciudad</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
-        <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Zona horaria</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+        <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Zona horaria</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{timezoneOptions(form.timezone).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
         <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>

@@ -14,6 +14,7 @@ import { Card, Button, Spinner, Modal} from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
+import { POLL_FREQUENT_MS } from '../../constants/timings'
 
 type AutoResolutionConfig = {
   threshold_auto?: number
@@ -236,7 +237,7 @@ export default function AutoResolutionPanel() {
   const { data: stats, isLoading: statsLoading } = useQuery<AutoResolutionStats>({
     queryKey: ['sd-auto-resolution-stats'],
     queryFn: () => autoResolutionApi.getStats().then(r => r.data as AutoResolutionStats),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const { mutate: runJob, isPending: runningJob } = useMutation({

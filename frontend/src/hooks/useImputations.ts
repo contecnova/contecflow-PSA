@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { imputationsApi } from '../services/api'
+import { POLL_FAST_MS, STALE_ALWAYS } from '../constants/timings'
 
 const STALE = 60 * 1000 // 1 min — operational data
 
@@ -91,8 +92,8 @@ export function useTimerCurrent(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['timer-current'],
     queryFn: () => imputationsApi.timerCurrent().then((r: { data: unknown }) => r.data).catch(() => null),
-    refetchInterval: 5000,
-    staleTime: 0,
+    refetchInterval: POLL_FAST_MS,
+    staleTime: STALE_ALWAYS,
   })
 }
 

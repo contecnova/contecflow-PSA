@@ -16,6 +16,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
+import { STALE_5_MIN_MS } from '../../constants/timings'
 
 type Form = { titulo: string; tipo: string; categoria: string; severidad: string; que_paso: string; causa: string
   impacto: string; recomendacion: string; etiquetas: string }
@@ -52,7 +53,7 @@ export default function FormularioDeLeccion({ origen, leccion, onClose, onGuarda
   const toast = useToast()
   const [form, setForm] = useState<Form>(VACIO)
   const [guardando, setGuardando] = useState(false)
-  const cfg = useQuery({ queryKey: ['lecciones', 'config'], queryFn: leccionesApi.config, staleTime: 300_000 })
+  const cfg = useQuery({ queryKey: ['lecciones', 'config'], queryFn: leccionesApi.config, staleTime: STALE_5_MIN_MS })
   const borrador = useQuery({
     queryKey: ['lecciones', 'borrador', origen?.tipo, origen?.id], queryFn: () => leccionesApi.borrador(origen!.tipo, origen!.id),
     enabled: !!origen && !leccion, retry: false, staleTime: Infinity,

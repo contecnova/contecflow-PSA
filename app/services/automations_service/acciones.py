@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.core import timeutil
 from app.core.outbound_url import abrir, validate_outbound_url
 from app.models.alert import Alert, AlertSeverity, AlertType
@@ -378,7 +380,7 @@ def _accion_conditional_branch(db: Session, atype, action: dict, params: dict, c
 
 # ── Revisión 2026-11: asignar, actualizar campo, crear aprobación ──────────
 
-_TICKET_CERRADO = ("resolved", "closed", "cancelled")
+_TICKET_CERRADO = ESTADOS_DE_TICKET_CERRADOS
 
 
 def _menos_cargado(db: Session, role: str, org: Optional[str], de_tickets: bool) -> Optional[User]:
@@ -545,4 +547,4 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
     return results
 
 
-_TAREA_ABIERTA = ("done", "cancelled")
+_TAREA_ABIERTA = ESTADOS_DE_TAREA_TERMINADOS  # nombre historico: son los estados que NO cuentan como abierta

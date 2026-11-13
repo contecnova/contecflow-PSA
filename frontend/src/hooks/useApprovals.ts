@@ -3,6 +3,7 @@ import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { approvalsApi } from '../services/api'
 import { queryKeys } from '../constants/queryKeys'
+import { POLL_RELAXED_MS, STALE_5_MIN_MS, STALE_DEFAULT_MS } from '../constants/timings'
 
 const STALE = 2 * 60 * 1000
 
@@ -55,7 +56,7 @@ export function useApprovalTemplates(): UseQueryResult<unknown> {
     // TODO #82: migrate to queryKeys — approval templates not yet defined in factory
     queryKey: ['approval-templates'],
     queryFn: () => approvalsApi.listTemplates().then((r: { data: unknown }) => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
 }
 
@@ -109,8 +110,8 @@ export function usePendingApprovalRequests(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: queryKeys.approvals.pending(),
     queryFn: () => approvalsApi.pendingMyAction().then((r: { data: unknown }) => r.data),
-    staleTime: 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
+    staleTime: STALE_DEFAULT_MS,
+    refetchInterval: POLL_RELAXED_MS,
   })
 }
 
@@ -168,7 +169,7 @@ export function useApprovalGroups(): UseQueryResult<unknown> {
     // TODO #82: migrate to queryKeys — approval groups not yet defined in factory
     queryKey: ['approval-groups'],
     queryFn: () => approvalsApi.listGroups().then((r: { data: unknown }) => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
 }
 

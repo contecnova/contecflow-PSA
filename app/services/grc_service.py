@@ -116,8 +116,26 @@ def ensure_matrix_covers_all_modules(db: Session, default_matrix: dict, fastapi_
                                                      allowed=bool(declarado.get(accion, True))))
         if nuevas:
             db.bulk_save_objects(nuevas)
+        # Revisión GRC 2026-11b: las casillas GLOBALES de módulos o acciones que
+        # ya no tienen ruta (rutas borradas en las auditorías, módulos escritos a
+        # mano como `service_desk` o `hr`) o de roles que no existen (`client`)
+        # se pintaban en la pantalla sin gobernar nada. Se retiran; las
+        # excepciones de una empresa no se tocan (la ruta las filtra al leer).
+        muertas = [(r, m, a) for (r, m, a) in existentes
+                   if r not in roles or a not in por_modulo.get(m, ())]
+        for r, m, a in muertas:
+            _globales(db).filter(RolePermission.role == r, RolePermission.module == m,
+                                 RolePermission.action == a).delete(synchronize_session=False)
+        if nuevas or muertas:
             db.commit()
     return len(nuevas)
+
+
+def celdas_vivas(fastapi_app, roles) -> set:
+    """(rol, módulo, acción) que gobiernan algo hoy: el rol existe y la ruta también."""
+    from app.core.grc_catalog import discover_module_actions
+    return {(r, m, a) for m, acciones in discover_module_actions(fastapi_app).items()
+            for a in acciones for r in roles}
 
 
 def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Optional[str] = None) -> None:

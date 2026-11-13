@@ -63,6 +63,25 @@ def _resolve_org_id(current_user: User, override: Optional[str], db: Session) ->
     return override
 
 
+def _ultima_evaluacion_para(resumen: dict, current_user: User, org_id: Optional[str]) -> dict:
+    """El resumen del ultimo ciclo tal como lo puede ver quien pregunta.
+
+    Revision multitenant 2026-11b: el resumen es una fila GLOBAL con el
+    resultado de CADA empresa (id, muestras, error, acierto) y cuantas empresas
+    hay. Un administrador de empresa veia los de todas; ahora solo el suyo.
+    """
+    if getattr(current_user, "is_superadmin", False) or not isinstance(resumen, dict):
+        return resumen
+    propios = [r for r in resumen.get("results") or []
+               if isinstance(r, dict) and org_id and r.get("organization_id") == org_id]
+    salida = {k: v for k, v in resumen.items() if k == "evaluated_at"}
+    salida["results"] = propios
+    if propios:
+        salida["itsm_retrained"] = sum(1 for r in propios if (r.get("itsm") or {}).get("triggered"))
+        salida["bi_retrained"] = sum(1 for r in propios if (r.get("bi") or {}).get("triggered"))
+    return salida
+
+
 @router.get(
     "/bi/predictive/observability/status",
     summary="Estado de salud de los modelos predictivos (ITSM + BI)",
@@ -81,7 +100,7 @@ def predictive_observability_status(
     """
     org_id: Optional[str] = _resolve_org_id(current_user, organization_id, db)
 
-    last_eval = _get_json(db, LAST_EVAL_KEY, None, default={})
+    last_eval = _ultima_evaluacion_para(_get_json(db, LAST_EVAL_KEY, None, default={}), current_user, org_id)
     itsm_meta = _get_json(db, ITSM_META_KEY, org_id, default={})
     bi_meta = _get_json(db, BI_META_KEY, org_id, default={})
 
@@ -136,6 +155,16 @@ def predictive_trigger_retrain(
     """Manually trigger the full evaluation + conditional retraining cycle.
 
     Uses the same logic as the Celery beat task but executed synchronously.
+
+    Revision multitenant 2026-11b: el administrador de una empresa evalua solo
+    la suya y no reescribe el resumen global de la plataforma (antes recorria
+    las empresas de los usuarios que ve —con pertenencias, tambien otras— y
+    machacaba `LAST_EVAL_KEY` con su resultado).
     """
+    if not getattr(current_user, "is_superadmin", False):
+        from app.services.predictive_retraining_service import evaluar_y_reentrenar_organizacion
+        result = evaluar_y_reentrenar_organizacion(db, getattr(current_user, "organization_id", None))
+        db.commit()
+        return APIResponse.ok(data=result)
     result = run_periodic_evaluation_and_retraining(db)
     return APIResponse.ok(data=result)

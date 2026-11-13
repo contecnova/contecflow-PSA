@@ -9,6 +9,7 @@ import { downloadBlob } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
+import { TOAST_DEFAULT_MS } from '../constants/timings'
 
 interface ProjectListItem {
   id: number | string
@@ -62,7 +63,7 @@ export default function ExportsPage(): JSX.Element {
   })
 
   const setLoad = (k: keyof LoadingState, v: boolean) => setLoading((l) => ({ ...l, [k]: v }))
-  const showMsg = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), 3000) }
+  const showMsg = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(''), TOAST_DEFAULT_MS) }
 
   const exportImputations = async () => {
     setLoad('imput', true)

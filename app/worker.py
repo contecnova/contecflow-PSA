@@ -674,7 +674,7 @@ def sincronizar_conectores_etl():
 def purgar_empresas_caducadas():
     """Borra los datos de las empresas cuya cuarentena de baja ha vencido."""
     from app.services.baja_de_empresa_service import purgar_caducadas_job
-    purgar_caducadas_job()
+    return {"purgadas": purgar_caducadas_job()}
 
 
 @celery_app.task(name="app.worker.actualizar_tipos_de_cambio")

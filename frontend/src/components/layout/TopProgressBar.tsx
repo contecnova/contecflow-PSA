@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { PROGRESS_BAR_DONE_MS, PROGRESS_BAR_RESET_MS } from '../../constants/timings'
 
 /**
  * TopProgressBar — Thin top loading bar that fires on every route change.
@@ -16,8 +17,8 @@ export default function TopProgressBar() {
 
   useEffect(() => {
     setState('loading')
-    const t = setTimeout(() => setState('done'), 600)
-    const t2 = setTimeout(() => setState('idle'), 950)
+    const t = setTimeout(() => setState('done'), PROGRESS_BAR_DONE_MS)
+    const t2 = setTimeout(() => setState('idle'), PROGRESS_BAR_RESET_MS)
     return () => { clearTimeout(t); clearTimeout(t2) }
   }, [location.pathname])
 

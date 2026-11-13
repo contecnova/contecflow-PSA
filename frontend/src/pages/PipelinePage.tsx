@@ -16,6 +16,7 @@ import { extractErr, fmtCurrency, fmtDate, fmtPct } from '../utils/helpers'
 import { pipelineApi } from '../services/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import StatusBadge from '../components/ui/StatusBadge'
+import { STALE_ALWAYS } from '../constants/timings'
 
 const STAGES = ['lead', 'qualification', 'proposal', 'negotiation', 'won', 'lost', 'cancelled']
 
@@ -227,7 +228,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
     queryKey: ['pipeline-proposal', opp.id],
     queryFn: () => pipelineApi.getProposal(opp.id).then(r => r.data),
     enabled: false,
-    staleTime: 0,
+    staleTime: STALE_ALWAYS,
   })
 
   async function handleGenerateProposal() {

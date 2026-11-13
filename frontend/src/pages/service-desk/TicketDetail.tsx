@@ -14,6 +14,8 @@ import { COLOR, alpha } from '../../constants/theme'
 import { almExtApi, sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
+import { POLL_FREQUENT_MS, STALE_DEFAULT_MS } from '../../constants/timings'
+import { TICKET_LINK_SEARCH_LIMIT } from '../../constants/pagination'
 
 // Loosely-typed aliases: these components still infer their props as required.
 const IS_STYLE = INPUT_STYLE as CSSProperties
@@ -38,7 +40,7 @@ function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) 
   const { data: responses = [] } = useQuery<CannedResponse[]>({
     queryKey: ['canned-responses', search],
     queryFn: () => sdCannedApi.list(search ? { search } : {}).then((r: { data: CannedResponse[] }) => r.data).catch(() => []),
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const cats: string[] = Array.from<string>(new Set(responses.map((r) => String(r.category || 'General')))).sort()
   return (
@@ -298,7 +300,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     queryKey: ['sd-ticket', ticketId],
     queryFn: () => ticketsApi.get(ticketId).then(r => r.data),
     enabled: !!ticketId,
-    refetchInterval: 30000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
@@ -855,7 +857,7 @@ function SeguirYFusionar({ ticketId }: { ticketId: string }) {
   const fusionar = useMutation({
     mutationFn: async () => {
       const buscado = numero.trim().toUpperCase()
-      const lista = await ticketsApi.list({ search: buscado, page_size: 5 }).then(r => r.data as { id: string; number: string }[])
+      const lista = await ticketsApi.list({ search: buscado, page_size: TICKET_LINK_SEARCH_LIMIT }).then(r => r.data as { id: string; number: string }[])
       const duplicado = lista.find(x => x.number === buscado && x.id !== ticketId)
       if (!duplicado) throw new Error(t('sd_cfg.m_not_found'))
       await ticketsApi.mergeInto(ticketId, { merged_ticket_id: duplicado.id, reason: motivo || null })

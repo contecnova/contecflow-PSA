@@ -26,6 +26,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.core.config import settings
 from app.models.cab import EmailLog, EmailTemplate
 from app.models.client_portal import ClientUser
@@ -64,7 +65,7 @@ TIPO_DE_AVISO = {
 #: Eventos que se avisan solo en la campana: por correo serian ruido.
 SOLO_CAMPANA = {"priority_changed"}
 
-_ESTADOS_CERRADOS = {"resolved", "closed", "cancelled"}
+_ESTADOS_CERRADOS = ESTADOS_DE_TICKET_CERRADOS
 
 
 @dataclass
@@ -474,7 +475,7 @@ def procesar_evento(db: Session, ev: TicketEvent) -> dict:
         _emitir_webhook(db, ev, ticket, data)
         from app.services.service_desk.workflow_triggers import lanzar_flujos_del_evento
         cuenta["flujos"] = lanzar_flujos_del_evento(db, ev, ticket, data)
-        if ev.kind == "status_changed" and data.get("new") in ("resolved", "closed", "cancelled"):
+        if ev.kind == "status_changed" and data.get("new") in ESTADOS_DE_TICKET_CERRADOS:
             from app.services.service_desk.fulfillment_service import al_terminar_una_tarea
             cuenta["peticion_resuelta"] = al_terminar_una_tarea(db, ticket)
     return cuenta

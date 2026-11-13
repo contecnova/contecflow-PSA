@@ -16,6 +16,7 @@ import PageShell from '../components/layout/PageShell'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { DELAYED_REFETCH_MS } from '../constants/timings'
 
 interface JiraConfig {
   jira_url?: string
@@ -217,7 +218,7 @@ export default function JiraIntegrationPage(): JSX.Element {
     onSuccess: (d) => {
       if (d?.status === 'queued') {
         toast.success('Envío a Jira en curso: las tareas aparecerán vinculadas en unos minutos.')
-        setTimeout(() => qc.invalidateQueries({ queryKey: ['jira-linked'] }), 30000)
+        setTimeout(() => qc.invalidateQueries({ queryKey: ['jira-linked'] }), DELAYED_REFETCH_MS)
         return
       }
       qc.invalidateQueries({ queryKey: ['jira-linked'] })

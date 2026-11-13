@@ -10,7 +10,7 @@ This README is the complete functional and technical documentation of the soluti
 |---|---|
 | Menu entries (screens reachable from the sidebar) | 97, plus the client portal and public forms |
 | HTTP API routes | 2,131 (2,125 under `/api/v1`, 6 outside) and 6 WebSockets |
-| Mapped database models | 415 (414 scoped by organization, 1 exempt) |
+| Mapped database models | 417 (416 scoped by organization, 1 exempt) |
 | Alembic migrations | 98, one linear chain, head `144_presupuestos` |
 | Backend tests | The whole suite was last run on 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed; the 2 structural checks that failed that day pass). Since then every change runs the tests of what it touches |
 | Frontend tests | 40 files, 130 tests, all passing |
@@ -3428,7 +3428,7 @@ There are no filters.
   - `app_settings` JSON (GDPR, sensitivity, lineage, rules, views, bookmarks)
   - BI access audit: `audit_logs` rows with `resource = bi:<type>` (with the tamper-evident chain)
   - tables `dashboard_comments`, `dashboard_versions`, `dashboard_shares`, `dashboard_notifications`
-- **Erasure** (`execute_erasure`, and Enterprise → GDPR, the same code: `app/services/supresion_service.py`): the user row gets a pseudonymous email and username, «[ERASED]» as name and empty contact fields, and is deactivated without a password (its id stays, so hours, expenses and invoices still add up); every text column of every table holding exactly their email, full name or username (in their companies) is replaced; their sessions, MFA, passkeys, tokens, API keys and push subscriptions are deleted; their `dim_user` row in the analytics store is deleted (the report says so if it could not be). Ticket requester fields are cleared too. The portability export is real: profile, tickets and consent.
+- **Erasure** (`execute_erasure`, and Enterprise → GDPR, the same code: `app/services/supresion_service.py`): the user row gets a pseudonymous email and username, «[ERASED]» as name and empty contact fields, and is deactivated without a password (its id stays, so hours, expenses and invoices still add up); every text column of every table holding exactly their email, full name or username (in their companies) is replaced, except `audit_logs` (it is the chained evidence; rewriting `user_name` broke the chain); their sessions, MFA, passkeys, tokens, API keys and push subscriptions are deleted; their `dim_user` row in the analytics store is deleted (the report says so if it could not be). Ticket requester fields are cleared too. The portability export is real: profile, tickets and consent.
 - **Governance checks are plain rules:**
   - DuckDB file missing
   - DuckDB file older than 26 h
@@ -3933,7 +3933,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 
 *Code:* `app/db/session.py`, `app/core/tenancy.py`, `app/core/deps.py::get_current_user`
 
-- **Tenant context.** `get_current_user` writes `db.info["organization_id"] = user.organization_id` and `db.info["is_superadmin"]`. Superadmins get `organization_id=None` and `is_superadmin=True`, which bypasses the filter.
+- **Tenant context.** `get_current_user` writes `db.info["organization_id"]` = the **active** company (the token's `org` claim, re-validated by `entrada_service.organizacion_de_la_peticion`; the user's own record otherwise) and `db.info["is_superadmin"]`. Superadmins get `organization_id=None` and `is_superadmin=True`, which bypasses the filter. API keys and developer-portal tokens work in the company they were created in, and the background agent in the company of its execution (2026-11b), not in the owner's home company.
 - **Automatic read filter.** A `do_orm_execute` listener on `SessionLocal` adds a `with_loader_criteria` to every ORM **SELECT**, for every mapped model that has an `organization_id` column: `organization_id == <org>`.
   - Models flagged `_tenant_filter_include_global = True` (for example `AppSetting`, `CustomProjectType`) use `organization_id == <org> OR organization_id IS NULL`. The NULL rows are global defaults shared by all tenants.
   - A regular user with **no** organization gets a `false` criterion and sees zero rows.
@@ -3979,7 +3979,7 @@ This section covers every screen an administrator uses to configure contecflow-P
     - 97 menu routes and 2268 API calls with 0 errors.
     - The 179 GET endpoints the screens call return the same counts as with the owner, so RLS hides nothing the application shows.
     - `tests/test_rls_postgres.py` (runs with `RLS_TEST_OWNER_URL` and `RLS_TEST_APP_URL`) proves that hand-written SQL in company A does not see company B, and that it cannot insert into B.
-  - **Coverage (measured):** all 400 mapped tables have a company column, so all have a policy. The only exception is `organizations`, which is exempt on purpose (`_tenant_exempt`). No table depends on the ORM's `project_id`/`user_id` fallback.
+  - **Coverage (measured 2026-11-13):** 416 of the 418 tables have a company column, so 416 have a policy. The exceptions are `organizations`, exempt on purpose (`_tenant_exempt`), and `client_user_projects`, a pure association table (portal contact ↔ project) whose two ends are company rows. No table depends on the ORM's `project_id`/`user_id` fallback.
   - **pgvector index:** the HNSW index can only be created by the schema owner. With the application role, saving the first vector logs a warning and goes on (savepoint), and KB search keeps working by scanning the table. `kb_vectores.asegurar_indices` creates one index per vector dimension found in the column. It runs as the owner when pgvector is enabled (`preparar`) and on every start or deploy (`python -m app.db.rls`). Measured on a disposable `pgvector/pgvector:pg16` (`KB_PGVECTOR_URL`):
     - a role without privileges saves the vector without failing;
     - the owner then creates `ix_sd_kb_embedding_vec_8`, idempotently;
@@ -4124,7 +4124,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 - Every write appends to `settings_audit_log` with scope `runtime`. **The old and new values are stored in plaintext**, because runtime keys are treated as non-secret; that includes `METRICS_AUTH_TOKEN`.
 
 **Limitations (measured).**
-- **Platform settings vs company settings.** `AJUSTES_DE_PLATAFORMA` (`settings_service.py`) lists the keys read in their global row: key rotation and tokens, proxies, metrics token, server timeouts, company deletion and impersonation, worker event queues, AI provider cooldown and the semantic engine, and `PROJECT_NAME` (platform name, the fallback when a company has no branding). Only the superadmin changes them, always in the global row; other admins see them read-only. Every other key is read with the company. The guard `tests/test_ajustes_de_plataforma_2026_11.py` measures the reads in `app/` and fails if a key is read only globally without being a platform setting.
+- **Platform settings vs company settings.** `AJUSTES_DE_PLATAFORMA` (`settings_service.py`) lists the keys read in their global row: key rotation and tokens, proxies, metrics token, server timeouts, company deletion and impersonation, default limits of a new company (`ORG_DEFAULT_MAX_*`), worker event queues, AI provider cooldown and the semantic engine, and `PROJECT_NAME` (platform name, the fallback when a company has no branding; `app.core.constantes.NOMBRE_DEL_PRODUCTO` is its value from the environment, used in prompts, Slack/Teams texts, emails and PDFs). Only the superadmin changes them, always in the global row; other admins see them read-only. Every other key is read with the company. The guard `tests/test_ajustes_de_plataforma_2026_11.py` measures the reads in `app/` and fails if a key is read only globally without being a platform setting.
 - **Many call sites use `get_runtime_int(...) or settings.X`,** so a value of `0` falls back to the env value.
 - **Seven keys are exposed in the UI but no runtime read uses them, so editing them has no effect.** The "Consumer" column of the reference table marks them.
 
@@ -4184,7 +4184,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 244 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 250 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4212,6 +4212,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | sla | SLA_PREDICTION_HOURS_LOW | int | 72 | Prediction hours window, low | rt |
 | sla | SLA_PREDICTION_SEVERITY_CRITICAL_H | float | 1.0 | Severity threshold, critical (h) | rt |
 | sla | SLA_PREDICTION_SEVERITY_HIGH_H | float | 4.0 | Severity threshold, high (h) | rt |
+| sla | SLA_AT_RISK_WINDOW_HOURS | float | 2.0 | Wallboard and SLA panel: an open ticket due within these hours is at risk (the SLA panel counts a second band up to twice that) | rt |
 | service_desk | SD_NOTIFY_REQUESTER_ON_CREATE | bool | true | Email the requester when a ticket is created | rt (`ticket_event_processor`) |
 | service_desk | SD_NOTIFY_REQUESTER_ON_REPLY | bool | true | Email the requester on public agent replies | rt |
 | service_desk | SD_NOTIFY_REQUESTER_ON_RESOLVE | bool | true | Email the requester on resolution | rt |
@@ -4239,6 +4240,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | service_desk | SD_KB_CONTRADICTION_MAX_PAIRS | int | 10 | Pairs compared with AI per daily run (0: off) | rt |
 | service_desk | SD_TIME_TO_TIMESHEET | bool | true | Ticket time on tickets with a project goes to the agent's timesheet | rt |
 | service_desk | SD_ASSET_REFRESH_DAYS | int | 7 | Days before an asset expiry that open a renewal ticket (0 = off) | rt |
+| service_desk | KEDB_DEFAULT_REVIEW_DAYS | int | 90 | Known errors: days until review when publishing or reviewing one, if the request gives none (7-365) | rt (company) |
 | service_desk | SD_EVENT_MAX_ATTEMPTS | int | 5 | Event delivery, max attempts | rt (global only) |
 | service_desk | SD_EVENT_BATCH_SIZE | int | 200 | Event delivery, events per run | rt (global only) |
 | health | HEALTH_NPS_LOOKBACK_DAYS | int | 90 | Client health: NPS lookback (days) | rt |
@@ -4291,6 +4293,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | locale | DEFAULT_TAX_RATE | float | 21.0 | Default tax rate (%) | rt **only** in `/org-defaults`; invoice/booking column defaults use the value loaded at process start |
 | locale | DEFAULT_WORKING_HOURS_PER_DAY | float | 8.0 | Working hours per day | rt (`/org-defaults`, SD ticket ops); static elsewhere |
 | locale | DEFAULT_WEEKLY_CAPACITY_HOURS | float | 40.0 | Weekly capacity (h) | rt only in `/org-defaults`; static in ~25 files (e.g. `alert_service`) |
+| locale | DEFAULT_PRODUCTIVE_HOURS_YEAR | float | 1700.0 | Staff cost: productive hours per year when the cost profile and the country preset say nothing | rt (company; `cost_service.costes_por_defecto`) |
+| locale | DEFAULT_EMPLOYER_COST_PCT | float | 0.32 | Staff cost: employer cost on gross salary (0.32 = 32 %) when the profile and the country preset say nothing | rt (company; `cost_service.costes_por_defecto`) |
 | locale | DEFAULT_VACATION_DAYS_PER_YEAR | int | 23 | Vacation days per year | rt only in `/org-defaults`; policy/balance column defaults are static |
 | locale | DEFAULT_IMPUTATION_LOCKOUT_DAYS | int | 14 | Days before time entries lock | **static**: `imputation_service` uses `organizations.imputation_lockout_days`, else `settings.*`, so UI edits are ignored |
 | locale | DEFAULT_PROJECT_TYPE | str | `consulting` | Default project type | rt |
@@ -4429,6 +4433,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 
 | service_desk | ALERT_CORRELATION_REVIEW_SCORE | float | 0.35 | Alert correlation — score (0-1) to suggest a review | rt (`app/core/escalas.py`) |
 | tenants | IMPERSONATION_ENABLED | bool | true | Platform support may sign in as a company user (with a reason, audited) | rt |
 | tenants | IMPERSONATION_MAX_MINUTES | int | 30 | Sign in as — maximum session length (minutes) | rt |
+| tenants | ORG_DEFAULT_MAX_USERS | int | 25 | New company: default user limit (when the creation request gives none) | rt (platform) |
+| tenants | ORG_DEFAULT_MAX_PROJECTS | int | 100 | New company: default project limit (when the creation request gives none) | rt (platform) |
 | tenants | TENANT_DELETION_QUARANTINE_DAYS | int | 30 | Company deletion — quarantine before its data is erased (days) | rt |
 | timeouts | AI_AGENT_TURN_TIMEOUT_SECONDS | int | 90 | NexusAgent — timeout per model turn (s) | rt |
 | timeouts | AI_LOCAL_HTTP_TIMEOUT_SECONDS | int | 120 | Ollama (local model) call — timeout (s) | rt |
@@ -4704,8 +4710,8 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - **Measured on a copy with the application role:** a PM sees the 2364 cells and a second visit adds none. The admin's exception is stored for the company only and the global row is unchanged.
 
 **How to use it.**
-1. **Matrix.** The first load seeds a default matrix and fills in a row for every API module derived from the router. Toggle `allowed` per role, module and action. The actions are `ver`, `crear`, `editar`, `eliminar`, `aprobar`, `exportar`; the action of a request is derived from its HTTP method and path. **Seed** resets the matrix to the defaults.
-2. **SoD rules.** Edit or create pairs `(module_a, action_a)` ⟂ `(module_b, action_b)` with a risk level, the conflicting roles, and an optional mitigating workflow. 8 defaults are seeded (invoices, expenses, contracts, resources/timesheets, hr, settings/approvals, timesheets, grc/approvals).
+1. **Matrix.** The first load seeds a default matrix and fills in a row for every API module derived from the router (the screen lists the modules the API returns, with a filter; a cell shows «—» when the module has no such operation). Roles are the `UserRole` values, `subcontractor` included. Global cells of modules or actions whose routes were removed are retired on the next load, and `PATCH` of a cell that matches no role and operation answers 422. Toggle `allowed` per role, module and action. The actions are `ver`, `crear`, `editar`, `eliminar`, `aprobar`, `exportar`; the action of a request is derived from its HTTP method and path. **Seed** resets the matrix to the defaults.
+2. **SoD rules.** Edit or create pairs `(module_a, action_a)` ⟂ `(module_b, action_b)` with a risk level, the conflicting roles, and an optional mitigating workflow. 8 defaults are seeded (invoices, expenses, contracts, resources/timesheets, absences, settings/approvals, timesheets, grc/approvals).
 3. **SoD check.** Lists the roles whose matrix allows both sides of an active rule.
 4. **Violations.** Review violations and resolve them with a note.
 5. **Audit log.** GRC events.
@@ -4729,6 +4735,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 | Active accounts without sign-in | `users.last_login` of active users | none older than `COMPLIANCE_STALE_ACCOUNT_DAYS` (90) |
 | API keys without expiry | active `api_keys` | none |
 | Open SoD violations | `grc_sod_violations` not resolved | none |
+| Retention and legal hold | active `retention_policies` and `legal_holds` | context, no threshold |
 | Audit log chain | the chain verified now (rows checked, breaks, head) | intact and not empty |
 | Database isolation | the RLS state (role and policies) | armed |
 | Encryption and key rotation | `KMS_PROVIDER`, `KEY_ROTATION_ENABLED` | rotation on |
@@ -4737,7 +4744,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 | Backups | — | **not measurable**: backups are made outside the application, and the report says so instead of claiming them |
 
 - `GET /api/v1/governance/compliance/controls/status`: its `platform_security_baseline` comes from this report (plus `audit_chain_ok`). Its per-control `pass` still means «someone uploaded evidence», not a measurement.
-- **Measured on a copy of the real database:** 15 controls — 6 pass, 5 attention (MFA not required, 0 of 9 users with a second factor, minimum length 8 of 12, 7 accounts without sign-in in 90 days, RLS not armed because that copy connected as the owner), 3 context, 1 not measurable; the downloaded file's signature verifies. Tests: `tests/test_informe_de_cumplimiento_2026_11.py` (each control changes when its data changes; validated by freezing the stale-account count and the audit-chain status).
+- **Measured on a copy of the real database (before the retention control was added):** 15 controls — 6 pass, 5 attention (MFA not required, 0 of 9 users with a second factor, minimum length 8 of 12, 7 accounts without sign-in in 90 days, RLS not armed because that copy connected as the owner), 3 context, 1 not measurable; the downloaded file's signature verifies. Tests: `tests/test_informe_de_cumplimiento_2026_11.py` (each control changes when its data changes; validated by freezing the stale-account count and the audit-chain status).
 - **Endpoint:** `GET /api/v1/grc/compliance-report[?signed=true]` (`require_admin`, the caller's company).
 
 **Explicar acceso (access explainer).** Last tab of GRC (admin). Pick a person of your company, an HTTP method and an API route (the field suggests the 2,072 operations of the API; for one project's permissions replace `{project_id}` with its id). It answers **can / cannot / cannot be fully determined**, names the layer that decides, and lists every layer in the order a real request meets them:
@@ -4768,14 +4775,15 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
   - `allowed=true` or no row → the other checks continue.
   - Superadmins are never blocked.
   - `admin` cannot lose read access to `grc`.
-  - Unauthenticated, portal, signed-webhook, SCIM and WebSocket prefixes are exempt.
+  - Exempt prefixes are GRC's own (`grc_catalog.GRC_EXEMPT_PREFIXES`): auth, client portal, SCIM, WebSocket, client-errors, UI catalogs, and only the public sub-paths `/webhooks/fire` and `/forms/public`. ABAC-exempt routes that do have a user (connectors, lessons, BPMN instances, collaboration, MCP, webhook and form management) are governed.
 
 **Limitations (measured).**
 - The matrix can **only deny**. Allowing a cell never grants more than RBAC already does.
 - **SoD rules do not block anything.** They are detective:
   - `sod-check` is a report over the matrix.
-  - Violations are recorded only when a requester tries to approve their own approval request, and that case is blocked by a hard-coded check in the approval engine whatever the rules say.
-  - No other code path consults `grc_sod_rules`.
+  - Violations are recorded when a requester tries to approve their own request, in the approval inbox or in a direct-approval route (absences, imputations, documents, milestones, budget transfers, changes); that case is blocked by a hard-coded check whatever the rules say. The single recorder (`grc_sod.record_self_approval_violation_for_request`) maps the entity to its GRC module (`expense` → `expenses`) and uses the rule of the company, and the violation is stored in that company.
+  - SoD rules exist only once a company opened the GRC SoD tab (they are seeded then); before that, nothing is recorded.
+  - Editing and deleting a SoD rule are written to the GRC audit log (`sod_rule_updated`, `sod_rule_deleted`).
 
 ---
 
@@ -5229,7 +5237,7 @@ There is no dedicated search engine for the core domain. Measured:
 | `app/api/v1/endpoints/` | Endpoint modules (128 top-level + 41 in 7 sub-packages: `admin`, `ai`, `collaboration`, `integrations`, `projects`, `service_desk`, `v239`) | 169 `.py` |
 | `app/api/v1/routers/` | 5 domain aggregators (`core`, `delivery`, `ai_domain`, `platform`, `framework`) + auth routers (`auth_core`, `auth_mfa`, `auth_saml`, `auth_sessions`, `auth_sso`) | 10 modules |
 | `app/services/` | Business logic (158 top-level modules + 12 sub-packages, e.g. `service_desk`, `collaboration`, `approval_engine`, `cmdb`, `olap`, `stt`) | 357 `.py` |
-| `app/models/` | SQLAlchemy models | 64 files, 415 mapped classes, 416 tables |
+| `app/models/` | SQLAlchemy models | 63 files, 417 mapped classes, 418 tables |
 | `app/schemas/` | Pydantic schemas | 48 files |
 | `app/core/` | Config, security, CSRF, ABAC/GRC enforcement, tenancy, encryption, metrics, rate limiter, uploads, timezone context | 30 files + `config_groups/` (5 mixins) |
 | `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (9 modules, 1,969 lines) | — |
@@ -5352,7 +5360,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 460)
+#### 4.2 Settings fields (`Settings`, 468)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5453,6 +5461,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `DEFAULT_USER_PASSWORD` | *(required)* | **Required.** Password given to non-superadmin seed users; rejected if `CHANGE_ME*` or (outside local envs) the historic default. |
 | `DEFAULT_WORKING_HOURS_PER_DAY` | `8.0` | Capacity default. |
 | `DEFAULT_WEEKLY_CAPACITY_HOURS` | `40.0` | Capacity default. |
+| `DEFAULT_PRODUCTIVE_HOURS_YEAR` | `1700.0` | Staff cost: productive hours per year fallback (cost profile and country preset win); runtime key `locale`. |
+| `DEFAULT_EMPLOYER_COST_PCT` | `0.32` | Staff cost: employer cost on gross salary fallback; runtime key `locale`. |
 | `DEFAULT_SIMULATION_HOURLY_RATE` | `80.0` | Rate used in what-if simulations. |
 | `DEFAULT_VACATION_DAYS_PER_YEAR` | `23` | Absence default. |
 | `REDIS_URL` | `None` | Celery broker **and** result backend, rate-limit storage, WS tickets, settings pub/sub. Unset = in-process fallbacks. |
@@ -5570,6 +5580,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SLA_PREDICTION_WARNING_PCT` | `0.7` | SLA targets / business hours / breach prediction (hours, %). |
 | `SLA_PREDICTION_SEVERITY_CRITICAL_H` | `1.0` | SLA targets / business hours / breach prediction (hours, %). |
 | `SLA_PREDICTION_SEVERITY_HIGH_H` | `4.0` | SLA targets / business hours / breach prediction (hours, %). |
+| `SLA_AT_RISK_WINDOW_HOURS` | `2.0` | At-risk window of the wallboard and the SLA panel (hours); runtime key `sla`. |
 
 **Health scores (`config_groups/health_config.py`) — 23 variables**
 
@@ -5647,6 +5658,9 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SD_KB_CONTRADICTION_MAX_PAIRS` | `10` | Article pairs compared with AI per daily run (0: off). |
 | `SD_TIME_TO_TIMESHEET` | `True` | Ticket time posts to timesheets. |
 | `SD_ASSET_REFRESH_DAYS` | `7` | Asset refresh cadence. |
+| `SD_AUTO_CLOSE_HOURS_AFTER_RESOLUTION` | `72` (1-720) | AI auto-resolution: default hours after resolution before auto-close; each company overrides it in its auto-resolution config. |
+| `SD_VALIDATION_WINDOW_HOURS` | `48` (1-720) | AI auto-resolution: default window (h) to detect a reopen; overridable per company in the same config. |
+| `KEDB_DEFAULT_REVIEW_DAYS` | `90` (7-365) | Known errors: review period when publishing or reviewing; runtime key `service_desk`. |
 | `SD_EVENT_MAX_ATTEMPTS` | `5` | Ticket-event retry cap. |
 | `SD_EVENT_BATCH_SIZE` | `200` | Ticket-event batch size. |
 
@@ -5699,6 +5713,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `APPROVAL_EMAIL_LINK_HOURS` | `72` | Approvals — hours the approve/reject link of the email is valid |
 | `IMPERSONATION_ENABLED` | `True` | Platform support may sign in as a company user (with a reason, audited) |
 | `IMPERSONATION_MAX_MINUTES` | `30` | Sign in as — maximum session length (minutes) |
+| `ORG_DEFAULT_MAX_USERS` | `25` | New company: default user limit; platform runtime key `tenants`. |
+| `ORG_DEFAULT_MAX_PROJECTS` | `100` | New company: default project limit; platform runtime key `tenants`. |
 | `SSO_HTTP_TIMEOUT_SECONDS` | `10.0` | SSO — timeout calling the identity provider (seconds) |
 | `SSO_CLOCK_SKEW_SECONDS` | `60` | SSO — clock skew tolerated when validating the id_token (seconds) |
 | `SSO_RATE_LIMIT` | `'20/minute'` | Rate limit of the SSO sign-in endpoints (slowapi syntax). |
@@ -5980,10 +5996,10 @@ slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory ot
 
 #### 7.1 Multi-tenancy (`app/db/session.py`)
 
-- 415 mapped classes: 403 have `organization_id`, 11 only `org_id`, 1 declared exempt (`Organization`, `_tenant_exempt = True`), 0 with neither (measured).
+- 417 mapped classes: 405 have `organization_id`, 11 only `org_id`, 1 declared exempt (`Organization`, `_tenant_exempt = True`), 0 with neither (measured 2026-11-13).
 - **`TenantSession`** overrides `query()` and `execute()` and adds the tenant filter. It is **fail-closed**: a model it cannot scope raises `TenantIsolationError`.
-- **Global `do_orm_execute` listener** (`TENANT_AUTO_FILTER_GLOBAL=1`) adds `with_loader_criteria(model, cls.organization_id == org_id)` to every ORM **SELECT** for the 383 `organization_id` models. Models with `_tenant_filter_include_global` also see `organization_id IS NULL` rows. A user without an organisation gets `WHERE false`. The org id is a **closure** variable, not a default argument: the default-argument version baked the first tenant's id into SQLAlchemy's statement cache and leaked rows between tenants (comment in the code).
-- **Skipped when:** the statement is not a SELECT, it is a relationship load, `session.info["bypass_tenant_filter"]` is set (helper `sin_filtro_de_tenant(session)`), the user is superadmin, or `session.info["is_superadmin"]` is unset. That last case covers **Celery/background sessions** (`worker_db_session`), which run unfiltered by design and must scope by organisation themselves.
+- **Global `do_orm_execute` listener** (`TENANT_AUTO_FILTER_GLOBAL=1`) adds `with_loader_criteria(model, cls.organization_id == org_id)` to every ORM **SELECT** for the 405 `organization_id` models, and `cls.org_id == org_id` for the 11 `org_id` models (since the 2026-11b review; before, this layer skipped them). Models with `_tenant_filter_include_global` also see `organization_id IS NULL` rows. A user without an organisation gets `WHERE false`. The org id is a **closure** variable, not a default argument: the default-argument version baked the first tenant's id into SQLAlchemy's statement cache and leaked rows between tenants (comment in the code).
+- **Skipped when:** the statement is not a SELECT, it is a relationship load, `session.info["bypass_tenant_filter"]` is set (helper `sin_filtro_de_tenant(session)`), the user is superadmin, or `session.info["is_superadmin"]` is unset. That last case covers **Celery/background sessions** (`worker_db_session`), which are unfiltered until they publish a company: `en_cada_organizacion` (active companies only, also when given an explicit list), `como_organizacion` per row, or `publicar_contexto_de_tenant` per subject (see `app/worker.py`, `TAREAS_*`).
 - **Insert stamping** (`before_flush`, `TENANT_AUTO_STAMP_ON_INSERT=1`) fills a missing `organization_id` from the session.
 - The session context is set by `get_current_user` (`db.info["organization_id"]`, `is_superadmin`, `current_user`); portal requests use `publicar_contexto_de_tenant`.
 - Guards: `test_tenant_filter_coverage.py`, `test_tenant_filter_fail_closed.py`, `test_tenant_isolation.py`, and 13 `*_por_tenant.py` / `*_tenant_isolation.py` files.

@@ -11,6 +11,7 @@ import logging
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.project import Project
 from app.models.task import Task
 from app.models.epics import WikiSpace, WikiPage
@@ -146,7 +147,7 @@ def get_agent_dashboard(agent_id: str, days: int, db: Session) -> dict:
 
     abiertos = db.query(func.count(Ticket.id)).filter(
         Ticket.assigned_to_user_id == agent_id,
-        Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+        Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
     ).scalar() or 0
     resueltos = db.query(Ticket).filter(
         Ticket.assigned_to_user_id == agent_id,

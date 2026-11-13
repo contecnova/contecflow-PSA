@@ -9,6 +9,8 @@ import {
   typePalette,
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
+import { STALE_DEFAULT_MS } from '../constants/timings'
+import { DASHBOARD_LIST_SIZE, SELECTOR_LIST_SIZE } from '../constants/pagination'
 
 interface TeamUser {
   status?: string
@@ -60,10 +62,10 @@ export default function TeamDashboardPage() {
 
   const { data: resourcesRaw = [], isLoading: lr } = useQuery({
     queryKey: ['team-dash-resources'],
-    queryFn: () => usersApi.list({ page_size: 200 }).then(r => {
+    queryFn: () => usersApi.list({ page_size: SELECTOR_LIST_SIZE }).then(r => {
       return r.data ?? []
     }).catch(() => []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const resources = resourcesRaw as TeamUser[]
 
@@ -72,16 +74,16 @@ export default function TeamDashboardPage() {
     // (revisión 2026-11: se leía un campo que no existe y nunca se veía).
     queryKey: ['team-dash-util'],
     queryFn: () => analyticsApi.utilization().then(r => r.data).catch(() => null),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const utilData = (utilDataRaw ?? null) as UtilData | null
 
   const { data: okrsRaw = [] } = useQuery({
     queryKey: ['team-dash-okrs'],
-    queryFn: () => okrsApi.list({ page_size: 100 }).then(r => {
+    queryFn: () => okrsApi.list({ page_size: DASHBOARD_LIST_SIZE }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const okrs = okrsRaw as OkrItem[]
 
@@ -90,24 +92,24 @@ export default function TeamDashboardPage() {
     queryFn: () => performanceApi.myReviews().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const perfReviews = perfReviewsRaw as PerfReview[]
 
   const { data: trainingsRaw = [] } = useQuery({
     queryKey: ['team-dash-training'],
-    queryFn: () => trainingApi.enrollments({ page_size: 100 }).then(r => {
+    queryFn: () => trainingApi.enrollments({ page_size: DASHBOARD_LIST_SIZE }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const trainings = trainingsRaw as TrainingItem[]
 
   const { data: absences = [] } = useQuery({
     queryKey: ['team-dash-absences'],
     // `todasLasPaginas` siempre devuelve el array ya desenvuelto.
-    queryFn: () => absencesApi.list({ page_size: 100 }).then(r => r.data).catch((): Absence[] => []),
-    staleTime: 60_000,
+    queryFn: () => absencesApi.list({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data).catch((): Absence[] => []),
+    staleTime: STALE_DEFAULT_MS,
   })
 
   if (lr) return (

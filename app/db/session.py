@@ -414,6 +414,19 @@ def _iter_tenant_scoped_models():
             yield cls
 
 
+def _iter_org_id_models():
+    """Modelos cuya columna de tenant se llama `org_id` (sin `organization_id`)."""
+    try:
+        from app.db.base import Base
+    except Exception:
+        logger.debug("_iter_org_id_models: excepcion ignorada", exc_info=True)
+        return
+    for mapper in Base.registry.mappers:
+        cls = mapper.class_
+        if hasattr(cls, "org_id") and not hasattr(cls, "organization_id") and not _is_tenant_exempt(cls):
+            yield cls
+
+
 # Revisión 2026-11: la misma decisión del filtro, también en la base (RLS).
 # Ver app/db/rls.py. En SQLite no hace nada.
 from app.db import rls as _rls  # noqa: E402
@@ -549,6 +562,18 @@ if _TENANT_AUTO_FILTER_GLOBAL:
                         include_aliases=True,
                     )
                 )
+        # Revision multitenant 2026-11b: los modelos con `org_id` (seguridad,
+        # ABAC, guardarrailes de IA: 11) solo los filtraban `query()` y
+        # `execute()`; esta capa —la que cubre lo que se cuela por las otras
+        # dos— los ignoraba. Misma regla, estricta.
+        for model in _iter_org_id_models():
+            criteria_options.append(
+                _with_loader_criteria(
+                    model,
+                    (lambda cls: _sql_false_expr()) if sin_organizacion else (lambda cls: cls.org_id == org_id),
+                    include_aliases=True,
+                )
+            )
         if criteria_options:
             execute_state.statement = execute_state.statement.options(*criteria_options)
 

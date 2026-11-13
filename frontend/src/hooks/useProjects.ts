@@ -3,6 +3,7 @@ import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { projectsApi } from '../services/api'
 import { queryKeys } from '../constants/queryKeys'
+import { STALE_REFERENCE_DATA_MS } from '../constants/timings'
 
 export interface Project {
   id: string
@@ -27,7 +28,7 @@ export function useProjects(params: ProjectListParams = {}): UseQueryResult<Proj
   return useQuery<Project[]>({
     queryKey: queryKeys.projects.list(params),
     queryFn: () => projectsApi.list(params).then((r) => unwrapList<Project>(r as { data?: { items?: Project[] } | Project[] | null })),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -36,7 +37,7 @@ export function useAllProjects(): UseQueryResult<Project[]> {
   return useQuery<Project[]>({
     queryKey: queryKeys.projects.all(),
     queryFn: () => projectsApi.list({}).then((r) => unwrapList<Project>(r as { data?: { items?: Project[] } | Project[] | null })),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -81,7 +82,7 @@ export function useProjectTeam(projectId: string | undefined): UseQueryResult<un
     queryKey: ['project-team', projectId],
     queryFn: () => projectsApi.team(projectId!).then((r) => r.data),
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -90,7 +91,7 @@ export function useProjectMembers(projectId: string | undefined): UseQueryResult
     queryKey: queryKeys.projects.members(projectId),
     queryFn: () => projectsApi.members(projectId!).then((r) => r.data),
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -100,7 +101,7 @@ export function useProjectEVM(projectId: string | undefined): UseQueryResult<unk
     queryKey: ['project-evm', projectId],
     queryFn: () => projectsApi.evm(projectId!).then((r) => r.data),
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
@@ -109,7 +110,7 @@ export function useProjectEVMPortfolio(): UseQueryResult<unknown> {
     // TODO #82: migrate to queryKeys — EVM portfolio lacks a dedicated factory entry
     queryKey: ['project-evm-portfolio'],
     queryFn: () => projectsApi.evmPortfolio().then((r) => r.data),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 

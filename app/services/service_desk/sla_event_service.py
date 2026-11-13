@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.service_desk import SLAEvent, SLAEventType, Ticket
 import logging
 from app.core.errores import ErrorDeDominio
@@ -22,7 +23,7 @@ def pause_ticket_sla(db: Session, ticket_id: str, user_id: str, note: str) -> di
         raise ErrorDeDominio(400, "SLA ya está pausado")
 
     ticket.sla_paused_at = datetime.now(timezone.utc)
-    if ticket.status.value not in ("resolved", "closed"):
+    if ticket.status.value not in ESTADOS_DE_TICKET_RESUELTOS:
         ticket.status = "pending_client"
 
     event = SLAEvent(

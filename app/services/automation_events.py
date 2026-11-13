@@ -25,6 +25,7 @@ from typing import Any, Optional
 
 from sqlalchemy import event, inspect, select
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.db.session import TenantSession
 # Registra sus escuchadores ya: si entrara por primera vez desde `_tras_confirmar`
 # (antes importaba `app.worker`; ahora encola por nombre), lo haria en mitad del commit y SQLAlchemy
@@ -93,7 +94,7 @@ def _contexto_ticket(t) -> dict:
             "assignee_id": t.assigned_to_user_id, "user_id": t.assigned_to_user_id}
 
 
-_CERRADOS = {"resolved", "closed", "cancelled"}
+_CERRADOS = ESTADOS_DE_TICKET_CERRADOS
 
 
 def _ticket(obj, nuevo: bool) -> list:

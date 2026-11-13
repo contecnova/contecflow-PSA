@@ -7,8 +7,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session, joinedload
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_ABIERTOS, ESTADOS_DE_TICKET_RESUELTOS, PRIORIDADES_DE_TICKET
 from app.models.service_desk import Ticket
 from app.core.errores import ErrorDeDominio
+from app.services.sla_service import ventana_de_riesgo_sla
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -39,12 +41,15 @@ def business_minutes_between(start: datetime, end: datetime) -> int:
 
 def get_sla_dashboard(db: Session) -> dict:
     now = datetime.now(timezone.utc)
-    open_statuses = ["new", "assigned", "in_progress", "pending_client"]
+    open_statuses = ESTADOS_DE_TICKET_ABIERTOS
     open_tickets = db.query(Ticket).filter(Ticket.status.in_(open_statuses)).all()
 
     breached = [t for t in open_tickets if t.sla_resolution_due and t.sla_resolution_due < now]
-    at_risk_2h = [t for t in open_tickets if t.sla_resolution_due and now < t.sla_resolution_due <= now + timedelta(hours=2)]
-    at_risk_4h = [t for t in open_tickets if t.sla_resolution_due and now + timedelta(hours=2) < t.sla_resolution_due <= now + timedelta(hours=4)]
+    # Ventana de riesgo: ajuste SLA_AT_RISK_WINDOW_HOURS (2 h); la segunda franja llega al doble.
+    # Las claves `at_risk_2h`/`at_risk_4h` se mantienen por compatibilidad.
+    ventana = ventana_de_riesgo_sla(db)
+    at_risk_2h = [t for t in open_tickets if t.sla_resolution_due and now < t.sla_resolution_due <= now + ventana]
+    at_risk_4h = [t for t in open_tickets if t.sla_resolution_due and now + ventana < t.sla_resolution_due <= now + 2 * ventana]
 
     def ticket_mini(t):
         breach_minutes = int((now - t.sla_resolution_due).total_seconds() / 60) if t.sla_resolution_due and t.sla_resolution_due < now else None
@@ -62,7 +67,7 @@ def get_sla_dashboard(db: Session) -> dict:
     since = now - timedelta(days=30)
     past_tickets = db.query(Ticket).filter(Ticket.created_at >= since).all()
     compliance_by_priority: dict = {}
-    for pri in ["p1_critical", "p2_high", "p3_medium", "p4_low"]:
+    for pri in PRIORIDADES_DE_TICKET:
         t_pri = [t for t in past_tickets if t.priority == pri]
         breached_pri = sum(1 for t in t_pri if t.sla_resolution_status == "breached" or (
             t.sla_resolution_due and t.resolved_at and t.resolved_at > t.sla_resolution_due))
@@ -84,7 +89,7 @@ def get_sla_dashboard(db: Session) -> dict:
             "breached": len(breached),
             "at_risk_2h": len(at_risk_2h),
             "at_risk_4h": len(at_risk_4h),
-            "healthy": len([t for t in open_tickets if not t.sla_resolution_due or t.sla_resolution_due > now + timedelta(hours=4)]),
+            "healthy": len([t for t in open_tickets if not t.sla_resolution_due or t.sla_resolution_due > now + 2 * ventana]),
         },
         "breached_tickets": [ticket_mini(t) for t in sorted(breached, key=lambda x: x.sla_resolution_due or now)[:10]],
         "at_risk_tickets": [ticket_mini(t) for t in sorted(at_risk_2h + at_risk_4h, key=lambda x: x.sla_resolution_due or now)[:10]],
@@ -112,7 +117,7 @@ def get_agent_performance(days: int, db: Session) -> list:
             }
         a = by_agent[aid]
         a["total"] += 1
-        if t.status in ["resolved", "closed"]:
+        if t.status in ESTADOS_DE_TICKET_RESUELTOS:
             a["resolved"] += 1
             if t.resolved_at and t.created_at:
                 a["total_mttr"] += (t.resolved_at - t.created_at).total_seconds() / 3600

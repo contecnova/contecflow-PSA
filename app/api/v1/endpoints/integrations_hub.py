@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Body, Qu
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.core.entorno import en_pruebas
 from pydantic import BaseModel
 
@@ -26,11 +27,11 @@ router = APIRouter(tags=["integrations-hub"])
 # ── Schemas ────────────────────────────────────────────────────────────────────
 class SlackTestIn(BaseModel):
     webhook_url: str
-    message:     str = "✅ Contecflow conectado correctamente con Slack"
+    message:     str = f"✅ {NOMBRE_DEL_PRODUCTO} conectado correctamente con Slack"
 
 class TeamsTestIn(BaseModel):
     webhook_url: str
-    message:     str = "✅ Contecflow conectado correctamente con Teams"
+    message:     str = f"✅ {NOMBRE_DEL_PRODUCTO} conectado correctamente con Teams"
 
 class JiraTestIn(BaseModel):
     base_url:  str
@@ -56,7 +57,7 @@ def test_slack(
 ):
     from app.services.integrations import send_slack_message, build_slack_blocks
     blocks = build_slack_blocks(
-        "🔗 Contecflow — Conexión verificada",
+        f"🔗 {NOMBRE_DEL_PRODUCTO} — Conexión verificada",
         [("Usuario", current_user.full_name), ("Hora", datetime.now().strftime("%H:%M"))],
     )
     result = send_slack_message(payload.webhook_url, payload.message, blocks=blocks)
@@ -79,7 +80,7 @@ def notify_slack(
     webhook_url  = cfg_dict.get("webhook_url", "")
     if not webhook_url: raise HTTPException(400, "Webhook URL no configurada")
 
-    result = send_slack_message(webhook_url, payload.get("text", "Notificación de Contecflow"))
+    result = send_slack_message(webhook_url, payload.get("text", f"Notificación de {NOMBRE_DEL_PRODUCTO}"))
     if not result["ok"]: raise HTTPException(400, result.get("error"))
     return APIResponse.ok(data={"ok": True})
 
@@ -93,7 +94,7 @@ def test_teams(
     from app.services.integrations import send_teams_message
     result = send_teams_message(
         payload.webhook_url,
-        title="🔗 Contecflow — Conexión verificada",
+        title=f"🔗 {NOMBRE_DEL_PRODUCTO} — Conexión verificada",
         text=payload.message,
         facts=[("Usuario", current_user.full_name), ("Hora", datetime.now().strftime("%H:%M"))],
     )
@@ -121,7 +122,7 @@ def test_jira(
     })
 
 
-@router.post("/jira/issues", summary="Crear issue en Jira desde Contecflow")
+@router.post("/jira/issues", summary=f"Crear issue en Jira desde {NOMBRE_DEL_PRODUCTO}")
 def create_jira_issue(
     payload: JiraIssueIn,
     db: Session = Depends(get_db),
@@ -487,9 +488,9 @@ async def _ejecutar_comando_del_bot(texto: str, usuario, db, *, canal: str) -> d
         # Auditoria 2026-11: sin usuario se creaban tareas y tickets anonimos y
         # se consultaban codigos de cualquier organizacion.
         return {"response_type": "ephemeral",
-                "text": f"❌ No encuentro un único usuario de Contecflow para ti en {canal}. "
+                "text": f"❌ No encuentro un único usuario de {NOMBRE_DEL_PRODUCTO} para ti en {canal}. "
                         "Tu nombre de usuario o la parte de tu correo antes de la @ (Slack), o tu "
-                        "nombre completo (Teams), tienen que coincidir exactamente con los de Contecflow."}
+                        f"nombre completo (Teams), tienen que coincidir exactamente con los de {NOMBRE_DEL_PRODUCTO}."}
     # Todo el comando corre en la organizacion de ese usuario.
     from app.db.session import publicar_contexto_de_tenant
     publicar_contexto_de_tenant(db, usuario)

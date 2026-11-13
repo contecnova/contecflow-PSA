@@ -173,6 +173,10 @@ def client_login(email: str, password: str, db: Session) -> dict:
         raise ValueError("Email o contraseña incorrectos")
     if not verify_password(password, client.hashed_password):
         raise ValueError("Email o contraseña incorrectos")
+    # Revision multitenant 2026-11b: el login del portal emitia token aunque la
+    # empresa estuviera desactivada (luego cada llamada daba 403).
+    from app.db.session import exigir_organizacion_activa
+    exigir_organizacion_activa(db, client.organization_id)
     client.last_login = datetime.now(timezone.utc)
     db.commit()
     token = create_client_token(client.id)

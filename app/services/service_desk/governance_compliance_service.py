@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 
 from typing import Optional
 
+from app.models.service_desk._enums import ESTADOS_DE_PROBLEMA_RESUELTOS, ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import (
     ITSMChangeRequest,
     ChangeType,
@@ -676,7 +677,7 @@ def get_executive_dashboard(db: Session, days: int = 30) -> dict:
         db.query(func.count(Ticket.id))
         .filter(
             Ticket.ticket_type == TicketType.incident,
-            Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
         )
         .scalar() or 0
     )
@@ -686,14 +687,14 @@ def get_executive_dashboard(db: Session, days: int = 30) -> dict:
         .filter(
             Ticket.ticket_type == TicketType.incident,
             Ticket.priority == TicketPriority.p1_critical,
-            Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
         )
         .scalar() or 0
     )
 
     unresolved_problems = (
         db.query(func.count(Problem.id))
-        .filter(Problem.status.notin_(["closed", "resolved"]))
+        .filter(Problem.status.notin_(ESTADOS_DE_PROBLEMA_RESUELTOS))
         .scalar() or 0
     )
 

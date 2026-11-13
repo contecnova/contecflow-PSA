@@ -34,6 +34,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.service_desk import (
     Ticket,
     TicketHistory,
@@ -466,7 +467,7 @@ def run_autonomous_resolution(
 
     # Skip already resolved/closed
     status_val = getattr(ticket.status, "value", str(ticket.status))
-    if status_val in ("resolved", "closed"):
+    if status_val in ESTADOS_DE_TICKET_RESUELTOS:
         return {"skipped": True, "reason": "Ticket already resolved or closed"}
 
     evaluation = evaluate_ticket_for_autonomy(db, ticket)

@@ -125,10 +125,10 @@ def _is_allowed_redirect_uri(redirect_uri: str, allowed_origins: list[str]) -> b
 
 
 @router.get("/sso/providers", summary="Proveedores SSO activos (para mostrar en login)")
-def list_sso_providers(db: Session = Depends(get_db)):
+def list_sso_providers(request: Request, db: Session = Depends(get_db)):
     """Devuelve los proveedores SSO activos para mostrar botones en el login."""
     try:
-        return _svc.get_active_sso_providers(db)
+        return _svc.get_active_sso_providers(db, request)
     except Exception:
         logger.warning("Failed to load SSO providers", exc_info=True)
         return []

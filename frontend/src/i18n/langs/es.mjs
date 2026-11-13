@@ -3815,6 +3815,7 @@ const es = {
     informe_control_gdpr_requests: "Solicitudes RGPD en plazo",
     informe_control_ai_spend_cap: "Tope de gasto en IA",
     informe_control_backups: "Copias de seguridad",
+    informe_control_retention: "Retención y bloqueo legal",
     acceso_pestana: "Explicar acceso",
     acceso_intro: "Elige una persona y una operación: se recorren las capas de permiso en el orden en que actúan y se dice cuál decide.",
     acceso_usuario: "Persona…",

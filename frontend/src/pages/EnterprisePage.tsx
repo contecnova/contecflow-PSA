@@ -17,6 +17,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { INTEGRATION_CATALOG } from '../constants/api'
 import { Building2 } from 'lucide-react'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { AUDIT_LOG_PAGE_SIZE, AUDIT_LOG_SMALL_PAGE_SIZE } from '../constants/pagination'
 
 const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -639,15 +640,15 @@ function AuditTab() {
   const traducir = useAppT()
   const { data: logs = [] } = useQuery<AuditEvent[]>({
     queryKey: ['audit-ent'],
-    queryFn: () => enterpriseApi.auditLog({page:1,page_size:50}).then(r => r.data?.logs || []).catch(() => []),
+    queryFn: () => enterpriseApi.auditLog({page:1,page_size:AUDIT_LOG_PAGE_SIZE}).then(r => r.data?.logs || []).catch(() => []),
   })
   const { data: resetRequestLogs = [] } = useQuery<AuditEvent[]>({
     queryKey: ['audit-ent-reset-request'],
-    queryFn: () => enterpriseApi.auditLog({page:1,page_size:20,action:'PASSWORD_RESET_REQUEST'}).then(r => r.data?.logs || []).catch(() => []),
+    queryFn: () => enterpriseApi.auditLog({page:1,page_size:AUDIT_LOG_SMALL_PAGE_SIZE,action:'PASSWORD_RESET_REQUEST'}).then(r => r.data?.logs || []).catch(() => []),
   })
   const { data: resetCompleteLogs = [] } = useQuery<AuditEvent[]>({
     queryKey: ['audit-ent-reset-complete'],
-    queryFn: () => enterpriseApi.auditLog({page:1,page_size:20,action:'PASSWORD_RESET_COMPLETE'}).then(r => r.data?.logs || []).catch(() => []),
+    queryFn: () => enterpriseApi.auditLog({page:1,page_size:AUDIT_LOG_SMALL_PAGE_SIZE,action:'PASSWORD_RESET_COMPLETE'}).then(r => r.data?.logs || []).catch(() => []),
   })
 
   const passwordResetLogs = [...resetCompleteLogs, ...resetRequestLogs]

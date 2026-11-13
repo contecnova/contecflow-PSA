@@ -32,6 +32,7 @@ import {
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { useTabListKeys } from '../../components/ui/Tabs'
+import { POLL_FAST_MS, POLL_FREQUENT_MS } from '../../constants/timings'
 
 // ── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_TONE: Record<string, string> = {
@@ -722,14 +723,14 @@ export function PortalMessages() {
   const { data: conversations = [], isLoading } = useQuery<CollabConversation[]>({
     queryKey: ['portal-collab-conversations'],
     queryFn: () => CLIENT_API.get('/portal/collaboration/conversations').then(r => r.data),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const { data: messages = [] } = useQuery<CollabMessage[]>({
     queryKey: ['portal-collab-messages', activeConvId],
     queryFn: () => CLIENT_API.get(`/portal/collaboration/conversations/${activeConvId}/messages`).then(r => r.data),
     enabled: !!activeConvId,
-    refetchInterval: 5_000,
+    refetchInterval: POLL_FAST_MS,
   })
 
   const send = useMutation({

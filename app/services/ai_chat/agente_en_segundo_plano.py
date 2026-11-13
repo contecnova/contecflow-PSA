@@ -52,7 +52,10 @@ def ejecutar_agente(execution_id: str, instruction: str, user_id: str, auto_appr
 
             execution.status = "running"
             db.commit()
-            # Revision 2026-11: todo corre en la empresa de quien lo pidio.
+            # Revision 2026-11: todo corre en la empresa de quien lo pidio; y
+            # (2026-11b) en la que lo pidio, la de la ejecucion, no la de su ficha.
+            from app.services.entrada_service import fijar_organizacion_activa
+            fijar_organizacion_activa(db, current_user, getattr(execution, "organization_id", None))
             _sesion.publicar_contexto_de_tenant(db, current_user)
 
             t0 = time.time()

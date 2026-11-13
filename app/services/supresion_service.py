@@ -12,7 +12,8 @@ Uno solo, y genérico (sin lista de tablas a mano):
    de datos de contacto vacíos, desactivada y sin contraseña. El `id` se queda:
    horas, gastos y facturas siguen cuadrando, ya sin nadie identificable.
 2. Cualquier columna de texto de cualquier tabla cuyo valor sea EXACTAMENTE su
-   correo, su nombre completo o su usuario (de las empresas a las que pertenece).
+   correo, su nombre completo o su usuario (de las empresas a las que pertenece),
+   menos `audit_logs`: es la evidencia encadenada y reescribirla rompe la cadena.
 3. Sus credenciales: las filas suyas de las tablas de sesiones, MFA, passkeys,
    tokens, claves de API y suscripciones push.
 4. `dim_user` del almacén analítico. Si no se puede, el informe lo dice.
@@ -72,7 +73,12 @@ def suprimir_persona(db: Session, user) -> dict:
 
     with sin_filtro_de_tenant(db):
         for nombre, tabla in Base.metadata.tables.items():
-            if nombre == "users":
+            # Revisión GRC 2026-11b: `audit_logs` es la evidencia encadenada
+            # (app/db/cadena_auditoria.py) y `user_name` entra en la huella:
+            # reescribirlo rompía la cadena de la empresa y el informe de
+            # cumplimiento pasaba a «attention». Se conserva, como en la
+            # retención (RGPD art. 17.3.b/e: obligación legal y defensa).
+            if nombre in ("users", "audit_logs"):
                 continue
             cols = tabla.columns
             # 3. Credenciales.

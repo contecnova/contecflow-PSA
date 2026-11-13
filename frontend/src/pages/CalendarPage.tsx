@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { CALENDAR_ABSENCES_LIMIT, CALENDAR_SPRINTS_LIMIT, CALENDAR_TASKS_LIMIT } from '../constants/pagination'
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const DAYS   = ['L','M','X','J','V','S','D']
@@ -62,7 +63,7 @@ export default function CalendarPage(): JSX.Element {
   // Tareas con fecha de vencimiento
   const { data: tasks = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-tasks', year, month],
-    queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: 100 })
+    queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: CALENDAR_TASKS_LIMIT })
       .then(r => (unwrapList(r) as TaskItem[]).map((t): CalendarEvent => ({
         date: t.due_date ?? '', type: 'task', title: t.title ?? '', id: t.id, status: t.status,
       }))).catch(() => []),
@@ -80,7 +81,7 @@ export default function CalendarPage(): JSX.Element {
   // Sprints
   const { data: sprints = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-sprints', year, month],
-    queryFn: () => sprintsApi.list(undefined, { limit: 20 })
+    queryFn: () => sprintsApi.list(undefined, { limit: CALENDAR_SPRINTS_LIMIT })
       .then(r => (unwrapList(r) as SprintItem[]).flatMap(s => [
         s.start_date ? { date: s.start_date, type: 'sprint', title: `${s.name} (inicio)`, id: s.id + '_s' } : null,
         s.end_date   ? { date: s.end_date,   type: 'sprint', title: `${s.name} (fin)`,   id: s.id + '_e' } : null,
@@ -90,7 +91,7 @@ export default function CalendarPage(): JSX.Element {
   // Ausencias
   const { data: absences = [] } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-absences', year, month],
-    queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: 200 })
+    queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: CALENDAR_ABSENCES_LIMIT })
       // Una ausencia ocupa todos sus días del mes, no sólo el primero (revisión 2026-11).
       .then(r => (unwrapList(r) as AbsenceItem[]).flatMap((a): CalendarEvent[] => {
         if (!a.start_date) return []

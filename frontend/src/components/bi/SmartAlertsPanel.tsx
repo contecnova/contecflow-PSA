@@ -8,6 +8,7 @@ import { biSmartAlertsApi } from '../../services/api'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
+import { STALE_10_MIN_MS, STALE_SHORT_MS } from '../../constants/timings'
 
 // TODO type: biSmartAlertsApi payloads — needs shared types
 interface AlertRule {
@@ -69,17 +70,17 @@ export default function SmartAlertsPanel() {
   const { data: rules } = useQuery<{ items?: AlertRule[] }>({
     queryKey: ['bi-alert-rules', tick],
     queryFn: () => biSmartAlertsApi.listRules().then(r => r.data).catch(() => ({ items: [] })),
-    staleTime: 30_000,
+    staleTime: STALE_SHORT_MS,
   })
   const { data: history } = useQuery<{ items?: AlertHistoryEntry[] }>({
     queryKey: ['bi-alert-history', tick],
     queryFn: () => biSmartAlertsApi.getHistory(50).then(r => r.data).catch(() => ({ items: [] })),
-    staleTime: 30_000,
+    staleTime: STALE_SHORT_MS,
   })
   const { data: supported } = useQuery<SupportedMetrics>({
     queryKey: ['bi-alert-supported-metrics'],
     queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data).catch(() => ({ metrics: [], conditions: [] })),
-    staleTime: 600_000,
+    staleTime: STALE_10_MIN_MS,
   })
 
   async function evaluateNow() {

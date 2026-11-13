@@ -31,8 +31,14 @@ def trigger_out(t: WebhookTrigger) -> dict:
 
 # ─── Webhook background task ──────────────────────────────────────────────────
 
-def execute_workflow_from_webhook(workflow_id: str, context: dict) -> None:
-    """Background task: enqueue workflow triggered by incoming webhook."""
+def execute_workflow_from_webhook(workflow_id: str, context: dict, organization_id: str | None = None) -> None:
+    """Background task: enqueue workflow triggered by incoming webhook.
+
+    Revision multitenant 2026-11b: la peticion no tiene usuario, asi que el
+    sellado no podia poner empresa y el elemento quedaba con NULL: la cola de
+    la empresa (`process-queue`, filtrada) no lo veia nunca. Lleva la del
+    disparador.
+    """
     bg_db = SessionLocal()
     try:
         item = WorkflowQueueItem(
@@ -40,6 +46,7 @@ def execute_workflow_from_webhook(workflow_id: str, context: dict) -> None:
             trigger_data=json.dumps(context),
             execute_at=datetime.now(timezone.utc),
             status="pending",
+            organization_id=organization_id,
         )
         bg_db.add(item); bg_db.commit()
     except Exception as e:
@@ -81,6 +88,7 @@ def log_webhook_fire(trigger, payload_str: str, headers_str: str, db: Session) -
         payload=payload_str[:2000],
         headers=headers_str[:1000],
         status="ok",
+        organization_id=trigger.organization_id,  # sin usuario no hay sellado (2026-11b)
     )
     db.add(log)
     trigger.fire_count = (trigger.fire_count or 0) + 1
@@ -95,6 +103,9 @@ def get_active_webhook_trigger_by_slug(db: Session, slug: str) -> WebhookTrigger
     ).first()
     if not trigger:
         raise ErrorDeDominio(404, "Webhook trigger no encontrado")
+    # Una empresa desactivada no recibe webhooks (revision multitenant 2026-11b).
+    from app.db.session import exigir_organizacion_activa
+    exigir_organizacion_activa(db, trigger.organization_id)
     if trigger.slug_expires_at and trigger.slug_expires_at < datetime.now(timezone.utc):
         raise ErrorDeDominio(410, "Webhook trigger slug expirado — rota el slug para reactivarlo")
     return trigger

@@ -20,6 +20,7 @@ import { useToast } from './ToastContext'
 // TODO type: services/collaborationApi still JS — types inferred at the call site
 import { collabApi } from '../services/collaborationApi'
 import { wsApi, apiWsUrl } from '../services/api'
+import { POLL_DEFAULT_MS, WS_HEARTBEAT_MS, WS_RECONNECT_INITIAL_MS, WS_RECONNECT_MAX_MS } from '../constants/timings'
 
 // ── Public domain types ─────────────────────────────────────────────────
 
@@ -128,7 +129,7 @@ export default function ChatRealtimeProvider({ children }: ChatRealtimeProviderP
       return
     }
     refresh()
-    const t = setInterval(refresh, 60_000)
+    const t = setInterval(refresh, POLL_DEFAULT_MS)
     return () => clearInterval(t)
   }, [user?.id, refresh])
 
@@ -185,15 +186,15 @@ export default function ChatRealtimeProvider({ children }: ChatRealtimeProviderP
           // superadmin sin organización). Son rechazos definitivos: no
           // reintentamos para no spammear consola/red.
           if (closeEv.code === 4401 || closeEv.code === 4403) return
-          reconnectTimer = setTimeout(connect, Math.min(1000 * 2 ** (attempt - 1), 30000))
+          reconnectTimer = setTimeout(connect, Math.min(WS_RECONNECT_INITIAL_MS * 2 ** (attempt - 1), WS_RECONNECT_MAX_MS))
         }
         if (pingInterval) clearInterval(pingInterval)
         pingInterval = setInterval(() => {
           if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }))
-        }, 25000)
+        }, WS_HEARTBEAT_MS)
       } catch {
         if (!cancelled && !stoppedByLogout) {
-          reconnectTimer = setTimeout(connect, Math.min(1000 * 2 ** (attempt - 1), 30000))
+          reconnectTimer = setTimeout(connect, Math.min(WS_RECONNECT_INITIAL_MS * 2 ** (attempt - 1), WS_RECONNECT_MAX_MS))
         }
       }
     }

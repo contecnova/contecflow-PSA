@@ -24,6 +24,7 @@ import AIInlineEditor from '../components/AIInlineEditor'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
+import { STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS } from '../constants/timings'
 
 const STATUS_LABELS_MAP: Record<string, string> = STATUS_LABELS
 
@@ -323,7 +324,7 @@ function useWorkflowStatusOptions(projectId: string | undefined, t: Traductor): 
     queryKey: ['project-workflow', projectId],
     queryFn: () => projectWorkflowsApi.get(projectId).then(r => r.data).catch(() => null),
     enabled: !!projectId,
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
     retry: false,
   })
   if ((data?.states?.length ?? 0) > 0) {
@@ -1134,7 +1135,7 @@ export default function TasksPage() {
   const { data: allUsers = [] } = useQuery<UserListItem[]>({
     queryKey: ['users'],
     queryFn: () => import('../services/api').then(m => m.usersApi.list().then(r => r.data)),
-    staleTime: 120000,
+    staleTime: STALE_REFERENCE_DATA_MS,
   })
 
   const { mutate: bulkMutate, isPending: bulkPending } = useMutation({

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
 
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.models.ai_chat import (
     AIVoiceCommand, AIAgentExecution as _ExecRecord,
 )
@@ -36,7 +37,7 @@ def _voice_parse_intent(db, transcript: str, current_user) -> tuple:
     entities: dict = {}
     action_taken = ""
     try:
-        prompt = f"""Analiza este comando de voz de un usuario de Contecflow y extrae:
+        prompt = f"""Analiza este comando de voz de un usuario de {NOMBRE_DEL_PRODUCTO} y extrae:
 - intent: log_hours | create_ticket | query_hours | create_task | get_summary | other
 - entities: objetos relevantes (project_name, hours, task_name, date, ticket_title, priority, etc.)
 
@@ -187,7 +188,7 @@ def _voice_handle_other(db, current_user, transcript: str, result: dict) -> None
     enviar_tarea("app.worker.run_agent_task", args=[str(exec_record.id), transcript, str(current_user.id)])
     result["action"] = (
         f"Comando enviado al agente (ID: {str(exec_record.id)[:8]}). "
-        "Revisa el historial de ContecflowAgent para el resultado."
+        f"Revisa el historial de {NOMBRE_DEL_PRODUCTO}Agent para el resultado."
     )
     result["execution_id"] = str(exec_record.id)
 

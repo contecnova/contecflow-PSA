@@ -214,6 +214,7 @@ AJUSTES_DE_PLATAFORMA = frozenset({
     "OUTBOUND_HTTP_TIMEOUT_SECONDS", "OUTBOUND_AI_TIMEOUT_SECONDS", "SSO_CLOCK_SKEW_SECONDS", "SSO_HTTP_TIMEOUT_SECONDS",
     # Empresas y suplantación
     "TENANT_DELETION_QUARANTINE_DAYS", "IMPERSONATION_ENABLED", "IMPERSONATION_MAX_MINUTES",
+    "ORG_DEFAULT_MAX_USERS", "ORG_DEFAULT_MAX_PROJECTS",
     # Colas de eventos de los trabajos de fondo
     "SD_EVENT_BATCH_SIZE", "SD_EVENT_MAX_ATTEMPTS", "AUTOMATIONS_EVENT_BATCH_SIZE",
     # Proveedores de IA y motor semántico (una configuración para toda la instalación)

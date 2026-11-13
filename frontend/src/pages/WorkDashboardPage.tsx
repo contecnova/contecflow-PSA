@@ -14,6 +14,8 @@ import {
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
+import { STALE_DEFAULT_MS } from '../constants/timings'
+import { COUNT_ONLY_PAGE_SIZE, FULL_LIST_SIZE } from '../constants/pagination'
 
 type TaskStatResponse = { open: number; overdue: number; done: number }
 type HourRow = { label?: string; value?: number }
@@ -161,9 +163,9 @@ export default function WorkDashboardPage(): JSX.Element {
     queryKey: ['work-dash-task-stats', userId],
     queryFn: async () => {
       const [openRes, overdueRes, doneRes] = await Promise.all([
-        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review', page_size: 500 }),
-        tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: 500 }),
-        tasksApi.list({ assigned_to_me: true, status: 'done', page_size: 1 }),
+        tasksApi.list({ assigned_to_me: true, status: 'backlog,todo,in_progress,blocked,in_review', page_size: FULL_LIST_SIZE }),
+        tasksApi.list({ assigned_to_me: true, overdue_only: true, page_size: FULL_LIST_SIZE }),
+        tasksApi.list({ assigned_to_me: true, status: 'done', page_size: COUNT_ONLY_PAGE_SIZE }),
       ])
       const openItems = openRes?.data ?? []
       const overdueItems = overdueRes?.data ?? []
@@ -175,7 +177,7 @@ export default function WorkDashboardPage(): JSX.Element {
         done: totalCountFrom(doneRes),
       }
     },
-    enabled: !!userId, staleTime: 60_000, retry: 1,
+    enabled: !!userId, staleTime: STALE_DEFAULT_MS, retry: 1,
   })
 
   const { data: myWeekHours = 0, isError: e1 } = useQuery<number>({
@@ -184,7 +186,7 @@ export default function WorkDashboardPage(): JSX.Element {
       const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfWeekIso(), date_to: new Date().toISOString().slice(0, 10) })
       return ((r.data?.rows as Array<{ value?: number }> | undefined) || []).reduce((s: number, x) => s + (x.value || 0), 0)
     },
-    enabled: !!userId, staleTime: 60_000,
+    enabled: !!userId, staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: myMonthHours = null, isError: e2 } = useQuery<number | null>({
@@ -193,7 +195,7 @@ export default function WorkDashboardPage(): JSX.Element {
       const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfMonthIso(), date_to: new Date().toISOString().slice(0, 10) })
       return ((r.data?.rows as Array<{ value?: number }> | undefined) || []).reduce((s: number, x) => s + (x.value || 0), 0)
     },
-    enabled: !!userId, staleTime: 60_000,
+    enabled: !!userId, staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: approvals = [], isLoading: la, isError: e3 } = useQuery<ApprovalItem[]>({
@@ -201,7 +203,7 @@ export default function WorkDashboardPage(): JSX.Element {
     queryFn: () => approvalsApi.pendingMyAction().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: expenses = [], isLoading: le, isError: e4 } = useQuery<ExpenseItem[]>({
@@ -209,7 +211,7 @@ export default function WorkDashboardPage(): JSX.Element {
     queryFn: () => expensesApi.my({ status: 'pending' }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: hoursData = [], isError: e5 } = useQuery<HourRow[]>({
@@ -218,7 +220,7 @@ export default function WorkDashboardPage(): JSX.Element {
       const r = await analyticsApi.query('hours_by_month', { ...dateRange(180), ...(userId ? { user_id: userId } : {}) })
       return (r.data?.rows as HourRow[] | undefined) || []
     },
-    enabled: !!userId, staleTime: 60_000,
+    enabled: !!userId, staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: absences = [], isLoading: lab, isError: e6 } = useQuery<AbsenceItem[]>({
@@ -226,7 +228,7 @@ export default function WorkDashboardPage(): JSX.Element {
     queryFn: () => absencesApi.my({}).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   // Revisión 2026-11: cualquier consulta que falle avisa; antes su KPI enseñaba 0 en silencio.

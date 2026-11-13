@@ -253,21 +253,29 @@ def descifrar_si_es_secreto(clave: str, valor: Optional[str]) -> Optional[str]:
     return decrypt_value(valor)
 
 
+class _EmpresaDeLaSesion:
+    """Sujeto minimo con la empresa publicada en la sesion (para `ajuste_de_firma`)."""
+
+    def __init__(self, db: Session):
+        self.organization_id = (getattr(db, "info", None) or {}).get("organization_id")
+
+
 def _get_db_setting(db: Optional[Session], key: str) -> Optional[str]:
-    """Read an AppSetting KV value; returns None if db is None or key missing."""
+    """El ajuste de e-firma de la empresa de la sesion; si no tiene, el global.
+
+    Revision multitenant 2026-11b: era `AppSetting.key == key .first()`. En una
+    sesion sin filtro (el webhook de Adobe, un superadmin) devolvia el token de
+    la PRIMERA empresa que lo tuviera, y en una filtrada, la propia o la global
+    al azar. Ahora es lo mismo que `ajuste_de_firma`.
+    """
     if db is None:
         return None
-    row = db.query(AppSetting).filter(AppSetting.key == key).first()
-    return descifrar_si_es_secreto(key, row.value) if row and row.value else None
+    return ajuste_de_firma(db, _EmpresaDeLaSesion(db), key)
 
 
 def _set_db_setting(db: Session, key: str, value: str) -> None:
-    value = cifrar_si_es_secreto(key, value)
-    row = db.query(AppSetting).filter(AppSetting.key == key).first()
-    if row:
-        row.value = value
-    else:
-        db.add(AppSetting(key=key, value=value, description=f"E-firma config: {key}"))
+    """Escribe en la empresa de la sesion (o en el global sin empresa) y confirma."""
+    guardar_ajuste_de_firma(db, _EmpresaDeLaSesion(db), key, value)
     db.commit()
 
 

@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import type { Client, ClientContact, Contract, Epic, RiesgosDelProyecto, Risk, Sprint } from './tipos'
 import { API_BASE_URL } from './urls'
+import { ESCALATION_LOGS_LIMIT, GOVERNANCE_LOGS_LIMIT, INBOUND_MESSAGES_LIMIT, MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
 const BASE_URL = API_BASE_URL
 
@@ -1256,7 +1257,7 @@ export const sdEscalationApi = {
   create: (data: unknown)     => api.post('/sd/escalation-rules', data),
   update: (id: string, data: unknown) => api.patch(`/sd/escalation-rules/${id}`, data),
   delete: (id: string)       => api.delete(`/sd/escalation-rules/${id}`),
-  logs:   (limit = 20)       => api.get('/sd/escalation-rules/logs', { params: { limit } }),
+  logs:   (limit = ESCALATION_LOGS_LIMIT) => api.get('/sd/escalation-rules/logs', { params: { limit } }),
 }
 
 export const sdNotificationTemplatesApi = {
@@ -1290,7 +1291,7 @@ export const sdOnCallApi = {
 }
 
 export const sdMonitoringApi = {
-  alerts: (limit = 30) => api.get('/sd/events/alerts', { params: { limit } }),
+  alerts: (limit = MONITORING_ALERTS_LIMIT) => api.get('/sd/events/alerts', { params: { limit } }),
 }
 
 export const sdStatusPageApi = {
@@ -1308,7 +1309,7 @@ export const sdApprovalsApi = {
 }
 
 export const sdInboundApi = {
-  messages: (limit = 30) => api.get('/sd/inbound/messages', { params: { limit } }),
+  messages: (limit = INBOUND_MESSAGES_LIMIT) => api.get('/sd/inbound/messages', { params: { limit } }),
   test:     ()           => api.post('/sd/inbound/test'),
   run:      ()           => api.post('/sd/inbound/run'),
 }
@@ -1612,7 +1613,7 @@ export const scenariosApi = {
 export const governanceApi = {
   config:  () => api.get('/governance/config'),
   stats:   () => api.get('/governance/stats'),
-  logs:    () => api.get('/governance/logs?limit=100'),
+  logs:    () => api.get(`/governance/logs?limit=${GOVERNANCE_LOGS_LIMIT}`),
   update:  (module: PathId, data: unknown) => api.patch(`/governance/config/${module}`, data),
   // Revisión 2026-11: retención y bloqueo legal.
   retentionPolicies: () => api.get('/governance/retention/policies'),

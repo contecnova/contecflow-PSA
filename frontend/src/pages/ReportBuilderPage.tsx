@@ -17,6 +17,8 @@ import { useAppT } from '../i18n/AppLangContext'
 import { Table } from '../components/ui'
 import { useToast } from '../context/ToastContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { STALE_DEFAULT_MS } from '../constants/timings'
+import { REPORT_BUILDER_ROW_LIMIT } from '../constants/pagination'
 
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
@@ -301,7 +303,7 @@ function BiPresetsTab() {
   const { data: presets } = useQuery<{ items: BiPreset[] }>({
     queryKey: ['rbv2-presets'],
     queryFn: () => biReportBuilderV2Api.listPresets({ grouped: false }).then(r => r.data).catch(() => ({ items: [] })),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const items = presets?.items || []
 
@@ -434,7 +436,7 @@ export default function ReportBuilderPage() {
     columns: columns.length > 0 ? columns : Object.keys(entityDef?.columns || {}),
     filters: filters.filter(f => f.column && f.operator),
     sort: sort.column ? sort : null,
-    limit: 500,
+    limit: REPORT_BUILDER_ROW_LIMIT,
   })
 
   const runPreview = async () => {

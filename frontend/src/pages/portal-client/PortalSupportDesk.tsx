@@ -25,6 +25,8 @@ import {
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useTabListKeys } from '../../components/ui/Tabs'
+import { SLOW_INPUT_DEBOUNCE_MS } from '../../constants/timings'
+import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
 
 
 const PRIORITY_TONE: Record<string, string> = {
@@ -163,7 +165,7 @@ export function PortalSupportDesk() {
   const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery<ContextOptions>({
     queryKey: ['portal-sd-dynamic-forms-context', createForm.service_item_id],
     queryFn: () => CLIENT_API.get('/sd/dynamic-forms/public/context-options', {
-      params: { service_item_id: createForm.service_item_id || undefined, limit: 60 },
+      params: { service_item_id: createForm.service_item_id || undefined, limit: DYNAMIC_FORM_OPTIONS_LIMIT },
     }).then(r => r.data as ContextOptions),
   })
 
@@ -744,7 +746,7 @@ function SugerenciasDeLaKb({ texto, onResuelto }: { texto: string; onResuelto: (
   const [consulta, setConsulta] = useState('')
   const [abierto, setAbierto] = useState<string | null>(null)
   useEffect(() => {
-    const h = setTimeout(() => setConsulta(texto.trim()), 400)
+    const h = setTimeout(() => setConsulta(texto.trim()), SLOW_INPUT_DEBOUNCE_MS)
     return () => clearTimeout(h)
   }, [texto])
   const { data: sugerencias = [] } = useQuery<{ id: string; title: string; summary?: string | null }[]>({

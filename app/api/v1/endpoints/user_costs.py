@@ -32,7 +32,6 @@ from app.db.session import get_db
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
 from app.core.config import settings
-from app.core.constantes import HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO, PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO
 import app.services.cost_service as svc
 from app.services.presets_de_pais import actualizar_preset_de_pais
 
@@ -44,8 +43,9 @@ class CountryPresetIn(BaseModel):
     country_code: str
     country_name: str
     currency: str = settings.DEFAULT_CURRENCY
-    employer_cost_pct: float = PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO
-    productive_hours_year: float = HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
+    # Sin valor: los por defecto de la empresa (`costes_por_defecto`).
+    employer_cost_pct: Optional[float] = None
+    productive_hours_year: Optional[float] = None
     notes: Optional[str] = None
 
 
@@ -60,9 +60,9 @@ class CountryPresetUpdate(BaseModel):
 class ProfileIn(BaseModel):
     valid_from: Date
     gross_annual_salary: float
-    employer_cost_pct: float = PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO
+    employer_cost_pct: Optional[float] = None
     extra_annual_costs: float = 0.0
-    productive_hours_year: float = HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
+    productive_hours_year: Optional[float] = None
     country_code: Optional[str] = None
     currency: str = settings.DEFAULT_CURRENCY
     notes: Optional[str] = None
@@ -84,7 +84,17 @@ class PreviewIn(BaseModel):
     gross_annual_salary: float
     employer_cost_pct: float
     extra_annual_costs: float = 0.0
-    productive_hours_year: float = HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO
+    productive_hours_year: Optional[float] = None
+
+
+def _con_costes_por_defecto(db: Session, user: User, datos: dict) -> dict:
+    """Rellena `employer_cost_pct`/`productive_hours_year` vacios con los de la empresa."""
+    pct, horas = svc.costes_por_defecto(db, getattr(user, "organization_id", None))
+    if "employer_cost_pct" in datos and datos["employer_cost_pct"] is None:
+        datos["employer_cost_pct"] = pct
+    if "productive_hours_year" in datos and datos["productive_hours_year"] is None:
+        datos["productive_hours_year"] = horas
+    return datos
 
 
 # ── Country presets ──────────────────────────────────────────────────────────
@@ -105,7 +115,8 @@ def create_country(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_hr),
 ):
-    row = svc.guardar_preset_de_pais(db, current_user, payload.model_dump())
+    datos = _con_costes_por_defecto(db, current_user, payload.model_dump())
+    row = svc.guardar_preset_de_pais(db, current_user, datos)
     return APIResponse.ok(data=svc.serialize_country(row))
 
 
@@ -162,6 +173,8 @@ def create_user_profile(
 ):
     svc.usuario_propio(db, current_user, user_id)
     org_id = getattr(current_user, "organization_id", None)
+    payload = payload.model_copy(update=_con_costes_por_defecto(
+        db, current_user, payload.model_dump(include={"employer_cost_pct", "productive_hours_year"})))
     profile = svc.create_profile(
         db,
         user_id=user_id,
@@ -208,8 +221,11 @@ def get_active(
 def preview_cost(
     user_id: str,
     payload: PreviewIn,
-    _: User = Depends(require_admin_or_hr),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_hr),
 ):
+    payload = payload.model_copy(update=_con_costes_por_defecto(
+        db, current_user, payload.model_dump(include={"productive_hours_year"})))
     total, per_hour = svc.derive_cost(
         payload.gross_annual_salary,
         payload.employer_cost_pct,

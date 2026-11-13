@@ -3,6 +3,7 @@ import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS — typed as any via implicit import.
 import { alertsApi } from '../services/api'
 import { queryKeys } from '../constants/queryKeys'
+import { POLL_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 
 export interface AlertItem {
   id: string
@@ -24,8 +25,8 @@ export function useAlerts(params: AlertListParams = {}): UseQueryResult<AlertIte
       if (Array.isArray(d)) return d
       return d?.items ?? []
     }),
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: STALE_SHORT_MS,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 }
 

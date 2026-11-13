@@ -13,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { Brain } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { CLOCK_TICK_MS } from '../constants/timings'
 
 const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const fs: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
@@ -269,7 +270,7 @@ export default function SemanticEnginePage() {
     const startedAt = opStatus.startedAt
     const id = setInterval(() => {
       setOpElapsed(Math.floor((Date.now() - startedAt) / 1000))
-    }, 1000)
+    }, CLOCK_TICK_MS)
     return () => clearInterval(id)
   }, [opStatus.startedAt])
 

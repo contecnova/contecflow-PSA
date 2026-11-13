@@ -17,6 +17,8 @@ import {
 import { alpha } from '../constants/theme'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { STALE_5_MIN_MS, STALE_DEFAULT_MS } from '../constants/timings'
+import { INVOICES_BATCH_SIZE } from '../constants/pagination'
 interface ClientItem { status?: string }
 // Campos de `pipeline_service` (auditoria 2026-11: se leian `value`/`amount` y
 // `status`, que no vienen: el pipeline salia a 0 y contaba ganadas y perdidas).
@@ -71,7 +73,7 @@ export default function FinanceDashboardPage(): JSX.Element {
   const { data: profitSummaryRaw, isLoading: lp, isError: profitError } = useQuery({
     queryKey: ['fin-dash-profit', days],
     queryFn: () => api.get('/profitability/summary', { params: { ...params, period: 'custom' } }).then(r => r.data),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
     retry: 1,
   })
   const profitSummary = (profitSummaryRaw ?? null) as ProfitSummary | null
@@ -82,14 +84,14 @@ export default function FinanceDashboardPage(): JSX.Element {
   const { data: clientsRaw = [], isLoading: lc, isError: e1 } = useQuery({
     queryKey: ['fin-dash-clients'],
     queryFn: () => todasLasPaginas('/clients').then(r => r.data),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const clients = clientsRaw as ClientItem[]
 
   const { data: pipelineRaw = [], isError: e2 } = useQuery({
     queryKey: ['fin-dash-pipeline'],
     queryFn: () => api.get('/pipeline').then(unwrapList),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const pipeline = pipelineRaw as PipelineItem[]
 
@@ -99,19 +101,19 @@ export default function FinanceDashboardPage(): JSX.Element {
       // `/invoices` pagina con skip/limit (máximo 500): se recorre entero.
       const todas: unknown[] = []
       for (let skip = 0; ; skip += 500) {
-        const lote = unwrapList(await api.get('/invoices', { params: { skip, limit: 500 } })) as unknown[]
+        const lote = unwrapList(await api.get('/invoices', { params: { skip, limit: INVOICES_BATCH_SIZE } })) as unknown[]
         todas.push(...lote)
         if (lote.length < 500) return todas
       }
     },
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const invoicesData = (invoicesDataRaw ?? []) as InvoiceItem[]
 
   const { data: topProjectsRaw = [], isError: e4 } = useQuery({
     queryKey: ['fin-dash-top-proj', days],
     queryFn: () => api.get('/profitability/projects', { params }).then(r => r.data),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const topProjects = topProjectsRaw as ProjectProfitItem[]
 
@@ -121,7 +123,7 @@ export default function FinanceDashboardPage(): JSX.Element {
   const { data: ratesRaw = [], isError: e5 } = useQuery({
     queryKey: ['currency-rates'],
     queryFn: () => currencyApi.rates({}).then(r => r.data),
-    staleTime: 300_000,
+    staleTime: STALE_5_MIN_MS,
   })
   const rates = ratesRaw as CurrencyRate[]
 
@@ -133,7 +135,7 @@ export default function FinanceDashboardPage(): JSX.Element {
     queryKey: ['fin-dash-cost-summary'],
     enabled: veCostes,
     queryFn: () => userCostsApi.summary(undefined).then(r => r.data),
-    staleTime: 5 * 60_000,
+    staleTime: STALE_5_MIN_MS,
     retry: false,
   })
   const costSummary = (costSummaryRaw ?? null) as CostSummary | null

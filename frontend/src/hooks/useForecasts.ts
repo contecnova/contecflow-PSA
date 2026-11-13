@@ -2,6 +2,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { forecastApi, biForecastingApi } from '../services/api'
+import { STALE_5_MIN_MS } from '../constants/timings'
 
 const STALE = 2 * 60 * 1000
 
@@ -48,7 +49,7 @@ export function useBiForecastingMetrics(): UseQueryResult<unknown> {
   return useQuery({
     queryKey: ['bi-forecasting-metrics'],
     queryFn: () => biForecastingApi.getMetrics().then((r: { data: unknown }) => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
 }
 

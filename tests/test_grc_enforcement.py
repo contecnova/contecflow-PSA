@@ -70,7 +70,8 @@ def _allow(db, rol: str, modulo: str, accion: str) -> None:
         ("/api/v2/profitability/summary", "profitability"),
         ("/api/v1/auth/login", None),          # exento: flujo de autenticación
         ("/api/v1/portal/tickets", None),      # exento: principal ClientUser
-        ("/api/v1/webhooks/stripe", None),     # exento: HMAC
+        ("/api/v1/webhooks/fire/slug", None),  # exento: disparo público firmado (la gestión de /webhooks sí se gobierna)
+        ("/api/v1/webhooks/abc/rotate", "webhooks"),
         ("/health", None),                     # no es ruta de API
     ],
 )
@@ -113,7 +114,7 @@ def test_la_cobertura_alcanza_a_todos_los_dominios_no_exentos():
 
 
 def test_los_prefijos_sin_principal_user_quedan_exentos():
-    for p in ("/api/v1/auth/login", "/api/v1/portal/x", "/api/v1/webhooks/y",
+    for p in ("/api/v1/auth/login", "/api/v1/portal/x", "/api/v1/webhooks/fire/y",
               "/api/v1/scim/v2/z", "/api/v1/ws/chat"):
         assert is_exempt(p), f"{p} debería estar exento de GRC"
 

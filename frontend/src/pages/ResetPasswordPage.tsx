@@ -1,8 +1,10 @@
+import { PRODUCT_NAME } from '../constants/brand'
 import { useMemo, useState, useId } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
+import { REDIRECT_AFTER_SUCCESS_MS } from '../constants/timings'
 
 function strengthScore(password: string): number {
   let score = 0
@@ -49,7 +51,7 @@ export default function ResetPasswordPage() {
     try {
       const { data } = await authApi.resetPassword({ token, new_password: password })
       setSuccess((data as { ok: boolean; message?: string })?.message || t('reset_password.success_message'))
-      setTimeout(() => navigate('/login'), 1400)
+      setTimeout(() => navigate('/login'), REDIRECT_AFTER_SUCCESS_MS)
     } catch (e: unknown) {
       const raw = (e as { response?: { data?: { detail?: string | Array<{ msg: string }> } } })?.response?.data?.detail
       setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : ((raw as string) || t('reset_password.generic_error')))
@@ -86,7 +88,7 @@ export default function ResetPasswordPage() {
               <path d="M16 12V20M12 16H20" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
           </div>
-          <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.03em' }}>Contecflow</span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.03em' }}>{PRODUCT_NAME}</span>
         </div>
 
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6, textAlign: 'center' }}>

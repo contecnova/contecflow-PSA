@@ -16,6 +16,12 @@ class TaskStatus(str, enum.Enum):
     cancelled = "cancelled"
 
 
+#: Tarea terminada (hecha o cancelada); lo demas esta pendiente. Barrido 2026-11:
+#: antes `("done", "cancelled")` en cada servicio, y a veces con un "closed" que
+#: una tarea no puede tener.
+ESTADOS_DE_TAREA_TERMINADOS = (TaskStatus.done.value, TaskStatus.cancelled.value)
+
+
 class TaskPriority(str, enum.Enum):
     critical = "critical"
     high = "high"

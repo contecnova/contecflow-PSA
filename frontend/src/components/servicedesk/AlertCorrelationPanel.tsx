@@ -14,6 +14,7 @@ import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
+import { DELAYED_REFETCH_SHORT_MS, POLL_DEFAULT_MS } from '../../constants/timings'
 
 // TODO type: alertClustersApi payload — needs shared type
 interface AlertCluster {
@@ -185,7 +186,7 @@ export default function AlertCorrelationPanel() {
   const { data: clustersData, isLoading: clustersLoading } = useQuery<{ clusters?: AlertCluster[]; window_hours?: number; total?: number }>({
     queryKey: ['sd-alert-clusters'],
     queryFn: () => alertClustersApi.list().then(r => r.data),
-    refetchInterval: 60_000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 
   const clusters = clustersData?.clusters ?? []
@@ -194,7 +195,7 @@ export default function AlertCorrelationPanel() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['sd-alert-clusters-stats'],
     queryFn: () => alertClustersApi.stats().then(r => r.data),
-    refetchInterval: 60_000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 
   const { mutate: mergeMutate, variables: mergeVars, isPending: isMerging } = useMutation({
@@ -224,7 +225,7 @@ export default function AlertCorrelationPanel() {
       // refresca mas tarde.
       if (res.data?.status === 'queued') {
         toast.success('Escaneo en curso: los resultados aparecerán en unos instantes.')
-        setTimeout(refrescar, 15000)
+        setTimeout(refrescar, DELAYED_REFETCH_SHORT_MS)
         return
       }
       const found = res.data?.clusters_detected ?? res.data?.clusters_found ?? 0

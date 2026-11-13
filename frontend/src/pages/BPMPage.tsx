@@ -1,3 +1,4 @@
+import { BPMN_TARGET_NAMESPACE } from '../constants/bpmn'
 import { useState, useEffect, useRef, useMemo, useId } from 'react'
 import type { CSSProperties, RefObject } from 'react'
 import type BaseViewer from 'bpmn-js/lib/BaseViewer'
@@ -120,7 +121,7 @@ function buildBpmn(pid: string, pname: string, nodes: BpmnNode[], conns: BpmnCon
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  id="Definitions_${pid}" targetNamespace="http://contecflow.io/bpmn">
+  id="Definitions_${pid}" targetNamespace="${BPMN_TARGET_NAMESPACE}">
   <bpmn:process id="${pid}" name="${xmlEsc(pname)}" isExecutable="false">
 ${nodeXml}
 ${flowXml}
@@ -1780,7 +1781,7 @@ const BLANK_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-  id="Definitions_new" targetNamespace="http://contecflow.io/bpmn">
+  id="Definitions_new" targetNamespace="${BPMN_TARGET_NAMESPACE}">
   <bpmn:process id="Process_new" name="Nuevo Proceso" isExecutable="false">
     <bpmn:startEvent id="StartEvent_1" name="Inicio">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>

@@ -11,6 +11,7 @@ import { useFormValidation } from '../../hooks/useFormValidation'
 import { sdCatalogApi, usersApi, clientsApi, ticketsApi, sdDynamicFormsApi } from '../../services/api'
 import { z } from 'zod'
 import { PBadge, PRIORITY_LABEL, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
+import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
 
 type TicketType = 'incident' | 'service_request' | 'change' | 'problem' | 'question'
 type TicketPriority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low'
@@ -149,7 +150,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     queryFn: () => sdDynamicFormsApi.contextOptions({
       client_id: form.client_id || undefined,
       service_item_id: form.service_item_id || undefined,
-      limit: 60,
+      limit: DYNAMIC_FORM_OPTIONS_LIMIT,
     }).then(r => r.data as ContextOptions),
   })
   const [dynamicValues, setDynamicValues] = useState<Record<string, unknown>>({})

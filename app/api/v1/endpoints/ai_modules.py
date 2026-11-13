@@ -1,6 +1,7 @@
 """
 ai_modules — thin router delegating to app.services.ai_modules_service
 """
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.core.config import settings
 from app.core.modulos_ia import comprobar_modulo, exigir_modulo_ia
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Body
@@ -100,7 +101,7 @@ def process_meeting(
         raise HTTPException(400, str(e))
 
 
-@router.post("/meetings/{meeting_id}/create-tasks", summary="Crear tareas en Contecflow desde acciones de reunión", dependencies=[Depends(exigir_modulo_ia("meeting_assistant"))])
+@router.post("/meetings/{meeting_id}/create-tasks", summary=f"Crear tareas en {NOMBRE_DEL_PRODUCTO} desde acciones de reunión", dependencies=[Depends(exigir_modulo_ia("meeting_assistant"))])
 def create_tasks_from_meeting(
     meeting_id: str,
     payload: dict = Body(...),
@@ -380,7 +381,7 @@ def process_voice_command(
 # INTELLIGENT CLIENT PORTAL AI
 # ═══════════════════════════════════════════════════════════════════════════════
 
-CLIENT_AI_SYSTEM = """Eres el asistente de IA del portal de cliente de Contecflow.
+CLIENT_AI_SYSTEM = """Eres el asistente de IA del portal de cliente de """ + NOMBRE_DEL_PRODUCTO + """.
 Ayudas a los clientes a entender el estado de sus proyectos de forma clara y profesional.
 IMPORTANTE: Solo tienes acceso a los datos del proyecto del cliente. Nunca reveles información de otros clientes,
 datos financieros internos (márgenes, costes internos) ni información confidencial del equipo.

@@ -41,7 +41,9 @@ class Mensaje:
 
 
 def organizaciones_con_buzon(db: Session) -> list[Optional[str]]:
+    from sqlalchemy import or_, select
     from app.db.session import sin_filtro_de_tenant
+    from app.models.mfa import Organization
     from app.models.settings import IntegrationCredential
 
     with sin_filtro_de_tenant(db):
@@ -49,6 +51,11 @@ def organizaciones_con_buzon(db: Session) -> list[Optional[str]]:
             IntegrationCredential.provider == "sd_mailbox",
             IntegrationCredential.key == "protocol",
             IntegrationCredential.value.in_(["imap", "graph"]),
+            # Revision multitenant 2026-11b: el buzon de una empresa desactivada
+            # no se sigue leyendo (ni abre tickets).
+            or_(IntegrationCredential.organization_id.is_(None),
+                IntegrationCredential.organization_id.in_(
+                    select(Organization.id).where(Organization.is_active == True))),  # noqa: E712
         ).all()
     return [f[0] for f in filas]
 

@@ -404,7 +404,12 @@ def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
         item.attempts += 1
         db.commit()
         try:
-            _procesar_un_elemento(db, item, now)
+            # Revision multitenant 2026-11b: cada elemento en SU empresa. Llamado
+            # por un superadmin (sesion sin filtro) los pasos corrian sin filtro
+            # y lo que creaban quedaba sin empresa.
+            from app.services.service_desk.ticket_events import como_organizacion
+            with como_organizacion(db, item.organization_id):
+                _procesar_un_elemento(db, item, now)
             if item.status == "done" and item.processed_at:
                 processed += 1
         except Exception as e:

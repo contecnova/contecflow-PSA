@@ -15,6 +15,8 @@ import { biIntelligenceApi, biPlatformApi, unwrapList, wsApi, apiWsUrl } from '.
 import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
 import { localeActivo } from '../utils/helpers'
+import { STALE_DEFAULT_MS, STALE_PREVIEW_MS, WS_STREAM_RECONNECT_MS } from '../constants/timings'
+import { DATA_PREVIEW_ROWS } from '../constants/pagination'
 
 interface ReportPresetItem {
   id: string
@@ -68,29 +70,29 @@ export default function DataPlatformPage(): JSX.Element {
     queryKey: ['data-platform-report-presets'],
     // El interceptor ya deja la lista en `r.data` (envelope APIListResponse).
     queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data as ReportPresetItem[]).catch(() => [] as ReportPresetItem[]),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
   const reportPresets = unwrapList(reportPresetsRaw) as ReportPresetItem[]
   const { data: previewData, refetch: refetchPreview } = useQuery({
     queryKey: ['data-platform-preview', presetId],
-    queryFn: () => biIntelligenceApi.previewPreset({ preset_id: presetId, limit: 20 }).then(r => r.data).catch(() => null),
-    staleTime: 20_000,
+    queryFn: () => biIntelligenceApi.previewPreset({ preset_id: presetId, limit: DATA_PREVIEW_ROWS }).then(r => r.data).catch(() => null),
+    staleTime: STALE_PREVIEW_MS,
   })
   const { data: deliveryOverview } = useQuery({
     queryKey: ['data-platform-delivery'],
     queryFn: () => biIntelligenceApi.deliveryOverview().then(r => r.data).catch(() => null),
-    staleTime: 20_000,
+    staleTime: STALE_PREVIEW_MS,
   })
     const { data: phase3LineageRaw, refetch: refetchPhase3Lineage } = useQuery({
     queryKey: ['data-platform-lineage', phase3Tick],
     queryFn: () => biPlatformApi.lineage().then(r => r.data).catch(() => ({ edges: [], audit: [] })),
-    staleTime: 20_000,
+    staleTime: STALE_PREVIEW_MS,
   })
   const phase3Lineage = (phase3LineageRaw ?? { edges: [] }) as LineageResponse
   const { data: phase3SnapshotsRaw, refetch: refetchPhase3Snapshots } = useQuery({
     queryKey: ['data-platform-snapshots', datasetKey, phase3Tick],
     queryFn: () => biPlatformApi.listSnapshots(datasetKey).then(r => r.data).catch(() => ({ items: [] })),
-    staleTime: 20_000,
+    staleTime: STALE_PREVIEW_MS,
   })
   
   // WebSocket realtime stream
@@ -111,7 +113,7 @@ export default function DataPlatformPage(): JSX.Element {
             if (data?.type === 'bi_intelligence_snapshot') setStreamSnapshot(data)
           } catch (_e) { /* ignore malformed frames */ }
         }
-        ws.onclose = () => { if (!closed && streamLive) setTimeout(connect, 2000) }
+        ws.onclose = () => { if (!closed && streamLive) setTimeout(connect, WS_STREAM_RECONNECT_MS) }
       } catch (_e) { /* keep UI responsive */ }
     }
     connect()

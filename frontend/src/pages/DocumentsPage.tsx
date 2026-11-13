@@ -24,6 +24,8 @@ import { Page, Button, Drawer, useDialogo } from '../components/ui'
 import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
+import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
+import { DOCUMENTS_LIST_LIMIT } from '../constants/pagination'
 
 // ── Utilidades ─────────────────────────────────────────
 function fmtBytes(b: number | null | undefined) {
@@ -498,7 +500,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-minimal'],
     queryFn: () => projectsApi.list().then(r => r.data),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   });
 
   const uploadMutation = useMutation({
@@ -677,7 +679,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
   const { data: users = [] } = useQuery({
     queryKey: ['users-min'],
     queryFn: () => usersApi.list().then(r => r.data),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   });
 
   const departments = useMemo(() => {
@@ -1404,7 +1406,7 @@ export default function DocumentsPage(): JSX.Element {
   const { data: docsRaw = [], isLoading } = useQuery<DocListItem[]>({
     queryKey: ['documents', filterCat, filterStatus, search],
     queryFn: () => {
-      const p: { limit: number; category?: string; search?: string } = { limit: 200 };
+      const p: { limit: number; category?: string; search?: string } = { limit: DOCUMENTS_LIST_LIMIT };
       if (filterCat) p.category = filterCat;
       if (search) p.search = search;
       return documentsApi.list(p).then(r => Array.isArray(r.data) ? r.data : (r.data?.items ?? []));

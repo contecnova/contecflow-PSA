@@ -112,11 +112,20 @@ def process_inbound_sms(db: Session, from_phone: str, body: str, to_phone: Optio
     from app.services.service_desk.ticket_events import como_organizacion
 
     org_id = _organizacion_por_numero(db, to_phone)
+    if org_id is None:
+        # Revision multitenant 2026-11b: sin empresa la sesion queda sin filtro y
+        # el telefono se buscaba entre los contactos y usuarios de TODAS: el
+        # ticket quedaba enlazado al contacto (y al SLA) de otra empresa. Con una
+        # sola empresa activa, es esa; si no, el remitente queda sin identificar.
+        from app.services.git_service import unica_empresa
+        org_id = unica_empresa(db)
     with como_organizacion(db, org_id):
-        cliente = db.query(ClientUser).filter(ClientUser.phone == from_phone,
-                                              ClientUser.is_active == True).first()  # noqa: E712
-        usuario = None if cliente else db.query(User).filter(
-            User.phone == from_phone, User.is_active == True).first()  # noqa: E712
+        cliente = usuario = None
+        if org_id is not None:
+            cliente = db.query(ClientUser).filter(ClientUser.phone == from_phone,
+                                                  ClientUser.is_active == True).first()  # noqa: E712
+            usuario = None if cliente else db.query(User).filter(
+                User.phone == from_phone, User.is_active == True).first()  # noqa: E712
         nombre = (cliente.full_name if cliente else usuario.full_name if usuario else from_phone)
         ticket = build_channel_ticket(
             db, org_id=org_id, titulo=body.strip()[:100] or "(SMS sin cuerpo)",

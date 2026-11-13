@@ -11,6 +11,7 @@ import { Bot } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { POLL_JOB_STATUS_MS } from '../constants/timings'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
@@ -203,7 +204,7 @@ export default function ContecflowAgentPage() {
   useQuery({
     queryKey: ['agent-status', enCola],
     enabled: !!enCola,
-    refetchInterval: 1500,
+    refetchInterval: POLL_JOB_STATUS_MS,
     queryFn: async () => {
       const estado = (await nexusAgentApi.status(enCola as string)).data
       if (estado?.status === 'done' || estado?.status === 'failed') {

@@ -20,6 +20,8 @@ import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { alpha } from '../constants/theme'
+import { STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
+import { FULL_LIST_SIZE } from '../constants/pagination'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -287,13 +289,13 @@ export default function ResourceSchedulerPage() {
       const params = { weeks, ...(department ? { department } : {}) }
       return api.get('/resource-forecast/weeks', { params }).then(r => r.data)
     },
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
 
   const { data: bookingsData = [] } = useQuery<Booking[]>({
     queryKey: ['bookings'],
-    queryFn:  () => api.get('/bookings', { params: { page_size: 500 } }).then(r => unwrapList(r) as Booking[]),
-    staleTime: 15000,
+    queryFn:  () => api.get('/bookings', { params: { page_size: FULL_LIST_SIZE } }).then(r => unwrapList(r) as Booking[]),
+    staleTime: STALE_NEAR_LIVE_MS,
   })
 
   const { mutate: createBooking } = useMutation({

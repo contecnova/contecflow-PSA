@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '../constants/brand'
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -426,7 +427,7 @@ export default function LoginPage(): JSX.Element {
               <path d="M16 12V20M12 16H20" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
           </div>
-          <span style={st.logoText}>{entrada?.organization?.name || 'Contecflow'}</span>
+          <span style={st.logoText}>{entrada?.organization?.name || PRODUCT_NAME}</span>
         </div>
 
         {/* Session expired banner */}

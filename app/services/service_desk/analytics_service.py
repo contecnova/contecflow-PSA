@@ -3,6 +3,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import Ticket
 from app.models.user import User
 from app.services.service_desk.metrics_service import compute_itil_metrics
@@ -39,7 +40,7 @@ def get_itil_metrics_payload(
 
     total = len(tickets)
     resolved = [t for t in tickets if t.resolved_at]
-    open_t = [t for t in tickets if t.status.value not in ("resolved", "closed", "cancelled")]
+    open_t = [t for t in tickets if t.status.value not in ESTADOS_DE_TICKET_CERRADOS]
     breached = [
         t
         for t in tickets
@@ -195,7 +196,7 @@ def _snapshot_de_empresa(db: Session, org: str) -> dict:
         tickets_24h = db.query(Ticket).filter(Ticket.organization_id == org, Ticket.created_at >= since_24h).all()
         open_count = db.query(Ticket).filter(
             Ticket.organization_id == org,
-            Ticket.status.notin_(["resolved", "closed", "cancelled"])).count()
+            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS)).count()
 
     metrics = compute_itil_metrics(tickets_24h)
     resolved = [t for t in tickets_24h if t.resolved_at]

@@ -16,6 +16,8 @@ import { useToast } from '../context/ToastContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { STALE_DEFAULT_MS, STALE_VERY_SHORT_MS } from '../constants/timings'
+import { SEARCH_RESULTS_PER_ENTITY } from '../constants/pagination'
 
 type EntityTypeId = 'project' | 'task' | 'client' | 'ticket' | 'contract' | 'invoice'
 
@@ -62,9 +64,9 @@ const inp: CSSProperties   = { background: 'var(--surface-3)', border: '1px soli
 function DocumentosEnLaBusqueda({ q }: { q: string }) {
   const t = useAppT()
   const [abierto, setAbierto] = useState<string | null>(null)
-  const disp = useQuery({ queryKey: ['conectores', 'cm-disponible'], queryFn: conectoresApi.cmDisponible, staleTime: 60_000, retry: false })
+  const disp = useQuery({ queryKey: ['conectores', 'cm-disponible'], queryFn: conectoresApi.cmDisponible, staleTime: STALE_DEFAULT_MS, retry: false })
   const docs = useQuery({ queryKey: ['conectores', 'buscar', q], queryFn: () => conectoresApi.buscar(q, 8),
-    enabled: !!disp.data?.configurado && q.length >= 2, retry: false, staleTime: 5000 })
+    enabled: !!disp.data?.configurado && q.length >= 2, retry: false, staleTime: STALE_VERY_SHORT_MS })
   if (!disp.data?.configurado) return null
   const items = docs.data?.items ?? []
   return (
@@ -106,11 +108,11 @@ function FTSMode() {
       // Auditoría 2026-11: `/projects` no admite `limit`, y sin `page` el listado recorre todas
       // las páginas (`todasLasPaginas`): se pide una sola página de 8.
       const calls = await Promise.allSettled([
-        ents.includes('project')  ? projectsApi.list({ search: q, page: 1, page_size: 8 }).then(r => ({ type: 'project', items: (r.data as unknown as { items?: SearchItem[] })?.items || r.data || [] })) : null,
-        ents.includes('task')     ? tasksApi.list({ search: q, page: 1, page_size: 8 }).then(r => ({ type: 'task',    items: (r.data as unknown as { items?: SearchItem[] })?.items || r.data || [] })) : null,
-        ents.includes('client')   ? clientsApi.list({ q, limit: 8 }).then(r => ({ type: 'client',  items: r.data ?? [] })) : null,
-        ents.includes('ticket')   ? ticketsApi.list({ search: q, page_size: 8 }).then(r => ({ type: 'ticket',  items: r.data?.tickets || r.data?.items || (Array.isArray(r.data) ? r.data : []) })) : null,
-        ents.includes('contract') ? contractsApi.list({ q, limit: 8 }).then(r => ({ type: 'contract', items: r.data ?? [] })) : null,
+        ents.includes('project')  ? projectsApi.list({ search: q, page: 1, page_size: SEARCH_RESULTS_PER_ENTITY }).then(r => ({ type: 'project', items: (r.data as unknown as { items?: SearchItem[] })?.items || r.data || [] })) : null,
+        ents.includes('task')     ? tasksApi.list({ search: q, page: 1, page_size: SEARCH_RESULTS_PER_ENTITY }).then(r => ({ type: 'task',    items: (r.data as unknown as { items?: SearchItem[] })?.items || r.data || [] })) : null,
+        ents.includes('client')   ? clientsApi.list({ q, limit: SEARCH_RESULTS_PER_ENTITY }).then(r => ({ type: 'client',  items: r.data ?? [] })) : null,
+        ents.includes('ticket')   ? ticketsApi.list({ search: q, page_size: SEARCH_RESULTS_PER_ENTITY }).then(r => ({ type: 'ticket',  items: r.data?.tickets || r.data?.items || (Array.isArray(r.data) ? r.data : []) })) : null,
+        ents.includes('contract') ? contractsApi.list({ q, limit: SEARCH_RESULTS_PER_ENTITY }).then(r => ({ type: 'contract', items: r.data ?? [] })) : null,
       ].filter(Boolean))
       const grouped: GroupedResults = {}
       calls.forEach(c => {
@@ -121,7 +123,7 @@ function FTSMode() {
       return grouped
     },
     enabled: q.trim().length >= 2,
-    staleTime: 5000,
+    staleTime: STALE_VERY_SHORT_MS,
   })
   const results = resultsRaw as GroupedResults
 

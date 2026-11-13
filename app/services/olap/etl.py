@@ -251,14 +251,31 @@ def _apuntar(conn, estado: str, detalle: dict) -> None:
     conn.execute("INSERT INTO etl_runs VALUES (?, ?, ?)", [ahora, estado, json.dumps(detalle, default=str)])
 
 
-def estado(org: Optional[str]) -> dict:
-    """La última carga (y la última buena) y cuántas filas de la empresa hay en cada hecho."""
+#: Lo que se puede enseñar de una carga a quien no es superadmin. El resto del
+#: detalle son totales de TODA la plataforma (cuántas empresas, clientes,
+#: usuarios, tickets…): revisión multitenant 2026-11b.
+CAMPOS_DE_CARGA_PUBLICOS = ("status", "since", "seconds", "error")
+
+
+def resumen_de_carga(detalle: Optional[dict], plataforma: bool) -> Optional[dict]:
+    """El detalle de una carga: entero para un superadmin, sin totales para los demás."""
+    if detalle is None or plataforma:
+        return detalle
+    return {k: v for k, v in detalle.items() if k in CAMPOS_DE_CARGA_PUBLICOS}
+
+
+def estado(org: Optional[str], *, plataforma: bool = False) -> dict:
+    """La última carga (y la última buena) y cuántas filas de la empresa hay en cada hecho.
+
+    `plataforma`: quien pregunta es superadmin y puede ver los totales globales.
+    """
     import json
     conn = get_duckdb_conn()
     try:
         def fila(sql):
             r = conn.execute(sql).fetchone()
-            return {"run_at": str(r[0]), "status": r[1], "detail": json.loads(r[2] or "{}")} if r else None
+            return {"run_at": str(r[0]), "status": r[1],
+                    "detail": resumen_de_carga(json.loads(r[2] or "{}"), plataforma)} if r else None
         ultima = fila("SELECT run_at, status, detail FROM etl_runs ORDER BY run_at DESC LIMIT 1")
         buena = fila("SELECT run_at, status, detail FROM etl_runs WHERE status = 'ok' ORDER BY run_at DESC LIMIT 1")
         filas = {t: conn.execute(f"SELECT count(*) FROM {t} WHERE organization_id = ?", [org]).fetchone()[0]  # noqa: S608

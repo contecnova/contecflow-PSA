@@ -9,6 +9,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import NamedTuple, Optional
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS, ESTADOS_DE_TICKET_RESUELTOS
 from app.services.bi_smart_alerts.metrics._contexto import _Ctx, logger
 
 
@@ -24,8 +25,8 @@ from app.services.bi_smart_alerts.metrics._contexto import _Ctx, logger
 # cancelados, mientras que «resuelto» no los cuenta como resueltos. No es un
 # descuido —un ticket cancelado no esta abierto ni resuelto— asi que se nombran
 # las dos por separado para que la diferencia quede a la vista.
-_ESTADOS_NO_ABIERTOS = ("closed", "resolved", "cancelled")
-_ESTADOS_RESUELTOS = ("closed", "resolved")
+_ESTADOS_NO_ABIERTOS = ESTADOS_DE_TICKET_CERRADOS
+_ESTADOS_RESUELTOS = ESTADOS_DE_TICKET_RESUELTOS
 
 
 class _FilaDeTicket(NamedTuple):

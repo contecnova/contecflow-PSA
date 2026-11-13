@@ -19,6 +19,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { UserSelect } from '../components/ui/EntitySelect'
 import DateInput from '../components/ui/DateInput'
+import { POLL_FREQUENT_MS } from '../constants/timings'
 
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -630,7 +631,7 @@ function MyPendingTab() {
   const { data: pending = [], isLoading } = useQuery<PendingRequest[]>({
     queryKey: ['approvals-pending-me'],
     queryFn: () => approvalsApi.pendingMyAction().then(r => r.data),
-    refetchInterval: 30000,
+    refetchInterval: POLL_FREQUENT_MS,
     enabled: !loading && !!user,
   })
 

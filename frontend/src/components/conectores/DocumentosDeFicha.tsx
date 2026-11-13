@@ -21,6 +21,7 @@ import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 import DocumentoContecmind, { descargarOriginal } from './DocumentoContecmind'
+import { STALE_DEFAULT_MS } from '../../constants/timings'
 
 const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', padding: 14 }
 const fila: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-3)' }
@@ -48,7 +49,7 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
   const [pregunta, setPregunta] = useState('')
   const clave = ['conectores', 'enlaces', ficha, id]
 
-  const disp = useQuery({ queryKey: ['conectores', 'cm-disponible'], queryFn: conectoresApi.cmDisponible, staleTime: 60_000 })
+  const disp = useQuery({ queryKey: ['conectores', 'cm-disponible'], queryFn: conectoresApi.cmDisponible, staleTime: STALE_DEFAULT_MS })
   const configurado = !!disp.data?.configurado
   const enlaces = useQuery({ queryKey: clave, queryFn: () => conectoresApi.enlaces(ficha, id), enabled: configurado })
   const sugeridos = useQuery({

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.service_desk import Ticket, TicketStatus
 import logging
 from app.core.errores import ErrorDeDominio
@@ -23,7 +24,7 @@ def submit_ticket_csat(
     )
     if not ticket:
         raise ErrorDeDominio(404, "Ticket no encontrado")
-    if ticket.status not in ["resolved", "closed"]:
+    if ticket.status not in ESTADOS_DE_TICKET_RESUELTOS:
         raise ErrorDeDominio(400, "Solo tickets resueltos")
 
     ticket.csat_score = score

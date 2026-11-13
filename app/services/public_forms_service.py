@@ -105,9 +105,16 @@ def list_submissions(db: Session, form_id: str) -> list[PublicFormSubmission]:
 # ── Public (unauthenticated) ───────────────────────────────────────────────────
 
 def get_active_form_by_token(db: Session, token: str) -> Optional[PublicForm]:
+    from sqlalchemy import or_, select
+    from app.models.mfa import Organization
     return (
         db.query(PublicForm)
-        .filter(PublicForm.token == token, PublicForm.is_active == True)
+        .filter(PublicForm.token == token, PublicForm.is_active == True,
+                # Revision multitenant 2026-11b: el formulario de una empresa
+                # desactivada no se sirve ni acepta envios (404, como uno inactivo).
+                or_(PublicForm.organization_id.is_(None),
+                    PublicForm.organization_id.in_(
+                        select(Organization.id).where(Organization.is_active == True))))  # noqa: E712
         .first()
     )
 

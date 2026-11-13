@@ -18,6 +18,7 @@ from app.core.config_groups.service_desk_config import ServiceDeskSettingsMixin
 from app.core.config_groups.automations_config import AutomationsSettingsMixin
 from app.core.config_groups.proceso_config import INTERRUPTORES_DE_PROCESO, ProcesoSettingsMixin
 from app.core.config_groups.escalas_config import EscalasSettingsMixin
+from app.core.config_groups.empresa_config import EmpresaSettingsMixin
 
 __all__ = [
     "AISettingsMixin",
@@ -28,5 +29,6 @@ __all__ = [
     "AutomationsSettingsMixin",
     "ProcesoSettingsMixin",
     "EscalasSettingsMixin",
+    "EmpresaSettingsMixin",
     "INTERRUPTORES_DE_PROCESO",
 ]

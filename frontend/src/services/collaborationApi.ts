@@ -7,6 +7,7 @@
  * receive a plain array regardless of backend shape.
  */
 import api, { unwrapList, type PathId, type QueryParams } from './api'
+import { CHAT_AUDIT_LIMIT, CHAT_DECISIONS_LIMIT } from '../constants/pagination'
 
 const root = '/collaboration'
 
@@ -89,7 +90,7 @@ export const collabApi = {
   calendarEvents: (days = 7) => api.get(`${root}/calendar/events`, { params: { days } }).then(unwrapList),
 
   // Decisions
-  listDecisions: (limit = 100) => api.get(`${root}/decisions`, { params: { limit } }).then(unwrapList),
+  listDecisions: (limit = CHAT_DECISIONS_LIMIT) => api.get(`${root}/decisions`, { params: { limit } }).then(unwrapList),
 
   // Compliance
   listRetention:     () => api.get(`${root}/retention`).then(unwrapList),
@@ -99,7 +100,7 @@ export const collabApi = {
   createLegalHold:   (d: Record<string, unknown>) => api.post(`${root}/legal-holds`, d).then(r => r.data),
   releaseLegalHold:  (id: PathId) => api.post(`${root}/legal-holds/${id}/release`).then(r => r.data),
   ediscoveryExport:  (d: Record<string, unknown>) => api.post(`${root}/ediscovery/export`, d).then(r => r.data),
-  listAudit:         (limit=200) => api.get(`${root}/audit`, { params: { limit } }).then(unwrapList),
+  listAudit:         (limit = CHAT_AUDIT_LIMIT) => api.get(`${root}/audit`, { params: { limit } }).then(unwrapList),
   verifyAudit:       () => api.get(`${root}/audit/verify`).then(r => r.data),
 
   // Web Push

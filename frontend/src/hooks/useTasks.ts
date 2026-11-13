@@ -4,6 +4,7 @@ import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 import { tasksApi } from '../services/api'
 import type { TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskCommentPayload } from '../services/api/tasks'
 import { queryKeys } from '../constants/queryKeys'
+import { STALE_ALWAYS } from '../constants/timings'
 
 const STALE = 60 * 1000 // 1 min — operational data
 
@@ -117,6 +118,6 @@ export function useTaskMovementLog(taskId: string | undefined): UseQueryResult<u
       return (d as { items?: unknown[] } | null)?.items ?? []
     }),
     enabled: !!taskId,
-    staleTime: 0,
+    staleTime: STALE_ALWAYS,
   })
 }

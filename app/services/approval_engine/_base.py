@@ -467,13 +467,14 @@ def exigir_que_no_sea_suyo(db: Session, solicitante_id, usuario: User, modulo: s
     try:
         if db is None:  # sin sesion no hay donde registrar; la regla se aplica igual
             raise ErrorDeDominio(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
-        from app.services.grc_sod import record_sod_violation
-        from app.models.billing_reports import SodRule
-        regla = db.query(SodRule).filter(SodRule.module_a == modulo, SodRule.module_b == modulo,
-                                         SodRule.action_b == "aprobar", SodRule.is_active == True).first()  # noqa: E712
-        if regla:
-            record_sod_violation(db=db, rule_id=regla.id, user_id=usuario.id, role=str(usuario.role),
-                                 context_type=modulo, context_id=str(entidad_id))
+        # Revisión GRC 2026-11b: un solo registrador (grc_sod), con el módulo
+        # GRC de la entidad (`absence` → `absences`) y la regla de SU empresa.
+        # Antes se buscaba `module_a == "absence"` y ninguna regla por defecto
+        # coincidía: el 403 se daba, la infracción no quedaba nunca.
+        from app.services.grc_sod import record_self_approval_violation_for_request
+        if record_self_approval_violation_for_request(
+                db, modulo, str(entidad_id), solicitante_id, usuario.id, getattr(usuario.role, "value", usuario.role),
+                organization_id=_empresa_de(db, usuario), context_type=modulo):
             db.commit()
     except ErrorDeDominio:
         raise
@@ -483,28 +484,29 @@ def exigir_que_no_sea_suyo(db: Session, solicitante_id, usuario: User, modulo: s
     raise ErrorDeDominio(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
 
 
+def _empresa_de(db: Session, usuario: User, entidad=None):
+    """La empresa en la que se decide: la de la entidad, la de la sesión o la del usuario."""
+    return (getattr(entidad, "organization_id", None)
+            or (getattr(db, "info", None) or {}).get("organization_id")
+            or getattr(usuario, "organization_id", None))
+
+
 def _record_sod_violation(req, current_user: User, db: Session) -> None:
+    """La bandeja: el solicitante intentó aprobar su solicitud (lo registra; el 403 lo da quien llama).
+
+    Revisión GRC 2026-11b: sólo hacía `flush` y quien llama lanza el 403, así
+    que la sesión se cerraba sin confirmar y la infracción se perdía. Ahora
+    confirma, como `exigir_que_no_sea_suyo`, y usa el mismo registrador.
+    """
     try:
-        from app.services.grc_sod import record_sod_violation
-        from app.models.billing_reports import SodRule
-        matching = db.query(SodRule).filter(
-            SodRule.module_a == req.entity_type,
-            SodRule.action_a == "crear",
-            SodRule.module_b == req.entity_type,
-            SodRule.action_b == "aprobar",
-            SodRule.is_active == True,
-        ).first()
-        if matching:
-            record_sod_violation(
-                db=db,
-                rule_id=matching.id,
-                user_id=current_user.id,
-                role=str(current_user.role),
-                context_type="approval_request",
-                context_id=req.id,
-            )
-            db.flush()
+        from app.services.grc_sod import record_self_approval_violation_for_request
+        if record_self_approval_violation_for_request(
+                db, req.entity_type, req.id, req.requested_by, current_user.id,
+                getattr(current_user.role, "value", current_user.role),
+                organization_id=_empresa_de(db, current_user, req)):
+            db.commit()
     except Exception:
+        db.rollback()
         logger.warning("Failed to record SoD violation for approval request=%s user=%s", req.id, current_user.id, exc_info=True)
 
 def _notify_requester_approved(req, db: Session) -> None:

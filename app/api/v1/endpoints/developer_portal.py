@@ -166,6 +166,10 @@ def rotate_secret(app_id: str, db: Session = Depends(get_db), current_user: User
         raise HTTPException(403, "Acceso denegado")
     raw_secret = secrets.token_urlsafe(32)
     svc.rotate_app_secret(db, app, _hash_secret(raw_secret))
+    # Revisión GRC 2026-11b: rotar el secreto de cliente OAuth no dejaba rastro.
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "SECRET_ROTATED", "oauth_app", app.id, app.client_id)
+    db.commit()
     return APIResponse.ok(data={"client_id": app.client_id, "client_secret": raw_secret})
 
 

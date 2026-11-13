@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.service_desk._enums import ESTADOS_DE_PROBLEMA_RESUELTOS
 from app.models.project import Project
 from app.models.service_desk import Problem, Ticket
 from app.models.user import User
@@ -133,7 +134,7 @@ def apply_problem_update(db: Session, current_user: User, problem: Problem, payl
     )
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(problem, k, v)
-    if payload.status in ["resolved", "closed"]:
+    if payload.status in ESTADOS_DE_PROBLEMA_RESUELTOS:
         problem.resolved_at = datetime.now(timezone.utc)
 
 

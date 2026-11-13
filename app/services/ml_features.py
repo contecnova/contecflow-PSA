@@ -24,6 +24,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.models.imputation import Imputation
 from app.models.project import Project, ProjectStatus
 from app.models.task import Task
@@ -52,11 +53,11 @@ def extract_project_features(db: Session, project_id: str, reference_date: Optio
         return None
 
     total_tasks   = len(tasks)
-    done_tasks    = sum(1 for t in tasks if t.status in ("done", "closed", "cancelled"))
+    done_tasks    = sum(1 for t in tasks if t.status in ESTADOS_DE_TAREA_TERMINADOS)
     overdue_tasks = sum(
         1 for t in tasks
         if t.due_date and str(t.due_date) < str(today)
-        and t.status not in ("done", "closed", "cancelled")
+        and t.status not in ESTADOS_DE_TAREA_TERMINADOS
     )
 
     task_completion_pct = done_tasks / total_tasks * 100

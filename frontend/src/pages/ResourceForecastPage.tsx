@@ -9,6 +9,7 @@ import { BarChart } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { STALE_DEFAULT_MS } from '../constants/timings'
 
 const STATUS_COLOR: Record<string, string> = {
   overloaded: 'var(--danger)',
@@ -289,13 +290,13 @@ export default function ResourceForecastPage() {
   const { data: heatmapData, isLoading: loadingHeatmap } = useQuery<RespuestaDeHeatmap>({
     queryKey: ['forecast-heatmap', weeks, department],
     queryFn: () => forecastApi.heatmap({ weeks, department: department || undefined }).then(r => r.data),
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: summaryData, isLoading: loadingSummary, isError: summaryError } = useQuery<ResumenDeCarga>({
     queryKey: ['forecast-summary', weeks, department],
     queryFn: () => forecastApi.summary({ weeks, department: department || undefined }).then(r => r.data),
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const summary = {

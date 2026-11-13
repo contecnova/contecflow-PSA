@@ -34,6 +34,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import DateInput from '../components/ui/DateInput'
+import { SELECTOR_LIST_SIZE } from '../constants/pagination'
 
 const NO_PERMISSION_TIP = 'Solo admin / RR.HH.'
 
@@ -504,7 +505,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
   const { data: users = [] } = useQuery({
     queryKey: ['users-for-review-assign'],
     // `usersApi.list` ya devuelve el array (todasLasPaginas).
-    queryFn: () => usersApi.list({ page_size: 200 }).then(r => r.data),
+    queryFn: () => usersApi.list({ page_size: SELECTOR_LIST_SIZE }).then(r => r.data),
   })
 
   // Cuando hay reviewee, consultamos backend para conocer la elegibilidad por
@@ -860,7 +861,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
   const { data: users = [] } = useQuery({
     queryKey: ['users-for-360-campaign'],
     // `usersApi.list` ya devuelve el array (todasLasPaginas).
-    queryFn: () => usersApi.list({ page_size: 200 }).then(r => r.data),
+    queryFn: () => usersApi.list({ page_size: SELECTOR_LIST_SIZE }).then(r => r.data),
   })
 
   // Para cada tipo (excepto self) calculamos elegibilidad cuando hay subject

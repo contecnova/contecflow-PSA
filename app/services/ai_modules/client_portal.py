@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import logging
 from datetime import timedelta
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.core.timeutil import utcnow
 
 from sqlalchemy.orm import Session
@@ -26,7 +28,7 @@ from app.services.ai_modules._base import (
     call_ai_unified, extract_text, log_action,
 )
 
-_CLIENT_AI_SYSTEM = """Eres el asistente de IA del portal de cliente de Contecflow.
+_CLIENT_AI_SYSTEM = """Eres el asistente de IA del portal de cliente de """ + NOMBRE_DEL_PRODUCTO + """.
 Ayudas a los clientes a entender el estado de sus proyectos de forma clara y profesional.
 IMPORTANTE: Solo tienes acceso a los datos del proyecto del cliente. Nunca reveles información de otros clientes,
 datos financieros internos (márgenes, costes internos) ni información confidencial del equipo.
@@ -290,7 +292,7 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
         q = q.join(Project, Task.project_id == Project.id).filter(
             Project.organization_id == user_org
         )
-    unscheduled = q.filter(Task.status.notin_(["done", "cancelled"])).limit(payload.max_tasks).all()
+    unscheduled = q.filter(Task.status.notin_(ESTADOS_DE_TAREA_TERMINADOS)).limit(payload.max_tasks).all()
 
     if not unscheduled:
         return {"scheduled": [], "message": "No unscheduled tasks found"}

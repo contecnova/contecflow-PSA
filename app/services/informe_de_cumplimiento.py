@@ -64,7 +64,11 @@ def generar(db, org: str) -> dict:
     controles: list[dict] = []
     with sin_filtro_de_tenant(db):
         empresa = db.get(Organization, org)
-        activos = db.query(User).filter(User.organization_id == org, User.is_active.is_(True))
+        # Revisión GRC 2026-11b: con varias empresas por usuario, sus miembros
+        # son los de su ficha y los que tienen pertenencia (el mismo criterio
+        # que el filtro de tenant); antes sólo contaban los de su ficha.
+        from app.db.session import _miembros_de
+        activos = db.query(User).filter(_miembros_de(User, org), User.is_active.is_(True))
         n_activos = activos.count()
 
         # ── Acceso ──────────────────────────────────────────────────────────
@@ -151,6 +155,14 @@ def generar(db, org: str) -> dict:
         controles.append(_control("ai_spend_cap", "info", {"daily_budget_usd": tope,
                                                           "spent_today_usd": round(ai_provider_service.gasto_de_hoy(db, org), 4)},
                                   "AI_DAILY_BUDGET_USD + ai_usage_logs de hoy", ()))
+        # Revisión GRC 2026-11b: la retención y el bloqueo legal existen desde la
+        # revisión 2026-11 y el informe no los mencionaba.
+        from app.models.governance import LegalHold, RetentionPolicy
+        politicas = db.query(RetentionPolicy).filter(RetentionPolicy.organization_id == org,
+                                                     RetentionPolicy.is_active.is_(True)).count()
+        bloqueos = db.query(LegalHold).filter(LegalHold.organization_id == org, LegalHold.is_active.is_(True)).count()
+        controles.append(_control("retention", "info", {"active_policies": politicas, "active_legal_holds": bloqueos},
+                                  "retention_policies y legal_holds activos", ("ISO27001 A.5.33", "RGPD art. 5.1.e")))
         controles.append(_control("backups", "not_measurable", {},
                                   "las copias se hacen fuera de la aplicación (base de datos y almacenamiento)",
                                   ("ISO27001 A.8.13", "SOC2 A1.2")))

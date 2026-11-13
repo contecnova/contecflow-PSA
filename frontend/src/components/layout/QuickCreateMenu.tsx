@@ -7,6 +7,8 @@ import { useToast } from '../../context/ToastContext'
 import SmartScheduleModal from '../SmartScheduleModal'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
+import { STALE_DEFAULT_MS } from '../../constants/timings'
+import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
 
 const ACTIONS = [
   { id: 'task',     icon: CheckSquare,  label: 'Nueva tarea',     color: 'var(--accent)',  inline: true },
@@ -40,10 +42,10 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
 
   const { data: projects = [] } = useQuery<ProjectOption[]>({
     queryKey: ['projects-quick'],
-    queryFn: () => projectsApi.list({ page_size: 200, status: 'active' }).then(r => {
+    queryFn: () => projectsApi.list({ page_size: SELECTOR_LIST_SIZE, status: 'active' }).then(r => {
       return r.data ?? []
     }),
-    staleTime: 60_000,
+    staleTime: STALE_DEFAULT_MS,
   })
 
   const { mutate: create, isPending } = useMutation({

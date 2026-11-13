@@ -23,6 +23,7 @@ import { Sparkles, X, RefreshCw } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useDialogo } from './ui'
 import DateInput from './ui/DateInput'
+import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
 
 interface Suggestion {
   task_id: string | number
@@ -75,7 +76,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       const title_map: Record<string, string> = {}
       try {
         if (projectId) {
-          const res = await tasksApi.list({ project_id: String(projectId), page_size: 300 })
+          const res = await tasksApi.list({ project_id: String(projectId), page_size: SCHEDULE_TASKS_LIST_SIZE })
           const items: Array<{ id: string | number; title: string }> = res.data ?? []
           for (const t of items) title_map[String(t.id)] = t.title
         }

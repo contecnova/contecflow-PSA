@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings as _settings
 from app.models.service_desk import Ticket, TicketStatus, KBArticle, KBStatus
 from app.services.ai_provider_service import call_ai
 
@@ -38,8 +39,9 @@ CONFIDENCE_THRESHOLD_SUGGEST = 0.65  # Show suggestion if composite >= 65%
 # ── Feedback loop config ─────────────────────────────────────────────────────
 FEEDBACK_SETTING_KEY = "sd.auto_resolution.feedback_stats"  # legacy key (org-less)
 FEEDBACK_SETTING_KEY_TEMPLATE = "sd.auto_resolution.feedback_stats::{org}"
-AUTO_CLOSE_HOURS_AFTER_RESOLUTION = 72  # Auto-close resolved tickets after 72h
-VALIDATION_WINDOW_HOURS = 48            # Check for reopens within 48h
+# Valores por defecto de Settings (2026-11); cada empresa los cambia en su configuracion.
+AUTO_CLOSE_HOURS_AFTER_RESOLUTION = _settings.SD_AUTO_CLOSE_HOURS_AFTER_RESOLUTION
+VALIDATION_WINDOW_HOURS = _settings.SD_VALIDATION_WINDOW_HOURS
 AUTO_CONFIG_SETTING_KEY = "sd.auto_resolution.config"           # legacy key (org-less)
 AUTO_CONFIG_SETTING_KEY_TEMPLATE = "sd.auto_resolution.config::{org}"
 

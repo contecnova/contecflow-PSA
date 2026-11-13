@@ -94,7 +94,7 @@ def _es_admin(user: User) -> bool:
 @router.get("/general", response_model=APIListResponse[SettingOut])
 def get_general_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Sin secretos: ver `ajustes_generales_para`.
-    items = _svc.ajustes_generales_para(db, _es_admin(current_user))
+    items = _svc.ajustes_generales_para(db, _es_admin(current_user), bool(current_user.is_superadmin))
     return APIListResponse.ok(items=items, total=len(items))
 
 @router.patch("/general/{key}", response_model=APIResponse[SettingOut])

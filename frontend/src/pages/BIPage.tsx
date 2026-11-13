@@ -14,6 +14,7 @@ import useMediaQuery from '../hooks/useMediaQuery'
 import { localeActivo } from '../utils/helpers'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { STALE_LIVE_MS } from '../constants/timings'
 // Lo que devuelve `olap/query_engine.get_kpi_summary` (auditoria 2026-11: la
 // pagina leia `revenue_total`, `cost_total`… que no existen, y salia 0 €). Las
 // cifras de horas y coste son del mes en curso; no hay filtro por periodo.
@@ -95,7 +96,7 @@ export default function BIPage(): JSX.Element {
         return await getCachedBiKpis(periodKey)
       }
     },
-    staleTime: 10_000,
+    staleTime: STALE_LIVE_MS,
   })
 
   const { data: projectsHealth = [], isLoading: loadingHealth } = useQuery<BiProjectHealth[]>({
@@ -109,7 +110,7 @@ export default function BIPage(): JSX.Element {
         return (await getCachedBiProjects(periodKey)) ?? []
       }
     },
-    staleTime: 10_000,
+    staleTime: STALE_LIVE_MS,
   })
 
   const isLoading = loadingKpis || loadingHealth

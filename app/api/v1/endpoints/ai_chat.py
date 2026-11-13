@@ -13,6 +13,7 @@ voice            — Voice Interface
 portal-ai        — Intelligent Client Portal chat
 governance       — AI Governance Dashboard
 """
+from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.core.config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.responses import StreamingResponse
@@ -76,7 +77,7 @@ def _check_rate_limit(db: Session, user_id: str, module: str) -> Optional[str]:
 # NEXUSASSIST — Conversational Copilot
 # ═══════════════════════════════════════════════════════════════════════════════
 
-NEXUSASSIST_SYSTEM = """Eres NexusAssist, el copilot estratégico de IA integrado en Contecflow.
+NEXUSASSIST_SYSTEM = """Eres NexusAssist, el copilot estratégico de IA integrado en """ + NOMBRE_DEL_PRODUCTO + """.
 Tienes acceso a los datos operacionales REALES de la empresa: proyectos, tickets, imputaciones, presupuestos, rentabilidad, recursos y más.
 
 CAPACIDADES — puedes y debes hacer todo esto:
@@ -690,7 +691,7 @@ def run_agent_stream(
         or settings.CONTECFLOW_AI_MODEL
     )
 
-    SYSTEM = f"""Eres NexusAgent, el agente autónomo de Contecflow.
+    SYSTEM = f"""Eres NexusAgent, el agente autónomo de {NOMBRE_DEL_PRODUCTO}.
 Tu misión: ejecutar la instrucción del usuario usando las herramientas disponibles.
 Responde siempre en español. Hoy es {datetime.now(timezone.utc).strftime('%Y-%m-%d')}.
 Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""

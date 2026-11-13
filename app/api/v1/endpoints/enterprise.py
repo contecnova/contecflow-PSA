@@ -219,7 +219,7 @@ def delete_sso(
 ):
     enforce_abac(db, current_user, "sso_config", config_id, action="delete")
     try:
-        return APIResponse.ok(data=_svc.delete_sso_config(config_id, db))
+        return APIResponse.ok(data=_svc.delete_sso_config(config_id, db, current_user))
     except ValueError:
         raise HTTPException(404)
 

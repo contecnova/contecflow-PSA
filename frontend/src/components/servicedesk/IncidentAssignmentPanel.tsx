@@ -24,6 +24,7 @@ import { useChartTheme } from '../../charts/useChartTheme'
 import { UserCheck, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Card, Button, Spinner, EmptyState } from '../ui'
+import { POLL_FREQUENT_MS } from '../../constants/timings'
 
 // TODO type: incidentAssignmentApi payloads — needs shared types
 interface AgentScore {
@@ -102,7 +103,7 @@ export default function IncidentAssignmentPanel() {
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<AssignmentStats>({
     queryKey: ['incident-assign-stats'],
     queryFn: () => incidentAssignmentApi.stats().then(r => r.data),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const candidates = stats?.agent_loads ?? []

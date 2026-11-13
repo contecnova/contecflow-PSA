@@ -11,6 +11,8 @@ Un valor que un operador o una empresa quiera cambiar NO va aqui: va a
 """
 from __future__ import annotations
 
+from app.core.config import settings
+
 #: Nombre comercial del producto en la salida que ve una persona (asuntos de
 #: correo, pies de PDF, emisor TOTP, valores por defecto de marca). La marca de
 #: cada empresa (`OrgBranding.app_name`) manda sobre esto cuando existe.
@@ -18,7 +20,9 @@ from __future__ import annotations
 #: nombres de metricas, cabeceras `X-Contecflow-*`) NO usan esta constante a
 #: proposito: son contratos internos o con integraciones y no deben cambiar
 #: con la marca.
-NOMBRE_DEL_PRODUCTO = "Contecflow"
+#: Sale de `settings.PROJECT_NAME` (variable de entorno; tambien es el ajuste de
+#: plataforma `PROJECT_NAME`, que se lee en vivo donde hay sesion). Barrido 2026-11.
+NOMBRE_DEL_PRODUCTO = settings.PROJECT_NAME
 
 #: Nombre completo, para los textos que nombran la plataforma entera.
 NOMBRE_COMPLETO_DEL_PRODUCTO = f"{NOMBRE_DEL_PRODUCTO} PSA"
@@ -27,12 +31,6 @@ NOMBRE_COMPLETO_DEL_PRODUCTO = f"{NOMBRE_DEL_PRODUCTO} PSA"
 #: valor por defecto de cada listado lo decide cada endpoint; el tope es comun.
 MAX_TAMANO_DE_PAGINA = 200
 
-#: Horas productivas al año de una persona cuando su ficha de coste no dice
-#: otra cosa (año laboral menos vacaciones, festivos, bajas y formacion). Es la
-#: base de `coste/hora = coste anual / horas productivas`.
-HORAS_PRODUCTIVAS_ANUALES_POR_DEFECTO = 1700.0
-
-#: Sobrecoste de empresa sobre el salario bruto (seguridad social y otros)
-#: cuando ni la ficha ni el preset del pais dicen otra cosa. 0.32 = 32 %.
-#: Los presets por pais (`country_employer_costs.json`) mandan sobre esto.
-PORCENTAJE_COSTE_EMPRESA_POR_DEFECTO = 0.32
+# Las horas productivas al año y el sobrecoste de empresa por defecto vivian
+# aqui; desde 2026-11 son ajustes (`DEFAULT_PRODUCTIVE_HOURS_YEAR`,
+# `DEFAULT_EMPLOYER_COST_PCT`), cambiables por empresa.

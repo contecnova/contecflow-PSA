@@ -24,6 +24,7 @@ import {
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { POLL_FREQUENT_MS, STALE_5_MIN_MS, STALE_DEFAULT_MS } from '../constants/timings'
 
 /** El eje es de importes si su etiqueta (la pone el servidor) lleva el simbolo o
  *  el codigo de la moneda de la empresa, o el '€' con el que la escribe hoy. */
@@ -661,7 +662,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
     queryKey: ['analytics-prev', metric, prevDateFrom, prevDateTo, projectId, userId, department, topN],
     queryFn: () => analyticsApi.query(metric, { date_from: prevDateFrom, date_to: prevDateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN }).then(r => r.data).catch(() => null),
     enabled: !!metric && !!prevDateFrom,
-    staleTime: 60000,
+    staleTime: STALE_DEFAULT_MS,
     retry: false,
   })
 
@@ -941,7 +942,7 @@ function ScheduledReportsTab() {
   const { data: scheduled = [], isLoading } = useQuery<ScheduledReport[]>({
     queryKey: ['scheduled-reps'],
     queryFn: () => scheduledReportsApi.list().then(r => r.data).catch(() => []),
-    refetchInterval: 30000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const { mutate: create, isPending: creating } = useMutation({
@@ -1250,7 +1251,7 @@ export default function ReportsPage() {
   const { data: prefs } = useQuery<UserPreferences>({
     queryKey: ['user-preferences'],
     queryFn: () => api.get('/users/me/preferences').then(r => r.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_5_MIN_MS,
   })
   const saved: SavedReport[] = Array.isArray(prefs?.extra?.informes_guardados) ? prefs.extra.informes_guardados : []
   const guardar = useMutation({

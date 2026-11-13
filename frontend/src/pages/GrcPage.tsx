@@ -23,25 +23,43 @@ import { extractErr, downloadBlob } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { POLL_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 
 // ── Catálogo de módulos, acciones y roles ────────────────────────────────────
-const MODULES = [
-  { id: 'projects',     label: 'Proyectos',       icon: '⬡' },
-  { id: 'tasks',        label: 'Tareas',           icon: '▦' },
-  { id: 'timesheets',   label: 'Timesheets',       icon: '⏱' },
-  { id: 'invoices',     label: 'Facturación',      icon: '🧾' },
-  { id: 'expenses',     label: 'Gastos',           icon: '💸' },
-  { id: 'resources',    label: 'Recursos',         icon: '👥' },
-  { id: 'service_desk', label: 'Service Desk',     icon: '🎫' },
-  { id: 'contracts',    label: 'Contratos',        icon: '📄' },
-  { id: 'clients',      label: 'Clientes/CRM',     icon: '🏢' },
-  { id: 'reports',      label: 'Informes/BI',      icon: '📊' },
-  { id: 'settings',     label: 'Configuración',    icon: '⚙️' },
-  { id: 'approvals',    label: 'Aprobaciones',     icon: '✅' },
-  { id: 'alm',          label: 'ALM/Activos',      icon: '🔑' },
-  { id: 'hr',           label: 'RRHH/Ausencias',   icon: '🏖' },
-  { id: 'grc',          label: 'GRC/Seguridad',    icon: '🛡' },
-]
+// Revisión GRC 2026-11b: los módulos los da la API (`/grc/permissions` →
+// `modules`, derivados de las rutas). Antes había 15 escritos aquí, dos de
+// ellos (`service_desk`, `hr`) sin ninguna ruta detrás, y los otros ~95 que la
+// matriz sí aplica no se podían ver ni tocar. Esto sólo pone nombre e icono.
+const MODULE_LABELS: Record<string, { label: string; icon: string }> = {
+  projects:   { label: 'Proyectos',       icon: '⬡' },
+  tasks:      { label: 'Tareas',           icon: '▦' },
+  timesheets: { label: 'Timesheets',       icon: '⏱' },
+  invoices:   { label: 'Facturación',      icon: '🧾' },
+  expenses:   { label: 'Gastos',           icon: '💸' },
+  resources:  { label: 'Recursos',         icon: '👥' },
+  sd:         { label: 'Service Desk',     icon: '🎫' },
+  contracts:  { label: 'Contratos',        icon: '📄' },
+  clients:    { label: 'Clientes/CRM',     icon: '🏢' },
+  reports:    { label: 'Informes/BI',      icon: '📊' },
+  settings:   { label: 'Configuración',    icon: '⚙️' },
+  approvals:  { label: 'Aprobaciones',     icon: '✅' },
+  alm:        { label: 'ALM/Activos',      icon: '🔑' },
+  absences:   { label: 'Ausencias',        icon: '🏖' },
+  grc:        { label: 'GRC/Seguridad',    icon: '🛡' },
+}
+const moduleInfo = (id?: string) => ({ id: id || '', ...(MODULE_LABELS[id || ''] || { label: id || '', icon: '·' }) })
+
+type PermResponse = { matrix: PermMatrix; modules?: string[]; roles?: string[] }
+
+/** La matriz efectiva con sus módulos y roles, como la devuelve la API (caché compartida). */
+function usePermisos() {
+  return useQuery<PermResponse>({
+    queryKey: ['grc-permissions'],
+    queryFn: () => grcApi.permissions().then(r => r.data as PermResponse),
+  })
+}
+
+type PermMatrix = Record<string, Record<string, Record<string, boolean>>>
 
 const ACTIONS = ['ver', 'crear', 'editar', 'eliminar', 'aprobar', 'exportar']
 const ACTION_LABEL: Record<string, string> = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: 'Eliminar', aprobar: 'Aprobar', exportar: 'Exportar' }
@@ -69,7 +87,6 @@ const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. MATRIZ DE PERMISOS (wired to API)
 // ═══════════════════════════════════════════════════════════════════════════════
-type PermMatrix = Record<string, Record<string, Record<string, boolean>>>
 
 function MatrixTab({ roles }: { roles: Role[] }) {
   const t = useAppT()
@@ -77,12 +94,17 @@ function MatrixTab({ roles }: { roles: Role[] }) {
   const qc = useQueryClient()
   const [selRole, setSelRole] = useState('all')
   const [saving, setSaving] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState('')
 
-  const { data, isLoading, refetch } = useQuery<PermMatrix>({
-    queryKey: ['grc-permissions'],
-    queryFn: () => grcApi.permissions().then(r => r.data.matrix),
-  })
-  const matrix: PermMatrix = data || {}
+  const { data, isLoading, refetch } = usePermisos()
+  const matrix: PermMatrix = data?.matrix || {}
+  const modulos = (data?.modules || Object.keys(Object.values(matrix)[0] || {}))
+    .map(moduleInfo)
+    .filter(m => !filtro || `${m.id} ${m.label}`.toLowerCase().includes(filtro.toLowerCase()))
+  // Las columnas son los roles que la matriz gobierna (los de la API); el
+  // nombre y el color salen de los roles configurados si existen.
+  const rolesDeLaMatriz: Role[] = (data?.roles || roles.map(r => r.id)).map(id =>
+    roles.find(r => r.id === id) || FALLBACK_ROLES.find(r => r.id === id) || { id, label: id, color: 'var(--text-2)' })
 
   const { mutate: resetMatrix, isPending: resetting } = useMutation({
     mutationFn: () => grcApi.seedPermissions(),
@@ -103,7 +125,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
     }
   }
 
-  const displayRoles = selRole === 'all' ? roles : roles.filter((r: Role) => r.id === selRole)
+  const displayRoles = selRole === 'all' ? rolesDeLaMatriz : rolesDeLaMatriz.filter((r: Role) => r.id === selRole)
 
   if (isLoading) return <Spinner />
 
@@ -116,7 +138,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
             style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`, background: selRole === 'all' ? 'var(--accent-muted)' : 'transparent', color: selRole === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {t('grc.all')}
           </button>
-          {roles.map(r => (
+          {rolesDeLaMatriz.map(r => (
             <button key={r.id} onClick={() => setSelRole(r.id)}
               style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? alpha(r.color, '15') : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
               {r.label}
@@ -124,6 +146,8 @@ function MatrixTab({ roles }: { roles: Role[] }) {
           ))}
         </div>
         <div className="u-row-8">
+          <input value={filtro} onChange={e => setFiltro(e.target.value)} placeholder="Filtrar módulos…"
+            aria-label="Filtrar módulos" style={{ ...fs, width: 180, padding: '6px 10px' }} />
           <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻ {t('grc.refresh')}</button>
           <button onClick={() => { openConfirmGlobal({ message: t('grc.reset_confirm'), onConfirm: () => resetMatrix(), danger: true }) }}
             style={{ background: 'transparent', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '6px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}
@@ -155,16 +179,19 @@ function MatrixTab({ roles }: { roles: Role[] }) {
             </tr>
           </thead>
           <tbody>
-            {MODULES.map((mod, mIdx) => (
+            {modulos.map((mod, mIdx) => (
               <tr key={mod.id} style={{ borderBottom: '1px solid var(--surface-4)', background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)' }}>
                 <td style={{ padding: '9px 12px', fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', position: 'sticky', left: 0, background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)', whiteSpace: 'nowrap' }}>
                   {mod.icon} {mod.label}
                 </td>
                 {displayRoles.map(role =>
                   ACTIONS.map(action => {
-                    const allowed = matrix[role.id]?.[mod.id]?.[action] ?? false;
+                    const celda = matrix[role.id]?.[mod.id]?.[action];
                     const key = `${role.id}/${mod.id}/${action}`;
                     const isSaving = saving === key;
+                    // Sin casilla: el módulo no tiene esa operación (nada que gobernar).
+                    if (celda === undefined) return <td key={key} style={{ padding: '6px 3px', textAlign: 'center', color: 'var(--text-3)' }}>—</td>;
+                    const allowed = celda;
                     return (
                       <td
                         key={key}
@@ -229,6 +256,8 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!rule
+  const { data: permisos } = usePermisos()
+  const MODULES = (permisos?.modules || Object.keys(MODULE_LABELS)).map(moduleInfo)
   const [form, setForm] = useState<{
     module_a: string; action_a: string; module_b: string; action_b: string;
     risk: string; description: string; roles_conflict: string[]; mitigated_by_workflow_id: string | null;
@@ -362,7 +391,7 @@ function SodTab({ roles }: { roles: Role[] }) {
   const { data: checkData } = useQuery<{ violations?: SodViolation[] }>({
     queryKey: ['grc-sod-check'],
     queryFn: () => grcApi.sodCheck().then(r => r.data),
-    staleTime: 30000,
+    staleTime: STALE_SHORT_MS,
   })
   const { data: workflows = [] } = useQuery<Workflow[]>({
     queryKey: ['approval-workflows-grc'],
@@ -424,8 +453,8 @@ function SodTab({ roles }: { roles: Role[] }) {
         <div className="u-stack-10">
           {rules.map((rule: SodRule) => {
             const rc = RISK_COLOR[rule.risk || ''] || '#7a8aaa'
-            const modA = MODULES.find(m => m.id === rule.module_a)
-            const modB = MODULES.find(m => m.id === rule.module_b)
+            const modA = moduleInfo(rule.module_a)
+            const modB = moduleInfo(rule.module_b)
             return (
               <div key={rule.id} style={{ ...card, borderLeft: `4px solid ${rc}`, padding: '14px 18px', opacity: rule.is_active ? 1 : 0.55 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
@@ -499,7 +528,7 @@ function ViolationsTab() {
   const { data: violations = [], isLoading, refetch } = useQuery<ViolationRecord[]>({
     queryKey: ['grc-violations', filter],
     queryFn: () => grcApi.violations(filter === null ? {} : { resolved: filter }).then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
 
   const { mutate: resolve } = useMutation({

@@ -18,6 +18,7 @@ import { COLOR } from '../../constants/theme'
 import { sdEscalationApi, sdNotificationTemplatesApi, sdGroupsApi, usersApi } from '../../services/api'
 import { PRIORITY_LABEL } from './sdUtils'
 import { RuntimeGroupEditor } from '../settings-sections/SettingsAdvancedSections'
+import { SLOW_INPUT_DEBOUNCE_MS } from '../../constants/timings'
 
 const PRIORIDADES = ['p1_critical', 'p2_high', 'p3_medium', 'p4_low']
 const DISPARADORES = ['sla_at_risk', 'sla_breached', 'idle_hours', 'priority', 'reopened']
@@ -380,7 +381,7 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
       sdNotificationTemplatesApi.preview({ subject, body_html: body })
         .then(r => setVista(r.data as { subject: string; body_html: string }))
         .catch(() => setVista(null))
-    }, 400)
+    }, SLOW_INPUT_DEBOUNCE_MS)
     return () => clearTimeout(h)
   }, [subject, body])
 

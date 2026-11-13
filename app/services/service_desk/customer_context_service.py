@@ -2,6 +2,7 @@ from datetime import timezone
 
 from sqlalchemy.orm import Session
 
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import Ticket
 import logging
 
@@ -14,7 +15,7 @@ def get_customer_context_payload(db: Session, requester_id: str) -> dict:
     ).order_by(Ticket.created_at.desc()).limit(10).all()
 
     open_tickets = [
-        t for t in recent_tickets if t.status.value not in ("resolved", "closed", "cancelled")
+        t for t in recent_tickets if t.status.value not in ESTADOS_DE_TICKET_CERRADOS
     ]
     resolved = [t for t in recent_tickets if t.resolved_at]
 

@@ -12,6 +12,7 @@ import PageShell from '../components/layout/PageShell'
 import { CalendarClock } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { timezoneOptions } from '../constants/timezones'
 import DateInput from '../components/ui/DateInput'
 
 interface SlaCalendar {
@@ -43,9 +44,6 @@ const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
-const TIMEZONES = ['Europe/Madrid','Europe/London','America/New_York','America/Chicago',
-                   'America/Los_Angeles','America/Sao_Paulo','Asia/Tokyo','Asia/Singapore',
-                   'Australia/Sydney','UTC']
 const DAYS_MAP  = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado',7:'Domingo'}
 
 function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () => void }) {
@@ -92,7 +90,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Zona horaria</label>
           <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
-            {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+            {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
         <div className="u-grid2-12">

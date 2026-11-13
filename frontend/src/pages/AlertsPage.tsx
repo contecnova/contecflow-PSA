@@ -11,6 +11,7 @@ import { Bell, ExternalLink, Brain } from 'lucide-react'
 import { fmtRelative, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { POLL_FREQUENT_MS } from '../constants/timings'
 
 /** `AlertOut` (app/schemas/alerts.py). */
 interface Alert {
@@ -68,7 +69,7 @@ export default function AlertsPage(): JSX.Element {
   const { data: alerts = [], isLoading } = useQuery<Alert[]>({
     queryKey: ['alerts-page'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
-    refetchInterval: 30_000,
+    refetchInterval: POLL_FREQUENT_MS,
     enabled: tab === 'operational',
   })
 

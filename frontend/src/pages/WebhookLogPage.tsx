@@ -11,6 +11,7 @@ import PageShell from '../components/layout/PageShell'
 import { Webhook } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { POLL_FREQUENT_MS } from '../constants/timings'
 
 interface WebhookItem {
   id: string | number
@@ -79,7 +80,7 @@ export default function WebhookLogPage() {
       )
     },
     enabled: webhooks.length > 0,
-    refetchInterval: 30000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const STATUS_COLOR = {

@@ -5,6 +5,7 @@
  * - Connection status
  */
 
+import { PRODUCT_NAME } from '../constants/brand'
 import { useState, useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { m365Api, apiUrl } from '../services/api'
@@ -15,6 +16,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { Table } from '../components/ui'
 import type { CSSProperties } from 'react'
 import DsBadge from '../components/ui/StatusBadge'
+import { POLL_FREQUENT_MS } from '../constants/timings'
 
 interface M365Status {
   graph_configured?: boolean
@@ -244,7 +246,7 @@ function ConfigTab({ status }: { status?: M365Status | null }) {
     { n: 2, title: 'Asignar permisos Graph', desc: 'En la app → API permissions → Add: Calendars.ReadWrite, User.Read.All. Para Teams: ChannelMessage.Send. Haz clic en "Grant admin consent".' },
     { n: 3, title: 'Crear Client Secret', desc: 'En la app → Certificates & secrets → New client secret. Copia el valor inmediatamente, solo se muestra una vez.' },
     { n: 4, title: 'Configurar Teams webhook', desc: 'En un canal de Teams → ... → Connectors → Incoming Webhook → Create. Copia la URL resultante.' },
-    { n: 5, title: 'Añadir variables de entorno', desc: 'Añade las 4 variables a tu .env o docker-compose.yml y reinicia Contecflow.', code: 'AZURE_TENANT_ID=...\nAZURE_CLIENT_ID=...\nAZURE_CLIENT_SECRET=...\nTEAMS_WEBHOOK_URL=https://...' },
+    { n: 5, title: 'Añadir variables de entorno', desc: `Añade las 4 variables a tu .env o docker-compose.yml y reinicia ${PRODUCT_NAME}.`, code: 'AZURE_TENANT_ID=...\nAZURE_CLIENT_ID=...\nAZURE_CLIENT_SECRET=...\nTEAMS_WEBHOOK_URL=https://...' },
   ]
 
   return (
@@ -308,7 +310,7 @@ export default function M365Page() {
   const { data: status } = useQuery<M365Status>({
     queryKey: ['m365-status'],
     queryFn: () => m365Api.status().then(r => r.data),
-    refetchInterval: 30000,
+    refetchInterval: POLL_FREQUENT_MS,
   })
 
   const graphOk = status?.graph_configured

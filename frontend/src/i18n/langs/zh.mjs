@@ -2812,6 +2812,7 @@ const zh = {
     informe_control_gdpr_requests: "按时处理的 GDPR 请求",
     informe_control_ai_spend_cap: "AI 支出上限",
     informe_control_backups: "备份",
+    informe_control_retention: "保留策略与法律保留",
     acceso_pestana: "解释访问",
     acceso_intro: "选择一个用户和一个操作：按实际执行顺序检查各权限层，并指出由哪一层决定。",
     acceso_usuario: "用户…",

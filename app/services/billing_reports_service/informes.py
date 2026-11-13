@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 from sqlalchemy.orm import Session, joinedload
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.core.config import settings
 from app.models.user import User
 from app.models.project import Project
@@ -167,7 +168,7 @@ def run_tickets_report(db: Session, filters: dict, group_by, date_from, date_to,
 
     total = len(rows)
     breached = sum(1 for r in rows if r["sla_status"] == "breached")
-    resolved = sum(1 for r in rows if r["status"] in ["resolved", "closed"])
+    resolved = sum(1 for r in rows if r["status"] in ESTADOS_DE_TICKET_RESUELTOS)
     mttr_avg = round(
         sum(r["mttr_hours"] for r in rows if r["mttr_hours"]) /
         max(len([r for r in rows if r["mttr_hours"]]), 1), 1)

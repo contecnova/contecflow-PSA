@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.models.project import Project
 from app.models.task import Task
 from app.models.resources import Deliverable
@@ -325,7 +326,7 @@ def metric_tasks_overdue(
         Task.project_id == Project.id
     ).filter(
         Task.due_date < today,
-        Task.status.notin_(["done", "cancelled"])
+        Task.status.notin_(ESTADOS_DE_TAREA_TERMINADOS)
     )
     if project_ids:
         overdue = overdue.filter(Project.id.in_(project_ids))

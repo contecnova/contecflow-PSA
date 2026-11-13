@@ -19,6 +19,7 @@ import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { POLL_DEFAULT_MS } from '../constants/timings'
 
 // Solo iconos: qué disparadores y acciones hay lo dice el catálogo del motor.
 const TRIGGER_ICONS: Record<string, string> = {
@@ -512,7 +513,7 @@ export default function AutomationsPage(): JSX.Element {
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['automations'],
     queryFn: () => automationsApi.list().then((r): ReglaAutomatizacion[] => r.data?.items ?? r.data ?? []),
-    refetchInterval: 60000,
+    refetchInterval: POLL_DEFAULT_MS,
   })
   const rules = Array.isArray(raw) ? raw : []
 
