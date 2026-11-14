@@ -7,6 +7,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { enterpriseSubsApi, subcontractorsApi, projectsApi, skillsApi } from '../services/api'
 import type { ProjectListItem } from '../services/api/projects'
+import type { SkillDelCatalogo, SubAsignacion, SubFactura, SubParteDeHoras, SubTrabajador, Subcontratista } from '../services/api/tipos-alm'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
@@ -30,13 +31,12 @@ const STATUS_LABEL: Record<string, string> = {
 }
 const LEVEL_COLOR: Record<string, string> = { basic: 'var(--text-3)', intermediate: 'var(--accent)', advanced: 'var(--orange)', expert: 'var(--success)' }
 
-type Skill = { [k: string]: unknown; id: string; name?: string; category?: string }
-type WorkerSkill = { skill_id: string; skill_name?: string; level: string; certified?: boolean }
-type Worker = { [k: string]: unknown; id: string; name?: string; role?: string; email?: string; phone?: string; currency?: string; notes?: string; is_active?: boolean; cost_rate?: number; sell_rate?: number; available_from?: string; available_until?: string; skills?: WorkerSkill[] }
-type Sub = { [k: string]: unknown; id: string; name?: string; code?: string; company?: string; email?: string; phone?: string; country?: string; currency?: string; vat_number?: string; notes?: string; is_active?: boolean; worker_count?: number; assignment_count?: number }
-type Assignment = { [k: string]: unknown; id: string; project_code?: string; project_name?: string; po_number?: string; po_amount?: number; hours_contracted?: number; hours_logged?: number; budget_used_pct?: number }
-type Timelog = { [k: string]: unknown; id: string; log_date?: string; hours: number; description?: string; task_reference?: string; cost_amount?: number; project_name?: string }
-type Invoice = { [k: string]: unknown; id: string; invoice_number?: string; issue_date?: string; amount: number; total: number; status?: string }
+// Respuestas de /enterprise/subcontractors* y /skills/catalog: services/api/tipos-alm.
+type Skill = SkillDelCatalogo
+type Worker = SubTrabajador
+type Sub = Subcontratista
+type Timelog = SubParteDeHoras
+type Invoice = SubFactura
 type CredsInfo = { username?: string; password?: string }
 
 function onKeyboardActivate(event: ReactKeyboardEvent, action: () => void) {
@@ -71,22 +71,23 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
   const t = useAppT()
   const { data: skillCatalog = [] } = useQuery<Skill[]>({
     queryKey: ['skills-catalog'],
-    queryFn: () => skillsApi.catalog().then(r => (r.data as { items?: Skill[] })?.items ?? (r.data as Skill[]) ?? []),
+    queryFn: () => skillsApi.catalog().then(r => r.data),
     staleTime: STALE_5_MIN_MS,
   })
 
   const [credsInfo, setCredsInfo] = useState<CredsInfo | null>(null)
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: (d: Record<string, unknown>) => isEdit
-      ? enterpriseSubsApi.updateWorker(worker!.id, d)
-      : enterpriseSubsApi.createWorker(subId, d),
-    onSuccess: (res) => {
+    // El alta devuelve además la contraseña temporal del usuario creado (SubTrabajadorCreado).
+    mutationFn: async (d: Record<string, unknown>): Promise<SubTrabajador & { temp_password?: string }> => isEdit
+      ? (await enterpriseSubsApi.updateWorker(worker!.id, d)).data
+      : (await enterpriseSubsApi.createWorker(subId, d)).data,
+    onSuccess: (creado) => {
       qc.invalidateQueries({ queryKey: ['sub-workers', subId] })
       qc.invalidateQueries({ queryKey: ['users'] })
       onSaved?.()
-      if (!isEdit && res.data?.login_username) {
-        setCredsInfo({ username: res.data.login_username, password: res.data.temp_password })
+      if (!isEdit && creado?.login_username) {
+        setCredsInfo({ username: creado.login_username, password: creado.temp_password })
       } else {
         onClose()
         toast.success(isEdit ? 'Trabajador actualizado' : 'Trabajador añadido')
@@ -266,7 +267,7 @@ function WorkersPanel({ subId }: { subId: string }) {
 
   const { data: workers = [], isLoading } = useQuery<Worker[]>({
     queryKey: ['sub-workers', subId],
-    queryFn: () => enterpriseSubsApi.workers(subId).then(r => r.data as Worker[]),
+    queryFn: () => enterpriseSubsApi.workers(subId).then(r => r.data),
   })
 
   const { mutate: deactivate } = useMutation({
@@ -377,17 +378,17 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const [invForm, setInvForm] = useState({ invoice_number: '', issue_date: new Date().toISOString().slice(0,10), due_date: '', amount: '', tax_pct: 21, description: '' })
   const [asgForm, setAsgForm] = useState({ project_id: '', po_number: '', po_amount: '', hours_contracted: '', start_date: '', end_date: '', notes: '' })
 
-  const { data: assignments = [] } = useQuery<Assignment[]>({
+  const { data: assignments = [] } = useQuery<SubAsignacion[]>({
     queryKey: ['sub-assignments', sub.id],
-    queryFn: () => enterpriseSubsApi.assignments(sub.id).then(r => r.data as Assignment[]),
+    queryFn: () => enterpriseSubsApi.assignments(sub.id).then(r => r.data),
   })
   const { data: timelogs = [] } = useQuery<Timelog[]>({
     queryKey: ['sub-timelogs', sub.id],
-    queryFn: () => enterpriseSubsApi.timelogs(sub.id).then(r => r.data as Timelog[]),
+    queryFn: () => enterpriseSubsApi.timelogs(sub.id).then(r => r.data),
   })
   const { data: invoices = [] } = useQuery<Invoice[]>({
     queryKey: ['sub-invoices', sub.id],
-    queryFn: () => enterpriseSubsApi.invoices(sub.id).then(r => r.data as Invoice[]),
+    queryFn: () => enterpriseSubsApi.invoices(sub.id).then(r => r.data),
   })
   const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
@@ -697,13 +698,13 @@ export default function SubcontractorsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', company: '', email: '', phone: '', country: 'España', currency: currency, vat_number: '', notes: '' })
 
-  const { data: dashboard } = useQuery<Record<string, unknown>>({
+  const { data: dashboard } = useQuery({
     queryKey: ['sub-dashboard'],
-    queryFn: () => enterpriseSubsApi.dashboard().then(r => r.data as Record<string, unknown>),
+    queryFn: () => enterpriseSubsApi.dashboard().then(r => r.data),
   })
   const { data: subs = [], isLoading } = useQuery<Sub[]>({
     queryKey: ['subcontractors'],
-    queryFn: () => subcontractorsApi.list().then(r => r.data as Sub[]),
+    queryFn: () => subcontractorsApi.list().then(r => r.data),
   })
 
   const [showEdit, setShowEdit] = useState(false)
@@ -753,9 +754,9 @@ export default function SubcontractorsPage() {
       {dashboard && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { label: 'Activos',           value: dashboard.total_active_subs as number,       color: 'var(--accent)' },
+            { label: 'Activos',           value: dashboard.total_active_subs,       color: 'var(--accent)' },
             { label: 'Horas registradas', value: `${dashboard.total_hours_logged}h`, color: 'var(--success)' },
-            { label: 'Facturas pendientes', value: dashboard.pending_invoices as number,       color: (dashboard.pending_invoices as number) > 0 ? 'var(--warning)' : 'var(--text-2)' },
+            { label: 'Facturas pendientes', value: dashboard.pending_invoices,       color: dashboard.pending_invoices > 0 ? 'var(--warning)' : 'var(--text-2)' },
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px', textAlign: 'center' }}>
               <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>

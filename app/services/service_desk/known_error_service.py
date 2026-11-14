@@ -61,9 +61,16 @@ def tickets_de_un_error_conocido(db, current_user, known_error_id: str) -> list[
         get_scoped_problem_or_404,
     )
 
-    # Un Known Error es un `Problem` promovido, asi que la guarda es la del
-    # problema — la misma que usan el PATCH y el resto del modulo.
-    get_scoped_problem_or_404(db, current_user, known_error_id)
+    # Auditoria 2026-11: antes se pasaba `known_error_id` como id de `Problem`
+    # y la ruta devolvia 404 siempre (la interfaz manda `KnownError.id`, que es
+    # lo que sirve `/sd/known-errors`). Se resuelve el Known Error y la guarda
+    # de ambito sigue siendo la de su problema padre.
+    from app.core.errores import ErrorDeDominio
+
+    known_error = db.query(KnownError).filter(KnownError.id == known_error_id).first()
+    if not known_error:
+        raise ErrorDeDominio(404)
+    get_scoped_problem_or_404(db, current_user, known_error.problem_id)
 
     enlaces = (
         db.query(KnownErrorTicket)

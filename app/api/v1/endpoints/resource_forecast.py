@@ -68,7 +68,7 @@ def _capacidad(base: float, hw: dict) -> float:
 def forecast_heatmap(
     weeks:       int           = Query(26, ge=4, le=52),
     department:  Optional[str] = Query(None),
-    from_date:   Optional[str] = Query(None),   # YYYY-MM-DD, default hoy
+    from_date:   Optional[date] = Query(None),   # YYYY-MM-DD, default hoy
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -79,7 +79,7 @@ def forecast_heatmap(
       cell → { load_pct, committed_hours, available_hours, status }
     """
     start = _monday(
-        date.fromisoformat(from_date) if from_date else timeutil.today()
+        from_date or timeutil.today()
     )
     week_dates = _weeks_range(start, weeks)
 
@@ -147,7 +147,7 @@ def forecast_heatmap(
 def forecast_user_detail(
     user_id:   str,
     weeks:     int           = Query(13, ge=4, le=52),
-    from_date: Optional[str] = Query(None),
+    from_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -163,7 +163,7 @@ def forecast_user_detail(
         from fastapi import HTTPException
         raise HTTPException(404)
 
-    start      = _monday(date.fromisoformat(from_date) if from_date else timeutil.today())
+    start      = _monday(from_date or timeutil.today())
     week_dates = _weeks_range(start, weeks)
     capacity   = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
 
@@ -210,16 +210,16 @@ def forecast_user_detail(
 @router.get("/availability", summary="Encontrar personas disponibles para un rango y horas requeridas")
 def find_available(
     hours_needed: float         = Query(..., description="Horas requeridas por semana"),
-    from_date:    Optional[str] = Query(None),
-    to_date:      Optional[str] = Query(None),
+    from_date:    Optional[date] = Query(None),
+    to_date:      Optional[date] = Query(None),
     department:   Optional[str] = Query(None),
     role:         Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     """Devuelve personas con suficiente disponibilidad media en el rango dado."""
-    start = _monday(date.fromisoformat(from_date) if from_date else timeutil.today())
-    end   = date.fromisoformat(to_date) if to_date else start + timedelta(weeks=4)
+    start = _monday(from_date or timeutil.today())
+    end   = to_date or start + timedelta(weeks=4)
     week_dates = []
     w = start
     while w <= end:

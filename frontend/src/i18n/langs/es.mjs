@@ -3368,6 +3368,7 @@ const es = {
 
   toast: {
     unexpected_error: 'Error inesperado',
+    load_error: 'No se pudieron cargar los datos',
     close: 'Cerrar aviso',
   },
 

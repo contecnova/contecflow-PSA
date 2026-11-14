@@ -80,7 +80,8 @@ export interface TaskEntity {
 export interface AssetEntity extends NamedEntity {}
 
 export interface LicenseEntity extends NamedEntity {
-  product?: string
+  /** LicenseSerializer manda `product_name` (no `product`). */
+  product_name?: string | null
   vendor_name?: string
 }
 
@@ -101,7 +102,8 @@ export interface ProblemEntity {
 export interface SubcontractorEntity {
   id: string
   name?: string
-  company_name?: string
+  /** serialize_subcontractor manda `company`, no `company_name`. */
+  company?: string | null
 }
 
 // ── ClientSelect ──────────────────────────────────────────────────────────────
@@ -414,7 +416,7 @@ export interface AssetSelectProps {
 export function AssetSelect({ value = '', onChange, placeholder = 'Seleccionar asset…', required = false, style }: AssetSelectProps) {
   const { data: assets = [], isLoading } = useQuery<AssetEntity[]>({
     queryKey: ['alm-assets'],
-    queryFn: () => assetsApi.list(undefined).then((r: { data: AssetEntity[] }) => r.data),
+    queryFn: () => assetsApi.list(undefined).then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -441,7 +443,7 @@ export interface LicenseSelectProps {
 export function LicenseSelect({ value = '', onChange, placeholder = 'Seleccionar licencia…', required = false, style }: LicenseSelectProps) {
   const { data: licenses = [], isLoading } = useQuery<LicenseEntity[]>({
     queryKey: ['alm-licenses'],
-    queryFn: () => licensesApi.list(undefined).then((r: { data: LicenseEntity[] }) => r.data),
+    queryFn: () => licensesApi.list(undefined).then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -451,7 +453,7 @@ export function LicenseSelect({ value = '', onChange, placeholder = 'Seleccionar
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
       <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
-      {licenses.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.product || l.vendor_name || ''})</option>)}
+      {licenses.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.product_name || l.vendor_name || ''})</option>)}
     </select>
   )
 }
@@ -468,7 +470,7 @@ export interface VendorSelectProps {
 export function VendorSelect({ value = '', onChange, placeholder = 'Seleccionar proveedor…', required = false, style }: VendorSelectProps) {
   const { data: vendors = [], isLoading } = useQuery<VendorEntity[]>({
     queryKey: ['alm-vendors'],
-    queryFn: () => vendorsApi.list(undefined).then((r: { data: VendorEntity[] }) => r.data),
+    queryFn: () => vendorsApi.list(undefined).then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -549,7 +551,7 @@ export interface SubcontractorSelectProps {
 export function SubcontractorSelect({ value = '', onChange, placeholder = 'Seleccionar subcontratista…', required = false, style }: SubcontractorSelectProps) {
   const { data: subs = [], isLoading } = useQuery<SubcontractorEntity[]>({
     queryKey: ['subcontractors'],
-    queryFn: () => subcontractorsApi.list(undefined).then((r: { data: SubcontractorEntity[] }) => r.data),
+    queryFn: () => subcontractorsApi.list(undefined).then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -559,7 +561,7 @@ export function SubcontractorSelect({ value = '', onChange, placeholder = 'Selec
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
       <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
-      {subs.map((s) => <option key={s.id} value={s.id}>{s.name || s.company_name}</option>)}
+      {subs.map((s) => <option key={s.id} value={s.id}>{s.name || s.company}</option>)}
     </select>
   )
 }

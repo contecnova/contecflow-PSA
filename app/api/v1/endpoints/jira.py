@@ -238,9 +238,8 @@ def rotate_jira_webhook_secret(
     secreto = jira_service.generar_secreto_de_webhook(db, current_user.organization_id)
     # Revisión GRC 2026-11b: rotar el secreto invalida el webhook en curso y no
     # dejaba rastro. El valor nunca se registra.
-    from app.services.audit import audit_log
-    audit_log(db, current_user, "SECRET_ROTATED", "jira_webhook_secret", current_user.organization_id)
-    db.commit()
+    from app.services.audit import auditar_y_confirmar
+    auditar_y_confirmar(db, current_user, "SECRET_ROTATED", "jira_webhook_secret", current_user.organization_id)
     return APIResponse.ok(data={
         "secret": secreto,
         "header": "X-Atlassian-Webhook-Token",

@@ -19,6 +19,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biCollaborationApi, unwrapList } from '../../services/api'
+import type { ComentarioBi } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
@@ -78,29 +79,6 @@ interface BiDashboardCollabPanelProps {
 // Auditoria 2026-09 (modo estricto): las cinco listas de este panel salian de
 // `datos?.items ?? datos?.<lista> ?? []` con el cliente de API sin tipar, asi
 // que todo lo que se pinta debajo era `any`. Se declara lo que el panel lee.
-
-/** Un comentario sobre un panel de BI. */
-interface ComentarioDeBi {
-  id: string
-  message?: string
-  author_name?: string
-  user_id?: string | number
-  widget_id?: string | number
-  resolved?: boolean
-  created_at?: string
-}
-
-/** Una vista guardada del panel. */
-interface VistaGuardada {
-  id: string
-  name?: string
-  dashboard_key?: string
-  created_by_name?: string
-  /** `false` la desactiva. `undefined` cuenta como activa, y por eso todas las
-   *  comprobaciones de este fichero son `=== false` y no `!activa`. */
-  active?: boolean
-  created_at?: string
-}
 
 /** Una comparticion del panel con otra persona. */
 interface ComparticionDeBi {
@@ -251,8 +229,9 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al marcar leída'),
   })
 
-  const comments = unwrapList(commentsData, 'comments') as ComentarioDeBi[]
-  const views = unwrapList(viewsData, 'views') as VistaGuardada[]
+  // Comentarios y vistas: APIListResponse, llegan como lista (tipos-grc).
+  const comments: ComentarioBi[] = commentsData ?? []
+  const views = viewsData ?? []
   const shares = unwrapList(sharesData, 'shares') as ComparticionDeBi[]
   const versions = unwrapList(versionsData, 'versions') as VersionDeBi[]
   const notifications = unwrapList(notificationsData, 'notifications') as AvisoDeBi[]
@@ -331,7 +310,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                         {c.message}
                       </div>
                       <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <span>{c.author_name ?? c.user_id ?? 'Usuario'}</span>
+                        <span>{c.author_name ?? 'Usuario'}</span>
                         {c.widget_id && <span>· widget {c.widget_id}</span>}
                         {c.created_at && <span>· {new Date(c.created_at).toLocaleString(localeActivo())}</span>}
                         {c.resolved && <span style={chip('var(--success)')}>resuelto</span>}

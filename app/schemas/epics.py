@@ -17,6 +17,10 @@ class WikiPageIn(BaseModel):
     sort_order: int = Field(default=0, description="Orden de la página dentro del listado")
     change_note: Optional[str] = Field(default=None, description="Nota describiendo el cambio realizado")
 
+class WikiPageVisibilityIn(BaseModel):
+    visibility: str = Field(..., pattern="^(team|portal|public)$",
+                            description="Quien ve la pagina: team | portal | public")
+
 class WikiTemplateIn(BaseModel):
     name: str = Field(..., description="Nombre de la plantilla wiki")
     description: Optional[str] = Field(default=None, description="Descripción de la plantilla")

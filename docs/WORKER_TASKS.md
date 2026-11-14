@@ -407,7 +407,7 @@ grep "run_alert_engine" logs/worker.log
 ## 📚 References
 
 - Main file: `app/worker.py` (line 1–1689)
-- Scheduler: `app/core/scheduler.py`
+- Scheduler without Celery: `_replicar_celery_beat` in `app/main.py` (replays the beat schedule)
 - Configuration: `app/core/config.py` (CELERY_* settings)
 - Tests: `tests/test_worker_*.py`
 - Monitoring: Flower (`http://localhost:5555`)

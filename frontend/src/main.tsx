@@ -18,7 +18,8 @@ import React from 'react'
 import type { ReactNode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { QueryClient} from '@tanstack/react-query'
+import { QueryCache, QueryClient } from '@tanstack/react-query'
+import { reportQueryError } from './lib/queryErrorBus'
 import App from './App'
 import AppProviders from './AppProviders'
 import { useAppT } from './hooks/useAppT'
@@ -140,7 +141,12 @@ function RootBoundary({ children }: { children?: ReactNode }) {
 }
 
 // ── QueryClient ───────────────────────────────────────────────────────────────
+// Segunda auditoría 2026-11: sin `onError` global una query fallida se veía
+// como una lista vacía. El error viaja a ToastProvider por `queryErrorBus`.
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => reportQueryError(error, query.meta),
+  }),
   defaultOptions: {
     queries: {
       staleTime:            STALE_SHORT_MS,      // 30s — datos siempre frescos

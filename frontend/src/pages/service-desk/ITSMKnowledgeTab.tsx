@@ -12,6 +12,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { sdKbApi, problemsApi } from '../../services/api'
+import type { SdArticuloKb, SdArticuloKbDetalle, SdCalidadKb, SdErrorConocido, SdTicketDeErrorConocido } from '../../services/api/tipos-sd'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import MarkdownText from '../../components/ui/MarkdownText'
 import { COLOR, alpha } from '../../constants/theme'
@@ -23,8 +24,11 @@ type Priority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low' | string
 type ProblemStatus = 'open' | 'investigating' | 'known_error' | 'resolved' | 'closed' | string
 type KbStatus = 'draft' | 'published' | 'archived' | string
 
+/** Lo comun a un problema (SdProblema) y a un error conocido (SdErrorConocido) en los formularios. */
 type ProblemRecord = {
   id: string | number
+  /** Solo en el error conocido: el problema del que sale (lo que se edita). */
+  problem_id?: string
   number?: string
   title: string
   description?: string
@@ -33,30 +37,14 @@ type ProblemRecord = {
   fix_description?: string
   priority?: Priority
   status?: ProblemStatus
-  related_tickets?: Array<unknown>
+  related_ticket_count?: number
   affected_tickets?: number
   ci?: string
 }
 
-type KbArticle = {
-  id: string | number
-  title: string
-  summary?: string
-  body?: string
-  tags?: string
-  status?: KbStatus
-  is_public?: boolean
-  helpful_count?: number
-  view_count?: number
-  deflection_count?: number
-  review_comment?: string | null
-}
+type KbArticle = SdArticuloKb
 
-type LinkedTicket = {
-  id: string | number
-  title?: string
-  status?: string
-}
+type LinkedTicket = SdTicketDeErrorConocido
 
 type InputStyles = CSSProperties
 
@@ -85,7 +73,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
   const { t } = useAppT()
   const { data: tickets, isLoading } = useQuery<LinkedTicket[]>({
     queryKey: ['sd-ke-tickets', kedbId],
-    queryFn: () => sdKbApi.knownErrorTickets(kedbId).then(r => r.data as LinkedTicket[]).catch(() => []),
+    queryFn: () => sdKbApi.knownErrorTickets(kedbId).then(r => r.data).catch(() => []),
     staleTime: STALE_SHORT_MS,
   })
   if (isLoading) return <div style={{ padding: '8px 0' }}><Spinner /></div>
@@ -100,7 +88,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
       <div className="u-stack-6">
         {tickets.map((tk) => (
           <div key={tk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
-            <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)' }}>#{tk.id}</span>
+            <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)' }}>{tk.number}</span>
             <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', flex: 1 }}>{tk.title}</span>
             <SBadge v={String(tk.status ?? '')} />
           </div>
@@ -119,9 +107,9 @@ function KnownErrors() {
   const [editing, setEditing] = useState<ProblemRecord | null>(null)
   const [expandedKE, setExpandedKE] = useState<string | number | null>(null)
 
-  const { data: kedb = [], isLoading } = useQuery<ProblemRecord[]>({
+  const { data: kedb = [], isLoading } = useQuery<SdErrorConocido[]>({
     queryKey: ['sd-kedb'],
-    queryFn: () => sdKbApi.knownErrors().then(r => r.data as ProblemRecord[]),
+    queryFn: () => sdKbApi.knownErrors().then(r => r.data),
   })
   const { mutate: updateProblem } = useMutation({
     mutationFn: ({ id, ...data }: { id: string | number } & Partial<ProblemRecord>) => problemsApi.update(id, data),
@@ -174,13 +162,6 @@ function KnownErrors() {
                   {ke.workaround}
                 </div>
               </div>
-            ) : ke.fix_description ? (
-              <div>
-                <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.info, marginBottom: 4 }}>{t('itsmknowledge.solucion_definitiva')}</div>
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: alpha(COLOR.info, '08'), border: `1px solid ${alpha(COLOR.info, '20')}`, borderRadius: 8, padding: '10px 14px' }}>
-                  {ke.fix_description}
-                </div>
-              </div>
             ) : null}
             {/* Linked tickets */}
             {expandedKE === ke.id && (
@@ -196,7 +177,8 @@ function KnownErrors() {
           onClose={() => { setShowNew(false); setEditing(null) }}
           onSaved={(data: Partial<ProblemRecord>) => {
             if (editing) {
-              updateProblem({ id: editing.id, ...data })
+              // El id del Known Error no es el del problema: se edita el problema.
+              updateProblem({ id: editing.problem_id ?? editing.id, ...data })
             } else {
               problemsApi.create(data).then(() => {
                 qc.invalidateQueries({ queryKey: ['sd-kedb'] })
@@ -268,7 +250,7 @@ function Problems() {
 
   const { data: problems = [], isLoading } = useQuery<ProblemRecord[]>({
     queryKey: ['sd-problems'],
-    queryFn: () => problemsApi.list().then(r => r.data as ProblemRecord[]),
+    queryFn: () => problemsApi.list().then(r => r.data),
   })
   const { mutate: createProblem, isPending: creating } = useMutation({
     mutationFn: (data: Partial<ProblemRecord>) => problemsApi.create(data),
@@ -331,9 +313,9 @@ function Problems() {
                           {etiquetaSd('prb_st', p.status)}
                         </span>
                         <PBadge v={p.priority} />
-                        {(p.related_tickets ?? []).length > 0 && (
+                        {(p.related_ticket_count ?? 0) > 0 && (
                           <span className="u-text3-xs">
-                            {(p.related_tickets ?? []).length} ticket{(p.related_tickets ?? []).length !== 1 ? 's' : ''}
+                            {p.related_ticket_count} ticket{p.related_ticket_count !== 1 ? 's' : ''}
                           </span>
                         )}
                       </div>
@@ -467,7 +449,7 @@ function KB() {
 
   const { data: articles = [], isLoading } = useQuery<KbArticle[]>({
     queryKey: ['sd-kb', search],
-    queryFn: () => sdKbApi.list({ search: search || undefined }).then(r => r.data as KbArticle[]),
+    queryFn: () => sdKbApi.list({ search: search || undefined }).then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
   const { mutate: deleteArticle } = useMutation({
@@ -540,7 +522,7 @@ function KB() {
           </div>
         </Modal>
       )}
-      {leyendo !== null && <LecturaDeArticulo id={leyendo} onClose={() => setLeyendo(null)} />}
+      {leyendo !== null && <LecturaDeArticulo id={leyendo} publico={articles.find(x => x.id === leyendo)?.is_public} onClose={() => setLeyendo(null)} />}
       {showNew && <KBArticleModal article={editing} onClose={() => { setShowNew(false); setEditing(null) }} onSaved={() => { qc.invalidateQueries({ queryKey: ['sd-kb'] }); setShowNew(false); setEditing(null) }} />}
     </div>
   )
@@ -569,7 +551,7 @@ function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalPr
     is_public: article?.is_public ?? true,
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: typeof form) => isEdit && article ? sdKbApi.update(article.id, data) : sdKbApi.create(data),
+    mutationFn: (data: typeof form): Promise<unknown> => isEdit && article ? sdKbApi.update(article.id, data) : sdKbApi.create(data),
     onSuccess: () => { toast.success(isEdit ? 'Articulo actualizado' : 'Articulo creado'); onSaved() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -600,13 +582,11 @@ function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalPr
 
 // ── Calidad de la base (revisión 2026-11) ───────────────────────────────────
 
-type Hueco = { id: string; question: string; times_asked: number; source: string; last_asked_at: string | null }
-type Correccion = { id: string; question: string; answer: string; is_public: boolean; usage_count: number; last_used_at: string | null }
-type Aviso = { id: string; kind: 'stale' | 'contradiction'; article_number?: string; other_article_number?: string; detail?: string; first_seen_at?: string }
-type Calidad = { gaps: Hueco[]; corrections: Correccion[]; findings: Aviso[]; counts: { gaps: number; corrections: number; findings: number } }
+type Calidad = SdCalidadKb
+type Hueco = Calidad['gaps'][number]
 
 function useCalidad() {
-  return useQuery<Calidad>({ queryKey: ['sd-kb-quality'], queryFn: () => sdKbApi.quality().then(r => r.data as Calidad), staleTime: STALE_SHORT_MS })
+  return useQuery<Calidad>({ queryKey: ['sd-kb-quality'], queryFn: () => sdKbApi.quality().then(r => r.data), staleTime: STALE_SHORT_MS })
 }
 
 function SelectorDeVista({ vista, setVista }: { vista: string; setVista: (v: 'articulos' | 'calidad') => void }) {
@@ -651,8 +631,8 @@ function CalidadKB() {
   const { mutate: pasar, isPending: pasando } = useMutation({
     mutationFn: () => sdKbApi.runQuality(),
     // Con cola la revision va al worker (202 `{status: 'queued'}`): aviso y refresco diferido.
-    onSuccess: (r: { data?: { status?: string } }) => {
-      if (r?.data?.status === 'queued') {
+    onSuccess: r => {
+      if (r.data.status === 'queued') {
         toast.success('Revisión de calidad en curso: los resultados aparecerán en unos minutos.')
         setTimeout(refrescar, DELAYED_REFETCH_MS)
         return
@@ -765,9 +745,10 @@ export default function ITSMKnowledgeTab({ mode }: { mode: 'problems' | 'kedb' |
 
 
 /** Lectura de un artículo sin entrar en el formulario (revisión 2026-11). */
-export function LecturaDeArticulo({ id, onClose }: { id: string | number; onClose: () => void }) {
+/** `publico` viene de la lista: el detalle (`GET /sd/kb/{id}`) no trae `is_public`. */
+export function LecturaDeArticulo({ id, publico, onClose }: { id: string | number; publico?: boolean; onClose: () => void }) {
   const ts = useAppTSimple()
-  const { data } = useQuery<KbArticle>({ queryKey: ['sd-kb-articulo', id], queryFn: () => sdKbApi.get(id).then(r => r.data as KbArticle) })
+  const { data } = useQuery<SdArticuloKbDetalle>({ queryKey: ['sd-kb-articulo', id], queryFn: () => sdKbApi.get(id).then(r => r.data) })
   return (
     <Modal open onClose={onClose} title={data?.title || '…'} size="lg">
       {data ? (
@@ -776,7 +757,7 @@ export function LecturaDeArticulo({ id, onClose }: { id: string | number; onClos
           <div style={{ display: 'flex', gap: 14, marginTop: 16, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
             <span>👍 {data.helpful_count || 0}</span><span>👁 {data.view_count || 0}</span>
             {data.tags && <span>🏷 {data.tags}</span>}
-            <span>{data.is_public ? ts('itsmknowledge.publico') : ts('itsmknowledge.interno')}</span>
+            {publico !== undefined && <span>{publico ? ts('itsmknowledge.publico') : ts('itsmknowledge.interno')}</span>}
           </div>
           {/* Revisión 2026-11: los documentos de origen del artículo, en contecmind. El portal no los ve. */}
           <div style={{ marginTop: 18 }}><DocumentosDeFicha ficha="kb_article" id={String(id)} /></div>

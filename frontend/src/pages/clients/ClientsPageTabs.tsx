@@ -13,6 +13,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 import { useAppLang } from '../../i18n/AppLangContext'
+import type { ClienteContrato, ClienteLicencia, ClientePortalConfig, ClienteProyecto, PortalDocumento, PortalPeticion, PortalSesionUat } from '../../services/api/tipos-alm'
 import { alpha } from '../../constants/theme'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
@@ -34,15 +35,8 @@ const MODULES = [
 ]
 
 // ── Datos de las pestañas del cliente (campos según su uso aquí) ─────────────
-interface ClientProjectRow {
-  id: string
-  code?: string
-  name: string
-  status?: string
-  start_date?: string | null
-  end_date?: string | null
-  is_linked?: boolean
-}
+// Respuestas de /clients/{id}/* y /portal/*/team: services/api/tipos-alm.
+type ClientProjectRow = ClienteProyecto
 
 /** Proyecto del detalle del cliente que se pasa a las pestañas del portal. */
 interface ClientProjectRef {
@@ -59,73 +53,16 @@ interface ClientDetail {
 
 interface ContactForm { full_name: string; email: string; phone: string; job_title: string; role: string; is_primary: boolean }
 
-interface LinkedLicense {
-  link_id: string
-  license_id: string
-  name: string
-  status: string
-  total_seats?: number | null
-  expiry_date?: string | null
-  annual_cost?: number | null
-  notes?: string | null
-}
+type LinkedLicense = ClienteLicencia
 interface License { id: string; name: string }
 
-interface LinkedContract {
-  link_id: string
-  contract_id: string
-  title: string
-  status: string
-  reference?: string | null
-  total_amount?: number | null
-  start_date?: string | null
-  end_date?: string | null
-}
+type LinkedContract = ClienteContrato
 // Contrato: el tipo del cliente de API. Auditoria 2026-11 (#39): aqui se leia
 // `title`, que el backend no envia (contract_service da `name`): el selector salia sin nombre.
 
-/** `uat_out` + `project_name` (list_uat_team). */
-interface TeamUatSession {
-  id: string
-  code?: string
-  title: string
-  description?: string | null
-  status: string
-  available_from?: string | null
-  deadline?: string | null
-  test_environment?: string | null
-  // `uat_out` lo envía desde la auditoría 2026-11 (antes el aviso no salía nunca).
-  issues_count?: number
-}
+type TeamUatSession = PortalSesionUat
 
-/** `fr_out` + `project_name`/`client_name` (list_all_feature_requests). */
-interface TeamFeatureRequest {
-  id: string
-  code?: string
-  title: string
-  description?: string | null
-  project_name?: string
-  priority?: string
-  status: string
-  pm_response?: string | null
-  estimated_cost?: number | null
-  estimated_delivery_weeks?: number | null
-  client_approved?: boolean | null
-  client_approved_at?: string | null
-  submitted_at?: string | null
-  cr_status?: string | null
-  cr_status_label?: string | null
-  cr_status_color?: string | null
-  // Datos de la CR enlazada: los añade `list_all_feature_requests` (`_detalle_de_cr`)
-  // desde la auditoría 2026-11; antes el modal los pintaba siempre como «—».
-  impact?: string | null
-  impact_label?: string | null
-  cost_impact?: number | null
-  schedule_impact_days?: number | null
-  resolution_notes?: string | null
-  approved_at?: string | null
-  implemented_at?: string | null
-}
+type TeamFeatureRequest = PortalPeticion
 
 interface FeatureRequestResponseForm {
   pm_response: string
@@ -135,26 +72,9 @@ interface FeatureRequestResponseForm {
   status: string
 }
 
-/** `doc_out` (lo que pinta la pestaña). */
-interface TeamPortalDocument {
-  id: string
-  title: string
-  category?: string | null
-  file_name?: string | null
-  file_url?: string | null
-  requires_signature?: boolean
-  created_at?: string | null
-}
+type TeamPortalDocument = PortalDocumento
 
-interface PortalConfig {
-  enabled_modules?: string[]
-  sd_without_project?: boolean | null
-  sla_tier?: string | null
-  max_portal_users?: number | null
-  default_language?: string | null
-  allow_profile_edit?: boolean | null
-  allow_pwd_change?: boolean | null
-}
+type PortalConfig = ClientePortalConfig
 
 interface PortalConfigPayload {
   enabled_modules: string[]
@@ -480,7 +400,7 @@ export function ContractsTab({ cid }: { cid: string }) {
       {linked.length === 0 ? (
         <EmptyState icon="📄" title={traducir('clients.sin_contratos_vinculados')} description="Asocia un contrato activo a este cliente" />
       ) : linked.map(c => (
-        <div key={c.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div key={c.link_id ?? c.contract_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div className="u-md-700">{c.title}</div>
             <div className="u-text2-sm">
@@ -491,7 +411,7 @@ export function ContractsTab({ cid }: { cid: string }) {
           </div>
           <div className="u-row-center-8">
             <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: alpha((statusCol[c.status] || 'var(--text-2)'), '15'), color: statusCol[c.status] || 'var(--text-2)', fontWeight: 700 }}>{c.status}</span>
-            <button onClick={() => unlink(c.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
+            {c.link_id && <button onClick={() => unlink(c.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>}
           </div>
         </div>
       ))}
@@ -645,7 +565,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
     let ws: WebSocket | undefined
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined
     function connectWS() {
-      wsApi.ticket().then((res: { data: { ticket: string } }) => {
+      wsApi.ticket().then((res) => {
         const ticket = res.data.ticket
         ws = new window.WebSocket(apiWsUrl(`/ws/notifications?ticket=${ticket}`))
         ws.onclose = () => { reconnectTimer = setTimeout(connectWS, WS_RECONNECT_DELAY_MS) }

@@ -42,7 +42,7 @@ export function GuardiasConfig() {
   const { data: ahora = [] } = useQuery<Ahora[]>({
     queryKey: ['sd-oncall-now'], queryFn: () => sdOnCallApi.current().then(r => r.data as Ahora[]), refetchInterval: POLL_DEFAULT_MS,
   })
-  const { data: colas = [] } = useQuery<Cola[]>({ queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data as Cola[]) })
+  const { data: colas = [] } = useQuery<Cola[]>({ queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data) })
   const { data: personas = [] } = useQuery<Persona[]>({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data as unknown as Persona[]) })
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['sd-oncall'] }); qc.invalidateQueries({ queryKey: ['sd-oncall-now'] }) }
   const err = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))

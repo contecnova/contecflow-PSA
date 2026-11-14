@@ -41,7 +41,7 @@ class Task(Base):
     # Hierarchy
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     phase_id = Column(String(36), ForeignKey("project_phases.id", ondelete="SET NULL"), nullable=True, index=True)
-    parent_task_id = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    parent_task_id = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Content
     title = Column(String(500), nullable=False)

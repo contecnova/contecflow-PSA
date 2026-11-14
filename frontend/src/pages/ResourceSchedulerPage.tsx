@@ -22,6 +22,7 @@ import useMediaQuery from '../hooks/useMediaQuery'
 import { alpha } from '../constants/theme'
 import { STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { FULL_LIST_SIZE } from '../constants/pagination'
+import { extractErr } from '../utils/helpers'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -278,25 +279,31 @@ export default function ResourceSchedulerPage() {
   const weekDates = useMemo(() => Array.from({ length: weeks }, (_, i) => addWeeks(today, i)), [today, weeks])
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const { data: projects = [] } = useQuery<ProjectListItem[]>({
+  // Segunda auditoría 2026-11: los errores de estas tres queries se pintan en
+  // la página (`loadError`), así que no pasan además por el aviso global.
+  const { data: projects = [], error: projectsError } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
     queryFn:  () => projectsApi.list().then(r => r.data),
+    meta: { errorToast: false },
   })
 
-  const { data: forecastData, isLoading } = useQuery<ForecastData>({
+  const { data: forecastData, isLoading, isError: forecastFailed, error: forecastError } = useQuery<ForecastData>({
     queryKey: ['resource-forecast', weeks, department],
     queryFn:  () => {
       const params = { weeks, ...(department ? { department } : {}) }
       return api.get('/resource-forecast/weeks', { params }).then(r => r.data)
     },
     staleTime: STALE_SHORT_MS,
+    meta: { errorToast: false },
   })
 
-  const { data: bookingsData = [] } = useQuery<Booking[]>({
+  const { data: bookingsData = [], error: bookingsError } = useQuery<Booking[]>({
     queryKey: ['bookings'],
     queryFn:  () => api.get('/bookings', { params: { page_size: FULL_LIST_SIZE } }).then(r => unwrapList(r) as Booking[]),
     staleTime: STALE_NEAR_LIVE_MS,
+    meta: { errorToast: false },
   })
+  const loadError = forecastError ?? projectsError ?? bookingsError
 
   const { mutate: createBooking } = useMutation({
     mutationFn: (b: Booking) => api.post('/bookings', b),
@@ -561,11 +568,17 @@ export default function ResourceSchedulerPage() {
         <span style={{ marginLeft: 'auto', fontSize: "var(--text-2xs)", color: 'var(--text-4)' }}>{t('resource_scheduler.legend_shortcuts')}</span>
       </div>
 
+      {loadError && (
+        <div role="alert" className="u-danger" style={{ padding: '0 24px 8px', flexShrink: 0 }}>
+          {extractErr(loadError, t('toast.load_error'))}
+        </div>
+      )}
+
       {isLoading ? (
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <Spinner size={32} />
         </div>
-      ) : users.length === 0 ? (
+      ) : forecastFailed ? null : users.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <EmptyState icon="👥" title={t('resource_scheduler.no_active_users')} description={t('resource_scheduler.no_active_users_desc')} />
         </div>

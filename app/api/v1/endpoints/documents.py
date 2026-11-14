@@ -23,7 +23,7 @@ from app.schemas.documents import (
     DocumentPermissionCreate, DocumentPermissionOut, DocumentApprovalPayload
 )
 from app.services.s3_service import file_storage
-from app.services.ai_provider_service import call_ai
+from app.services.ai_provider_service import PresupuestoDeIAAgotado, call_ai
 from app.services import documents_service as doc_svc
 
 from app.services import reserva_de_documentos as _reserva
@@ -747,8 +747,13 @@ def ai_summary(
             user_id=current_user.id,
             max_tokens=700,
         )
-    except Exception as exc:
-        raise HTTPException(503, f"AI summary unavailable: {str(exc)[:100]}")
+    except PresupuestoDeIAAgotado:
+        raise  # 429 con su mensaje (manejador de app/main.py)
+    except Exception:
+        # Barrido final 2026-11: el error del proveedor de IA (puede citar parte
+        # de la clave) se registra; ya no se devuelve al cliente.
+        logger.warning("AI summary failed for doc=%s", doc_id, exc_info=True)
+        raise HTTPException(503, "AI summary unavailable")
 
     doc_svc.save_ai_summary(db, doc, summary_text)
     return APIResponse.ok(data={"document_id": doc_id, "summary": summary_text})

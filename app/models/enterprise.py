@@ -457,7 +457,7 @@ class SubcontractorTimeLog(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     assignment_id    = Column(String(36), ForeignKey("subcontractor_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id"), nullable=False, index=True)
-    project_id       = Column(String(36), ForeignKey("projects.id"), nullable=True)
+    project_id       = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     log_date         = Column(Date, nullable=False)
     hours            = Column(Float, nullable=False)
     description      = Column(String(500), nullable=True)

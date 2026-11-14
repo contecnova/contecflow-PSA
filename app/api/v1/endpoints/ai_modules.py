@@ -347,8 +347,11 @@ def transcribe_voice_audio(
         transcripcion = (resultado.text or "").strip()
     except _STTError as exc:
         raise _http_del_error_stt(exc)
-    except Exception as exc:
-        raise HTTPException(500, f"Error inesperado de transcripción: {str(exc)[:150]}")
+    except Exception:
+        # Barrido final 2026-11: el texto de la excepción ya no llega al cliente.
+        import logging
+        logging.getLogger(__name__).exception("Error inesperado de transcripción")
+        raise HTTPException(500, "Error inesperado de transcripción.")
 
     if not transcripcion:
         raise HTTPException(

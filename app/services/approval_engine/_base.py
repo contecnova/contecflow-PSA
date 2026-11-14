@@ -385,6 +385,7 @@ def serialize_step(s) -> dict:
         "approver_user_id": s.approver_user_id,
         "approver_user_name": s.approver.full_name if s.approver else None,
         "approver_group_id": getattr(s, "approver_group_id", None),
+        "approver_department": getattr(s, "approver_department", None),
         "is_optional": s.is_optional, "timeout_hours": s.timeout_hours,
         "on_timeout": s.on_timeout,
         # v2 enterprise

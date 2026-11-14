@@ -1312,7 +1312,7 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 ---
 
 #### Cross-cutting configuration note
-`DEFAULT_WEEKLY_CAPACITY_HOURS`, `DEFAULT_WORKING_HOURS_PER_DAY` and `DEFAULT_VACATION_DAYS_PER_YEAR` appear in the Admin runtime-settings group `locale` (`RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`). However, every capacity, forecast, heatmap and burnout calculation in this section reads the static `settings.X` from `app/core/config.py` (env value). `settings` is a plain `Settings()` object with no runtime override, so **changing these values in Admin does not change those calculations**. Only `GET /api/v1/settings` reads the runtime value.
+`DEFAULT_WEEKLY_CAPACITY_HOURS`, `DEFAULT_WORKING_HOURS_PER_DAY` and `DEFAULT_VACATION_DAYS_PER_YEAR` appear in the Admin runtime-settings group `locale` (`RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`). However, every capacity, forecast, heatmap and burnout calculation in this section reads the static `settings.X` from `app/core/config.py` (env value). `settings` is a plain `Settings()` object with no runtime override, so **changing these values in Admin does not change those calculations**. Only `GET /api/v1/settings` reads the runtime value.
 
 The practical impact is limited: new users get `weekly_capacity_hours` from the same static default at creation, and the fallback only applies to users whose capacity is null.
 
@@ -1343,7 +1343,7 @@ General notes that apply to every module here:
   - work order `WO-0001`
   - project created from the pipeline `PRJ-0001`
   - invoice: prefix `INV`, year, 4 digits, counter reset every year (exact separator rendering not verified at runtime)
-- **Currency and tax.** These come from `DEFAULT_CURRENCY` (default `EUR`) and `DEFAULT_TAX_RATE` (default `21.0`) in `app/core/config.py`, both also exposed in the runtime settings group `locale` (`app/services/settings_service.py`). Several screens hardcode `€` or `21`; those are listed per module.
+- **Currency and tax.** These come from `DEFAULT_CURRENCY` (default `EUR`) and `DEFAULT_TAX_RATE` (default `21.0`) in `app/core/config.py`, both also exposed in the runtime settings group `locale` (`app/services/settings_service/`). Several screens hardcode `€` or `21`; those are listed per module.
 
 ---
 
@@ -1850,7 +1850,7 @@ Still open: times are shown in UTC; the profile password change does not ask for
 
 **Technical notes.**
 - **Tables:** `client_users`, `client_user_projects`, `client_portal_configs`, `client_surveys`, `client_messages`, and the UAT, feature-request and document tables of `app/models/client_portal.py`.
-- **Router:** `app/api/v1/endpoints/client_portal.py`, service `app/services/client_portal_service.py`. Conversations: `/portal/conversations/*` (one mount). WebSockets: `/ws/portal-ticket`, `/ws/portal-notifications`.
+- **Router:** `app/api/v1/endpoints/client_portal.py`, service `app/services/client_portal_service/`. Conversations: `/portal/conversations/*` (one mount). WebSockets: `/ws/portal-ticket`, `/ws/portal-notifications`.
 - **Base URL.** `CLIENT_API` uses a hardcoded `baseURL: '/api/v1'` and ignores `VITE_API_URL`, unlike the main client.
 
 **Limitations (measured).**
@@ -2615,7 +2615,7 @@ What each tool actually does, from the code and the Spanish manual:
 
 ### Settings
 
-They are editable in *Settings → Dynamic config* (`RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`). Defaults come from `app/core/config_groups/service_desk_config.py` and `sla_config.py`, and values are resolved per organisation at runtime.
+They are editable in *Settings → Dynamic config* (`RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`). Defaults come from `app/core/config_groups/service_desk_config.py` and `sla_config.py`, and values are resolved per organisation at runtime.
 
 **`sla` group (selection).**
 
@@ -2816,7 +2816,7 @@ Measured against a copy of the database with a local Ollama model. Tests: `tests
 
 ### What is real AI here, and what works offline
 
-**LLM calls.** All LLM calls go through `app/services/ai_provider_service.py` (`call_ai` / `call_provider`). The only exception is a legacy direct-to-Anthropic path, covered at the end of this subsection.
+**LLM calls.** All LLM calls go through `app/services/ai_provider_service/` (`call_ai` / `call_provider`). The only exception is a legacy direct-to-Anthropic path, covered at the end of this subsection.
 
 **Supported providers.** There are 8, all called over plain HTTP:
 
@@ -2857,7 +2857,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 
 **ML libraries in the image.** `deploy/Dockerfile.backend` installs only `requirements.txt` (duckdb, scikit-learn, pandas, numpy). The `requirements-ml.txt` line is commented out. So the Docker image has **no** Prophet, statsmodels, LightGBM or sentence-transformers. The features that use them fall back silently, as described per module.
 
-**Runtime settings group `ai`** (`app/services/settings_service.py`). It contains:
+**Runtime settings group `ai`** (`app/services/settings_service/`). It contains:
 - `CONTECFLOW_AI_MODEL`
 - `SEMANTIC_EMBEDDINGS_BACKEND`
 - `OPENAI_STT_MODEL`
@@ -3007,7 +3007,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 - `GET /api/v1/analytics/catalogue`: the static `CATALOGUE`, 110 metrics.
 - `GET /api/v1/analytics/filters/options`
 - `GET /api/v1/analytics/query/{metric_id}`: dispatches through `METRICS_REGISTRY` (109 handlers), with project scope from `get_filtered_project_ids` and a cache TTL per metric.
-- Scheduled reports (`app/api/v1/endpoints/billing_reports.py`, `app/services/billing_reports_service.py`, table `scheduled_reports`):
+- Scheduled reports (`app/api/v1/endpoints/billing_reports.py`, `app/services/billing_reports_service/`, table `scheduled_reports`):
   - `GET/POST /api/v1/billing-reports/scheduled-reports`
   - `PATCH/DELETE .../{id}`
   - `POST .../{id}/run`
@@ -3680,10 +3680,10 @@ An action that fails is recorded and the next ones still run. A rule's action ca
 - `send_email` uses `SMTP_*`; Slack/Teams use incoming webhooks in Enterprise → Integraciones.
 
 **Technical notes.**
-- Endpoints (`app/api/v1/endpoints/automations.py`, `app/services/automations_service.py`): `GET/POST /api/v1/automations`, `PATCH/DELETE /api/v1/automations/{id}`, `POST /api/v1/automations/{id}/test` (simulation), `GET /api/v1/automations/catalog`, `GET /api/v1/automations/templates/list`, `GET /api/v1/automations/{id}/executions`, `POST /api/v1/automations/run-scheduled`. Every by-id call returns 404 for a rule of another organization.
+- Endpoints (`app/api/v1/endpoints/automations.py`, `app/services/automations_service/`): `GET/POST /api/v1/automations`, `PATCH/DELETE /api/v1/automations/{id}`, `POST /api/v1/automations/{id}/test` (simulation), `GET /api/v1/automations/catalog`, `GET /api/v1/automations/templates/list`, `GET /api/v1/automations/{id}/executions`, `POST /api/v1/automations/run-scheduled`. Every by-id call returns 404 for a rule of another organization.
 - Event capture: `app/services/automation_events.py`, a `before_flush` listener on the session (same pattern as the ticket outbox). It writes `automation_events` only when the organization has an active rule for that trigger.
   - On a new record the listener assigns the primary key before reading the event, so a `task_created` event carries its `task_id`.
-- Processing: Celery `automations_procesar_eventos` (queued on commit; beat every minute as a safety net) and `automations_escanear` (every `AUTOMATIONS_SCAN_MINUTES`). The same two jobs exist in APScheduler (`app/services/automation_jobs.py`).
+- Processing: Celery `automations_procesar_eventos` (queued on commit; beat every minute as a safety net) and `automations_escanear` (every `AUTOMATIONS_SCAN_MINUTES`). Without Celery, APScheduler replays the same Celery beat schedule (`_replicar_celery_beat` in `app/main.py`).
 - Tables: `automation_rules` (`trigger_type` is VARCHAR(64), migration 118), `automation_executions` (+ `dedupe_key`), `automation_events`.
 - Migration 118 also fills `organization_id` of existing rules from their project or creator, and adds `automation` to the `alerttype` enum.
 
@@ -4187,7 +4187,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service.py`: **23 groups, 250 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **23 groups, 250 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -5157,7 +5157,7 @@ This section is for developers and operators who install, run, configure, extend
    │ middlewares: ExceptionHandler · CORS · CSRF · security headers · req logger │
    │ router guards (every /api/v1 route, HTTP and WebSocket):                    │
    │   bind_request_timezone → apply_abac_for_route → enforce_grc_matrix         │
-   │ /api/v1 (2,114 routes) · /health · /ready · /status · /metrics              │
+   │ /api/v1 (2,134 routes) · /health · /ready · /status · /metrics              │
    │ endpoints (app/api) ──► services (app/services) ──► ORM models (app/models) │
    │ TenantSession + do_orm_execute tenant filter + before_flush org stamping    │
    │ APScheduler in-process when ENABLE_APSCHEDULER=1 (default): mirrors beat     │
@@ -5230,7 +5230,7 @@ There is no dedicated search engine for the core domain. Measured:
 
 #### 1.6 AI providers
 
-`app/services/ai_provider_service.py::PROVIDER_CATALOG` lists 8 providers: `anthropic`, `openai`, `gemini`, `deepseek`, `groq`, `mistral`, `ollama`, `azure`. Resolution order is organisation provider (DB) → global provider (DB) → `.env` (`AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`), with `ANTHROPIC_API_KEY` as a legacy alias. The Anthropic key in Credenciales → AI provider keys is the last step of the same chain. Speech-to-text has its own chain (`STT_PROVIDER`, default `openai`; Azure, Google, local Whisper via `WHISPER_LOCAL=1`).
+`app/services/ai_provider_service/`::PROVIDER_CATALOG lists 8 providers: `anthropic`, `openai`, `gemini`, `deepseek`, `groq`, `mistral`, `ollama`, `azure`. Resolution order is organisation provider (DB) → global provider (DB) → `.env` (`AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`), with `ANTHROPIC_API_KEY` as a legacy alias. The Anthropic key in Credenciales → AI provider keys is the last step of the same chain. Speech-to-text has its own chain (`STT_PROVIDER`, default `openai`; Azure, Google, local Whisper via `WHISPER_LOCAL=1`).
 
 ---
 
@@ -5247,8 +5247,8 @@ There is no dedicated search engine for the core domain. Measured:
 | `app/schemas/` | Pydantic schemas | 48 files |
 | `app/core/` | Config, security, CSRF, ABAC/GRC enforcement, tenancy, encryption, metrics, rate limiter, uploads, timezone context | 30 files + `config_groups/` (5 mixins) |
 | `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (9 modules, 1,969 lines) | — |
-| `alembic/versions/` | Migrations, single linear chain, head `144_presupuestos` | 98 revisions |
-| `tests/` | Backend pytest suite | 304 `test_*.py`, **4,021 tests collected** |
+| `alembic/versions/` | Migrations, single linear chain, head `163_indices_de_claves_ajenas_calientes` | 117 revisions (2026-11-13) |
+| `tests/` | Backend pytest suite | 443 `test_*.py` (2026-11-13; the 4,021 collected were counted with 304 files) |
 | `tests_e2e/` | Python Playwright E2E | 13 files |
 | `frontend/` | Vite + React SPA, `nginx.frontend.conf`, i18n checkers in `scripts/` | see §1.3 |
 | `deploy/` | `Dockerfile.backend`, `Dockerfile.frontend` | 2 |
@@ -5363,8 +5363,8 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 
 #### 4.1 Two layers
 
-1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 248 fields: 149 in `config.py` and 99 in five mixins (`ai_config` 25, `sla_config` 19, `health_config` 23, `semantic_config` 9, `service_desk_config` 22). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
-2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service.py::RUNTIME_FLAG_GROUPS` declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
+1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 468 fields (measured 2026-11-13): 243 in `config.py` and 225 in nine mixins (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 35, `automations_config` 11, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
+2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
 #### 4.2 Settings fields (`Settings`, 468)
 
@@ -5402,7 +5402,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SCIM_BEARER_TOKEN` | `''` | Static bearer for SCIM provisioning. |
 | `SCIM_ALLOWED_ORG_ID` | `''` | Org that SCIM token may provision. |
 | `WEBHOOK_SECRET` | `''` | HMAC secret for inbound webhooks; mandatory (≥24 chars) in staging/production. |
-| `INBOUND_EMAIL_SECRET` | `''` | Secret for inbound-email channel; same rules as WEBHOOK_SECRET. |
+| `INBOUND_EMAIL_SECRET` | `''` | Secret for inbound-email channel; same rules as WEBHOOK_SECRET (production does not boot without it; listed in `.env.example` since 2026-11-13, as are `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN`). |
 | `TRUST_PROXY_HEADERS` | `False` | Trust `X-Forwarded-For` from TRUSTED_PROXY_CIDRS (app/core/network.py). |
 | `TRUSTED_PROXY_CIDRS` | `'127.0.0.1/32,::1/128'` | Proxies whose forwarded headers are trusted. |
 | `GITHUB_WEBHOOK_SECRET` | `''` | GitHub webhook HMAC. |

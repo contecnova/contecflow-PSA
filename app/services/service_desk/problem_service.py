@@ -74,6 +74,8 @@ def list_problems_payload(db: Session, current_user: User, page: int, page_size:
             "priority": p.priority,
             "root_cause": p.root_cause,
             "workaround": p.workaround,
+            # Auditoria 2026-11: sin este campo la interfaz lo pisaba con "" al editar.
+            "fix_description": p.fix_description,
             "ci_name": p.ci.name if p.ci else None,
             "owner_name": p.owner.full_name if p.owner else None,
             "related_ticket_count": len(p.related_tickets),

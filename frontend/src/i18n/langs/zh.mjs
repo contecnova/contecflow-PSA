@@ -4525,6 +4525,7 @@ const zh = {
   },
   toast: {
     unexpected_error: "意外错误",
+    load_error: "无法加载数据",
     close: "关闭通知",
   },
   cmdb: {

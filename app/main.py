@@ -782,6 +782,7 @@ async def security_headers_middleware(request: Request, call_next):
     elif es_pagina_de_incrustacion:
         pass
     else:
+        frame_ancestors = "'self'" if is_doc_file_route else "'none'"
         # Content-Security-Policy: the Vite production build emits a single
         # bundled script — no unsafe-inline or unsafe-eval needed for scripts.
         # Inline styles are still needed for dynamic CSS-in-JS (e.g. Tailwind).
@@ -795,7 +796,11 @@ async def security_headers_middleware(request: Request, call_next):
             "media-src 'self' blob:; "
             "font-src 'self' data: https://fonts.gstatic.com; "
             "connect-src 'self' ws: wss:; "
-            "frame-ancestors 'none'; "
+            # Segunda auditoría 2026-11: DocumentsPage muestra el PDF en un
+            # <iframe> con la URL de /documents/file/ (almacenamiento local). Con
+            # 'none' el navegador lo bloqueaba aunque X-Frame-Options ya fuera
+            # SAMEORIGIN: CSP manda. Solo esas rutas admiten el propio origen.
+            f"frame-ancestors {frame_ancestors}; "
             "object-src 'none'; "
             "base-uri 'self';"
         )

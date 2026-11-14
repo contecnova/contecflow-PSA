@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.schemas.epics import (
-    WikiSpaceIn, WikiPageIn, WikiTemplateIn, WikiCommentIn, EpicIn, NQLIn, SavedFilterIn, ThreadedCommentIn
+    WikiSpaceIn, WikiPageIn, WikiPageVisibilityIn, WikiTemplateIn, WikiCommentIn, EpicIn, NQLIn, SavedFilterIn, ThreadedCommentIn
 )
 
 from app.db.session import get_db
@@ -14,6 +14,7 @@ from app.models.user import User
 from app.services.epics_service import (
     list_wiki_spaces, create_wiki_space, update_wiki_space, delete_wiki_space,
     list_wiki_pages, create_wiki_page, get_wiki_page, update_wiki_page,
+    cambiar_visibilidad_wiki_page,
     delete_wiki_page, list_page_versions, restore_wiki_version, search_wiki_pages,
     list_wiki_templates, create_wiki_template,
     list_wiki_page_comments, add_wiki_page_comment, resolve_wiki_page_comment,
@@ -89,6 +90,13 @@ def update_page(page_id: str, p: WikiPageIn,
                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return APIResponse.ok(data=update_wiki_page(page_id, p.title, p.slug, p.content,
                                                 p.parent_id, p.sort_order, p.is_published, p.change_note, cu.id, db))
+
+
+@router.patch("/wiki/pages/{page_id}/visibility", summary="Cambiar visibilidad de la página (portal)")
+def update_page_visibility(page_id: str, p: WikiPageVisibilityIn,
+                           db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+    enforce_abac(db, cu, "wiki_page", page_id, action="update")
+    return APIResponse.ok(data=cambiar_visibilidad_wiki_page(page_id, p.visibility, cu.id, db))
 
 
 @router.delete("/wiki/pages/{page_id}", summary="Eliminar página de wiki")

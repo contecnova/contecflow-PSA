@@ -220,7 +220,7 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
   })
   const ts = useAppT()
   const { data: cis = [] } = useQuery<{ id: string; name: string; code?: string }[]>({
-    queryKey: ['sd-cmdb-items'], queryFn: () => cmdbApi.sdList({ page_size: SELECTOR_LIST_SIZE }).then(r => r.data as { id: string; name: string; code?: string }[]),
+    queryKey: ['sd-cmdb-items'], queryFn: () => cmdbApi.sdList({ page_size: SELECTOR_LIST_SIZE }).then(r => r.data),
   })
   const { data: versiones = [] } = useQuery<{ id: string; name: string; version?: string | null; status: string }[]>({
     queryKey: ['sd-releases'], queryFn: () => sdChangePlanningApi.releases().then(r => r.data as { id: string; name: string; version?: string | null; status: string }[]),

@@ -9,7 +9,8 @@
  */
 import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { biCollaborationApi, biGovernanceAuditApi, unwrapList } from '../../services/api'
+import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
+import type { AccesoBi as AuditEvent, ResumenDeGobiernoBi as OverviewData } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
@@ -108,23 +109,14 @@ function MetricRow({ label, value, mono }: MetricRowProps) {
   )
 }
 
-// TODO type: biCollaborationApi.getGovernanceOverview payload — needs shared type
-interface OverviewData {
-  timestamp?: string | number | Date
-  olap?: { available?: boolean; staleness_hours?: number | null; path?: string }
-  scheduled_reports?: { active?: number; error?: number }
-  collaboration?: { unresolved_comments?: number }
-  cache_policy?: { metric_count?: number; default_ttl_seconds?: number; min_ttl_seconds?: number; max_ttl_seconds?: number }
-}
-
 function OverviewView({ data }: { data?: OverviewData | null }) {
   const t = useAppT()
-  const d = data ?? {}
+  const d: Partial<OverviewData> = data ?? {}
   const ts = d.timestamp ? new Date(d.timestamp) : null
-  const olap = d.olap || {}
-  const sched = d.scheduled_reports || {}
-  const collab = d.collaboration || {}
-  const cache = d.cache_policy || {}
+  const olap: Partial<OverviewData['olap']> = d.olap || {}
+  const sched: Partial<OverviewData['scheduled_reports']> = d.scheduled_reports || {}
+  const collab: Partial<OverviewData['collaboration']> = d.collaboration || {}
+  const cache: Partial<OverviewData['cache_policy']> = d.cache_policy || {}
 
   const olapAvailable = !!olap.available
   const olapColor = olapAvailable ? 'var(--success)' : 'var(--danger)'
@@ -218,15 +210,6 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
   )
 }
 
-interface AuditEvent {
-  action?: string
-  resource?: string
-  dataset_id?: string
-  entity_type?: string
-  user_id?: string
-  accessed_at?: string | number | Date
-}
-
 interface Reglas {
   olap_max_staleness_hours?: number
   max_error_reports?: number
@@ -252,7 +235,7 @@ export default function BiGovernancePanel() {
 
   const { data: auditData, isLoading: auditLoading, refetch: refetchAudit } = useQuery({
     queryKey: ['bi-gov-audit', auditDays, auditUserFilter],
-    queryFn: () => biGovernanceAuditApi.getAccessHistory({ days: auditDays, ...(auditUserFilter ? { user_id: auditUserFilter } : {}) }).then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biGovernanceAuditApi.getAccessHistory({ days: auditDays, ...(auditUserFilter ? { user_id: auditUserFilter } : {}) }).then(r => r.data).catch(() => ({ items: [], count: 0 })),
     enabled: tab === 'audit',
   })
 
@@ -270,9 +253,7 @@ export default function BiGovernancePanel() {
     onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al guardar'),
   })
 
-  const ad = auditData as Record<string, unknown> | null | undefined
-  const auditItems = (Array.isArray(ad?.events) ? ad?.events : Array.isArray(ad?.entries) ? ad?.entries
-    : unwrapList(auditData)) as AuditEvent[]
+  const auditItems = auditData?.items ?? []
 
   return (
     <Card style={{ padding: '20px 22px' }}>
@@ -388,13 +369,13 @@ export default function BiGovernancePanel() {
                   }}>
                     <span style={chip(actionColor)}>{action}</span>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ev.resource || ev.dataset_id || ev.entity_type || '—'}
+                      {ev.entity_id || ev.entity_type || '—'}
                     </span>
                     <span style={{ color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                      {ev.user_id || '—'}
+                      {ev.user_name || ev.user_id || '—'}
                     </span>
                     <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>
-                      {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString(localeActivo()) : ''}
+                      {ev.timestamp ? new Date(ev.timestamp).toLocaleString(localeActivo()) : ''}
                     </span>
                   </div>
                 )
@@ -410,7 +391,7 @@ export default function BiGovernancePanel() {
         ) : !overviewData ? (
           <EmptyState icon="📊" title={t('bigovernance.sin_overview')} />
         ) : (
-          <OverviewView data={overviewData as OverviewData | null} />
+          <OverviewView data={overviewData} />
         )
       )}
     </Card>

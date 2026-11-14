@@ -4,6 +4,7 @@ bookings.py router — thin delegates to bookings_service.
 """
 from fastapi import APIRouter, Depends, Query, Body
 from sqlalchemy.orm import Session
+from datetime import date
 from typing import Optional
 
 from app.db.session import get_db
@@ -38,29 +39,26 @@ router = APIRouter()
 @router.get("/conflicts")
 def get_booking_conflicts(
     user_id: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: Optional[date] = None,  # barrido final 2026-11: era str + fromisoformat (500)
+    end_date: Optional[date] = None,  # barrido final 2026-11: era str + fromisoformat (500)
     threshold_pct: float = Query(100.0, ge=0, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from datetime import date
-    # Parse dates if provided
-    sd = date.fromisoformat(start_date) if start_date else None
-    ed = date.fromisoformat(end_date) if end_date else None
+    sd = start_date
+    ed = end_date
     return APIResponse.ok(data=capacity_planning_service.get_booking_conflicts(user_id, sd, ed, threshold_pct, db))
 
 @router.get("/gantt-leveling")
 def get_gantt_leveling(
     project_id: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: Optional[date] = None,  # barrido final 2026-11: era str + fromisoformat (500)
+    end_date: Optional[date] = None,  # barrido final 2026-11: era str + fromisoformat (500)
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from datetime import date
-    sd = date.fromisoformat(start_date) if start_date else None
-    ed = date.fromisoformat(end_date) if end_date else None
+    sd = start_date
+    ed = end_date
     return APIResponse.ok(data=capacity_planning_service.get_gantt_leveling(project_id, sd, ed, db))
 
 

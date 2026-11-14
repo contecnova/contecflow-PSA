@@ -496,7 +496,7 @@ export function GovernedConversationInbox({
 
   const { data: portalClientsData } = useQuery<UserOption[]>({
     queryKey: ['portal-clients', 'portal-conversations', selectedProject || 'all', clientOrgId || 'all'],
-    queryFn: () => portalClientsApi.list({ project_id: selectedProject || undefined, client_org_id: clientOrgId || undefined }).then((response: { data: UserOption[] }) => response.data).catch(() => []),
+    queryFn: () => portalClientsApi.list({ project_id: selectedProject || undefined, client_org_id: clientOrgId || undefined }).then(r => r.data).catch(() => []),
     enabled: mode === 'team' && showCreate && Boolean(selectedProject || clientOrgId),
   })
   const portalClients: UserOption[] = portalClientsData || EMPTY_LIST

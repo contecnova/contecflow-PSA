@@ -58,7 +58,7 @@ Reglas del frontend (auditoría 2026-11, aplicadas por ESLint en error salvo ind
 - Sin componentes que tapen los del kit (`Modal`, `DataTable`, `EmptyState`, `KpiCard`…); cambiar el segundo factor pide reautenticación (`components/security/reautenticacion.ts`).
 - Acciones que el backend puede encolar (202 `{status: 'queued'}`: informe programado, escáner de alertas, calidad de KB, envío a Jira): la pantalla dice «en curso» y refresca más tarde, no «hecho».
 - Idiomas: solo `es` va en el chunk inicial; `en`/`zh` se cargan con `import()` (`i18n/appTranslations.ts`: `loadLanguage`, `diccionarioCargado`). Las claves sin traducir del castellano salen del módulo virtual `virtual:i18n-respaldo-en` (plugin en `vite.config.js`), no del inglés entero. La app no se monta hasta tener el idioma (sin parpadeo de claves). Nada de la app importa `langs/en|zh.mjs` ni `i18n/todosLosIdiomas.mjs` (solo scripts de Node).
-- Respuestas del cliente: cada método nuevo de `services/api` declara `Promise<AxiosResponse<T>>` con `T` comprobado contra el serializador del backend (tipos compartidos en `services/api/tipos*.ts`); sin `as unknown as` para leer `r.data`.
+- Respuestas del cliente: cada método nuevo de `services/api` declara `Promise<AxiosResponse<T>>` con `T` comprobado contra el serializador del backend (tipos compartidos en `services/api/tipos*.ts`, uno por dominio: `tipos-sd`, `-alm`, `-rendimiento`, `-grc`); sin `as unknown as` para leer `r.data`, sin `r.data?.items ?? r.data` (el interceptor ya desenvuelve) y sin interfaz local que repita la respuesta (alias del tipo compartido). `mutationFn` que llama a dos métodos con respuestas distintas: `(): Promise<unknown> =>`.
 - Controles con etiqueta visible: además de `htmlFor`/`id`, `aria-labelledby` en el control nativo (la regla `control-has-associated-label` no ve el `htmlFor`). En `.map()`: id del `useId()` del padre + clave del elemento, o un componente de fila con su `useId`. Sin etiqueta visible: `aria-label` con el texto del contexto. Cabecera de columna de acciones vacía: `<span className="u-sr-only">`; celda decorativa: `aria-hidden`.
 - Estilos en línea repetidos: patrón con ≥ 15 apariciones → clase `u-*` en `index.css` + entrada en `PATRONES` de `estilos-a-clases.mjs` (`--excluir a.tsx,b.tsx` para no tocar ficheros en edición).
 - Estilos en línea: se mide con `estilos-a-clases.mjs --medir` (atributos JSX `style={{…}}` en .tsx/.jsx sin tests); `grep 'style={'` cuenta también `style={variable}` y da otra cifra.
@@ -89,6 +89,14 @@ Cada regla tiene un test que falla si se rompe.
 
 ### Segunda auditoría 2026-11: cambios de comportamiento
 
+- **Commits fuera de la API:** 9 `db.commit()` que quedaban en endpoints (cab, developer_portal, governance ×3, integrations_hub ×2, jira, predictive_observability) pasan a servicios: `audit.auditar_y_confirmar` (auditar + confirmar con rollback si falla), `jira_service.marcar_sincronizacion_completa` y `predictive_retraining_service.evaluar_y_reentrenar_organizacion_y_confirmar`. `test_sin_commits_en_la_api` vuelve a pasar.
+
+- Contratos backend (auditoría de interfaz): `GET /sd/known-errors/{id}/tickets` resuelve el `KnownError` por su id y aplica la guarda de su problema padre (antes trataba el id como de `Problem` y daba 404 siempre).
+- `GET /sd/problems` devuelve `fix_description` (la interfaz lo pisaba con "" al editar). No existe ruta de detalle de problema.
+- `simulate_workflow` (aprobaciones): `candidate_count` cuenta los flujos activos cuyas condiciones encajan (antes `NameError` → 500 al encajar).
+- `serialize_step` (aprobaciones) incluye `approver_department`; `VendorSerializer` incluye `tax_id`.
+- `client_service` (proyectos de un cliente y disponibles) devuelve el estado como valor (`active`), no `ProjectStatus.active`; quitada la normalización de `ClientsPageTabs.tsx`.
+- Wiki: `serialize_page` incluye `visibility`; nueva `PATCH /epics/wiki/pages/{id}/visibility` (admin o PM, ABAC `wiki_page`/update) que solo cambia la visibilidad; `wikiApi.portalUpdatePage` apunta a ella (antes a `/wiki/pages/{id}`, inexistente; el PATCH completo exige título y slug y reescribe el contenido).
 - Barrido «nada en duro» (cierre): estados de ticket, problema, incidente mayor y tarea en tuplas
   derivadas de los enums (`ESTADOS_DE_TICKET_*`, `PRIORIDADES_DE_TICKET`, `ESTADOS_DE_PROBLEMA_RESUELTOS`,
   `ESTADOS_DE_INCIDENTE_MAYOR_RESUELTOS` en `models/service_desk/_enums.py`; `ESTADOS_DE_TAREA_TERMINADOS`
@@ -188,6 +196,35 @@ Tests: `tests/test_pendientes_grc_2026_11c.py`.
 - **Cambio de empresa (#26):** `switch-organization` a una empresa de la que se es miembro por pertenencia daba 401 (el filtro de tenant de la sesión ocultaba la pertenencia); `organizaciones_del_usuario` la lee sin filtro.
 - **Tests aislados (#27a):** el encoder TF-IDF de los tests era uno por sesión (el vocabulario de un test pasaba al siguiente); ahora uno por test. La caché de política de bloqueo de login y su respaldo en memoria se vacían en cada test (`tests/conftest.py`).
 Tests: `tests/test_auditoria_2026_11_segunda_huecos.py` (también #26: auditoría de rotación de slug CAB, secreto OAuth y token de agente CMDB, ORG_SWITCH, evidencia de cumplimiento; espera de workflow y cola de automatizaciones en la empresa de cada fila).
+- **Barrido final — errores al cliente:** `/clients|customers/{id}/health-composite` ya no devuelve `«Error interno: {e}»`; un `ErrorDeDominio`/`HTTPException` conserva su código (un 403 salía como 500); solo `ValueError` → 400. `POST /documents/{id}/ai-summary`: 503 «AI summary unavailable» sin el texto del proveedor (podía citar parte de la clave); `PresupuestoDeIAAgotado` sigue en 429. `POST /ai-modules/voice/transcribe` (500): sin el texto de la excepción.
+- **Barrido final — fechas mal formadas:** `bookings/conflicts|gantt-leveling` (`start_date`, `end_date`), `capacity/board` (`week_from`, `week_to`) y `resource-forecast/weeks|users/{id}|availability` (`from_date`, `to_date`) se tipan `date`: 422 en vez de 500. `POST /capacity/plans` con `week_start`/`planned_hours` inválidos: 400.
+- **Barrido final — índices:** migración `163_indices_de_claves_ajenas_calientes` (idempotente, `CONCURRENTLY` en PostgreSQL) + `index=True` en los modelos: `sd_tickets.requester_client_id|created_by_user_id|ci_id|problem_id`, `sd_agent_group_members.group_id`, `client_messages.parent_id`, `user_skills.skill_id`, `budgets.project_id`, `subcontractor_timelogs.project_id`, `tasks.parent_task_id`, `approval_steps.workflow_id`, `rate_entries.table_id` (las 12 claves ajenas sin índice más filtradas en `app/`; quedan ~370 sin índice propio, poco usadas).
+- **Barrido final — nginx:** `location = /index.html` repite las cabeceras de seguridad del `server` (su `add_header` anulaba la herencia: la SPA salía sin CSP, X-Frame-Options ni nosniff); estáticos con `nosniff`. CSP alineada con la de `app/main.py`: fuentes de Google, `img-src blob:`, `media-src 'self' blob:`, `object-src 'none'`; `Permissions-Policy` `microphone=(self)` (comando de voz).
+- **Barrido final — `.env.example`:** añade `INBOUND_EMAIL_SECRET`, `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN` (sin ellos producción no arrancaba); `AZURE_AD_*` → `AZURE_TENANT_ID|CLIENT_ID|CLIENT_SECRET` (los nombres que lee `Settings`).
+- **Barrido final — métricas:** `METRICS_MULTIPROC_DIR` se lee de `PROMETHEUS_MULTIPROC_DIR` (la documentada; pydantic-settings v2 ignoraba `env=` y solo leía `METRICS_MULTIPROC_DIR`) o de `METRICS_MULTIPROC_DIR`.
+- **Barrido final — dependencias:** `pypdf 6.21.4`, `pyasn1 0.6.5`, `certifi 2026.10.18`, `dnspython 2.9.2`, `urllib3 2.8.0`, `aiohttp 3.14.4`, `anyio 4.14.2`, `PyJWT 2.15.0`; ML: `transformers 5.10.4`, `sentence-transformers 5.6.0`, `fsspec 2026.6.0`; frontend `axios ^1.21.1` (arrastra `follow-redirects 1.16.3`). Pendientes por ser mayores o sin parche: `pillow 13`, `opentelemetry-* 1.45` (juego acoplado), `setuptools ≥83` (torch), `filelock 4`, `torch 2.13`, `zod 4`, `python-jose`/`ecdsa` (sin versión corregida).
+Tests: `tests/test_barrido_final_2026_11.py`.
+- **Errores de queries (frontend):** `QueryCache.onError` (main.tsx) publica en `lib/queryErrorBus.ts` y
+  `ToastProvider` lo muestra como aviso de error (texto del `detail` o `toast.load_error`). Antes una
+  query fallida dejaba `data` en `[]` y se veía como lista vacía. Sin aviso: `meta: { errorToast: false }`
+  (la página ya pinta el error), 401 (refresco/sesión caducada), 429 (ya avisa AuthContext) y
+  cancelaciones; el mismo texto en 3 s sale una vez. Las mutaciones no pasan por aquí (llevan su
+  `onError`). `ResourceSchedulerPage` (previsión, proyectos, reservas) y la tabla de `CMDBPage` pintan
+  el error en la página (`role="alert"`) en lugar del vacío.
+- **Métricas multiproceso (docker-compose):** el servicio `api` define `PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus-multiproc`
+  (merge del ancla `&app-env`, el resto del entorno no cambia) y su `command` pasa por `sh -c` para
+  vaciar y crear el directorio antes de `exec uvicorn … --workers ${API_WORKERS:-4}`. Antes /metrics
+  devolvía solo el registro del worker que atendía el scrape. `app/core/metrics.py` ya usaba
+  `MultiProcessCollector` con la variable definida (sin cambios). `setup.sh` usa este compose; solo
+  cambian una variable y el comando.
+- **Vista previa de PDF:** `DocumentsPage` incrusta `download_url` en un `<iframe>`; con almacenamiento
+  local es `/api/v1/documents/file/…`. La CSP de la API lleva `frame-ancestors 'self'` en esas rutas
+  (antes `'none'`, que bloqueaba aunque `X-Frame-Options` ya fuera `SAMEORIGIN`) y nginx tiene
+  `location ^~ /api/v1/documents/file/` con `add_header` propio para no heredar `X-Frame-Options: DENY`
+  ni la CSP del servidor. El resto de la API sigue en `DENY`/`'none'`.
+- **Dependencias:** `pillow 13.0.0` (12.3.0 tenía 42 avisos; PIL abre subidas en
+  `documents_service` y `collaboration/_thumbnails`).
+Tests: `tests/test_segunda_auditoria_2026_11_infra.py`, `frontend/src/__tests__/queryErrorBus.test.tsx`.
 
 ## 3. Estructura del repositorio
 - `app/`: backend

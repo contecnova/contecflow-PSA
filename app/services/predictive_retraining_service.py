@@ -314,3 +314,10 @@ def run_periodic_evaluation_and_retraining(db: Session) -> dict[str, Any]:
     if not orgs:
         orgs = [None]
     return guardar_resumen_de_evaluacion(db, [evaluar_y_reentrenar_organizacion(db, o) for o in orgs])
+
+
+def evaluar_y_reentrenar_organizacion_y_confirmar(db: Session, org_id) -> dict[str, Any]:
+    """Lo mismo que `evaluar_y_reentrenar_organizacion`, confirmando (lo usa la API)."""
+    result = evaluar_y_reentrenar_organizacion(db, org_id)
+    db.commit()
+    return result

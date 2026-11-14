@@ -162,9 +162,8 @@ def predictive_trigger_retrain(
     machacaba `LAST_EVAL_KEY` con su resultado).
     """
     if not getattr(current_user, "is_superadmin", False):
-        from app.services.predictive_retraining_service import evaluar_y_reentrenar_organizacion
-        result = evaluar_y_reentrenar_organizacion(db, getattr(current_user, "organization_id", None))
-        db.commit()
+        from app.services.predictive_retraining_service import evaluar_y_reentrenar_organizacion_y_confirmar
+        result = evaluar_y_reentrenar_organizacion_y_confirmar(db, getattr(current_user, "organization_id", None))
         return APIResponse.ok(data=result)
     result = run_periodic_evaluation_and_retraining(db)
     return APIResponse.ok(data=result)

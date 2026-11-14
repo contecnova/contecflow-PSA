@@ -135,7 +135,7 @@ export function useCreateApprovalRequest(): UseMutationResult<unknown, unknown, 
 export function useApproveRequest(): UseMutationResult<unknown, unknown, DecideArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: DecideArgs) => approvalsApi.decide(id, { ...data, decision: 'approve' }),
+    mutationFn: ({ id, data }: DecideArgs) => approvalsApi.decide(id, { ...data, decision: 'approved' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['approval-requests'] })
       qc.invalidateQueries({ queryKey: queryKeys.approvals.pending() })
@@ -146,7 +146,7 @@ export function useApproveRequest(): UseMutationResult<unknown, unknown, DecideA
 export function useRejectRequest(): UseMutationResult<unknown, unknown, DecideArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: DecideArgs) => approvalsApi.decide(id, { ...data, decision: 'reject' }),
+    mutationFn: ({ id, data }: DecideArgs) => approvalsApi.decide(id, { ...data, decision: 'rejected' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['approval-requests'] })
       qc.invalidateQueries({ queryKey: queryKeys.approvals.pending() })

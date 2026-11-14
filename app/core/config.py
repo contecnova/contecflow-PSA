@@ -226,7 +226,10 @@ class Settings(
     # uvicorn/gunicorn workers so counters aggregate correctly across workers.
     METRICS_ENABLED: bool = Field(default=False, env="METRICS_ENABLED")
     METRICS_AUTH_TOKEN: Optional[str] = Field(default=None, env="METRICS_AUTH_TOKEN")
-    METRICS_MULTIPROC_DIR: Optional[str] = Field(default=None, env="PROMETHEUS_MULTIPROC_DIR")
+    # Barrido final 2026-11: pydantic-settings v2 ignora `env=`; sin el alias
+    # solo se leía METRICS_MULTIPROC_DIR, no la PROMETHEUS_MULTIPROC_DIR documentada.
+    METRICS_MULTIPROC_DIR: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("PROMETHEUS_MULTIPROC_DIR", "METRICS_MULTIPROC_DIR"))
     FRONTEND_URL: str = Field(default="http://localhost:5173", env="FRONTEND_URL")
     BACKEND_URL: str = Field(default="http://localhost:8000", env="BACKEND_URL")
 

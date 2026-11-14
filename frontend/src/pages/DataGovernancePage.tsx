@@ -19,8 +19,11 @@ import {
   biCollaborationApi,
   biBookmarksApi,
   biGovernanceAuditApi,
-  unwrapList,
 } from '../services/api'
+import type {
+  AccesoBi, ComentarioBi, EjecucionDeGobiernoBi, LinajeBi, ListaConCuenta, MarcadorBi, NivelDeSensibilidadBi,
+  ResumenDeGobiernoBi, ReglasDeGobiernoBi, SensibilidadDeCampoBi, VistaCompartidaBi,
+} from '../services/api/tipos-grc'
 import BiGdprPanel from '../components/bi/BiGdprPanel'
 import BiGovernancePanel from '../components/bi/BiGovernancePanel'
 import BiDashboardCollabPanel from '../components/bi/BiDashboardCollabPanel'
@@ -28,69 +31,7 @@ import { localeActivo } from '../utils/helpers'
 import { STALE_LIVE_MS, STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { AUDIT_LOG_PAGE_SIZE } from '../constants/pagination'
 
-type ItemsResponse<T> = {
-  items: T[]
-}
-
-type GovernanceOverview = {
-  scheduled_reports?: number | { active?: number }
-}
-
-type GovernanceRunResult = {
-  timestamp?: string
-  status?: string
-  finding_count?: number
-  findings?: Array<{ code?: string; severity?: string; message?: string }>
-} | null
-
-type AuditEvent = {
-  user_id?: string
-  resource?: string
-  action?: string
-  accessed_at?: string
-}
-
-type LineageEdge = {
-  source_table?: string
-  target_table?: string
-  source?: string
-  target?: string
-}
-
-type FieldSensitivity = {
-  dataset_id?: string
-  field_name?: string
-  sensitivity?: string
-}
-
-type CommentItem = {
-  id: string | number
-  message?: string
-  created_by_name?: string
-  created_at?: string
-  resolved?: boolean
-}
-
-type SharedView = {
-  id: string | number
-  name?: string
-  dashboard_key?: string
-  created_by_name?: string
-  created_at?: string
-  active?: boolean
-}
-
-type BookmarkItem = {
-  id: string | number
-  name?: string
-  period_days?: number
-  active_tab?: string
-  description?: string
-  shared?: boolean
-}
-
 type SharedViewsSort = 'date_desc' | 'date_asc' | 'author_asc' | 'name_asc'
-type FieldSensitivityLevel = 'low' | 'medium' | 'high' | 'critical' | 'pii'
 
 const S = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' } as CSSProperties,
@@ -102,15 +43,6 @@ const S = {
 }
 
 const getLocale = (lang: string) => localeActivo(lang)
-function toFiniteNumber(value: unknown, fallback = 0) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback
-  if (typeof value === 'string') {
-    const n = Number(value.trim())
-    return Number.isFinite(n) ? n : fallback
-  }
-  return fallback
-}
-
 function SectionHeading({ title, description }: { title: string; description?: string }) {
   return (
     <div className="u-mb-16">
@@ -145,68 +77,68 @@ export default function DataGovernancePage(): JSX.Element {
   const [newLineageSource, setNewLineageSource] = useState('')
   const [newLineageTarget, setNewLineageTarget] = useState('')
   const [newFieldName, setNewFieldName] = useState('')
-  const [newFieldSensitivity, setNewFieldSensitivity] = useState<FieldSensitivityLevel>('low')
+  const [newFieldSensitivity, setNewFieldSensitivity] = useState<NivelDeSensibilidadBi>('internal')
   const [newFieldDataset, setNewFieldDataset] = useState('')
 
   // Collaboration queries
-  const { data: commentsData, refetch: refetchComments } = useQuery<ItemsResponse<CommentItem>>({
+  const { data: commentsData, refetch: refetchComments } = useQuery<ComentarioBi[]>({
     queryKey: ['data-gov-comments', commentWidget],
-    queryFn: () => biCollaborationApi.listComments({ dashboard_key: 'executive', widget_id: commentWidget }).then(r => r.data as ItemsResponse<CommentItem>).catch(() => ({ items: [] })),
+    queryFn: () => biCollaborationApi.listComments({ dashboard_key: 'executive', widget_id: commentWidget }).then(r => r.data).catch(() => []),
     staleTime: STALE_NEAR_LIVE_MS,
   })
-  const { data: sharedViewsData, refetch: refetchSharedViews } = useQuery<ItemsResponse<SharedView>>({
+  const { data: sharedViewsData, refetch: refetchSharedViews } = useQuery<VistaCompartidaBi[]>({
     queryKey: ['data-gov-shared-views', sharedViewsTick, showInactiveSharedViews],
-    queryFn: () => biCollaborationApi.listSharedViews({ include_inactive: showInactiveSharedViews }).then(r => r.data as ItemsResponse<SharedView>).catch(() => ({ items: [] })),
+    queryFn: () => biCollaborationApi.listSharedViews({ include_inactive: showInactiveSharedViews }).then(r => r.data).catch(() => []),
     staleTime: STALE_NEAR_LIVE_MS,
   })
-  const { data: governance } = useQuery<GovernanceOverview | null>({
+  const { data: governance } = useQuery<ResumenDeGobiernoBi | null>({
     queryKey: ['data-gov-overview'],
-    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data as GovernanceOverview).catch(() => null),
+    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data).catch(() => null),
     staleTime: STALE_SHORT_MS,
   })
-  const { refetch: refetchRules } = useQuery<unknown>({
+  const { refetch: refetchRules } = useQuery<ReglasDeGobiernoBi | null>({
     queryKey: ['data-gov-rules'],
     queryFn: () => biCollaborationApi.governanceRules().then(r => r.data).catch(() => null),
     staleTime: STALE_SHORT_MS,
   })
-  const { data: governanceRun, refetch: refetchGovRun } = useQuery<GovernanceRunResult>({
+  const { data: governanceRun, refetch: refetchGovRun } = useQuery<EjecucionDeGobiernoBi | null>({
     queryKey: ['data-gov-run', govRunTick],
-    queryFn: () => biCollaborationApi.lastGovernanceRun().then(r => (r.data?.result || null) as GovernanceRunResult).catch(() => null),
+    queryFn: () => biCollaborationApi.lastGovernanceRun().then(r => r.data?.result ?? null).catch(() => null),
     staleTime: STALE_LIVE_MS,
   })
 
   // Governance audit queries
-  const { data: govAuditData } = useQuery<ItemsResponse<AuditEvent>>({
+  const { data: govAuditData } = useQuery<ListaConCuenta<AccesoBi>>({
     queryKey: ['data-gov-audit', govAuditTick, govAuditUserFilter],
     queryFn: () => biGovernanceAuditApi.getAccessHistory(
       govAuditUserFilter.trim() ? { user_id: govAuditUserFilter.trim(), limit: AUDIT_LOG_PAGE_SIZE } : { limit: AUDIT_LOG_PAGE_SIZE }
-    ).then(r => r.data as ItemsResponse<AuditEvent>).catch(() => ({ items: [] })),
+    ).then(r => r.data).catch(() => ({ items: [], count: 0 })),
     staleTime: STALE_NEAR_LIVE_MS,
   })
-  const { data: govLineageData, refetch: refetchGovLineage } = useQuery<ItemsResponse<LineageEdge>>({
+  const { data: govLineageData, refetch: refetchGovLineage } = useQuery<ListaConCuenta<LinajeBi>>({
     queryKey: ['data-gov-lineage', govAuditTick],
-    queryFn: () => biGovernanceAuditApi.listLineage().then(r => r.data as ItemsResponse<LineageEdge>).catch(() => ({ items: [] })),
+    queryFn: () => biGovernanceAuditApi.listLineage().then(r => r.data).catch(() => ({ items: [], count: 0 })),
     staleTime: STALE_NEAR_LIVE_MS,
   })
-  const { data: govFieldData, refetch: refetchGovFields } = useQuery<ItemsResponse<FieldSensitivity>>({
+  const { data: govFieldData, refetch: refetchGovFields } = useQuery<ListaConCuenta<SensibilidadDeCampoBi>>({
     queryKey: ['data-gov-fields', govAuditTick],
-    queryFn: () => biGovernanceAuditApi.listFieldSensitivity().then(r => r.data as ItemsResponse<FieldSensitivity>).catch(() => ({ items: [] })),
+    queryFn: () => biGovernanceAuditApi.listFieldSensitivity().then(r => r.data).catch(() => ({ items: [], count: 0 })),
     staleTime: STALE_NEAR_LIVE_MS,
   })
-  const { data: bookmarks } = useQuery<ItemsResponse<BookmarkItem>>({
+  const { data: bookmarks } = useQuery<ListaConCuenta<MarcadorBi>>({
     queryKey: ['data-gov-bookmarks', bookmarksTick],
-    queryFn: () => biBookmarksApi.list().then(r => r.data as ItemsResponse<BookmarkItem>).catch(() => ({ items: [] })),
+    queryFn: () => biBookmarksApi.list().then(r => r.data).catch(() => ({ items: [], count: 0 })),
     staleTime: STALE_SHORT_MS,
   })
 
-  // Unas rutas devuelven la lista ya desenvuelta por el interceptor y otras
-  // `{items}` dentro de `data`: `unwrapList` acepta las dos.
-  const comments = unwrapList(commentsData) as CommentItem[]
-  const sharedViews = unwrapList(sharedViewsData) as SharedView[]
-  const govAuditItems = unwrapList(govAuditData) as AuditEvent[]
-  const govLineageItems = unwrapList(govLineageData) as LineageEdge[]
-  const govFieldItems = unwrapList(govFieldData) as FieldSensitivity[]
-  const bookmarkItems = unwrapList(bookmarks) as BookmarkItem[]
+  // Comentarios y vistas son APIListResponse (llegan como lista); auditoría, linaje,
+  // campos y marcadores responden `{items, count}` dentro de `data`.
+  const comments = commentsData ?? []
+  const sharedViews = sharedViewsData ?? []
+  const govAuditItems = govAuditData?.items ?? []
+  const govLineageItems = govLineageData?.items ?? []
+  const govFieldItems = govFieldData?.items ?? []
+  const bookmarkItems = bookmarks?.items ?? []
   const sharedViewsQuery = sharedViewsSearch.trim().toLowerCase()
   const filteredSharedViews = sharedViews.filter(v => !sharedViewsQuery || String(v?.name || '').toLowerCase().includes(sharedViewsQuery))
   const sortedSharedViews = [...filteredSharedViews].sort((a, b) => {
@@ -218,9 +150,7 @@ export default function DataGovernancePage(): JSX.Element {
   })
   const activeSharedViews = sharedViews.filter(v => v.active !== false).length
   const inactiveSharedViews = sharedViews.length - activeSharedViews
-  const govScheduledActive = typeof governance?.scheduled_reports === 'object'
-    ? toFiniteNumber(governance?.scheduled_reports?.active, 0)
-    : toFiniteNumber(governance?.scheduled_reports, 0)
+  const govScheduledActive = governance?.scheduled_reports?.active ?? 0
 
   // Handlers
   async function handleCreateComment() {
@@ -245,7 +175,7 @@ export default function DataGovernancePage(): JSX.Element {
       await refetchSharedViews()
     } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
-  async function handleToggleSharedView(view: SharedView) {
+  async function handleToggleSharedView(view: VistaCompartidaBi) {
     try { await biCollaborationApi.patchSharedView(view.id, { active: !view.active }); setSharedViewsTick(x => x + 1); await refetchSharedViews() } catch (e) { toast.error(extractErr(e, 'No se pudo guardar')) }
   }
   async function handleRunGovernance() {
@@ -308,8 +238,8 @@ export default function DataGovernancePage(): JSX.Element {
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
                           <span style={{ fontSize: 'var(--text-2xs)', background: alpha(COLOR.info, '18'), color: COLOR.info, borderRadius: 'var(--radius-sm)', padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
                           <div className="u-flex1-min0">
-                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.resource || '—'}</div>
-                            <div className="u-text3-2xs">{ev.user_id || '—'} · {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString(localeActivo()) : '—'}</div>
+                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.entity_id || ev.entity_type || '—'}</div>
+                            <div className="u-text3-2xs">{ev.user_name || ev.user_id || '—'} · {ev.timestamp ? new Date(ev.timestamp).toLocaleString(localeActivo()) : '—'}</div>
                           </div>
                         </div>
                       ))}
@@ -336,9 +266,9 @@ export default function DataGovernancePage(): JSX.Element {
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {govLineageItems.slice(0, 20).map((edge, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
-                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{edge.source_table || edge.source || '—'}</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{edge.source_table || '—'}</span>
                           <span className="u-text3-sm">→</span>
-                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{edge.target_table || edge.target || '—'}</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{edge.target_table || '—'}</span>
                         </div>
                       ))}
                     </div>
@@ -356,8 +286,8 @@ export default function DataGovernancePage(): JSX.Element {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   <input aria-label="Dataset ID" value={newFieldDataset} onChange={e => setNewFieldDataset(e.target.value)} placeholder="Dataset ID" style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
                   <input aria-label="Campo (ej. email)" value={newFieldName} onChange={e => setNewFieldName(e.target.value)} placeholder="Campo (ej. email)" style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }} />
-                  <select value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value as FieldSensitivityLevel)} style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }}>
-                    {(['low', 'medium', 'high', 'critical', 'pii'] as FieldSensitivityLevel[]).map((s) => <option key={s} value={s}>{s}</option>)}
+                  <select value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value as NivelDeSensibilidadBi)} style={{ ...S.input, padding: '6px 10px', fontSize: 'var(--text-xs)' }}>
+                    {(['public', 'internal', 'confidential', 'restricted'] as NivelDeSensibilidadBi[]).map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                   <button onClick={handleUpsertFieldSensitivity} style={{ ...S.btnAccentOutline(COLOR.warning), padding: '6px 14px', fontSize: 'var(--text-xs)' }}>Clasificar</button>
                 </div>
@@ -365,10 +295,10 @@ export default function DataGovernancePage(): JSX.Element {
                   ? <div className="u-text3-sm">{t('datagovernance.sin_campos_clasificados')}</div>
                   : <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {govFieldItems.slice(0, 20).map((f, i) => {
-                        const sc = f.sensitivity === 'critical' || f.sensitivity === 'pii' ? COLOR.danger : f.sensitivity === 'high' ? COLOR.warning : COLOR.success
+                        const sc = f.sensitivity_level === 'restricted' ? COLOR.danger : f.sensitivity_level === 'confidential' ? COLOR.warning : COLOR.success
                         return (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
-                            <span style={{ fontSize: 'var(--text-2xs)', background: alpha(sc, '18'), color: sc, borderRadius: 'var(--radius-sm)', padding: '2px 7px', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>{f.sensitivity || '—'}</span>
+                            <span style={{ fontSize: 'var(--text-2xs)', background: alpha(sc, '18'), color: sc, borderRadius: 'var(--radius-sm)', padding: '2px 7px', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>{f.sensitivity_level || '—'}</span>
                             <div className="u-flex1-min0">
                               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.field_name || '—'}</div>
                               <div className="u-text3-2xs">{f.dataset_id || '—'}</div>
@@ -461,7 +391,7 @@ export default function DataGovernancePage(): JSX.Element {
                       <div key={c.id} style={{ padding: '8px 10px', background: 'var(--surface-3)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                         <div className="u-flex1">
                           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{c.message}</div>
-                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 2 }}>{c.created_by_name || '—'} · {c.created_at ? new Date(c.created_at).toLocaleString(getLocale(String(lang))) : ''}</div>
+                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 2 }}>{c.author_name || '—'} · {c.created_at ? new Date(c.created_at).toLocaleString(getLocale(String(lang))) : ''}</div>
                         </div>
                         {!c.resolved && (
                           <button onClick={() => handleResolveComment(c.id)}

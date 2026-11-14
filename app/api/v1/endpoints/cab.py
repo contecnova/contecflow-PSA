@@ -266,10 +266,9 @@ def rotate_webhook_trigger_slug(
     except ValueError as e:
         raise HTTPException(404, str(e))
     # Revisión GRC 2026-11b: rotar la URL secreta del webhook no dejaba rastro.
-    from app.services.audit import audit_log
-    audit_log(db, current_user, "SECRET_ROTATED", "webhook_trigger", trigger_id,
-              new_values={"expires_in_days": expires_in_days})
-    db.commit()
+    from app.services.audit import auditar_y_confirmar
+    auditar_y_confirmar(db, current_user, "SECRET_ROTATED", "webhook_trigger", trigger_id,
+                        new_values={"expires_in_days": expires_in_days})
     return APIResponse.ok(data=datos)
 
 

@@ -177,8 +177,9 @@ def get_availability(
 # -- Board - vista de planificacion visual -----------------------------------
 @router.get("/board", summary="Board de planificacion: planes por usuario y semana")
 def get_capacity_board(
-    week_from: Optional[str] = Query(None),
-    week_to:   Optional[str] = Query(None),
+    # Barrido final 2026-11: `date`, no `str` + fromisoformat (una fecha mala era 500).
+    week_from: Optional[date] = Query(None),
+    week_to:   Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),  # revisión 2026-11: las horas de todos; sus hermanas usan esta guarda
 ):
@@ -186,8 +187,8 @@ def get_capacity_board(
     Devuelve todos los CapacityPlan en el rango de semanas dado,
     con el nombre del proyecto incluido (para el planificador visual).
     """
-    wf = date.fromisoformat(week_from) if week_from else None
-    wt = date.fromisoformat(week_to) if week_to else None
+    wf = week_from
+    wt = week_to
 
     plans = capacity_service.get_plans_board(db, wf, wt)
 
@@ -217,8 +218,11 @@ def create_capacity_plan(
 ):
     user_id = payload.get("user_id", current_user.id)
     week_start_val = payload.get("week_start")
-    week_start = date.fromisoformat(week_start_val) if week_start_val else None
-    new_hours = float(payload.get("planned_hours", 8))
+    try:  # barrido final 2026-11: una fecha u horas malformadas eran 500
+        week_start = date.fromisoformat(week_start_val) if week_start_val else None
+        new_hours = float(payload.get("planned_hours", 8))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="week_start (AAAA-MM-DD) o planned_hours no válidos")
 
     if not week_start:
         raise HTTPException(status_code=400, detail="week_start es obligatorio")

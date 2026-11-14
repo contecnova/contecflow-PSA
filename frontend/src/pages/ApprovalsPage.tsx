@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { approvalsApi } from '../services/api'
+import type { CargaDeAprobadores, CuelloDeBotella, CuellosDeBotella, EstadisticasDeAprobacion, FlujoDeAprobacion, GrupoDeAprobadores, PasoDeAprobacion, PlantillaDeFlujo, SimulacionDeFlujo, SolicitudPendienteDeMi } from '../services/api/tipos-rendimiento'
 import _api, { usersApi } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import {
@@ -59,159 +60,25 @@ const approverTypeLabels = (t: (k: string) => string): Record<string, string> =>
 
 const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finance']
 
-// Formas de las respuestas de /approvals (el backend devuelve dicts: se
-// describen los campos que usa esta pantalla).
-
-/** Paso de un flujo (`StepIn` en app/schemas/approvals.py + nombre del aprobador). */
-interface ApprovalStep {
-  id: string
-  step_order: number
-  name: string
-  approver_type: string
-  approver_role?: string | null
-  approver_user_id?: string | null
-  approver_user_name?: string | null
-  approver_department?: string | null
-  is_optional?: boolean
-  timeout_hours?: number
-  on_timeout?: string
-  approver_group_id?: string | null
-  parallel_quorum?: boolean
-  required_approvals?: number
-  step_condition?: string | null
-  requires_attachment?: boolean
-  reminder_hours?: number | null
-}
-
-/** Flujo de aprobación (`WorkflowIn` + id, estado y pasos). */
-interface ApprovalWorkflow {
-  id: string
-  name: string
-  description?: string | null
-  entity_type: string
-  is_default?: boolean
-  is_active?: boolean
-  trigger_conditions?: string | null
-  step_count?: number
-  steps?: ApprovalStep[]
-}
-
-interface WorkflowTemplate {
-  id: string
-  name: string
-  description?: string | null
-  entity_type: string
-  steps?: unknown[]
-}
-
-interface ApprovalGroup {
-  id: string
-  name: string
-  description?: string | null
-  /** Lista de ids de usuario serializada como JSON. */
-  member_ids?: string | null
-}
-
-/** Solicitud pendiente de mi decisión (`/approvals/requests/pending-my-action`). */
-interface PendingRequest {
-  id: string
-  entity_type: string
-  entity_id: string
-  entity_summary?: string | null
-  step_name?: string | null
-  step_order?: number
-  requester_name?: string
-  created_at?: string
-}
-
-interface ApprovalStats {
-  pending?: number
-  approved?: number
-  rejected?: number
-}
+// Formas de las respuestas de /approvals: services/api/tipos-rendimiento.ts.
+type ApprovalStep = PasoDeAprobacion
+type ApprovalWorkflow = FlujoDeAprobacion
+type WorkflowTemplate = PlantillaDeFlujo
+type ApprovalGroup = GrupoDeAprobadores
+type PendingRequest = SolicitudPendienteDeMi
+type ApprovalStats = EstadisticasDeAprobacion
+type SimulationResult = SimulacionDeFlujo
+type BottleneckItem = CuelloDeBotella
+type BottleneckSummary = CuellosDeBotella['summary']
+type WorkflowAtRisk = CuellosDeBotella['top_workflows'][number]
+type WeeklyRejection = CuellosDeBotella['weekly_trend'][number]
+type Recommendation = CuellosDeBotella['recommendations'][number]
+type BottlenecksResponse = CuellosDeBotella
+type ApproverLoadResponse = CargaDeAprobadores
 
 interface SimulationPayload {
   entity_type: string
   context: { category: string; department: string; amount?: number; requested_by_user_id?: string }
-}
-
-interface SimulationRouteStep {
-  step_order: number
-  step_name: string
-  resolved_approver?: string | null
-  timeout_hours?: number
-  on_timeout?: string
-}
-
-interface SimulationResult {
-  matched: boolean
-  reason?: string
-  workflow?: { name: string } | null
-  estimated_total_timeout_hours?: number
-  route?: SimulationRouteStep[]
-}
-
-interface BottleneckItem {
-  workflow_id: string
-  workflow_name: string
-  step_order: number
-  step_name: string
-  decisions_total: number
-  avg_decision_time_hours: number
-  rejection_rate_pct: number
-  pending_count: number
-  sla_risk_pct: number
-  bottleneck_score: number
-}
-
-interface BottleneckSummary {
-  steps_analyzed: number
-  critical_steps: number
-  pending_total: number
-  avg_decision_time_hours: number
-}
-
-interface WorkflowAtRisk {
-  workflow_id?: string
-  workflow_name: string
-  avg_bottleneck_score: number
-  max_sla_risk_pct: number
-  pending_total: number
-}
-
-interface WeeklyRejection {
-  week: string
-  rejection_rate_pct: number
-}
-
-interface Recommendation {
-  priority: string
-  title: string
-  action: string
-  why: string
-}
-
-/** `/approvals/analytics/bottlenecks`. */
-interface BottlenecksResponse {
-  items?: BottleneckItem[]
-  summary?: BottleneckSummary
-  top_workflows?: WorkflowAtRisk[]
-  weekly_trend?: WeeklyRejection[]
-  recommendations?: Recommendation[]
-}
-
-interface ApproverLoadRow {
-  user_name: string
-  pending_count?: number
-  avg_response_hours?: number | null
-  rejection_rate?: number | null
-  load_score?: number | null
-}
-
-/** `/approvals/analytics/approver-load`. */
-interface ApproverLoadResponse {
-  load?: ApproverLoadRow[]
-  overloaded_approvers?: string[]
 }
 
 type CondicionesDeDisparo = ComponentProps<typeof CondicionesDelFlujo>['actuales']
@@ -1409,7 +1276,7 @@ function ApprovalGroupsTab() {
 
   const openEdit = (g: ApprovalGroup) => {
     setEditGroup(g)
-    const members: string[] = (() => { try { return JSON.parse(g.member_ids || '[]') } catch { return [] } })()
+    const members = g.member_ids || []
     setForm({ name: g.name, description: g.description || '', member_ids: members })
     setShowCreate(true)
   }
@@ -1431,7 +1298,7 @@ function ApprovalGroupsTab() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {groups.map(g => {
-            const members = (() => { try { return JSON.parse(g.member_ids || '[]') } catch { return [] } })()
+            const members = g.member_ids || []
             return (
               <div key={g.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 18px' }}>
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 {g.name}</div>
@@ -1506,17 +1373,17 @@ function ApproverLoadTab() {
           {(data.overloaded_approvers || []).length > 0 && (
             <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16 }}>
               <strong className="u-danger">⚠ Aprobadores sobrecargados:</strong>
-              <span style={{ marginLeft: 8, fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{data.overloaded_approvers.join(', ')}</span>
+              <span style={{ marginLeft: 8, fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{data.overloaded_approvers.map(a => a.user_name).join(', ')}</span>
             </div>
           )}
           <div className="u-scroll-x">
             <Table
-              data={data.load || []}
+              data={data.items || []}
               columns={[
                 { key: 'user_name', label: 'Aprobador', render: (_v, row) => <span className="u-600">{row.user_name}</span> },
                 { key: 'pending_count', label: 'Pendientes' },
                 { key: 'avg_response_hours', label: 'Tiempo Resp. (h)', render: (_v, row) => (row.avg_response_hours != null ? row.avg_response_hours.toFixed(1) : '—') },
-                { key: 'rejection_rate', label: 'Tasa Rechazo', render: (_v, row) => (row.rejection_rate != null ? (row.rejection_rate * 100).toFixed(0) + '%' : '—') },
+                { key: 'rejection_rate_pct', label: 'Tasa Rechazo', render: (_v, row) => (row.rejection_rate_pct != null ? row.rejection_rate_pct.toFixed(0) + '%' : '—') },
                 { key: 'load_score', label: 'Score Carga', render: (_v, row) => (
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: row.load_score > 7 ? 'var(--danger)' : row.load_score > 4 ? 'var(--warning)' : 'var(--success)' }}>
                     {row.load_score?.toFixed(1) || '—'}

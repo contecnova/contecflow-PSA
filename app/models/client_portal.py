@@ -253,7 +253,7 @@ class ClientMessage(Base):
     feature_request_id = Column(String(36), ForeignKey("feature_requests.id"), nullable=True)
     uat_session_id = Column(String(36), ForeignKey("uat_sessions.id"), nullable=True)
     thread_id = Column(String(36), nullable=True, index=True)  # Groups messages in a thread
-    parent_id = Column(String(36), ForeignKey("client_messages.id"), nullable=True)
+    parent_id = Column(String(36), ForeignKey("client_messages.id"), nullable=True, index=True)
 
     subject = Column(String(255), nullable=True)  # Only on first message in thread
     body = Column(Text, nullable=False)

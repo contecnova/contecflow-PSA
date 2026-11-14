@@ -1,5 +1,9 @@
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
-import type { Client, ClientContact, Contract, Epic, RiesgosDelProyecto, Risk, SlaCalendar, SlaCalendarCreado, Sprint } from './tipos'
+import type { CatalogoDeCorreo, ClaveDeApi, ClaveDeApiCreada, Client, ClientContact, ConfigJiraDelHub, ConfigSso, Contract, CorreoEnviado, EnvioDeCorreo, Epic, FlujoDeAutomatizacion, IntegracionDesactivada, IntegracionGuardada, IntegracionOAuth, LlamadaDeWebhook, PaginaDeAuditoria, PruebaDeJira, PruebaDeMensajeria, RiesgosDelProyecto, Risk, SincronizacionDeIntegracion, SlaCalendar, SlaCalendarCreado, SolicitudRgpd, SolicitudRgpdCreada, SolicitudRgpdProcesada, Sprint, ValidacionSso, VerificacionDeCadena, WebhookEntrante, WebhookEntranteCreado } from './tipos'
+import type { SdActivoDeCi, SdAgenteCmdb, SdAgenteRegistrado, SdAnuncio, SdAprobacionDeTicket, SdArticuloCreado, SdArticuloKb, SdArticuloKbDetalle, SdAsignacionSla, SdCalidadKb, SdCambioDeCi, SdCamposDeClase, SdCategoriaDeCatalogo, SdCi, SdCiCreado, SdComentarioCreado, SdDivision, SdErrorConocido, SdEscalado, SdFusion, SdGrupo, SdIdNombre, SdOk, SdPasadaKb, SdPausaSla, SdPlantillaDeTicket, SdPoliticaSla, SdProblema, SdProblemaCerrado, SdProblemaCreado, SdRelacionDeCi, SdRespuestaRapida, SdRespuestaRapidaCompacta, SdRestauracion, SdRevisionKb, SdSeguir, SdSugerenciaIA, SdTicket, SdTicketDeErrorConocido, SdTicketDetalle, SdTicketEnlace, SdTicketSeguidor, SdTiempoRegistrado, SdTopologiaDeCi } from './tipos-sd'
+import type { AlmActivo, AlmAsignacionDeLicencia, AlmCambioDeActivo, AlmCentroDeCoste, AlmCentroDeCosteGuardado, AlmContrato, AlmCumplimiento, AlmLicencia, AlmPanel, AlmProveedor, AlmTicketDeRenovacion, AlmVencimiento, ClienteContactoCreado, ClienteContrato, ClienteContratoVinculado, ClienteLicencia, ClienteLicenciaVinculada, ClientePortalConfig, ClientePortalConfigGuardada, ClienteProyecto, ClienteProyectoVinculado, ConfirmacionOk, EntregablesDelProyecto, PortalCasoCreado, PortalDocumento, PortalEstadisticas, PortalPeticion, PortalSesionUat, PortalUsuario, PortalUsuarioActualizado, PortalUsuarioCreado, SkillDelCatalogo, SubAltaOk, SubAsignacion, SubFactura, SubPanel, SubParteDeHoras, SubTrabajador, SubTrabajadorCreado, Subcontratista, TicketDeWebSocket, WikiEspacio, WikiPaginaEnArbol } from './tipos-alm'
+import type { Campana360, CampoPersonalizado, CamposPersonalizadosGuardados, CargaDeAprobadores, CicloDeEvaluacion, ColumnaDelTablero, ConfigDelTablero, ConfigDelTableroGuardada, ConfirmacionDeAprobaciones, CuellosDeBotella, EjecucionDeRecordatorios, EstadisticasDeAprobacion, EstimacionDeEsfuerzo, EvaluacionDeDesempeno, EvaluadoresElegibles, FlujoDeAprobacion, FlujoDelProyecto, FueraDeLaOficina, GrupoDeAprobadores, Historico360, KpisDeCiclo, KpisDeDesempeno, ObjetivoDeDesarrollo, PanelDeCampana360, PasoDeAprobacion, PlanDeDesarrollo, PlantillaDeFlujo, PreguntaDeEvaluacion, SimulacionDeFlujo, SolicitudDeAprobacion, SolicitudPendienteDeMi, SugerenciaDeAsignacion, TipoDeIncidencia, ValidacionDeFlujo, ValorDeCampoPersonalizado } from './tipos-rendimiento'
+import type { AccesoBi, BloqueoLegal, CatalogoIa, ComentarioBi, ComprobacionSod, DiagnosticoIa, EjecucionDeGobiernoBi, EnrutadoIa, EstadisticasIa, EventoDeAuditoriaGrc, ExplicacionDeAcceso, GastoIaDeHoy, InformeDeCumplimiento, LinajeBi, ListaConCuenta, MarcadorBi, ModelosSincronizadosIa, PermisoGrcActualizado, PermisosGrc, PoliticaDeRetencion, PoliticasDeRetencion, ProveedorIa, PruebaDeProveedorIa, ReglaSod, ReglasDeGobiernoBi, ResultadoDeRetencion, ResumenDeGobiernoBi, RutaExplicable, RutasIa, SaludPredictiva, SensibilidadDeCampoBi, SincronizacionIa, ViolacionSod, VistaCompartidaBi, VistaPreviaDeRetencion } from './tipos-grc'
 import { API_BASE_URL } from './urls'
 import { ESCALATION_LOGS_LIMIT, GOVERNANCE_LOGS_LIMIT, INBOUND_MESSAGES_LIMIT, MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
@@ -215,36 +219,36 @@ export const forecastApi = {
 
 // ── Approvals ─────────────────────────────────────────────────────────────────
 export const approvalsApi = {
-  listWorkflows:     (params?: QueryParams)      => api.get('/approvals/workflows', { params }),
-  listTemplates:     ()            => api.get('/approvals/workflow-templates'),
-  getWorkflow:       (id: PathId)          => api.get(`/approvals/workflows/${id}`),
-  createWorkflow:    (d: unknown)           => api.post('/approvals/workflows', d),
-  createFromTemplate:(d: unknown)           => api.post('/approvals/workflows/from-template', d),
-  updateWorkflow:    (id: PathId, d: unknown)       => api.patch(`/approvals/workflows/${id}`, d),
-  validateWorkflow:  (id: PathId)          => api.get(`/approvals/workflows/${id}/validate`),
-  publishWorkflow:   (id: PathId)          => api.post(`/approvals/workflows/${id}/publish`),
-  cloneVersion:      (id: PathId, d: unknown)       => api.post(`/approvals/workflows/${id}/clone-version`, d || {}),
-  deleteWorkflow:    (id: PathId)          => api.delete(`/approvals/workflows/${id}`),
-  addStep:           (wid: PathId, d: unknown)      => api.post(`/approvals/workflows/${wid}/steps`, d),
-  updateStep:        (wid: PathId, sid: PathId, d: unknown) => api.patch(`/approvals/workflows/${wid}/steps/${sid}`, d),
-  deleteStep:        (wid: PathId, sid: PathId)    => api.delete(`/approvals/workflows/${wid}/steps/${sid}`),
-  simulate:          (d: unknown)           => api.post('/approvals/simulate', d),
-  bottlenecks:       (params?: QueryParams)      => api.get('/approvals/analytics/bottlenecks', { params }),
-  approverLoad:      (params?: QueryParams)      => api.get('/approvals/analytics/approver-load', { params }),
-  listRequests:      (params?: QueryParams)      => api.get('/approvals/requests', { params }),
-  pendingMyAction:   ()            => api.get('/approvals/requests/pending-my-action'),
+  listWorkflows:     (params?: QueryParams): Promise<AxiosResponse<FlujoDeAprobacion[]>>      => api.get('/approvals/workflows', { params }),
+  listTemplates:     (): Promise<AxiosResponse<PlantillaDeFlujo[]>>            => api.get('/approvals/workflow-templates'),
+  getWorkflow:       (id: PathId): Promise<AxiosResponse<FlujoDeAprobacion>>          => api.get(`/approvals/workflows/${id}`),
+  createWorkflow:    (d: unknown): Promise<AxiosResponse<FlujoDeAprobacion>>           => api.post('/approvals/workflows', d),
+  createFromTemplate:(d: unknown): Promise<AxiosResponse<FlujoDeAprobacion>>           => api.post('/approvals/workflows/from-template', d),
+  updateWorkflow:    (id: PathId, d: unknown): Promise<AxiosResponse<FlujoDeAprobacion>>       => api.patch(`/approvals/workflows/${id}`, d),
+  validateWorkflow:  (id: PathId): Promise<AxiosResponse<ValidacionDeFlujo>>          => api.get(`/approvals/workflows/${id}/validate`),
+  publishWorkflow:   (id: PathId): Promise<AxiosResponse<FlujoDeAprobacion>>          => api.post(`/approvals/workflows/${id}/publish`),
+  cloneVersion:      (id: PathId, d: unknown): Promise<AxiosResponse<FlujoDeAprobacion>>       => api.post(`/approvals/workflows/${id}/clone-version`, d || {}),
+  deleteWorkflow:    (id: PathId): Promise<AxiosResponse<ConfirmacionDeAprobaciones>>          => api.delete(`/approvals/workflows/${id}`),
+  addStep:           (wid: PathId, d: unknown): Promise<AxiosResponse<PasoDeAprobacion>>      => api.post(`/approvals/workflows/${wid}/steps`, d),
+  updateStep:        (wid: PathId, sid: PathId, d: unknown): Promise<AxiosResponse<PasoDeAprobacion>> => api.patch(`/approvals/workflows/${wid}/steps/${sid}`, d),
+  deleteStep:        (wid: PathId, sid: PathId): Promise<AxiosResponse<ConfirmacionDeAprobaciones>>    => api.delete(`/approvals/workflows/${wid}/steps/${sid}`),
+  simulate:          (d: unknown): Promise<AxiosResponse<SimulacionDeFlujo>>           => api.post('/approvals/simulate', d),
+  bottlenecks:       (params?: QueryParams): Promise<AxiosResponse<CuellosDeBotella>>      => api.get('/approvals/analytics/bottlenecks', { params }),
+  approverLoad:      (params?: QueryParams): Promise<AxiosResponse<CargaDeAprobadores>>      => api.get('/approvals/analytics/approver-load', { params }),
+  listRequests:      (params?: QueryParams): Promise<AxiosResponse<SolicitudDeAprobacion[]>>      => api.get('/approvals/requests', { params }),
+  pendingMyAction:   (): Promise<AxiosResponse<SolicitudPendienteDeMi[]>>            => api.get('/approvals/requests/pending-my-action'),
   // Revisión 2026-11: fuera de la oficina (a quién pasan mis aprobaciones).
-  getOutOfOffice:    ()            => api.get('/approvals/out-of-office'),
-  setOutOfOffice:    (d: unknown)  => api.put('/approvals/out-of-office', d),
-  createRequest:     (d: unknown)           => api.post('/approvals/requests', d),
-  decide:            (id: PathId, d: unknown)       => api.post(`/approvals/requests/${id}/decide`, d),
-  cancel:            (id: PathId)          => api.post(`/approvals/requests/${id}/cancel`),
-  stats:             ()            => api.get('/approvals/stats'),
+  getOutOfOffice:    (): Promise<AxiosResponse<FueraDeLaOficina>>            => api.get('/approvals/out-of-office'),
+  setOutOfOffice:    (d: unknown): Promise<AxiosResponse<FueraDeLaOficina>>  => api.put('/approvals/out-of-office', d),
+  createRequest:     (d: unknown): Promise<AxiosResponse<SolicitudDeAprobacion>>           => api.post('/approvals/requests', d),
+  decide:            (id: PathId, d: unknown): Promise<AxiosResponse<SolicitudDeAprobacion>>       => api.post(`/approvals/requests/${id}/decide`, d),
+  cancel:            (id: PathId): Promise<AxiosResponse<ConfirmacionDeAprobaciones>>          => api.post(`/approvals/requests/${id}/cancel`),
+  stats:             (): Promise<AxiosResponse<EstadisticasDeAprobacion>>            => api.get('/approvals/stats'),
   // Groups
-  listGroups:        ()            => api.get('/approvals/groups'),
-  createGroup:       (d: unknown)           => api.post('/approvals/groups', d),
-  updateGroup:       (id: PathId, d: unknown)       => api.patch(`/approvals/groups/${id}`, d),
-  deleteGroup:       (id: PathId)          => api.delete(`/approvals/groups/${id}`),
+  listGroups:        (): Promise<AxiosResponse<GrupoDeAprobadores[]>>            => api.get('/approvals/groups'),
+  createGroup:       (d: unknown): Promise<AxiosResponse<GrupoDeAprobadores>>           => api.post('/approvals/groups', d),
+  updateGroup:       (id: PathId, d: unknown): Promise<AxiosResponse<GrupoDeAprobadores>>       => api.patch(`/approvals/groups/${id}`, d),
+  deleteGroup:       (id: PathId): Promise<AxiosResponse<ConfirmacionDeAprobaciones>>          => api.delete(`/approvals/groups/${id}`),
 }
 
 export const uatApi = {
@@ -327,17 +331,17 @@ export const analyticsApi = {
 }
 
 export const biCollaborationApi = {
-  listComments:   (params?: QueryParams)             => api.get('/bi/collaboration/comments', { params }),
-  createComment:  (payload: unknown)            => api.post('/bi/collaboration/comments', payload),
-  resolveComment: (commentId: PathId)          => api.patch(`/bi/collaboration/comments/${commentId}/resolve`),
-  listSharedViews: (params?: QueryParams)            => api.get('/bi/collaboration/shared-views', { params }),
-  createSharedView: (payload: unknown)          => api.post('/bi/collaboration/shared-views', payload),
-  patchSharedView: (viewId: PathId, payload: unknown)   => api.patch(`/bi/collaboration/shared-views/${viewId}`, payload),
-  governanceOverview: ()               => api.get('/bi/governance/overview'),
-  governanceRules: ()                  => api.get('/bi/governance/rules'),
+  listComments:   (params?: QueryParams): Promise<AxiosResponse<ComentarioBi[]>>             => api.get('/bi/collaboration/comments', { params }),
+  createComment:  (payload: unknown): Promise<AxiosResponse<{ ok: boolean; comment: ComentarioBi }>>            => api.post('/bi/collaboration/comments', payload),
+  resolveComment: (commentId: PathId): Promise<AxiosResponse<{ ok: boolean; comment: ComentarioBi }>>          => api.patch(`/bi/collaboration/comments/${commentId}/resolve`),
+  listSharedViews: (params?: QueryParams): Promise<AxiosResponse<VistaCompartidaBi[]>>            => api.get('/bi/collaboration/shared-views', { params }),
+  createSharedView: (payload: unknown): Promise<AxiosResponse<{ ok: boolean; view: VistaCompartidaBi }>>          => api.post('/bi/collaboration/shared-views', payload),
+  patchSharedView: (viewId: PathId, payload: unknown): Promise<AxiosResponse<{ ok: boolean; view: VistaCompartidaBi }>>   => api.patch(`/bi/collaboration/shared-views/${viewId}`, payload),
+  governanceOverview: (): Promise<AxiosResponse<ResumenDeGobiernoBi>>               => api.get('/bi/governance/overview'),
+  governanceRules: (): Promise<AxiosResponse<ReglasDeGobiernoBi>>                  => api.get('/bi/governance/rules'),
   updateGovernanceRules: (payload: unknown)     => api.patch('/bi/governance/rules', payload),
-  runGovernanceChecks: ()              => api.post('/bi/governance/run-checks'),
-  lastGovernanceRun: ()                => api.get('/bi/governance/last-run'),
+  runGovernanceChecks: (): Promise<AxiosResponse<EjecucionDeGobiernoBi>>              => api.post('/bi/governance/run-checks'),
+  lastGovernanceRun: (): Promise<AxiosResponse<{ result: EjecucionDeGobiernoBi | null }>>                => api.get('/bi/governance/last-run'),
   // Dashboard shares
   listDashboardShares:    (key: PathId)              => api.get(`/bi/collaboration/dashboards/${key}/shares`),
   shareDashboard:         (key: PathId, data: unknown)        => api.post(`/bi/collaboration/dashboards/${key}/shares`, data),
@@ -384,18 +388,18 @@ export const biSmartAlertsApi = {
 }
 
 export const biBookmarksApi = {
-  list: ()                             => api.get('/bi/bookmarks'),
-  create: (payload: unknown)                    => api.post('/bi/bookmarks', payload),
-  delete: (id: PathId)                         => api.delete(`/bi/bookmarks/${id}`),
+  list: (): Promise<AxiosResponse<ListaConCuenta<MarcadorBi>>>                             => api.get('/bi/bookmarks'),
+  create: (payload: unknown): Promise<AxiosResponse<MarcadorBi>>                    => api.post('/bi/bookmarks', payload),
+  delete: (id: PathId): Promise<AxiosResponse<void>>                         => api.delete(`/bi/bookmarks/${id}`),
 }
 
 export const biGovernanceAuditApi = {
   // BI Governance — audit trail, data lineage, field sensitivity
-  getAccessHistory: (params?: QueryParams)           => api.get('/bi/governance/audit/access', { params }),
-  listLineage: (target_table?: string)          => api.get('/bi/governance/lineage', { params: target_table ? { target_table } : undefined }),
-  trackLineage: (payload: unknown)              => api.post('/bi/governance/lineage', payload),
-  listFieldSensitivity: (dataset_id?: string)   => api.get('/bi/governance/field-sensitivity', { params: dataset_id ? { dataset_id } : undefined }),
-  upsertFieldSensitivity: (payload: unknown)    => api.put('/bi/governance/field-sensitivity', payload),
+  getAccessHistory: (params?: QueryParams): Promise<AxiosResponse<ListaConCuenta<AccesoBi>>>           => api.get('/bi/governance/audit/access', { params }),
+  listLineage: (target_table?: string): Promise<AxiosResponse<ListaConCuenta<LinajeBi>>>          => api.get('/bi/governance/lineage', { params: target_table ? { target_table } : undefined }),
+  trackLineage: (payload: unknown): Promise<AxiosResponse<{ ok: boolean; edge: LinajeBi }>>              => api.post('/bi/governance/lineage', payload),
+  listFieldSensitivity: (dataset_id?: string): Promise<AxiosResponse<ListaConCuenta<SensibilidadDeCampoBi>>>   => api.get('/bi/governance/field-sensitivity', { params: dataset_id ? { dataset_id } : undefined }),
+  upsertFieldSensitivity: (payload: unknown): Promise<AxiosResponse<{ ok: boolean; field: SensibilidadDeCampoBi }>>    => api.put('/bi/governance/field-sensitivity', payload),
 }
 
 export const biReportBuilderV2Api = {
@@ -527,7 +531,7 @@ export const pipelineApi = {
 
 // ── Deliverables ──────────────────────────────────────────────────────────────
 export const deliverablesApi = {
-  listByProject:   (projectId: PathId) => api.get(`/deliverables/${projectId}`),
+  listByProject:   (projectId: PathId): Promise<AxiosResponse<EntregablesDelProyecto>> => api.get(`/deliverables/${projectId}`),
   overviewAll:     ()          => api.get('/deliverables/all/overview'),
   createForProject:(projectId: PathId, data: unknown) => api.post(`/deliverables/${projectId}`, data),
   updateInProject: (projectId: PathId, id: PathId, data: unknown) => api.patch(`/deliverables/${projectId}/${id}`, data),
@@ -542,10 +546,10 @@ export const subcontractorsApi = {
   // de entidades no cargaba ningun subcontratista. Hay otro cliente en este
   // mismo fichero que ya apuntaba bien — dos clientes para lo mismo, uno
   // roto y otro correcto.
-  list:        (params?: QueryParams)    => api.get('/enterprise/subcontractors', { params }),
-  create:      (data: unknown)      => api.post('/enterprise/subcontractors', data),
-  update:      (id: PathId, data: unknown)  => api.patch(`/enterprise/subcontractors/${id}`, data),
-  delete:      (id: PathId)        => api.delete(`/enterprise/subcontractors/${id}`),
+  list:        (params?: QueryParams): Promise<AxiosResponse<Subcontratista[]>>    => api.get('/enterprise/subcontractors', { params }),
+  create:      (data: unknown): Promise<AxiosResponse<Subcontratista>>      => api.post('/enterprise/subcontractors', data),
+  update:      (id: PathId, data: unknown): Promise<AxiosResponse<Subcontratista>>  => api.patch(`/enterprise/subcontractors/${id}`, data),
+  delete:      (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>        => api.delete(`/enterprise/subcontractors/${id}`),
 }
 
 // ── Training ──────────────────────────────────────────────────────────────────
@@ -598,64 +602,64 @@ export const absencesApi = {
 
 // ── ALM — Assets, Licenses, Vendors ──────────────────────────────────────────
 export const assetsApi = {
-  list:    (params?: QueryParams)   => api.get('/alm/assets', { params }),
+  list:    (params?: QueryParams): Promise<AxiosResponse<AlmActivo[]>>   => api.get('/alm/assets', { params }),
   get:     (id: PathId)       => api.get(`/alm/assets/${id}`),
-  create:  (data: unknown)     => api.post('/alm/assets', data),
-  update:  (id: PathId, data: unknown) => api.patch(`/alm/assets/${id}`, data),
-  delete:  (id: PathId)       => api.delete(`/alm/assets/${id}`),
-  history: (id: PathId)       => api.get(`/alm/assets/${id}/history`),
-  expiring: (days: number) => api.get('/alm/assets/expiring', { params: { days } }),
-  refreshTicket: (id: PathId) => api.post(`/alm/assets/${id}/refresh-ticket`),
+  create:  (data: unknown): Promise<AxiosResponse<AlmActivo>>     => api.post('/alm/assets', data),
+  update:  (id: PathId, data: unknown): Promise<AxiosResponse<AlmActivo>> => api.patch(`/alm/assets/${id}`, data),
+  delete:  (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>       => api.delete(`/alm/assets/${id}`),
+  history: (id: PathId): Promise<AxiosResponse<AlmCambioDeActivo[]>>       => api.get(`/alm/assets/${id}/history`),
+  expiring: (days: number): Promise<AxiosResponse<AlmVencimiento[]>> => api.get('/alm/assets/expiring', { params: { days } }),
+  refreshTicket: (id: PathId): Promise<AxiosResponse<AlmTicketDeRenovacion>> => api.post(`/alm/assets/${id}/refresh-ticket`),
 }
 
 export const licensesApi = {
-  list:    (params?: QueryParams)   => api.get('/alm/licenses', { params }),
+  list:    (params?: QueryParams): Promise<AxiosResponse<AlmLicencia[]>>   => api.get('/alm/licenses', { params }),
   get:     (id: PathId)       => api.get(`/alm/licenses/${id}`),
-  create:  (data: unknown)     => api.post('/alm/licenses', data),
-  update:  (id: PathId, data: unknown) => api.patch(`/alm/licenses/${id}`, data),
-  delete:  (id: PathId)       => api.delete(`/alm/licenses/${id}`),
-  assign:  (id: PathId, data: unknown) => api.post(`/alm/licenses/${id}/assign`, data),
+  create:  (data: unknown): Promise<AxiosResponse<AlmLicencia>>     => api.post('/alm/licenses', data),
+  update:  (id: PathId, data: unknown): Promise<AxiosResponse<AlmLicencia>> => api.patch(`/alm/licenses/${id}`, data),
+  delete:  (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>       => api.delete(`/alm/licenses/${id}`),
+  assign:  (id: PathId, data: unknown): Promise<AxiosResponse<AlmAsignacionDeLicencia>> => api.post(`/alm/licenses/${id}/assign`, data),
 }
 
 export const vendorsApi = {
-  list:   (params?: QueryParams)   => api.get('/alm/vendors', { params }),
-  create: (data: unknown)     => api.post('/alm/vendors', data),
-  update: (id: PathId, data: unknown) => api.patch(`/alm/vendors/${id}`, data),
-  delete: (id: PathId)       => api.delete(`/alm/vendors/${id}`),
+  list:   (params?: QueryParams): Promise<AxiosResponse<AlmProveedor[]>>   => api.get('/alm/vendors', { params }),
+  create: (data: unknown): Promise<AxiosResponse<AlmProveedor>>     => api.post('/alm/vendors', data),
+  update: (id: PathId, data: unknown): Promise<AxiosResponse<AlmProveedor>> => api.patch(`/alm/vendors/${id}`, data),
+  delete: (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>       => api.delete(`/alm/vendors/${id}`),
 }
 
 // ── Service Desk ──────────────────────────────────────────────────────────────
 export const ticketsApi = {
-  watchers:  (id: PathId)      => api.get(`/sd/tickets/${id}/watchers`),
-  watch:     (id: PathId)      => api.post(`/sd/tickets/${id}/watch`),
-  unwatch:   (id: PathId)      => api.delete(`/sd/tickets/${id}/watch`),
-  mergeInto: (id: PathId, data: unknown) => api.post(`/sd/tickets/${id}/merge`, data),
-  list:    (params?: QueryParams)   => api.get('/sd/tickets', { params }),
+  watchers:  (id: PathId): Promise<AxiosResponse<SdTicketSeguidor[]>>      => api.get(`/sd/tickets/${id}/watchers`),
+  watch:     (id: PathId): Promise<AxiosResponse<SdSeguir>>      => api.post(`/sd/tickets/${id}/watch`),
+  unwatch:   (id: PathId): Promise<AxiosResponse<SdSeguir>>      => api.delete(`/sd/tickets/${id}/watch`),
+  mergeInto: (id: PathId, data: unknown): Promise<AxiosResponse<SdFusion>> => api.post(`/sd/tickets/${id}/merge`, data),
+  list:    (params?: QueryParams): Promise<AxiosResponse<SdTicket[]>>   => api.get('/sd/tickets', { params }),
   myQueue: (params?: QueryParams) => api.get('/sd/tickets/my-queue', { params }),
-  get:     (id: PathId)       => api.get(`/sd/tickets/${id}`),
+  get:     (id: PathId): Promise<AxiosResponse<SdTicketDetalle>>       => api.get(`/sd/tickets/${id}`),
   create:  (data: unknown)     => api.post('/sd/tickets', data),
-  update:  (id: PathId, data: unknown) => api.patch(`/sd/tickets/${id}`, data),
-  comment: (id: PathId, data: unknown) => api.post(`/sd/tickets/${id}/comments`, data),
-  aiSuggest: (id: PathId, data: unknown) => api.post(`/sd/tickets/${id}/ai-suggest`, data),
-  split:   (id: PathId, data: unknown) => api.post(`/sd/tickets/${id}/split`, data),
-  links:   (id: PathId)       => api.get(`/sd/tickets/${id}/links`),
-  timelog:    (id: PathId, data: unknown)         => api.post(`/sd/tickets/${id}/time-log`, data),
-  restorePending: (id: PathId)           => api.post(`/sd/tickets/${id}/restore-pending`, {}),
-  escalate:   (id: PathId, level: string = 'l2') => api.post(`/sd/tickets/${id}/escalate?to_level=${level}`, {}),
-  slaPause:   (id: PathId, data: unknown) => api.post(`/sd/tickets/${id}/sla/pause`, data),
-  slaResume:  (id: PathId)       => api.post(`/sd/tickets/${id}/sla/resume`),
+  update:  (id: PathId, data: unknown): Promise<AxiosResponse<SdTicket>> => api.patch(`/sd/tickets/${id}`, data),
+  comment: (id: PathId, data: unknown): Promise<AxiosResponse<SdComentarioCreado>> => api.post(`/sd/tickets/${id}/comments`, data),
+  aiSuggest: (id: PathId, data: unknown): Promise<AxiosResponse<SdSugerenciaIA>> => api.post(`/sd/tickets/${id}/ai-suggest`, data),
+  split:   (id: PathId, data: unknown): Promise<AxiosResponse<SdDivision>> => api.post(`/sd/tickets/${id}/split`, data),
+  links:   (id: PathId): Promise<AxiosResponse<SdTicketEnlace[]>>       => api.get(`/sd/tickets/${id}/links`),
+  timelog:    (id: PathId, data: unknown): Promise<AxiosResponse<SdTiempoRegistrado>>         => api.post(`/sd/tickets/${id}/time-log`, data),
+  restorePending: (id: PathId): Promise<AxiosResponse<SdRestauracion>>           => api.post(`/sd/tickets/${id}/restore-pending`, {}),
+  escalate:   (id: PathId, level: string = 'l2'): Promise<AxiosResponse<SdEscalado>> => api.post(`/sd/tickets/${id}/escalate?to_level=${level}`, {}),
+  slaPause:   (id: PathId, data: unknown): Promise<AxiosResponse<SdPausaSla>> => api.post(`/sd/tickets/${id}/sla/pause`, data),
+  slaResume:  (id: PathId): Promise<AxiosResponse<SdPausaSla>>       => api.post(`/sd/tickets/${id}/sla/resume`),
   recommendAssignment:   (id: PathId, data: unknown)   => api.post(`/sd/tickets/${id}/recommend-assignment`, data),
   autoResolutionFeedback:(id: PathId, data: unknown)   => api.post(`/sd/tickets/${id}/auto-resolution/feedback`, data),
 }
 
 export const problemsApi = {
-  list:   (params?: QueryParams)   => api.get('/sd/problems', { params }),
-  create: (data: unknown)     => api.post('/sd/problems', data),
-  update: (id: PathId, data: unknown) => api.patch(`/sd/problems/${id}`, data),
-  delete:             (id: PathId)       => api.delete(`/sd/problems/${id}`),
+  list:   (params?: QueryParams): Promise<AxiosResponse<SdProblema[]>>   => api.get('/sd/problems', { params }),
+  create: (data: unknown): Promise<AxiosResponse<SdProblemaCreado>>     => api.post('/sd/problems', data),
+  update: (id: PathId, data: unknown): Promise<AxiosResponse<SdOk>> => api.patch(`/sd/problems/${id}`, data),
+  delete:             (id: PathId): Promise<AxiosResponse<SdProblemaCerrado>>       => api.delete(`/sd/problems/${id}`),
   // Auditoria 2026-08: la ruta real acaba en `promote-kedb`, no en
   // `promote-known-error`. La pestaña de conocimiento de ITSM daba 404.
-  promoteKnownError:  (id: PathId)       => api.post(`/sd/problems/${id}/promote-kedb`),
+  promoteKnownError:  (id: PathId): Promise<AxiosResponse<SdOk & { kedb_entry: unknown }>>       => api.post(`/sd/problems/${id}/promote-kedb`, {}),
   // RCA Wizard
   rcaWizardGet:      (id: PathId)        => api.get(`/sd/problems/${id}/rca-wizard`),
   rcaWizardStart:    (id: PathId, data: unknown)  => api.post(`/sd/problems/${id}/rca-wizard/start`, data),
@@ -737,8 +741,8 @@ export const currencyApi = {
 
 // ── Predictive Observability ──────────────────────────────────────────────────
 export const predictiveObservabilityApi = {
-  health:        (params?: QueryParams)  => api.get('/bi/predictive/observability/health', { params }),
-  triggerRetrain:()        => api.post('/bi/predictive/observability/trigger-retrain'),
+  health:        (params?: QueryParams): Promise<AxiosResponse<SaludPredictiva>>  => api.get('/bi/predictive/observability/health', { params }),
+  triggerRetrain:(): Promise<AxiosResponse<Record<string, unknown>>>        => api.post('/bi/predictive/observability/trigger-retrain'),
 }
 
 // ── ML Predictions ────────────────────────────────────────────────────────────
@@ -770,28 +774,28 @@ export const revenueRecognitionApi = {
 // ── CMDB ──────────────────────────────────────────────────────────────────────
 export const cmdbApi = {
   // Revisión 2026-11: configuración del tablero por proyecto (carriles y límites WIP).
-  kanbanConfig:     (projectId: string) => api.get(`/cmdb/kanban/${projectId}`),
-  saveKanbanConfig: (projectId: string, data: { swimlane_by: string }) => api.post(`/cmdb/kanban/${projectId}`, data),
-  addKanbanColumn:  (projectId: string, data: { status: string; wip_limit: number | null }) => api.post(`/cmdb/kanban/${projectId}/columns`, data),
-  updateKanbanColumn: (columnId: string, data: { status: string; wip_limit: number | null }) => api.patch(`/cmdb/kanban/columns/${columnId}`, data),
+  kanbanConfig:     (projectId: string): Promise<AxiosResponse<ConfigDelTablero>> => api.get(`/cmdb/kanban/${projectId}`),
+  saveKanbanConfig: (projectId: string, data: { swimlane_by: string }): Promise<AxiosResponse<ConfigDelTableroGuardada>> => api.post(`/cmdb/kanban/${projectId}`, data),
+  addKanbanColumn:  (projectId: string, data: { status: string; wip_limit: number | null }): Promise<AxiosResponse<ColumnaDelTablero>> => api.post(`/cmdb/kanban/${projectId}/columns`, data),
+  updateKanbanColumn: (columnId: string, data: { status: string; wip_limit: number | null }): Promise<AxiosResponse<ColumnaDelTablero>> => api.patch(`/cmdb/kanban/columns/${columnId}`, data),
   // Una sola CMDB (auditoría 2026-11): la del service desk, `/sd/cmdb`.
-  sdList:         (params?: QueryParams)   => api.get('/sd/cmdb', { params }),
-  sdCreate:       (data: unknown)     => api.post('/sd/cmdb', data),
-  sdUpdate:       (id: PathId, data: unknown) => api.patch(`/sd/cmdb/${id}`, data),
-  sdDelete:       (id: PathId)       => api.delete(`/sd/cmdb/${id}`),
-  sdChangelog:    (id: PathId)       => api.get(`/sd/cmdb/${id}/changelog`),
-  sdRelations:    (id: PathId)       => api.get(`/sd/cmdb/${id}/relations`),
-  sdCreateRelation: (data: unknown)   => api.post('/sd/cmdb/relations', data),
-  sdDeleteRelation: (id: PathId)     => api.delete(`/sd/cmdb/relations/${id}`),
-  classFields:    ()              => api.get('/sd/cmdb/class-fields'),
-  saveClassFields: (ciType: string, fields: unknown) => api.put(`/sd/cmdb/class-fields/${ciType}`, fields),
-  topology:       (id: PathId, r: number)    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
+  sdList:         (params?: QueryParams): Promise<AxiosResponse<SdCi[]>>   => api.get('/sd/cmdb', { params }),
+  sdCreate:       (data: unknown): Promise<AxiosResponse<SdCiCreado>>     => api.post('/sd/cmdb', data),
+  sdUpdate:       (id: PathId, data: unknown): Promise<AxiosResponse<SdOk>> => api.patch(`/sd/cmdb/${id}`, data),
+  sdDelete:       (id: PathId): Promise<AxiosResponse<SdOk>>       => api.delete(`/sd/cmdb/${id}`),
+  sdChangelog:    (id: PathId): Promise<AxiosResponse<SdCambioDeCi[]>>       => api.get(`/sd/cmdb/${id}/changelog`),
+  sdRelations:    (id: PathId): Promise<AxiosResponse<SdRelacionDeCi[]>>       => api.get(`/sd/cmdb/${id}/relations`),
+  sdCreateRelation: (data: unknown): Promise<AxiosResponse<SdOk & { id: string }>>   => api.post('/sd/cmdb/relations', data),
+  sdDeleteRelation: (id: PathId): Promise<AxiosResponse<SdOk>>     => api.delete(`/sd/cmdb/relations/${id}`),
+  classFields:    (): Promise<AxiosResponse<SdCamposDeClase>>              => api.get('/sd/cmdb/class-fields'),
+  saveClassFields: (ciType: string, fields: unknown): Promise<AxiosResponse<SdCamposDeClase>> => api.put(`/sd/cmdb/class-fields/${ciType}`, fields),
+  topology:       (id: PathId, r: number): Promise<AxiosResponse<SdTopologiaDeCi>>    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
   // Agents
-  agents:         ()         => api.get('/sd/cmdb/agents'),
-  registerAgent:  (data: unknown)     => api.post('/sd/cmdb/agents/register', data),
-  deleteAgent:    (id: PathId)       => api.delete(`/sd/cmdb/agents/${id}`),
+  agents:         (): Promise<AxiosResponse<SdAgenteCmdb[]>>         => api.get('/sd/cmdb/agents'),
+  registerAgent:  (data: unknown): Promise<AxiosResponse<SdAgenteRegistrado>>     => api.post('/sd/cmdb/agents/register', data),
+  deleteAgent:    (id: PathId): Promise<AxiosResponse<SdOk & { agent_id: string; revoked: boolean }>>       => api.delete(`/sd/cmdb/agents/${id}`),
   agentDashboard: (agentId: PathId, days: number) => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`),
-  assetsByCI:     (ciId: PathId)     => api.get(`/alm/assets/by-ci/${ciId}`),
+  assetsByCI:     (ciId: PathId): Promise<AxiosResponse<SdActivoDeCi[]>>     => api.get(`/alm/assets/by-ci/${ciId}`),
 }
 
 // ── Timesheets ────────────────────────────────────────────────────────────────
@@ -830,12 +834,12 @@ export const documentsApi = {
 
 // ── Custom Fields ─────────────────────────────────────────────────────────────
 export const customFieldsApi = {
-  list:   (projectId: PathId)          => api.get(`/custom-fields/${projectId}`),
+  list:   (projectId: PathId): Promise<AxiosResponse<CampoPersonalizado[]>>          => api.get(`/custom-fields/${projectId}`),
   create: (projectId: PathId, data: unknown)    => api.post(`/custom-fields/${projectId}`, data),
   update: (projectId: PathId, id: PathId, data: unknown)=> api.patch(`/custom-fields/${projectId}/${id}`, data),
   delete:    (projectId: PathId, id: PathId)           => api.delete(`/custom-fields/${projectId}/${id}`),
-  getValues: (projectId: PathId, taskId: PathId)       => api.get(`/custom-fields/${projectId}/values/${taskId}`),
-  setValues: (projectId: PathId, taskId: PathId, data: unknown) => api.post(`/custom-fields/${projectId}/values/${taskId}`, data),
+  getValues: (projectId: PathId, taskId: PathId): Promise<AxiosResponse<ValorDeCampoPersonalizado[]>>       => api.get(`/custom-fields/${projectId}/values/${taskId}`),
+  setValues: (projectId: PathId, taskId: PathId, data: unknown): Promise<AxiosResponse<CamposPersonalizadosGuardados>> => api.post(`/custom-fields/${projectId}/values/${taskId}`, data),
 }
 
 // ── Wiki ──────────────────────────────────────────────────────────────────────
@@ -857,14 +861,14 @@ export const wikiApi = {
   updateTag:        (id: PathId, data: unknown)      => api.patch(`/cmdb/wiki-tags/${id}`, data),
   deleteTag:        (id: PathId)            => api.delete(`/cmdb/wiki-tags/${id}`),
   // portal-scoped wiki (different URL prefix)
-  portalSpaces:     ()              => api.get('wiki/spaces'),
-  portalPages:      (spaceId: PathId)       => api.get(`wiki/spaces/${spaceId}/pages`),
-  portalUpdatePage: (id: PathId, data: unknown)      => api.patch(`wiki/pages/${id}`, data),
+  portalSpaces:     (): Promise<AxiosResponse<WikiEspacio[]>>              => api.get('epics/wiki/spaces'),
+  portalPages:      (spaceId: PathId): Promise<AxiosResponse<WikiPaginaEnArbol[]>>       => api.get(`epics/wiki/spaces/${spaceId}/pages`),
+  portalUpdatePage: (id: PathId, data: { visibility: string }) => api.patch(`epics/wiki/pages/${id}/visibility`, data),
 }
 
 // ── Skills ────────────────────────────────────────────────────────────────────
 export const skillsApi = {
-  catalog:        ()               => api.get('/skills/catalog'),
+  catalog:        (): Promise<AxiosResponse<SkillDelCatalogo[]>>               => api.get('/skills/catalog'),
   createCatalog:  (data: unknown)           => api.post('/skills/catalog', data),
   deleteCatalog:  (id: PathId)             => api.delete(`/skills/catalog/${id}`),
   userSkills:     (userId: PathId)         => api.get(`/skills/users/${userId}`),
@@ -877,35 +881,35 @@ export const skillsApi = {
 
 // ── Enterprise Subcontractors ─────────────────────────────────────────────────
 export const enterpriseSubsApi = {
-  dashboard:        ()                     => api.get('/enterprise/subcontractors-dashboard'),
+  dashboard:        (): Promise<AxiosResponse<SubPanel>>                     => api.get('/enterprise/subcontractors-dashboard'),
   // CRUD de subcontratistas: `subcontractorsApi` (auditoria 2026-11, #45: estaba duplicado aqui).
-  workers:          (subId: PathId)                => api.get(`/enterprise/subcontractors/${subId}/workers`),
-  createWorker:     (subId: PathId, data: unknown)          => api.post(`/enterprise/subcontractors/${subId}/workers`, data),
-  updateWorker:     (id: PathId, data: unknown)             => api.patch(`/enterprise/subcontractors/workers/${id}`, data),
-  deleteWorker:     (id: PathId)                   => api.delete(`/enterprise/subcontractors/workers/${id}`),
-  addWorkerSkill:   (id: PathId, data: unknown)             => api.post(`/enterprise/subcontractors/workers/${id}/skills`, data),
-  removeWorkerSkill:(id: PathId, skillId: PathId)          => api.delete(`/enterprise/subcontractors/workers/${id}/skills/${skillId}`),
-  assignments:      (subId: PathId)                => api.get(`/enterprise/subcontractors/${subId}/assignments`),
-  createAssignment: (subId: PathId, data: unknown)          => api.post(`/enterprise/subcontractors/${subId}/assignments`, data),
-  timelogs:         (subId: PathId)                => api.get(`/enterprise/subcontractors/${subId}/timelogs`),
-  createTimelog:    (subId: PathId, data: unknown)          => api.post(`/enterprise/subcontractors/${subId}/timelogs`, data),
-  invoices:         (subId: PathId)                => api.get(`/enterprise/subcontractors/${subId}/invoices`),
-  createInvoice:    (subId: PathId, data: unknown)          => api.post(`/enterprise/subcontractors/${subId}/invoices`, data),
-  updateInvoice:    (subId: PathId, id: PathId, data: unknown)      => api.patch(`/enterprise/subcontractors/${subId}/invoices/${id}`, data),
+  workers:          (subId: PathId): Promise<AxiosResponse<SubTrabajador[]>>                => api.get(`/enterprise/subcontractors/${subId}/workers`),
+  createWorker:     (subId: PathId, data: unknown): Promise<AxiosResponse<SubTrabajadorCreado>>          => api.post(`/enterprise/subcontractors/${subId}/workers`, data),
+  updateWorker:     (id: PathId, data: unknown): Promise<AxiosResponse<SubTrabajador>>             => api.patch(`/enterprise/subcontractors/workers/${id}`, data),
+  deleteWorker:     (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>                   => api.delete(`/enterprise/subcontractors/workers/${id}`),
+  addWorkerSkill:   (id: PathId, data: unknown): Promise<AxiosResponse<SubAltaOk>>             => api.post(`/enterprise/subcontractors/workers/${id}/skills`, data),
+  removeWorkerSkill:(id: PathId, skillId: PathId): Promise<AxiosResponse<ConfirmacionOk>>          => api.delete(`/enterprise/subcontractors/workers/${id}/skills/${skillId}`),
+  assignments:      (subId: PathId): Promise<AxiosResponse<SubAsignacion[]>>                => api.get(`/enterprise/subcontractors/${subId}/assignments`),
+  createAssignment: (subId: PathId, data: unknown): Promise<AxiosResponse<SubAltaOk>>          => api.post(`/enterprise/subcontractors/${subId}/assignments`, data),
+  timelogs:         (subId: PathId): Promise<AxiosResponse<SubParteDeHoras[]>>                => api.get(`/enterprise/subcontractors/${subId}/timelogs`),
+  createTimelog:    (subId: PathId, data: unknown): Promise<AxiosResponse<SubAltaOk>>          => api.post(`/enterprise/subcontractors/${subId}/timelogs`, data),
+  invoices:         (subId: PathId): Promise<AxiosResponse<SubFactura[]>>                => api.get(`/enterprise/subcontractors/${subId}/invoices`),
+  createInvoice:    (subId: PathId, data: unknown): Promise<AxiosResponse<SubAltaOk>>          => api.post(`/enterprise/subcontractors/${subId}/invoices`, data),
+  updateInvoice:    (subId: PathId, id: PathId, data: unknown): Promise<AxiosResponse<{ ok: boolean }>>      => api.patch(`/enterprise/subcontractors/${subId}/invoices/${id}`, data),
 }
 
 // ── ALM Extended (contracts, cost-centers, compliance) ────────────────────────
 export const almExtApi = {
-  dashboard:       ()              => api.get('/alm/dashboard'),
-  contracts:       ()              => api.get('/alm/contracts'),
-  createContract:  (data: unknown)          => api.post('/alm/contracts', data),
-  updateContract:  (id: PathId, data: unknown)      => api.patch(`/alm/contracts/${id}`, data),
-  deleteContract:  (id: PathId)            => api.delete(`/alm/contracts/${id}`),
-  costCenters:     ()              => api.get('/alm/cost-centers'),
-  createCostCenter:(data: unknown)          => api.post('/alm/cost-centers', data),
-  updateCostCenter:(id: PathId, data: unknown)      => api.patch(`/alm/cost-centers/${id}`, data),
-  deleteCostCenter:(id: PathId)            => api.delete(`/alm/cost-centers/${id}`),
-  compliance:      ()              => api.get('/alm/compliance'),
+  dashboard:       (): Promise<AxiosResponse<AlmPanel>>              => api.get('/alm/dashboard'),
+  contracts:       (): Promise<AxiosResponse<AlmContrato[]>>              => api.get('/alm/contracts'),
+  createContract:  (data: unknown): Promise<AxiosResponse<AlmContrato>>          => api.post('/alm/contracts', data),
+  updateContract:  (id: PathId, data: unknown): Promise<AxiosResponse<AlmContrato>>      => api.patch(`/alm/contracts/${id}`, data),
+  deleteContract:  (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>            => api.delete(`/alm/contracts/${id}`),
+  costCenters:     (): Promise<AxiosResponse<AlmCentroDeCoste[]>>              => api.get('/alm/cost-centers'),
+  createCostCenter:(data: unknown): Promise<AxiosResponse<AlmCentroDeCosteGuardado>>          => api.post('/alm/cost-centers', data),
+  updateCostCenter:(id: PathId, data: unknown): Promise<AxiosResponse<AlmCentroDeCosteGuardado>>      => api.patch(`/alm/cost-centers/${id}`, data),
+  deleteCostCenter:(id: PathId): Promise<AxiosResponse<ConfirmacionOk>>            => api.delete(`/alm/cost-centers/${id}`),
+  compliance:      (): Promise<AxiosResponse<AlmCumplimiento>>              => api.get('/alm/compliance'),
 }
 
 // ── CAB (Change Advisory Board) ───────────────────────────────────────────────
@@ -950,43 +954,43 @@ export const portfolioApi = {
 
 // ── Performance Reviews ───────────────────────────────────────────────────────
 export const performanceApi = {
-  cycles:        ()             => api.get('/performance/cycles'),
-  myReviews:     ()             => api.get('/performance/my-reviews'),
-  cycleReviews:  (id: PathId)           => api.get(`/performance/cycles/${id}/reviews`),
-  createCycle:   (data: unknown)         => api.post('/performance/cycles', data),
-  activateCycle: (id: PathId)           => api.post(`/performance/cycles/${id}/activate`),
-  closeCycle:    (id: PathId)           => api.post(`/performance/cycles/${id}/close`),
+  cycles:        (): Promise<AxiosResponse<CicloDeEvaluacion[]>>             => api.get('/performance/cycles'),
+  myReviews:     (): Promise<AxiosResponse<EvaluacionDeDesempeno[]>>             => api.get('/performance/my-reviews'),
+  cycleReviews:  (id: PathId): Promise<AxiosResponse<EvaluacionDeDesempeno[]>>           => api.get(`/performance/cycles/${id}/reviews`),
+  createCycle:   (data: unknown): Promise<AxiosResponse<{ id: string; name: string }>>         => api.post('/performance/cycles', data),
+  activateCycle: (id: PathId): Promise<AxiosResponse<{ status: string }>>           => api.post(`/performance/cycles/${id}/activate`),
+  closeCycle:    (id: PathId): Promise<AxiosResponse<{ status: string }>>           => api.post(`/performance/cycles/${id}/close`),
   // Asignar evaluación (qué evaluador evalúa a qué evaluado dentro de un ciclo)
-  createReview:  (cycleId: PathId, data: unknown) => api.post(`/performance/cycles/${cycleId}/reviews`, data),
-  updateReview:  (id: PathId, data: unknown)     => api.patch(`/performance/reviews/${id}`, data),
-  submitReview:  (id: PathId)           => api.post(`/performance/reviews/${id}/submit`),
+  createReview:  (cycleId: PathId, data: unknown): Promise<AxiosResponse<{ id: string }>> => api.post(`/performance/cycles/${cycleId}/reviews`, data),
+  updateReview:  (id: PathId, data: unknown): Promise<AxiosResponse<EvaluacionDeDesempeno>>     => api.patch(`/performance/reviews/${id}`, data),
+  submitReview:  (id: PathId): Promise<AxiosResponse<{ status: string }>>           => api.post(`/performance/reviews/${id}/submit`),
   // Plantilla de preguntas por ciclo
-  listQuestions:    (cycleId: PathId)            => api.get(`/performance/cycles/${cycleId}/questions`),
-  addQuestion:      (cycleId: PathId, data: unknown)      => api.post(`/performance/cycles/${cycleId}/questions`, data),
-  updateQuestion:   (qId: PathId, data: unknown)          => api.patch(`/performance/questions/${qId}`, data),
-  deleteQuestion:   (qId: PathId)                => api.delete(`/performance/questions/${qId}`),
+  listQuestions:    (cycleId: PathId): Promise<AxiosResponse<PreguntaDeEvaluacion[]>>            => api.get(`/performance/cycles/${cycleId}/questions`),
+  addQuestion:      (cycleId: PathId, data: unknown): Promise<AxiosResponse<PreguntaDeEvaluacion>>      => api.post(`/performance/cycles/${cycleId}/questions`, data),
+  updateQuestion:   (qId: PathId, data: unknown): Promise<AxiosResponse<PreguntaDeEvaluacion>>          => api.patch(`/performance/questions/${qId}`, data),
+  deleteQuestion:   (qId: PathId): Promise<AxiosResponse<void>>                => api.delete(`/performance/questions/${qId}`),
   // Smart 360°: pool de evaluadores elegibles según tipo de revisión
-  eligibleReviewers: (cycleId: PathId, revieweeId: PathId, type: string) =>
+  eligibleReviewers: (cycleId: PathId, revieweeId: PathId, type: string): Promise<AxiosResponse<EvaluadoresElegibles>> =>
     api.get(`/performance/cycles/${cycleId}/eligible-reviewers/${revieweeId}/${type}`),
   // Campañas 360° (subject + multi-evaluator + dashboard agregado anonimizado)
-  listCampaigns:    (cycleId: PathId)        => api.get(`/performance/cycles/${cycleId}/campaigns`),
-  createCampaign:   (cycleId: PathId, data: unknown)  => api.post(`/performance/cycles/${cycleId}/campaigns`, data),
-  campaignDashboard:(id: PathId)             => api.get(`/performance/campaigns/${id}/dashboard`),
-  campaignDashboardPdf:(id: PathId)          => api.get(`/performance/campaigns/${id}/dashboard.pdf`,
+  listCampaigns:    (cycleId: PathId): Promise<AxiosResponse<Campana360[]>>        => api.get(`/performance/cycles/${cycleId}/campaigns`),
+  createCampaign:   (cycleId: PathId, data: unknown): Promise<AxiosResponse<Campana360>>  => api.post(`/performance/cycles/${cycleId}/campaigns`, data),
+  campaignDashboard:(id: PathId): Promise<AxiosResponse<PanelDeCampana360>>             => api.get(`/performance/campaigns/${id}/dashboard`),
+  campaignDashboardPdf:(id: PathId): Promise<AxiosResponse<Blob>>          => api.get(`/performance/campaigns/${id}/dashboard.pdf`,
                                                 { responseType: 'blob' }),
-  history360:       (userId: PathId)         => api.get(`/performance/users/${userId}/360-history`),
+  history360:       (userId: PathId): Promise<AxiosResponse<Historico360>>         => api.get(`/performance/users/${userId}/360-history`),
   // KPIs operativos (HR)
-  orgKpis:          ()               => api.get('/performance/kpis'),
-  cycleKpis:        (id: PathId)             => api.get(`/performance/cycles/${id}/kpis`),
-  runReminders:     ()               => api.post('/performance/admin/run-reminders'),
+  orgKpis:          (): Promise<AxiosResponse<KpisDeDesempeno>>               => api.get('/performance/kpis'),
+  cycleKpis:        (id: PathId): Promise<AxiosResponse<KpisDeCiclo>>             => api.get(`/performance/cycles/${id}/kpis`),
+  runReminders:     (): Promise<AxiosResponse<EjecucionDeRecordatorios>>               => api.post('/performance/admin/run-reminders'),
   // Development plans
-  listUserPlans:    (userId: PathId)         => api.get(`/performance/users/${userId}/dev-plans`),
-  getPlan:          (id: PathId)             => api.get(`/performance/dev-plans/${id}`),
-  createPlan:       (data: unknown)           => api.post('/performance/dev-plans', data),
-  updatePlan:       (id: PathId, data: unknown)       => api.patch(`/performance/dev-plans/${id}`, data),
-  addGoal:          (planId: PathId, data: unknown)   => api.post(`/performance/dev-plans/${planId}/goals`, data),
-  updateGoal:       (id: PathId, data: unknown)       => api.patch(`/performance/dev-goals/${id}`, data),
-  deleteGoal:       (id: PathId)             => api.delete(`/performance/dev-goals/${id}`),
+  listUserPlans:    (userId: PathId): Promise<AxiosResponse<PlanDeDesarrollo[]>>         => api.get(`/performance/users/${userId}/dev-plans`),
+  getPlan:          (id: PathId): Promise<AxiosResponse<PlanDeDesarrollo>>             => api.get(`/performance/dev-plans/${id}`),
+  createPlan:       (data: unknown): Promise<AxiosResponse<PlanDeDesarrollo>>           => api.post('/performance/dev-plans', data),
+  updatePlan:       (id: PathId, data: unknown): Promise<AxiosResponse<PlanDeDesarrollo>>       => api.patch(`/performance/dev-plans/${id}`, data),
+  addGoal:          (planId: PathId, data: unknown): Promise<AxiosResponse<ObjetivoDeDesarrollo>>   => api.post(`/performance/dev-plans/${planId}/goals`, data),
+  updateGoal:       (id: PathId, data: unknown): Promise<AxiosResponse<ObjetivoDeDesarrollo>>       => api.patch(`/performance/dev-goals/${id}`, data),
+  deleteGoal:       (id: PathId): Promise<AxiosResponse<void>>             => api.delete(`/performance/dev-goals/${id}`),
 }
 
 // ── Capacity Planning ─────────────────────────────────────────────────────────
@@ -1109,7 +1113,7 @@ export const cmdb3dApi = {
 
 // ── WebSocket Ticket ──────────────────────────────────────────────────────────
 export const wsApi = {
-  ticket: () => api.get('/ws/ticket'),
+  ticket: (): Promise<AxiosResponse<TicketDeWebSocket>> => api.get('/ws/ticket'),
 }
 
 // ── Sprint (project-scoped) ───────────────────────────────────────────────────
@@ -1131,18 +1135,18 @@ export const projectSprintsApi = {
 
 // ── Portal Clients ────────────────────────────────────────────────────────────
 export const portalClientsApi = {
-  list:         (params?: QueryParams)   => api.get('/portal/clients', { params }),
-  create:       (data: unknown)     => api.post('/portal/clients', data),
-  update:       (id: PathId, data: unknown) => api.patch(`/portal/clients/${id}`, data),
+  list:         (params?: QueryParams): Promise<AxiosResponse<PortalUsuario[]>>   => api.get('/portal/clients', { params }),
+  create:       (data: unknown): Promise<AxiosResponse<PortalUsuarioCreado>>     => api.post('/portal/clients', data),
+  update:       (id: PathId, data: unknown): Promise<AxiosResponse<PortalUsuarioActualizado>> => api.patch(`/portal/clients/${id}`, data),
   translations: ()         => api.get('/portal/translations'),
   saveTranslations: (data: unknown) => api.post('/portal/translations', data),
 }
 
 // ── Semantic ──────────────────────────────────────────────────────────────────
 export const semanticApi = {
-  suggestTask:        (data: unknown) => api.post('/semantic/suggest/task', data),
+  suggestTask:        (data: unknown): Promise<AxiosResponse<SugerenciaDeAsignacion>> => api.post('/semantic/suggest/task', data),
   suggestTicket:      (data: unknown) => api.post('/semantic/suggest/ticket', data),
-  estimateEffort:     (data: unknown) => api.post('/semantic/estimate/effort', data),
+  estimateEffort:     (data: unknown): Promise<AxiosResponse<EstimacionDeEsfuerzo>> => api.post('/semantic/estimate/effort', data),
   estimateSprint:     (data: unknown) => api.post('/semantic/estimate/sprint-backlog', data),
   profiles:           () => api.get('/semantic/profiles'),
   createProfile:      (data: unknown) => api.post('/semantic/profiles', data),
@@ -1151,27 +1155,27 @@ export const semanticApi = {
   stats:              () => api.get('/semantic/stats'),
   autoGenerate:       () => api.post('/semantic/profiles/auto-generate'),
   rebuildEmbeddings:  () => api.post('/semantic/profiles/rebuild-embeddings'),
-  recordAssignment:   (data: unknown) => api.post('/semantic/record-assignment', data),
+  recordAssignment:   (data: unknown): Promise<AxiosResponse<{ ok: boolean }>> => api.post('/semantic/record-assignment', data),
 }
 
 // ── GRC ───────────────────────────────────────────────────────────────────────
 export const grcApi = {
-  permissions:      ()                           => api.get('/grc/permissions'),
-  seedPermissions:  ()                           => api.post('/grc/permissions/seed'),
-  updatePermission: (role: PathId, module: PathId, action: PathId, data: unknown) => api.patch(`/grc/permissions/${role}/${module}/${action}`, data),
-  sodRules:         ()                           => api.get('/grc/sod-rules'),
-  createSodRule:    (data: unknown)                       => api.post('/grc/sod-rules', data),
-  updateSodRule:    (id: PathId, data: unknown)                   => api.patch(`/grc/sod-rules/${id}`, data),
-  deleteSodRule:    (id: PathId)                         => api.delete(`/grc/sod-rules/${id}`),
-  sodCheck:         ()                           => api.get('/grc/sod-check'),
-  violations:       (params?: QueryParams)                     => api.get('/grc/violations', { params }),
-  resolveViolation: (id: PathId, data: unknown)                   => api.patch(`/grc/violations/${id}/resolve`, data),
-  auditLog:         (params?: QueryParams)                     => api.get('/grc/audit-log', { params }),
+  permissions:      (): Promise<AxiosResponse<PermisosGrc>>                           => api.get('/grc/permissions'),
+  seedPermissions:  (): Promise<AxiosResponse<{ ok: boolean; message: string }>>                           => api.post('/grc/permissions/seed'),
+  updatePermission: (role: PathId, module: PathId, action: PathId, data: unknown): Promise<AxiosResponse<PermisoGrcActualizado>> => api.patch(`/grc/permissions/${role}/${module}/${action}`, data),
+  sodRules:         (): Promise<AxiosResponse<ReglaSod[]>>                           => api.get('/grc/sod-rules'),
+  createSodRule:    (data: unknown): Promise<AxiosResponse<ReglaSod>>                       => api.post('/grc/sod-rules', data),
+  updateSodRule:    (id: PathId, data: unknown): Promise<AxiosResponse<ReglaSod>>                   => api.patch(`/grc/sod-rules/${id}`, data),
+  deleteSodRule:    (id: PathId): Promise<AxiosResponse<{ ok: boolean }>>                         => api.delete(`/grc/sod-rules/${id}`),
+  sodCheck:         (): Promise<AxiosResponse<ComprobacionSod>>                           => api.get('/grc/sod-check'),
+  violations:       (params?: QueryParams): Promise<AxiosResponse<ViolacionSod[]>>                     => api.get('/grc/violations', { params }),
+  resolveViolation: (id: PathId, data: unknown): Promise<AxiosResponse<ViolacionSod>>                   => api.patch(`/grc/violations/${id}/resolve`, data),
+  auditLog:         (params?: QueryParams): Promise<AxiosResponse<EventoDeAuditoriaGrc[]>>                     => api.get('/grc/audit-log', { params }),
   // Revisión 2026-11: explicador de accesos.
-  explainAccess:    (params: { user_id: string; method: string; path: string }) => api.get('/grc/access-explainer', { params }),
-  explainerRoutes:  ()                           => api.get('/grc/access-explainer/routes'),
-  complianceReport: ()                           => api.get('/grc/compliance-report'),
-  complianceReportSigned: ()                     => api.get('/grc/compliance-report', { params: { signed: true }, responseType: 'blob' }),
+  explainAccess:    (params: { user_id: string; method: string; path: string }): Promise<AxiosResponse<ExplicacionDeAcceso>> => api.get('/grc/access-explainer', { params }),
+  explainerRoutes:  (): Promise<AxiosResponse<RutaExplicable[]>>                           => api.get('/grc/access-explainer/routes'),
+  complianceReport: (): Promise<AxiosResponse<InformeDeCumplimiento>>                           => api.get('/grc/compliance-report'),
+  complianceReportSigned: (): Promise<AxiosResponse<Blob>>                     => api.get('/grc/compliance-report', { params: { signed: true }, responseType: 'blob' }),
 }
 
 // ── Automations ───────────────────────────────────────────────────────────────
@@ -1187,7 +1191,7 @@ export const automationsApi = {
 }
 
 export const autoWorkflowsApi = {
-  list:   ()             => api.get('/automation-workflows'),
+  list:   (): Promise<AxiosResponse<FlujoDeAutomatizacion[]>> => api.get('/automation-workflows'),
 }
 
 // ── Scheduled Reports ─────────────────────────────────────────────────────────
@@ -1201,26 +1205,26 @@ export const scheduledReportsApi = {
 
 // ── AI Providers ──────────────────────────────────────────────────────────────
 export const aiProvidersApi = {
-  spendToday: () => api.get('/ai-providers/spend-today'),
-  list:        ()         => api.get('/ai-providers'),
-  catalog:     ()         => api.get('/ai-providers/catalog'),
-  stats:       ()         => api.get('/ai-providers/stats'),
-  diagnostics: ()         => api.get('/ai-providers/diagnostics'),
-  create:      (data: unknown)     => api.post('/ai-providers', data),
-  update:      (id: PathId, data: unknown) => api.patch(`/ai-providers/${id}`, data),
-  delete:      (id: PathId)       => api.delete(`/ai-providers/${id}`),
-  test:        (id: PathId)       => api.post(`/ai-providers/${id}/test`),
-  syncModels:  (id: PathId)       => api.post(`/ai-providers/${id}/sync-models`),
-  setDefault:  (id: PathId)       => api.post(`/ai-providers/${id}/set-default`),
-  syncAll:     ()         => api.post('/ai-providers/sync-models/all'),
+  spendToday: (): Promise<AxiosResponse<GastoIaDeHoy>> => api.get('/ai-providers/spend-today'),
+  list:        (): Promise<AxiosResponse<ProveedorIa[]>>         => api.get('/ai-providers'),
+  catalog:     (): Promise<AxiosResponse<CatalogoIa>>         => api.get('/ai-providers/catalog'),
+  stats:       (): Promise<AxiosResponse<EstadisticasIa>>         => api.get('/ai-providers/stats'),
+  diagnostics: (): Promise<AxiosResponse<DiagnosticoIa>>         => api.get('/ai-providers/diagnostics'),
+  create:      (data: unknown): Promise<AxiosResponse<ProveedorIa>>     => api.post('/ai-providers', data),
+  update:      (id: PathId, data: unknown): Promise<AxiosResponse<ProveedorIa>> => api.patch(`/ai-providers/${id}`, data),
+  delete:      (id: PathId): Promise<AxiosResponse<{ ok: boolean }>>       => api.delete(`/ai-providers/${id}`),
+  test:        (id: PathId): Promise<AxiosResponse<PruebaDeProveedorIa>>       => api.post(`/ai-providers/${id}/test`),
+  syncModels:  (id: PathId): Promise<AxiosResponse<ModelosSincronizadosIa>>       => api.post(`/ai-providers/${id}/sync-models`),
+  setDefault:  (id: PathId): Promise<AxiosResponse<{ ok: boolean }>>       => api.post(`/ai-providers/${id}/set-default`),
+  syncAll:     (): Promise<AxiosResponse<SincronizacionIa>>         => api.post('/ai-providers/sync-models/all'),
   // Revisión 2026-11 (de contecmind): probar y descubrir sin guardar, y por función.
-  testConfig:     (data: unknown) => api.post('/ai-providers/test-config', data),
-  discoverModels: (data: unknown) => api.post('/ai-providers/discover-models', data),
-  getRouting:     ()              => api.get('/ai-providers/routing'),
-  saveRouting:    (routes: unknown) => api.put('/ai-providers/routing', { routes }),
+  testConfig:     (data: unknown): Promise<AxiosResponse<PruebaDeProveedorIa>> => api.post('/ai-providers/test-config', data),
+  discoverModels: (data: unknown): Promise<AxiosResponse<{ models: string[] }>> => api.post('/ai-providers/discover-models', data),
+  getRouting:     (): Promise<AxiosResponse<EnrutadoIa>>              => api.get('/ai-providers/routing'),
+  saveRouting:    (routes: unknown): Promise<AxiosResponse<{ routes: RutasIa }>> => api.put('/ai-providers/routing', { routes }),
   // El proveedor configurado en .env: se ve, se prueba y se puede importar.
-  testEnv:        ()              => api.post('/ai-providers/env/test'),
-  importEnv:      ()              => api.post('/ai-providers/env/import'),
+  testEnv:        (): Promise<AxiosResponse<PruebaDeProveedorIa>>              => api.post('/ai-providers/env/test'),
+  importEnv:      (): Promise<AxiosResponse<ProveedorIa>>              => api.post('/ai-providers/env/import'),
 }
 
 // ── Service Desk Config ───────────────────────────────────────────────────────
@@ -1230,26 +1234,26 @@ export const sdMetricsApi = {
 }
 
 export const sdCatalogApi = {
-  list:           ()         => api.get('/sd/catalog'),
-  createCategory: (data: unknown)     => api.post('/sd/catalog/categories', data),
-  updateCategory: (id: PathId, data: unknown) => api.patch(`/sd/catalog/categories/${id}`, data),
-  deleteCategory: (id: PathId)       => api.delete(`/sd/catalog/categories/${id}`),
-  createService:  (data: unknown)     => api.post('/sd/catalog/services', data),
-  updateService:  (id: PathId, data: unknown) => api.patch(`/sd/catalog/services/${id}`, data),
-  deleteService:  (id: PathId)       => api.delete(`/sd/catalog/services/${id}`),
+  list:           (): Promise<AxiosResponse<SdCategoriaDeCatalogo[]>>         => api.get('/sd/catalog'),
+  createCategory: (data: unknown): Promise<AxiosResponse<SdIdNombre>>     => api.post('/sd/catalog/categories', data),
+  updateCategory: (id: PathId, data: unknown): Promise<AxiosResponse<SdIdNombre>> => api.patch(`/sd/catalog/categories/${id}`, data),
+  deleteCategory: (id: PathId): Promise<AxiosResponse<SdOk>>       => api.delete(`/sd/catalog/categories/${id}`),
+  createService:  (data: unknown): Promise<AxiosResponse<SdIdNombre>>     => api.post('/sd/catalog/services', data),
+  updateService:  (id: PathId, data: unknown): Promise<AxiosResponse<SdOk>> => api.patch(`/sd/catalog/services/${id}`, data),
+  deleteService:  (id: PathId): Promise<AxiosResponse<SdOk>>       => api.delete(`/sd/catalog/services/${id}`),
 }
 
 export const sdSlaPoliciesApi = {
   // Las dos rutas escritas enteras: el comprobador de rutas del frontal no
   // resuelve un segmento variable en medio («assign/${tipo}/…»).
-  assign: (tipo: 'client' | 'contract', id: string, slaPolicyId: string | null) =>
+  assign: (tipo: 'client' | 'contract', id: string, slaPolicyId: string | null): Promise<AxiosResponse<SdAsignacionSla>> =>
     tipo === 'client'
       ? api.patch(`/sd/sla-policies/assign/client/${id}`, { sla_policy_id: slaPolicyId })
       : api.patch(`/sd/sla-policies/assign/contract/${id}`, { sla_policy_id: slaPolicyId }),
-  list:   ()         => api.get('/sd/sla-policies'),
-  create: (data: unknown)     => api.post('/sd/sla-policies', data),
-  update: (id: PathId, data: unknown) => api.patch(`/sd/sla-policies/${id}`, data),
-  delete: (id: PathId)       => api.delete(`/sd/sla-policies/${id}`),
+  list:   (): Promise<AxiosResponse<SdPoliticaSla[]>>         => api.get('/sd/sla-policies'),
+  create: (data: unknown): Promise<AxiosResponse<SdIdNombre>>     => api.post('/sd/sla-policies', data),
+  update: (id: PathId, data: unknown): Promise<AxiosResponse<SdIdNombre>> => api.patch(`/sd/sla-policies/${id}`, data),
+  delete: (id: PathId): Promise<AxiosResponse<SdOk>>       => api.delete(`/sd/sla-policies/${id}`),
 }
 
 export const sdEscalationApi = {
@@ -1305,7 +1309,7 @@ export const sdStatusPageApi = {
 
 export const sdApprovalsApi = {
   mine:   ()                                  => api.get('/sd/approvals/mine'),
-  decide: (ticketId: string, data: unknown)   => api.post(`/sd/tickets/${ticketId}/approval`, data),
+  decide: (ticketId: string, data: unknown): Promise<AxiosResponse<SdAprobacionDeTicket>>   => api.post(`/sd/tickets/${ticketId}/approval`, data),
 }
 
 export const sdInboundApi = {
@@ -1315,32 +1319,32 @@ export const sdInboundApi = {
 }
 
 export const sdGroupsApi = {
-  list:         ()         => api.get('/sd/groups'),
-  create:       (data: unknown)     => api.post('/sd/groups', data),
-  update:       (id: PathId, data: unknown) => api.patch(`/sd/groups/${id}`, data),
-  delete:       (id: PathId)       => api.delete(`/sd/groups/${id}`),
-  addMember:    (gid: PathId, uid: PathId) => api.post(`/sd/groups/${gid}/members/${uid}`),
-  removeMember: (gid: PathId, uid: PathId) => api.delete(`/sd/groups/${gid}/members/${uid}`),
+  list:         (): Promise<AxiosResponse<SdGrupo[]>>         => api.get('/sd/groups'),
+  create:       (data: unknown): Promise<AxiosResponse<SdIdNombre>>     => api.post('/sd/groups', data),
+  update:       (id: PathId, data: unknown): Promise<AxiosResponse<SdIdNombre>> => api.patch(`/sd/groups/${id}`, data),
+  delete:       (id: PathId): Promise<AxiosResponse<SdOk>>       => api.delete(`/sd/groups/${id}`),
+  addMember:    (gid: PathId, uid: PathId): Promise<AxiosResponse<SdOk>> => api.post(`/sd/groups/${gid}/members/${uid}`),
+  removeMember: (gid: PathId, uid: PathId): Promise<AxiosResponse<SdOk>> => api.delete(`/sd/groups/${gid}/members/${uid}`),
 }
 
 export const sdTemplatesApi = {
-  list:   ()         => api.get('/sd/ticket-templates'),
-  create: (data: unknown)     => api.post('/sd/ticket-templates', data),
-  update: (id: PathId, data: unknown) => api.patch(`/sd/ticket-templates/${id}`, data),
-  delete: (id: PathId)       => api.delete(`/sd/ticket-templates/${id}`),
+  list:   (): Promise<AxiosResponse<SdPlantillaDeTicket[]>>         => api.get('/sd/ticket-templates'),
+  create: (data: unknown): Promise<AxiosResponse<SdIdNombre>>     => api.post('/sd/ticket-templates', data),
+  update: (id: PathId, data: unknown): Promise<AxiosResponse<SdOk>> => api.patch(`/sd/ticket-templates/${id}`, data),
+  delete: (id: PathId): Promise<AxiosResponse<SdOk & { message: string }>>       => api.delete(`/sd/ticket-templates/${id}`),
 }
 
 export const sdCannedApi = {
-  list:   (params?: QueryParams)   => api.get('/sd/canned-responses', { params }),
-  create: (data: unknown)     => api.post('/sd/canned-responses', data),
-  update: (id: PathId, data: unknown) => api.patch(`/sd/canned-responses/${id}`, data),
-  delete: (id: PathId)       => api.delete(`/sd/canned-responses/${id}`),
+  list:   (params?: QueryParams): Promise<AxiosResponse<SdRespuestaRapida[]>>   => api.get('/sd/canned-responses', { params }),
+  create: (data: unknown): Promise<AxiosResponse<SdRespuestaRapidaCompacta>>     => api.post('/sd/canned-responses', data),
+  update: (id: PathId, data: unknown): Promise<AxiosResponse<SdRespuestaRapidaCompacta>> => api.patch(`/sd/canned-responses/${id}`, data),
+  delete: (id: PathId): Promise<AxiosResponse<SdOk & { message: string }>>       => api.delete(`/sd/canned-responses/${id}`),
 }
 
 export const sdAnnouncementsApi = {
-  list:   ()     => api.get('/sd/announcements'),
-  create: (data: unknown) => api.post('/sd/announcements', data),
-  delete: (id: PathId)   => api.delete(`/sd/announcements/${id}`),
+  list:   (): Promise<AxiosResponse<SdAnuncio[]>>     => api.get('/sd/announcements'),
+  create: (data: unknown): Promise<AxiosResponse<{ id: string }>> => api.post('/sd/announcements', data),
+  delete: (id: PathId): Promise<AxiosResponse<SdOk>>   => api.delete(`/sd/announcements/${id}`),
 }
 
 export const sdRoutingApi = {
@@ -1353,62 +1357,62 @@ export const sdRoutingApi = {
 }
 
 export const sdKbApi = {
-  list:        (params?: QueryParams)   => api.get('/sd/kb', { params }),
-  get:         (id: PathId)        => api.get(`/sd/kb/${id}`),
-  create:      (data: unknown)     => api.post('/sd/kb', data),
-  update:      (id: PathId, data: unknown) => api.patch(`/sd/kb/${id}`, data),
-  delete:      (id: PathId)       => api.delete(`/sd/kb/${id}`),
-  submit:      (id: PathId)       => api.post(`/sd/kb/${id}/submit`),
-  review:      (id: PathId, data: unknown) => api.post(`/sd/kb/${id}/review`, data),
-  knownErrors:        ()     => api.get('/sd/known-errors'),
-  knownErrorTickets:  (id: PathId)   => api.get(`/sd/known-errors/${id}/tickets`),
+  list:        (params?: QueryParams): Promise<AxiosResponse<SdArticuloKb[]>>   => api.get('/sd/kb', { params }),
+  get:         (id: PathId): Promise<AxiosResponse<SdArticuloKbDetalle>>        => api.get(`/sd/kb/${id}`),
+  create:      (data: unknown): Promise<AxiosResponse<SdArticuloCreado>>     => api.post('/sd/kb', data),
+  update:      (id: PathId, data: unknown): Promise<AxiosResponse<SdOk>> => api.patch(`/sd/kb/${id}`, data),
+  delete:      (id: PathId): Promise<AxiosResponse<SdOk>>       => api.delete(`/sd/kb/${id}`),
+  submit:      (id: PathId): Promise<AxiosResponse<SdRevisionKb>>       => api.post(`/sd/kb/${id}/submit`),
+  review:      (id: PathId, data: unknown): Promise<AxiosResponse<SdRevisionKb>> => api.post(`/sd/kb/${id}/review`, data),
+  knownErrors:        (): Promise<AxiosResponse<SdErrorConocido[]>>     => api.get('/sd/known-errors'),
+  knownErrorTickets:  (id: PathId): Promise<AxiosResponse<SdTicketDeErrorConocido[]>>   => api.get(`/sd/known-errors/${id}/tickets`),
   // Calidad de la base (revisión 2026-11)
-  quality:            ()     => api.get('/sd/kb/quality'),
-  runQuality:         ()     => api.post('/sd/kb/quality/run'),
-  createCorrection:   (data: { question: string; answer: string; is_public?: boolean; gap_id?: string }) => api.post('/sd/kb/corrections', data),
-  setCorrectionStatus: (id: string, status: string) => api.patch(`/sd/kb/corrections/${id}`, { status }),
-  setGapStatus:       (id: string, status: string) => api.patch(`/sd/kb/gaps/${id}`, { status }),
-  setFindingStatus:   (id: string, status: string) => api.patch(`/sd/kb/findings/${id}`, { status }),
+  quality:            (): Promise<AxiosResponse<SdCalidadKb>>     => api.get('/sd/kb/quality'),
+  runQuality:         (): Promise<AxiosResponse<SdPasadaKb>>     => api.post('/sd/kb/quality/run'),
+  createCorrection:   (data: { question: string; answer: string; is_public?: boolean; gap_id?: string }): Promise<AxiosResponse<{ id: string }>> => api.post('/sd/kb/corrections', data),
+  setCorrectionStatus: (id: string, status: string): Promise<AxiosResponse<SdOk>> => api.patch(`/sd/kb/corrections/${id}`, { status }),
+  setGapStatus:       (id: string, status: string): Promise<AxiosResponse<SdOk>> => api.patch(`/sd/kb/gaps/${id}`, { status }),
+  setFindingStatus:   (id: string, status: string): Promise<AxiosResponse<SdOk>> => api.patch(`/sd/kb/findings/${id}`, { status }),
 }
 
 // ── Enterprise ────────────────────────────────────────────────────────────────
 export const webhooksApi = {
-  list:   ()         => api.get('/webhooks'),
-  create: (data: unknown)     => api.post('/webhooks', data),
-  delete: (id: PathId)       => api.delete(`/webhooks/${id}`),
-  logs:   (id: PathId)       => api.get(`/webhooks/${id}/logs`),
+  list:   (): Promise<AxiosResponse<WebhookEntrante[]>> => api.get('/webhooks'),
+  create: (data: unknown): Promise<AxiosResponse<WebhookEntranteCreado>> => api.post('/webhooks', data),
+  delete: (id: PathId): Promise<AxiosResponse<{ ok: boolean }>> => api.delete(`/webhooks/${id}`),
+  logs:   (id: PathId): Promise<AxiosResponse<LlamadaDeWebhook[]>> => api.get(`/webhooks/${id}/logs`),
 }
 
 export const gdprApi = {
-  list:    ()     => api.get('/gdpr/requests'),
-  create:  (data: unknown) => api.post('/gdpr/requests', data),
-  process: (id: PathId)   => api.post(`/gdpr/requests/${id}/process`),
+  list:    (): Promise<AxiosResponse<SolicitudRgpd[]>> => api.get('/gdpr/requests'),
+  create:  (data: unknown): Promise<AxiosResponse<SolicitudRgpdCreada>> => api.post('/gdpr/requests', data),
+  process: (id: PathId): Promise<AxiosResponse<SolicitudRgpdProcesada>> => api.post(`/gdpr/requests/${id}/process`),
 }
 
 export const emailApi = {
-  catalog:        ()     => api.get('/email/templates'),
-  logs:           ()     => api.get('/email/logs'),
-  send:           (data: unknown) => api.post('/email/send', data),
-  createTemplate: (data: unknown) => api.post('/email/templates', data),
+  catalog:        (): Promise<AxiosResponse<CatalogoDeCorreo>> => api.get('/email/templates'),
+  logs:           (): Promise<AxiosResponse<EnvioDeCorreo[]>> => api.get('/email/logs'),
+  send:           (data: unknown): Promise<AxiosResponse<CorreoEnviado>> => api.post('/email/send', data),
+  createTemplate: (data: unknown): Promise<AxiosResponse<{ ok: boolean; id: string }>> => api.post('/email/templates', data),
 }
 
 export const oauthIntegrationsApi = {
-  list:   ()             => api.get('/oauth-integrations'),
-  create: (data: unknown)         => api.post('/oauth-integrations', data),
-  delete: (id: PathId)           => api.delete(`/oauth-integrations/${id}`),
-  sync:   (id: PathId, data: unknown)     => api.post(`/oauth-integrations/${id}/sync`, data),
+  list:   (): Promise<AxiosResponse<IntegracionOAuth[]>> => api.get('/oauth-integrations'),
+  create: (data: unknown): Promise<AxiosResponse<IntegracionGuardada>> => api.post('/oauth-integrations', data),
+  delete: (id: PathId): Promise<AxiosResponse<IntegracionDesactivada>> => api.delete(`/oauth-integrations/${id}`),
+  sync:   (id: PathId, data: unknown): Promise<AxiosResponse<SincronizacionDeIntegracion>> => api.post(`/oauth-integrations/${id}/sync`, data),
 }
 
 export const enterpriseApi = {
-  auditLog:                (params?: QueryParams) => api.get('/enterprise/audit-log', { params }),
+  auditLog:                (params?: QueryParams): Promise<AxiosResponse<PaginaDeAuditoria>> => api.get('/enterprise/audit-log', { params }),
   // Revisión 2026-11: cadena a prueba de manipulación.
-  verifyAuditChain:        (params?: { expected_seq?: number; expected_hash?: string }) => api.get('/enterprise/audit-log/chain/verify', { params }),
-  exportAuditChain:        () => api.get('/enterprise/audit-log/chain/export', { responseType: 'blob' }),
-  ssoList:                 ()       => api.get('/enterprise/sso'),
-  ssoCreate:               (data: unknown)   => api.post('/enterprise/sso', data),
-  ssoUpdate:               (id: PathId, data: unknown) => api.patch(`/enterprise/sso/${id}`, data),
-  ssoDelete:               (id: PathId)     => api.delete(`/enterprise/sso/${id}`),
-  ssoTest:                 (id: PathId)     => api.post(`/enterprise/sso/${id}/test`),
+  verifyAuditChain:        (params?: { expected_seq?: number; expected_hash?: string }): Promise<AxiosResponse<VerificacionDeCadena>> => api.get('/enterprise/audit-log/chain/verify', { params }),
+  exportAuditChain:        (): Promise<AxiosResponse<Blob>> => api.get('/enterprise/audit-log/chain/export', { responseType: 'blob' }),
+  ssoList:                 (): Promise<AxiosResponse<ConfigSso[]>> => api.get('/enterprise/sso'),
+  ssoCreate:               (data: unknown): Promise<AxiosResponse<ConfigSso>> => api.post('/enterprise/sso', data),
+  ssoUpdate:               (id: PathId, data: unknown): Promise<AxiosResponse<ConfigSso>> => api.patch(`/enterprise/sso/${id}`, data),
+  ssoDelete:               (id: PathId): Promise<AxiosResponse<{ ok: boolean; message: string }>> => api.delete(`/enterprise/sso/${id}`),
+  ssoTest:                 (id: PathId): Promise<AxiosResponse<ValidacionSso>> => api.post(`/enterprise/sso/${id}/test`),
   // Segunda auditoría 2026-11 (#22): webhooks salientes y sus entregas en una sola llamada.
   outboundWebhooks:        ()       => api.get('/enterprise/webhooks'),
   outboundWebhookEvents:   ()       => api.get('/enterprise/webhooks/events'),
@@ -1417,54 +1421,54 @@ export const enterpriseApi = {
 }
 
 export const integrationsHubApi = {
-  testSlack:  (data: unknown) => api.post('/integrations-hub/slack/test', data),
-  testTeams:  (data: unknown) => api.post('/integrations-hub/teams/test', data),
-  testJira:   (data: unknown) => api.post('/integrations-hub/jira/test', data),
+  testSlack:  (data: unknown): Promise<AxiosResponse<PruebaDeMensajeria>> => api.post('/integrations-hub/slack/test', data),
+  testTeams:  (data: unknown): Promise<AxiosResponse<PruebaDeMensajeria>> => api.post('/integrations-hub/teams/test', data),
+  testJira:   (data: unknown): Promise<AxiosResponse<PruebaDeJira>> => api.post('/integrations-hub/jira/test', data),
   // Segunda auditoría 2026-11 (#23): Jira usa la conexión única de la organización.
-  jiraConfig:       () => api.get('/integrations-hub/jira/config'),
-  saveJiraConfig:   (data: { name?: string; base_url: string; email: string; api_token?: string; project_key?: string }) =>
+  jiraConfig:       (): Promise<AxiosResponse<ConfigJiraDelHub>> => api.get('/integrations-hub/jira/config'),
+  saveJiraConfig:   (data: { name?: string; base_url: string; email: string; api_token?: string; project_key?: string }): Promise<AxiosResponse<ConfigJiraDelHub>> =>
                       api.put('/integrations-hub/jira/config', data),
-  deleteJiraConfig: () => api.delete('/integrations-hub/jira/config'),
-  syncJira:         () => api.post('/integrations-hub/jira/sync'),
+  deleteJiraConfig: (): Promise<AxiosResponse<IntegracionDesactivada>> => api.delete('/integrations-hub/jira/config'),
+  syncJira:         (): Promise<AxiosResponse<SincronizacionDeIntegracion>> => api.post('/integrations-hub/jira/sync'),
 }
 
 export const apiKeysApi = {
-  list:   ()         => api.get('/bookings/api-keys'),
-  create: (data: unknown)     => api.post('/bookings/api-keys', data),
-  delete: (id: PathId)       => api.delete(`/bookings/api-keys/${id}`),
+  list:   (): Promise<AxiosResponse<ClaveDeApi[]>> => api.get('/bookings/api-keys'),
+  create: (data: unknown): Promise<AxiosResponse<ClaveDeApiCreada>> => api.post('/bookings/api-keys', data),
+  delete: (id: PathId): Promise<AxiosResponse<{ ok: boolean }>> => api.delete(`/bookings/api-keys/${id}`),
 }
 
 // ── Client Portal ─────────────────────────────────────────────────────────────
 export const portalApi = {
   // Listar/crear/editar usuarios del portal: `portalClientsApi` (auditoria 2026-11, #45).
-  deleteClient:         (id: PathId)              => api.delete(`/portal/clients/${id}`),
-  uat:                  (params?: QueryParams)          => api.get('/portal/uat/team', { params }),
-  createUat:            (projectId: PathId, data: unknown) => api.post(`/portal/uat/${projectId}`, data),
-  addTestCase:          (id: PathId, data: unknown)        => api.post(`/portal/uat/${id}/test-cases`, data),
-  updateUatStatus:      (id: PathId, params?: QueryParams)      => api.patch(`/portal/uat/issues/${id}`, null, { params }),
-  featureRequests:      (params?: QueryParams)          => api.get('/portal/feature-requests/team', { params }),
-  respondFeatureRequest:(id: PathId, data: unknown)        => api.post(`/portal/feature-requests/${id}/respond`, data),
-  documents:            (params?: QueryParams)          => api.get('/portal/documents/team', { params }),
-  createDocument:       (projectId: PathId, data: unknown) => api.post('/portal/documents', data, { params: { project_id: projectId } }),
-  stats:                (projectId: PathId)       => api.get(`/portal/stats/${projectId}`),
+  deleteClient:         (id: PathId): Promise<AxiosResponse<{ ok: boolean }>>              => api.delete(`/portal/clients/${id}`),
+  uat:                  (params?: QueryParams): Promise<AxiosResponse<PortalSesionUat[]>>          => api.get('/portal/uat/team', { params }),
+  createUat:            (projectId: PathId, data: unknown): Promise<AxiosResponse<PortalSesionUat>> => api.post(`/portal/uat/${projectId}`, data),
+  addTestCase:          (id: PathId, data: unknown): Promise<AxiosResponse<PortalCasoCreado>>        => api.post(`/portal/uat/${id}/test-cases`, data),
+  updateUatStatus:      (id: PathId, params?: QueryParams): Promise<AxiosResponse<{ ok: boolean }>>      => api.patch(`/portal/uat/issues/${id}`, null, { params }),
+  featureRequests:      (params?: QueryParams): Promise<AxiosResponse<PortalPeticion[]>>          => api.get('/portal/feature-requests/team', { params }),
+  respondFeatureRequest:(id: PathId, data: unknown): Promise<AxiosResponse<PortalPeticion>>        => api.post(`/portal/feature-requests/${id}/respond`, data),
+  documents:            (params?: QueryParams): Promise<AxiosResponse<PortalDocumento[]>>          => api.get('/portal/documents/team', { params }),
+  createDocument:       (projectId: PathId, data: unknown): Promise<AxiosResponse<PortalDocumento>> => api.post('/portal/documents', data, { params: { project_id: projectId } }),
+  stats:                (projectId: PathId): Promise<AxiosResponse<PortalEstadisticas>>       => api.get(`/portal/stats/${projectId}`),
 }
 
 // ── Client Extensions ─────────────────────────────────────────────────────────
 export const clientExtApi = {
-  projects:           (cid: PathId)       => api.get(`/clients/${cid}/projects`),
-  availableProjects:  (cid: PathId)       => api.get(`/clients/${cid}/projects/available`),
-  linkProject:        (cid: PathId, pid: PathId)  => api.post(`/clients/${cid}/projects/${pid}/link`),
-  unlinkProject:      (cid: PathId, pid: PathId)  => api.delete(`/clients/${cid}/projects/${pid}/link`),
-  createContact:      (cid: PathId, data: unknown) => api.post(`/clients/${cid}/contacts`, data),
-  deleteContact:      (cid: PathId, id: PathId)   => api.delete(`/clients/${cid}/contacts/${id}`),
-  licenses:           (cid: PathId)       => api.get(`/clients/${cid}/licenses`),
-  linkLicense:        (cid: PathId, data: unknown) => api.post(`/clients/${cid}/licenses`, data),
-  unlinkLicense:      (cid: PathId, id: PathId)   => api.delete(`/clients/${cid}/licenses/${id}`),
-  contracts:          (cid: PathId)       => api.get(`/clients/${cid}/contracts`),
-  linkContract:       (cid: PathId, data: unknown) => api.post(`/clients/${cid}/contracts`, data),
-  unlinkContract:     (cid: PathId, id: PathId)   => api.delete(`/clients/${cid}/contracts/${id}`),
-  portalConfig:       (cid: PathId)       => api.get(`/clients/${cid}/portal-config`),
-  updatePortalConfig: (cid: PathId, data: unknown) => api.patch(`/clients/${cid}/portal-config`, data),
+  projects:           (cid: PathId): Promise<AxiosResponse<ClienteProyecto[]>>       => api.get(`/clients/${cid}/projects`),
+  availableProjects:  (cid: PathId): Promise<AxiosResponse<ClienteProyecto[]>>       => api.get(`/clients/${cid}/projects/available`),
+  linkProject:        (cid: PathId, pid: PathId): Promise<AxiosResponse<ClienteProyectoVinculado>>  => api.post(`/clients/${cid}/projects/${pid}/link`),
+  unlinkProject:      (cid: PathId, pid: PathId): Promise<AxiosResponse<{ ok: boolean }>>  => api.delete(`/clients/${cid}/projects/${pid}/link`),
+  createContact:      (cid: PathId, data: unknown): Promise<AxiosResponse<ClienteContactoCreado>> => api.post(`/clients/${cid}/contacts`, data),
+  deleteContact:      (cid: PathId, id: PathId): Promise<AxiosResponse<ConfirmacionOk>>   => api.delete(`/clients/${cid}/contacts/${id}`),
+  licenses:           (cid: PathId): Promise<AxiosResponse<ClienteLicencia[]>>       => api.get(`/clients/${cid}/licenses`),
+  linkLicense:        (cid: PathId, data: unknown): Promise<AxiosResponse<ClienteLicenciaVinculada>> => api.post(`/clients/${cid}/licenses`, data),
+  unlinkLicense:      (cid: PathId, id: PathId): Promise<AxiosResponse<ConfirmacionOk>>   => api.delete(`/clients/${cid}/licenses/${id}`),
+  contracts:          (cid: PathId): Promise<AxiosResponse<ClienteContrato[]>>       => api.get(`/clients/${cid}/contracts`),
+  linkContract:       (cid: PathId, data: unknown): Promise<AxiosResponse<ClienteContratoVinculado>> => api.post(`/clients/${cid}/contracts`, data),
+  unlinkContract:     (cid: PathId, id: PathId): Promise<AxiosResponse<ConfirmacionOk>>   => api.delete(`/clients/${cid}/contracts/${id}`),
+  portalConfig:       (cid: PathId): Promise<AxiosResponse<ClientePortalConfig>>       => api.get(`/clients/${cid}/portal-config`),
+  updatePortalConfig: (cid: PathId, data: unknown): Promise<AxiosResponse<ClientePortalConfigGuardada>> => api.patch(`/clients/${cid}/portal-config`, data),
 }
 
 // ── SLA Calendars ─────────────────────────────────────────────────────────────
@@ -1482,7 +1486,7 @@ export const slaCalendarsApi = {
 
 // ── Project Workflows ─────────────────────────────────────────────────────────
 export const projectWorkflowsApi = {
-  get:              (projectId: PathId) => api.get(`/project-workflows/${projectId}`),
+  get:              (projectId: PathId): Promise<AxiosResponse<FlujoDelProyecto>> => api.get(`/project-workflows/${projectId}`),
   init:             (projectId: PathId) => api.post(`/project-workflows/${projectId}/init`),
   createState:      (projectId: PathId, data: unknown) => api.post(`/project-workflows/${projectId}/states`, data),
   updateState:      (projectId: PathId, stateId: PathId, data: unknown) => api.patch(`/project-workflows/${projectId}/states/${stateId}`, data),
@@ -1581,7 +1585,7 @@ export const mentionsApi = {
 
 // ── Issue Types ───────────────────────────────────────────────────────────────
 export const issueTypesApi = {
-  list:   (projectId: PathId) => api.get(`/issue-types/${projectId}`),
+  list:   (projectId: PathId): Promise<AxiosResponse<TipoDeIncidencia[]>> => api.get(`/issue-types/${projectId}`),
   create: (projectId: PathId, data: unknown) => api.post(`/issue-types/${projectId}`, data),
   update: (projectId: PathId, id: PathId, data: unknown) => api.patch(`/issue-types/${projectId}/${id}`, data),
   init:   (projectId: PathId) => api.post(`/issue-types/${projectId}/init`),
@@ -1627,13 +1631,13 @@ export const governanceApi = {
   logs:    () => api.get(`/governance/logs?limit=${GOVERNANCE_LOGS_LIMIT}`),
   update:  (module: PathId, data: unknown) => api.patch(`/governance/config/${module}`, data),
   // Revisión 2026-11: retención y bloqueo legal.
-  retentionPolicies: () => api.get('/governance/retention/policies'),
-  saveRetention:     (entity: string, data: { keep_days: number; is_active: boolean }) => api.put(`/governance/retention/policies/${entity}`, data),
-  retentionPreview:  (entity: string, keep_days: number) => api.get('/governance/retention/preview', { params: { entity, keep_days } }),
-  retentionRun:      () => api.post('/governance/retention/run'),
-  legalHolds:        () => api.get('/governance/legal-holds'),
-  createLegalHold:   (data: { case_reference: string; reason?: string; entity: string; field: string; value: string }) => api.post('/governance/legal-holds', data),
-  releaseLegalHold:  (id: string) => api.post(`/governance/legal-holds/${id}/release`),
+  retentionPolicies: (): Promise<AxiosResponse<PoliticasDeRetencion>> => api.get('/governance/retention/policies'),
+  saveRetention:     (entity: string, data: { keep_days: number; is_active: boolean }): Promise<AxiosResponse<PoliticaDeRetencion>> => api.put(`/governance/retention/policies/${entity}`, data),
+  retentionPreview:  (entity: string, keep_days: number): Promise<AxiosResponse<VistaPreviaDeRetencion>> => api.get('/governance/retention/preview', { params: { entity, keep_days } }),
+  retentionRun:      (): Promise<AxiosResponse<ResultadoDeRetencion>> => api.post('/governance/retention/run'),
+  legalHolds:        (): Promise<AxiosResponse<BloqueoLegal[]>> => api.get('/governance/legal-holds'),
+  createLegalHold:   (data: { case_reference: string; reason?: string; entity: string; field: string; value: string }): Promise<AxiosResponse<{ id: string }>> => api.post('/governance/legal-holds', data),
+  releaseLegalHold:  (id: string): Promise<AxiosResponse<{ id: string; is_active: false }>> => api.post(`/governance/legal-holds/${id}/release`),
 }
 
 // ── Epic Dependencies ─────────────────────────────────────────────────────────

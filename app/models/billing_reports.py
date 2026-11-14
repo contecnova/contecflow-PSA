@@ -372,7 +372,7 @@ class ApprovalStep(Base):
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    workflow_id  = Column(String(36), ForeignKey("approval_workflows.id", ondelete="CASCADE"), nullable=False)
+    workflow_id  = Column(String(36), ForeignKey("approval_workflows.id", ondelete="CASCADE"), nullable=False, index=True)
     step_order   = Column(Integer, nullable=False)     # 1, 2, 3...
     name         = Column(String(100), nullable=False)  # "Manager directo", "Director", "CFO"
     approver_type = Column(String(30), nullable=False)  # role | user | manager | any_in_department

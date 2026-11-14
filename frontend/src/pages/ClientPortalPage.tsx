@@ -13,6 +13,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { portalApi, portalClientsApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
+import type { Entregable, PortalPeticion, PortalSesionUat, PortalUsuario } from '../services/api/tipos-alm'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
 import { useTabListKeys } from '../components/ui/Tabs'
 import {
@@ -82,24 +83,8 @@ const portalClientEditSchema = z.object({
 
 // STATUS_CFG y FR_STATUS_CFG centralizados en constants/sharedStatus.js
 
-// ── Tipos de las respuestas del portal (los campos que usa esta pantalla) ─────
-interface ClientePortal {
-  id: string
-  full_name: string
-  email: string
-  job_title?: string | null
-  company?: string | null
-  phone?: string | null
-  project_id?: string | null
-  project_ids?: string[]
-  project_name?: string | null
-  is_active: boolean
-  can_approve_deliverables?: boolean
-  can_request_changes?: boolean
-  can_view_budget?: boolean
-  can_view_team?: boolean
-  last_login?: string | null
-}
+// ── Tipos de las respuestas del portal: services/api/tipos-alm ───────────────
+type ClientePortal = PortalUsuario
 type PermisoCliente = 'can_approve_deliverables' | 'can_request_changes' | 'can_view_budget' | 'can_view_team'
 type FormCliente = {
   full_name: string; email: string; job_title: string; company: string; phone: string; password: string
@@ -107,67 +92,18 @@ type FormCliente = {
 type FormEdicionCliente = FormCliente & { project_ids: string[] }
 type EventoDeCampo = ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 
-interface CasoDePrueba { id: string; title: string; status: string; expected_result?: string | null; actual_result?: string | null }
-interface IncidenciaUat { id: string; title: string; description?: string | null; severity: string; status: string }
-interface SesionUat {
-  id: string
-  code: string
-  title: string
-  status: string
-  overdue?: boolean
-  deadline?: string | null
-  test_environment?: string | null
-  client_notes?: string | null
-  stats: { total: number; passed: number; failed: number }
-  test_cases: CasoDePrueba[]
-  issues: IncidenciaUat[]
-}
-interface Entregable { id: string; code: string; name: string }
+type SesionUat = PortalSesionUat
 type FormUat = z.infer<typeof uatSessionSchema>
 type CasoNuevo = { title: string; steps: string; expected_result: string }
 
-interface PeticionDeCambio {
-  id: string
-  code: string
-  title: string
-  description?: string | null
-  status: string
-  priority_color: string
-  priority_label: string
-  affected_area?: string | null
-  client_name?: string | null
-  submitted_at?: string | null
-  pm_response?: string | null
-  estimated_cost?: number | null
-  estimated_delivery_weeks?: number | null
-  client_approved?: boolean | null
-  client_approved_at?: string | null
-}
+type PeticionDeCambio = PortalPeticion
 type RespuestaPeticion = { pm_response: string; estimated_hours: string; estimated_cost: string; estimated_delivery_weeks: string; status: string }
 
-interface DocumentoPortal {
-  id: string
-  title: string
-  category: string
-  file_name?: string | null
-  file_url?: string | null
-  created_at?: string | null
-  requires_signature?: boolean
-  signed_by_client?: boolean
-}
 type FormDocumento = { title: string; description: string; category: string; file_url: string; file_name: string; requires_signature: boolean }
 
-interface EspacioWiki { id: string; name: string; project_id?: string | null }
+/** epics_service.serialize_page: el backend NO envía `visibility` ni tiene ruta para cambiarla
+ *  (WikiPageIn no la acepta); el selector de visibilidad no puede funcionar sin ese cambio. */
 interface PaginaWiki { id: string; title: string; slug: string; visibility?: string | null }
-
-interface EstadisticasPortal {
-  client_count: number
-  unread_messages: number
-  fr_pending_review: number
-  uat_pending: number
-  avg_satisfaction: number | null
-  avg_nps: number | null
-}
 
 function StatusBadge({ status, cfg }: { status: string; cfg: Record<string, StatusConfig> }) {
   const t = useAppT()
@@ -184,7 +120,7 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
   const [editingClient, setEditingClient] = useState<ClientePortal | null>(null)
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['portal-clients', projectId],
-    queryFn: () => portalClientsApi.list({ project_id: projectId }).then((r): ClientePortal[] => r.data),
+    queryFn: () => portalClientsApi.list({ project_id: projectId }).then(r => r.data),
     enabled: !!projectId,
   })
   const { mutate: deleteClient } = useMutation({
@@ -448,12 +384,12 @@ function UATTab({ projectId }: { projectId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['uat-team', projectId],
-    queryFn: () => portalApi.uat({ project_id: projectId }).then((r): SesionUat[] => r.data),
+    queryFn: () => portalApi.uat({ project_id: projectId }).then(r => r.data),
     enabled: !!projectId,
   })
   const { data: deliverables = [] } = useQuery({
     queryKey: ['deliverables-uat', projectId],
-    queryFn: () => deliverablesApi.listByProject(projectId).then((r): Entregable[] => r.data.deliverables || []),
+    queryFn: () => deliverablesApi.listByProject(projectId).then(r => r.data.deliverables || []),
     enabled: !!projectId,
   })
   // Always read live data so UATDetailModal reflects updates without reopening
@@ -707,7 +643,7 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
 
   const { data: frs = [], isLoading } = useQuery({
     queryKey: ['portal-frs', projectId],
-    queryFn: () => portalApi.featureRequests({ project_id: projectId }).then((r): PeticionDeCambio[] => Array.isArray(r.data) ? r.data : []),
+    queryFn: () => portalApi.featureRequests({ project_id: projectId }).then(r => r.data),
     enabled: !!projectId,
   })
 
@@ -838,7 +774,7 @@ function DocumentsTab({ projectId }: { projectId: string }) {
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['portal-docs', projectId],
-    queryFn: () => portalApi.documents({ project_id: projectId }).then((r): DocumentoPortal[] => r.data),
+    queryFn: () => portalApi.documents({ project_id: projectId }).then(r => r.data),
     enabled: !!projectId,
   })
   const { mutate: addDoc } = useMutation({
@@ -927,7 +863,7 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
   const t = useAppT()
   const { data: spaces = [] } = useQuery({
     queryKey: ['wiki-spaces-portal', projectId],
-    queryFn: () => wikiApi.portalSpaces().then((r): EspacioWiki[] => r.data.filter((s: EspacioWiki) => !projectId || s.project_id === projectId || !s.project_id)),
+    queryFn: () => wikiApi.portalSpaces().then(r => r.data.filter(s => !projectId || s.project_id === projectId || !s.project_id)),
   })
   const [selectedSpace, setSelectedSpace] = React.useState('')
   const { data: pages = [], isLoading } = useQuery({
@@ -996,7 +932,7 @@ function StatsPanel({ projectId }: { projectId: string }) {
   const t = useAppT()
   const { data: stats } = useQuery({
     queryKey: ['portal-stats', projectId],
-    queryFn: () => portalApi.stats(projectId).then((r): EstadisticasPortal => r.data),
+    queryFn: () => portalApi.stats(projectId).then(r => r.data),
     enabled: !!projectId,
     refetchInterval: NOTIFICATIONS_POLL_MS,
   })

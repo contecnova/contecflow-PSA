@@ -9,6 +9,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi, apiUrl } from '../services/api'
+import type { ClaveDeApi, ClaveDeApiCreada, ConfigSso, EventoDeAuditoria, IntegracionOAuth, VerificacionDeCadena } from '../services/api/tipos'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -23,85 +24,25 @@ const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
-// ── Lo que pintan las pestañas (campos según su uso aquí) ────────────────────
-interface WebhookTrigger { id: string; name: string; endpoint: string; fire_count?: number }
-interface WebhookLog { id: string; status: string; received_at?: string; payload_preview?: string }
-interface Workflow { id: string; name: string }
+// ── Formularios (las respuestas van tipadas en services/api/tipos.ts) ───────
 interface WebhookForm { name: string; slug: string; workflow_id: string }
 
-interface GdprRequest {
-  id: string
-  request_type: string
-  status: string
-  subject_name?: string | null
-  subject_email?: string | null
-  notes?: string | null
-  deadline?: string | null
-}
 interface GdprForm { request_type: string; subject_user_id: string; subject_email: string; notes: string }
 
-interface EmailTemplate { id: string; name: string; subject?: string; category?: string; is_system?: boolean }
-interface EmailCatalog { system?: EmailTemplate[]; custom?: EmailTemplate[] }
-interface EmailLog { id: string; status: string; to?: string; subject?: string; sent_at?: string | null; created_at?: string | null }
 interface SendEmailForm { to: string; subject: string; body_html: string; template_id: string }
 interface NewTemplateForm { name: string; subject: string; body_html: string; category: string }
 
 interface IntegrationField { key: string; label: string; type?: string; placeholder?: string }
 interface IntegrationCatalogEntry { type: string; label: string; icon: string; desc?: string; fields?: IntegrationField[] }
-interface OAuthIntegration {
-  id: string
-  name?: string | null
-  integration_type: string
-  is_active?: boolean
-  last_sync_at?: string | null
-  config?: string | Record<string, string> | null
-}
+/** Fila de la lista: las de `integration_configs` y la conexión Jira de la empresa (sin `config`). */
+type OAuthIntegration = Pick<IntegracionOAuth, 'id' | 'name' | 'integration_type' | 'is_active' | 'last_sync_at'> & { config?: IntegracionOAuth['config'] }
 interface IntegrationForm { name: string; access_token?: string; config: Record<string, string>; integration_type?: string }
-/** `GET /integrations-hub/jira/config` (segunda auditoría 2026-11, #23). */
-interface JiraHubConfig {
-  configured: boolean; id?: string; name?: string; base_url?: string; email?: string
-  project_key?: string; has_token?: boolean; is_active?: boolean; last_sync_at?: string | null
-}
 const JIRA_ID = 'jira-config'
 
 /** Detalle de error de FastAPI cuando es una lista de validación. */
 interface ValidationDetail { msg?: string }
 
-interface AuditEvent {
-  id?: string
-  created_at?: string | null
-  action: string
-  resource?: string | null
-  resource_name?: string | null
-  user_name?: string | null
-}
-
-interface ApiKey {
-  id: string
-  name: string
-  key_prefix?: string
-  scopes?: string[]
-  requests_today?: number
-  rate_limit_per_day?: number
-  last_used_at?: string | null
-}
-interface CreatedApiKey { key: string }
 interface ApiKeyForm { name: string; rate_limit_per_hour: number }
-
-interface SsoConfig {
-  id: string
-  provider: string
-  name?: string | null
-  oidc_client_id?: string | null
-  oidc_discovery_url?: string | null
-  oidc_scopes?: string | null
-  is_active?: boolean
-  default_role?: string | null
-  auto_create_users?: boolean
-  allowed_domains?: string | null
-  groups_claim?: string | null
-  role_mapping?: Record<string, string> | null
-}
 
 function WebhooksTab() {
   const idCampo = useId()
@@ -112,9 +53,9 @@ function WebhooksTab() {
   const [showLogs, setShowLogs] = useState<string|null>(null)
   const [form, setForm] = useState({ name:'', slug:'', workflow_id:'' })
 
-  const { data: triggers = [], isLoading } = useQuery<WebhookTrigger[]>({ queryKey:['wh-triggers'], queryFn:() => webhooksApi.list().then(r => r.data?.items ?? r.data ?? []) })
-  const { data: workflows = [] } = useQuery<Workflow[]>({ queryKey:['workflows-ent'], queryFn:() => autoWorkflowsApi.list().then(r => r.data) })
-  const { data: logs = [] } = useQuery<WebhookLog[]>({ queryKey:['wh-logs', showLogs], queryFn:() => webhooksApi.logs(showLogs).then(r => r.data), enabled:!!showLogs })
+  const { data: triggers = [], isLoading } = useQuery({ queryKey:['wh-triggers'], queryFn:() => webhooksApi.list().then(r => r.data) })
+  const { data: workflows = [] } = useQuery({ queryKey:['workflows-ent'], queryFn:() => autoWorkflowsApi.list().then(r => r.data) })
+  const { data: logs = [] } = useQuery({ queryKey:['wh-logs', showLogs], queryFn:() => webhooksApi.logs(showLogs).then(r => r.data), enabled:!!showLogs })
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: (d: WebhookForm) => webhooksApi.create(d),
@@ -171,7 +112,7 @@ function WebhooksTab() {
         <Modal open title={traducir('enterprise.nuevo_webhook_2')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Slug (URL)</label><input value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" aria-label={traducir('enterprise.slug_del_webhook')} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Slug (URL)</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" /></div>
             <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Workflow</label>
               <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} style={fs}>
                 <option value="">{traducir('enterprise.sin_workflow')}</option>
@@ -200,7 +141,7 @@ function GDPRTab() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState<GdprForm>({ request_type:'erasure', subject_user_id:'', subject_email:'', notes:'' })
 
-  const { data: requests = [], isLoading } = useQuery<GdprRequest[]>({ queryKey:['gdpr'], queryFn:() => gdprApi.list().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: requests = [], isLoading } = useQuery({ queryKey:['gdpr'], queryFn:() => gdprApi.list().then(r => r.data) })
   const { data: usersRaw = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list().then(r => r.data) })
   const users = Array.isArray(usersRaw) ? usersRaw : []
 
@@ -235,7 +176,8 @@ function GDPRTab() {
               <span style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{TYPE_LABELS[r.request_type] || r.request_type}</span>
               <span style={{ fontSize: "var(--text-sm)", fontWeight:500, color:STATUS_COLORS[r.status] || 'var(--text-2)' }}>{r.status}</span>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{r.subject_name || r.subject_email || 'Sin identificar'}</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{r.subject_name}</div>
+                {r.subject_email && <div className="u-text2-xs">{r.subject_email}</div>}
                 {r.notes && <div className="u-text2-xs">{r.notes}</div>}
               </div>
               <span className="u-text2-sm">{r.deadline}</span>
@@ -288,8 +230,8 @@ function EmailTab() {
   const [sendForm, setSendForm] = useState<SendEmailForm>({ to:'', subject:'', body_html:'', template_id:'' })
   const [newTpl, setNewTpl] = useState<NewTemplateForm>({ name:'', subject:'', body_html:'', category:'automation' })
 
-  const { data: catalog } = useQuery<EmailCatalog>({ queryKey:['email-tpl'], queryFn:() => emailApi.catalog().then(r => r.data) })
-  const { data: logs = [] } = useQuery<EmailLog[]>({ queryKey:['email-logs'], queryFn:() => emailApi.logs().then(r => r.data) })
+  const { data: catalog } = useQuery({ queryKey:['email-tpl'], queryFn:() => emailApi.catalog().then(r => r.data) })
+  const { data: logs = [] } = useQuery({ queryKey:['email-logs'], queryFn:() => emailApi.logs().then(r => r.data) })
 
   const { mutate: send, isPending:sending } = useMutation({
     mutationFn: (d: SendEmailForm) => emailApi.send({...d, to:[d.to]}),
@@ -347,7 +289,7 @@ function EmailTab() {
       {showSend && (
         <Modal open title="Enviar email" onClose={() => setShowSend(false)} width={500}>
           <div className="u-stack-14">
-            <div><label style={ls}>{traducir('enterprise.para')}</label><input value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder="destinatario@empresa.com" aria-label="Destinatario" /></div>
+            <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>{traducir('enterprise.para')}</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder="destinatario@empresa.com" /></div>
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Plantilla</label>
               <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} style={fs}>
                 <option value="">{traducir('enterprise.sin_plantilla')}</option>
@@ -397,19 +339,19 @@ function IntegrationsTab() {
   const [testResult, setTestResult]   = useState<{ok:boolean;message:string}|null>(null)
   const [form, setForm] = useState<IntegrationForm>({ name:'', access_token:'', config:{} })
 
-  const { data: otras = [] } = useQuery<OAuthIntegration[]>({
+  const { data: otras = [] } = useQuery({
     queryKey: ['integrations'],
     queryFn: () => oauthIntegrationsApi.list().then(r => r.data),
   })
 
   // Segunda auditoría 2026-11 (#23): Jira es la conexión única de la organización
   // (`/integrations-hub/jira/config`), no una fila de `integration_configs`.
-  const { data: jira } = useQuery<JiraHubConfig>({
+  const { data: jira } = useQuery({
     queryKey: ['jira-hub-config'],
-    queryFn: () => integrationsHubApi.jiraConfig().then(r => r.data as JiraHubConfig),
+    queryFn: () => integrationsHubApi.jiraConfig().then(r => r.data),
   })
   const integrations: OAuthIntegration[] = [
-    ...(Array.isArray(otras) ? otras : []).filter(i => i.integration_type !== 'jira'),
+    ...otras.filter(i => i.integration_type !== 'jira'),
     ...(jira?.configured && jira.is_active ? [{
       id: JIRA_ID, name: jira.name, integration_type: 'jira', is_active: true,
       last_sync_at: jira.last_sync_at ?? null,
@@ -444,7 +386,7 @@ function IntegrationsTab() {
 
   const { mutate: sync } = useMutation({
     mutationFn: (id: string) => id === JIRA_ID ? integrationsHubApi.syncJira() : oauthIntegrationsApi.sync(id, {}),
-    onSuccess: (r: { data?: { synced?: number; errors?: unknown[] } }) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? ` · ${r.data.errors.length} con error` : ''}`) },
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? ` · ${r.data.errors.length} con error` : ''}`) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -452,7 +394,7 @@ function IntegrationsTab() {
     setTesting(integ.id)
     setTestResult(null)
     try {
-      const cfg: Record<string, string> = typeof integ.config === 'string' ? JSON.parse(integ.config || '{}') : (integ.config || {})
+      const cfg = integ.config || {}
       if (integ.integration_type === 'slack') {
         const res = await integrationsHubApi.testSlack({ webhook_url: cfg.webhook_url || '' })
         setTestResult({ ok: true, message: res.data.message })
@@ -569,8 +511,8 @@ function IntegrationsTab() {
             </div>
             {configuring.fields?.map(field => (
               <div key={field.key}>
-                <label style={ls}>{field.label}</label>
-                <input
+                <label id={`${idCampo}-et-${field.key}`} htmlFor={`${idCampo}-${field.key}`} style={ls}>{field.label}</label>
+                <input id={`${idCampo}-${field.key}`} aria-labelledby={`${idCampo}-et-${field.key}`}
                   type={field.type || 'text'}
                   value={form.config?.[field.key] || ''}
                   onChange={e => setForm(f => ({ ...f, config: { ...f.config, [field.key]: e.target.value } }))}
@@ -595,13 +537,6 @@ function IntegrationsTab() {
 }
 
 
-type RoturaDeCadena = { id: string; seq: number | null; reason: string; expected_seq?: number }
-type VerificacionDeCadena = {
-  ok: boolean; rows_checked: number; breaks: RoturaDeCadena[]; breaks_total: number
-  head: { seq: number; entry_hash: string | null }; checked_at: string
-  expected_head?: { seq: number; found: boolean }
-}
-
 /** Cadena a prueba de manipulación del registro (revisión 2026-11). */
 function CadenaDeAuditoria() {
   const t = useAppT()
@@ -613,14 +548,14 @@ function CadenaDeAuditoria() {
     try {
       const params = esperada ? { expected_seq: esperada.seq, expected_hash: esperada.entry_hash } : undefined
       const r = await enterpriseApi.verifyAuditChain(params)
-      setResultado(r.data as VerificacionDeCadena)
+      setResultado(r.data)
     } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setOcupado('') }
   }
   const exportar = async () => {
     setOcupado('exportar')
     try {
       const r = await enterpriseApi.exportAuditChain()
-      downloadBlob(r.data as Blob, `audit-chain-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.json`)
+      downloadBlob(r.data, `audit-chain-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.json`)
     } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setOcupado('') }
   }
   const comparar = async (fichero?: File) => {
@@ -643,7 +578,7 @@ function CadenaDeAuditoria() {
         <Button size="sm" variant="secondary" onClick={exportar} disabled={!!ocupado}>{ocupado === 'exportar' ? '…' : t('enterprise.cadena_exportar')}</Button>
         <label style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', cursor: 'pointer' }}>
           {t('enterprise.cadena_comparar')}
-          <input type="file" accept="application/json,.json" style={{ display: 'none' }}
+          <input type="file" accept="application/json,.json" style={{ display: 'none' }} aria-label={t('enterprise.cadena_comparar')}
             onChange={e => { comparar(e.target.files?.[0]); e.target.value = '' }} />
         </label>
       </div>
@@ -676,15 +611,15 @@ function CadenaDeAuditoria() {
 
 function AuditTab() {
   const traducir = useAppT()
-  const { data: logs = [] } = useQuery<AuditEvent[]>({
+  const { data: logs = [] } = useQuery<EventoDeAuditoria[]>({
     queryKey: ['audit-ent'],
     queryFn: () => enterpriseApi.auditLog({page:1,page_size:AUDIT_LOG_PAGE_SIZE}).then(r => r.data?.logs || []).catch(() => []),
   })
-  const { data: resetRequestLogs = [] } = useQuery<AuditEvent[]>({
+  const { data: resetRequestLogs = [] } = useQuery<EventoDeAuditoria[]>({
     queryKey: ['audit-ent-reset-request'],
     queryFn: () => enterpriseApi.auditLog({page:1,page_size:AUDIT_LOG_SMALL_PAGE_SIZE,action:'PASSWORD_RESET_REQUEST'}).then(r => r.data?.logs || []).catch(() => []),
   })
-  const { data: resetCompleteLogs = [] } = useQuery<AuditEvent[]>({
+  const { data: resetCompleteLogs = [] } = useQuery<EventoDeAuditoria[]>({
     queryKey: ['audit-ent-reset-complete'],
     queryFn: () => enterpriseApi.auditLog({page:1,page_size:AUDIT_LOG_SMALL_PAGE_SIZE,action:'PASSWORD_RESET_COMPLETE'}).then(r => r.data?.logs || []).catch(() => []),
   })
@@ -754,13 +689,13 @@ function APIKeysTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [newKey, setNewKey] = useState<CreatedApiKey | null>(null)
+  const [newKey, setNewKey] = useState<ClaveDeApiCreada | null>(null)
   const [form, setForm] = useState<ApiKeyForm>({ name:'', rate_limit_per_hour:1000 })
 
-  const { data: keys = [] } = useQuery<ApiKey[]>({ queryKey:['api-keys'], queryFn:() => apiKeysApi.list().then(r => r.data) })
+  const { data: keys = [] } = useQuery<ClaveDeApi[]>({ queryKey:['api-keys'], queryFn:() => apiKeysApi.list().then(r => r.data) })
   const { mutate: create } = useMutation({
     mutationFn: (d: ApiKeyForm) => apiKeysApi.create({ ...d, scopes:['read'] }).then(r => r.data),
-    onSuccess: (data: CreatedApiKey) => { qc.invalidateQueries({ queryKey: ['api-keys'] }); setNewKey(data); setShowCreate(false) },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['api-keys'] }); setNewKey(data); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: revoke } = useMutation({
@@ -800,7 +735,7 @@ function APIKeysTab() {
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_api_key_2')} onClose={() => setShowCreate(false)} width={420}>
           <div className="u-stack-14">
-            <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder={traducir('enterprise.nombre_de_la_clave')} aria-label={traducir('enterprise.nombre_de_la_clave')} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Nombre</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder={traducir('enterprise.nombre_de_la_clave')} /></div>
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('enterprise.limite_por_hora')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} style={fs} /></div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
@@ -845,7 +780,7 @@ function SSOTab() {
     return datos
   }
 
-  const { data: configs = [] } = useQuery<SsoConfig[]>({
+  const { data: configs = [] } = useQuery<ConfigSso[]>({
     queryKey: ['sso-cfg'],
     queryFn: () => enterpriseApi.ssoList().then(r => r.data).catch(() => []),
   })
@@ -857,11 +792,11 @@ function SSOTab() {
   })
 
   const { mutate: toggle } = useMutation({
-    mutationFn: (c: SsoConfig) => enterpriseApi.ssoUpdate(c.id, { is_active: !c.is_active }),
+    mutationFn: (c: ConfigSso) => enterpriseApi.ssoUpdate(c.id, { is_active: !c.is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sso-cfg'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const editar = (c: SsoConfig) => {
+  const editar = (c: ConfigSso) => {
     setEditId(c.id)
     setForm({
       ...VACIO, provider: c.provider, name: c.name || '', oidc_client_id: c.oidc_client_id || '',
@@ -944,8 +879,8 @@ function SSOTab() {
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.label} />
             </div>
             <div>
-              <label style={labelStyle}>Client ID *</label>
-              <input value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} style={inputStyle} placeholder={traducir('enterprise.client_id_del_proveedor')} aria-label={traducir('enterprise.client_id_del_proveedor')} />
+              <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={labelStyle}>Client ID *</label>
+              <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} style={inputStyle} placeholder={traducir('enterprise.client_id_del_proveedor')} />
             </div>
             <div>
               <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Client Secret *</label>
@@ -978,11 +913,11 @@ function SSOTab() {
               <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} />
             </div>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
-              <input type="checkbox" checked={form.auto_create_users} onChange={e => setForm(f=>({...f,auto_create_users:e.target.checked}))} />
+              <input type="checkbox" aria-label={traducir('enterprise.sso_autocrear')} checked={form.auto_create_users} onChange={e => setForm(f=>({...f,auto_create_users:e.target.checked}))} />
               {traducir('enterprise.sso_autocrear')}
             </label>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
-              <input type="checkbox" checked={form.is_active} onChange={e => setForm(f=>({...f,is_active:e.target.checked}))} />
+              <input type="checkbox" aria-label={traducir('enterprise.sso_activo')} checked={form.is_active} onChange={e => setForm(f=>({...f,is_active:e.target.checked}))} />
               {traducir('enterprise.sso_activo')}
             </label>
           </div>

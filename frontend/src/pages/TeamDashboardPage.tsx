@@ -89,9 +89,7 @@ export default function TeamDashboardPage() {
 
   const { data: perfReviewsRaw = [] } = useQuery({
     queryKey: ['team-dash-perf'],
-    queryFn: () => performanceApi.myReviews().then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    queryFn: () => performanceApi.myReviews().then(r => r.data).catch(() => []),
     staleTime: STALE_DEFAULT_MS,
   })
   const perfReviews = perfReviewsRaw as PerfReview[]

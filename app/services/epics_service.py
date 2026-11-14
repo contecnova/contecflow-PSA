@@ -38,6 +38,7 @@ def serialize_page(p: WikiPage) -> dict:
         "id": p.id, "space_id": p.space_id, "parent_id": p.parent_id,
         "title": p.title, "slug": p.slug, "is_published": p.is_published,
         "sort_order": p.sort_order,
+        "visibility": p.visibility or "team",
         "created_by": p.created_by, "updated_by": p.updated_by,
         "created_at": p.created_at.isoformat() if p.created_at else None,
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
@@ -250,6 +251,20 @@ def update_wiki_page(page_id: str, title: str, slug: str, content,
     page.updated_by   = updated_by_id
     db.commit(); db.refresh(page)
     return serialize_page_full(page)
+
+
+def cambiar_visibilidad_wiki_page(page_id: str, visibility: str, updated_by_id, db) -> dict:
+    """Solo la visibilidad (team | portal | public). Auditoria 2026-11: la
+    interfaz del portal la cambiaba con un PATCH a una ruta que no existia, y
+    el PATCH completo exige titulo y slug y reescribe el contenido."""
+    if visibility not in ("team", "portal", "public"):
+        raise ErrorDeDominio(422, "Visibilidad no valida")
+    page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.is_active == True).first()
+    if not page: raise ErrorDeDominio(404, "Página no encontrada")
+    page.visibility = visibility
+    page.updated_by = updated_by_id
+    db.commit(); db.refresh(page)
+    return serialize_page(page)
 
 
 def delete_wiki_page(page_id: str, db) -> dict:

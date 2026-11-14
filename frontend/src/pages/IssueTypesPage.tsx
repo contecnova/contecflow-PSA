@@ -179,7 +179,7 @@ export default function IssueTypesPage(): JSX.Element {
   const projects = projectsRaw as ProjectItem[]
   const { data: typesRaw = [], isLoading } = useQuery({
     queryKey: ['issue-types', project],
-    queryFn: () => issueTypesApi.list(project).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+    queryFn: () => issueTypesApi.list(project).then(r => r.data).catch(() => []),
     enabled: !!project,
   })
   const types = typesRaw as IssueTypeItem[]

@@ -143,7 +143,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
   const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-  const { data: catalog = [] } = useQuery<CatalogSkill[]>({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []) })
+  const { data: catalog = [] } = useQuery<CatalogSkill[]>({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data) })
   const { data: userSkills = [] } = useQuery<UserSkill[]>({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data?.items ?? r.data ?? []) })
   const { data: skillHistory = [] } = useQuery<SkillHistoryEntry[]>({
     queryKey: ['skill-history', user.id],
@@ -411,7 +411,7 @@ export default function SkillsPage() {
 
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogSkill[]>({
     queryKey: ['skills-catalog'],
-    queryFn: () => skillsApi.catalog().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => skillsApi.catalog().then(r => r.data),
     enabled: tab === 'catalog',
   })
 

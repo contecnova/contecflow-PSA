@@ -200,9 +200,7 @@ export default function WorkDashboardPage(): JSX.Element {
 
   const { data: approvals = [], isLoading: la, isError: e3 } = useQuery<ApprovalItem[]>({
     queryKey: ['work-dash-approvals'],
-    queryFn: () => approvalsApi.pendingMyAction().then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }),
+    queryFn: () => approvalsApi.pendingMyAction().then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 

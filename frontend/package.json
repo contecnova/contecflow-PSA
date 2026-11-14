@@ -6,7 +6,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.45.0",
     "@xyflow/react": "^12.10.2",
-    "axios": "^1.15.2",
+    "axios": "^1.21.1",
     "bpmn-js": "^18.16.1",
     "d3": "^7.9.0",
     "date-fns": "^3.6.0",

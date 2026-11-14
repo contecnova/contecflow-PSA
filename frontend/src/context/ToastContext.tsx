@@ -3,9 +3,11 @@
  * Reemplaza todos los alert() del sistema
  * Uso: const toast = useToast(); toast.success('Guardado'); toast.error('Error')
  */
-import { createContext, useContext, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useAppT } from '../hooks/useAppT'
+import { subscribeQueryErrors } from '../lib/queryErrorBus'
+import { extractErr } from '../utils/helpers'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -50,6 +52,10 @@ const COLORS: Record<ToastType, ToastColor> = {
 
 let _id = 0
 
+// Varias queries que fallan a la vez (p. ej. el backend caído) darían un aviso
+// cada una: el mismo texto dentro de esta ventana se muestra una sola vez.
+const QUERY_ERROR_DEDUPE_MS = 3000
+
 interface ToastProviderProps {
   children?: ReactNode
 }
@@ -75,6 +81,17 @@ export function ToastProvider({ children }: ToastProviderProps) {
     timers.current[id] = setTimeout(() => dismiss(id), duration)
     return id
   }, [dismiss, t])
+
+  // Errores de queries (QueryCache.onError en main.tsx) → aviso de error.
+  const lastQueryError = useRef<{ msg: string; at: number } | null>(null)
+  useEffect(() => subscribeQueryErrors((error) => {
+    const msg = extractErr(error, t('toast.load_error'))
+    const now = Date.now()
+    const last = lastQueryError.current
+    if (last && last.msg === msg && now - last.at < QUERY_ERROR_DEDUPE_MS) return
+    lastQueryError.current = { msg, at: now }
+    add('error', msg, 6000)
+  }), [add, t])
 
   const toast: ToastApi = {
     success: (msg, d) => add('success', msg, d),

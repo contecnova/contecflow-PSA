@@ -14,7 +14,7 @@ from app.core.deps import require_admin
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
-from app.services.audit import audit_log
+from app.services.audit import auditar_y_confirmar
 import app.services.governance_service as _gsvc
 _org_id = _gsvc.get_org_id
 
@@ -101,7 +101,7 @@ def upsert_policy_pack(
         config=payload.config,
         updated_by=current_user.id,
     )
-    audit_log(
+    auditar_y_confirmar(
         db=db,
         user=current_user,
         action="UPDATE",
@@ -110,7 +110,6 @@ def upsert_policy_pack(
         resource_name=pack_key,
         new_values={"enabled": payload.is_enabled, "version": payload.pack_version},
     )
-    db.commit()   # revisión GRC 2026-11b: el servicio ya había confirmado y la entrada se perdía
     return APIResponse.ok(data={"ok": True, "pack_key": pack_key})
 
 
@@ -142,7 +141,7 @@ def create_evidence(
         metadata_json=json.dumps(payload.metadata or {}),
         created_by=current_user.id,
     )
-    audit_log(
+    auditar_y_confirmar(
         db=db,
         user=current_user,
         action="CREATE",
@@ -151,7 +150,6 @@ def create_evidence(
         resource_name=payload.control_id,
         new_values={"framework": framework, "type": payload.evidence_type},
     )
-    db.commit()   # revisión GRC 2026-11b: el servicio ya había confirmado y la entrada se perdía
     return APIResponse.ok(data={"id": evidence.id, "artifact_hash": evidence.artifact_hash})
 
 
@@ -334,9 +332,8 @@ def patch_ai_module_config(
         raise HTTPException(404, "Módulo no reconocido")
     is_enabled = payload.get("is_enabled", True)
     _gsvc.upsert_ai_module_config(db, _org_id(current_user), module, is_enabled, current_user.id)
-    audit_log(db=db, user=current_user, action="UPDATE", resource="ai_module_config",
+    auditar_y_confirmar(db=db, user=current_user, action="UPDATE", resource="ai_module_config",
               resource_id=None, resource_name=module, new_values={"is_enabled": is_enabled})
-    db.commit()  # segunda auditoría 2026-11: el servicio ya había confirmado y la entrada se perdía
     return APIResponse.ok(data={"ok": True, "module": module, "is_enabled": is_enabled})
 
 

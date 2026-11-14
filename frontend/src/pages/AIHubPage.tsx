@@ -5,6 +5,10 @@ import { Fragment, useId, useState, type ChangeEvent } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { predictiveObservabilityApi, aiProvidersApi, aiGovernanceApi, apiUrl } from '../services/api'
+import type {
+  ProveedorIa as AiProvider, ModeloDelCatalogoIa as CatalogModel, EntradaCatalogoIa as CatalogEntry, CatalogoIa as ProviderCatalog,
+  EstadisticasIa as AiStats, DiagnosticoIa as Diagnostics,
+} from '../services/api/tipos-grc'
 import { PROVIDER_DOCS } from '../constants/api'
 import { Button, Spinner, Modal, Tabs, Page, Drawer } from '../components/ui'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
@@ -23,30 +27,6 @@ const getStatusCfg = (t: (k: string) => string): Record<string, { label: string;
   error:    { label: t('ai.provider_status_error'), color: 'var(--danger)' },
 })
 
-/** Proveedor tal como lo devuelve `_out` (app/api/v1/endpoints/ai_providers.py); `source: 'env'` es el del `.env`. */
-interface AiProvider {
-  id: string
-  source?: 'env'
-  name: string
-  provider: string
-  status: string
-  is_default: boolean
-  default_model?: string | null
-  available_models: string[]
-  api_base_url?: string | null
-  has_api_key: boolean
-  max_tokens?: number | null
-  temperature?: number | null
-  priority?: number | null
-  total_requests: number
-  total_cost_usd: number
-  last_error?: string | null
-}
-
-interface CatalogModel { id: string; name: string; cost_in: number; cost_out: number }
-interface CatalogEntry { name?: string; models?: CatalogModel[]; base_url?: string; key_hint?: string; docs_url?: string }
-type ProviderCatalog = Record<string, CatalogEntry>
-
 interface ProviderForm {
   name: string
   provider: string
@@ -58,20 +38,6 @@ interface ProviderForm {
   is_default: boolean
   priority: number
 }
-
-interface ModuleUsage { module: string; calls?: number; tokens?: number; cost?: number }
-interface AiStats { providers?: unknown[]; total_requests?: number; total_cost?: number; by_module?: ModuleUsage[] }
-
-interface DiagProvider {
-  id: string
-  name: string
-  provider_type?: string
-  status: string
-  latency_ms?: number | null
-  models_found?: number
-  error?: string | null
-}
-interface Diagnostics { healthy?: number; total?: number; error?: number; warning?: number; providers?: DiagProvider[] }
 
 interface AiPolicy { id: string; name: string; is_active?: boolean; scope?: string; action?: string; applies_to_roles?: string[] }
 interface AiAuditEntry {
@@ -134,7 +100,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
   // Los campos numéricos guardan el texto del input, como siempre: el backend lo convierte.
   const s = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
 
-  const catEntry: CatalogEntry = catalog[providerType] || {}
+  const catEntry: Partial<CatalogEntry> = catalog[providerType] || {}
   const catalogModels = catEntry.models || []
   const models: CatalogModel[] = liveModels.length > 0
     ? liveModels.map(id => {
@@ -154,8 +120,9 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
     onSuccess: (data) => {
       const synced = Array.isArray(data?.models) ? data.models : []
       setLiveModels(synced)
-      if (data?.default_model) {
-        setForm(f => ({ ...f, default_model: data.default_model }))
+      const modelo = data?.default_model
+      if (modelo) {
+        setForm(f => ({ ...f, default_model: modelo }))
       }
       qc.invalidateQueries({ queryKey: ['ai-providers'] })
       toast.success('Modelos sincronizados desde el proveedor')
@@ -166,7 +133,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
   const handleProviderChange = (type: string) => {
     setProviderType(type)
     setLiveModels([])
-    const cat: CatalogEntry = catalog[type] || {}
+    const cat: Partial<CatalogEntry> = catalog[type] || {}
     setForm(f => ({
       ...f,
       provider: type,
@@ -359,7 +326,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
 
 function TestModal({ provider, onClose }: { provider: AiProvider; onClose: () => void }) {
   const t = useAppT()
-  const [result, setResult] = useState<{ ok?: boolean; error?: string; response?: string; latency_ms?: number; model?: string } | null>(null)
+  const [result, setResult] = useState<{ ok?: boolean; error?: string; response?: string; latency_ms?: number; model?: string | null } | null>(null)
   const [testing, setTesting] = useState(false)
 
   const runTest = async () => {
@@ -549,7 +516,7 @@ export default function AIHubPage(): JSX.Element {
     queryFn: () => aiProvidersApi.catalog().then(r => r.data),
     staleTime: Infinity,
   })
-  const { data: stats = {} } = useQuery<AiStats>({
+  const { data: stats } = useQuery<AiStats>({
     queryKey: ['ai-stats'],
     queryFn: () => aiProvidersApi.stats().then(r => r.data),
     enabled: tab === 'stats',
@@ -608,7 +575,7 @@ export default function AIHubPage(): JSX.Element {
   })
 
   const defaultProvider = providers.find(p => p.is_default)
-  const byModule = stats.by_module || []
+  const byModule = stats?.by_module || []
   // USD a proposito (auditoria 2026-11, #18): los proveedores de IA facturan y
   // publican precios en dolares y el backend guarda el gasto en `*_cost_usd`
   // (presupuesto AI_DAILY_BUDGET_USD). Convertirlo a la moneda de la empresa
@@ -803,9 +770,9 @@ export default function AIHubPage(): JSX.Element {
         <div id="aihub-panel-stats" role="tabpanel" aria-labelledby="aihub-tab-stats">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
             {[
-              { icon: '🤖', label: t('ai.providers_count'), value: (stats.providers || []).length, color: 'var(--accent)' },
-              { icon: '💬', label: t('ai.total_requests'), value: stats.total_requests || 0, color: 'var(--success)' },
-              { icon: '💰', label: t('ai.total_cost'), value: moneyFmt.format(stats.total_cost || 0), color: 'var(--warning)' },
+              { icon: '🤖', label: t('ai.providers_count'), value: (stats?.providers || []).length, color: 'var(--accent)' },
+              { icon: '💬', label: t('ai.total_requests'), value: stats?.total_requests || 0, color: 'var(--success)' },
+              { icon: '💰', label: t('ai.total_cost'), value: moneyFmt.format(stats?.total_cost || 0), color: 'var(--warning)' },
             ].map(k => (
               <div key={k.label} style={{ ...card, padding: '18px 20px' }}>
                 <div style={{ fontSize: "var(--text-2xl)", marginBottom: 8 }}>{k.icon}</div>
@@ -875,18 +842,18 @@ export default function AIHubPage(): JSX.Element {
                       </div>
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: "var(--text-sm)" }}>
-                      {/* Auditoría 2026-11: leía total_predictions/accuracy, que no
-                          existen; la API da samples, severity_accuracy y mae_minutes. */}
-                      {(data.samples ?? data.total_predictions) != null && (
+                      {/* Auditoría 2026-11: la API da samples, severity_accuracy y mae_minutes
+                          (ITSM) e history_months y motores (BI); no total_predictions/accuracy. */}
+                      {data.samples != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span className="u-text3">Predicciones</span>
-                          <span>{data.samples ?? data.total_predictions}</span>
+                          <span>{data.samples}</span>
                         </div>
                       )}
-                      {(data.severity_accuracy ?? data.accuracy) != null && (
+                      {data.severity_accuracy != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span className="u-text3">{traducir('aihub.precision')}</span>
-                          <span>{((data.severity_accuracy ?? data.accuracy) * 100).toFixed(1)}%</span>
+                          <span>{(data.severity_accuracy * 100).toFixed(1)}%</span>
                         </div>
                       )}
                       {data.mae_minutes != null && (
@@ -901,17 +868,18 @@ export default function AIHubPage(): JSX.Element {
                           <span>{data.status}</span>
                         </div>
                       )}
-                      {data.drift_detected != null && (
+                      {/* Revisión 2026-11: leía drift_detected y reason, que la API no da; el modelo BI da
+                          meses de historia y el motor usado (los «fallback»/«heuristic» bajan la nota). */}
+                      {data.history_months != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span className="u-text3">Drift detectado</span>
-                          <span style={{ color: data.drift_detected ? 'var(--warning)' : 'var(--success)' }}>
-                            {data.drift_detected ? '⚠ Sí' : '✓ No'}
-                          </span>
+                          <span className="u-text3">Meses de historia</span>
+                          <span>{data.history_months}</span>
                         </div>
                       )}
-                      {data.reason && (
-                        <div style={{ marginTop: 6, padding: '6px 10px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', lineHeight: 1.4 }}>
-                          {data.reason}
+                      {data.forecast_engine && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span className="u-text3">Motores</span>
+                          <span>{data.forecast_engine} · {data.overrun_engine}</span>
                         </div>
                       )}
                     </div>

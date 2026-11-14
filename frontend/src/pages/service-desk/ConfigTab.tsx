@@ -9,6 +9,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR, COLOR_DATO_POR_DEFECTO, alpha } from '../../constants/theme'
 import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
+import type { SdAnuncio, SdCategoriaDeCatalogo, SdGrupo, SdPlantillaDeTicket, SdPoliticaSla, SdRespuestaRapida, SdServicioDeCatalogo } from '../../services/api/tipos-sd'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
 import ConfigCorreoEntrante from './ConfigCorreoEntrante'
 import { GuardiasConfig, MonitorizacionConfig } from './ConfigGuardiasYMonitor'
@@ -19,19 +20,20 @@ import DateInput from '../../components/ui/DateInput'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
 
 // ── Local types ─────────────────────────────────────────────────────────────
-type Svc = { [k: string]: unknown; id: string; name: string; category_id?: string; ticket_type?: string; default_priority?: string; sla_response_hours?: number; sla_resolution_hours?: number; requires_approval?: boolean; approval_user_id?: string | null; is_visible_to_clients?: boolean; fulfillment_tasks?: { title: string; group_id: string }[] }
-type Cat = { [k: string]: unknown; id: string; name: string; description?: string; icon?: string; color?: string; services?: Svc[] }
-type Asignada = { id: string; name: string }
-type Policy = { [k: string]: unknown; id: string; name: string; description?: string; is_default?: boolean; business_hours_only?: boolean; clients?: Asignada[]; contracts?: Asignada[]; business_start?: number; business_end?: number; business_days?: string; timezone?: string | null; calendar_id?: string | null }
+/** El servicio del catalogo; `category_id` lo pone la pantalla al editar (el backend no lo envia). */
+type Svc = SdServicioDeCatalogo & { category_id?: string }
+type Cat = SdCategoriaDeCatalogo
+type Policy = SdPoliticaSla
 type Calendario = SlaCalendar
-type Member = { [k: string]: unknown; id: string; full_name?: string; is_lead?: boolean }
-type Group = { [k: string]: unknown; id: string; name: string; description?: string; support_level?: string; ola_hours?: number | null; members?: Member[] }
+type Member = SdGrupo['members'][number]
+type Group = SdGrupo
 // #24b: la lista de usuarios ya llega tipada desde usersApi (UserPublic).
 type User = UserListItem
-type Template = { [k: string]: unknown; id: string; name: string; ticket_type?: string; default_priority?: string; description_template?: string; is_active?: boolean }
-type Canned = { [k: string]: unknown; id: string; title?: string; body?: string; category?: string; shortcut?: string }
+/** Solo llegan las activas: desactivar una la saca de la lista (y no se puede reactivar). */
+type Template = SdPlantillaDeTicket
+type Canned = SdRespuestaRapida
 type CannedForm = { title: string; body: string; category: string; shortcut: string }
-type Ann = { [k: string]: unknown; id: string; title?: string; body?: string; type?: string; show_to_clients?: boolean; starts_at?: string; ends_at?: string }
+type Ann = SdAnuncio
 const PRIORITY_LABEL_MAP = PRIORITY_LABEL as Record<string, string>
 
 // ── Catalog Config ────────────────────────────────────────────────────────────
@@ -214,7 +216,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
   const faltaAprobador = form.requires_approval && !form.approval_user_id
   const [tareas, setTareas] = useState<{ title: string; group_id: string }[]>(initial?.fulfillment_tasks ?? [])
   const { data: colas = [] } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data as { id: string; name: string }[]),
+    queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
   const tareasValidas = tareas.every(x => x.title.trim() && x.group_id)
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: (e.target as HTMLInputElement).type==='checkbox' ? (e.target as HTMLInputElement).checked : e.target.value}))
@@ -754,7 +756,7 @@ function TemplatesConfig() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px,1fr))', gap:12 }}>
         {templates.map((tmpl: Template) => (
           <div key={tmpl.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-            borderRadius:12, padding:16, opacity: tmpl.is_active ? 1 : 0.55 }}>
+            borderRadius:12, padding:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
               <div>
                 <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>{tmpl.name}</div>
@@ -763,10 +765,10 @@ function TemplatesConfig() {
                 </span>
               </div>
               <div className="u-row-6">
-                <button onClick={() => toggle({id:tmpl.id, is_active:!tmpl.is_active})}
+                <button onClick={() => toggle({id:tmpl.id, is_active:false})}
                   style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px',
-                    fontSize: "var(--text-xs)", color: tmpl.is_active ? COLOR.success : 'var(--text-3)', cursor:'pointer', fontFamily:'inherit' }}>
-                  {tmpl.is_active ? t('service_desk.templates_active') : t('service_desk.templates_inactive')}
+                    fontSize: "var(--text-xs)", color: COLOR.success, cursor:'pointer', fontFamily:'inherit' }}>
+                  {t('service_desk.templates_active')}
                 </button>
                 <button onClick={() => setEditing(tmpl)}
                   style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px',

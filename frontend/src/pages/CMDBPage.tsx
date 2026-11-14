@@ -131,7 +131,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
   const campos = deClase?.clases[form.ci_type] ?? []
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => {
+    mutationFn: (): Promise<unknown> => {
       // Se envían solo los atributos de la clase elegida y con valor: cambiar
       // de clase no arrastra los de la anterior.
       const propios = Object.fromEntries(campos.map(c => [c.key, attrs[c.key]]).filter(([, v]) => v))
@@ -362,7 +362,7 @@ function CILinkedAssets({ ciId }: { ciId: string }) {
   const t = useAppT()
   const { data: assets = [], isLoading } = useQuery<LinkedAsset[]>({
     queryKey: ['ci-assets', ciId],
-    queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data?.assets ?? r.data ?? []),
+    queryFn: () => cmdbApi.assetsByCI(ciId).then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
   if (isLoading) return null
@@ -628,8 +628,10 @@ export default function CMDBPage(): JSX.Element {
     queryKey: ['cmdb-items', 'todos'],
     queryFn: () => cmdbApi.sdList({ page_size: FULL_LIST_SIZE }).then(r => r.data ?? []),
   })
-  const { data: items = [], isLoading } = useQuery<CI[]>({
+  // Segunda auditoría 2026-11: el error se pinta en la tabla (no aviso global).
+  const { data: items = [], isLoading, isError: itemsFailed, error: itemsError } = useQuery<CI[]>({
     queryKey: ['cmdb-items', filterType, filterStatus, searchQ],
+    meta: { errorToast: false },
     queryFn: () => {
       const p: Record<string, string | number> = { page_size: FULL_LIST_SIZE }
       if (filterType)   p.ci_type = filterType
@@ -837,7 +839,9 @@ export default function CMDBPage(): JSX.Element {
         </div>
       </div>
 
-      {isLoading ? <Spinner /> : items.length === 0 ? (
+      {isLoading ? <Spinner /> : itemsFailed ? (
+        <div role="alert" className="u-danger">{extractErr(itemsError, t('toast.load_error'))}</div>
+      ) : items.length === 0 ? (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
           <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{todos.length ? t('cmdb.no_match') : t('cmdb.no_cis')}</div>
           {!todos.length && <>

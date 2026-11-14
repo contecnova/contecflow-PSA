@@ -739,10 +739,16 @@ def list_client_tickets(cid: str, status: "Optional[str]", db: Session) -> list:
 
 # ── Client-project linking ────────────────────────────────────────────────────
 
+def _estado(status) -> str:
+    """Valor plano del enum. Auditoria 2026-11: `str(ProjectStatus.active)` da
+    "ProjectStatus.active" (enum con mezcla de str) y asi llegaba a la interfaz."""
+    return getattr(status, "value", status) or ""
+
+
 def list_client_projects(cid: str, db: Session) -> list:
     projects = db.query(Project).filter(Project.client_id == cid).order_by(Project.name).all()
     return [
-        {"id": p.id, "code": p.code, "name": p.name, "status": str(p.status),
+        {"id": p.id, "code": p.code, "name": p.name, "status": _estado(p.status),
          "client_id": p.client_id, "is_linked": True,
          "start_date": str(getattr(p, "start_date", None)) if getattr(p, "start_date", None) else None,
          "end_date": str(getattr(p, "end_date_planned", None) or getattr(p, "end_date", None))
@@ -756,8 +762,8 @@ def list_available_projects(cid: str, db: Session) -> list:
     projects = []
     for p in all_projects:
         cid_val = getattr(p, "client_id", None)
-        status_val = str(getattr(p, "status", ""))
-        if status_val in ("cancelled", "ProjectStatus.cancelled"):
+        status_val = _estado(getattr(p, "status", ""))
+        if status_val == "cancelled":
             continue
         if not cid_val or cid_val == "" or cid_val == cid:
             projects.append(p)
@@ -766,7 +772,7 @@ def list_available_projects(cid: str, db: Session) -> list:
             "id": p.id,
             "code": getattr(p, "code", ""),
             "name": p.name,
-            "status": str(p.status),
+            "status": _estado(p.status),
             "client_id": getattr(p, "client_id", None),
             "is_linked": getattr(p, "client_id", None) == cid,
             "start_date": str(p.start_date) if getattr(p, "start_date", None) else None,

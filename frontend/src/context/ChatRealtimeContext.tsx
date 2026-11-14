@@ -163,7 +163,7 @@ export default function ChatRealtimeProvider({ children }: ChatRealtimeProviderP
         // Por el cliente API: si la sesión caducó, refresca y reintenta.
         let ticket: string | undefined
         try {
-          ticket = ((await wsApi.ticket()).data as { ticket?: string })?.ticket
+          ticket = (await wsApi.ticket()).data?.ticket
         } catch {
           // Sin sesión — se abandona en silencio; el efecto se vuelve a montar
           // cuando cambia el usuario.

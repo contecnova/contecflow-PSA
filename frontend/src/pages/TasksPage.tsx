@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi, sprintsApi, cmdbApi } from '../services/api'
+import type { CampoPersonalizado, ConfigDelTablero, EstimacionDeEsfuerzo, FlujoDelProyecto, SugerenciaDeAsignacion, TipoDeIncidencia, ValorDeCampoPersonalizado } from '../services/api/tipos-rendimiento'
 import type { ApiError, ProjectListItem, TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskListParams, UserListItem, MovementLogEntry } from '../services/api'
 import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
@@ -82,29 +83,17 @@ type NewTaskForm = {
   description: string
   assignee_id: string
 }
-/** Campo personalizado del proyecto (`/custom-fields/{proyecto}`). */
-type CustomField = { id: string; name: string; field_type: string; is_required?: boolean; options?: string[] | null }
-type CustomFieldValue = { field_id: string; value: string | number | null }
+// Respuestas del backend: services/api/tipos-rendimiento.ts.
+type CustomField = CampoPersonalizado
+type CustomFieldValue = ValorDeCampoPersonalizado
 type CustomValues = Record<string, string | number>
-type WorkflowState = { value: string; name: string; icon?: string | null; sort_order?: number | null }
 type StatusOption = { value: string; icon: string; label: string }
-type IssueType = { id: string; value: string; name: string; icon?: string | null; is_active?: boolean }
+type IssueType = TipoDeIncidencia
 /** Respuesta de `/semantic/suggest/task` (o el error que se guarda en su lugar). */
-type SemSuggestion = {
-  suggested_user_id?: string
-  suggested_user_name?: string
-  confidence?: number
-  needs_review?: boolean
-  engine_mode?: string
-  reasoning?: string
-  error?: string
-}
-/** Respuesta de `/semantic/estimate/effort`. */
-type SemEffort = { base_hours?: number; complexity?: string }
+type SemSuggestion = Partial<SugerenciaDeAsignacion> & { error?: string }
+type SemEffort = EstimacionDeEsfuerzo
 type Sprint = { id: string; name?: string }
-type KanbanColumnConfig = { id: string; status: string; wip_limit: number | null }
-/** `/cmdb/kanban/{proyecto}`: carriles y límites WIP del tablero. */
-type KanbanConfig = { configured?: boolean; swimlane_by?: string; columns?: KanbanColumnConfig[] }
+type KanbanConfig = ConfigDelTablero
 type DragStartHandler = (e: React.MouseEvent, task: Task, onStarted: () => void) => void
 
 // Tipos de la pantalla para lo que manda: los estados y prioridades salen de la URL y de
@@ -320,7 +309,7 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
 }
 
 function useWorkflowStatusOptions(projectId: string | undefined, t: Traductor): StatusOption[] {
-  const { data } = useQuery<{ states?: WorkflowState[] } | null>({
+  const { data } = useQuery<FlujoDelProyecto | null>({
     queryKey: ['project-workflow', projectId],
     queryFn: () => projectWorkflowsApi.get(projectId).then(r => r.data).catch(() => null),
     enabled: !!projectId,
@@ -389,7 +378,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
   // Auditoría 2026-11: el catálogo de /issue-types no llegaba a las tareas.
   const { data: issueTypes = [] } = useQuery<IssueType[]>({
     queryKey: ['issue-types', task?.project_id],
-    queryFn: () => issueTypesApi.list(task.project_id).then(r => (Array.isArray(r.data) ? r.data : [])).catch(() => []),
+    queryFn: () => issueTypesApi.list(task.project_id).then(r => r.data).catch(() => []),
     enabled: !!task?.project_id,
     retry: false,
   })
@@ -714,7 +703,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
             <label style={ls} htmlFor="task-issue-type">{t('tasks.issue_type')}</label>
             <select id="task-issue-type" value={form.issue_type} onChange={set('issue_type')} style={fs}>
               <option value="">—</option>
-              {issueTypes.filter(it => it.is_active !== false).map(it => (
+              {issueTypes.map(it => (
                 <option key={it.id} value={it.value}>{it.icon} {it.name}</option>
               ))}
             </select>

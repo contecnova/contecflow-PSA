@@ -863,12 +863,13 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
       >
         <div className="u-row-between">
           <div className="u-md-700">{traducir('chat.anadir_miembros_a')} {conv.title || 'grupo'}</div>
-          <button onClick={onClose} style={styles.iconCloseBtn}>
+          <button onClick={onClose} style={styles.iconCloseBtn} aria-label="Cerrar">
             <X size={16} />
           </button>
         </div>
         <input
           autoFocus
+          aria-label={traducir('chat.busca_por_nombre_o_email')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={traducir('chat.busca_por_nombre_o_email')}
@@ -1467,7 +1468,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           >
             <Paperclip size={16} />
-            <input ref={fileRef} type="file"
+            <input ref={fileRef} type="file" aria-label="Adjuntar archivo"
               style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
               onChange={e => {
                 const f = e.target.files?.[0]
@@ -1477,6 +1478,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
           <textarea
             ref={composerRef}
             data-chat-composer
+            aria-label={`Mensaje en ${conv.title}`}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => {

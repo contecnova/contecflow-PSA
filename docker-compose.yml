@@ -53,7 +53,7 @@ x-app: &app
     context: .
     dockerfile: deploy/Dockerfile.backend
   env_file: [.env]
-  environment:
+  environment: &app-env
     # Estas ganan sobre el .env: dentro de la red de compose los servicios se
     # resuelven por nombre, no por localhost. Si se dejara que el .env manda,
     # un DATABASE_URL con `localhost` (el habitual en desarrollo) haría que el
@@ -224,20 +224,26 @@ services:
     <<: *app
     profiles: ["app"]
     container_name: contecflow-api
+    environment:
+      <<: *app-env
+      # Segunda auditoría 2026-11: con varios workers, sin este directorio cada
+      # proceso tenía su propio registro y /metrics devolvía solo el del worker
+      # que atendía el scrape. app/core/metrics.py usa MultiProcessCollector
+      # cuando la variable está definida (config.py la lee con AliasChoices).
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus-multiproc
+    # El directorio se vacía en cada arranque: los ficheros de una ejecución
+    # anterior (PIDs que ya no existen) inflarían los contadores.
+    # Varios workers son seguros porque Redis es obligatorio en este stack:
+    # rate limiting y tickets de WS son compartidos. Sin Redis habría que
+    # dejarlo en 1.
     command:
-      - python
-      - -m
-      - uvicorn
-      - app.main:app
-      - --host
-      - "0.0.0.0"
-      - --port
-      - "8000"
-      # Varios workers son seguros porque Redis es obligatorio en este stack:
-      # rate limiting y tickets de WS son compartidos. Sin Redis habría que
-      # dejarlo en 1.
-      - --workers
-      - "${API_WORKERS:-4}"
+      - sh
+      - -c
+      - >-
+        rm -rf "$$PROMETHEUS_MULTIPROC_DIR" &&
+        mkdir -p "$$PROMETHEUS_MULTIPROC_DIR" &&
+        exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+        --workers "${API_WORKERS:-4}"
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}

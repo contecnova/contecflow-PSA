@@ -133,7 +133,7 @@ def put_jira_hub_config(
     current_user: User = Depends(require_admin),
 ):
     from app.services import jira_service
-    from app.services.audit import audit_log
+    from app.services.audit import auditar_y_confirmar
     try:
         config = jira_service.guardar_desde_hub(
             db, current_user.organization_id, base_url=payload.base_url, email=payload.email,
@@ -141,10 +141,9 @@ def put_jira_hub_config(
             name=payload.name, user_id=current_user.id)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    audit_log(db, current_user, "UPDATE", "jira_config", config.id, config.name,
-              new_values={"base_url": config.jira_base_url, "email": config.jira_email,
-                          "token_changed": bool(payload.api_token)})
-    db.commit()
+    auditar_y_confirmar(db, current_user, "UPDATE", "jira_config", config.id, config.name,
+                        new_values={"base_url": config.jira_base_url, "email": config.jira_email,
+                                    "token_changed": bool(payload.api_token)})
     return APIResponse.ok(data=jira_service.config_del_hub(config))
 
 
@@ -164,14 +163,11 @@ def sync_jira_hub(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from datetime import timezone
     from app.services import jira_service
     from app.services.cab_service.integraciones import sincronizar_tareas_con_jira
     cfg = jira_service.credenciales_del_hub(db, current_user.organization_id)
     synced, errors = sincronizar_tareas_con_jira(db, cfg)
-    config = jira_service.configuracion_de_tareas(db, current_user.organization_id)
-    config.last_full_sync_at = datetime.now(timezone.utc)
-    db.commit()
+    jira_service.marcar_sincronizacion_completa(db, current_user.organization_id)
     if errors and not synced:
         raise HTTPException(400, errors[0])
     return APIResponse.ok(data={"ok": True, "synced": synced, "errors": errors[:5]})

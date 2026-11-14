@@ -214,7 +214,7 @@ class Budget(Base):
     name        = Column(String(255), nullable=False)
     year        = Column(Integer, nullable=False, index=True)
     department  = Column(String(100), nullable=True)
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True)
+    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     total_amount = Column(Float, nullable=False, default=0)
     currency    = Column(String(3), default=settings.DEFAULT_CURRENCY)
     notes       = Column(Text, nullable=True)

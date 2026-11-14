@@ -773,3 +773,12 @@ def empujar_tareas_a_jira(db: Session, *, project_id: str, statuses: List[str],
         "errors": errors,
         "error_details": errs[:10],
     }
+
+
+def marcar_sincronizacion_completa(db: Session, org_id: Optional[str]) -> None:
+    """Sella `last_full_sync_at` y confirma (antes lo hacía el endpoint del hub)."""
+    from datetime import datetime, timezone
+    config = configuracion_de_tareas(db, org_id)
+    if config is not None:
+        config.last_full_sync_at = datetime.now(timezone.utc)
+    db.commit()

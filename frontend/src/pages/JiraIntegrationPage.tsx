@@ -291,9 +291,9 @@ export default function JiraIntegrationPage(): JSX.Element {
                   />
                 </div>
                 <div>
-                  <label style={_ls}>{t('jira_integration.token_label')}</label>
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={_ls}>{t('jira_integration.token_label')}</label>
                   <div style={{ position: 'relative' }}>
-                    <input
+                    <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
                       type={showToken ? 'text' : 'password'}
                       autoComplete="current-password"
                       placeholder={config?.token_hint ? `\u2022\u2022\u2022\u2022\u2022\u2022${config.token_hint}` : t('jira_integration.token_placeholder')}

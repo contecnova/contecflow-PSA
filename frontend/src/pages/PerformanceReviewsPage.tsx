@@ -18,6 +18,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { useState, useEffect, useMemo, useId } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi, usersApi } from '../services/api'
+import type { Campana360, CicloDeEvaluacion, EvaluacionDeDesempeno, EvaluadoresElegibles, Historico360, KpisDeCiclo, KpisDeDesempeno, PanelDeCampana360, PlanDeDesarrollo, PreguntaDeEvaluacion, RespuestasDeEvaluacion } from '../services/api/tipos-rendimiento'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
 import { useTabListKeys } from '../components/ui/Tabs'
 import {
@@ -38,177 +39,27 @@ import { SELECTOR_LIST_SIZE } from '../constants/pagination'
 
 const NO_PERMISSION_TIP = 'Solo admin / RR.HH.'
 
-// ── Formas de la API (app/services/performance_service/*) ───────────────────
-/** Respuestas por `question_key`: puntuación, sí/no o texto. */
-type AnswerMap = Record<string, string | number | null>
-
-interface Cycle {
-  id: string
-  name: string
-  status: string
-  start_date?: string | null
-  end_date?: string | null
-  total_reviews?: number
-  submitted?: number
-  pending?: number
-}
-
-/** `serialize_review` (evaluaciones.py). */
-interface Review {
-  id: string
-  cycle_id: string
-  reviewee_id: string
-  reviewee_name: string | null
-  reviewer_id: string
-  reviewer_name: string | null
-  review_type: string
-  status: string
-  answers: AnswerMap
-  score_overall: number | null
-  submitted_at: string | null
-}
-
-/** `serialize_question` (ciclos_y_preguntas.py). */
-interface Question {
-  id: string
-  cycle_id: string
-  key: string
-  label: string
-  hint: string | null
-  kind: string
-  order: number | null
-  required: boolean
-  scale_min: number | null
-  scale_max: number | null
-}
-
+// ── Formas de la API: services/api/tipos-rendimiento.ts ────────────────────
+type Cycle = CicloDeEvaluacion
+type Review = EvaluacionDeDesempeno
+type Question = PreguntaDeEvaluacion
+type AnswerMap = RespuestasDeEvaluacion
 /** Cuerpo de `ReviewQuestionIn` / `ReviewQuestionUpdate`. */
 type QuestionPayload = Partial<Pick<Question, 'key' | 'label' | 'hint' | 'kind' | 'required' | 'scale_min' | 'scale_max'>>
-
-interface EligibleUser {
-  id: string
-  full_name: string
-  team?: string | null
-  department?: string | null
-}
-
-/** Respuesta de `/performance/cycles/{id}/eligible-reviewers`. */
-interface EligiblePool {
-  users?: EligibleUser[]
-  reason_blocked?: string | null
-}
-
-/** `serialize_campaign` (campanas_360.py). */
-interface Campaign {
-  id: string
-  cycle_id: string
-  subject_id: string
-  subject_name: string | null
-  status: string
-  anonymity_threshold: number
-  created_at: string | null
-  closed_at: string | null
-  total_reviewers?: number
-  submitted?: number
-  pending?: number
-  by_type?: Record<string, number>
-}
-
-interface CampaignGroup {
-  count: number
-  anonymized: boolean
-  text_by_question?: Record<string, Array<{ text: unknown }>>
-}
-
-/** `aggregate_campaign` (campanas_360.py). */
-interface CampaignDashboard {
-  campaign: Campaign
-  groups?: Record<string, CampaignGroup>
-  questions?: Question[]
-  comparison?: Record<string, Record<string, number | null>>
-  total_submitted: number
-  total_assigned: number
-  anonymity_threshold: number
-}
-
-interface HistoryRating {
-  label: string
-  scale_max: number
-  self?: number | null
-  others?: number | null
-}
-
-interface HistoryPoint {
-  campaign_id: string
-  cycle_name: string
-  created_at: string | null
-  ratings?: Record<string, HistoryRating>
-}
-
-interface History360 {
-  subject_name?: string
-  series?: HistoryPoint[]
-}
+type EligiblePool = EvaluadoresElegibles
+type EligibleUser = EvaluadoresElegibles['users'][number]
+type Campaign = Campana360
+type CampaignDashboard = PanelDeCampana360
+type History360 = Historico360
+type HistoryPoint = Historico360['series'][number]
+type OrgKpis = KpisDeDesempeno
+type CycleKpis = KpisDeCiclo
+type DevPlan = PlanDeDesarrollo
 
 interface HistoryQuestion {
   key: string
   label: string
   max: number
-}
-
-interface StalledCycle {
-  cycle_id: string
-  cycle_name: string
-  completion_rate: number
-  overdue?: boolean
-  end_date?: string | null
-}
-
-interface OrgKpis {
-  active_cycles: number
-  closed_cycles: number
-  pending_reviews_active: number
-  total_reviews_active: number
-  global_completion_rate: number
-  avg_days_to_submit_closed: number | null
-  stalled_cycles?: StalledCycle[]
-}
-
-interface StalledReviewer {
-  user_id: string
-  user_name: string
-  pending: number
-}
-
-interface CycleKpis {
-  cycle_name: string
-  completion_rate: number
-  submitted: number
-  total_reviews: number
-  days_to_close: number | null
-  avg_days_to_submit: number | null
-  top_stalled_reviewers?: StalledReviewer[]
-}
-
-interface DevGoal {
-  id: string
-  title: string
-  status: string
-  due_date: string | null
-  completed_at: string | null
-}
-
-interface DevPlan {
-  id: string
-  subject_id: string
-  subject_name: string | null
-  title: string
-  summary: string | null
-  status: string
-  target_date: string | null
-  next_review_at: string | null
-  progress_pct: number
-  goals: DevGoal[]
 }
 
 // ── Estilos compartidos ────────────────────────────────────────────────────

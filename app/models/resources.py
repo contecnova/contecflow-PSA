@@ -49,7 +49,7 @@ class UserSkill(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    skill_id = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False)
+    skill_id = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
     level = Column(Enum(SkillLevel), nullable=False)
     years_experience = Column(Float, nullable=True)
     certified = Column(Boolean, default=False)

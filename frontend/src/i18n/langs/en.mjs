@@ -4532,6 +4532,7 @@ const en = {
   },
   toast: {
     unexpected_error: 'Unexpected error',
+    load_error: 'Could not load the data',
     close: 'Close notification',
   },
   cmdb: {

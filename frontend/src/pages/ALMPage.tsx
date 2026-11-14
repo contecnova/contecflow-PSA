@@ -7,6 +7,7 @@ import { z } from 'zod'
 import type { ZodSchema } from 'zod'
 import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from '../services/api'
 import type { UserListItem } from '../services/api'
+import type { AlmActivo, AlmCentroDeCoste, AlmContrato, AlmKpis, AlmLicencia, AlmProveedor } from '../services/api/tipos-alm'
 import { Button, Spinner, EmptyState, Modal, Tabs, Page } from '../components/ui'
 import {
   Layers, Building2, FileText, Key, Monitor, Briefcase,
@@ -96,135 +97,14 @@ const ASSET_STATUS_CFG: Record<string, CatalogoColor> = {
   stolen:    { label: 'Robado',         color: 'var(--danger)' },
 }
 
-// ── Entidades (lo que devuelven los endpoints /alm/*) ─────────────────────────
-type Referencia = { id: string; name: string }
-type Vendor = {
-  id: string
-  name: string
-  category?: string
-  website?: string | null
-  support_email?: string | null
-  support_phone?: string | null
-  account_manager?: string | null
-  account_number?: string | null
-  tax_id?: string | null
-  country?: string | null
-  notes?: string | null
-  contracts_count?: number
-}
-type AlmContract = {
-  id: string
-  title: string
-  vendor_id?: string | null
-  vendor_name?: string | null
-  type?: string
-  status?: string
-  start_date?: string | null
-  end_date?: string | null
-  renewal_date?: string | null
-  auto_renew?: boolean
-  notice_days?: number | null
-  resolution_hours?: number | null
-  response_hours?: number | null
-  total_value?: number | null
-  annual_value?: number | null
-  billing_cycle?: string | null
-  currency?: string | null
-  payment_method?: string | null
-  po_number?: string | null
-  cost_center_id?: string | null
-  owner_id?: string | null
-  owner_name?: string | null
-  document_url?: string | null
-  notes?: string | null
-  tags?: string | null
-  renewal_urgent?: boolean
-  days_to_renewal?: number | null
-  licenses_count?: number
-  linked_clients?: Referencia[]
-}
-type License = {
-  id: string
-  name: string
-  product_name?: string | null
-  version?: string | null
-  edition?: string | null
-  type?: string
-  platform?: string | null
-  status?: string
-  vendor_id?: string | null
-  vendor_name?: string | null
-  contract_id?: string | null
-  total_seats?: number | null
-  used_seats?: number | null
-  purchase_date?: string | null
-  expiry_date?: string | null
-  days_to_expiry?: number | null
-  purchase_price?: number | null
-  annual_cost?: number | null
-  cost_center_id?: string | null
-  environment?: string | null
-  is_compliance_req?: boolean
-  notes?: string | null
-  linked_clients?: Referencia[]
-}
-type Asset = {
-  id: string
-  name: string
-  type?: string
-  brand?: string | null
-  model?: string | null
-  serial_number?: string | null
-  asset_tag?: string | null
-  status?: string
-  condition?: string | null
-  assigned_to_id?: string | null
-  assigned_to_name?: string | null
-  location?: string | null
-  vendor_id?: string | null
-  purchase_date?: string | null
-  purchase_price?: number | null
-  book_value?: number | null
-  warranty_expiry?: string | null
-  warranty_expired?: boolean
-  depreciation_years?: number | null
-  ip_address?: string | null
-  hostname?: string | null
-  os?: string | null
-  cpu?: string | null
-  ram_gb?: number | null
-  storage_gb?: number | null
-  notes?: string | null
-  installed_licenses?: number
-  ci_id?: string | null
-  ci_code?: string | null
-  ci_name?: string | null
-  eol_date?: string | null
-  lease_expiry?: string | null
-  next_maintenance_date?: string | null
-  maintenance_contract?: string | null
-}
-type CostCenter = { id: string; code: string; name: string; description?: string | null; budget_annual?: number | null; currency?: string | null }
+// ── Entidades (lo que devuelven los endpoints /alm/*: services/api/tipos-alm) ─
+type Vendor = AlmProveedor
+type AlmContract = AlmContrato
+type License = AlmLicencia
+type Asset = AlmActivo
+type CostCenter = AlmCentroDeCoste
 type CostCenterForm = { code: string; name: string; description: string; budget_annual: string | number; currency: string }
-type AlmKpis = {
-  total_contracts?: number
-  expiring_soon?: number
-  total_licenses?: number
-  expired_licenses?: number
-  total_assets?: number
-  assets_in_use?: number
-  total_vendors?: number
-  annual_license_cost?: number
-  total_annual_cost?: number
-}
-type Renovacion = { id: string; title: string; vendor_name?: string | null; days_to_renewal: number; renewal_date?: string | null }
-type AlmDashboardData = { kpis?: AlmKpis; upcoming_renewals?: Renovacion[] }
 type CmdbItem = { id: string; code?: string; name: string }
-type AssetHistoryRow = { id: string; field: string; old_value?: string | null; new_value?: string | null; changed_at?: string | null; user_name?: string | null; note?: string | null }
-type ExpiringRow = { asset_id: string; name: string; expiry_type: string; expiry_date: string; days_remaining: number; refresh_ticket_id?: string | null }
-type RefreshTicketResult = { created: boolean; number: string }
-type ComplianceIssue = { name: string; detail?: string; issue: string; severity: string }
-type ComplianceReport = { issues?: ComplianceIssue[]; critical?: number }
 /** Cambio de un campo de texto, select, textarea o DateInput. */
 type CambioDeCampo = { target: { value: string } }
 /** Lo que `useFormValidation(esquema)` entrega como datos válidos. */
@@ -265,13 +145,13 @@ const SectionTitle = ({ children, action }: { children: ReactNode; action?: Reac
 // ── Dashboard ALM ─────────────────────────────────────────────────────────────
 function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const t = useAppT()
-  const { data: dash = {}, isLoading } = useQuery<AlmDashboardData>({
+  const { data: dash, isLoading } = useQuery({
     queryKey: ['alm-dashboard'],
     queryFn: () => almExtApi.dashboard().then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
   })
-  const kpis: AlmKpis = dash.kpis || {}
-  const renewals = dash.upcoming_renewals || []
+  const kpis: Partial<AlmKpis> = dash?.kpis || {}
+  const renewals = dash?.upcoming_renewals || []
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center' }}><Spinner size={32} /></div>
 
@@ -359,12 +239,16 @@ function VendorModal({ vendor, onClose }: { vendor: Partial<Vendor> | null; onCl
     name: vendor?.name || '', category: vendor?.category || 'software',
     website: vendor?.website || '', support_email: vendor?.support_email || '',
     support_phone: vendor?.support_phone || '', account_manager: vendor?.account_manager || '',
-    account_number: vendor?.account_number || '', tax_id: vendor?.tax_id || '',
+    account_number: vendor?.account_number || '', tax_id: '',
     country: vendor?.country || 'ES', notes: vendor?.notes || '',
   })
   const s = (k: keyof typeof form) => (e: CambioDeCampo) => setForm(f => ({ ...f, [k]: e.target.value }))
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: typeof form) => isEdit ? vendorsApi.update(vendor.id, d) : vendorsApi.create(d),
+    // VendorSerializer no envía tax_id: en la edición el campo sale vacío y, si no se
+    // escribe, no se manda (antes se mandaba '' y borraba el CIF guardado).
+    mutationFn: ({ tax_id, ...resto }: typeof form) => isEdit
+      ? vendorsApi.update(vendor.id, tax_id ? { ...resto, tax_id } : resto)
+      : vendorsApi.create({ ...resto, tax_id }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['alm-vendors'] }); qc.invalidateQueries({ queryKey: ['alm-dashboard'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -1293,9 +1177,9 @@ const VENCIMIENTO_KEY: Record<string, string> = {
 
 function AssetHistoryModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
   const t = useAppT()
-  const { data: filas = [], isLoading } = useQuery<AssetHistoryRow[]>({
+  const { data: filas = [], isLoading } = useQuery({
     queryKey: ['alm-asset-history', asset.id],
-    queryFn: () => assetsApi.history(asset.id).then(r => r.data ?? []),
+    queryFn: () => assetsApi.history(asset.id).then(r => r.data),
   })
   return (
     <Modal open onClose={onClose} title={t('alm.assets_history_of', { name: asset.name })} width={560}>
@@ -1324,9 +1208,9 @@ function AssetHistoryModal({ asset, onClose }: { asset: Asset; onClose: () => vo
 function ExpiringPanel({ assets, onRenew }: { assets: Asset[]; onRenew: (a: Pick<Asset, 'id' | 'name'>) => void }) {
   const t = useAppT()
   const [dias, setDias] = useState(90)
-  const { data: filas = [] } = useQuery<ExpiringRow[]>({
+  const { data: filas = [] } = useQuery({
     queryKey: ['alm-expiring', dias],
-    queryFn: () => assetsApi.expiring(dias).then(r => r.data ?? []),
+    queryFn: () => assetsApi.expiring(dias).then(r => r.data),
   })
   return (
     <div style={{ ...card, padding: '14px 18px', marginBottom: 16 }}>
@@ -1375,7 +1259,7 @@ function AssetsTab() {
   })
   const [historyOf, setHistoryOf] = useState<Asset | null>(null)
   const { mutate: renovar } = useMutation({
-    mutationFn: (a: Pick<Asset, 'id' | 'name'>) => assetsApi.refreshTicket(a.id).then((r): RefreshTicketResult => r.data),
+    mutationFn: (a: Pick<Asset, 'id' | 'name'>) => assetsApi.refreshTicket(a.id).then(r => r.data),
     onSuccess: d => {
       toast.success(t(d.created ? 'alm.renewal_created' : 'alm.renewal_exists', { number: d.number }))
       qc.invalidateQueries({ queryKey: ['alm-assets'] }); qc.invalidateQueries({ queryKey: ['alm-expiring'] })
@@ -1546,11 +1430,11 @@ function CostCentersTab() {
 // ── Compliance ─────────────────────────────────────────────────────────────────
 function ComplianceTab() {
   const t = useAppT()
-  const { data: report = {}, isLoading, refetch } = useQuery<ComplianceReport>({
+  const { data: report, isLoading, refetch } = useQuery({
     queryKey: ['alm-compliance'],
     queryFn: () => almExtApi.compliance().then(r => r.data),
   })
-  const issues = report.issues || []
+  const issues = report?.issues || []
 
   return (
     <div>
@@ -1573,7 +1457,7 @@ function ComplianceTab() {
             </div>
             <div style={{ ...card, padding: '18px 20px' }}>
               <div style={{ fontSize: "var(--text-3xl)", marginBottom: 8 }}>🔴</div>
-              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>{report.critical || 0}</div>
+              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>{report?.critical || 0}</div>
               <div className="u-base-600">{t('alm.compliance_critical')}</div>
             </div>
           </div>

@@ -117,7 +117,7 @@ class ModelSerializer:
 class VendorSerializer(ModelSerializer):
     """Serializer para Vendor."""
     fields = ['id', 'name', 'category', 'website', 'support_email', 'support_phone',
-              'account_manager', 'account_number', 'country', 'is_active', 'notes']
+              'account_manager', 'account_number', 'country', 'tax_id', 'is_active', 'notes']
     related_counts = {'contracts': 'contracts_count'}
 
 

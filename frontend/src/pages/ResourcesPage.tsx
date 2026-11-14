@@ -353,7 +353,7 @@ function SmartMatchTab() {
 
   const { data: allSkills = [] } = useQuery<SkillItem[]>({
     queryKey: ['skills-sm'],
-    queryFn: () => skillsApi.catalog().then(unwrapList) as Promise<SkillItem[]>,
+    queryFn: () => skillsApi.catalog().then(r => r.data),
   })
 
   const { mutate: search, isPending } = useMutation({

@@ -14,6 +14,11 @@ import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { grcApi, approvalsApi, usersApi, governanceApi } from '../services/api'
+import type {
+  PermisosGrc, MatrizDePermisos as PermMatrix, ReglaSod as SodRule, ConflictoSod as SodViolation,
+  ViolacionSod as ViolationRecord, EventoDeAuditoriaGrc as AuditEvent, CapaDeAcceso, ExplicacionDeAcceso as Explicacion,
+  InformeDeCumplimiento, PoliticaDeRetencion, BloqueoLegal as Bloqueo, VistaPreviaDeRetencion,
+} from '../services/api/tipos-grc'
 import { advancedConfigApi } from '../services/settingsApi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -49,17 +54,13 @@ const MODULE_LABELS: Record<string, { label: string; icon: string }> = {
 }
 const moduleInfo = (id?: string) => ({ id: id || '', ...(MODULE_LABELS[id || ''] || { label: id || '', icon: '·' }) })
 
-type PermResponse = { matrix: PermMatrix; modules?: string[]; roles?: string[] }
-
 /** La matriz efectiva con sus módulos y roles, como la devuelve la API (caché compartida). */
 function usePermisos() {
-  return useQuery<PermResponse>({
+  return useQuery<PermisosGrc>({
     queryKey: ['grc-permissions'],
-    queryFn: () => grcApi.permissions().then(r => r.data as PermResponse),
+    queryFn: () => grcApi.permissions().then(r => r.data),
   })
 }
-
-type PermMatrix = Record<string, Record<string, Record<string, boolean>>>
 
 const ACTIONS = ['ver', 'crear', 'editar', 'eliminar', 'aprobar', 'exportar']
 const ACTION_LABEL: Record<string, string> = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: 'Eliminar', aprobar: 'Aprobar', exportar: 'Exportar' }
@@ -227,19 +228,6 @@ function MatrixTab({ roles }: { roles: Role[] }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 2. SEGREGACIÓN SoD (wired to API + CRUD)
 // ═══════════════════════════════════════════════════════════════════════════════
-type SodRule = {
-  [k: string]: unknown
-  id: string
-  module_a?: string
-  action_a?: string
-  module_b?: string
-  action_b?: string
-  risk?: string
-  description?: string
-  roles_conflict?: string[]
-  mitigated_by_workflow_id?: string | null
-  is_active?: boolean
-}
 type Workflow = {
   [k: string]: unknown
   id: string
@@ -364,18 +352,6 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
   )
 }
 
-type SodViolation = {
-  [k: string]: unknown
-  id?: string
-  risk?: string
-  conflicting_role?: string
-  action_a?: string
-  module_a?: string
-  action_b?: string
-  module_b?: string
-  mitigated?: boolean
-}
-
 function SodTab({ roles }: { roles: Role[] }) {
   const traducir = useAppT()
   const t = useAppT()
@@ -388,7 +364,7 @@ function SodTab({ roles }: { roles: Role[] }) {
     queryKey: ['grc-sod-rules'],
     queryFn: () => grcApi.sodRules().then(r => r.data),
   })
-  const { data: checkData } = useQuery<{ violations?: SodViolation[] }>({
+  const { data: checkData } = useQuery<{ violations: SodViolation[] }>({
     queryKey: ['grc-sod-check'],
     queryFn: () => grcApi.sodCheck().then(r => r.data),
     staleTime: STALE_SHORT_MS,
@@ -506,19 +482,6 @@ function SodTab({ roles }: { roles: Role[] }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 3. VIOLACIONES SoD
 // ═══════════════════════════════════════════════════════════════════════════════
-type ViolationRecord = {
-  [k: string]: unknown
-  id: string
-  resolved?: boolean
-  role?: string
-  user_name?: string
-  user_id?: string
-  context_type?: string
-  context_id?: string
-  detected_at?: string
-  resolution_note?: string
-}
-
 function ViolationsTab() {
   const traducir = useAppT()
   const toast = useToast()
@@ -593,18 +556,6 @@ function ViolationsTab() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 4. AUDIT LOG GRC
 // ═══════════════════════════════════════════════════════════════════════════════
-type AuditEvent = {
-  [k: string]: unknown
-  id: string
-  severity?: string
-  action_type?: string
-  resource_type?: string
-  user_name?: string
-  ip_address?: string
-  timestamp?: string
-  detail?: Record<string, unknown> | null
-}
-
 function AuditLogTab() {
   const traducir = useAppT()
   const [severity, setSeverity] = useState('')
@@ -730,18 +681,11 @@ function ApprovalsTab() {
   )
 }
 
-type CapaDeAcceso = { layer: string; verdict: 'allow' | 'deny' | 'not_applicable' | 'unknown'; detail: string; [k: string]: unknown }
-type Explicacion = { verdict: 'allow' | 'deny' | 'unknown'; decided_by: string | null; template: string | null; path: string; method: string;
-  user: { name?: string; role: string }; layers: CapaDeAcceso[] }
 
 const COLOR_VEREDICTO: Record<string, string> = { allow: 'var(--success)', deny: 'var(--danger)', unknown: 'var(--warning)', not_applicable: 'var(--text-3)' }
 
-type ControlMedido = { id: string; status: 'pass' | 'attention' | 'info' | 'not_measurable'; measured: Record<string, unknown>; source: string; frameworks: string[] }
-type InformeDeCumplimiento = { generated_at: string; organization_name?: string; summary: Record<string, number>; controls: ControlMedido[] }
 const COLOR_CONTROL: Record<string, string> = { pass: 'var(--success)', attention: 'var(--danger)', info: 'var(--accent)', not_measurable: 'var(--text-3)' }
 
-type PoliticaDeRetencion = { entity: string; hold_fields: string[]; keep_days: number | null; is_active: boolean; last_run_at: string | null; last_deleted: number | null }
-type Bloqueo = { id: string; case_reference: string; reason?: string; entity: string; field: string; value: string; is_active: boolean; created_at: string; released_at?: string }
 
 /** Retención por tipo de registro y bloqueo legal (revisión 2026-11). */
 function RetencionTab() {
@@ -753,7 +697,7 @@ function RetencionTab() {
   })
   const { data: bloqueos = [] } = useQuery<Bloqueo[]>({ queryKey: ['legal-holds'], queryFn: () => governanceApi.legalHolds().then(r => r.data) })
   const [dias, setDias] = useState<Record<string, string>>({})
-  const [previas, setPrevias] = useState<Record<string, { expired: number; held: number; would_delete: number }>>({})
+  const [previas, setPrevias] = useState<Record<string, VistaPreviaDeRetencion>>({})
   const [nuevo, setNuevo] = useState({ case_reference: '', reason: '', entity: '*', field: 'client_id', value: '' })
   const error = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['retention'] }); qc.invalidateQueries({ queryKey: ['legal-holds'] }) }
@@ -767,7 +711,7 @@ function RetencionTab() {
   const aplicar = async () => {
     try {
       const r = await governanceApi.retentionRun()
-      const total = Object.values(r.data as Record<string, { deleted: number }>).reduce((a, x) => a + x.deleted, 0)
+      const total = Object.values(r.data).reduce((a, x) => a + x.deleted, 0)
       toast.success(t('grc.retencion_aplicada', { n: total })); refrescar()
     } catch (e) { error(e) }
   }
@@ -860,11 +804,11 @@ function InformeDeCumplimientoTab() {
   const toast = useToast()
   const [bajando, setBajando] = useState(false)
   const { data, isFetching, refetch } = useQuery<InformeDeCumplimiento>({
-    queryKey: ['grc-compliance-report'], queryFn: () => grcApi.complianceReport().then(r => r.data as InformeDeCumplimiento),
+    queryKey: ['grc-compliance-report'], queryFn: () => grcApi.complianceReport().then(r => r.data),
   })
   const descargar = async () => {
     setBajando(true)
-    try { downloadBlob((await grcApi.complianceReportSigned()).data as Blob, `compliance-report-${new Date().toISOString().slice(0, 10)}.json`) }
+    try { downloadBlob((await grcApi.complianceReportSigned()).data, `compliance-report-${new Date().toISOString().slice(0, 10)}.json`) }
     catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setBajando(false) }
   }
   const valor = (v: unknown): string => v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v)
@@ -935,7 +879,7 @@ function ExplicarAccesoTab() {
   const explicar = async () => {
     if (!usuario || !camino.trim()) return
     setCargando(true)
-    try { setRes((await grcApi.explainAccess({ user_id: usuario, method: metodo, path: camino.trim() })).data as Explicacion) }
+    try { setRes((await grcApi.explainAccess({ user_id: usuario, method: metodo, path: camino.trim() })).data) }
     catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setCargando(false) }
   }
   const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8,

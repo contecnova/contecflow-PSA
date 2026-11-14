@@ -12,6 +12,7 @@ import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
 import LeccionesDeOrigen from '../../components/lecciones/LeccionesDeOrigen'
 import { COLOR, alpha } from '../../constants/theme'
 import { almExtApi, sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
+import type { SdAprobacionDeTicket, SdRespuestaRapida, SdSugerenciaIA, SdTicketComentario, SdTicketDetalle, SdTicketEnlace, SdTicketHistorial } from '../../services/api/tipos-sd'
 import { useAuth } from '../../context/AuthContext'
 import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 import { POLL_FREQUENT_MS, STALE_DEFAULT_MS } from '../../constants/timings'
@@ -21,25 +22,22 @@ import { TICKET_LINK_SEARCH_LIMIT } from '../../constants/pagination'
 const IS_STYLE = INPUT_STYLE as CSSProperties
 const LS_STYLE = LABEL_STYLE as CSSProperties
 
-type TicketShape = { [k: string]: unknown; id: string; number?: string | number; title?: string; description?: string; status?: string }
+type TicketShape = SdTicketDetalle
 
-/** Enlace entre tickets (`GET /sd/tickets/{id}/links`). */
-interface TicketLink { link_id: string; link_type: string; ticket_number?: string; ticket_title?: string; ticket_status?: string }
-interface TicketComment { id: string; author_name?: string; is_public?: boolean; created_at?: string; body?: string }
-interface TicketHistoryEntry { change_description?: string | null; field_name?: string; old_value?: unknown; new_value?: unknown; changed_at?: string }
+type TicketLink = SdTicketEnlace
+type TicketComment = SdTicketComentario
+type TicketHistoryEntry = SdTicketHistorial
 /** Contrato de ALM usado como contrato de soporte (UC). */
 interface UcContract { id: string; title?: string; vendor_name?: string | null; status?: string; response_hours?: number | null; resolution_hours?: number | null }
 
 // ── CannedResponsePicker ──────────────────────────────────────────────────────
-interface CannedResponse {
-  id: string; title?: string; body?: string; category?: string; shortcut?: string
-}
+type CannedResponse = SdRespuestaRapida
 function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) => void; onClose: () => void }) {
   const t = useAppT()
   const [search, setSearch] = useState('')
   const { data: responses = [] } = useQuery<CannedResponse[]>({
     queryKey: ['canned-responses', search],
-    queryFn: () => sdCannedApi.list(search ? { search } : {}).then((r: { data: CannedResponse[] }) => r.data).catch(() => []),
+    queryFn: () => sdCannedApi.list(search ? { search } : {}).then(r => r.data).catch(() => []),
     staleTime: STALE_DEFAULT_MS,
   })
   const cats: string[] = Array.from<string>(new Set(responses.map((r) => String(r.category || 'General')))).sort()
@@ -103,7 +101,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
   const { mutate, isPending } = useMutation({
     mutationFn: (data: Record<string, unknown>) => ticketsApi.split(ticket.id, data),
     onSuccess: res => {
-      toast.success(`${t('service_desk.ticket_created_success')} ${res?.data?.child?.number || ''}`)
+      toast.success(`${t('service_desk.ticket_created_success')} ${res.data.child}`)
       onCreated?.(res?.data)
       onClose()
     },
@@ -164,10 +162,10 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
     try { return JSON.stringify(raw, null, 2) } catch { return '{}' }
   }, [ticket?.dynamic_fields])
   const [form, setForm] = useState({
-    title: (ticket.title as string) || '', description: (ticket.description as string) || '',
-    priority: (ticket.priority as string) || 'p3_medium', ticket_type: (ticket.ticket_type as string) || 'incident',
-    urgency: (ticket.urgency as string) || 'medium', impact: (ticket.impact as string) || 'user',
-    status: (ticket.status as string) || 'new', resolution: (ticket.resolution as string) || '', tags: (ticket.tags as string) || '',
+    title: ticket.title || '', description: ticket.description || '',
+    priority: ticket.priority || 'p3_medium', ticket_type: ticket.ticket_type || 'incident',
+    urgency: ticket.urgency || 'medium', impact: ticket.impact || 'user',
+    status: ticket.status || 'new', resolution: ticket.resolution || '', tags: ticket.tags || '',
   })
   const [dynamicFieldsText, setDynamicFieldsText] = useState(initialDynamic)
   const { mutate, isPending } = useMutation({
@@ -344,7 +342,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   const { mutate: suggestReply, isPending: suggestingReply } = useMutation({
     mutationFn: () => ticketsApi.aiSuggest(ticketId, { content: commentText }),
     onSuccess: res => {
-      const datos = res?.data as Sugerencia | undefined
+      const datos = res.data
       setSugerencia(datos ?? null)
       const draft = datos?.draft || ''
       // Sin IA se dice, y los articulos y documentos se ensenan igual.
@@ -359,7 +357,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
       invalidate(); setTimeMin('')
       // Dice si el tiempo llegó a los partes o por qué no: sin eso, el agente
       // daba por imputado lo que se había quedado en el ticket.
-      const r = res?.data as { timesheet?: string; hours?: number; reason?: string } | undefined
+      const r = res.data
       if (r?.timesheet === 'created') toast.success(t('sd_cfg.time_to_timesheet', { h: r.hours ?? 0 }))
       else if (r?.timesheet === 'skipped') toast.info(t('sd_cfg.time_not_to_timesheet', { reason: r.reason ?? '' }))
       else toast.success(`${timeMin} min`)
@@ -419,7 +417,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 700 }}>{ticket?.number}</span>
                 <span className="u-text3-xs">{ticket?.type_label}</span>
                 <PBadge v={ticket?.priority} />
-                <SBadge v={ticket?.status} />
+                <SBadge v={ticket?.status ?? ''} />
               </div>
               <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.3 }}>{ticket?.title}</div>
             </>}
@@ -445,7 +443,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               {(ticket.status === 'pending_client' || ticket.status === 'pending_third') && (
                 <button onClick={() => restorePending()} disabled={restoringPending} style={qaBtnStyle}>↺ {t('service_desk.qa_back_to_previous')}</button>
               )}
-              {ticket.sla_paused_at
+              {(ticket.sla_resolution_status === 'paused' || ticket.sla_response_status === 'paused')
                 ? <button onClick={() => resumeSLA()} style={qaBtnStyle}>▶ {t('service_desk.qa_resume_sla')}</button>
                 : <button onClick={() => pauseSLA()} style={qaBtnStyle}>⏸ {t('service_desk.qa_pause_sla')}</button>}
               <button onClick={() => setShowSplit(true)} style={qaBtnStyle}>✂ {t('service_desk.qa_split')}</button>
@@ -469,7 +467,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           {(ticket.fulfillment_tasks ?? []).length > 0 && (
             <div className="ds-card" style={{ padding: 12, marginBottom: 16, fontSize: 'var(--text-sm)' }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>{t('sd_cfg.ff_tasks')}</div>
-              {(ticket.fulfillment_tasks as { id: string; number: string; title: string; status: string; group_name?: string; assignee_name?: string }[]).map(ft => (
+              {ticket.fulfillment_tasks.map(ft => (
                 <div key={ft.id} style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
                   <a href={`/service-desk?ticket=${ft.id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{ft.number}</a>
                   <span className="u-flex1">{ft.title.split(' · ').slice(1).join(' · ') || ft.title}</span>
@@ -699,7 +697,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               <div className="u-stack-6">
                 {ticket.history.slice(-8).reverse().map((h: TicketHistoryEntry, i: number) => (
                   <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '5px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{h.change_description || `${h.field_name}: ${h.old_value} → ${h.new_value}`}</span>
+                    <span>{`${h.field ?? ''}: ${h.old_value ?? '—'} → ${h.new_value ?? '—'}`}</span>
                     <span style={{ color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 10 }}>{fmtDate(h.changed_at)}</span>
                   </div>
                 ))}
@@ -745,11 +743,11 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 }
 
 
-type Aprobacion = { status: string; comment?: string | null; approver_user_id?: string | null; approver_name?: string | null; decided_by_name?: string | null }
+type Aprobacion = SdAprobacionDeTicket
 
 /** Estado de la aprobación y, para quien la tiene que dar, los botones. */
 function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, setMotivo }: {
-  ticket: { id: string; approval: Aprobacion }; yo: { id?: string; role?: string } | null
+  ticket: { id: string; approval: Aprobacion | null }; yo: { id?: string; role?: string } | null
   rechazando: boolean; motivo: string; setRechazando: (v: boolean) => void; setMotivo: (v: string) => void
 }) {
   const t = useAppT()
@@ -766,6 +764,7 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+  if (!a) return null
   const puedeDecidir = a.status === 'pending' && (a.approver_user_id === yo?.id || yo?.role === 'admin')
   const color = a.status === 'approved' ? COLOR.success : a.status === 'rejected' ? COLOR.danger : COLOR.warning
   const texto = a.status === 'pending' ? t('sd_cfg.apr_pending', { name: a.approver_name ?? '—' })
@@ -798,12 +797,7 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
 }
 
 
-type Sugerencia = {
-  draft?: string | null; ai_error?: string | null
-  kb_matches?: { id: string; number: string; title: string; summary?: string | null }[]
-  documents?: { document_id: string; title: string; snippet: string }[]
-  documents_configured?: boolean; documents_error?: string | null
-}
+type Sugerencia = SdSugerenciaIA
 
 /** Lo que acompaña al borrador: artículos y documentos en que apoyarse. */
 function ApoyoDeLaSugerencia({ s }: { s: Sugerencia }) {
@@ -846,7 +840,7 @@ function SeguirYFusionar({ ticketId }: { ticketId: string }) {
   const [motivo, setMotivo] = useState('')
   const { data: seguidores = [] } = useQuery<{ user_id: string; user_name?: string }[]>({
     queryKey: ['sd-ticket-watchers', ticketId],
-    queryFn: () => ticketsApi.watchers(ticketId).then(r => r.data as { user_id: string; user_name?: string }[]),
+    queryFn: () => ticketsApi.watchers(ticketId).then(r => r.data),
   })
   const sigo = seguidores.some(s => s.user_id === user?.id)
   const err = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
@@ -857,7 +851,7 @@ function SeguirYFusionar({ ticketId }: { ticketId: string }) {
   const fusionar = useMutation({
     mutationFn: async () => {
       const buscado = numero.trim().toUpperCase()
-      const lista = await ticketsApi.list({ search: buscado, page_size: TICKET_LINK_SEARCH_LIMIT }).then(r => r.data as { id: string; number: string }[])
+      const lista = await ticketsApi.list({ search: buscado, page_size: TICKET_LINK_SEARCH_LIMIT }).then(r => r.data)
       const duplicado = lista.find(x => x.number === buscado && x.id !== ticketId)
       if (!duplicado) throw new Error(t('sd_cfg.m_not_found'))
       await ticketsApi.mergeInto(ticketId, { merged_ticket_id: duplicado.id, reason: motivo || null })

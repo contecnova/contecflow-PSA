@@ -163,8 +163,19 @@ def simulate_workflow(db: Session, entity_type: str, context: dict) -> dict:
         "conditions": _parse_trigger_conditions(chosen.trigger_conditions),
         "estimated_total_timeout_hours": total_timeout,
         "route": route,
-        "candidate_count": len(matches),
+        # Auditoria 2026-11: `matches` no existia (NameError -> 500 al encajar).
+        "candidate_count": _contar_candidatos(db, entity_type, context),
     }
+
+def _contar_candidatos(db: Session, entity_type: str, context: dict) -> int:
+    """Flujos activos cuyas condiciones encajan (los que `elegir_flujo` consideraria)."""
+    n = 0
+    for wf in db.query(ApprovalWorkflow).filter(ApprovalWorkflow.entity_type == entity_type,
+                                                ApprovalWorkflow.is_active == True).all():  # noqa: E712
+        cond = _parse_trigger_conditions(wf.trigger_conditions)
+        if cond and _matches_conditions(cond, context or {}):
+            n += 1
+    return n or 1
 
 def find_document_workflow(db: Session, category: str):
     """Convenience wrapper — returns best workflow for a document category or None."""

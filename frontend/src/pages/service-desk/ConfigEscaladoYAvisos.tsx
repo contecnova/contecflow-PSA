@@ -72,7 +72,7 @@ export function EscalationConfig() {
     queryKey: ['sd-escalation-logs'], queryFn: () => sdEscalationApi.logs(15).then(r => r.data as Disparo[]),
   })
   const { data: colas = [] } = useQuery<Cola[]>({
-    queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data as Cola[]),
+    queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
   const { data: personas = [] } = useQuery<Persona[]>({
     queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data as unknown as Persona[]),

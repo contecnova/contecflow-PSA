@@ -31,7 +31,7 @@ class Ticket(Base):
     support_level = Column(Enum(SupportLevel), default=SupportLevel.l1)
 
     requester_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    requester_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True)
+    requester_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
     requester_name = Column(String(255), nullable=True)
     # Auditoria 2026-09. Esta columna no existia y el servicio de SMS entrantes
     # la pasaba igual —detras de un `hasattr` que protegia el valor y no la
@@ -73,10 +73,10 @@ class Ticket(Base):
     linked_resource_type = Column(String(50), nullable=True)   # project|license|contract|asset
     linked_resource_id   = Column(String(36), nullable=True)   # ID del recurso
     contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True)
-    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True)
+    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True, index=True)
     service_item_id = Column(String(36), ForeignKey("sd_service_items.id"), nullable=True)
 
-    problem_id = Column(String(36), ForeignKey("sd_problems.id"), nullable=True)
+    problem_id = Column(String(36), ForeignKey("sd_problems.id"), nullable=True, index=True)
     parent_ticket_id = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True)
 
     sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True)
@@ -149,7 +149,7 @@ class Ticket(Base):
     # FIX: Use server_default so SQLite sets this correctly
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     requester_user = relationship("User", foreign_keys=[requester_user_id])
     requester_client = relationship("ClientUser", foreign_keys=[requester_client_id])

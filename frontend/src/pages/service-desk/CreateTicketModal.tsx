@@ -127,7 +127,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
   const { data: catalog = [] } = useQuery<CatalogGroup[]>({
     queryKey: ['sd-catalog'],
-    queryFn: () => sdCatalogApi.list().then(r => r.data as CatalogGroup[]),
+    queryFn: () => sdCatalogApi.list().then(r => r.data),
   })
   const { data: users = [] } = useQuery<UserItem[]>({
     queryKey: ['users'],

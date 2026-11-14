@@ -53,3 +53,18 @@ def audit_log(
     db.add(entry)
     # Note: caller is responsible for db.commit()
     return entry
+
+
+def auditar_y_confirmar(db: Session, *args, **kwargs) -> AuditLog:
+    """`audit_log` + commit, para cuando el servicio ya confirmó su cambio.
+
+    Segunda auditoría 2026-11: los endpoints hacían `db.commit()` tras auditar
+    (si no, la entrada se perdía), contra la regla de que la API no confirma.
+    """
+    entry = audit_log(db, *args, **kwargs)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return entry
