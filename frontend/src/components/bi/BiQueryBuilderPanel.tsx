@@ -9,6 +9,7 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biQueryBuilderApi } from '../../services/api'
+import type { ConsultaGuardadaBi, ResultadoDeConsultaBi } from '../../services/api/tipos-bi'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Table } from '../ui'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
@@ -24,69 +25,26 @@ const ls: React.CSSProperties = { display: 'block', fontSize: "var(--text-xs)", 
 const is: React.CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', boxSizing: 'border-box' }
 const btn = (accent: boolean): React.CSSProperties => ({ padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600, background: accent ? 'var(--accent)' : 'var(--surface-3)', color: accent ? '#fff' : 'var(--text-1)' })
 
-// TODO type: biQueryBuilderApi schema/payload — needs shared type
-interface DatasetField {
-  name: string
-  label?: string
-  type?: string
-  [k: string]: unknown
-}
-
-interface DatasetMeta {
-  name: string
-  label?: string
-  fields: DatasetField[]
-  [k: string]: unknown
-}
-
-interface Schema {
-  datasets?: DatasetMeta[]
-}
-
+/** Estado del formulario: un filtro con el valor tal cual se teclea. */
 interface FilterEntry {
   field: string
   operator: string
   value: string
 }
 
+/** Estado del formulario: una agregación (el alias lo pone el servidor si falta). */
 interface AggregationEntry {
   func: string
   field: string
   alias?: string
 }
 
-interface SavedQuery {
-  id: string | number
-  name: string
-  dataset?: string
-  fields?: string[]
-  filters?: Array<{ field?: string; operator?: string; value?: string | null }>
-  group_by?: string[]
-  aggregations?: AggregationEntry[]
-  sort_by?: string
-  sort_dir?: string
-  limit?: number
-  [k: string]: unknown
-}
-
-interface QueryResult {
-  columns?: string[]
-  rows?: Array<Record<string, unknown>>
-  row_count?: number
-  dataset?: string
-  truncated?: boolean
-  incompleto?: boolean
-  filas_leidas?: number
-  filas_totales?: number
-  [k: string]: unknown
-}
-
 const errorMessage = (e: unknown, fallback: string): string => {
   return (e as { message?: string })?.message || fallback
 }
 
-const OPERATORS = ['=', '!=', '>', '>=', '<', '<=', 'contains', 'starts_with', 'is_null', 'is_not_null']
-const AGG_FUNCS  = ['count', 'sum', 'avg', 'min', 'max']
+// Operadores y agregaciones salen del esquema del servidor (`operators`, `aggregations`).
+const OPERADOR_POR_DEFECTO = 'eq'
 const NULL_OPS = new Set(['is_null', 'is_not_null'])
 
 export default function BiQueryBuilderPanel() {
@@ -94,29 +52,31 @@ export default function BiQueryBuilderPanel() {
   const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const [tab, setTab] = useState<string>('builder')
-  const [results, setResults] = useState<QueryResult | null>(null)
+  const [results, setResults] = useState<ResultadoDeConsultaBi | null>(null)
   const [execError, setExecError] = useState<string | null>(null)
 
   // ── Schema ────────────────────────────────────────────────────────────────
-  const { data: schema } = useQuery<Schema>({
+  const { data: schema } = useQuery({
     queryKey: ['bi-qb-schema'],
-    queryFn: () => biQueryBuilderApi.getSchema({}).then((r) => r.data as Schema),
+    queryFn: () => biQueryBuilderApi.getSchema({}).then((r) => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
-  const datasets = useMemo<DatasetMeta[]>(() => schema?.datasets ?? [], [schema])
+  const datasets = useMemo(() => schema?.datasets ?? [], [schema])
+  const operadores = schema?.operators ?? {}
+  const agregaciones = schema?.aggregations ?? []
 
   // ── Saved queries ─────────────────────────────────────────────────────────
-  const { data: savedData } = useQuery<{ items?: SavedQuery[] }>({
+  const { data: savedData } = useQuery({
     queryKey: ['bi-qb-queries'],
-    queryFn: () => biQueryBuilderApi.listQueries().then((r) => r.data as { items?: SavedQuery[] }),
+    queryFn: () => biQueryBuilderApi.listQueries().then((r) => r.data),
   })
-  const savedQueries: SavedQuery[] = savedData?.items ?? []
+  const savedQueries = savedData?.items ?? []
 
   // ── Builder state ─────────────────────────────────────────────────────────
   const [dataset, setDataset] = useState<string>('')
   const [selectedFields, setSelectedFields] = useState<string[]>([])
-  const [filters, setFilters] = useState<FilterEntry[]>([{ field: '', operator: '=', value: '' }])
+  const [filters, setFilters] = useState<FilterEntry[]>([{ field: '', operator: OPERADOR_POR_DEFECTO, value: '' }])
   const [groupBy, setGroupBy] = useState<string[]>([])
   const [aggregations, setAggregations] = useState<AggregationEntry[]>([])
   const [sortBy, setSortBy] = useState<string>('')
@@ -133,20 +93,20 @@ export default function BiQueryBuilderPanel() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bi-qb-queries'] }); setQueryName('') },
   })
 
-  const previewMut = useMutation<QueryResult, unknown, Record<string, unknown>>({
-    mutationFn: (payload) => biQueryBuilderApi.previewQuery(payload).then((r) => r.data as QueryResult),
+  const previewMut = useMutation({
+    mutationFn: (payload: Record<string, unknown>) => biQueryBuilderApi.previewQuery(payload).then((r) => r.data),
     onSuccess: (data) => { setResults(data); setTab('results') },
     onError: (e) => setExecError(errorMessage(e, 'Error ejecutando preview')),
   })
 
-  const execSavedMut = useMutation<QueryResult, unknown, string | number>({
-    mutationFn: (id) => biQueryBuilderApi.executeQuery(id).then((r) => r.data as QueryResult),
+  const execSavedMut = useMutation({
+    mutationFn: (id: string) => biQueryBuilderApi.executeQuery(id).then((r) => r.data),
     onSuccess: (data) => { setResults(data); setTab('results') },
     onError: (e) => setExecError(errorMessage(e, 'Error ejecutando query')),
   })
 
   const deleteMut = useMutation({
-    mutationFn: (id: string | number) => biQueryBuilderApi.deleteQuery(id).then((r) => r.data),
+    mutationFn: (id: string) => biQueryBuilderApi.deleteQuery(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-qb-queries'] }),
   })
 
@@ -183,20 +143,21 @@ export default function BiQueryBuilderPanel() {
     saveMut.mutate(body)
   }
 
-  function loadSavedQuery(q: SavedQuery) {
-    setDataset(q.dataset || '')
-    setSelectedFields(q.fields || [])
-    setFilters((q.filters || []).map((f) => ({
-      field: f.field || '',
-      operator: f.operator || '=',
-      value: f.value ?? '',
+  function loadSavedQuery(q: ConsultaGuardadaBi) {
+    setDataset(q.dataset)
+    setSelectedFields(q.fields)
+    // El servidor guarda el operador normalizado (`eq`, `neq`...): las claves de `operators`.
+    setFilters(q.filters.map((f) => ({
+      field: f.field,
+      operator: f.operator,
+      value: f.value == null ? '' : String(f.value),
     })))
-    setGroupBy(q.group_by || [])
-    setAggregations(q.aggregations || [])
+    setGroupBy(q.group_by)
+    setAggregations(q.aggregations)
     setSortBy(q.sort_by || '')
-    setSortDir(q.sort_dir || 'desc')
-    setLimit(Number(q.limit || 100))
-    setQueryName(q.name || '')
+    setSortDir(q.sort_dir)
+    setLimit(q.limit)
+    setQueryName(q.name)
     setTab('builder')
   }
 
@@ -217,7 +178,7 @@ export default function BiQueryBuilderPanel() {
   }
 
   function addFilter() {
-    setFilters(prev => [...prev, { field: '', operator: '=', value: '' }])
+    setFilters(prev => [...prev, { field: '', operator: OPERADOR_POR_DEFECTO, value: '' }])
   }
 
   function updateFilter(i: number, key: keyof FilterEntry, val: string) {
@@ -293,7 +254,7 @@ export default function BiQueryBuilderPanel() {
                       {availableFields.map(af => <option key={af.name} value={af.name}>{af.label ?? af.name}</option>)}
                     </select>
                     <select style={{ ...is, flex: '0 0 110px' }} value={f.operator} onChange={e => updateFilter(i, 'operator', e.target.value)}>
-                      {OPERATORS.map(op => <option key={op} value={op}>{op}</option>)}
+                      {Object.entries(operadores).map(([op, def]) => <option key={op} value={op}>{def.label}</option>)}
                     </select>
                     <input aria-label="Valor" style={{ ...is, flex: '1 1 140px' }} placeholder={NULL_OPS.has(f.operator) ? 'N/A' : 'Valor'} value={f.value}
                       disabled={NULL_OPS.has(f.operator)}
@@ -324,7 +285,7 @@ export default function BiQueryBuilderPanel() {
                       {availableFields.map(af => <option key={af.name} value={af.name}>{af.label ?? af.name}</option>)}
                     </select>
                     <select style={{ ...is, flex: '0 0 90px' }} value={a.func} onChange={e => updateAgg(i, 'func', e.target.value)}>
-                      {AGG_FUNCS.map(fn => <option key={fn} value={fn}>{fn}</option>)}
+                      {agregaciones.map(fn => <option key={fn} value={fn}>{fn}</option>)}
                     </select>
                     <input aria-label="Alias (opcional)" style={{ ...is, flex: '1 1 110px' }} placeholder="Alias (opcional)" value={a.alias}
                       onChange={e => updateAgg(i, 'alias', e.target.value)} />
@@ -419,24 +380,24 @@ export default function BiQueryBuilderPanel() {
           ) : (
             <div>
               <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 12 }}>
-                {results.row_count ?? results.rows?.length ?? 0} registros · dataset: {results.dataset ?? '—'}
+                {results.row_count} registros · dataset: {results.dataset}
                 {results.truncated ? ` · limitados a ${results.row_count}` : ''}
               </div>
               {results.incompleto && (
                 <div role="alert" style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', marginBottom: 12 }}>
-                  {traducir('biquerybuilder.totales_parciales', { leidas: (results.filas_leidas ?? 0).toLocaleString(), totales: (results.filas_totales ?? 0).toLocaleString() })}
+                  {traducir('biquerybuilder.totales_parciales', { leidas: results.filas_leidas.toLocaleString(), totales: results.filas_totales.toLocaleString() })}
                 </div>
               )}
               <div className="u-scroll-x">
                 <Table
-                  data={(results.rows ?? []).slice(0, 200)}
-                  columns={(results.columns ?? []).map(col => ({
+                  data={results.rows.slice(0, 200)}
+                  columns={results.columns.map(col => ({
                     key: col,
                     label: <span style={{ whiteSpace: 'nowrap' }}>{col}</span>,
                     render: (_v: never, row: Record<string, unknown>) => (row[col] == null ? <span style={{ color: 'var(--text-4)' }}>null</span> : String(row[col])),
                   }))}
                 />
-                {results.rows && results.rows.length > 200 && (
+                {results.rows.length > 200 && (
                   <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 8, textAlign: 'center' }}>
                     {traducir('biquerybuilder.mostrando_200_de')} {results.rows.length} filas
                   </div>

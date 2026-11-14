@@ -40,6 +40,7 @@ from app.models.mfa import Organization
 from app.schemas import UserLoad, UserPublic
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.services import politica_de_visibilidad
 
 
 # ── Query helpers ──────────────────────────────────────────────────────────────
@@ -179,7 +180,8 @@ def get_load_map_payload(db: Session, current_user, week_start: Optional[date] =
 # ── Org chart ──────────────────────────────────────────────────────────────────
 
 def get_org_chart_payload(db: Session, current_user) -> dict:
-    users = scope_users_query(db.query(User).filter(User.is_active == True), current_user).all()
+    politica_de_visibilidad.exigir_organigrama(current_user)
+    users =scope_users_query(db.query(User).filter(User.is_active == True), current_user).all()
     user_map = {u.id: {
         "id": u.id, "full_name": u.full_name, "job_title": u.job_title,
         "department": u.department, "role": u.role, "email": u.email,
@@ -601,8 +603,7 @@ def get_user_productivity_payload(
     db: Session,
 ) -> dict:
 
-    if current_user.role == UserRole.employee and current_user.id != user_id:
-        raise ErrorDeDominio(status_code=403, detail="Acceso denegado")
+    politica_de_visibilidad.exigir_estadisticas_de(current_user, user_id)
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -730,14 +731,27 @@ def list_users_paged(
     if status:
         q = q.filter(User.status == status)
     if search:
-        q = q.filter(
-            (User.full_name.ilike(f"%{search}%"))
-            | (User.username.ilike(f"%{search}%"))
-            | (User.email.ilike(f"%{search}%"))
-        )
+        # Buscar por correo solo quien lo ve (si no, sería un oráculo del correo).
+        campos = [User.full_name, User.username] + (
+            [User.email] if politica_de_visibilidad.ve_contacto_ajeno(current_user) else [])
+        q = q.filter(or_(*(c.ilike(f"%{search}%") for c in campos)))
     total = q.count()
     users = q.offset((page - 1) * page_size).limit(page_size).all()
     return users, total
+
+
+def list_directory(db: Session, current_user, search: Optional[str] = None) -> list[dict]:
+    """Selector de personas (`GET /users/directory`, segunda auditoría 2026-11).
+
+    Fichas mínimas de las personas activas que `current_user` puede ver: su
+    empresa (`scope_users_query`) acotada por `politica_de_visibilidad` (al
+    subcontratado, la gente de sus proyectos).
+    """
+    q = scope_users_query(db.query(User).filter(User.is_active == True), current_user)
+    q = politica_de_visibilidad.acotar_personas(q, db, current_user)
+    if search:
+        q = q.filter(User.full_name.ilike(f"%{search}%") | User.username.ilike(f"%{search}%"))
+    return [politica_de_visibilidad.ficha_minima(u) for u in q.order_by(User.full_name).all()]
 
 
 def list_active_users_with_rates(db: Session, current_user):

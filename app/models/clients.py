@@ -63,20 +63,20 @@ class Client(Base):
     country     = Column(String(3),   default="ES")
 
     # Relación interna
-    account_manager_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    account_manager_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Económico
     billing_address = Column(Text,        nullable=True)
     payment_terms   = Column(String(100), nullable=True)  # "30 días", "inmediato"
     credit_limit    = Column(Money,       nullable=True)
     currency        = Column(String(3),   default=settings.DEFAULT_CURRENCY)
-    sla_policy_id   = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True)
+    sla_policy_id   = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True, index=True)
 
     notes      = Column(Text,    nullable=True)
     is_active  = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     account_manager = relationship("User", foreign_keys=[account_manager_id])  # TODO #56: inverse en User (user.py)
     projects        = relationship("Project", back_populates="client",

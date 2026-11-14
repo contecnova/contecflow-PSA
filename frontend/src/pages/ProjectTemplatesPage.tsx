@@ -6,6 +6,7 @@ import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { templatesApi, type ApiError } from '../services/api'
+import type { PlantillaDeProyecto, ProyectoDesdePlantilla } from '../services/api/tipos-proyectos'
 import { Spinner, useDialogo } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
@@ -30,20 +31,9 @@ type TplPhase = {
 type TplRisk = { title: string; category: string | null; probability: string; impact: string; mitigation_plan: string | null }
 type TplDeliverable = {
   name: string; format: string | null; week_offset: number | null; billing_pct: number | null; acceptance_criteria: string | null
-  // El detalle lo pinta como `title`; el listado no envía entregables (solo `deliverable_count`).
-  title?: string
 }
-type Tpl = { [k: string]: unknown; id: string; name?: string; description?: string; estimated_weeks?: number; estimated_hours?: number; phases?: TplPhase[]; risks?: TplRisk[]; deliverables?: TplDeliverable[]; risk_count?: number; deliverable_count?: number }
-
-/** `TemplateInstantiateOut` (app/schemas/billing_reports.py). */
-interface TemplateInstantiateOut {
-  ok: boolean
-  project_id: string
-  project_code: string
-  project_name: string
-  phases_created: number
-  tasks_created: number
-}
+/** ProjectTemplateOut: el listado trae fases y tareas, y de riesgos y entregables solo el recuento. */
+type Tpl = PlantillaDeProyecto
 
 
 
@@ -51,8 +41,8 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
   const [expanded, setExpanded] = useState(false)
   const phaseCount = tpl.phases?.length || 0
   const taskCount = (tpl.phases || []).reduce((acc, p) => acc + (p.tasks?.length || 0), 0)
-  const riskCount = tpl.risk_count || tpl.risks?.length || 0
-  const deliverableCount = tpl.deliverable_count || tpl.deliverables?.length || 0
+  const riskCount = tpl.risk_count
+  const deliverableCount = tpl.deliverable_count
 
   return (
     <div style={{
@@ -130,28 +120,6 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
               ))}
             </div>
           ))}
-          {/* Risks */}
-          {(tpl.risks?.length ?? 0) > 0 && (
-            <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: RISK_COLOR, marginBottom: 4 }}>{t('project_templates.predefined_risks')}</div>
-              {tpl.risks!.map((risk, i) => (
-                <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
-                  <span style={{ color: RISK_COLOR }}>▲</span>{risk.title}
-                </div>
-              ))}
-            </div>
-          )}
-          {/* Deliverables */}
-          {(tpl.deliverables?.length ?? 0) > 0 && (
-            <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: DELIV_COLOR, marginBottom: 4 }}>{t('project_templates.deliverables')}</div>
-              {tpl.deliverables!.map((d, i) => (
-                <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
-                  <span style={{ color: DELIV_COLOR }}>◆</span>{d.title}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -395,7 +363,7 @@ const h3: CSSProperties = {
 
 // ── Modal: instantiate template ───────────────────────────────────────────────
 
-function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () => void; onDone: (data: TemplateInstantiateOut) => void; t: (k: string) => string }) {
+function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () => void; onDone: (data: ProyectoDesdePlantilla) => void; t: (k: string) => string }) {
   const [projectName, setProjectName] = useState(tpl?.name || '')
   const [clientName, setClientName] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -403,7 +371,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => templatesApi.instantiate(tpl.id, data),
-    onSuccess: (res: { data: TemplateInstantiateOut }) => {
+    onSuccess: (res) => {
       onDone(res.data)
     },
     onError: (err: ApiError) => {
@@ -529,12 +497,12 @@ export default function ProjectTemplatesPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  const { data: templates = [], isLoading } = useQuery<Tpl[]>({
+  const { data: templates = [], isLoading } = useQuery({
     queryKey: ['project-templates'],
-    queryFn: () => templatesApi.list().then((r: { data: Tpl[] }) => r.data),
+    queryFn: () => templatesApi.list().then(r => r.data),
   })
 
-  const handleInstantiateSuccess = (result: TemplateInstantiateOut) => {
+  const handleInstantiateSuccess = (result: ProyectoDesdePlantilla) => {
     setSelectedTpl(null)
     setSuccessMsg(
       t('project_templates.created_ok')

@@ -42,7 +42,7 @@ class TaskDependency(Base):
     dependency_type = Column(Enum(DependencyType), default=DependencyType.finish_to_start, nullable=False)
     is_active       = Column(Boolean, default=True)
     lag_days        = Column(Integer, default=0)   # positive = delay, negative = overlap
-    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
     predecessor = relationship("Task", foreign_keys=[predecessor_id])
@@ -68,7 +68,7 @@ class ResourceBooking(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
-    task_id     = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True)
+    task_id     = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True)
     booking_type = Column(Enum(BookingType), default=BookingType.hard, nullable=False)
 
     start_date  = Column(Date, nullable=False, index=True)
@@ -77,7 +77,7 @@ class ResourceBooking(Base):
     total_hours = Column(Float, nullable=True)   # computed: days * hours_per_day
 
     note        = Column(String(500), nullable=True)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     is_active   = Column(Boolean, default=True)
@@ -205,7 +205,7 @@ class RecurringInvoice(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)    # "Retainer mensual Acme"
     project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
-    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True)
+    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True, index=True)
 
     frequency   = Column(Enum(RecurringFrequency), nullable=False, default=RecurringFrequency.monthly)
     next_date   = Column(Date, nullable=False)
@@ -226,7 +226,7 @@ class RecurringInvoice(Base):
     last_generated_at = Column(DateTime(timezone=True), nullable=True)
     total_generated   = Column(Integer, default=0)
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -275,7 +275,7 @@ class OAuthState(Base):
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     state      = Column(String(255), nullable=False, unique=True, index=True)
-    sso_config_id = Column(String(36), ForeignKey("sso_configs.id", ondelete="CASCADE"), nullable=False)
+    sso_config_id = Column(String(36), ForeignKey("sso_configs.id", ondelete="CASCADE"), nullable=False, index=True)
     redirect_to = Column(String(500), default="/dashboard")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)

@@ -33,7 +33,7 @@ class CABVote(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     change_request_id = Column(String(36), ForeignKey("change_requests.id", ondelete="CASCADE"),
                                nullable=False, index=True)
-    voter_id         = Column(String(36), ForeignKey("users.id"), nullable=False)
+    voter_id         = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     vote             = Column(String(10), nullable=False)  # approve | reject | abstain
     comment          = Column(Text, nullable=True)
     voted_at         = Column(DateTime(timezone=True), server_default=func.now())
@@ -55,7 +55,7 @@ class MaintenanceWindow(Base):
     environment = Column(String(50), default="production")  # production | staging | all
     is_recurring = Column(Boolean, default=False)
     recurrence  = Column(String(50), nullable=True)  # weekly_sunday_02am etc.
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     creator     = relationship("User", foreign_keys=[created_by])
@@ -95,14 +95,14 @@ class WebhookTrigger(Base):
     slug_rotated_at = Column(DateTime(timezone=True), nullable=True)
     slug_expires_at = Column(DateTime(timezone=True), nullable=True)
     secret      = Column(String(255), nullable=True)    # HMAC secret for verification
-    workflow_id = Column(String(36), ForeignKey("automation_workflows.id"), nullable=True)
-    rule_id     = Column(String(36), ForeignKey("automation_rules.id"), nullable=True)
+    workflow_id = Column(String(36), ForeignKey("automation_workflows.id"), nullable=True, index=True)
+    rule_id     = Column(String(36), ForeignKey("automation_rules.id"), nullable=True, index=True)
     is_active   = Column(Boolean, default=True)
     last_fired_at = Column(DateTime(timezone=True), nullable=True)
     fire_count  = Column(Integer, default=0)
     # Field mapping: how to map incoming JSON to trigger context
     field_mapping = Column(Text, nullable=True)  # JSON: {"project_id": "$.project.id"}
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     workflow = relationship("AutomationWorkflow")
@@ -147,7 +147,7 @@ class EmailTemplate(Base):
     language    = Column(String(10), nullable=True)   # NULL = cualquier idioma
     is_active   = Column(Boolean, default=True, nullable=False)
     is_system   = Column(Boolean, default=False)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -163,7 +163,7 @@ class EmailLog(Base):
     to_address   = Column(String(255), nullable=False, index=True)
     cc_addresses = Column(Text, nullable=True)    # JSON array
     subject      = Column(String(500), nullable=False)
-    template_id  = Column(String(36), ForeignKey("email_templates.id"), nullable=True)
+    template_id  = Column(String(36), ForeignKey("email_templates.id"), nullable=True, index=True)
     body_preview = Column(String(500), nullable=True)  # First 500 chars
     status       = Column(String(20), default="queued")  # queued|sent|failed|bounced
     error        = Column(String(500), nullable=True)
@@ -201,7 +201,7 @@ class GDPRRequest(Base):
     request_type = Column(Enum(GDPRRequestType), nullable=False, index=True)
     subject_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     subject_email = Column(String(255), nullable=True)  # For deleted users
-    requestor_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    requestor_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     status       = Column(Enum(GDPRRequestStatus), default=GDPRRequestStatus.pending)
     notes        = Column(Text, nullable=True)
     # For portability: link to generated export file
@@ -209,7 +209,7 @@ class GDPRRequest(Base):
     export_data  = Column(Text, nullable=True)  # JSON summary of exported/anonymised fields
     deadline     = Column(Date, nullable=True)   # 30 days from request
     completed_at = Column(DateTime(timezone=True), nullable=True)
-    processed_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    processed_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     subject_user  = relationship("User", foreign_keys=[subject_user_id])
@@ -254,7 +254,7 @@ class IntegrationConfig(Base):
     sync_errors     = Column(Integer, default=0)
     last_error      = Column(String(500), nullable=True)
 
-    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     updated_at      = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -269,7 +269,7 @@ class CommitLink(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     task_id         = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
                              nullable=False, index=True)
-    integration_id  = Column(String(36), ForeignKey("integration_configs.id"), nullable=True)
+    integration_id  = Column(String(36), ForeignKey("integration_configs.id"), nullable=True, index=True)
     link_type       = Column(String(20), default="commit")  # commit | pr | branch | issue
     external_id     = Column(String(255), nullable=True)    # SHA / PR number
     title           = Column(String(500), nullable=True)
@@ -289,7 +289,7 @@ class CalendarEvent(Base):
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    integration_id  = Column(String(36), ForeignKey("integration_configs.id"), nullable=True)
+    integration_id  = Column(String(36), ForeignKey("integration_configs.id"), nullable=True, index=True)
     external_id     = Column(String(255), nullable=True, index=True)  # Google/Outlook event ID
     user_id         = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     title           = Column(String(500), nullable=False)
@@ -299,9 +299,9 @@ class CalendarEvent(Base):
     description     = Column(Text, nullable=True)
     location        = Column(String(500), nullable=True)
     # Links to Contecflow objects
-    project_id      = Column(String(36), ForeignKey("projects.id"), nullable=True)
-    sprint_id       = Column(String(36), ForeignKey("sprints.id"), nullable=True)
-    milestone_id    = Column(String(36), ForeignKey("project_milestones.id"), nullable=True)
+    project_id      = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    sprint_id       = Column(String(36), ForeignKey("sprints.id"), nullable=True, index=True)
+    milestone_id    = Column(String(36), ForeignKey("project_milestones.id"), nullable=True, index=True)
     sync_direction  = Column(String(10), default="pull")  # pull | push | both
     last_synced_at  = Column(DateTime(timezone=True), server_default=func.now())
 

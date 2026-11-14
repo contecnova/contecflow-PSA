@@ -8,6 +8,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { predictionsApi } from '../services/api'
+import type { ModeloDePrediccion, RegistroDePrediccion, RiesgoDeLaCartera } from '../services/api/tipos-analitica'
 import { Spinner, EmptyState, Button } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -26,38 +27,10 @@ type RiskCardConfig = {
   icon?: string
 }
 
-type MlPortfolioRiskProject = {
-  project_id: string | number
-  project_name?: string
-  risk_level?: RiskLevel
-  recommendation?: string
-  cpi?: number | null
-  spi?: number | null
-}
-
-type MlPortfolioRiskData = {
-  total_projects?: number
-  without_data?: number
-  risk_counts?: Partial<Record<RiskLevel, number>>
-  at_risk_projects?: MlPortfolioRiskProject[]
-}
-
-type MlModel = {
-  id?: string | number
-  version?: string | number
-  is_active?: boolean
-  samples_used?: number
-  trained_at?: string
-  accuracy?: number
-}
-
-type MlPredictionLog = {
-  id?: string | number
-  project_id?: string | number
-  project_name?: string
-  risk_level?: RiskLevel
-  predicted_at?: string
-}
+type MlPortfolioRiskProject = RiesgoDeLaCartera['at_risk_projects'][number]
+type MlPortfolioRiskData = RiesgoDeLaCartera
+type MlModel = ModeloDePrediccion
+type MlPredictionLog = RegistroDePrediccion
 
 type RiskProject = {
   project_id: string | number
@@ -134,23 +107,22 @@ function MLPredictionsTab() {
 
   const { data: portfolio, isLoading: lPortfolio } = useQuery<MlPortfolioRiskData>({
     queryKey: ['ml-portfolio-risk'],
-    queryFn: () => predictionsApi.portfolioRisk().then(r => r.data as MlPortfolioRiskData),
+    queryFn: () => predictionsApi.portfolioRisk().then(r => r.data),
     retry: 1,
   })
   const { data: models = [], isLoading: lModels } = useQuery<MlModel[]>({
     queryKey: ['ml-models'],
-    queryFn: () => predictionsApi.models().then(r => r.data as MlModel[]).catch(() => []),
+    queryFn: () => predictionsApi.models().then(r => r.data).catch(() => []),
   })
   const { data: logs = [], isLoading: lLogs } = useQuery<MlPredictionLog[]>({
     queryKey: ['ml-logs'],
-    queryFn: () => predictionsApi.logs({ limit: PREDICTION_LOGS_LIMIT }).then(r => r.data as MlPredictionLog[]).catch(() => []),
+    queryFn: () => predictionsApi.logs({ limit: PREDICTION_LOGS_LIMIT }).then(r => r.data).catch(() => []),
   })
   const { mutate: train, isPending: training } = useMutation({
     mutationFn: () => predictionsApi.train(),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['ml-models'] })
-      const d = res.data || {}
-      // Backend devuelve {status, samples, accuracy_roc_auc, reason?} no {message, samples_used}
+      const d = res.data
       if (d.status === 'skipped') {
         toast.warning(d.reason || 'No se pudo entrenar el modelo')
       } else {

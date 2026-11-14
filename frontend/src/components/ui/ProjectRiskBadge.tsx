@@ -37,31 +37,14 @@ export interface ProjectRiskBadgeProps {
   hasData?: boolean
 }
 
-interface RiskSignal {
-  signal: string
-}
-
-interface RiskData {
-  can_predict?: boolean
-  risk_level?: RiskLevel
-  cpi?: number
-  spi?: number
-  budget_used_pct?: number
-  elapsed_pct?: number
-  signals?: RiskSignal[]
-  recommendation?: string
-  used_heuristic?: boolean
-}
-
 export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectRiskBadgeProps) {
   const { t } = useAppLang()
   const [showTooltip, setShowTooltip] = useState(false)
 
   // Skip prediction if project has insufficient data
-  const { data, isError } = useQuery<RiskData>({
+  const { data, isError } = useQuery({
     queryKey: ['ml-risk', projectId],
-    // TODO type: predictionsApi is JS-typed; cast response to RiskData.
-    queryFn: () => predictionsApi.overrunRisk(projectId).then((r: { data: RiskData }) => r.data),
+    queryFn: () => predictionsApi.overrunRisk(projectId).then(r => r.data),
     staleTime: STALE_5_MIN_MS,
     retry: false,
     enabled: !!projectId && hasData,
@@ -69,9 +52,9 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
 
   // Don't render badge for projects without data or errors
   if (!hasData || isError || !data) return null
-  if (data.can_predict === false) return null  // Project has no tasks
+  if ('can_predict' in data) return null  // sin datos para predecir (200 con `can_predict: false`)
 
-  const level: RiskLevel = data.risk_level || 'low'
+  const level: RiskLevel = data.risk_level
   const cfg   = RISK_CFG[level] || RISK_CFG.low
 
   return (

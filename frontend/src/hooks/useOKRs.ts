@@ -1,32 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { okrsApi } from '../services/api'
 
 const STALE = 2 * 60 * 1000
 
-export interface OKR {
-  id: string
-  objective?: string
-  status?: string
-  progress?: number
-  [extra: string]: unknown
-}
+// okr_service.serialize_objective: el objetivo tiene `title` (no `objective`).
+import type { Objetivo } from '../services/api/tipos-proyectos'
+export type OKR = Objetivo
 
 export type OKRListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 export type UpdateKRArgs = { id: string; krid: string; data: Record<string, unknown> }
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
 export function useOKRs(params: OKRListParams = {}): UseQueryResult<OKR[]> {
   return useQuery<OKR[]>({
     queryKey: ['okrs', params],
-    queryFn: () => okrsApi.list(params).then((r: { data?: { items?: OKR[] } | OKR[] | null }) => unwrapList<OKR>(r)),
+    queryFn: () => okrsApi.list(params).then(r => r.data),
     staleTime: STALE,
   })
 }

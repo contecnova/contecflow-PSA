@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone, time
 from typing import Optional
 
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.core.config import settings
@@ -32,6 +32,7 @@ from app.models.project import Project
 from app.models.service_desk import Ticket
 from app.core.asignacion import campos_asignables, es_asignable
 from app.core.errores import ErrorDeDominio
+from app.core.paginacion import Pagina, Paginacion, paginar
 from app.models.user import UserRole
 
 
@@ -66,8 +67,10 @@ def list_clients(
     status: "Optional[str]" = None,
     industry: "Optional[str]" = None,
     limit: "Optional[int]" = None,
-) -> list:
-    query = scoped_client_query(db, current_user)
+    pagina: "Optional[Paginacion]" = None,
+) -> Pagina:
+    """``limit`` es el parametro antiguo (solo cabeza de la lista); ``pagina``, el comun."""
+    query = scoped_client_query(db, current_user).options(joinedload(Client.account_manager))
     if q:
         query = query.filter(
             Client.name.ilike(f"%{q}%") |
@@ -78,10 +81,33 @@ def list_clients(
         query = query.filter(Client.status == status)
     if industry:
         query = query.filter(Client.industry == industry)
-    query = query.filter(Client.is_active == True).order_by(Client.name)
-    if limit is not None and limit > 0:
-        query = query.limit(limit)
-    return [get_client_summary(c, db) for c in query.all()]
+    query = query.filter(Client.is_active == True).order_by(Client.name, Client.id)
+    if limit is not None and limit > 0 and (pagina is None or not pagina.pide_pagina):
+        pagina = Paginacion(page=1, page_size=min(limit, settings.LIST_MAX_ROWS))
+    resultado = paginar(query, pagina, "clients")
+    recuentos = recuentos_de_clientes(db, [c.id for c in resultado.items])
+    return resultado.mapear(lambda c: get_client_summary(c, db, recuentos[c.id]))
+
+
+def recuentos_de_clientes(db: Session, ids: list) -> dict:
+    """Proyectos, tickets, facturas y usuarios de portal de varios clientes.
+
+    Segunda auditoria 2026-11 (N+1): eran cuatro ``count`` por cliente; ahora
+    son cuatro ``GROUP BY`` para toda la pagina.
+    """
+    recuentos = {i: {"projects_count": 0, "tickets_count": 0, "invoices_count": 0, "portal_users_count": 0}
+                 for i in ids}
+    if not ids:
+        return recuentos
+    for clave, columna in (
+        ("projects_count", Project.client_id),
+        ("tickets_count", Ticket.client_id),
+        ("invoices_count", Invoice.client_id),
+        ("portal_users_count", ClientUser.client_org_id),
+    ):
+        for cid, n in db.query(columna, func.count()).filter(columna.in_(ids)).group_by(columna).all():
+            recuentos[cid][clave] = n
+    return recuentos
 
 
 # ── Create client ──────────────────────────────────────────────────────────────
@@ -112,12 +138,14 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
 
 # ── Summary serializer ─────────────────────────────────────────────────────────
 
-def get_client_summary(client, db: Session) -> dict:
+def get_client_summary(client, db: Session, recuentos: Optional[dict] = None) -> dict:
 
-    projects_count = db.query(func.count(Project.id)).filter(Project.client_id == client.id).scalar() or 0
-    tickets_count = db.query(func.count(Ticket.id)).filter(Ticket.client_id == client.id).scalar() or 0
-    invoices_count = db.query(func.count(Invoice.id)).filter(Invoice.client_id == client.id).scalar() or 0
-    portal_users_count = db.query(func.count(ClientUser.id)).filter(ClientUser.client_org_id == client.id).scalar() or 0
+    if recuentos is None:
+        recuentos = recuentos_de_clientes(db, [client.id])[client.id]
+    projects_count = recuentos["projects_count"]
+    tickets_count = recuentos["tickets_count"]
+    invoices_count = recuentos["invoices_count"]
+    portal_users_count = recuentos["portal_users_count"]
 
     return {
         "id": client.id, "name": client.name, "short_name": client.short_name,
@@ -685,32 +713,33 @@ def update_portal_config(cid: str, data: dict, db: Session) -> dict:
 
 # ── Invoices ──────────────────────────────────────────────────────────────────
 
-def list_client_invoices(cid: str, db: Session) -> list:
-    direct = db.query(Invoice).filter(Invoice.client_id == cid).all()
-    seen_ids = {inv.id for inv in direct}
-    client_projects = db.query(Project).filter(Project.client_id == cid).all()
-    project_ids = [p.id for p in client_projects]
-    via_project = []
-    if project_ids:
-        via_project = db.query(Invoice).filter(
-            Invoice.project_id.in_(project_ids),
-            Invoice.id.notin_(seen_ids)
-        ).all()
-    all_invoices = direct + via_project
-    return [
-        {
-            "id": inv.id,
-            "number": inv.number,
-            "status": inv.status,
-            "issue_date": str(inv.issue_date) if inv.issue_date else None,
-            "due_date": str(inv.due_date) if inv.due_date else None,
-            "total_amount": inv.total_amount,
-            "project_id": inv.project_id,
-            "project_name": inv.project.name if inv.project else None,
-            "client_name": inv.client_name,
-        }
-        for inv in sorted(all_invoices, key=lambda x: x.issue_date or date.min, reverse=True)
-    ]
+def list_client_invoices(cid: str, db: Session, pagina: Optional[Paginacion] = None) -> Pagina:
+    """Facturas del cliente: las suyas y las de sus proyectos, en una consulta.
+
+    Segunda auditoria 2026-11: eran tres consultas y la union en Python (sin
+    tope), mas el proyecto de cada factura por separado (N+1); y leia
+    ``inv.total_amount``, que ``Invoice`` no tiene —la ruta daba 500 en cuanto
+    el cliente tenia una factura—. El importe es ``Invoice.total``; la clave de
+    la respuesta sigue siendo ``total_amount``.
+    """
+    proyectos = db.query(Project.id).filter(Project.client_id == cid)
+    q = (
+        db.query(Invoice)
+        .options(joinedload(Invoice.project))
+        .filter(or_(Invoice.client_id == cid, Invoice.project_id.in_(proyectos)))
+        .order_by(Invoice.issue_date.desc().nullslast(), Invoice.id)
+    )
+    return paginar(q, pagina, "clients.invoices").mapear(lambda inv: {
+        "id": inv.id,
+        "number": inv.number,
+        "status": inv.status,
+        "issue_date": str(inv.issue_date) if inv.issue_date else None,
+        "due_date": str(inv.due_date) if inv.due_date else None,
+        "total_amount": inv.total,
+        "project_id": inv.project_id,
+        "project_name": inv.project.name if inv.project else None,
+        "client_name": inv.client_name,
+    })
 
 
 # ── Tickets ───────────────────────────────────────────────────────────────────

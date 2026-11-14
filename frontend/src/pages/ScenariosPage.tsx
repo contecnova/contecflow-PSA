@@ -9,6 +9,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { scenariosApi } from '../services/api'
+import type { EscenarioDetalle, EscenarioResumen, ResultadoDeEscenario } from '../services/api/tipos-finanzas'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -18,6 +19,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import DateInput from '../components/ui/DateInput'
 
+/** Proyecto hipotético del formulario de alta (create_scenario). */
 interface ScenarioProject {
   id?: string | number
   name: string
@@ -27,38 +29,9 @@ interface ScenarioProject {
   is_existing?: boolean
 }
 
-interface ScenarioSummary {
-  id: string | number
-  name?: string
-  project_count?: number
-  horizon_weeks?: number
-  status?: string
-  created_at?: string
-}
-
-interface ScenarioTimelinePoint {
-  week: string
-  utilization_pct: number
-  is_overloaded?: boolean
-}
-
-interface ScenarioResults {
-  feasible?: boolean
-  overloaded_weeks_count?: number
-  avg_utilization_pct?: number
-  total_demand_hours?: number
-  recommendation?: string
-  capacity_timeline?: ScenarioTimelinePoint[]
-}
-
-interface ScenarioDetail {
-  id: string | number
-  name?: string
-  description?: string
-  horizon_weeks?: number
-  projects?: ScenarioProject[]
-  results?: ScenarioResults
-}
+type ScenarioSummary = EscenarioResumen
+type ScenarioResults = ResultadoDeEscenario
+type ScenarioDetail = EscenarioDetalle
 
 interface ScenarioForm {
   name: string

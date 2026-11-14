@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { nexusAgentApi, sdKbApi } from '../../services/api'
+import type { Conversacion, FuenteDeRespuesta } from '../../services/api/tipos-analitica'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Plus, Trash2, X } from 'lucide-react'
@@ -24,15 +25,13 @@ interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   // Revisión 2026-11: artículos citados y si se aplicó la corrección de un experto.
-  sources?: Array<{ id: string; number: string; title: string }>
+  sources?: FuenteDeRespuesta[]
   correction?: boolean
 }
 
-// TODO type: conversation summary payload — needs shared type from nexusAgentApi
-interface ConversationSummary {
-  id: string
-  title: string
-}
+/** Los mensajes guardados de una conversación, sin los de herramientas (no se pintan). */
+const mensajesDe = (c: Conversacion): ChatMessage[] =>
+  c.messages.flatMap(m => (m.role === 'tool' ? [] : [{ id: m.id, role: m.role, content: m.content }]))
 
 interface Props {
   open: boolean
@@ -68,7 +67,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  const { data: conversations = [] } = useQuery<ConversationSummary[]>({
+  const { data: conversations = [] } = useQuery({
     queryKey: ['ai-conversations'],
     queryFn: () => nexusAgentApi.listConversations().then(r => r.data),
     enabled: open,
@@ -116,7 +115,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       try {
         const { data } = await nexusAgentApi.getConversation(storedId)
         setConvId(storedId)
-        setMessages(data.messages || [])
+        setMessages(mensajesDe(data))
       } catch {
         localStorage.removeItem(LAST_CONV_KEY)
       } finally {
@@ -150,7 +149,6 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       const { data } = await nexusAgentApi.chat({
         message: userText,
         conversation_id: convId,
-        context: context || undefined,
         ..._entityCtx,
       })
       setConvId(data.conversation_id)
@@ -164,7 +162,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
 
   const loadConv = async (id: string) => {
     const { data } = await nexusAgentApi.getConversation(id)
-    setConvId(id); setMessages(data.messages || [])
+    setConvId(id); setMessages(mensajesDe(data))
   }
 
   if (!open) return null

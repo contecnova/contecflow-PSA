@@ -9,29 +9,15 @@ import React, { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Database, FlaskConical, Plus, RefreshCw, Settings2, Trash2 } from 'lucide-react'
 import { biEtlApi } from '../../services/api'
+import type { ConectorEtl, FichaDeConectorEtl } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Card, Confirm, EmptyState, Modal, Spinner } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
-interface Campo { clave: string; secreto: boolean }
-interface Ficha { etiqueta?: string; falta?: string | null; campos: Campo[]; entidades: string[] }
-interface Conector extends Ficha {
-  connector_id: string
-  nombre: string
-  personalizado: boolean
-  enabled: boolean
-  status: 'connected' | 'error' | 'disconnected'
-  last_sync_at?: string | null
-  last_records?: number
-  last_error?: string | null
-  entity: string
-  config: Record<string, string>
-  secretos_puestos: string[]
-}
-interface Entrada { ok: boolean; records_ingested?: number; error?: string | null; finished_at?: string | null }
-interface Resultado { ok: boolean; records?: number; records_ingested?: number; error?: string }
+type Ficha = FichaDeConectorEtl
+type Conector = ConectorEtl
 
 const COLOR: Record<Conector['status'], string> = { connected: 'var(--success)', error: 'var(--danger)', disconnected: 'var(--text-3)' }
 const chip = (color: string): React.CSSProperties => ({
@@ -135,7 +121,7 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
   const [ocupado, setOcupado] = useState<'' | 'test' | 'sync' | 'toggle'>('')
   const [verLog, setVerLog] = useState(false)
   const [borrar, setBorrar] = useState(false)
-  const log = useQuery<{ entries: Entrada[] }>({
+  const log = useQuery({
     queryKey: ['bi-etl-log', c.connector_id],
     queryFn: () => biEtlApi.getLog(c.connector_id).then(r => r.data),
     enabled: verLog,
@@ -150,8 +136,11 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
       if (tipo === 'toggle') {
         await biEtlApi.configure(c.connector_id, { enabled: !c.enabled })
       } else {
-        const r = (await (tipo === 'test' ? biEtlApi.test(c.connector_id) : biEtlApi.sync(c.connector_id))).data as Resultado
-        const n = (r.records ?? r.records_ingested ?? 0).toLocaleString(localeActivo())
+        // Probar devuelve `records`; sincronizar, `records_ingested`.
+        const r = tipo === 'test'
+          ? await biEtlApi.test(c.connector_id).then(x => ({ ok: x.data.ok, n: x.data.records ?? 0, error: x.data.error }))
+          : await biEtlApi.sync(c.connector_id).then(x => ({ ok: x.data.ok, n: x.data.records_ingested, error: x.data.error }))
+        const n = r.n.toLocaleString(localeActivo())
         if (r.ok) toast.success(t(tipo === 'test' ? 'etl.prueba_ok' : 'etl.sync_ok', { n }))
         else toast.error(t('etl.fallo', { error: r.error ?? '' }))
       }
@@ -212,7 +201,7 @@ export default function BiEtlPanel() {
   const qc = useQueryClient()
   const [configurando, setConfigurando] = useState<Conector | null>(null)
   const [nueva, setNueva] = useState(false)
-  const { data, isLoading } = useQuery<{ connectors: Conector[]; generico: Ficha }>({
+  const { data, isLoading } = useQuery({
     queryKey: ['bi-etl-connectors'],
     queryFn: () => biEtlApi.listConnectors().then(r => r.data),
   })

@@ -260,4 +260,9 @@ def process_voice_core(transcript: str, db, current_user,
         "action": result.get("action", action_taken),
         "status": status,
         "latency_ms": latency,
+        # Segunda auditoría 2026-11: el panel de voz pinta la propuesta y su botón
+        # «Confirmar» con `pending_action`, que se calculaba y no se devolvía.
+        "confirmed": confirm,
+        "pending_action": result.get("pending_action"),
+        "execution_id": result.get("execution_id"),
     }

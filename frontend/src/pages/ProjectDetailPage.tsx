@@ -2,7 +2,7 @@ import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, tasksApi, risksApi, type ProjectDetail, type ProjectUpdatePayload } from '../services/api'
+import { projectsApi, tasksApi, risksApi, type ProjectDetail, type ProjectUpdatePayload, type TaskListItem } from '../services/api'
 import { Spinner, LoadBar as LoadBarRaw } from '../components/ui'
 import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -29,7 +29,7 @@ const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: nu
  */
 type Project = ProjectDetail & { pm_name?: string | null }
  
-type Task = { id?: string; status?: string; title?: string; assignee_name?: string; due_date?: string }
+type Task = TaskListItem
  
 type Member = { id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null }
  
@@ -138,10 +138,7 @@ function TasksTab({ projectId }: { projectId?: string }) {
   const t = useAppT()
   const { data, isLoading } = useQuery<Task[]>({
     queryKey: ['project-detail-tasks', projectId],
-    queryFn: () => tasksApi.list({ project_id: projectId, page_size: DEFAULT_PAGE_SIZE }).then(r => {
-      const d = r.data as unknown as Task[] | { items?: Task[] }
-      return Array.isArray(d) ? d : (d?.items || [])
-    }),
+    queryFn: () => tasksApi.list({ project_id: projectId, page_size: DEFAULT_PAGE_SIZE }).then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
 
@@ -184,8 +181,8 @@ function TasksTab({ projectId }: { projectId?: string }) {
             <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {task.title}
             </div>
-            {task.assignee_name && (
-              <div className="u-text3-xs-mt2">→ {task.assignee_name}</div>
+            {task.assignee && (
+              <div className="u-text3-xs-mt2">→ {task.assignee.full_name}</div>
             )}
           </div>
           {task.due_date && (

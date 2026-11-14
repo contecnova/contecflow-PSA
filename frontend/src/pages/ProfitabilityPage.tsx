@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profitabilityApi } from '../services/api'
+import type { HitoDeRentabilidad, RentabilidadDetallada, ResumenDeRentabilidad } from '../services/api/tipos-finanzas'
 import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -16,74 +17,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-interface MilestoneItem {
-  id: string | number
-  name: string
-  is_completed?: boolean
-  is_billed?: boolean
-  due_date?: string
-  billing_amount?: number
-  billing_pct?: number
-  completed_date?: string | null
-  billed_at?: string | null
-  [key: string]: unknown
-}
-
-interface ProfitabilityProjectItem {
-  project_id?: string | number
-  project_name?: string
-  project_code?: string
-  client_name?: string
-  department?: string
-  billing_revenue?: number
-  internal_cost?: number
-  total_cost?: number
-  gross_margin?: number
-  margin_pct?: number
-  total_hours?: number
-}
-
-interface ProfitabilityPortfolio {
-  total_revenue?: number
-  total_cost?: number
-  total_margin?: number
-  margin_pct?: number
-  project_count?: number
-}
-
-interface ProfitabilitySummaryResponse {
-  projects?: ProfitabilityProjectItem[]
-  portfolio?: ProfitabilityPortfolio
-}
-
-interface ProjectDetailData {
-  project_code: string
-  project_name: string
-  margin_pct: number
-  billing_revenue: number
-  internal_cost: number
-  expenses_cost?: number
-  subcontract_cost?: number
-  total_cost?: number
-  gross_margin: number
-  eac?: number
-  etc?: number
-  vac?: number
-  margin_at_completion?: number
-  cpi?: number
-  spi?: number
-  cv?: number
-  sv?: number
-  risk_flag?: 'critical' | 'warning' | 'ok'
-  total_hours?: number
-  billable_hours?: number
-  budget_hours?: number
-  avg_cost_rate?: number
-  billing_rate?: number
-  by_person?: Array<{ user_id: string | number; user_name?: string; hours: number; cost: number }>
-  by_week?: Array<{ week: string; hours: number }>
-  milestones?: MilestoneItem[]
-}
+type MilestoneItem = HitoDeRentabilidad
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -191,7 +125,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
   const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-  const { data, isLoading } = useQuery<ProjectDetailData>({
+  const { data, isLoading } = useQuery<RentabilidadDetallada>({
     queryKey: ['profitability-detail', projectId],
     queryFn: () => profitabilityApi.get(projectId).then(r => r.data),
   })
@@ -375,13 +309,13 @@ export default function ProfitabilityPage() {
   const [selectedProject, setSelectedProject] = useState<string | number | null>(null)
   const [statusFilter, setStatusFilter] = useState('active')
 
-  const { data, isLoading } = useQuery<ProfitabilitySummaryResponse>({
+  const { data, isLoading } = useQuery<ResumenDeRentabilidad>({
     queryKey: ['profitability-summary', statusFilter],
     queryFn: () => profitabilityApi.summary({ status: statusFilter }).then(r => r.data),
   })
 
   const projects = data?.projects || []
-  const portfolio = data?.portfolio || {}
+  const portfolio: Partial<ResumenDeRentabilidad['portfolio']> = data?.portfolio ?? {}
 
   return (
     <PageShell>

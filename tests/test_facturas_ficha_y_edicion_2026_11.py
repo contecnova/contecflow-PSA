@@ -88,3 +88,30 @@ def test_un_superadmin_crea_facturas_seguidas_con_numeros_distintos(client, db, 
     a, b = _crear(client, superadmin_token), _crear(client, superadmin_token)
     assert a["number"] != b["number"]
     assert [s.organization_id for s in db.query(NumberingSequence).filter(NumberingSequence.entity == "invoice")] == ["1"]
+
+
+def test_la_ficha_trae_direccion_y_origen_y_guardarla_no_libera_las_horas(client, db, admin_token):
+    """Segunda auditoría 2026-11 (contratos de la interfaz): la ficha no traía
+    `client_address` ni el `source_ids` de cada línea. La pantalla edita la
+    dirección (salía vacía y al guardar se borraba) y reenvía las líneas que
+    leyó: sin `source_ids`, guardar un borrador soltaba sus horas facturadas."""
+    u = db.query(User).filter(User.username == "dev_test").one()
+    db.add(Project(id="p-fic", code="FIC", name="F", status=ProjectStatus.active, project_type=ProjectType.development,
+                   organization_id="1"))
+    imp = Imputation(id=str(uuid.uuid4()), user_id=u.id, project_id="p-fic", date=date(2026, 10, 2), hours=3,
+                     organization_id="1", description="x")
+    db.add(imp)
+    db.commit()
+    f = _crear(client, admin_token, project_id="p-fic", client_address="Calle Mayor 1",
+               lines=[{**LINEA, "source_type": "timesheet", "source_ids": [imp.id]}])
+    ficha = client.get(f"{URL}/{f['id']}", headers=auth(admin_token)).json()["data"]
+    assert ficha["client_address"] == "Calle Mayor 1"
+    assert ficha["lines"][0]["source_ids"] == f'["{imp.id}"]'
+    # Lo que manda FichaDeFactura: la cabecera y las líneas leídas, sin el importe.
+    lineas = [{k: v for k, v in l.items() if k != "amount"} for l in ficha["lines"]]
+    r = client.patch(f"{URL}/{f['id']}", headers=auth(admin_token),
+                     json={"client_address": ficha["client_address"], "notes": "revisada", "lines": lineas})
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    assert db.get(Imputation, imp.id).invoiced_invoice_id == f["id"]
+    assert r.json()["data"]["client_address"] == "Calle Mayor 1"

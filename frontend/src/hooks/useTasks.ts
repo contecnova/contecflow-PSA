@@ -2,29 +2,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { tasksApi } from '../services/api'
-import type { TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskCommentPayload } from '../services/api/tasks'
+import type { TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskCommentPayload, TaskListItem } from '../services/api/tasks'
 import { queryKeys } from '../constants/queryKeys'
 import { STALE_ALWAYS } from '../constants/timings'
 
 const STALE = 60 * 1000 // 1 min — operational data
 
-export interface Task {
-  id: string
-  project_id?: string
-  title?: string
-  status?: string
-  [extra: string]: unknown
-}
+/** Elemento de `GET /tasks` (`TaskListItem` de services/api/tasks). */
+export type Task = TaskListItem
 
 export type TaskListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
-export type CommentArgs = { id: string; data: Record<string, unknown> | null }
-export type BulkUpdateArgs = Record<string, unknown>
+export type CommentArgs = { id: string; data: TaskCommentPayload }
+export type BulkUpdateArgs = TaskBulkUpdatePayload
 
 export function useTasks(params: TaskListParams = {}): UseQueryResult<Task[]> {
   return useQuery<Task[]>({
     queryKey: queryKeys.tasks.list(params),
-    queryFn: () => tasksApi.list(params).then((r) => (r.data ?? []) as unknown as Task[]),
+    queryFn: () => tasksApi.list(params).then((r) => r.data),
     staleTime: STALE,
   })
 }
@@ -55,19 +50,19 @@ export function useKanban(projectId: string | undefined): UseQueryResult<unknown
 }
 
 
-export function useCreateTask(): UseMutationResult<unknown, unknown, Partial<Task>> {
+export function useCreateTask(): UseMutationResult<unknown, unknown, TaskCreatePayload> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: Partial<Task>) => tasksApi.create(data as TaskCreatePayload),
+    mutationFn: (data: TaskCreatePayload) => tasksApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tasks.all() }),
   })
 }
 
-export function useUpdateTask(): UseMutationResult<unknown, unknown, UpdateArgs<Partial<Task>>> {
+export function useUpdateTask(): UseMutationResult<unknown, unknown, UpdateArgs<TaskUpdatePayload>> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: UpdateArgs<Partial<Task>>) => tasksApi.update(id, data as TaskUpdatePayload),
-    onSuccess: (_: unknown, { id }: UpdateArgs<Partial<Task>>) => {
+    mutationFn: ({ id, data }: UpdateArgs<TaskUpdatePayload>) => tasksApi.update(id, data),
+    onSuccess: (_: unknown, { id }: UpdateArgs<TaskUpdatePayload>) => {
       qc.invalidateQueries({ queryKey: queryKeys.tasks.all() })
       qc.invalidateQueries({ queryKey: ['kanban'] })
       qc.invalidateQueries({ queryKey: queryKeys.tasks.detail(id) })
@@ -89,7 +84,7 @@ export function useDeleteTask(): UseMutationResult<unknown, unknown, string> {
 export function useBulkUpdateTasks(): UseMutationResult<unknown, unknown, BulkUpdateArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: BulkUpdateArgs) => tasksApi.bulkUpdate(data as unknown as TaskBulkUpdatePayload),
+    mutationFn: (data: BulkUpdateArgs) => tasksApi.bulkUpdate(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.tasks.all() })
       qc.invalidateQueries({ queryKey: ['kanban'] })
@@ -100,7 +95,7 @@ export function useBulkUpdateTasks(): UseMutationResult<unknown, unknown, BulkUp
 export function useAddTaskComment(): UseMutationResult<unknown, unknown, CommentArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: CommentArgs) => tasksApi.comment(id, data as unknown as TaskCommentPayload),
+    mutationFn: ({ id, data }: CommentArgs) => tasksApi.comment(id, data),
     onSuccess: (_: unknown, { id }: CommentArgs) => qc.invalidateQueries({ queryKey: queryKeys.tasks.comments(id) }),
   })
 }

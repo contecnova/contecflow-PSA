@@ -35,6 +35,17 @@ def test_EL_HALLAZGO_el_comando_de_voz_no_da_500(db):
     assert isinstance(r, dict)
 
 
+def test_EL_HALLAZGO_el_comando_de_voz_devuelve_la_accion_pendiente(db, monkeypatch):
+    # Segunda auditoría 2026-11: sin `pending_action` el panel no ofrecía «Confirmar».
+    from app.services.ai_modules import voice
+    monkeypatch.setattr(voice, "_voice_parse_intent",
+                        lambda *_a: ("create_ticket", {"ticket_title": "Impresora rota", "priority": "high"}, ""))
+    r = voice.process_voice_core("abre un ticket impresora rota", db, _pm(db), confirm=False)
+    assert r["confirmed"] is False
+    assert r["pending_action"] == {"type": "create_ticket", "title": "Impresora rota", "priority": "high"}
+    assert r["execution_id"] is None
+
+
 def test_EL_HALLAZGO_la_prioridad_del_triaje_se_traduce_a_la_del_ticket():
     from app.models.service_desk import TicketPriority
     from app.services.ai_planning_service import prioridad_de_ticket

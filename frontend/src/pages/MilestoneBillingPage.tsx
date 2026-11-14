@@ -4,7 +4,9 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { milestonesApi, projectsApi, unwrapList } from '../services/api'
+import { milestonesApi, projectsApi } from '../services/api'
+import type { ProjectListItem } from '../services/api/projects'
+import type { EstadoDeFacturacionDeHito, HitoDeFacturacion } from '../services/api/tipos-finanzas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Flag } from 'lucide-react'
@@ -15,29 +17,9 @@ import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-type BillingStatus = 'pending' | 'completed' | 'pending_approval' | 'approved' | 'rejected' | 'invoiced'
-
-interface ProjectItem {
-  id: string | number
-  code?: string
-  name?: string
-}
-
-interface MilestoneItem {
-  id: string | number
-  name?: string
-  title?: string
-  code?: string
-  billing_status?: BillingStatus
-  due_date?: string
-  billing_amount?: number
-  billing_pct?: number
-  rejection_reason?: string
-  invoice_id?: string | number
-  amount?: number
-  currency?: string
-  project_name?: string
-}
+type BillingStatus = EstadoDeFacturacionDeHito
+/** El hito de la lista del proyecto o del panel de pendientes (que añade el proyecto). */
+type MilestoneItem = HitoDeFacturacion & { project_name?: string }
 
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -63,8 +45,10 @@ function StatusBadge({ status }: { status?: BillingStatus }) {
 // ── Modal de rechazo ──────────────────────────────────────────────────────────
 function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneItem; onClose: () => void; onReject: (reason: string) => void }) {
   const t = useAppT()
+  const fmtMoneda = useFormatoMoneda()
   const [reason, setReason] = useState('')
-  const milestoneLabel = milestone?.name || milestone?.title || milestone?.code || milestone?.id
+  // serialize_milestone: el hito tiene `name` y `billing_amount` (no `title`, `code`, `amount` ni `currency`).
+  const milestoneLabel = milestone.name || milestone.id
   return (
     <Modal open title="Rechazar milestone" onClose={onClose} width={420}>
       {milestoneLabel && (
@@ -78,8 +62,8 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
           color: 'var(--text-2)',
         }}>
           Milestone: <strong className="u-text1">{milestoneLabel}</strong>
-          {milestone?.amount != null && (
-            <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· {milestone.amount} {milestone.currency || ''}</span>
+          {milestone.billing_amount != null && (
+            <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· {fmtMoneda(milestone.billing_amount)}</span>
           )}
         </div>
       )}
@@ -109,14 +93,15 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
   const act = async (action: 'complete' | 'uncomplete' | 'request' | 'approve' | 'reject' | 'invoice', payload?: string) => {
     setLoading(action)
     try {
-      let res: { data?: { message?: string } } | undefined
-      if (action === 'complete')        res = await milestonesApi.complete(m.id)
-      if (action === 'uncomplete')      res = await milestonesApi.uncomplete(m.id)
-      if (action === 'request')         res = await milestonesApi.requestApproval(m.id, {})
-      if (action === 'approve')         res = await milestonesApi.approve(m.id, { approved: true })
-      if (action === 'reject')          res = await milestonesApi.approve(m.id, { approved: false, rejection_reason: payload })
-      if (action === 'invoice')         res = await milestonesApi.generateInvoice(m.id)
-      toast.success(res?.data?.message || 'Acción completada')
+      // Completar y revertir devuelven el hito sin mensaje; el resto trae `message`.
+      let mensaje: string | undefined
+      if (action === 'complete')        await milestonesApi.complete(m.id)
+      if (action === 'uncomplete')      await milestonesApi.uncomplete(m.id)
+      if (action === 'request')         mensaje = (await milestonesApi.requestApproval(m.id, {})).data.message
+      if (action === 'approve')         mensaje = (await milestonesApi.approve(m.id, { approved: true })).data.message
+      if (action === 'reject')          mensaje = (await milestonesApi.approve(m.id, { approved: false, rejection_reason: payload })).data.message
+      if (action === 'invoice')         mensaje = (await milestonesApi.generateInvoice(m.id)).data.message
+      toast.success(mensaje || 'Acción completada')
       onRefresh()
     } catch (e: unknown) {
       toast.error(extractErr(e, 'Error'))
@@ -281,20 +266,20 @@ export default function MilestoneBillingPage(): JSX.Element {
   const [showNew, setShowNew]   = useState(false)
   const [tab, setTab] = useState<'project' | 'dashboard'>('project')
 
-  const { data: projects = [] } = useQuery<ProjectItem[]>({
+  const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => unwrapList(r) as ProjectItem[]),
+    queryFn: () => projectsApi.list({}).then(r => r.data),
   })
 
   const { data: milestones = [], refetch } = useQuery<MilestoneItem[]>({
     queryKey: ['milestones', selectedProject],
-    queryFn: () => milestonesApi.list(selectedProject).then(r => (r.data?.items ?? r.data ?? []) as MilestoneItem[]),
+    queryFn: () => milestonesApi.list(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
 
   const { data: dashboard = [], refetch: refetchDash } = useQuery<MilestoneItem[]>({
     queryKey: ['milestones-dashboard'],
-    queryFn: () => milestonesApi.dashboard().then(r => (r.data?.items ?? r.data ?? []) as MilestoneItem[]),
+    queryFn: () => milestonesApi.dashboard().then(r => r.data),
     enabled: tab === 'dashboard',
   })
 
@@ -303,7 +288,7 @@ export default function MilestoneBillingPage(): JSX.Element {
   // Agrupados por estado
   // useQuery devuelve data como `any` en este proyecto (tipos de react-query), asi que
   // fijamos el tipo local antes de reducir para evitar TS2347.
-  const byStatus = (milestones as MilestoneItem[]).reduce<Record<string, MilestoneItem[]>>((acc, m) => {
+  const byStatus = milestones.reduce<Record<string, MilestoneItem[]>>((acc, m) => {
     const key = m.billing_status || 'pending'
     acc[key] = [...(acc[key] || []), m]
     return acc

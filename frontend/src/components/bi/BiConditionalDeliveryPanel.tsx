@@ -5,33 +5,15 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biConditionalDeliveryApi } from '../../services/api'
+import type { EvaluacionDeEntregaBi, ReglaDeEntregaBi } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Bell, Play, ToggleLeft, ToggleRight } from 'lucide-react'
-
-// TODO type: biConditionalDeliveryApi rule payload — needs shared type
-interface DeliveryRule {
-  id: string | number
-  name: string
-  report_id: string
-  condition_type: string
-  diff_threshold_pct?: number
-  enabled: boolean
-}
-
-interface DeliveryRulesResponse {
-  items?: DeliveryRule[]
-}
 
 interface RuleForm {
   name: string
   report_id: string
   diff_threshold_pct: number
   recipients: string
-}
-
-interface EvaluateResult {
-  should_deliver?: boolean
-  [k: string]: unknown
 }
 
 const S: Record<string, React.CSSProperties> = {
@@ -46,9 +28,9 @@ export default function BiConditionalDeliveryPanel() {
   const qc = useQueryClient()
 
   const [form, setForm] = useState<RuleForm>({ name: '', report_id: '', diff_threshold_pct: 10, recipients: '' })
-  const [evaluateResult, setEvaluateResult] = useState<Record<string, EvaluateResult>>({})
+  const [evaluateResult, setEvaluateResult] = useState<Record<string, EvaluacionDeEntregaBi>>({})
 
-  const { data, isLoading } = useQuery<DeliveryRulesResponse>({
+  const { data, isLoading } = useQuery({
     queryKey: ['bi-delivery-rules'],
     queryFn:  () => biConditionalDeliveryApi.listRules().then(r => r.data),
   })
@@ -59,13 +41,13 @@ export default function BiConditionalDeliveryPanel() {
   })
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }: { id: DeliveryRule['id']; enabled: boolean }) => biConditionalDeliveryApi.updateRule(id, { enabled }).then(r => r.data),
+    mutationFn: ({ id, enabled }: { id: ReglaDeEntregaBi['id']; enabled: boolean }) => biConditionalDeliveryApi.updateRule(id, { enabled }).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-delivery-rules'] }),
   })
 
-  const evaluateMutation = useMutation<EvaluateResult, unknown, DeliveryRule['id']>({
-    mutationFn: (id) => biConditionalDeliveryApi.evaluate(id, { current_data: {} }).then(r => r.data),
-    onSuccess:  (data, id) => setEvaluateResult(prev => ({ ...prev, [String(id)]: data })),
+  const evaluateMutation = useMutation({
+    mutationFn: (id: ReglaDeEntregaBi['id']) => biConditionalDeliveryApi.evaluate(id, { current_data: {} }).then(r => r.data),
+    onSuccess:  (data, id) => setEvaluateResult(prev => ({ ...prev, [id]: data })),
   })
 
   return (
@@ -135,8 +117,10 @@ export default function BiConditionalDeliveryPanel() {
               <div className="u-flex1-min0">
                 <div className="u-text1-base-600">{rule.name}</div>
                 <div className="u-text3-xs-mt2">
-                  {rule.report_id} · {rule.condition_type}
-                  {rule.diff_threshold_pct != null && ` (≥${rule.diff_threshold_pct}%)`}
+                  {/* La regla no guarda un `condition_type`: la condición es métrica + operador + valor, si la hay. */}
+                  {rule.report_id}
+                  {rule.condition_metric && ` · ${rule.condition_metric} ${rule.condition_operator ?? ''} ${rule.condition_value ?? ''}`}
+                  {` (≥${rule.diff_threshold_pct}%)`}
                 </div>
               </div>
               <div className="u-row-center-10">
@@ -166,7 +150,7 @@ export default function BiConditionalDeliveryPanel() {
               </div>
             </div>
           ))}
-          {!(data?.items?.length) && (
+          {!data?.items.length && (
             <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>
               {t('bi.delivery.no_rules', 'No hay reglas creadas')}
             </div>

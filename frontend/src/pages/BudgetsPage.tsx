@@ -157,8 +157,8 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
     desde: `${anio}-01`, hasta: `${anio}-12`, currency: '', techo: '', campana_id: '', responsable_id: '', inflacion: '',
     origen: 'vacio', plantilla_id: '', copiar_de: '', base: 'plan', ajuste_pct: '' })
   const [guardando, setGuardando] = useState(false)
-  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data as unknown as { id: string; code?: string; name?: string }[]) })
-  const depts = useQuery<{ name: string }[]>({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data as unknown as { name: string }[]) })
+  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const depts = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
   const areas = useQuery({ queryKey: ['areas'], queryFn: () => presupuestosApi.areas() })
   const campanas = useQuery({ queryKey: ['presupuestos', 'campanas'], queryFn: () => presupuestosApi.campanas() })
   const plantillas = useQuery({ queryKey: ['presupuestos', 'plantillas'], queryFn: () => presupuestosApi.plantillas() })

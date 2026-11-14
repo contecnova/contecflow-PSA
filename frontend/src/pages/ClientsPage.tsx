@@ -75,10 +75,6 @@ import { alpha } from '../constants/theme'
 
 
 // ── Client shape (list item + hydrated detail) ───────────────────────────────
-interface ClientTicket {
-  id: string; title?: string; priority?: string; status?: string
-  linked_resource_type?: string; created_at?: string
-}
 type Client = {
   [key: string]: unknown
   id: string
@@ -104,7 +100,6 @@ type Client = {
   contracts?: unknown[]
   licenses?: unknown[]
   portal_users?: unknown[]
-  tickets?: ClientTicket[]
 }
 
 // ── Zod schema mirroring backend Client model (app/models/clients.py) ────────
@@ -114,7 +109,7 @@ const optionalString = (max: number) => z.union([
 ]).optional()
 const optionalEmail = z.union([
   z.literal(''),
-  z.string().trim().email('Email inválido').max(200, 'Máximo 200 caracteres'),
+  z.string().trim().pipe(z.email('Email inválido').max(200, 'Máximo 200 caracteres')),
 ]).optional()
 
 const clientCreateSchema = z.object({
@@ -159,9 +154,9 @@ export default function ClientsPage(): JSX.Element {
 
   const { sort: clientSort, setSort: setClientSort, sortedData: sortedClients } = useSort(clients, sortBy)
 
-  const { data: detail } = useQuery<Client>({
+  const { data: detail } = useQuery({
     queryKey: ['client-detail', selected?.id],
-    queryFn: () => clientsApi.get(selected!.id).then(r => r.data as Client),
+    queryFn: () => clientsApi.get(selected!.id).then(r => r.data),
     enabled: !!selected,
   })
 
@@ -376,7 +371,7 @@ export default function ClientsPage(): JSX.Element {
                       <div>
                         <div className="u-base-600">{t.title}</div>
                         <div className="u-text2-xs">
-                          {t.linked_resource_type && `${t.linked_resource_type} · `}{t.created_at?.slice(0, 10)}
+                          {t.code} · {t.created_at.slice(0, 10)}
                         </div>
                       </div>
                       <div className="u-row-6">

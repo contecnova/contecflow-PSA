@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { projectsApi, contractsApi } from '../services/api'
+import type { ContratoDeServicio } from '../services/api/tipos-finanzas'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -21,43 +22,8 @@ import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-// ── Contract / WorkOrder shapes ──────────────────────────────────────────────
-type WorkOrder = {
-  [key: string]: unknown
-  id: string
-  code?: string
-  name?: string
-  status?: string
-  amount?: number | null
-  hours?: number | null
-  start_date?: string | null
-  end_date?: string | null
-}
-type Contract = {
-  [key: string]: unknown
-  id: string
-  code?: string
-  name?: string
-  client_id?: string | number
-  client_name?: string
-  client_contact?: string
-  contract_type?: string
-  contract_type_label?: string
-  status?: string
-  total_amount?: number | null
-  hourly_rate?: number | null
-  hours_bag?: number | null
-  hours_used?: number | null
-  hours_pct?: number | null
-  monthly_retainer?: number | null
-  start_date?: string | null
-  end_date?: string | null
-  signed_date?: string | null
-  payment_terms?: string | null
-  notes?: string | null
-  project_id?: string | number
-  work_orders?: WorkOrder[]
-}
+// ── Contract / WorkOrder shapes (contract_service.serialize_contract) ─────────
+type Contract = ContratoDeServicio
 type ApiErr = { response?: { data?: { detail?: string } } }
 
 
@@ -99,24 +65,24 @@ const contractSchema = z.object({
   notes: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (values.start_date && values.end_date && values.end_date < values.start_date) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_date'], message: 'La fecha fin no puede ser anterior a la fecha inicio' })
+    ctx.addIssue({ code: 'custom', path: ['end_date'], message: 'La fecha fin no puede ser anterior a la fecha inicio' })
   }
   if (values.contract_type === 'fixed_price' && typeof values.total_amount !== 'number') {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['total_amount'], message: 'El importe total es obligatorio para precio fijo' })
+    ctx.addIssue({ code: 'custom', path: ['total_amount'], message: 'El importe total es obligatorio para precio fijo' })
   }
   if (values.contract_type === 'time_material' && typeof values.hourly_rate !== 'number') {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['hourly_rate'], message: 'La tarifa es obligatoria para tiempo y material' })
+    ctx.addIssue({ code: 'custom', path: ['hourly_rate'], message: 'La tarifa es obligatoria para tiempo y material' })
   }
   if (values.contract_type === 'hourly_bag') {
     if (typeof values.hours_bag !== 'number') {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['hours_bag'], message: 'La bolsa de horas es obligatoria' })
+      ctx.addIssue({ code: 'custom', path: ['hours_bag'], message: 'La bolsa de horas es obligatoria' })
     }
     if (typeof values.hourly_rate !== 'number') {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['hourly_rate'], message: 'La tarifa es obligatoria para bolsa de horas' })
+      ctx.addIssue({ code: 'custom', path: ['hourly_rate'], message: 'La tarifa es obligatoria para bolsa de horas' })
     }
   }
   if (values.contract_type === 'retainer' && typeof values.monthly_retainer !== 'number') {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['monthly_retainer'], message: 'El retainer mensual es obligatorio' })
+    ctx.addIssue({ code: 'custom', path: ['monthly_retainer'], message: 'El retainer mensual es obligatorio' })
   }
 })
 
@@ -128,7 +94,7 @@ const workOrderSchema = z.object({
   end_date: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (values.start_date && values.end_date && values.end_date < values.start_date) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_date'], message: 'La fecha fin no puede ser anterior al inicio' })
+    ctx.addIssue({ code: 'custom', path: ['end_date'], message: 'La fecha fin no puede ser anterior al inicio' })
   }
 })
 
@@ -423,7 +389,7 @@ export default function ContractsPage(): JSX.Element {
 
   const { data: contracts = [], isLoading } = useQuery<Contract[]>({
     queryKey: ['contracts', statusFilter],
-    queryFn: () => contractsApi.list(statusFilter ? { status: statusFilter } : {}).then((r: { data: unknown }) => ((r.data as { items?: Contract[] })?.items ?? (r.data as Contract[]) ?? [])),
+    queryFn: () => contractsApi.list(statusFilter ? { status: statusFilter } : {}).then(r => r.data),
   })
 
   // Contratos que vencen en los próximos 90 días

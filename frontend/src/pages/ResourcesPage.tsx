@@ -4,6 +4,8 @@ import { useToast } from '../context/ToastContext'
 import ResourceHeatmap from '../components/ResourceHeatmap'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, skillsApi, burnoutRiskApi, billingSmartMatchApi, unwrapList } from '../services/api'
+import type { RiesgoDeAgotamiento } from '../services/api/tipos-analitica'
+import type { ResultadoSmartMatch } from '../services/api/tipos-finanzas'
 import { settingsApi } from '../services/settingsApi'
 import { Avatar, LoadBar, Button, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -28,18 +30,7 @@ const RISK_META: Record<string, RiskMeta> = {
   red:    { label: 'Crítico 🔴',  color: 'var(--danger)',   bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.35)' },
 }
 
-interface BurnoutMember {
-  user_id?: string
-  risk_level?: string
-  full_name?: string
-  job_title?: string
-  department?: string
-  current_load_pct?: number
-  avg_load_4w?: number
-  overload_weeks_streak?: number
-  weekly_history?: { load_pct?: number }[]
-  factors?: string[]
-}
+type BurnoutMember = RiesgoDeAgotamiento
 
 function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
   const m = RISK_META[member.risk_level || ''] || RISK_META.green
@@ -102,7 +93,7 @@ function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
 function BurnoutMonitorTab() {
   const t = useAppT()
   const [filter, setFilter] = useState('all')
-  const { data, isLoading } = useQuery<{ members?: BurnoutMember[]; summary?: Record<string, number> }>({
+  const { data, isLoading } = useQuery({
     queryKey: ['burnout-risk', filter],
     queryFn: () => burnoutRiskApi.get(
       filter !== 'all' ? { min_risk_level: filter } : undefined
@@ -322,24 +313,7 @@ interface SmartMatchForm {
   end_date: string
   max_hourly_rate: string
 }
-interface SmartMatchCandidate {
-  user_id?: string
-  user_name?: string
-  job_title?: string
-  role?: string
-  department?: string
-  recommendation?: string
-  hourly_rate?: number
-  availability_hours?: number
-  active_tasks?: number
-  matched_skills?: string[]
-  missing_skills?: string[]
-  scores: { overall: number; skills: number; availability: number; workload: number; cost: number }
-}
-interface SmartMatchResult {
-  message?: string
-  candidates?: SmartMatchCandidate[]
-}
+type SmartMatchResult = ResultadoSmartMatch
 interface SkillItem { id?: string; name: string }
 
 function SmartMatchTab() {
@@ -358,7 +332,7 @@ function SmartMatchTab() {
 
   const { mutate: search, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => billingSmartMatchApi.match(d).then(r => r.data),
-    onSuccess: (data: SmartMatchResult) => setResults(data),
+    onSuccess: (data) => setResults(data),
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -544,7 +518,7 @@ export default function ResourcesPage() {
               <option value="">{t('resources.todos_los_departamentos')}</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <select value={resSort.key} onChange={e => setResSort({ key: e.target.value, dir: 'asc' } as unknown as string)}
+            <select value={resSort.key} onChange={e => setResSort(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="user.full_name">Nombre A-Z</option>
               <option value="current_load_pct">Carga %</option>

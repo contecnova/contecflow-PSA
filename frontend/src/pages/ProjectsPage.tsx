@@ -6,7 +6,8 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, usersApi, portalApi, templatesApi, dependenciesApi, tasksApi } from '../services/api'
+import { projectsApi, usersApi, portalApi, templatesApi, taskDependenciesApi, tasksApi } from '../services/api'
+import type { PlantillaDeProyecto } from '../services/api/tipos-proyectos'
 import type { MemberAddPayload, ProjectCreatePayload, ProjectStatus } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
@@ -28,6 +29,7 @@ import { useColVisibility } from '../components/ui/ColVisibility'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { getFirstIssueByField } from '../utils/formValidation'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
@@ -96,7 +98,8 @@ type ProjectForm = {
   retainer_amount: string | number
   retainer_day: string | number
 }
-type ProjectMember = { id: string; user_id: string; full_name: string; email?: string; role: string; allocation_pct: number; avatar_initials?: string }
+/** Al subcontratado le llegan sin correo ni dedicación (`politica_de_visibilidad`, segunda auditoría 2026-11). */
+type ProjectMember = { id: string; user_id: string; full_name: string; email?: string; role: string; allocation_pct?: number; avatar_initials?: string }
 /** Solicitud de mejora del portal (`/portal/feature-requests/team`). */
 type FeatureRequest = {
   id: string
@@ -115,14 +118,12 @@ type FeatureRequest = {
 }
 type RespondForm = { pm_response: string; estimated_hours: string | number; estimated_cost: string | number; estimated_delivery_weeks: string | number; status: string }
 type RespondBody = { pm_response?: string; estimated_hours?: number; estimated_cost?: number; estimated_delivery_weeks?: number; status: string }
-type TemplateTask = { title: string; estimated_hours: number; priority: string }
-type TemplatePhase = { id?: string; name: string; duration_weeks: number; tasks?: TemplateTask[] }
-type ProjectTemplate = { id: string; name: string; description?: string | null; project_type: string; estimated_weeks?: number | null; estimated_hours?: number | null; phases?: TemplatePhase[] }
-type NewTemplate = { name: string; description: string; project_type: string; estimated_weeks: number; estimated_hours?: number; phases: TemplatePhase[] }
+// Alta de plantilla (TemplateCreate): las fases y tareas son dicts; el servicio lee
+// `estimated_weeks` de cada fase y `estimated_hours` de cada tarea (billing_reports_service/plantillas.py).
+type NewTemplatePhase = { name: string; estimated_weeks: number; tasks: Array<{ title: string; estimated_hours: number }> }
+type NewTemplate = { name: string; description: string; project_type: string; estimated_weeks: number; estimated_hours?: number; phases: NewTemplatePhase[] }
 type InstantiateForm = { name: string; client_id: string; client_name: string; start_date: string; budget_amount: string; pm_id?: string }
-type InstantiateResult = { project_code: string; project_name: string; phases_created: number; tasks_created: number }
 type GanttTasks = ComponentProps<typeof GanttChart>['tasks']
-type GanttDeps = ComponentProps<typeof GanttChart>['dependencies']
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -160,15 +161,15 @@ function makeProjectFormSchema(t: Traductor) {
     billing_type: z.string().optional(),
   }).superRefine((data, ctx) => {
     if (data.start_date && data.end_date_planned && data.end_date_planned < data.start_date) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_date_planned'], message: t('projects.error_date_range') })
+      ctx.addIssue({ code: 'custom', path: ['end_date_planned'], message: t('projects.error_date_range') })
     }
     const budget = Number(data.budget_amount || 0)
     if (!Number.isNaN(budget) && budget < 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['budget_amount'], message: t('projects.error_budget_negative') })
+      ctx.addIssue({ code: 'custom', path: ['budget_amount'], message: t('projects.error_budget_negative') })
     }
     const retainerDay = Number(data.retainer_day || 0)
     if (data.billing_type === 'recurring_retainer' && (retainerDay < 1 || retainerDay > 28)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['retainer_day'], message: t('projects.error_retainer_day') })
+      ctx.addIssue({ code: 'custom', path: ['retainer_day'], message: t('projects.error_retainer_day') })
     }
   })
 }
@@ -411,12 +412,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
       setErrors({})
       return true
     }
-    const nextErrors: Record<string, string> = {}
-    parsed.error.issues.forEach(issue => {
-      const key = issue.path?.[0]
-      if (key && !nextErrors[key]) nextErrors[key] = issue.message
-    })
-    setErrors(nextErrors)
+    setErrors(getFirstIssueByField(parsed.error))
     return false
   }
   const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -548,9 +544,10 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
     queryFn: () => projectsApi.members(project.id).then(r => r.data as ProjectMember[]),
     enabled: !!project?.id && tab === 'team',
   })
-  const { data: allUsersRaw = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
+  // Selector de personas: `/users/directory` (ficha mínima) sirve a cualquier rol; `/users` da 403 al subcontratado.
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users', 'directory'],
+    queryFn: () => usersApi.directory().then(r => r.data),
     enabled: !!project?.id && tab === 'team',
   })
 
@@ -569,7 +566,6 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-feature-requests', project?.id] }); setRespondingFr(null); setRespondForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
-  const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : []
 
   const { mutate: addMember, isPending: adding } = useMutation({
     // Sin strictNullChecks, zod marca opcionales todas las claves del tipo inferido;
@@ -676,7 +672,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                   <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={addForm.user_id} onChange={setAddField('user_id')}
                     style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'user_id')}>
                     <option value="">Seleccionar persona...</option>
-                    {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
+                    {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.job_title ? ` (${u.job_title})` : ''}</option>)}
                   </select>
                   {addValidation.errors.user_id && <div className="u-field-error">{addValidation.errors.user_id}</div>}
                 </div>
@@ -722,14 +718,16 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                   </div>
                   <div className="u-flex1">
                     <div className="u-md-600">{m.full_name}</div>
-                    <div className="u-text2-sm">{m.email}</div>
+                    {m.email && <div className="u-text2-sm">{m.email}</div>}
                   </div>
                   <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '3px 9px' }}>
                     {MEMBER_ROLES[m.role] || m.role}
                   </span>
+                  {typeof m.allocation_pct === 'number' && (
                   <span style={{ fontSize: "var(--text-sm)", color: m.allocation_pct >= 100 ? 'var(--success)' : m.allocation_pct >= 50 ? 'var(--warning)' : 'var(--text-2)', fontWeight: 700, minWidth: 38, textAlign: 'right' }}>
                     {m.allocation_pct}%
                   </span>
+                  )}
                   <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar a ${m.full_name} del equipo?`, onConfirm: () => removeMember(m.id), danger: true }) }}
                     style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)", padding: '0 4px', lineHeight: 1 }}>×</button>
                 </div>
@@ -885,19 +883,18 @@ function TemplatesTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [instantiating, setInstantiating] = useState<ProjectTemplate | null>(null)
+  const [instantiating, setInstantiating] = useState<PlantillaDeProyecto | null>(null)
   const [instForm, setInstForm] = useState<InstantiateForm>({ name:'', client_id:'', client_name:'', start_date: new Date().toISOString().slice(0,10), budget_amount:'' })
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['project-templates'],
-    queryFn: () => templatesApi.list().then((r): ProjectTemplate[] => r.data),
+    queryFn: () => templatesApi.list().then(r => r.data),
   })
-  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-  const users = Array.isArray(usersRaw) ? usersRaw : []
+  const { data: users = [] } = useQuery({ queryKey: ['users', 'directory'], queryFn: () => usersApi.directory().then(r => r.data) })
   const pms = users.filter(u => ['admin','pm'].includes(u.role))
 
   const { mutate: instantiate, isPending: creating } = useMutation({
-    mutationFn: ({ tplId, data }: { tplId: string; data: Omit<InstantiateForm, 'budget_amount'> & { budget_amount?: number } }) => templatesApi.instantiate(tplId, data).then((r): InstantiateResult => r.data),
+    mutationFn: ({ tplId, data }: { tplId: string; data: Omit<InstantiateForm, 'budget_amount'> & { budget_amount?: number } }) => templatesApi.instantiate(tplId, data).then(r => r.data),
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['projects'] })
       toast.success(`✓ Proyecto creado: ${data.project_code} — ${data.project_name}\\n${data.phases_created} fases · ${data.tasks_created} tareas`)
@@ -906,7 +903,7 @@ function TemplatesTab() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [newTpl, setNewTpl] = useState<NewTemplate>({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',duration_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8,priority:'medium'}]}] })
+  const [newTpl, setNewTpl] = useState<NewTemplate>({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',estimated_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8}]}] })
 
   const { mutate: createTpl, isPending: creatingTpl } = useMutation({
     mutationFn: (d: NewTemplate) => templatesApi.create(d),
@@ -945,7 +942,7 @@ function TemplatesTab() {
               {t.phases?.slice(0,3).map((ph, i) => (
                 <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 8%, transparent)',fontSize: "var(--text-sm)"}}>
                   <span className="u-text2">{i+1}.</span> <span className="u-text1">{ph.name}</span>
-                  <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.duration_weeks}w · {ph.tasks?.length||0} tareas</span>
+                  <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.estimated_weeks ?? '?'}w · {ph.tasks.length} tareas</span>
                 </div>
               ))}
               {(t.phases?.length||0) > 3 && <div className="u-hint">+{t.phases.length-3} {traducir('projects.fases_mas')}</div>}
@@ -1014,12 +1011,13 @@ function TemplatesTab() {
 
 // Wrapper that fetches dependencies and passes them to GanttChart
 function GanttWithDeps({ projectId, tasks }: { projectId: string; tasks: GanttTasks }) {
-  const { data: depsRaw = [] } = useQuery<GanttDeps>({
+  // Las del Gantt son /tasks/dependencies (predecessor/successor); /task-dependencies es
+  // el grafo con metadatos ({nodes, edges}) y aquí daba siempre una lista vacía.
+  const { data: deps = [] } = useQuery({
     queryKey: ['task-deps', projectId],
-    queryFn: () => projectId ? dependenciesApi.get(projectId).then(r => r.data) : Promise.resolve([]),
+    queryFn: () => taskDependenciesApi.getByProject(projectId).then(r => r.data),
     enabled: !!projectId,
   })
-  const deps = Array.isArray(depsRaw) ? depsRaw : []
   return <GanttChart mode="project" tasks={tasks} dependencies={deps} />
 }
 

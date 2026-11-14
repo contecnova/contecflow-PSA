@@ -18,31 +18,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { voiceApi } from '../../services/api'
+import type { AccionDeVozPendiente, ComandoDeVozTranscrito } from '../../services/api/tipos-analitica'
 import { useToast } from '../../context/ToastContext'
 import { Mic, Square, X } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useDialogo } from '../ui'
 
 
-// TODO type: voice pending_action payload — needs shared type from voiceApi
-interface PendingAction {
-  type: string
-  hours?: number
-  project_name?: string
-  title?: string
-  priority?: string
-  [key: string]: unknown
-}
-
-interface TranscribeResult {
-  whisper_transcript?: string
-  intent?: string
-  entities?: Record<string, unknown>
-  action?: string
-  pending_action?: PendingAction
-}
-
-function _formatPendingAction(pa: PendingAction | undefined | null): string | null {
+function _formatPendingAction(pa: AccionDeVozPendiente | undefined | null): string | null {
   if (!pa) return null
   switch (pa.type) {
     case 'log_hours':
@@ -67,7 +50,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
   const toast = useToast()
   const [recording, setRecording] = useState<boolean>(false)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
-  const [transcribeResult, setTranscribeResult] = useState<TranscribeResult | null>(null)
+  const [transcribeResult, setTranscribeResult] = useState<ComandoDeVozTranscrito | null>(null)
   const [error, setError] = useState<string | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -138,8 +121,8 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }
       rec.onerror = (e: Event) => {
-        // TODO type: MediaRecorderErrorEvent — DOM types vary across libs
-        const err = (e as unknown as { error?: { message?: string } })?.error
+        // El evento de error de MediaRecorder lleva el fallo en `error` (no está en lib.dom).
+        const err = (e as Event & { error?: DOMException }).error
         setError(err?.message || 'No se pudo grabar audio con el micrófono.')
         setRecording(false)
         _stopMediaTracks()
@@ -179,7 +162,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
       fd.append('audio', audioBlob, `voice.${ext}`)
       return voiceApi.transcribe(fd).then(r => r.data)
     },
-    onSuccess: (data: TranscribeResult) => {
+    onSuccess: (data) => {
       setTranscribeResult(data)
     },
     // TODO type: backend error envelope — needs shared type
@@ -196,7 +179,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         transcript: transcribeResult?.whisper_transcript || '',
         confirm: true,
       }).then(r => r.data),
-    onSuccess: (data: { action?: string }) => {
+    onSuccess: (data) => {
       toast.success(data?.action || 'Acción ejecutada')
       onClose()
     },

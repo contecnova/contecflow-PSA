@@ -9,6 +9,7 @@ import { Button, Modal } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import { useFormValidation } from '../../hooks/useFormValidation'
 import { sdCatalogApi, usersApi, clientsApi, ticketsApi, sdDynamicFormsApi } from '../../services/api'
+import type { SdCampoDinamico, SdTicket } from '../../services/api/tipos-sd'
 import { z } from 'zod'
 import { PBadge, PRIORITY_LABEL, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
@@ -32,7 +33,7 @@ type CreateTicketForm = {
 
 type ModalProps = {
   onClose: () => void
-  onCreated?: (data: unknown) => void
+  onCreated?: (ticket: SdTicket) => void
 }
 
 type CatalogService = { id: string | number; name: string }
@@ -40,40 +41,9 @@ type CatalogGroup = { name?: string; services?: CatalogService[] }
 type UserItem = { id: string | number; full_name?: string }
 type ClientItem = { id: string | number; name?: string }
 
-type DynamicVisibilityWhen = {
-  field?: string
-  equals?: unknown
-  in?: unknown[]
-}
-
-type DynamicField = {
-  id: string
-  label?: string
-  required?: boolean
-  type?: string
-  options?: string[]
-  visible_when?: DynamicVisibilityWhen
-  data_source?: string
-  data_attribute?: string
-}
-
-type DynamicRoutingHint = {
-  when?: DynamicVisibilityWhen
-  set?: Record<string, unknown>
-}
-
-type DynamicFormsConfig = {
-  fields?: DynamicField[]
-  routing_hints?: DynamicRoutingHint[]
-}
-
-type DynamicHistoryItem = { snapshot_id: string; created_at?: string; reason?: string }
-type DynamicHistory = { items: DynamicHistoryItem[] }
-
+type DynamicField = SdCampoDinamico
+/** Vista indexable de una opción de contexto: el campo dinámico elige el atributo por nombre. */
 type ContextOption = { [k: string]: unknown; name?: string; code?: string }
-type ContextOptions = { clients: ContextOption[]; services: ContextOption[]; cis: ContextOption[] }
-
-type GeneratedField = { id?: string; label?: string; type?: string }
 
 type CreateTicketPayload = {
   ticket_type: TicketType
@@ -137,27 +107,27 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     queryKey: ['clients'],
     queryFn: () => clientsApi.list({}).then(r => (r.data ?? []) as ClientItem[]),
   })
-  const { data: dynamicFormRules } = useQuery<DynamicFormsConfig>({
+  const { data: dynamicFormRules } = useQuery({
     queryKey: ['sd-dynamic-forms'],
-    queryFn: () => sdDynamicFormsApi.get().then(r => r.data as DynamicFormsConfig),
+    queryFn: () => sdDynamicFormsApi.get().then(r => r.data),
   })
-  const { data: dynamicHistory = { items: [] } } = useQuery<DynamicHistory>({
+  const { data: dynamicHistory = [] } = useQuery({
     queryKey: ['sd-dynamic-forms-history'],
-    queryFn: () => sdDynamicFormsApi.history().then(r => r.data as DynamicHistory),
+    queryFn: () => sdDynamicFormsApi.history().then(r => r.data),
   })
-  const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery<ContextOptions>({
+  const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery({
     queryKey: ['sd-dynamic-forms-context', form.client_id, form.service_item_id],
     queryFn: () => sdDynamicFormsApi.contextOptions({
       client_id: form.client_id || undefined,
       service_item_id: form.service_item_id || undefined,
       limit: DYNAMIC_FORM_OPTIONS_LIMIT,
-    }).then(r => r.data as ContextOptions),
+    }).then(r => r.data),
   })
   const [dynamicValues, setDynamicValues] = useState<Record<string, unknown>>({})
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardStep, setWizardStep] = useState(1)
   const [csvText, setCsvText] = useState('')
-  const [generatedFields, setGeneratedFields] = useState<GeneratedField[]>([])
+  const [generatedFields, setGeneratedFields] = useState<SdCampoDinamico[]>([])
   const validation = useFormValidation(getCreateTicketSchema(t))
 
   const suggestedPrio = useMemo<TicketPriority>(() => {
@@ -241,12 +211,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: CreateTicketPayload) => ticketsApi.create(data),
-    onSuccess: (res: { data?: { number?: string }; number?: string }) => {
+    onSuccess: res => {
       validation.setErrors({})
       qc.invalidateQueries({ queryKey: ['sd-tickets'] })
-      const number = res?.data?.number || res?.number || ''
-      toast.success(`${t('service_desk.ticket_created_success')} ${number}`)
-      onCreated?.(res?.data)
+      toast.success(`${t('service_desk.ticket_created_success')} ${res.data.number}`)
+      onCreated?.(res.data)
       onClose()
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -254,8 +223,8 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
   const previewImport = useMutation({
     mutationFn: () => sdDynamicFormsApi.importPreview({ csv_text: csvText, mapping: {} }),
-    onSuccess: (res: { data?: { generated_fields?: GeneratedField[] } }) => {
-      setGeneratedFields(res?.data?.generated_fields || [])
+    onSuccess: res => {
+      setGeneratedFields(res.data.generated_fields)
       setWizardStep(2)
     },
     onError: (e) => toast.error(extractErr(e, 'No se pudo previsualizar el CSV')),
@@ -290,19 +259,13 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
   const contextSuggestionsForField = (f: DynamicField): string[] => {
     const source = f?.data_source || (f?.type || '').replace('context_', '')
-    if (source === 'ci') {
-      const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.cis || []).map((ci) => String(ci[attr] || ci.name || ci.code || ''))
-    }
-    if (source === 'service') {
-      const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.services || []).map((s) => String(s[attr] || s.name || ''))
-    }
-    if (source === 'client') {
-      const attr = (f?.data_attribute || 'name').toLowerCase()
-      return (contextOptions.clients || []).map((c) => String(c[attr] || c.name || ''))
-    }
-    return []
+    const filas: ContextOption[] | null = source === 'ci' ? contextOptions.cis
+      : source === 'service' ? contextOptions.services
+      : source === 'client' ? contextOptions.clients
+      : null
+    if (!filas) return []
+    const attr = (f?.data_attribute || 'name').toLowerCase()
+    return filas.map((o) => String(o[attr] || o.name || o.code || ''))
   }
 
   const submit = () => {
@@ -505,7 +468,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               <Button onClick={() => previewImport.mutate()} disabled={!csvText.trim()} loading={previewImport.isPending}>Previsualizar</Button>
             </div>
             <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'grid', gap: 8 }}>
-              {(dynamicHistory.items || []).slice(0, 5).map((h) => (
+              {dynamicHistory.slice(0, 5).map((h) => (
                 <div key={h.snapshot_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
                   <div className="u-text2-xs">
                     {h.created_at} · {h.reason || 'update'}

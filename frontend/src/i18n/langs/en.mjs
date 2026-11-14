@@ -2106,6 +2106,7 @@ const en = {
     default_category_label: 'Default category',
     default_category_placeholder: 'Category assigned on creation',
     default_priority_label: 'Default priority',
+    target_project_label: 'Target project (required for task forms)',
     priority_low: 'Low',
     priority_medium: 'Medium',
     priority_high: 'High',

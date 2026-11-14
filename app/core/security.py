@@ -4,7 +4,7 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -161,7 +161,7 @@ def decode_token(token: str) -> Optional[dict]:
     except jwt.ExpiredSignatureError:
         logger.debug("JWT token expired")
         return None
-    except JWTError as e:
+    except jwt.PyJWTError as e:
         logger.warning(f"JWT decode failed: {e}")
         return None
 
@@ -175,8 +175,7 @@ def verify_client_token(token: str, db):
     """
     from app.models.client_portal import ClientUser
     try:
-        from jose import jwt as jose_jwt
-        payload = jose_jwt.decode(token, settings.CLIENT_PORTAL_SECRET, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.CLIENT_PORTAL_SECRET, algorithms=[ALGORITHM])
         if payload.get("type") != "client":
             return None
         uid = payload.get("sub")

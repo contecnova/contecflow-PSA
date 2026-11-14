@@ -28,7 +28,6 @@ interface CalendarEvent {
 interface TaskItem { id: string | number; due_date?: string; title?: string; status?: string }
 interface MilestoneItem { id: string | number; due_date?: string; title?: string }
 interface SprintItem { id: string | number; start_date?: string; end_date?: string; name?: string }
-interface AbsenceItem { id: string | number; start_date?: string; end_date?: string; user_name?: string; type?: string }
 
 const EVENT_TYPES = {
   task:      { color: 'var(--success)', icon: '▦', label: 'Tarea' },
@@ -93,7 +92,7 @@ export default function CalendarPage(): JSX.Element {
     queryKey: ['cal-absences', year, month],
     queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: CALENDAR_ABSENCES_LIMIT })
       // Una ausencia ocupa todos sus días del mes, no sólo el primero (revisión 2026-11).
-      .then(r => (unwrapList(r) as AbsenceItem[]).flatMap((a): CalendarEvent[] => {
+      .then(r => r.data.flatMap((a): CalendarEvent[] => {
         if (!a.start_date) return []
         const desde = a.start_date > dateFrom ? a.start_date : dateFrom
         const fin = a.end_date || a.start_date

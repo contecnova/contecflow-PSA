@@ -17,8 +17,15 @@ from app.core.errores import ErrorDeDominio
 from app.services.approval_engine._base import _apply_entity_final_decision, _is_authorized, _notify_requester_approved, _record_sod_violation, find_default_workflow, log_financial_approval_event, logger, notify_approver, scope_request_query
 from app.models.user import UserRole
 
-def create_approval_request(payload, db: Session, current_user: User, confirmar: bool = True) -> dict:
+def create_approval_request(payload, db: Session, current_user: User, confirmar: bool = True,
+                            politicas: Optional[dict] = None) -> dict:
     """
+    `politicas` (tarea #26): el resultado combinado del motor de políticas
+    (`app.services.politicas.evaluar(...)["resultado"]`). Si dice
+    `auto_approve`, la solicitud nace aprobada; si pide niveles o pasos, se
+    añaden a ESTA solicitud (`pasos.anadir_por_politicas`); sus `notify` se
+    envían al abrirla. Un `block` no llega aquí: lo para el dominio antes.
+
     payload must have: workflow_id (optional), entity_type, entity_id, entity_summary (optional)
     Returns serialised ApprovalRequest dict (caller should use _request_out).
     Raises HTTPException if no workflow found.
@@ -45,8 +52,17 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
         if not wf:
             raise ErrorDeDominio(404, "Flujo no encontrado")
 
+    if politicas and politicas.get("decision") == "block":
+        raise ErrorDeDominio(422, "; ".join(b.get("mensaje") or "" for b in politicas.get("bloqueos") or [])
+                             or "Lo impide una política")
+    contexto_json = None
+    if isinstance(getattr(payload, "context", None), dict):
+        contexto_json = json.dumps(payload.context, ensure_ascii=False, default=str)
+
     # ── Auto-aprobación: comprobar reglas antes de crear la solicitud ──────────
     auto_result = _check_auto_approval(wf, payload)
+    if not auto_result and politicas and politicas.get("decision") == "auto_approve":
+        auto_result = "política de " + str(payload.entity_type)
     if auto_result:
         # Crear la solicitud ya aprobada directamente
         req = ApprovalRequest(
@@ -62,6 +78,7 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
             final_note=f"Auto-aprobado por regla: {auto_result}",
             completed_at=datetime.now(timezone.utc),
             step_started_at=datetime.now(timezone.utc),
+            contexto=contexto_json,
         )
         db.add(req)
         db.flush()
@@ -89,6 +106,7 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
         current_step=1,
         status="pending",
         step_started_at=datetime.now(timezone.utc),
+        contexto=contexto_json,
     )
     db.add(req)
     db.flush()
@@ -103,10 +121,28 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
         note=getattr(payload, 'entity_summary', None),
     )
 
-    # Skip steps whose condition is not met
-    first_step = _first_active_step(wf.steps, req)
-    if first_step:
-        notify_approver(req, first_step, db)
+    from app.services.approval_engine import pasos as _pasos
+    if politicas:
+        _pasos.anadir_por_politicas(db, req, politicas)
+        from app.services.politicas.motor import ejecutar_avisos
+        ejecutar_avisos(db, politicas, req.requested_by, "approval_request", req.id,
+                        req.entity_summary or req.entity_id, req.organization_id)
+    todos = _pasos.pasos_de(db, req, wf)
+    # Rev. 165: la primera etapa con algo que decidir (las de «informar» se
+    # avisan y se pasan). Un flujo SOLO de pasos informativos se aprueba al
+    # informar. Sin ninguna etapa activa, como antes: espera en el primer paso.
+    if not _pasos.avanzar(db, req, todos, 0):
+        decidir = [s for s in todos if not _pasos.es_informativo(s)]
+        if todos and not decidir:
+            req.status = req.final_decision = "approved"
+            req.final_note = "Solo pasos informativos"
+            req.completed_at = datetime.now(timezone.utc)
+            _apply_entity_final_decision(req, "approved", current_user, db)
+        else:
+            first_step = _first_active_step(decidir, req)
+            if first_step:
+                req.current_step = first_step.step_order
+                notify_approver(req, first_step, db)
 
     if confirmar:
         db.commit()
@@ -141,7 +177,8 @@ def _load_request_and_workflow_for_decision(
     if not wf:
         raise ErrorDeDominio(404, "Flujo no encontrado")
 
-    steps = sorted(wf.steps, key=lambda s: s.step_order)
+    from app.services.approval_engine.pasos import pasos_de
+    steps = pasos_de(db, req, wf)
     step = next((s for s in steps if s.step_order == req.current_step), None)
     if not step:
         raise ErrorDeDominio(400, "No se encontró el paso actual del flujo de aprobación")
@@ -178,7 +215,7 @@ def _validate_decision_authorization(
 
 def _record_decision_row(
     req, decision: str, note: Optional[str], delegate_to: Optional[str],
-    attachment_url: Optional[str], current_user: User, db: Session
+    attachment_url: Optional[str], current_user: User, db: Session, step_ref: Optional[str] = None,
 ) -> None:
     """Persist the ApprovalDecision row and the audit log entry."""
     db.add(ApprovalDecision(
@@ -190,6 +227,7 @@ def _record_decision_row(
         note=note,
         attachment_url=attachment_url,
         delegate_to=delegate_to if decision == "delegated" else None,
+        step_ref=step_ref,
     ))
     db.flush()
     log_financial_approval_event(
@@ -242,24 +280,20 @@ def _apply_approved_decision(
     req, wf, steps, step, current_user: User, db: Session
 ) -> bool:
     """Apply an approved decision. Returns True if the workflow stayed on the current
-    step (waiting for more quorum votes) and the caller should return early."""
-    if not _quorum_satisfied(req, step):
+    step (waiting for more quorum votes) and the caller should return early.
+
+    Rev. 165: la etapa termina cuando TODAS sus ramas activas tienen su quórum
+    (una etapa de un solo paso es el caso de siempre); después `avanzar`
+    lleva a la siguiente etapa con algo que decidir, informando por el camino.
+    """
+    from app.services.approval_engine import pasos as _pasos
+    if not _pasos.etapa_completa(req, _pasos.etapa(steps, req.current_step)):
         db.commit()
         db.refresh(req)
         return True
 
-    next_steps = [
-        s for s in steps
-        if s.step_order > req.current_step
-        and not s.is_optional
-        and _step_condition_met(s, req)
-    ]
-    if next_steps:
-        req.current_step = next_steps[0].step_order
-        req.step_started_at = datetime.now(timezone.utc)
-        req.last_reminder_at = None
+    if _pasos.avanzar(db, req, steps, req.current_step):
         db.commit()
-        notify_approver(req, next_steps[0], db)
     else:
         req.status = "approved"
         req.final_decision = "approved"
@@ -299,10 +333,13 @@ def decide_approval_request(
     Raises HTTPException on validation failures.
     """
     req, wf, steps, step = _load_request_and_workflow_for_decision(request_id, db, current_user)
+    # Rev. 165: en una etapa en paralelo, la rama que decide este usuario.
+    from app.services.approval_engine import pasos as _pasos
+    step = _pasos.rama_para(req, _pasos.etapa(steps, req.current_step), current_user, db) or step
     _validate_decision_authorization(req, step, decision, attachment_url, current_user, db)
     from app.services.approval_engine import fuentes
     fuentes.comprobar_antes(req, decision, db)
-    _record_decision_row(req, decision, note, delegate_to, attachment_url, current_user, db)
+    _record_decision_row(req, decision, note, delegate_to, attachment_url, current_user, db, step_ref=step.id)
 
     if decision == "rejected":
         _apply_rejected_decision(req, note, current_user, db)
@@ -339,16 +376,23 @@ def get_pending_for_user(db: Session, current_user: User) -> list:
         ).filter(ApprovalWorkflow.id.in_(wf_ids)).all()
     }
 
+    # Rev. 165: los pasos que el motor de políticas añadió, en UNA consulta.
+    from app.models.billing_reports import ApprovalRequestStep
+    from app.services.approval_engine import pasos as _pasos
+    propios: dict = {}
+    for s in db.query(ApprovalRequestStep).filter(
+            ApprovalRequestStep.request_id.in_([r.id for r in pending])).all():
+        propios.setdefault(s.request_id, []).append(s)
+
     result = []
     for req in pending:
         wf = workflows.get(req.workflow_id)
         if not wf:
             continue
-        step = next((s for s in wf.steps if s.step_order == req.current_step), None)
-        if not step:
-            continue
-        if _is_authorized(step, current_user, req.requested_by, db, req=req):
-            result.append((req, step))
+        todos = sorted(list(wf.steps or []) + propios.get(req.id, []), key=lambda s: (s.step_order, str(s.id)))
+        rama = _pasos.rama_para(req, _pasos.etapa(todos, req.current_step), current_user, db)
+        if rama is not None:
+            result.append((req, rama))
 
     return result
 
@@ -527,9 +571,13 @@ def _step_condition_met(step, req) -> bool:
             getattr(step, "id", None), exc_info=True,
         )
         return True
+    if isinstance(cond, dict) and "arbol" in cond:
+        # Rev. 165: rama del diseñador gráfico, con el catálogo del dominio.
+        from app.services.politicas.motor import condicion_de_rama
+        return condicion_de_rama(cond, req)
     ctx = {}
     try:
-        ctx = json.loads(req.entity_summary or "{}")
+        ctx = json.loads(getattr(req, "contexto", None) or req.entity_summary or "{}")
     except Exception:
         logger.debug(
             "Approval request entity_summary not JSON for req=%s",
@@ -559,10 +607,11 @@ def _trigger_chained_workflow(req, chain_wf_id: str, actor, db: Session) -> None
             status="pending",
             step_started_at=datetime.now(timezone.utc),
         )
+        chained.contexto = getattr(req, "contexto", None)
         db.add(chained)
+        db.flush()
+        from app.services.approval_engine import pasos as _pasos
+        _pasos.avanzar(db, chained, _pasos.pasos_de(db, chained, chain_wf), 0)
         db.commit()
-        first = _first_active_step(chain_wf.steps or [], chained)
-        if first:
-            notify_approver(chained, first, db)
     except Exception:
         logger.warning("_trigger_chained_workflow failed", exc_info=True)

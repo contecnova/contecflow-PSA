@@ -47,7 +47,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [motivo, setMotivo] = useState('')
   const [vincular, setVincular] = useState('')
-  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data as unknown as { id: string; code?: string; name?: string }[]) })
+  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
   const p = q.data
   const dinero: Dinero = n => fmtMoneda(n ?? 0, { moneda: p?.currency, decimales: 0 })
   const accion = async (clave: string, f: () => Promise<FichaPresupuesto>) => {

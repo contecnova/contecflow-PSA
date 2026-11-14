@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi, type Absence } from '../services/api'
+import type { Inscripcion } from '../services/api/tipos-personas'
+import type { Objetivo } from '../services/api/tipos-proyectos'
+import type { EvaluacionDeDesempeno } from '../services/api/tipos-rendimiento'
 import { Spinner } from '../components/ui'
 import {
   Users, Target, Star, GraduationCap, Plane, Zap,
@@ -19,32 +22,16 @@ interface TeamUser {
   job_title?: string
 }
 
-interface UtilData {
-  summary?: { actual_utilization_pct?: number }
-}
-
-interface OkrItem {
-  status?: string
-  progress_pct?: number
-}
-
-interface PerfReview {
-  status?: string
-}
-
-interface TrainingItem {
-  status?: string
-}
-
 interface ChartRow {
   label: string
   count: number
 }
 
-const okrCategory = (o: OkrItem) => {
+// okr_service.serialize_objective: `progress` (0-100) y OKRStatus (draft/active/completed/cancelled).
+const okrCategory = (o: Objetivo) => {
   if (o.status === 'cancelled') return 'cancelled'
-  if (o.status === 'completed' || (o.progress_pct ?? 0) >= 100) return 'completed'
-  if ((o.progress_pct ?? 0) > 0 || o.status === 'in_progress') return 'in_progress'
+  if (o.status === 'completed' || o.progress >= 100) return 'completed'
+  if (o.progress > 0 || o.status === 'active') return 'in_progress'
   return 'pending'
 }
 
@@ -69,39 +56,31 @@ export default function TeamDashboardPage() {
   })
   const resources = resourcesRaw as TeamUser[]
 
-  const { data: utilDataRaw } = useQuery({
+  const { data: utilData = null } = useQuery({
     // La utilización es de la semana en curso: el endpoint no admite periodo
     // (revisión 2026-11: se leía un campo que no existe y nunca se veía).
     queryKey: ['team-dash-util'],
     queryFn: () => analyticsApi.utilization().then(r => r.data).catch(() => null),
     staleTime: STALE_DEFAULT_MS,
   })
-  const utilData = (utilDataRaw ?? null) as UtilData | null
 
-  const { data: okrsRaw = [] } = useQuery({
+  const { data: okrs = [] } = useQuery({
     queryKey: ['team-dash-okrs'],
-    queryFn: () => okrsApi.list({ page_size: DASHBOARD_LIST_SIZE }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    queryFn: () => okrsApi.list({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data).catch((): Objetivo[] => []),
     staleTime: STALE_DEFAULT_MS,
   })
-  const okrs = okrsRaw as OkrItem[]
 
-  const { data: perfReviewsRaw = [] } = useQuery({
+  const { data: perfReviews = [] } = useQuery({
     queryKey: ['team-dash-perf'],
-    queryFn: () => performanceApi.myReviews().then(r => r.data).catch(() => []),
+    queryFn: () => performanceApi.myReviews().then(r => r.data).catch((): EvaluacionDeDesempeno[] => []),
     staleTime: STALE_DEFAULT_MS,
   })
-  const perfReviews = perfReviewsRaw as PerfReview[]
 
-  const { data: trainingsRaw = [] } = useQuery({
+  const { data: trainings = [] } = useQuery({
     queryKey: ['team-dash-training'],
-    queryFn: () => trainingApi.enrollments({ page_size: DASHBOARD_LIST_SIZE }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    queryFn: () => trainingApi.enrollments({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data).catch((): Inscripcion[] => []),
     staleTime: STALE_DEFAULT_MS,
   })
-  const trainings = trainingsRaw as TrainingItem[]
 
   const { data: absences = [] } = useQuery({
     queryKey: ['team-dash-absences'],

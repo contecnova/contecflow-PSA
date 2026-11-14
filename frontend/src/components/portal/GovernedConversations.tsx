@@ -4,6 +4,7 @@ import type { AxiosInstance } from 'axios'
 
 // TODO type: services/api still JS — apiClient is treated as a loose `{ get, post }` shape.
 import api, { usersApi, portalClientsApi, portalConversationsApi, sdGroupsApi, apiWsUrl, type UserListItem } from '../../services/api'
+import type { PortalMensajeDeConversacion, PortalPoliticaDeConversacion } from '../../services/api/tipos-alm'
 // TODO type: ToastContext still JS — useToast().success/error are typed inline.
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
@@ -15,37 +16,8 @@ import { POLL_FREQUENT_MS, WS_HEARTBEAT_MS } from '../../constants/timings'
 
 // Formas del backend: app/services/portal_conversation_service (serializacion.py, politicas.py).
 
-/** `_policy_out`. */
-interface ConversationPolicy {
-  id: string
-  topic_type: string
-  is_active: boolean
-  requires_client_message_approval: boolean
-  requires_team_message_approval: boolean
-  redact_sensitive_content: boolean
-  allow_legacy_federation: boolean
-  assignment_mode: string
-  default_group_id: string | null
-  default_role_key: string | null
-  first_response_hours: number | null
-  escalation_hours: number | null
-  approval_role_key: string | null
-  sensitive_keywords: string[]
-}
-
-/** `_message_out` / `_legacy_message_out`. */
-interface Message {
-  id: string
-  source: string
-  sender_type: string
-  sender_name: string
-  body: string
-  is_internal_note?: boolean
-  grc_status: string
-  is_redacted?: boolean
-  moderation_notes?: string | null
-  created_at?: string | null
-}
+type ConversationPolicy = PortalPoliticaDeConversacion
+type Message = PortalMensajeDeConversacion
 
 /** `_participant_out` (lo que se pinta). */
 interface Participant {

@@ -110,6 +110,9 @@ from app.models.governance import TenantPolicyPack, ComplianceEvidence, Retentio
 from app.models.conectores import ConectorLlamada, EnlaceDocumental, CarpetaDocumental  # noqa: F401
 from app.models.lecciones import Leccion, LeccionUso, LeccionAccion  # noqa: F401
 from app.models.expenses import ExpenseAttachment, ExpenseAllocation, ExpensePolicy  # noqa: F401
+from app.models.politicas import (  # noqa: F401
+    Politica, ReglaDePolitica, TablaDeReferencia, FilaDeTablaDeReferencia, EvaluacionDePolitica,
+)
 from app.models.abac import (  # noqa: F401
     AttributeDefinition, UserAttribute, ABACPolicy, PolicyAudit,
 )

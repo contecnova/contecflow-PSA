@@ -221,7 +221,7 @@ class Budget(Base):
     # Revisión 2026-11
     ambito      = Column(String(20), nullable=False, default="departamento", server_default="departamento")  # proyecto | proyecto_previsto | departamento | area
     area        = Column(String(255), nullable=True)            # área: departamentos separados por comas
-    cliente_id  = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True)
+    cliente_id  = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
     tipo_proyecto = Column(String(30), nullable=True)
     periodo_desde = Column(Date, nullable=True)                 # primer día del primer mes
     periodo_hasta = Column(Date, nullable=True)                 # primer día del último mes
@@ -230,15 +230,15 @@ class Budget(Base):
     estado      = Column(String(15), nullable=False, default="borrador", server_default="borrador", index=True)  # borrador | enviado | aprobado | rechazado | sustituido
     motivo_rechazo = Column(Text, nullable=True)
     is_approved = Column(Boolean, default=False)
-    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     # Revisión 2026-11 (preparar en profundidad)
     area_id     = Column(String(36), ForeignKey("areas.id", ondelete="SET NULL"), nullable=True, index=True)
     padre_id    = Column(String(36), nullable=True, index=True)   # el presupuesto (origen) que consume: área > departamento > proyecto
     techo       = Column(Float, nullable=True)                   # lo que pueden sumar los presupuestos hijos
-    responsable_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    responsable_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     campana_id  = Column(String(36), ForeignKey("budget_campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
     escenario   = Column(String(40), nullable=False, default="base", server_default="base")
     supuestos   = Column(Text, nullable=False, default="{}", server_default="{}")  # {"inflacion_pct": 3, ...}
@@ -261,7 +261,7 @@ class BudgetLine(Base):
     budget_id   = Column(String(36), ForeignKey("budgets.id", ondelete="CASCADE"), nullable=False, index=True)
     tipo        = Column(String(30), nullable=False)            # de BUDGET_LINE_TYPES
     descripcion = Column(String(500), nullable=False)
-    user_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)  # personal: una persona…
+    user_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)  # personal: una persona…
     perfil      = Column(String(120), nullable=True)            # …o un perfil (para un proyecto que aún no tiene equipo)
     horas       = Column(Float, nullable=True)
     coste_hora  = Column(Float, nullable=True)
@@ -321,7 +321,7 @@ class BudgetCommitment(Base):
     estado      = Column(String(12), nullable=False, default="comprometido", server_default="comprometido")
     fecha_factura = Column(Date, nullable=True)
     importe_facturado = Column(Float, nullable=True)
-    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -335,7 +335,7 @@ class BudgetClose(Base):
     origen_id   = Column(String(36), nullable=False, index=True)
     mes         = Column(String(7), nullable=False)
     real        = Column(Text, nullable=False, default="{}")       # {tipo: importe}
-    cerrado_por = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    cerrado_por = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     cerrado_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -350,7 +350,7 @@ class BudgetVarianceNote(Base):
     mes         = Column(String(7), nullable=False)
     tipo        = Column(String(30), nullable=False)
     explicacion = Column(Text, nullable=False)
-    autor_id    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    autor_id    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -368,8 +368,8 @@ class BudgetTransfer(Base):
     importe     = Column(Float, nullable=False)
     motivo      = Column(Text, nullable=False)
     estado      = Column(String(12), nullable=False, default="pendiente", server_default="pendiente")
-    solicitante_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    decisor_id  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    solicitante_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    decisor_id  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     decidido_at = Column(DateTime(timezone=True), nullable=True)
     motivo_rechazo = Column(Text, nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
@@ -385,7 +385,7 @@ class BudgetTemplate(Base):
     ambito      = Column(String(20), nullable=True)
     tipo_proyecto = Column(String(30), nullable=True)
     partidas    = Column(Text, nullable=False, default="[]")   # [{tipo, descripcion, ...campos de partida}]
-    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -423,12 +423,12 @@ class AITicketTriage(Base):
                                   nullable=False, index=True)
     suggested_category   = Column(String(100), nullable=True)
     suggested_priority   = Column(String(20), nullable=True)
-    suggested_agent_id   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    suggested_agent_id   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     suggested_kb_article = Column(String(36), nullable=True)
     confidence_pct       = Column(Float, default=0)
     reasoning            = Column(Text, nullable=True)
     accepted             = Column(Boolean, nullable=True)
-    accepted_by          = Column(String(36), ForeignKey("users.id"), nullable=True)
+    accepted_by          = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     accepted_at          = Column(DateTime(timezone=True), nullable=True)
     created_at           = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -449,7 +449,7 @@ class ScenarioModel(Base):
     base_date   = Column(Date, nullable=True)
     horizon_weeks = Column(Integer, default=12)
     status      = Column(String(20), default="draft")  # draft | computed | archived
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     computed_at = Column(DateTime(timezone=True), nullable=True)
     # Computed results stored as JSON
@@ -469,7 +469,7 @@ class ScenarioProject(Base):
     scenario_id   = Column(String(36), ForeignKey("scenario_models.id", ondelete="CASCADE"),
                            nullable=False, index=True)
     # Either link to existing project OR define a hypothetical one
-    project_id    = Column(String(36), ForeignKey("projects.id"), nullable=True)
+    project_id    = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     name          = Column(String(255), nullable=False)
     start_date    = Column(Date, nullable=True)
     end_date      = Column(Date, nullable=True)
@@ -497,7 +497,7 @@ class PDFExportJob(Base):
     file_size   = Column(Integer, nullable=True)
     params      = Column(Text, nullable=True)         # JSON: filters, date range, etc.
     error       = Column(String(500), nullable=True)
-    requested_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    requested_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -521,7 +521,7 @@ class BIToken(Base):
     expires_at  = Column(DateTime(timezone=True), nullable=True)
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     requests_today = Column(Integer, default=0)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     creator = relationship("User", foreign_keys=[created_by])

@@ -178,6 +178,57 @@ def _ensure_multiproc_dir(path: Optional[str]) -> None:
         logger.warning("Could not create PROMETHEUS_MULTIPROC_DIR=%s: %s", path, exc)
 
 
+def _multiproc_dir() -> Optional[str]:
+    """El directorio multiproceso tal y como lo ve prometheus_client: del entorno."""
+    return os.environ.get("PROMETHEUS_MULTIPROC_DIR") or None
+
+
+def marcar_worker_terminado(pid: Optional[int] = None) -> None:
+    """`mark_process_dead` para un worker de uvicorn (por defecto, este proceso).
+
+    Segunda auditoría 2026-11: con `--workers N` cada worker deja en el
+    directorio sus ficheros `gauge_live*_<pid>.db` (p. ej. las peticiones en
+    curso del instrumentador, en modo `livesum`). Sin esta llamada, al terminar
+    un worker su último valor se seguía sumando para siempre. uvicorn 0.29 no
+    ofrece ganchos en el supervisor (ni reinicia workers), así que lo hace el
+    propio worker al cerrar su `lifespan`, con su `os.getpid()`. Best-effort:
+    nunca impide el apagado.
+    """
+    directorio = _multiproc_dir()
+    if not directorio:
+        return
+    try:
+        from prometheus_client import multiprocess
+
+        multiprocess.mark_process_dead(os.getpid() if pid is None else pid, directorio)
+    except Exception:
+        logger.warning("mark_process_dead falló (pid=%s)", pid, exc_info=True)
+
+
+def _limpiar_workers_muertos(directorio: str) -> None:
+    """Marca como muertos los workers que terminaron sin `lifespan` (SIGKILL, OOM).
+
+    Esos no ejecutan `marcar_worker_terminado`; se detectan en cada scrape por
+    su PID en los ficheros `gauge_live*_<pid>.db`. Solo en POSIX: en Windows
+    `os.kill(pid, 0)` no comprueba, termina el proceso.
+    """
+    if os.name != "posix":
+        return
+    pids: set[int] = set()
+    for fichero in Path(directorio).glob("gauge_live*_*.db"):
+        try:
+            pids.add(int(fichero.stem.rsplit("_", 1)[1]))
+        except ValueError:
+            continue
+    for pid in pids - {os.getpid()}:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            marcar_worker_terminado(pid)
+        except PermissionError:
+            continue  # existe, pero es de otro usuario
+
+
 def _build_instrumentator():
     """Configure the FastAPI instrumentator with sensible defaults."""
     from prometheus_fastapi_instrumentator import Instrumentator, metrics
@@ -226,7 +277,7 @@ def _install_metrics_route(app: FastAPI, env_auth_token: Optional[str]) -> None:
     )
     from starlette.responses import Response
 
-    multiproc_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
+    multiproc_dir = _multiproc_dir()
 
     def _current_token() -> Optional[str]:
         try:
@@ -258,6 +309,7 @@ def _install_metrics_route(app: FastAPI, env_auth_token: Optional[str]) -> None:
             raise HTTPException(status_code=401, detail="METRICS_AUTH_TOKEN no configurado")
 
         if multiproc_dir:
+            _limpiar_workers_muertos(multiproc_dir)
             registry = CollectorRegistry()
             multiprocess.MultiProcessCollector(registry)
             payload = generate_latest(registry)
@@ -303,6 +355,7 @@ def setup_metrics(app: FastAPI) -> bool:
 
 __all__ = [
     "setup_metrics",
+    "marcar_worker_terminado",
     "track_external_call",
     "attach_apscheduler_metrics",
     "app_info",

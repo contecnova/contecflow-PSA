@@ -89,6 +89,17 @@ Cada regla tiene un test que falla si se rompe.
 
 ### Segunda auditoría 2026-11: cambios de comportamiento
 
+- **Geo-IP activado por defecto (decisión de producto, 14-11-2026):** `GEOIP_LOOKUP_ENABLED=True`. La IP pública de cada inicio de sesión y refresco se envía a `GEOIP_LOOKUP_URL` (ipapi.co por defecto) para el riesgo de sesión (cambio de país/ASN). Es una transferencia de datos personales a un tercero: requiere base legal y aviso de privacidad, salida a Internet y vigilar la cuota del proveedor. Para no enviarla: `GEOIP_LOOKUP_ENABLED=false`.
+
+- **CSRF:** las exenciones de los webhooks de Twilio (voz) y entrada multicanal apuntaban a `/api/v1/service-desk/...`; las rutas reales son `/api/v1/sd/voice/webhook/twilio` y `/api/v1/sd/multichannel/inbound/`. Sin efecto práctico hoy (Twilio no envía cookies), pero la lista ya casa con las rutas.
+
+- **Subcontratado con mínimo privilegio en personas y ajustes** (`app/services/politica_de_visibilidad.py`, regla única). `GET /users/{id}`: su ficha completa; de la gente de sus proyectos (PM, miembros activos, asignados de tareas), ficha mínima (id, nombre, avatar, rol, puesto); del resto, 404 (antes veía la ficha de cualquiera de la empresa menos la tarifa). `GET /users/org-chart` y la productividad ajena: 403. Nuevo `GET /users/directory` (selector de personas, ficha mínima, cualquier sesión). `/projects/{id}/team` y `/members`: el subcontratado, solo de sus proyectos (404) y sin correo ni dedicación. Menciones, búsqueda global y seguidores de ticket: solo la gente que ve y sin correo ajeno. Ajustes: cada ajuste del catálogo declara su `Audiencia` (`SESION`/`INTERNA`/`ADMIN`); el subcontratado recibe solo `SESION` en `/settings/general` y en `/settings/org-defaults` (sin `tax_rate` ni `vacation_days_per_year`). `ajustes_generales_para(db, audiencia, es_superadmin)` cambia de firma. Empleado: igual que antes, salvo dos agujeros cerrados: `GET /sd/tickets/{id}/watchers` exige ver el ticket (`scope_ticket_query`, 404 si no) y `GET /users/{id}` responde 404 (antes 403) si el id no existe. `GET /users/{id}` ya no pone `hourly_rate = None` sobre el objeto de la sesión (lo hace en la copia de respuesta).
+
+- **Búsquedas acotadas al rol** (`cab_service/busqueda.py`). `GET /global-search` pasa cada sección por el alcance del listado de su entidad: proyectos `scope_projects_query`, tareas `build_task_list_query`, tickets `scope_ticket_query`, personas `politica_de_visibilidad`. Facturas y oportunidades solo para quien lee su módulo (`ve_modulo_financiero`: `require_any_manager` + matriz GRC `ver` no denegada) y con su alcance (`_scope_invoice_query`, `scope_opportunity_query`, solo activas). Antes un empleado o un subcontratado encontraba los de toda la empresa. Lo mismo en el asistente de IA (chat, agente y MCP): `search_all` reutiliza esas consultas (`consulta_de_*`), y `search_projects`, `get_open_tickets` y `get_pipeline` aplican el alcance o la guarda de su módulo. `GET /fts/search`: solo entradas de proyectos que se ven (y, de tareas, las del listado propio); las sin proyecto, solo para quien ve todos los proyectos. `POST /epics/nql/search`: tareas, proyectos y épicas acotadas igual. `fts_search` y `execute_nql_search` reciben el usuario.
+- **Ajustes avanzados:** `GET /advanced-config/alert-configs` exige `require_admin` (como su escritura y la pestaña de la interfaz; antes, cualquier sesión). `GET /advanced-config/custom-fields/values/{id}` exige poder leer la entidad dueña según el tipo del campo (`exigir_lectura_de_valores`: proyecto, tarea, persona con ficha completa, cliente, ticket, riesgo, factura, oportunidad, contrato; otro tipo, solo admin); 404 si no. `GET /custom-fields/{project_id}/values/{task_id}` aplica `get_task_record`.
+- **Miembros de proyecto:** `scope_projects_query` incluye, para empleado y subcontratado, los proyectos donde son miembro activo (`project_members`), aunque no tengan tareas ni horas.
+- **Empleado con mínimo privilegio** (`politica_de_visibilidad`): `ve_contacto_ajeno` pasa a ser solo de admin, pm, team_lead y hr (antes, todos menos el subcontratado). Efectos para el empleado: `GET /users` le da su fila completa y de los demás la ficha interna (`PersonaInterna`: ficha mínima + `department`, `is_active`; sin correo, teléfono, manager ni accesos) y no busca por correo; `GET /users/org-chart` 403; `/projects/{id}/team` y `/members` solo de sus proyectos (404) y sin correo ajeno (team: ficha mínima); menciones, seguidores de ticket y búsqueda global sin correo ajeno. La interfaz ya no muestra «(undefined)» en los selectores de `DocumentsPage` y `ProjectsPage`.
+
 - **Commits fuera de la API:** 9 `db.commit()` que quedaban en endpoints (cab, developer_portal, governance ×3, integrations_hub ×2, jira, predictive_observability) pasan a servicios: `audit.auditar_y_confirmar` (auditar + confirmar con rollback si falla), `jira_service.marcar_sincronizacion_completa` y `predictive_retraining_service.evaluar_y_reentrenar_organizacion_y_confirmar`. `test_sin_commits_en_la_api` vuelve a pasar.
 
 - Contratos backend (auditoría de interfaz): `GET /sd/known-errors/{id}/tickets` resuelve el `KnownError` por su id y aplica la guarda de su problema padre (antes trataba el id como de `Problem` y daba 404 siempre).
@@ -224,7 +235,156 @@ Tests: `tests/test_barrido_final_2026_11.py`.
   ni la CSP del servidor. El resto de la API sigue en `DENY`/`'none'`.
 - **Dependencias:** `pillow 13.0.0` (12.3.0 tenía 42 avisos; PIL abre subidas en
   `documents_service` y `collaboration/_thumbnails`).
+- **JWT solo con PyJWT:** python-jose (PYSEC-2026-4298) y ecdsa (PYSEC-2026-1325) no tenían versión
+  corregida. Los 8 módulos de `app/` que usaban `jose` (security, tokens_y_cookies, client_portal
+  endpoint y servicio, bi_embed_service, sla_service, approval_engine/por_correo, entrada_service) pasan
+  a `import jwt` (PyJWT 2.15.0, ya en requirements). Mismos algoritmos, mismas cabeceras `kid` del
+  llavero de `key_management`, mismas validaciones de `exp`/`aud`/`iss`/`sub`/`jti`; `JWTError` →
+  `jwt.PyJWTError` y `jwt.ExpiredSignatureError` con las mismas respuestas HTTP (401/None). Única
+  diferencia de PyJWT: un `iat` en el futuro (más allá del leeway, 0) se rechaza; python-jose solo
+  comprobaba que fuera entero. Los tokens propios ponen `iat` = ahora o no lo llevan. Se quitan de
+  requirements `python-jose`, `ecdsa`, `rsa` y `pyasn1` (`pip show`: sin otro dependiente).
+- **OpenTelemetry 1.35 → 1.45.2** (CVE-2026-114603, CVE-2026-126360) como juego coherente:
+  api/sdk/exporter-otlp 1.45.2 e instrumentaciones fastapi/sqlalchemy 0.66b2.
+- **setuptools 81 → 84.2.1, torch 2.11 → 2.15.0, filelock 3.25.2 → 4.2.10:** torch ≥ 2.13 dejó de
+  exigir `setuptools<82`, que era lo que bloqueaba PYSEC-2026-3447 y GHSA-xmj3-9gf7-h52w.
+- **Prometheus multiproceso:** uvicorn 0.29 no ofrece ganchos en el supervisor ni reinicia workers, así
+  que cada worker, al cerrar su `lifespan` (`_parar_servicios`), llama a
+  `metrics.marcar_worker_terminado()` → `mark_process_dead(os.getpid())` y borra sus
+  `gauge_live*_<pid>.db` (p. ej. peticiones en curso, `livesum`). Para los que mueren sin apagado
+  (SIGKILL, OOM), cada scrape de /metrics marca muertos los PID de esos ficheros que ya no existen
+  (solo POSIX: en Windows `os.kill(pid, 0)` mataría el proceso).
+- **zod 3.25 → 4.6.7** (GHSA-mrhx-c7xc-m3w5, alta): `z.ZodIssueCode.custom` → `'custom'`;
+  `invalid_type_error` → `error`; `.trim().email(msg)` → `.trim().pipe(z.email(msg))` (se recorta antes
+  de validar, como antes); `ZodSchema`/`ZodIssue` (obsoletos) → `ZodType`/`core.$ZodIssue`.
+  `ProjectsPage` reutiliza `getFirstIssueByField` en vez de su copia (con v4 `path` admite `symbol`).
+  Los mensajes por defecto de zod cambian de texto; todos los esquemas usan mensajes propios.
+- **numpy 1.26.4 → 2.5.4 (pin alineado con el entorno real):** el venv ya tenía 2.5.4 frente al pin
+  1.26.4. 2.5.4 es la versión que elige el resolver de pip con `requirements.txt` + `requirements-ml.txt`
+  sin fijar numpy. Ningún paquete fijado pone techo salvo statsmodels (`<3`), y las transitivas scipy
+  (`>=2.0,<2.8`) y contourpy (`>=2.0`) ya no admiten 1.x. Se fija en los dos ficheros. Verificado con el
+  resolver sobre los ficheros fijados, `pip check` y ajustes reales de prophet, statsmodels
+  (Holt-Winters, ARIMA), scikit-learn, lightgbm y duckdb.
 Tests: `tests/test_segunda_auditoria_2026_11_infra.py`, `frontend/src/__tests__/queryErrorBus.test.tsx`.
+- **Paridad PostgreSQL columna a columna (#5):** `alembic upgrade head` sobre un PostgreSQL 16 vacío
+  comparado con `Base.metadata` (`compare_metadata` con `compare_type` y `compare_server_default`)
+  daba 152 diferencias: 3 reales, todas en `budgets` (la 144 añadió las columnas sin lo demás):
+  faltaba la clave ajena `cliente_id → clients.id ON DELETE SET NULL` y los índices
+  `ix_budgets_estado` e `ix_budgets_origen_id`. Las crea la revisión
+  `164_paridad_postgres_e_indices_de_claves_ajenas`; antes pone a NULL los `cliente_id` huérfanos
+  (lo mismo que haría la clave al borrar el cliente). El resto es ruido y se admite uno a uno:
+  15 índices solo de PostgreSQL (10 trigramas de la 083, 4 únicos parciales `WHERE is_active`, el
+  único de expresión `ux_audit_logs_cadena` de la 137), 80 `server_default` de relleno que la base
+  tiene y el modelo no, todos con el mismo valor que su `default=` de Python (comprobado valor a
+  valor; si difiere cuenta como real), y 54 índices de claves ajenas que la 073 creaba y el modelo
+  no declaraba (resuelto con `index=True`, ver abajo). Tras la 164: 0 reales. La comprobación vive en
+  `scripts/paridad_postgres.py` (`--url` sobre una base ya migrada, ~35-60 s; `--servidor … --migrar`
+  crea una base y migra, ~2 min más) y la usa
+  `tests/test_alembic_schema_parity.py::test_alembic_upgrade_head_sobre_postgres_coincide_con_los_modelos`
+  (`slow`, se salta sin PostgreSQL). Antes ese test admitía cualquier `remove_index` y no comparaba
+  defaults.
+- **Índices en todas las claves ajenas (#12):** medido con un barrido de `Base.metadata` y del
+  inspector de PostgreSQL (FK sin índice, único o PK cuya primera columna sea la FK): modelos 371 de
+  1215 → 0; base migrada 316 de 1214 → 0 (1215 con la nueva FK de `budgets`). Los modelos llevan
+  `index=True` en las 371 columnas (62 ficheros de `app/models`, más `client_user_projects.project_id`,
+  segunda columna de su PK); la 164 crea los 317 índices que faltaban en la base (idempotente,
+  `CONCURRENTLY` en PostgreSQL, nombres `ix_<tabla>_<columna>`) y su downgrade solo quita los suyos.
+  No se excluyó ninguna por tabla pequeña: sin datos de producción no hay con qué justificarlo.
+- **Las 3 rutas sin explicar de `RUTAS_ESPERADAS` (#10):** con `git archive` de cd383a6c (1044 pares
+  con guarda), e7cbeecf (1044) y 4aad8fde (1047) y el diff de `RUTAS`, las tres son
+  `PUT` y `DELETE /api/v1/integrations-hub/jira/config` y `POST /api/v1/integrations-hub/jira/sync`,
+  todas `require_admin`, que entraron con la 161 (hub de Jira a `jira_config`) sin subir el número.
+  Guarda de rol y ABAC (prefijo `/api/v1/integrations-hub`) correctos; las tres resuelven la conexión
+  por `current_user.organization_id`. Pero el sync recorría `Task` con `jira_issue_key` sin filtrar por
+  organización y dependía del filtro automático de tenant, que no corre para superadmin: con el Jira de
+  una organización se reescribía el estado de tareas de otras. `sincronizar_tareas_con_jira` recibe
+  ahora `org_id` y filtra `Task.organization_id` (sin organización, no toca nada).
+- **Voz de Twilio con varias organizaciones (#19):** la organización sale del número llamado (`To`).
+  Cada organización declara sus números en el ajuste en vivo nuevo `TWILIO_PHONE_NUMBERS`, del grupo
+  `service_desk` (E.164 separados por comas; también está en `ServiceDeskSettingsMixin`). La credencial
+  `twilio.from_number` también cuenta. La firma se comprueba con el token de esa organización
+  (credencial `twilio.auth_token` o ajuste `TWILIO_AUTH_TOKEN`) y, si no tiene, con el global, igual
+  que ya hacía el SMS. La llamada y la opción DTMF se atienden con `como_organizacion`, y la sesión se
+  guarda en la organización y no sin ella. **Antes se atendía cualquier número sin organización; ahora
+  se rechaza** con `<Reject/>` todo número que no declara nadie, que declaran dos organizaciones o que
+  es de una organización desactivada: 200 si la firma global es válida, 403 si no. Firma inválida →
+  403. El token de una organización no vale para el número de otra. El callback `/gather` solo anota
+  en sesiones de la organización del número. El webhook de voz respondía **500 a toda llamada**
+  (`create_session` devuelve `{session, greeting}` y se leía `session["id"]`). El texto de la
+  configuración del IVR se escapa antes de meterlo en el TwiML. SMS: usa el mismo resolutor
+  (`sms_service.organizacion_del_numero_de_twilio`), así que un número en `TWILIO_PHONE_NUMBERS` también
+  enruta SMS. Un `from_number` repetido en dos organizaciones ya no se asigna a la primera que
+  devuelve la consulta. Tests: `tests/test_twilio_voz_multiorganizacion.py`.
+- **Enlaces de la documentación (#16):** se comprobaron con un script todos los enlaces relativos y anclas
+  de `docs/**/*.md`, `README.md` y `DOCS.md`: 1 roto antes y 0 después.
+  `docs/AI_ML_ARCH_DECISIONS.md` enlazaba `app/services/stt/` relativo a `docs/`; ahora enlaza
+  `../app/services/stt/`.
+- **Guía de despliegue (#21):** `docs/DESPLIEGUE.md` es la lista ordenada para el operador: copia de
+  seguridad, variables nuevas y de dónde sale cada valor, migraciones 158–164 (qué hace cada una, cuáles
+  bloquean y cuáles usan `CONCURRENTLY`, y cómo detectar índices INVALID) y pruebas de humo. Está
+  enlazada desde el README.
+- **Listados paginados (#7):** un barrido AST de `app/services` contó 163 funciones `list_*` que hacían
+  `.all()` sin tope. Mecanismo único en `app/core/paginacion.py` (`Paginacion`, `paginacion`, `paginar`,
+  `paginar_lista`, `exponer`, `lista_paginada`), con la convención que ya usaba la API y que recorre
+  `todasLasPaginas` en el frontend: `page`/`page_size` (máximo `MAX_TAMANO_DE_PAGINA`), total en
+  `X-Total-Count` (+ `X-Page`/`X-Page-Size`) y en `meta.total`/`meta.has_more`. Sin `page_size` la
+  respuesta es la de antes, hasta el nuevo ajuste `LIST_MAX_ROWS` (5000): si se llega a él, `X-Truncated:
+  true`, `meta.has_more=true` y un aviso en el log; nunca se corta en silencio. Aplicado a: `/alm/vendors`,
+  `/alm/contracts`, `/alm/licenses`, `/alm/assets`, `/expenses/my`, `/expenses/pending`, `/expenses/team`
+  (los totales salen ahora de un agregado SQL sobre todos los filtrados, no de la página),
+  `/timesheets/pending`, `/timesheets/team`, `/gdpr/requests` (estos tres aceptaban `page`/`page_size` y
+  los ignoraban), `/clients` (ídem; `limit` sigue siendo «las primeras N»), `/clients/{cid}/invoices`,
+  `/imputations/alerts`, `/revenue/entries`, `/governance/compliance/evidence`, `/forms/{id}/submissions`.
+  `contract_service.list_contracts` y `expense_service.list_team_expenses` se borraron (sin llamadas; el
+  endpoint usa `query_contracts` / `team_expenses_page`). `ResponseMeta` ya tenía `has_more`;
+  `APIListResponse.ok` acepta ahora `has_more`.
+- **`/clients/{cid}/invoices` daba 500:** leía `Invoice.total_amount`, que no existe; el importe es
+  `Invoice.total` (la clave de la respuesta sigue siendo `total_amount`). Además ahora es una consulta (antes
+  tres más la unión en Python) y carga el proyecto de una vez.
+- **N+1 (#8):** medido con un contador `before_cursor_execute` (consultas por petición con 2 → 8 filas):
+  `/sd/tickets` 18→30 a 15→15 (`get_tickets_dynamic_fields`, en lote: antes 2 consultas por ticket);
+  `/alm/vendors` 12→18 a 12→12; `/alm/contracts` 18→42 a 13→13; `/alm/licenses` 18→42 a 13→13
+  (clientes enlazados en una consulta, `_clientes_vinculados`, y `selectinload`/`joinedload` de lo que leen
+  los serializadores); `/alm/assets` 15→27 a 12→12; `/invoices` y `/billing-reports/invoices` 17→35 a
+  13→13 (`query_invoices` carga proyecto y líneas); `/clients` 4 `count` + gestor por cliente a 15→15
+  (`recuentos_de_clientes`, cuatro `GROUP BY` por página); `/imputations` 20→26 a constante (la tarea de
+  cada imputación con sus comentarios y sus imputaciones para `real_hours`: el `lazy="selectin"` de
+  `Task.imputations` no se aplica al llegar desde una imputación). Sin crecimiento ya, medidos y sin tocar:
+  `/projects` 16, `/tasks` 18, `/contracts` 12, `/documents` 15, `/users` 22, `/enterprise/audit-log` 11,
+  `/projects/{id}` 14, `/projects/{id}/members` 10, `/tasks/{id}` 17, `/sd/tickets/{id}` 19,
+  `/epics?project_id=` 10. Los helpers por fila (`get_linked_clients_for_*`) ya no tragan excepciones: un
+  fallo de la consulta sale como error en vez de una lista vacía. Tests:
+  `tests/test_listados_paginados_y_sin_n_mas_1_2026_11.py`.
+- **Detrás de nginx: esquema, IP del cliente y firma de Twilio (#23).** nginx no termina TLS y mandaba
+  `X-Forwarded-Proto $scheme` (siempre `http`), uvicorn solo cree cabeceras de 127.0.0.1 y la IP de nginx en
+  la red de compose cambia en cada arranque: la API veía `http://…`, la firma de Twilio (sobre la URL https)
+  no cuadraba y todo SMS/llamada daba 403; el `Location` de tus salía en http. Ahora:
+  · nginx respeta el `X-Forwarded-Proto`/`-Host` del proxy de delante (o pone el suyo) y manda
+  `X-Forwarded-Host` en todos los `proxy_pass`.
+  · `EsquemaDelProxyMiddleware` (`app/core/network.py`, el más externo) aplica `X-Forwarded-Proto` al esquema
+  si la IP que conecta está en `TRUSTED_PROXY_CIDRS` con `TRUST_PROXY_HEADERS` activo: la misma política, con
+  redes, que ya decidía `X-Forwarded-For`/`-Host`. No se usa `--forwarded-allow-ips` de uvicorn: la 0.29
+  fijada solo admite IPs exactas (medido: las redes llegan en la 0.31.0) y con `*` toma como cliente el
+  PRIMER `X-Forwarded-For`, que escribe quien llama. compose arranca uvicorn con `--no-proxy-headers` y fuerza
+  en `api` `TRUST_PROXY_HEADERS=1` y `TRUSTED_PROXY_CIDRS=${CONTECFLOW_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}`
+  (la API no publica puerto: solo la alcanza la red de compose).
+  · `extract_client_ip` recorre `X-Forwarded-For` de derecha a izquierda y devuelve el primer salto que no es
+  proxy de confianza. **Cambio de comportamiento:** antes tomaba el primero, que lo pone el cliente, así que
+  con la confianza activa cualquiera elegía su IP ante el rate limiting.
+  · Twilio (SMS y voz) comprueba la firma contra `BACKEND_URL` + ruta y consulta (lo que recomienda Twilio
+  detrás de proxies) y, si no, contra `request.url`. Las dos son la misma ruta: una firma no vale en otro
+  endpoint. **`BACKEND_URL` tiene que ser la URL pública** (con compose, la del dominio).
+  · Auditadas el resto de firmas: Stripe (`t.cuerpo`), Slack (`v0:ts:cuerpo`), DocuSign, Jira, GitHub, CAB
+  (HMAC del cuerpo), GitLab y Adobe Sign (secreto/ClientId en cabecera) y Teams (JWT de Bot Framework, sin
+  URL) no dependen de la URL: no les afecta. Tests: `tests/test_twilio_detras_de_proxy.py`.
+- **`.env.example` (#23):** añadidas las variables que un operador necesita y faltaban (proxy, KMS, rate
+  limit, ClamAV, SCIM, GeoIP, métricas, Sentry/OTel, Slack/GitHub/GitLab, DocuSign/Adobe Sign, Stripe, Teams,
+  OAuth del chat, LiveKit, VAPID, STT, OpenSearch/NATS, tipos de cambio, `APP_PUBLIC_URL`,
+  `CONTECFLOW_PROXY_CIDRS`). Las opcionales sin valor por defecto, comentadas; `PROMETHEUS_MULTIPROC_DIR` y
+  `OTEL_*` comentadas a propósito (sus SDK actúan con que la variable exista, aunque esté vacía, y compose
+  pasa el `.env` a worker y beat). Los ajustes finos se quedan fuera y el pie del fichero dice cuáles.
+  `tests/test_env_example_sincronizado.py` falla si aparece un campo de Settings sin decidir, un secreto sin
+  declarar o una variable activa que no lee nadie.
 
 ## 3. Estructura del repositorio
 - `app/`: backend

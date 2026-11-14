@@ -3,15 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import api, { alertsApi, mentionsApi } from '../services/api'
 // TODO type: AuthContext still JSX/JS — useAuth typing inferred as any.
 import { useAuth } from '../context/AuthContext'
+import type { Mencion } from '../services/api/tipos-personas'
 import { queryKeys } from '../constants/queryKeys'
 import { POLL_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import { COUNT_ONLY_PAGE_SIZE } from '../constants/pagination'
-
-interface AlertItem {
-  id?: string
-  is_read?: boolean
-  [extra: string]: unknown
-}
 
 interface NotificationsData {
   unread_count?: number
@@ -39,14 +34,10 @@ export default function useNotificationBadges(): NotificationBadges {
   }
   const canQueryProtected = !loading && !!user
 
-  const { data: alerts } = useQuery<AlertItem[]>({
+  const { data: alerts } = useQuery({
     // TODO #82: migrate to queryKeys — alerts count badge has a dedicated key not in factory
     queryKey: ['alerts-count'],
-    queryFn: () => alertsApi.list({ resolved: false }).then((r: { data?: { items?: AlertItem[] } | AlertItem[] | null }) => {
-      const d = r?.data
-      if (Array.isArray(d)) return d
-      return d?.items ?? []
-    }),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
     staleTime: STALE_SHORT_MS,
     enabled: hasRole('admin', 'pm', 'hr'),
@@ -72,20 +63,20 @@ export default function useNotificationBadges(): NotificationBadges {
     enabled: canQueryProtected,
   })
 
-  const { data: mentions = [] } = useQuery<unknown[]>({
+  const { data: mentions = [] } = useQuery<Mencion[]>({
     // TODO #82: migrate to queryKeys — mentions not yet defined in factory
     queryKey: ['mentions-unread'],
     queryFn: () =>
-      mentionsApi.mentions(true).then((r: { data: unknown[] }) => r.data || []).catch(() => [] as unknown[]),
+      mentionsApi.mentions(true).then((r) => r.data).catch(() => [] as Mencion[]),
     refetchInterval: POLL_DEFAULT_MS,
     staleTime: STALE_SHORT_MS,
     enabled: canQueryProtected,
   })
 
-  const alertCount = alerts ? alerts.filter((a: AlertItem) => !a.is_read).length : 0
+  const alertCount = alerts ? alerts.filter(a => !a.is_read).length : 0
   const notifUnreadCount = Number(notificationsData?.unread_count || 0)
   const approvalCount = pendingApprovals.length
-  const mentionCount = Array.isArray(mentions) ? mentions.length : 0
+  const mentionCount = mentions.length
   const inboxTotal = alertCount + approvalCount + mentionCount
 
   return { alertCount, notifUnreadCount, approvalCount, mentionCount, inboxTotal }

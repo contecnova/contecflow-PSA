@@ -47,15 +47,40 @@ def save_ticket_dynamic_fields(db: Session, ticket_id: str, fields: dict | None)
         ))
 
 
-def get_ticket_dynamic_fields(db: Session, ticket_id: str) -> dict:
-    key = _key(ticket_id)
-    row = db.query(AppSetting).filter(
-        AppSetting.key == key, AppSetting.organization_id == _org_del_ticket(db, ticket_id)).first()
-    if not row or not row.value:
+def _decodificar(valor) -> dict:
+    if not valor:
         return {}
     try:
-        data = json.loads(row.value)
+        data = json.loads(valor)
         return data if isinstance(data, dict) else {}
     except Exception:
         logging.getLogger(__name__).debug("get_ticket_dynamic_fields: excepcion ignorada", exc_info=True)
         return {}
+
+
+def get_ticket_dynamic_fields(db: Session, ticket_id: str) -> dict:
+    key = _key(ticket_id)
+    row = db.query(AppSetting).filter(
+        AppSetting.key == key, AppSetting.organization_id == _org_del_ticket(db, ticket_id)).first()
+    return _decodificar(row.value if row else None)
+
+
+def get_tickets_dynamic_fields(db: Session, tickets) -> dict:
+    """``{ticket_id: campos}`` de varios tickets ya cargados, en UNA consulta.
+
+    Segunda auditoria 2026-11 (N+1): el listado llamaba a
+    ``get_ticket_dynamic_fields`` por fila, que son dos consultas (organizacion
+    del ticket y ajuste). La organizacion ya viene en el ticket cargado.
+    """
+    if not tickets:
+        return {}
+    org_de = {t.id: t.organization_id for t in tickets}
+    filas = db.query(AppSetting.key, AppSetting.organization_id, AppSetting.value).filter(
+        AppSetting.key.in_([_key(i) for i in org_de])).all()
+    prefijo = len(_key(""))
+    resultado = {i: {} for i in org_de}
+    for clave, org, valor in filas:
+        tid = clave[prefijo:]
+        if tid in org_de and org == org_de[tid]:
+            resultado[tid] = _decodificar(valor)
+    return resultado

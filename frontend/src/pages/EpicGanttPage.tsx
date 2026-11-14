@@ -6,6 +6,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, epicDependenciesApi } from '../services/api'
+import type { DependenciaDeEpica, EpicaDelRoadmap, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -13,35 +14,14 @@ import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 
-type DepType = 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'relates_to'
-
 interface ProjectItem {
   id: string | number
   name?: string
 }
 
-interface EpicItem {
-  id: string | number
-  title: string
-  color?: string
-  start_date?: string
-  end_date?: string
-  progress?: number
-}
-
-interface EpicDependency {
-  id: string | number
-  epic_id: string | number
-  depends_on_id: string | number
-  dep_type: DepType
-  lag_days: number
-  epic_title?: string
-  depends_on_title?: string
-}
-
-interface RoadmapData {
-  epics?: EpicItem[]
-}
+/** epics_service.get_roadmap_data. */
+type EpicItem = EpicaDelRoadmap
+type EpicDependency = DependenciaDeEpica
 
 const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -256,18 +236,16 @@ export default function EpicGanttPage(): JSX.Element {
     queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
   const projects = projectsRaw as ProjectItem[]
-  const { data: roadmapRaw, isLoading: lRoadmap } = useQuery({
+  const { data: roadmap, isLoading: lRoadmap } = useQuery({
     queryKey: ['epic-gantt', project],
-    queryFn: () => epicsApi.roadmap(project).then(r => r.data).catch(() => null),
+    queryFn: () => epicsApi.roadmap(project).then(r => r.data).catch((): RoadmapDeEpicas | null => null),
     enabled: !!project,
   })
-  const roadmap = (roadmapRaw ?? null) as RoadmapData | null
-  const { data: epicDepsRaw = [], isLoading: lDeps } = useQuery({
+  const { data: epicDeps = [], isLoading: lDeps } = useQuery({
     queryKey: ['epic-deps', project],
-    queryFn: () => epicDependenciesApi.get(project).then(r => r.data).catch(() => []),
+    queryFn: () => epicDependenciesApi.get(project).then(r => r.data).catch((): EpicDependency[] => []),
     enabled: !!project,
   })
-  const epicDeps = epicDepsRaw as EpicDependency[]
 
   const { mutate: deleteDep } = useMutation({
     mutationFn: (id: string | number) => epicDependenciesApi.delete(id),

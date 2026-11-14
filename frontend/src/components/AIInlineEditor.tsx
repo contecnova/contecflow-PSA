@@ -147,7 +147,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       // /ai/texto no guarda conversación y, si no hay proveedor, responde un
       // error en vez de un aviso: el texto del usuario no se sustituye nunca por él.
       const res = await nexusAgentApi.texto(PROMPT_MAP[cmd](contextText || ''));
-      const aiText = (res.data as { texto?: string })?.texto || '';
+      const aiText = res.data.texto || '';
       if (!aiText) throw new Error(t('ai_inline.empty_response'));
 
       let newVal;

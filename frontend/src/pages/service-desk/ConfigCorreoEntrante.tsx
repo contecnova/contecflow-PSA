@@ -15,10 +15,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import { sdInboundApi, apiUrlAbsoluta } from '../../services/api'
-
-type Entrada = { id: string; received_at?: string; sender?: string; outcome: string; reason?: string; ticket_id?: string; ticket_number?: string }
-type Prueba = { ok: boolean; unread?: number; error?: string; protocol?: string }
-type Pasada = { created?: number; commented?: number; ignored?: number; failed?: number; error?: string }
+import type { SdPruebaDeBuzon } from '../../services/api/tipos-sd'
 
 const LS: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)', display: 'block',
   marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }
@@ -30,25 +27,25 @@ export default function ConfigCorreoEntrante() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [prueba, setPrueba] = useState<Prueba | null>(null)
+  const [prueba, setPrueba] = useState<SdPruebaDeBuzon | null>(null)
   const webhook = apiUrlAbsoluta('/sd/inbound-email')
 
-  const { data: entradas = [], isLoading } = useQuery<Entrada[]>({
+  const { data: entradas = [], isLoading } = useQuery({
     queryKey: ['sd-inbound-messages'],
-    queryFn: () => sdInboundApi.messages(30).then(r => r.data as Entrada[]),
+    queryFn: () => sdInboundApi.messages().then(r => r.data),
   })
   const probar = useMutation({
-    mutationFn: () => sdInboundApi.test().then(r => r.data as Prueba),
+    mutationFn: () => sdInboundApi.test().then(r => r.data),
     onSuccess: setPrueba,
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const leer = useMutation({
-    mutationFn: () => sdInboundApi.run().then(r => r.data as Pasada),
-    onSuccess: (r: Pasada) => {
+    mutationFn: () => sdInboundApi.run().then(r => r.data),
+    onSuccess: r => {
       qc.invalidateQueries({ queryKey: ['sd-inbound-messages'] })
-      if (r.error) toast.error(r.error)
+      if ('error' in r) toast.error(r.error)
       else toast.success(t('sd_cfg.mail_run_done', {
-        created: r.created ?? 0, commented: r.commented ?? 0, ignored: r.ignored ?? 0, failed: r.failed ?? 0,
+        created: r.created, commented: r.commented, ignored: r.ignored, failed: r.failed,
       }))
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),

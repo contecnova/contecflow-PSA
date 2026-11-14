@@ -11,25 +11,34 @@ from sqlalchemy.orm import Session
 from app.models.settings import AppSetting
 from app.core.config import settings as app_settings
 
-from app.services.settings_service.runtime import invalidate_cache
+from app.services.settings_service.runtime import (
+    get_runtime_float, get_runtime_int, get_runtime_str, invalidate_cache, monedas)
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.services.politica_de_visibilidad import Audiencia
 
 
+#: clave -> (valor de fábrica, descripción, audiencia que puede leerlo).
+#:
+#: La audiencia (segunda auditoría 2026-11) dice quién lo recibe por
+#: `GET /settings/general` (`ajustes_generales_para`). `SESION` = también el
+#: subcontratado: solo lo que la interfaz necesita para pintarse. El cierre por
+#: inactividad es de seguridad pero va a `SESION` porque lo aplica el navegador:
+#: ocultarlo dejaría al externo sin cierre por inactividad.
 DEFAULT_SETTINGS = {
-    "company_name": (NOMBRE_DEL_PRODUCTO, "Nombre de la empresa"),
-    "currency": (app_settings.DEFAULT_CURRENCY, "Moneda principal"),
-    "timezone": (app_settings.DEFAULT_TIMEZONE, "Zona horaria"),
-    "language": (app_settings.DEFAULT_LANGUAGE, "Idioma de la interfaz"),
-    "work_hours_per_day": (str(app_settings.DEFAULT_WORKING_HOURS_PER_DAY), "Horas laborales por día"),
-    "idle_timeout_enabled": ("false", "Cierre de sesión por inactividad (true/false)"),
-    "idle_timeout_minutes": ("30", "Minutos de inactividad antes de cerrar sesión"),
+    "company_name": (NOMBRE_DEL_PRODUCTO, "Nombre de la empresa", Audiencia.SESION),
+    "currency": (app_settings.DEFAULT_CURRENCY, "Moneda principal", Audiencia.SESION),
+    "timezone": (app_settings.DEFAULT_TIMEZONE, "Zona horaria", Audiencia.SESION),
+    "language": (app_settings.DEFAULT_LANGUAGE, "Idioma de la interfaz", Audiencia.SESION),
+    "work_hours_per_day": (str(app_settings.DEFAULT_WORKING_HOURS_PER_DAY), "Horas laborales por día", Audiencia.SESION),
+    "idle_timeout_enabled": ("false", "Cierre de sesión por inactividad (true/false)", Audiencia.SESION),
+    "idle_timeout_minutes": ("30", "Minutos de inactividad antes de cerrar sesión", Audiencia.SESION),
 }
 
 
 # ── General settings ──────────────────────────────────────────────────────────
 
 def get_general_settings(db: Session) -> list:
-    for key, (value, desc) in DEFAULT_SETTINGS.items():
+    for key, (value, desc, _audiencia) in DEFAULT_SETTINGS.items():
         exists = db.query(AppSetting).filter(
             AppSetting.key == key, AppSetting.organization_id.is_(None)
         ).first()
@@ -61,7 +70,19 @@ def es_ajuste_general(key: str) -> bool:
     return bool(key) and "." not in key and "::" not in key and not es_sensible(key)
 
 
-def ajustes_generales_para(db: Session, es_admin: bool, es_superadmin: bool = False) -> list[dict]:
+def audiencia_de_ajuste(key: str) -> Audiencia:
+    """Quién puede leer `key`: la del catálogo; si no está, por su forma.
+
+    Un ajuste general fuera del catálogo (nombre «limpio» que escribe algún
+    servicio) es de la plantilla interna; el estado interno de los servicios
+    (clave con punto, `::` o sensible), del administrador.
+    """
+    if key in DEFAULT_SETTINGS:
+        return DEFAULT_SETTINGS[key][2]
+    return Audiencia.INTERNA if es_ajuste_general(key) else Audiencia.ADMIN
+
+
+def ajustes_generales_para(db: Session, audiencia: Audiencia, es_superadmin: bool = False) -> list[dict]:
     """`GET /settings/general` sin fugas.
 
     Auditoria 2026-11: lo usa todo usuario con sesion (el tiempo de
@@ -69,6 +90,10 @@ def ajustes_generales_para(db: Session, es_admin: bool, es_superadmin: bool = Fa
     tokens y secretos de DocuSign/Adobe, el anillo de claves JWT y el estado
     interno de otros servicios. Ahora quien no es administrador ve solo los
     ajustes generales, y nadie ve el valor de una clave sensible.
+
+    Segunda auditoría 2026-11: cada fila llega solo a su `audiencia_de_ajuste`
+    o más arriba; el subcontratado (`Audiencia.SESION`) recibe solo las del
+    catálogo marcadas para toda sesión.
 
     Revision multitenant 2026-11b: el estado interno GLOBAL (fila sin empresa,
     clave con punto o `::`) es de la plataforma y a veces lleva datos de todas
@@ -80,7 +105,7 @@ def ajustes_generales_para(db: Session, es_admin: bool, es_superadmin: bool = Fa
     filas = get_general_settings(db)
     salida = []
     for f in filas:
-        if not es_admin and not es_ajuste_general(f.key):
+        if audiencia_de_ajuste(f.key) > audiencia:
             continue
         if not es_superadmin and f.organization_id is None and not es_ajuste_general(f.key):
             continue
@@ -114,3 +139,26 @@ def update_setting(key: str, value: str, org_id: Optional[str], db: Session) -> 
     db.refresh(setting)
     invalidate_cache(key)
     return setting
+
+
+#: `GET /settings/org-defaults`: campo -> (ajuste de ejecución, tipo, audiencia).
+#: Moneda, zona, idioma y jornada pintan cualquier pantalla; los días de
+#: vacaciones (RR. HH.) y el IVA por defecto (facturación) no son del externo.
+DEFAULTS_DE_ORGANIZACION = {
+    "currency": ("DEFAULT_CURRENCY", str, Audiencia.SESION),
+    "timezone": ("DEFAULT_TIMEZONE", str, Audiencia.SESION),
+    "language": ("DEFAULT_LANGUAGE", str, Audiencia.SESION),
+    "working_hours_per_day": ("DEFAULT_WORKING_HOURS_PER_DAY", float, Audiencia.SESION),
+    "weekly_capacity_hours": ("DEFAULT_WEEKLY_CAPACITY_HOURS", float, Audiencia.SESION),
+    "vacation_days_per_year": ("DEFAULT_VACATION_DAYS_PER_YEAR", int, Audiencia.INTERNA),
+    "tax_rate": ("DEFAULT_TAX_RATE", float, Audiencia.INTERNA),
+}
+
+
+def defaults_de_organizacion(db: Session, org_id: Optional[str], audiencia: Audiencia) -> dict:
+    """Los valores por defecto efectivos de la empresa que `audiencia` puede leer."""
+    lectores = {str: get_runtime_str, int: get_runtime_int, float: get_runtime_float}
+    datos = {campo: lectores[tipo](db, clave, org_id)
+             for campo, (clave, tipo, quien) in DEFAULTS_DE_ORGANIZACION.items() if quien <= audiencia}
+    datos["currencies"] = monedas(db, org_id)
+    return datos

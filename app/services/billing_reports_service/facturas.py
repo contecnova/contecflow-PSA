@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import enum
 import json
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.exc import OperationalError
 from typing import Optional
 from app.core.config import settings
@@ -81,7 +81,9 @@ def crear_enlace_de_pago(db: Session, invoice_id: str) -> dict:
 
 # Devuelve un query filtrable y el total para paginación de facturas
 def query_invoices(db: Session, project_id=None, status=None):
-    q = _scope_invoice_query(db)
+    # Segunda auditoria 2026-11 (N+1): `invoice_out` lee el proyecto y las
+    # lineas de cada factura; sin cargarlos aqui eran consultas por fila.
+    q = _scope_invoice_query(db).options(joinedload(Invoice.project), selectinload(Invoice.lines))
     if project_id:
         q = q.filter(Invoice.project_id == project_id)
     if status:
@@ -117,6 +119,7 @@ def invoice_out(inv: Invoice) -> dict:
         client_name=inv.client_name,
         client_email=inv.client_email,
         client_vat=inv.client_vat,
+        client_address=inv.client_address,
         subtotal=inv.subtotal,
         tax_rate=inv.tax_rate,
         tax_amount=inv.tax_amount,
@@ -135,7 +138,7 @@ def invoice_out(inv: Invoice) -> dict:
                 id=l.id, order=l.order, description=l.description,
                 quantity=l.quantity, unit=l.unit,
                 unit_price=l.unit_price, discount_pct=l.discount_pct,
-                amount=l.amount, source_type=l.source_type,
+                amount=l.amount, source_type=l.source_type, source_ids=l.source_ids,
             )
             for l in inv.lines
         ],

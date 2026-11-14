@@ -80,7 +80,7 @@ def test_tampoco_se_importa_environ_o_getenv_suelto():
     ("VAPID_CONTACT", "mailto:noreply@contecflow.local"), ("APP_PUBLIC_URL", "http://localhost:3000"),
     ("MS365_TENANT_ID", "common"), ("WHISPER_BIN", "whisper"), ("WHISPER_MODEL", "base"),
     ("WHISPER_LOCAL_LANGUAGE", "es"), ("SEED_USERS_DATA_PATH", "seed_users_data.json"),
-    ("GEOIP_LOOKUP_ENABLED", False), ("GEOIP_LOOKUP_URL", "https://ipapi.co/{ip}/json/"),
+    ("GEOIP_LOOKUP_ENABLED", True), ("GEOIP_LOOKUP_URL", "https://ipapi.co/{ip}/json/"),
 ])
 def test_cada_variable_movida_conserva_nombre_y_defecto(campo, defecto):
     assert Settings.model_fields[campo].default == defecto
@@ -269,9 +269,10 @@ def geoip(monkeypatch):
     return ss, llamadas
 
 
-def test_EL_HALLAZGO_sin_activar_no_se_llama_a_terceros(geoip):
+def test_EL_HALLAZGO_sin_activar_no_se_llama_a_terceros(geoip, monkeypatch):
+    # 2026-11-14: activado por defecto por decisión de producto; apagado sigue sin llamar a terceros.
     ss, llamadas = geoip
-    assert settings.GEOIP_LOOKUP_ENABLED is False
+    monkeypatch.setattr(settings, "GEOIP_LOOKUP_ENABLED", False)
     out = ss._lookup_ip_intel("8.8.8.8", _Peticion())
     assert llamadas == [] and out["city"] is None
 

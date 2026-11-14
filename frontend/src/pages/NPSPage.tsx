@@ -15,6 +15,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
 } from 'recharts'
 import { npsApi, clientsApi } from '../services/api'
+import type { FotoDeSalud, ResumenNps } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Star } from 'lucide-react'
@@ -31,29 +32,9 @@ interface ClientItem {
   contact_email?: string
 }
 
-interface LeaderboardItem {
-  client_id: string | number
-  client_name?: string
-  health_score: number
-}
-
-interface NpsTrendPoint {
-  month: string
-  nps: number
-}
-
-interface NpsSummary {
-  nps?: number
-  promoters?: number
-  passives?: number
-  detractors?: number
-  trend?: NpsTrendPoint[]
-}
-
-interface HealthSnapshot {
-  snapshot_at: string
-  health_score: number
-}
+type NpsTrendPoint = ResumenNps['trend'][number]
+type NpsSummary = ResumenNps
+type HealthSnapshot = FotoDeSalud
 
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
@@ -141,12 +122,11 @@ export default function NPSPage() {
   const [submitting,  setSubmitting]  = useState(false)
   const qc = useQueryClient()
 
-  const { data: leaderboardRaw = [] } = useQuery({
+  const { data: leaderboard = [] } = useQuery({
     queryKey: ['health-leaderboard'],
     queryFn: () => npsApi.leaderboard().then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
   })
-  const leaderboard = leaderboardRaw as LeaderboardItem[]
 
   const { data: clientsRaw = [] } = useQuery({
     queryKey: ['clients-list-nps'],
@@ -154,19 +134,17 @@ export default function NPSPage() {
   })
   const clients = clientsRaw as ClientItem[]
 
-  const { data: summaryRaw } = useQuery({
+  const { data: summary = null } = useQuery<NpsSummary | null>({
     queryKey: ['nps-summary', clientId, npsDays],
     queryFn: () => npsApi.summary(clientId, npsDays).then(r => r.data),
     enabled: !!clientId,
   })
-  const summary = (summaryRaw ?? null) as NpsSummary | null
 
-  const { data: healthRaw = [] } = useQuery({
+  const { data: health = [] } = useQuery({
     queryKey: ['health-history', clientId],
     queryFn: () => npsApi.health(clientId, 30).then(r => r.data),
     enabled: !!clientId,
   })
-  const health = healthRaw as HealthSnapshot[]
 
   const { mutate: computeHealth, isPending: computing } = useMutation({
     mutationFn: () => npsApi.healthCompute(clientId),

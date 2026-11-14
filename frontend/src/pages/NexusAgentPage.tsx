@@ -3,6 +3,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { aiProvidersApi, nexusAgentApi, apiStream } from '../services/api'
+import type { EjecucionDelAgente, EjecucionDelAgenteResumen, PasoDelAgente } from '../services/api/tipos-analitica'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import MarkdownText from '../components/ui/MarkdownText'
 import PageHeader from '../components/layout/PageHeader'
@@ -50,42 +51,11 @@ const EXAMPLES = [
 ]
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Las formas que esta pagina consume
-//
-// Auditoria 2026-09 (modo estricto): el cliente de API devuelve `any` —esta sin
-// tipar de origen— y de ahi salian 23 errores en este fichero. Declararlas aqui,
-// al lado de donde se usan, es lo correcto mientras la capa de API no tenga
-// tipos: describe **lo que esta pagina lee**, ni mas ni menos, y se rompe sola
-// si el backend deja de mandar algo que aqui se pinta. Los campos van
-// opcionales a proposito: el backend los envia, pero prometer que siempre
-// vienen seria afirmar algo que este fichero no puede garantizar.
-// ─────────────────────────────────────────────────────────────────────────────
+/** Un paso que el agente ejecuto: el del detalle (`/ai/agent/{id}`) o el del flujo SSE. */
+type PasoDeAgente = Partial<PasoDelAgente>
 
-/** Un paso que el agente ejecuto: que herramienta y que devolvio. */
-interface PasoDeAgente {
-  step?: number
-  tool?: string
-  output?: string
-}
-
-/** Una ejecucion del agente, tal como la lista el historial. */
-interface EjecucionDeAgente {
-  id?: string
-  status?: string
-  instruction?: string
-  result?: string
-  created_at?: string
-  steps?: PasoDeAgente[]
-}
-
-/** Un proveedor de IA configurado. */
-interface ProveedorDeIa {
-  id?: string
-  name?: string
-  is_default?: boolean
-  default_model?: string
-}
+/** Lo que se pinta como resultado: la ejecución en cola, su detalle o el final del flujo. */
+type ResultadoDeAgente = Omit<Partial<EjecucionDelAgente>, 'steps'> & { steps?: PasoDeAgente[] }
 
 /** Un evento del flujo SSE del agente. Los cuatro tipos llevan campos
  *  distintos, y por eso la union esta discriminada por `type`: sin eso el
@@ -108,7 +78,7 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
       </div>
       <div className="u-flex1-min0">
         <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: c, marginBottom: 2 }}>{step.tool}</div>
-        {step.output && (
+        {step.output != null && step.output !== '' && (
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {typeof step.output === 'string' ? step.output.slice(0, 120) : JSON.stringify(step.output).slice(0, 120)}
           </div>
@@ -125,12 +95,12 @@ const ICONO_DE_ESTADO: Record<string, string> = { done: '✓', failed: '✕', ru
 
 /** Una ejecución del historial (rediseño 2026-11: era un <button> con el
  *  estilo del navegador, centrado y con borde en relieve). */
-function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: EjecucionDeAgente; seleccionada: boolean; onAbrir: () => void }) {
+function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: EjecucionDelAgenteResumen; seleccionada: boolean; onAbrir: () => void }) {
   const t = useAppT()
   const [encima, setEncima] = useState(false)
   const estado = e.status && STATUS_CFG[e.status] ? e.status : 'pending'
   const sc = STATUS_CFG[estado]
-  const pasos = e.steps?.length ?? 0
+  const pasos = e.steps_count ?? 0
   const fecha = e.created_at ? new Date(e.created_at) : null
   return (
     <button type="button" role="listitem" onClick={onAbrir} aria-current={seleccionada || undefined}
@@ -173,8 +143,8 @@ export default function ContecflowAgentPage() {
   const _qc = useQueryClient()
   const toast = useToast()
   const [instruction, setInstruction] = useState('')
-  const [result, setResult] = useState<EjecucionDeAgente | null>(null)
-  const [_selectedExec, _setSelectedExec] = useState<EjecucionDeAgente | null>(null)
+  const [result, setResult] = useState<ResultadoDeAgente | null>(null)
+  const [_selectedExec, _setSelectedExec] = useState<ResultadoDeAgente | null>(null)
   const [showTools, setShowTools] = useState(false)
   // Auditoría 2026-11: las dos vías mandaban `auto_approve: true` siempre, así
   // que el agente escribía (crear, cambiar, borrar) sin que nadie lo pidiera.
@@ -186,13 +156,13 @@ export default function ContecflowAgentPage() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const { data: providers = [] } = useQuery<ProveedorDeIa[]>({
+  const { data: providers = [] } = useQuery({
     queryKey: ['ai-providers'],
     queryFn: () => aiProvidersApi.list().then(r => r.data),
   })
   const defaultProvider = providers.find(p => p.is_default) || providers[0]
 
-  const { data: history = [], refetch } = useQuery<EjecucionDeAgente[]>({
+  const { data: history = [], refetch } = useQuery({
     queryKey: ['agent-history'],
     queryFn: () => nexusAgentApi.history().then(r => r.data),
   })
@@ -220,6 +190,15 @@ export default function ContecflowAgentPage() {
     onSuccess: data => { setResult(data); if (data?.execution_id) setEnCola(String(data.execution_id)); refetch() },
     onError: e => toast.error(extractErr(e, traducir('nexusagent.error_ejecutar'))),
   })
+
+  // El historial trae un resumen (instrucción recortada, sin pasos): se pinta
+  // al momento y se sustituye por la ejecución completa en cuanto llega.
+  const abrirEjecucion = (e: EjecucionDelAgenteResumen) => {
+    setResult({ ...e, steps: [] })
+    nexusAgentApi.detail(e.execution_id)
+      .then(r => setResult(r.data))
+      .catch(err => toast.error(extractErr(err, traducir('nexusagent.error_ejecutar'))))
+  }
 
   const runStream = useCallback(async (inst: string) => {
     if (isStreaming) return
@@ -415,9 +394,9 @@ export default function ContecflowAgentPage() {
               </div>
             ) : (
               <div role="list" style={{ padding: 6 }}>
-                {history.map((e: EjecucionDeAgente, i: number) => (
-                  <FilaDeHistorial key={e.id ?? i} ejecucion={e} seleccionada={!!e.id && e.id === result?.id}
-                    onAbrir={() => setResult(e)} />
+                {history.map(e => (
+                  <FilaDeHistorial key={e.execution_id} ejecucion={e} seleccionada={e.execution_id === result?.execution_id}
+                    onAbrir={() => abrirEjecucion(e)} />
                 ))}
               </div>
             )}

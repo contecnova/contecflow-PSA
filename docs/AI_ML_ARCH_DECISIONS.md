@@ -88,7 +88,7 @@ to JSON. No usamos streaming ni context caching de Anthropic.
 - ``google`` — Google Cloud Speech-to-Text v1 (API key auth)
 - ``whisper_local`` — whisper.cpp local (on-prem / air-gapped)
 
-**Arquitectura.** [app/services/stt/](app/services/stt/) — `STTProvider` ABC en
+**Arquitectura.** [app/services/stt/](../app/services/stt/) — `STTProvider` ABC en
 `base.py`, una implementación por provider, factory `transcribe_audio()` en
 `__init__.py` que respeta ``STT_PROVIDER`` y ``STT_FALLBACK_PROVIDERS`` (CSV
 ordenado).

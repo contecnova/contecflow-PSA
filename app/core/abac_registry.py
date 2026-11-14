@@ -74,6 +74,7 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     "/api/v1/timesheets":            ("timesheet",        "read"),
     "/api/v1/imputations":           ("imputation",       "read"),
     "/api/v1/expenses":              ("expense",          "read"),
+    "/api/v1/policies":              ("policy",           "read"),   # motor de políticas (#26)
     "/api/v1/invoices":              ("invoice",          "read"),
     "/api/v1/billing-reports":       ("invoice",          "read"),
     "/api/v1/budgets":               ("budget",           "read"),

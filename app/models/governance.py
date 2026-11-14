@@ -15,7 +15,7 @@ class TenantPolicyPack(Base):
     pack_version = Column(String(20), nullable=False, default="1.0")
     is_enabled = Column(Boolean, nullable=False, default=True)
     config_json = Column(Text, nullable=True)  # JSON overrides
-    updated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -36,7 +36,7 @@ class ComplianceEvidence(Base):
     artifact_uri = Column(String(1000), nullable=True)
     artifact_hash = Column(String(128), nullable=True)
     metadata_json = Column(Text, nullable=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     organization = relationship("Organization", foreign_keys=[organization_id])
@@ -59,7 +59,7 @@ class RetentionPolicy(Base):
     is_active = Column(Boolean, nullable=False, default=False)
     last_run_at = Column(DateTime(timezone=True), nullable=True)
     last_deleted = Column(Integer, nullable=True)
-    updated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
@@ -79,9 +79,9 @@ class LegalHold(Base):
     field = Column(String(60), nullable=False)
     value = Column(String(255), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    released_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    released_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     released_at = Column(DateTime(timezone=True), nullable=True)
 
 

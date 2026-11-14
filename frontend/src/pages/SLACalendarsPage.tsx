@@ -6,6 +6,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { slaCalendarsApi, type SlaCalendar } from '../services/api'
+import type { SdComprobacionDeDia } from '../services/api/tipos-sd'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -14,21 +15,6 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { timezoneOptions } from '../constants/timezones'
 import DateInput from '../components/ui/DateInput'
-
-interface HolidayItem {
-  id: string | number
-  holiday_date: string
-  name?: string | null
-}
-
-interface CheckDateResult {
-  date: string
-  day_of_week: string
-  is_business_day: boolean
-  is_weekend?: boolean
-  is_holiday?: boolean
-  holiday_name?: string | null
-}
 
 const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -131,15 +117,14 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
   const [date, setDate] = useState('')
   const [name, setName] = useState('')
   const [checkDate, setCheckDate] = useState('')
-  const [checkResult, setCheckResult] = useState<CheckDateResult | null>(null)
+  const [checkResult, setCheckResult] = useState<SdComprobacionDeDia | null>(null)
   const [editingId, setEditingId] = useState<string | number | null>(null)
   const [editForm, setEditForm] = useState({ holiday_date: '', name: '' })
 
-  const { data: holidaysRaw = [] } = useQuery({
+  const { data: holidays = [] } = useQuery({
     queryKey: ['holidays', cal.id],
-    queryFn: () => slaCalendarsApi.holidays(cal.id).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+    queryFn: () => slaCalendarsApi.holidays(cal.id).then(r => r.data),
   })
-  const holidays = holidaysRaw as HolidayItem[]
 
   const { mutate: addH, isPending } = useMutation({
     mutationFn: () => slaCalendarsApi.createHoliday(cal.id, {holiday_date:date, name:name||null}).then(r=>r.data),
@@ -160,7 +145,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
   const checkBusinessDay = async () => {
     try {
       const r = await slaCalendarsApi.checkDate(cal.id, checkDate)
-      setCheckResult(r.data as CheckDateResult)
+      setCheckResult(r.data)
     } catch(e: unknown) {
       const message = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al verificar'
       toast.error(message)

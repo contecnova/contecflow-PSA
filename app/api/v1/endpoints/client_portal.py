@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date
 from pydantic import BaseModel
-from jose import jwt, JWTError
+import jwt
 import logging
 
 logger = logging.getLogger("contecflow.client_portal")
@@ -60,7 +60,7 @@ def get_current_client(
         client_id = payload.get("sub")
         if not client_id or payload.get("type") != "client":
             raise credentials_exception
-    except JWTError:
+    except jwt.PyJWTError:
         raise credentials_exception
     if _svc.token_de_cliente_revocado(payload):  # auditoria 2026-11 #23: cerro sesion
         raise credentials_exception

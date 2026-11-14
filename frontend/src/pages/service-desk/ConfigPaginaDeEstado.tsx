@@ -13,8 +13,9 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import { sdStatusPageApi } from '../../services/api'
+import type { SdComponenteDeEstado } from '../../services/api/tipos-sd'
 
-type Componente = { id: string; name: string; description?: string | null; group_name?: string | null; status: string; is_public: boolean; sort_order?: number }
+type Componente = SdComponenteDeEstado
 const ESTADOS = ['operational', 'degraded_performance', 'partial_outage', 'major_outage', 'maintenance']
 const COLOR_ESTADO: Record<string, string> = {
   operational: COLOR.success, degraded_performance: COLOR.warning, partial_outage: 'var(--orange)',
@@ -31,11 +32,11 @@ export default function ConfigPaginaDeEstado() {
   const toast = useToast()
   const [nuevo, setNuevo] = useState(false)
   const [declarando, setDeclarando] = useState<Componente | null>(null)
-  const { data: enlace } = useQuery<{ url?: string | null; embed?: string }>({
-    queryKey: ['sd-status-link'], queryFn: () => sdStatusPageApi.link().then(r => r.data as { url?: string | null; embed?: string }),
+  const { data: enlace } = useQuery({
+    queryKey: ['sd-status-link'], queryFn: () => sdStatusPageApi.link().then(r => r.data),
   })
-  const { data: componentes = [], isLoading } = useQuery<Componente[]>({
-    queryKey: ['sd-status-components'], queryFn: () => sdStatusPageApi.components().then(r => r.data as Componente[]),
+  const { data: componentes = [], isLoading } = useQuery({
+    queryKey: ['sd-status-components'], queryFn: () => sdStatusPageApi.components().then(r => r.data),
   })
   const refrescar = () => qc.invalidateQueries({ queryKey: ['sd-status-components'] })
   const err = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))

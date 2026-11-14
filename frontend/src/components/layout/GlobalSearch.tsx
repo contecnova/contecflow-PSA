@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { searchApi } from '../../services/api'
+import type { ResultadoDeBusqueda } from '../../services/api/tipos-analitica'
 import { INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { useAppT } from '../../i18n/AppLangContext'
 
@@ -30,19 +31,7 @@ const QUICK_ACTIONS: QuickAction[] = [
 ]
 
 // TODO type: search result payload — needs shared type from searchApi
-interface SearchResult {
-  id: string | number
-  type?: string
-  title: string
-  subtitle?: string
-  status?: string
-  url?: string
-}
-
-interface SearchResponse {
-  flat?: SearchResult[]
-  grouped?: Record<string, SearchResult[]>
-}
+type SearchResult = ResultadoDeBusqueda
 
 type FlatItem =
   | { kind: 'action'; path: string }
@@ -76,7 +65,7 @@ export default function GlobalSearch({ onClose }: Props) {
   // Reset selection whenever query changes
   useEffect(() => { setSelectedIdx(-1) }, [debouncedQ])
 
-  const { data, isLoading } = useQuery<SearchResponse>({
+  const { data, isLoading } = useQuery({
     queryKey: ['global-search', debouncedQ],
     queryFn: () => searchApi.search({ q: debouncedQ }).then(r => r.data),
     enabled: debouncedQ.length >= 2,

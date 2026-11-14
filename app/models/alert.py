@@ -38,7 +38,7 @@ class Alert(Base):
     # Who it's about
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
-    task_id = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True)
+    task_id = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True)
 
     title = Column(String(255), nullable=False)
     description = Column(Text)
@@ -49,7 +49,7 @@ class Alert(Base):
     is_read = Column(Boolean, default=False)
     is_resolved = Column(Boolean, default=False)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
-    resolved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    resolved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     # Notification sent
     email_sent = Column(Boolean, default=False)

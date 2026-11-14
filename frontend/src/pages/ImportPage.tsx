@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { importApi } from '../services/api'
+import type { ErrorDeFilaImportada, ResultadoDeImportacion, ValidacionDeImportacion } from '../services/api/tipos-plataforma'
 import { Button } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -12,41 +13,10 @@ import { Upload } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { CLOCK_TICK_MS } from '../constants/timings'
 
-interface ImportTemplate {
-  columns: string[]
-  example: Array<Array<string | number>>
-}
-
-interface ImportValidation {
-  valid?: boolean
-  warnings?: string[]
-  errors?: Array<{ row?: number; error?: string }>
-  preview?: Array<Record<string, unknown>>
-  total_rows?: number
-}
-
-interface ImportResult {
-  status?: string
-  total?: number
-  total_rows?: number
-  succeeded?: number
-  failed?: number
-  failed_rows?: number
-  errors?: Array<{ row?: number; error?: string }>
-  error?: string
-}
-
-interface ImportJob {
-  id: string | number
-  status?: string
-  entity_type?: string
-  filename?: string
-  started_at?: string
-  succeeded?: number
-  total_rows?: number
-  failed_rows?: number
-}
-
+/** La validacion; si la peticion falla, un error sin fila. */
+type ImportValidation = Omit<ValidacionDeImportacion, 'errors'> & { errors: Array<Partial<ErrorDeFilaImportada> & { error: string }> }
+/** El resultado o el error que se pinta en su lugar. */
+type ImportResult = Partial<ResultadoDeImportacion> & { error?: string }
 
 const fs: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
@@ -78,11 +48,11 @@ function ImportTab() {
     return () => clearInterval(id)
   }, [opStartedAt])
 
-  const { data: template } = useQuery<ImportTemplate>({
+  const { data: template } = useQuery({
     queryKey: ['import-template', entityType],
     queryFn: () => importApi.template(entityType).then(r => r.data),
   })
-  const { data: jobs = [] } = useQuery<ImportJob[]>({
+  const { data: jobs = [] } = useQuery({
     queryKey: ['import-jobs'],
     queryFn: () => importApi.jobs().then(r => r.data),
   })
@@ -93,7 +63,7 @@ function ImportTab() {
     setOpStartedAt(Date.now())
     try {
       const fd = new FormData(); fd.append('file', file)
-      const resp = await importApi.validate(entityType, fd as unknown as Record<string, unknown>)
+      const resp = await importApi.validate(entityType, fd)
       setValidation(resp.data); setStep('validate')
       setOpStage(resp.data?.valid ? 'done' : 'failed')
     } catch(e) {
@@ -101,7 +71,7 @@ function ImportTab() {
       const _msg = Array.isArray(_raw)
         ? _raw.map((d) => String((d as { msg?: unknown }).msg ?? '')).join(', ')
         : String(_raw || 'Error al procesar el fichero')
-      setValidation({ valid: false, errors: [{error: _msg}], warnings: [], preview: [], total_rows: 0 })
+      setValidation({ valid: false, errors: [{ error: _msg }], warnings: [], preview: [], total_rows: 0 })
       setStep('validate')
       setOpStage('failed')
     } finally { setValidating(false) }
@@ -114,7 +84,7 @@ function ImportTab() {
     setOpStartedAt(Date.now())
     try {
       const fd = new FormData(); fd.append('file', fileRef.current.files![0])
-      const resp = await importApi.execute(entityType, fd as unknown as Record<string, unknown>)
+      const resp = await importApi.execute(entityType, fd)
       setResult(resp.data); setStep('result')
       setOpStage(resp.data?.status === 'failed' ? 'failed' : 'done')
     } catch(e) {
@@ -217,7 +187,7 @@ function ImportTab() {
               </div>
               <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginBottom:10}}>{validation.total_rows} {t('import_data.rows_detected')}</div>
               {validation.warnings?.map((w,i) => <div key={i} style={{background:'var(--warning-bg)',border:'1px solid var(--warning-border)',borderRadius:'var(--radius-sm)',padding:'6px 10px',color:'var(--warning)',fontSize: "var(--text-sm)",marginBottom:6}}>⚠ {t('import_data.warning')} {w}</div>)}
-              {validation.errors?.map((e,i) => <div key={i} style={{background:'var(--danger-bg)',border:'1px solid var(--danger-border)',borderRadius:'var(--radius-sm)',padding:'6px 10px',color:'var(--danger)',fontSize: "var(--text-sm)",marginBottom:6}}>✗ {t('import_data.row')} {e.row}: {e.error}</div>)}
+              {validation.errors?.map((e,i) => <div key={i} style={{background:'var(--danger-bg)',border:'1px solid var(--danger-border)',borderRadius:'var(--radius-sm)',padding:'6px 10px',color:'var(--danger)',fontSize: "var(--text-sm)",marginBottom:6}}>✗ {e.row != null && `${t('import_data.row')} ${e.row}: `}{e.error}</div>)}
               {(validation.preview ?? []).length > 0 && (
                 <div style={{marginTop:12,fontSize: "var(--text-xs)",color:'var(--text-2)'}}>
                   <div style={{fontWeight:700,marginBottom:6}}>{t('import_data.preview')}</div>
@@ -242,9 +212,9 @@ function ImportTab() {
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
                 {[
-                  { label: t('import_data.total'), value: result.total ?? result.total_rows ?? 0, color: 'var(--text-2)' },
+                  { label: t('import_data.total'), value: result.total ?? 0, color: 'var(--text-2)' },
                   { label: t('import_data.imported'), value: result.succeeded ?? 0, color: 'var(--success)' },
-                  { label: t('import_data.errors'), value: result.failed ?? result.failed_rows ?? 0, color: 'var(--danger)' }
+                  { label: t('import_data.errors'), value: result.failed ?? 0, color: 'var(--danger)' }
                 ].map((item) => (
                   <div key={item.label} style={{textAlign:'center',background:'var(--surface-3)',borderRadius:8,padding:'12px'}}>
                     <div style={{fontSize: "var(--text-2xl)",fontWeight:800,color:item.color}}>{item.value}</div>

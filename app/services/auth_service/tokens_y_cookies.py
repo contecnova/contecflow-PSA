@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import base64
 import uuid
 from typing import Optional
-from jose import jwt as jose_jwt, JWTError
+import jwt
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.user import User
@@ -53,16 +53,16 @@ def create_ephemeral_token(
         "jti": jti,
     }
     kid, key = get_jwt_signing_key()
-    return jose_jwt.encode(payload, key, algorithm="HS256", headers={"kid": kid})
+    return jwt.encode(payload, key, algorithm="HS256", headers={"kid": kid})
 
 
 def read_ephemeral_token(token: str, expected_type: str) -> dict:
     payload = None
     for key in get_jwt_verification_keys().values():
         try:
-            payload = jose_jwt.decode(token, key, algorithms=["HS256"])
+            payload = jwt.decode(token, key, algorithms=["HS256"])
             break
-        except JWTError:
+        except jwt.PyJWTError:
             continue
     if payload is None:
         raise ErrorDeDominio(401, "Token de challenge inválido o expirado")

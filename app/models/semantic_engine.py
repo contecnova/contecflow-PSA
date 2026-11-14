@@ -107,8 +107,8 @@ class SemAssignment(Base):
     item_id         = Column(String(36), nullable=False, index=True)
     item_title      = Column(String(500), nullable=True)
     # Resultado de la asignación
-    suggested_user_id   = Column(String(36), ForeignKey("users.id"), nullable=True)
-    accepted_user_id    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    suggested_user_id   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    accepted_user_id    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     was_accepted        = Column(Boolean, nullable=True)    # None = pendiente, True/False = validado
     # Puntuaciones
     confidence          = Column(Float, nullable=True)
@@ -134,8 +134,8 @@ class SemFeedback(Base):
     text_snippet    = Column(String(500), nullable=True)
     embedding       = Column(Text, nullable=True)
     item_type       = Column(String(20), nullable=False)
-    correct_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    corrected_by    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    correct_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    corrected_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     times_used      = Column(Integer, default=1)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 

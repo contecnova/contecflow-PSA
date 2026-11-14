@@ -103,6 +103,31 @@ class UserWithRate(UserPublic):
     ldap_dn: Optional[str] = Field(default=None, description="Distinguished Name (DN) del usuario en LDAP")
 
 
+class PersonaVisible(BaseModel):
+    """Ficha mínima de otra persona (`politica_de_visibilidad.CAMPOS_DE_FICHA_MINIMA`).
+
+    Lo que ve un subcontratado de la gente de sus proyectos, y lo que lleva el
+    selector de personas (`GET /users/directory`): quién es, su cara y qué hace.
+    """
+
+    id: str = Field(..., description="Identificador del usuario")
+    full_name: str = Field(..., description="Nombre completo")
+    first_name: Optional[str] = Field(default=None, description="Nombre")
+    last_name: Optional[str] = Field(default=None, description="Apellidos")
+    avatar_url: Optional[str] = Field(default=None, description="URL del avatar")
+    role: Optional[str] = Field(default=None, description="Rol base en el sistema")
+    job_title: Optional[str] = Field(default=None, description="Puesto")
+
+
+class PersonaInterna(PersonaVisible):
+    """Fila de `GET /users` para quien no ve la ficha ajena (el empleado):
+    `politica_de_visibilidad.CAMPOS_DE_FICHA_INTERNA`. Sin correo, teléfono,
+    manager ni datos de acceso (segunda auditoría 2026-11)."""
+
+    department: Optional[str] = Field(default=None, description="Departamento")
+    is_active: bool = Field(default=True, description="Indica si la persona está activa")
+
+
 class UserLoad(BaseModel):
     user: UserPublic = Field(..., description="Información pública del usuario")
     current_load_pct: float = Field(..., description="Porcentaje de carga actual del usuario")

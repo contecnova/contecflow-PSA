@@ -56,10 +56,6 @@ type ESignStats = {
   }
 }
 
-type DocumentItem = {
-  id: number
-  name: string
-}
 
 type CreateSigner = {
   name: string
@@ -153,9 +149,9 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
   const addSigner = () => setSigners(s => [...s, { name: '', email: '', routing_order: s.length + 1 }])
   const removeSigner = (i: number) => setSigners(s => s.filter((_, idx) => idx !== i))
 
-  const { data: documents = [] } = useQuery<DocumentItem[]>({
+  const { data: documents = [] } = useQuery({
     queryKey: ['documents-list'],
-    queryFn: () => documentsApi.list({}).then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => documentsApi.list({}).then(r => r.data),
   })
 
   const submit = async () => {
@@ -185,7 +181,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('esign.document')}</label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.document_id} onChange={setField('document_id')} style={fs}>
             <option value="">{t('esign.select_document')}</option>
-            {documents.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            {documents.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
           </select>
         </div>
         <div>

@@ -21,15 +21,15 @@ class ConfigurationItem(Base):
     status = Column(Enum(CIStatus), default=CIStatus.operational)
     description = Column(Text, nullable=True)
 
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
-    owner_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    owner_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     environment = Column(String(50), nullable=True)
 
     version = Column(String(50), nullable=True)
     location = Column(String(255), nullable=True)
     vendor = Column(String(100), nullable=True)
 
-    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True)
+    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True, index=True)
 
     criticality = Column(String(20), default="medium")
     notes = Column(Text, nullable=True)
@@ -42,7 +42,7 @@ class ConfigurationItem(Base):
     # Descubrimiento y deriva: lo escribe la reconciliacion (services/cmdb).
     external_id = Column(String(255), nullable=True, index=True)
     discovery_provider = Column(String(50), nullable=True)  # tipo: aws | kubernetes | agent...
-    discovery_provider_id = Column(String(36), ForeignKey("cmdb_discovery_providers.id", ondelete="SET NULL"), nullable=True)
+    discovery_provider_id = Column(String(36), ForeignKey("cmdb_discovery_providers.id", ondelete="SET NULL"), nullable=True, index=True)
     last_discovered_at = Column(DateTime(timezone=True), nullable=True)
     is_discovered = Column(Boolean, default=False, nullable=False, server_default=false())
     config_hash = Column(String(64), nullable=True)

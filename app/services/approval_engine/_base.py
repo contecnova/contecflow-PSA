@@ -166,6 +166,10 @@ def aprobadores_del_paso(request, step, db: Session) -> set:
         fila = db.query(User.manager_id).filter(User.id == request.requested_by).first()
         if fila and fila[0]:
             ids.add(fila[0])
+    elif tipo == "manager_level":
+        jefe = responsable_de_nivel(db, request.requested_by, int(getattr(step, "approver_level", None) or 1))
+        if jefe:
+            ids.add(jefe)
     if step.approver_group_id:
         grupo = db.query(ApprovalGroup).filter(ApprovalGroup.id == step.approver_group_id).first()
         try:
@@ -272,7 +276,23 @@ _APROBADORES = {
         u.department == step.approver_department
     ),
     "manager": lambda step, u, requested_by, db: _es_su_responsable(u, requested_by, db),
+    # Rev. 165 (motor de politicas): el N-esimo responsable en la cadena.
+    "manager_level": lambda step, u, requested_by, db: (
+        responsable_de_nivel(db, requested_by, int(getattr(step, "approver_level", None) or 1)) == u.id),
 }
+
+
+def responsable_de_nivel(db: Session, usuario_id: str, nivel: int) -> Optional[str]:
+    """El responsable de nivel `nivel` (1 = directo) de un usuario, o None si la
+    cadena es mas corta. Se corta ante un ciclo en la jerarquia."""
+    actual, vistos = usuario_id, {usuario_id}
+    for _ in range(max(1, nivel)):
+        fila = db.query(User.manager_id).filter(User.id == actual).first()
+        if not fila or not fila[0] or fila[0] in vistos:
+            return None
+        actual = fila[0]
+        vistos.add(actual)
+    return actual
 
 
 def _es_su_responsable(current_user: User, requested_by: str, db: Session) -> bool:
@@ -394,6 +414,9 @@ def serialize_step(s) -> dict:
         "step_condition": getattr(s, "step_condition", None),
         "requires_attachment": getattr(s, "requires_attachment", False),
         "reminder_hours": getattr(s, "reminder_hours", None),
+        "kind": getattr(s, "kind", None) or "approve",
+        "approver_level": getattr(s, "approver_level", None),
+        "origen": getattr(s, "origen", None),
     }
 
 def serialize_workflow(w, include_steps: bool = False) -> dict:
@@ -408,6 +431,7 @@ def serialize_workflow(w, include_steps: bool = False) -> dict:
         "chain_on_approval_workflow_id": getattr(w, "chain_on_approval_workflow_id", None),
         "sla_block_on_breach": getattr(w, "sla_block_on_breach", False),
         "auto_approval_rules": getattr(w, "auto_approval_rules", None),
+        "tiene_diagrama": bool(getattr(w, "diagrama", None)),
     }
     if include_steps:
         d["steps"] = [serialize_step(s) for s in (w.steps or [])]

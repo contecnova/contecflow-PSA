@@ -20,6 +20,7 @@ class InvoiceLineOut(BaseModel):
     discount_pct: float = Field(..., description="Porcentaje de descuento aplicado")
     amount: float = Field(..., description="Importe total de la línea en euros")
     source_type: Optional[str] = Field(default=None, description="Tipo de origen del concepto (imputación, milestone...)")
+    source_ids: Optional[str] = Field(default=None, description="JSON con los ids de origen (imputaciones si es timesheet): la edición del borrador lo reenvía")
 
 
 class InvoiceOut(BaseModel):
@@ -34,6 +35,7 @@ class InvoiceOut(BaseModel):
     client_name: Optional[str] = Field(default=None, description="Nombre del cliente facturado")
     client_email: Optional[str] = Field(default=None, description="Email de contacto del cliente")
     client_vat: Optional[str] = Field(default=None, description="NIF/CIF del cliente")
+    client_address: Optional[str] = Field(default=None, description="Dirección postal del cliente")
     subtotal: Optional[float] = Field(default=None, description="Subtotal de la factura en euros")
     tax_rate: Optional[float] = Field(default=None, description="Tipo impositivo aplicado")
     tax_amount: Optional[float] = Field(default=None, description="Importe de impuestos en euros")

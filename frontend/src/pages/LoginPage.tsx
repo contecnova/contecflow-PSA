@@ -14,7 +14,8 @@ import { startAuthentication, webauthnSupported } from '../lib/webauthn'
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function extractUser(data: LoginResponse): User {
-  return (data.user ?? {}) as unknown as User
+  // `UserPublic.role` llega como texto; el contexto lo estrecha a `Role`.
+  return data.user as User
 }
 
 function extractErrorMsg(

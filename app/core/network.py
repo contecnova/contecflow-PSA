@@ -89,11 +89,20 @@ def extract_client_ip(request) -> str:
     if not trust or not _is_trusted_proxy(direct_ip):
         return direct_ip
 
+    # Segunda auditoría 2026-11 (#23): se recorre de derecha a izquierda y se
+    # devuelve el primer salto que NO es un proxy de confianza. Antes se tomaba
+    # el primero de la lista, que lo escribe el cliente: nginx AÑADE la IP
+    # (`$proxy_add_x_forwarded_for`), no la sustituye, así que con
+    # `X-Forwarded-For: 1.2.3.4` cualquiera elegía su IP ante el rate limiting.
     forwarded_for = request.headers.get("x-forwarded-for", "") if request else ""
     if forwarded_for:
-        candidate = _parse_ip(forwarded_for.split(",")[0].strip())
-        if candidate:
-            return candidate
+        saltos = [_parse_ip(s) for s in forwarded_for.split(",")]
+        saltos = [s for s in saltos if s]
+        for salto in reversed(saltos):
+            if not _is_trusted_proxy(salto):
+                return salto
+        if saltos:
+            return saltos[0]
 
     real_ip = _parse_ip(request.headers.get("x-real-ip", "") if request else "")
     if real_ip:
@@ -112,6 +121,56 @@ def extract_host(request) -> str:
     if trust and direct_ip and _is_trusted_proxy(direct_ip):
         host = request.headers.get("x-forwarded-host", "") or host
     return host.split(",")[0].strip().split(":")[0].lower()
+
+
+class EsquemaDelProxyMiddleware:
+    """Aplica `X-Forwarded-Proto` al esquema de la petición si viene de un proxy de confianza.
+
+    Segunda auditoría 2026-11 (#23). Detrás de nginx (que no termina TLS: el
+    TLS acaba delante) la API veía `http://` aunque el cliente usara `https://`.
+    `request.url` y `request.base_url` salían con el esquema equivocado: la firma
+    de Twilio, que se calcula sobre la URL https, no cuadraba, y el `Location`
+    de las subidas tus apuntaba a http (contenido mixto).
+
+    No se usa el `--proxy-headers` de uvicorn porque la versión fijada (0.29)
+    solo admite IPs exactas en `FORWARDED_ALLOW_IPS` (las redes llegan en la
+    0.31) y la IP de nginx en la red de compose cambia en cada arranque; con
+    `*`, uvicorn sustituye además el cliente por el PRIMER `X-Forwarded-For`,
+    que lo escribe quien llama. Aquí manda la misma política que ya decide
+    `X-Forwarded-For` y `X-Forwarded-Host` (`TRUST_PROXY_HEADERS` +
+    `TRUSTED_PROXY_CIDRS`, con redes). Solo toca el esquema: la IP del cliente
+    la resuelve `extract_client_ip`.
+    """
+
+    _ESQUEMAS = {"http": "http", "https": "https"}
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            proto = next((v for k, v in scope.get("headers") or [] if k == b"x-forwarded-proto"), None)
+            if proto is not None:
+                esquema = self._ESQUEMAS.get(proto.decode("latin1").split(",")[0].strip().lower())
+                cliente = scope.get("client")
+                if esquema and cliente and _effective_proxy_config()[0] and _is_trusted_proxy(cliente[0]):
+                    if scope["type"] == "websocket":
+                        esquema = "wss" if esquema == "https" else "ws"
+                    scope = dict(scope, scheme=esquema)
+        await self.app(scope, receive, send)
+
+
+def url_publica(request) -> str:
+    """La URL de la petición con la base pública configurada (`BACKEND_URL`).
+
+    Para firmas que cubren la URL (Twilio): el remitente firma la URL que tiene
+    configurada, y `BACKEND_URL` es esa base —la misma con la que se construyen
+    las vueltas de OAuth— sin depender de cómo reescriban los proxies el
+    esquema o el host.
+    """
+    base = (settings.BACKEND_URL or "").rstrip("/")
+    consulta = request.url.query
+    return f"{base}{request.url.path}" + (f"?{consulta}" if consulta else "")
 
 
 # ── Outbound SSRF guard ──────────────────────────────────────────────────────

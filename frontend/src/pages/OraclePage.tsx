@@ -4,6 +4,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { oracleApi } from '../services/api'
+import type { AnalisisDelOraculo, PrediccionDelOraculo } from '../services/api/tipos-finanzas'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -47,33 +48,8 @@ const _PALETTE = ['var(--danger)','var(--warning)','var(--accent)','var(--text-2
 // que el backend los mande siempre.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Una prediccion del oraculo sobre una entidad del sistema. */
-interface Prediccion {
-  id?: string
-  type?: string
-  title?: string
-  severity?: string
-  probability?: number
-  entity_type?: string
-  entity_name?: string
-  explanation?: string
-  recommended_action?: string
-  is_acknowledged?: boolean
-}
-
-/** Una alerta generada durante una pasada del oraculo. */
-interface AlertaDelOraculo {
-  type?: string
-  entity?: string
-  probability?: number
-}
-
-/** El resumen que devuelve una pasada del oraculo. */
-interface AnalisisDelOraculo {
-  alerts_generated?: number
-  methodology?: string
-  alerts?: AlertaDelOraculo[]
-}
+/** Una prediccion del oraculo sobre una entidad del sistema (services/api/tipos-finanzas.ts). */
+type Prediccion = PrediccionDelOraculo
 
 export default function OraclePage() {
   const isNarrow = useMediaQuery('(max-width: 900px)')

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import logging
 import bcrypt
-from jose import jwt, JWTError
+import jwt
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.settings import AppSetting
@@ -61,7 +61,7 @@ def revocar_token_de_cliente(token: Optional[str]) -> bool:
         return False
     try:
         payload = jwt.decode(token, CLIENT_TOKEN_SECRET, algorithms=[ALGORITHM])
-    except JWTError:
+    except jwt.PyJWTError:
         return False
     jti = payload.get("jti")
     if not jti or payload.get("type") != "client":
@@ -142,5 +142,5 @@ def decode_portal_share_token(token: str) -> Optional[str]:
         if payload.get("type") != "portal_share":
             return None
         return payload.get("project_id")
-    except JWTError:
+    except jwt.PyJWTError:
         return None

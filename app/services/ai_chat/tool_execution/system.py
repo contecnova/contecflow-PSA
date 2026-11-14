@@ -4,13 +4,10 @@ from __future__ import annotations
 from sqlalchemy import or_
 
 from app.models.alert import Alert
-from app.models.billing_reports import Invoice
 from app.models.clients import Client
 from app.models.git_integration import GitPullRequest
-from app.models.pipeline import Risk, Opportunity
+from app.models.pipeline import Risk
 from app.models.project import Project
-from app.models.service_desk import Ticket
-from app.models.task import Task
 from app.models.user import User
 
 
@@ -31,35 +28,43 @@ def _get_alerts(tool_input, db, user, now, is_financial_role):
 
 
 def _search_all(tool_input, db, user, now, is_financial_role):
+    """Búsqueda del asistente (chat, agente y MCP).
+
+    Segunda auditoría 2026-11: no acotaba nada; por MCP un empleado encontraba
+    los proyectos, tickets, facturas y oportunidades de toda la empresa. Ahora usa
+    las mismas consultas acotadas que `GET /global-search`
+    (`cab_service.busqueda.consulta_de_*`).
+    """
+    from app.services import politica_de_visibilidad as _vis
+    from app.services.cab_service import busqueda as _b
+    from app.services.project_service import scope_projects_query
+
     query = tool_input.get("query", "")
     lim = tool_input.get("limit_per_entity", 5)
+    patron = f"%{query.lower()}%"
     term = f"%{query}%"
     results = {}
 
-    projects = db.query(Project).filter(
-        or_(Project.name.ilike(term), Project.code.ilike(term), Project.client_name.ilike(term))
-    ).limit(lim).all()
+    projects = _b.consulta_de_proyectos(db, user, patron).limit(lim).all()
     if projects:
         results["projects"] = [{"id": p.id, "code": p.code, "name": p.name,
                                 "status": p.status, "client": p.client_name} for p in projects]
 
-    tasks = db.query(Task).filter(Task.title.ilike(term)).limit(lim).all()
+    tasks = _b.consulta_de_tareas(db, user, patron).limit(lim).all()
     if tasks:
-        proj_ids = {t.project_id for t in tasks}
-        pmap = {p.id: p.name for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
         results["tasks"] = [{"id": t.id, "title": t.title, "status": t.status,
                              "priority": t.priority,
-                             "project": pmap.get(t.project_id, "?")} for t in tasks]
+                             "project": t.project.name if t.project else "?"} for t in tasks]
 
-    tickets = db.query(Ticket).filter(
-        or_(Ticket.title.ilike(term), Ticket.number.ilike(term))
-    ).limit(lim).all()
+    tickets = _b.consulta_de_tickets(db, user, patron).limit(lim).all()
     if tickets:
         results["tickets"] = [{"id": t.id, "number": t.number, "title": t.title,
                                "status": t.status, "priority": t.priority} for t in tickets]
 
+    visibles = scope_projects_query(db.query(Project.id), db, user).subquery()
     risks = db.query(Risk).filter(
-        or_(Risk.title.ilike(term), Risk.code.ilike(term))
+        or_(Risk.title.ilike(term), Risk.code.ilike(term)),
+        Risk.project_id.in_(db.query(visibles.c.id)),
     ).limit(lim).all()
     if risks:
         proj_ids = {r.project_id for r in risks}
@@ -72,24 +77,21 @@ def _search_all(tool_input, db, user, now, is_financial_role):
     if clients:
         results["clients"] = [{"id": c.id, "name": c.name} for c in clients]
 
-    users = db.query(User).filter(
-        or_(User.full_name.ilike(term), User.email.ilike(term))
-    ).limit(lim).all()
+    ve_contacto = _vis.ve_contacto_ajeno(user)
+    users = _b.consulta_de_personas(db, user, patron).limit(lim).all()
     if users:
-        results["users"] = [{"id": u.id, "name": u.full_name,
-                             "role": u.role, "email": u.email} for u in users]
+        results["users"] = [{"id": u.id, "name": u.full_name, "role": u.role,
+                             "email": u.email if ve_contacto else None} for u in users]
 
-    invoices = db.query(Invoice).filter(
-        or_(Invoice.number.ilike(term), Invoice.client_name.ilike(term))
-    ).limit(lim).all()
+    facturas = _b.consulta_de_facturas(db, user, patron)
+    invoices = facturas.limit(lim).all() if facturas is not None else []
     if invoices:
         results["invoices"] = [{"id": inv.id, "number": inv.number,
                                 "client": inv.client_name, "total": inv.total,
                                 "status": str(inv.status)} for inv in invoices]
 
-    opps = db.query(Opportunity).filter(
-        or_(Opportunity.name.ilike(term), Opportunity.client_name.ilike(term))
-    ).limit(lim).all()
+    oportunidades = _b.consulta_de_oportunidades(db, user, patron)
+    opps = oportunidades.limit(lim).all() if oportunidades is not None else []
     if opps:
         results["opportunities"] = [{"id": o.id, "name": o.name,
                                      "client": o.client_name, "stage": str(o.stage),

@@ -10,13 +10,14 @@ from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from app.models.alm import (
     ALMVendor, ALMContract, ALMLicense, ALMLicenseAssignment,
     ALMAsset, ALMCostCenter, ALMSoftwareInstall,
 )
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.paginacion import Pagina, Paginacion, paginar
 
 logger = logging.getLogger(__name__)
 
@@ -95,38 +96,48 @@ def clean_input(data: dict, model_cls, date_fields=None, int_fields=None,
 
 # ── Linked-client query helpers ───────────────────────────────────────────────
 
+def _clientes_vinculados(db: Session, enlace, columna: str, ids: list) -> dict:
+    """``{id: [{"id", "name"}]}`` de los clientes enlazados, en UNA consulta.
+
+    Segunda auditoria 2026-11 (N+1): antes eran 1 consulta de enlaces por fila
+    mas 1 por cliente enlazado; un listado de 50 licencias con un cliente cada
+    una hacia 100 consultas solo para esto.
+    """
+    from app.models.clients import Client
+
+    resultado: dict = {i: [] for i in ids}
+    if not ids:
+        return resultado
+    clave = getattr(enlace, columna)
+    filas = (
+        db.query(clave, Client.id, Client.name)
+        .join(Client, Client.id == enlace.client_id)
+        .filter(clave.in_(ids))
+        .all()
+    )
+    for propietario, cid, nombre in filas:
+        resultado[propietario].append({"id": cid, "name": nombre})
+    return resultado
+
+
+def clientes_de_licencias(ids: list, db: Session) -> dict:
+    from app.models.clients import ClientLicenseLink
+    return _clientes_vinculados(db, ClientLicenseLink, "license_id", ids)
+
+
+def clientes_de_contratos(ids: list, db: Session) -> dict:
+    from app.models.clients import ClientContractLink
+    return _clientes_vinculados(db, ClientContractLink, "contract_id", ids)
+
+
 def get_linked_clients_for_license(license_id, db: Session) -> list:
     """Devuelve los clientes vinculados a una licencia via client_license_links."""
-    try:
-        from app.models.clients import ClientLicenseLink, Client
-
-        links = db.query(ClientLicenseLink).filter(ClientLicenseLink.license_id == license_id).all()
-        result = []
-        for ll in links:
-            cl = db.query(Client).filter(Client.id == ll.client_id).first()
-            if cl:
-                result.append({"id": cl.id, "name": cl.name})
-        return result
-    except Exception:
-        logger.warning("Failed to load linked clients for license=%s", license_id, exc_info=True)
-        return []
+    return clientes_de_licencias([license_id], db)[license_id]
 
 
 def get_linked_clients_for_contract(contract_id, db: Session) -> list:
     """Devuelve los clientes vinculados a un contrato pipeline via client_contract_links."""
-    try:
-        from app.models.clients import ClientContractLink, Client
-
-        links = db.query(ClientContractLink).filter(ClientContractLink.contract_id == contract_id).all()
-        result = []
-        for cl_link in links:
-            cl = db.query(Client).filter(Client.id == cl_link.client_id).first()
-            if cl:
-                result.append({"id": cl.id, "name": cl.name})
-        return result
-    except Exception:
-        logger.warning("Failed to load linked clients for contract=%s", contract_id, exc_info=True)
-        return []
+    return clientes_de_contratos([contract_id], db)[contract_id]
 
 
 # ── Serialisers (Refactored with ModelSerializer base class) ─────────────────
@@ -139,21 +150,38 @@ def serialize_vendor(v: ALMVendor) -> dict[str, Any]:
     return VendorSerializer(v).to_dict()
 
 
-def serialize_contract(c: ALMContract, db: Optional[Session] = None) -> dict[str, Any]:
-    """Serialize Contract using base class. Note: linked_clients not included by base class."""
+def serialize_contract(c: ALMContract, db: Optional[Session] = None,
+                       vinculados: Optional[dict] = None) -> dict[str, Any]:
+    """Serialize Contract using base class. Note: linked_clients not included by base class.
+
+    ``vinculados`` es el mapa ya cargado en lote por ``clientes_de_contratos``;
+    sin el, se consulta este contrato solo.
+    """
     result = ContractSerializer(c).to_dict()
-    if db:
+    if vinculados is not None:
+        result["linked_clients"] = vinculados.get(c.id, [])
+    elif db:
         result["linked_clients"] = get_linked_clients_for_contract(c.id, db)
     else:
         result["linked_clients"] = []
     return result
 
 
-def serialize_license(lic: ALMLicense, db: Session) -> dict[str, Any]:
+def serialize_license(lic: ALMLicense, db: Session, vinculados: Optional[dict] = None) -> dict[str, Any]:
     """Serialize License using base class. Note: linked_clients not included by base class."""
     result = LicenseSerializer(lic).to_dict()
-    result["linked_clients"] = get_linked_clients_for_license(lic.id, db)
+    result["linked_clients"] = (vinculados.get(lic.id, []) if vinculados is not None
+                                else get_linked_clients_for_license(lic.id, db))
     return result
+
+
+#: Relaciones que leen los serializadores de cada listado, cargadas de antemano.
+_CARGA_PROVEEDOR = (selectinload(ALMVendor.contracts),)
+_CARGA_CONTRATO = (joinedload(ALMContract.vendor), joinedload(ALMContract.owner),
+                   selectinload(ALMContract.licenses))
+_CARGA_LICENCIA = (joinedload(ALMLicense.vendor), selectinload(ALMLicense.assignments))
+_CARGA_ACTIVO = (joinedload(ALMAsset.vendor), joinedload(ALMAsset.assigned_to),
+                 joinedload(ALMAsset.ci), selectinload(ALMAsset.installs))
 
 
 def serialize_asset(a: ALMAsset) -> dict[str, Any]:
@@ -226,14 +254,15 @@ def get_alm_dashboard(db: Session) -> dict:
 
 # ── Vendor record operations ──────────────────────────────────────────────────
 
-def list_vendors_records(q: Optional[str], category: Optional[str], db: Session) -> list:
+def list_vendors_records(q: Optional[str], category: Optional[str], db: Session,
+                         pagina: Optional[Paginacion] = None) -> Pagina:
 
-    query = db.query(ALMVendor).filter(ALMVendor.is_active == True)
+    query = db.query(ALMVendor).options(*_CARGA_PROVEEDOR).filter(ALMVendor.is_active == True)
     if q:
         query = query.filter(ALMVendor.name.ilike(f"%{q}%"))
     if category:
         query = query.filter(ALMVendor.category == category)
-    return [serialize_vendor(v) for v in query.order_by(ALMVendor.name).all()]
+    return paginar(query.order_by(ALMVendor.name), pagina, "alm.vendors").mapear(serialize_vendor)
 
 
 def create_vendor_record(data: dict, db: Session) -> dict:
@@ -301,9 +330,10 @@ def list_contracts_records(
     status: Optional[str],
     expiring_days: Optional[int],
     db: Session,
-) -> list:
+    pagina: Optional[Paginacion] = None,
+) -> Pagina:
 
-    query = db.query(ALMContract).filter(ALMContract.is_active == True)
+    query = db.query(ALMContract).options(*_CARGA_CONTRATO).filter(ALMContract.is_active == True)
     if vendor_id:
         query = query.filter(ALMContract.vendor_id == vendor_id)
     if status:
@@ -315,7 +345,9 @@ def list_contracts_records(
             ALMContract.renewal_date <= cutoff,
             ALMContract.renewal_date >= timeutil.today(),
         )
-    return [serialize_contract(c, db) for c in query.order_by(ALMContract.renewal_date.nullsfirst()).all()]
+    resultado = paginar(query.order_by(ALMContract.renewal_date.nullsfirst()), pagina, "alm.contracts")
+    vinculados = clientes_de_contratos([c.id for c in resultado.items], db)
+    return resultado.mapear(lambda c: serialize_contract(c, db, vinculados))
 
 
 def _limpiar_contrato(data: dict) -> dict:
@@ -393,9 +425,10 @@ def list_licenses_records(
     expiring_days: Optional[int],
     compliance_only: bool,
     db: Session,
-) -> list:
+    pagina: Optional[Paginacion] = None,
+) -> Pagina:
 
-    query = db.query(ALMLicense).filter(ALMLicense.is_active == True)
+    query = db.query(ALMLicense).options(*_CARGA_LICENCIA).filter(ALMLicense.is_active == True)
     if vendor_id:
         query = query.filter(ALMLicense.vendor_id == vendor_id)
     if status:
@@ -408,7 +441,9 @@ def list_licenses_records(
         )
     if compliance_only:
         query = query.filter(ALMLicense.is_compliance_req == True)
-    return [serialize_license(lic, db) for lic in query.order_by(ALMLicense.name).all()]
+    resultado = paginar(query.order_by(ALMLicense.name), pagina, "alm.licenses")
+    vinculados = clientes_de_licencias([lic.id for lic in resultado.items], db)
+    return resultado.mapear(lambda lic: serialize_license(lic, db, vinculados))
 
 
 def create_license_record(data: dict, db: Session) -> dict:
@@ -546,9 +581,10 @@ def list_assets_records(
     assigned_to: Optional[str],
     q: Optional[str],
     db: Session,
-) -> list:
+    pagina: Optional[Paginacion] = None,
+) -> Pagina:
 
-    query = db.query(ALMAsset).filter(ALMAsset.is_active == True)
+    query = db.query(ALMAsset).options(*_CARGA_ACTIVO).filter(ALMAsset.is_active == True)
     if type:
         query = query.filter(ALMAsset.type == type)
     if status:
@@ -562,7 +598,7 @@ def list_assets_records(
             ALMAsset.asset_tag.ilike(f"%{q}%"),
             ALMAsset.hostname.ilike(f"%{q}%"),
         ))
-    return [serialize_asset(a) for a in query.order_by(ALMAsset.name).all()]
+    return paginar(query.order_by(ALMAsset.name), pagina, "alm.assets").mapear(serialize_asset)
 
 
 #: Fechas del activo que llegan como texto del formulario.

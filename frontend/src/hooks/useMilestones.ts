@@ -1,40 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { milestonesApi } from '../services/api'
+import type { HitoDeFacturacion, HitoPendiente } from '../services/api/tipos-finanzas'
 
 const STALE = 2 * 60 * 1000
 
-export interface Milestone {
-  id: string
-  title?: string
-  due_date?: string
-  completed_at?: string | null
-  [extra: string]: unknown
-}
+/** serialize_milestone (services/api/tipos-finanzas.ts): el hito tiene `name` y `completed_date`. */
+export type Milestone = HitoDeFacturacion
 
 export type UpdateArgs<T> = { id: string; data: T }
 export type CreateMilestoneArgs = { projectId: string; data: Partial<Milestone> }
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
 export function useMilestones(projectId: string | undefined): UseQueryResult<Milestone[]> {
   return useQuery<Milestone[]>({
     queryKey: ['milestones', projectId],
-    queryFn: () => milestonesApi.list(projectId).then((r: { data?: { items?: Milestone[] } | Milestone[] | null }) => unwrapList<Milestone>(r)),
+    queryFn: () => milestonesApi.list(projectId).then(r => r.data),
     enabled: !!projectId,
     staleTime: STALE,
   })
 }
 
-export function useMilestoneDashboard(): UseQueryResult<Milestone[]> {
-  return useQuery<Milestone[]>({
+export function useMilestoneDashboard(): UseQueryResult<HitoPendiente[]> {
+  return useQuery<HitoPendiente[]>({
     queryKey: ['milestones-dashboard'],
-    queryFn: () => milestonesApi.dashboard().then((r: { data?: { items?: Milestone[] } | Milestone[] | null }) => unwrapList<Milestone>(r)),
+    queryFn: () => milestonesApi.dashboard().then(r => r.data),
     staleTime: STALE,
   })
 }

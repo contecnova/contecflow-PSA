@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { sdApprovalsApi } from '../services/api'
+import type { SdAprobacionPendiente } from '../services/api/tipos-sd'
 import { useAppT } from '../i18n/AppLangContext'
 import { MessageSquare } from 'lucide-react'
 import { Button, Spinner, Tabs } from '../components/ui'
@@ -52,9 +53,9 @@ export default function ServiceDeskPage() {
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth < 768
   const splitMode = selId && (tab === 'queue' || tab === 'all' || tab === 'kanban' || tab === 'approvals')
-  const { data: porAprobar = [] } = useQuery<PorAprobar[]>({
+  const { data: porAprobar = [] } = useQuery({
     queryKey: ['sd-approvals-mine'],
-    queryFn: () => sdApprovalsApi.mine().then(r => r.data as PorAprobar[]),
+    queryFn: () => sdApprovalsApi.mine().then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
   })
 
@@ -221,7 +222,7 @@ export default function ServiceDeskPage() {
       {showCreate && (
         <CreateTicketModal
           onClose={() => setShowCreate(false)}
-          onCreated={tk => { const created = tk as { id?: unknown }; if (created?.id) setSelId(String(created.id)) }}
+          onCreated={tk => setSelId(tk.id)}
         />
       )}
     </PageShell>
@@ -229,7 +230,7 @@ export default function ServiceDeskPage() {
 }
 
 
-type PorAprobar = { approval_id: string; ticket_id: string; number: string; title: string; requester_name?: string; service_item_name?: string; created_at?: string }
+type PorAprobar = SdAprobacionPendiente
 
 function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[]; seleccionado: string | null; onSelect: (id: string) => void }) {
   const t = useAppT()

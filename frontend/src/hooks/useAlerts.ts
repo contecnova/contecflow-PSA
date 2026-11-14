@@ -1,30 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS — typed as any via implicit import.
 import { alertsApi } from '../services/api'
+import type { Alerta } from '../services/api/tipos-documentos'
 import { queryKeys } from '../constants/queryKeys'
 import { POLL_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 
-export interface AlertItem {
-  id: string
-  message?: string
-  level?: 'info' | 'warning' | 'critical'
-  is_read?: boolean
-  resolved?: boolean
-  created_at?: string
-  [extra: string]: unknown
-}
+/** `AlertOut` (antes anunciaba `message`, `level` y `resolved`, que el backend no manda:
+ *  son `title`, `severity` e `is_resolved`). */
+export type AlertItem = Alerta
 
 export type AlertListParams = Record<string, unknown>
 
 export function useAlerts(params: AlertListParams = {}): UseQueryResult<AlertItem[]> {
   return useQuery<AlertItem[]>({
     queryKey: queryKeys.alerts.list(params),
-    queryFn: () => alertsApi.list(params).then((r: { data: { items?: AlertItem[] } | AlertItem[] }) => {
-      const d = r.data as { items?: AlertItem[] } | AlertItem[] | undefined
-      if (Array.isArray(d)) return d
-      return d?.items ?? []
-    }),
+    queryFn: () => alertsApi.list(params).then(r => r.data),
     staleTime: STALE_SHORT_MS,
     refetchInterval: POLL_DEFAULT_MS,
   })

@@ -11,6 +11,7 @@ from app.models.governance import ComplianceEvidence, TenantPolicyPack
 from app.models.ai_chat import AIGovernanceConfig, AIActionLog
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.paginacion import Pagina, Paginacion, paginar
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,8 @@ def list_compliance_evidence(
     organization_id: str,
     framework: Optional[str] = None,
     control_id: Optional[str] = None,
-) -> list[ComplianceEvidence]:
+    pagina: Optional[Paginacion] = None,
+) -> Pagina:
     q = db.query(ComplianceEvidence).filter(
         ComplianceEvidence.organization_id == organization_id
     )
@@ -104,7 +106,8 @@ def list_compliance_evidence(
         q = q.filter(ComplianceEvidence.framework == framework)
     if control_id:
         q = q.filter(ComplianceEvidence.control_id == control_id)
-    return q.order_by(ComplianceEvidence.created_at.desc()).all()
+    return paginar(q.order_by(ComplianceEvidence.created_at.desc(), ComplianceEvidence.id),
+                   pagina, "governance.evidence")
 
 
 def get_evidences_by_framework(

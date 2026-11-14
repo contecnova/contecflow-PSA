@@ -93,7 +93,7 @@ class User(Base):
     manager_id      = Column(String(36), ForeignKey("users.id",         ondelete="SET NULL"), nullable=True, index=True)
     # Fuera de la oficina (revision 2026-11): entre estas fechas sus aprobaciones
     # las recibe y puede decidirlas `away_delegate_id`.
-    away_delegate_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    away_delegate_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     away_from        = Column(Date, nullable=True)
     away_until       = Column(Date, nullable=True)
     # Rol personalizado: restringe modulos por encima del rol base (`app/core/modulos.py`).

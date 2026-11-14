@@ -2103,6 +2103,7 @@ const zh = {
     default_category_label: '默认类别',
     default_category_placeholder: '创建时自动赋予的类别',
     default_priority_label: '默认优先级',
+    target_project_label: '目标项目（任务表单必填）',
     priority_low: '低',
     priority_medium: '中',
     priority_high: '高',

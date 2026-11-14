@@ -190,7 +190,9 @@ def delete_task_type(type_id: str, db: Session = Depends(get_db), user: User = D
 # ── Alert configs ─────────────────────────────────────────────────────────────
 
 @router.get("/alert-configs", summary="Configuración de alertas")
-def get_alert_configs(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_alert_configs(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    # Segunda auditoría 2026-11: solo pedía sesión. Umbrales y destinatarios de
+    # las alertas de la empresa: lo administra (y lo edita) el administrador.
     return APIListResponse.ok(items=_svc.list_alert_configs(db))
 
 @router.patch("/alert-configs/{alert_type}", summary="Actualizar configuración de alerta")
@@ -346,7 +348,9 @@ def delete_custom_field(field_id: str, db: Session = Depends(get_db), user: User
         raise HTTPException(404, str(e))
 
 @router.get("/custom-fields/values/{entity_id}", summary="Valores de campos personalizados")
-def get_field_values(entity_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def get_field_values(entity_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Segunda auditoría 2026-11: hay que poder leer la entidad dueña (404 si no).
+    _svc.exigir_lectura_de_valores(db, current_user, entity_id)
     return APIResponse.ok(data=_svc.get_custom_field_values(entity_id, db))
 
 @router.post("/custom-fields/values/{entity_id}", summary="Guardar valores de campos")

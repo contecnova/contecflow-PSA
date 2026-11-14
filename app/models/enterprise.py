@@ -109,7 +109,7 @@ class ProjectPermission(Base):
     can_see_financials = Column(Boolean, default=False)   # Costs, rates, budgets
     can_see_rates      = Column(Boolean, default=False)   # Hourly rates of teammates
     can_export         = Column(Boolean, default=True)
-    granted_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    granted_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     granted_at   = Column(DateTime(timezone=True), server_default=func.now())
     expires_at   = Column(DateTime(timezone=True), nullable=True)  # Temporary access
     note         = Column(String(500), nullable=True)
@@ -150,7 +150,7 @@ class Webhook(Base):
     secret      = Column(String(255), nullable=True)   # HMAC signing secret
     events      = Column(Text, nullable=False)          # JSON array of WebhookEvent
     is_active   = Column(Boolean, default=True)
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True)  # None = all projects
+    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)  # None = all projects
 
     # Stats
     total_deliveries     = Column(Integer, default=0)
@@ -161,7 +161,7 @@ class Webhook(Base):
     consecutive_failures = Column(Integer, default=0, nullable=False)
     suspended_at         = Column(DateTime(timezone=True), nullable=True)
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -240,7 +240,7 @@ class SSOConfig(Base):
     default_role         = Column(String(50), default="employee")
     allowed_domains      = Column(String(500), nullable=True)  # comma-separated
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -336,7 +336,7 @@ class SubcontractorRate(Base):
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False)
+    subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     description      = Column(String(255), nullable=False)   # "Senior Dev", "DevOps", etc
     cost_rate        = Column(Float, nullable=False)          # What we pay them €/h
     sell_rate        = Column(Float, nullable=True)           # What we charge client €/h
@@ -386,7 +386,7 @@ class SubcontractorWorkerSkill(Base):
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     worker_id        = Column(String(36), ForeignKey("subcontractor_workers.id", ondelete="CASCADE"), nullable=False, index=True)
-    skill_id         = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False)
+    skill_id         = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
     level            = Column(String(20), nullable=False, default="intermediate")  # basic/intermediate/advanced/expert
     years_experience = Column(Float, nullable=True)
     certified        = Column(Boolean, default=False)
@@ -408,7 +408,7 @@ class SubcontractorAssignment(Base):
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id"), nullable=False, index=True)
     worker_id        = Column(String(36), ForeignKey("subcontractor_workers.id"), nullable=True, index=True)
     project_id       = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
-    rate_id          = Column(String(36), ForeignKey("subcontractor_rates.id"), nullable=True)
+    rate_id          = Column(String(36), ForeignKey("subcontractor_rates.id"), nullable=True, index=True)
     po_number        = Column(String(100), nullable=True)    # Purchase Order
     po_amount        = Column(Float, nullable=True)          # PO ceiling €
     hours_contracted = Column(Float, nullable=True)
@@ -431,7 +431,7 @@ class SubcontractorInvoice(Base):
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
-    assignment_id    = Column(String(36), ForeignKey("subcontractor_assignments.id"), nullable=True)
+    assignment_id    = Column(String(36), ForeignKey("subcontractor_assignments.id"), nullable=True, index=True)
     invoice_number   = Column(String(100), nullable=False)
     issue_date       = Column(Date, nullable=False)
     due_date         = Column(Date, nullable=True)
@@ -465,7 +465,7 @@ class SubcontractorTimeLog(Base):
     cost_amount      = Column(Float, nullable=True)           # horas × coste_tarifa
     is_active        = Column(Boolean, default=True, nullable=False)
     is_invoiced      = Column(Boolean, default=False)         # incluido en alguna factura
-    invoice_id       = Column(String(36), ForeignKey("subcontractor_invoices.id"), nullable=True)
+    invoice_id       = Column(String(36), ForeignKey("subcontractor_invoices.id"), nullable=True, index=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
 
     assignment    = relationship("SubcontractorAssignment")

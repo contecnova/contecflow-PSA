@@ -7,6 +7,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.paginacion import Pagina, Paginacion, paginar
 from app.models.public_forms import PublicForm, PublicFormSubmission
 from app.models.service_desk import Ticket, TicketStatus, TicketType, TicketPriority
 
@@ -93,13 +94,13 @@ def delete_form(db: Session, form: PublicForm) -> None:
     db.commit()
 
 
-def list_submissions(db: Session, form_id: str) -> list[PublicFormSubmission]:
-    return (
+def list_submissions(db: Session, form_id: str, pagina: Optional[Paginacion] = None) -> Pagina:
+    q = (
         db.query(PublicFormSubmission)
         .filter(PublicFormSubmission.form_id == form_id)
-        .order_by(PublicFormSubmission.submitted_at.desc())
-        .all()
+        .order_by(PublicFormSubmission.submitted_at.desc(), PublicFormSubmission.id)
     )
+    return paginar(q, pagina, "forms.submissions")
 
 
 # ── Public (unauthenticated) ───────────────────────────────────────────────────

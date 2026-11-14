@@ -10,7 +10,7 @@
 import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
-import type { AccesoBi as AuditEvent, ResumenDeGobiernoBi as OverviewData } from '../../services/api/tipos-grc'
+import type { AccesoBi as AuditEvent, ReglasDeGobiernoBi, ResumenDeGobiernoBi as OverviewData } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
@@ -210,11 +210,8 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
   )
 }
 
-interface Reglas {
-  olap_max_staleness_hours?: number
-  max_error_reports?: number
-  require_active_schedules?: boolean
-}
+/** Lo que se edita de las reglas: el PATCH acepta cualquier subconjunto. */
+type Reglas = Partial<ReglasDeGobiernoBi>
 
 interface ApiError {
   response?: { data?: { detail?: string } }
@@ -246,7 +243,7 @@ export default function BiGovernancePanel() {
   })
 
   const [reglas, setReglas] = useState<Reglas>({})
-  useEffect(() => { if (policiesData && typeof policiesData === 'object') setReglas(policiesData as Reglas) }, [policiesData])
+  useEffect(() => { if (policiesData) setReglas(policiesData) }, [policiesData])
   const guardarReglas = useMutation({
     mutationFn: (r: Reglas) => biCollaborationApi.updateGovernanceRules(r).then(x => x.data),
     onSuccess: () => { toast.success(t('bigovernance.reglas_guardadas')); qc.invalidateQueries({ queryKey: ['bi-gov-policies'] }) },

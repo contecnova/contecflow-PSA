@@ -40,7 +40,7 @@ class ReviewCycle(Base):
     include_self   = Column(Boolean, default=True)
     include_peers  = Column(Boolean, default=True)
     include_manager = Column(Boolean, default=True)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     reviews     = relationship("PerformanceReview", back_populates="cycle",
                                cascade="all, delete-orphan")
@@ -102,7 +102,7 @@ class Review360Campaign(Base):
     # Umbral de anonimización: por debajo de N evaluadores en un grupo, las
     # respuestas individuales no se exponen, solo el agregado del grupo.
     anonymity_threshold = Column(Integer, nullable=False, default=3)
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     closed_at    = Column(DateTime(timezone=True), nullable=True)
 
@@ -194,7 +194,7 @@ class DevelopmentPlan(Base):
     status        = Column(Enum(DevPlanStatus), default=DevPlanStatus.draft, nullable=False)
     target_date   = Column(Date, nullable=True)
     next_review_at = Column(Date, nullable=True)
-    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
 

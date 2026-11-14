@@ -5,39 +5,14 @@
 import React, { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { biAnomalyApi } from '../../services/api'
+import type { AbandonoDeClienteBi, DeteccionDeAnomaliasBi, NivelDeAbandono } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { AlertTriangle, TrendingDown } from 'lucide-react'
 
-const RISK_COLORS: Record<string, string> = {
+const RISK_COLORS: Record<NivelDeAbandono, string> = {
   low:      'var(--success)',
   medium:   'var(--warning)',
   high:     'var(--danger)',
-  critical: 'var(--danger)',
-}
-
-// TODO type: biAnomalyApi responses — needs shared types
-interface AnomalyPoint {
-  period?: string
-  index?: number
-  value?: number
-  score?: number
-}
-
-interface AnomalyResult {
-  anomaly_count?: number
-  total_points?: number
-  anomalies?: AnomalyPoint[]
-}
-
-interface ChurnFactor {
-  feature: string
-  importance?: number
-}
-
-interface ChurnResult {
-  churn_probability: number
-  risk_level?: string
-  top_factors?: Array<ChurnFactor | string>
 }
 
 // Los nombres que usa el modelo (`CHURN_FEATURES` en bi_anomaly_service).
@@ -68,7 +43,7 @@ export default function BiAnomalyPanel() {
   const t = useAppT()
 
   const [anomalyMetric, setAnomalyMetric] = useState<string>('revenue')
-  const [anomalyResult, setAnomalyResult] = useState<AnomalyResult | null>(null)
+  const [anomalyResult, setAnomalyResult] = useState<DeteccionDeAnomaliasBi | null>(null)
 
   const [churnClientId, setChurnClientId] = useState<string>('')
   const [churnFeatures, setChurnFeatures] = useState<ChurnFeatures>({
@@ -80,21 +55,21 @@ export default function BiAnomalyPanel() {
     last_login_days_ago: 5,
     active_projects: 1,
   })
-  const [churnResult, setChurnResult] = useState<ChurnResult | null>(null)
+  const [churnResult, setChurnResult] = useState<AbandonoDeClienteBi | null>(null)
 
-  // TODO type: biAnomalyApi.getInfo response
-  const { data: infoData } = useQuery<{ sklearn_available?: boolean; lgbm_available?: boolean }>({
+  const { data: infoData } = useQuery({
     queryKey: ['bi-anomaly-info'],
     queryFn: () => biAnomalyApi.getInfo().then(r => r.data),
   })
 
-  const anomalyMutation = useMutation<AnomalyResult, unknown, { metric: string }>({
-    mutationFn: (payload) => biAnomalyApi.detect(payload).then(r => r.data),
+  const anomalyMutation = useMutation({
+    mutationFn: (payload: { metric: string }) => biAnomalyApi.detect(payload).then(r => r.data),
     onSuccess: setAnomalyResult,
   })
 
-  const churnMutation = useMutation<ChurnResult, unknown, { client_id: string; features: ChurnFeatures }>({
-    mutationFn: (payload) => biAnomalyApi.churnPredict(payload).then(r => r.data),
+  const churnMutation = useMutation({
+    // Con `client_id` el servidor devuelve solo ese cliente; sin él, el lote (`clients`).
+    mutationFn: (payload: { client_id: string; features: ChurnFeatures }) => biAnomalyApi.churnPredict(payload).then(r => ('clients' in r.data ? r.data.clients[0] : r.data)),
     onSuccess: setChurnResult,
   })
 
@@ -138,14 +113,14 @@ export default function BiAnomalyPanel() {
           <div>
             <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>
               {t('bi.anomaly.found', 'Anomalías encontradas')}:{' '}
-              <strong style={{ color: 'var(--orange)' }}>{anomalyResult.anomaly_count ?? anomalyResult.anomalies?.length ?? 0}</strong>
+              <strong style={{ color: 'var(--orange)' }}>{anomalyResult.anomaly_count}</strong>
               {' '}/ {anomalyResult.total_points} {t('bi.anomaly.points', 'puntos')}
             </p>
-            {anomalyResult.anomalies?.slice(0, 5).map((a, i) => (
+            {anomalyResult.anomalies.slice(0, 5).map((a, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                 <span style={{ color: 'var(--orange)' }}>⚠</span>
-                <span>{a.period ?? `punto ${a.index ?? i}`}: {a.value?.toFixed?.(2) ?? a.value}</span>
-                {a.score != null && <span className="u-text3">score: {a.score.toFixed(3)}</span>}
+                <span>{a.period ?? `punto ${a.index}`}: {a.value.toFixed(2)}</span>
+                <span className="u-text3">score: {a.score.toFixed(3)}</span>
               </div>
             ))}
           </div>
@@ -198,22 +173,22 @@ export default function BiAnomalyPanel() {
         {churnResult && (
           <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
             {(() => {
-              const riskKey = churnResult.risk_level ?? 'low'
-              const factors = churnResult.top_factors ?? []
+              const riskKey = churnResult.risk_level
+              const factors = churnResult.top_factors
               return (
                 <>
             <p style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>
               {t('bi.churn.probability', 'Probabilidad de churn')}:{' '}
               <strong>{(churnResult.churn_probability * 100).toFixed(1)}%</strong>
             </p>
-            <p style={{ fontSize: "var(--text-base)", fontWeight: 700, color: RISK_COLORS[riskKey] ?? 'var(--text-3)', marginBottom: factors.length ? 8 : 0 }}>
-              {t('bi.churn.risk', 'Riesgo')}: {(churnResult.risk_level ?? 'low').toUpperCase()}
+            <p style={{ fontSize: "var(--text-base)", fontWeight: 700, color: RISK_COLORS[riskKey], marginBottom: factors.length ? 8 : 0 }}>
+              {t('bi.churn.risk', 'Riesgo')}: {churnResult.risk_level.toUpperCase()}
             </p>
             {factors.length > 0 && (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {factors.slice(0, 3).map((f, i) => (
                   <li key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '2px 0' }}>
-                    → {typeof f === 'string' ? f : `${f.feature}: ${f.importance?.toFixed(2)}`}
+                    → {f}
                   </li>
                 ))}
               </ul>

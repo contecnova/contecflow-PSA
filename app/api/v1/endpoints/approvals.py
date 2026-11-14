@@ -120,6 +120,38 @@ def get_workflow_endpoint(
     return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
+@router.get("/workflows/{workflow_id}/diagram", summary="Diagrama gráfico del flujo (generado de los pasos si no hay)")
+def get_workflow_diagram(
+    workflow_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from app.services.approval_engine import diagrama
+    return APIResponse.ok(data=diagrama.diagrama_de(db, workflow_id))
+
+
+@router.post("/workflows/{workflow_id}/diagram/check", summary="Validar y compilar un diagrama sin guardarlo")
+def check_workflow_diagram(
+    workflow_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from app.services.approval_engine import diagrama
+    return APIResponse.ok(data=diagrama.comprobar(db, workflow_id, payload))
+
+
+@router.put("/workflows/{workflow_id}/diagram", summary="Guardar el diagrama (se compila a los pasos del flujo)")
+def save_workflow_diagram(
+    workflow_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from app.services.approval_engine import diagrama
+    return APIResponse.ok(data=diagrama.guardar(db, current_user, workflow_id, payload))
+
+
 @router.patch("/workflows/{workflow_id}", summary="Actualizar flujo")
 def update_workflow_endpoint(
     workflow_id: str,

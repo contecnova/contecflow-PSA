@@ -83,19 +83,15 @@ def _default_config() -> dict:
 # ── Inbound SMS → ticket ──────────────────────────────────────────────────────
 
 def _organizacion_por_numero(db: Session, to_phone: Optional[str]) -> Optional[str]:
-    """La organizacion cuyo numero de Twilio (`from_number`) recibio el SMS."""
-    from app.db.session import sin_filtro_de_tenant
-    from app.models.settings import IntegrationCredential
+    """La organizacion cuyo numero de Twilio recibio el SMS.
 
-    if not to_phone:
-        return None
-    with sin_filtro_de_tenant(db):
-        fila = db.query(IntegrationCredential).filter(
-            IntegrationCredential.provider == "twilio",
-            IntegrationCredential.key == "from_number",
-            IntegrationCredential.value == to_phone.strip(),
-        ).first()
-    return fila.organization_id if fila else None
+    Segunda auditoria 2026-11 (#19): la misma resolucion que la voz
+    (`TWILIO_PHONE_NUMBERS` o `twilio.from_number`); un numero declarado por
+    dos organizaciones ya no se asigna a la primera que devuelva la consulta.
+    """
+    from app.services.service_desk.sms_service import organizacion_del_numero_de_twilio
+
+    return organizacion_del_numero_de_twilio(db, to_phone)
 
 
 def process_inbound_sms(db: Session, from_phone: str, body: str, to_phone: Optional[str] = None) -> dict:

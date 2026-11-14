@@ -24,7 +24,7 @@ export { useChanges, useAllChanges, useChange, useCreateChange, useUpdateChange,
 export { useClients, useAllClients, useClient, useCreateClient, useUpdateClient, useDeleteClient } from './useClients'
 export { useContracts, useAllContracts, useContract, useCreateContract, useUpdateContract, useDeleteContract } from './useContracts'
 export { useKpis, useProjectsHealth, useResourceLoad, useProfitability, useTeamProductivity } from './useDashboard'
-export { useEpics, useAllEpics, useCreateEpic, useUpdateEpic, useDeleteEpic } from './useEpics'
+export { useEpics, useCreateEpic, useUpdateEpic, useDeleteEpic } from './useEpics'
 export {
 	useMyExpenses, useTeamExpenses, usePendingExpenses, useCreateExpense, useUpdateExpense,
 	useReimburseExpense, useSubmitExpense, useRecallExpense, useExpenseOCR,

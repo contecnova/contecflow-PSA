@@ -29,6 +29,7 @@ from app.services import public_forms_service
 from app.services.widget_de_formulario import TEXTOS
 from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.services.public_forms_service import serialize_form as _form_out
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 
 router = APIRouter(prefix="/forms", tags=["Public Forms"])
@@ -159,15 +160,15 @@ def delete_form(form_id: str, db: Session = Depends(get_db), current_user: User 
 
 
 @router.get("/{form_id}/submissions", summary="Envíos de un formulario")
-def list_submissions(form_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_submissions(form_id: str, response: Response, pagina: Paginacion = Depends(paginacion),
+                     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
         raise HTTPException(404, "Formulario no encontrado")
     if form.created_by != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
-    subs = public_forms_service.list_submissions(db, form_id)
-    items = [
-        {
+    subs = public_forms_service.list_submissions(db, form_id, pagina)
+    return lista_paginada(response, subs.mapear(lambda s: {
             "id": s.id,
             "submitter_name": s.submitter_name,
             "submitter_email": s.submitter_email,
@@ -178,10 +179,7 @@ def list_submissions(form_id: str, db: Session = Depends(get_db), current_user: 
             "created_entity_id": s.created_entity_id,
             "created_entity_type": s.created_entity_type,
             "submitted_at": s.submitted_at.isoformat() if s.submitted_at else None,
-        }
-        for s in subs
-    ]
-    return APIListResponse.ok(items=items, total=len(items))
+        }))
 
 
 # ── Public (unauthenticated) endpoints ────────────────────────────────────────

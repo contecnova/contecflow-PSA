@@ -1,50 +1,48 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
+import type { AxiosResponse } from 'axios'
 import { pipelineApi } from '../services/api'
+import type { Oportunidad, OportunidadConvertida } from '../services/api/tipos-personas'
 
 const STALE = 2 * 60 * 1000
 
-export interface Opportunity {
-  id: string
-  name?: string
-  status?: string
-  [extra: string]: unknown
-}
+export type Opportunity = Oportunidad
+/** Cuerpo de alta o edicion (`OpportunityIn` / `OpportunityUpdate` en app/schemas/pipeline.py). */
+export type OpportunityPayload = Record<string, unknown>
 
 export type PipelineParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 export type GenerateProposalArgs = { id: string; payload: Record<string, unknown> }
 
-export function usePipeline(params: PipelineParams = {}): UseQueryResult<unknown> {
+export function usePipeline(params: PipelineParams = {}): UseQueryResult<Oportunidad[]> {
   return useQuery({
     queryKey: ['pipeline', params],
-    queryFn: () => pipelineApi.list(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => pipelineApi.list(params).then((r) => r.data),
     staleTime: STALE,
   })
 }
 
-export function useOpportunity(id: string | undefined): UseQueryResult<unknown> {
+export function useOpportunity(id: string | undefined): UseQueryResult<Oportunidad> {
   return useQuery({
     queryKey: ['pipeline', id],
-    queryFn: () => pipelineApi.get(id).then((r: { data: unknown }) => r.data),
+    queryFn: () => pipelineApi.get(id).then((r) => r.data),
     enabled: !!id,
     staleTime: STALE,
   })
 }
 
-export function useCreateOpportunity(): UseMutationResult<unknown, unknown, Partial<Opportunity>> {
+export function useCreateOpportunity(): UseMutationResult<unknown, unknown, OpportunityPayload> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: Partial<Opportunity>) => pipelineApi.create(data),
+    mutationFn: (data: OpportunityPayload) => pipelineApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline'] }),
   })
 }
 
-export function useUpdateOpportunity(): UseMutationResult<unknown, unknown, UpdateArgs<Partial<Opportunity>>> {
+export function useUpdateOpportunity(): UseMutationResult<unknown, unknown, UpdateArgs<OpportunityPayload>> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: UpdateArgs<Partial<Opportunity>>) => pipelineApi.update(id, data),
+    mutationFn: ({ id, data }: UpdateArgs<OpportunityPayload>) => pipelineApi.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline'] }),
   })
 }
@@ -73,7 +71,7 @@ export function useMarkProposalSent(): UseMutationResult<unknown, unknown, strin
   })
 }
 
-export function useConvertToProject(): UseMutationResult<unknown, unknown, string> {
+export function useConvertToProject(): UseMutationResult<AxiosResponse<OportunidadConvertida>, unknown, string> {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => pipelineApi.convertToProject(id),

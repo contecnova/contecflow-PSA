@@ -1,10 +1,10 @@
-import type { ZodIssue, ZodSchema } from 'zod'
+import type { ZodType, core } from 'zod'
 import type { CSSProperties } from 'react'
 
 export type FieldErrors = Record<string, string>
 
 interface ZodErrorLike {
-  issues: ZodIssue[]
+  issues: core.$ZodIssue[]
 }
 
 export function getFirstIssueByField(error: ZodErrorLike): FieldErrors {
@@ -44,7 +44,7 @@ export type ValidationResult<T> =
   | { success: true;  data: T;    errors: FieldErrors }
   | { success: false; data: null; errors: FieldErrors }
 
-export function validateSchema<T>(schema: ZodSchema<T>, values: unknown): ValidationResult<T> {
+export function validateSchema<T>(schema: ZodType<T>, values: unknown): ValidationResult<T> {
   const parsed = schema.safeParse(values)
 
   if (parsed.success) {

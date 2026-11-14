@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, tasksApi } from '../services/api'
+import type { EpicaDelRoadmap, EpicaSerializada, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
 import { useAuth } from '../context/AuthContext'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -16,28 +17,17 @@ import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { FULL_LIST_SIZE } from '../constants/pagination'
 
-type EpicStatus = 'open' | 'in_progress' | 'done' | 'cancelled'
-type EpicPriority = 'low' | 'medium' | 'high' | 'critical'
+// EpicIn: estado y prioridad son texto (la interfaz ofrece los de STATUS_CFG y PRIORITY_CFG).
+type EpicStatus = EpicaSerializada['status']
+type EpicPriority = EpicaSerializada['priority']
 
 interface ProjectItem {
   id: string | number
   name?: string
 }
 
-interface EpicItem {
-  id: string | number
-  title: string
-  description?: string
-  color?: string
-  status?: EpicStatus
-  priority?: EpicPriority
-  start_date?: string
-  end_date?: string
-  sort_order?: number
-  task_count?: number
-  done_tasks?: number
-  progress?: number
-}
+/** epics_service.serialize_epic; `progress` solo llega en el roadmap (get_roadmap_data). */
+type EpicItem = EpicaSerializada & { progress?: EpicaDelRoadmap['progress'] }
 
 interface EpicFormState {
   title: string
@@ -107,12 +97,12 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={{...is,height:70,resize:'vertical'}} value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
         <div className="u-grid2-12">
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('common.status')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={form.status} onChange={e=>set('status')(e.target.value as EpicStatus)}>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={form.status} onChange={e=>set('status')(e.target.value)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
           <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('common.priority')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} style={is} value={form.priority} onChange={e=>set('priority')(e.target.value as EpicPriority)}>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} style={is} value={form.priority} onChange={e=>set('priority')(e.target.value)}>
               {Object.entries(PRIORITY_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
@@ -148,15 +138,12 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
   const toast = useToast()
   const qc = useQueryClient()
   const [elegida, setElegida] = useState('')
-  const ficha = useQuery({ queryKey: ['epic', epic.id], queryFn: () => epicsApi.get(epic.id).then(r => r.data as { tasks?: { id: string; title: string; status: string }[] }) })
+  const ficha = useQuery({ queryKey: ['epic', epic.id], queryFn: () => epicsApi.get(epic.id).then(r => r.data) })
   const tareas = useQuery({ queryKey: ['tasks', projectId, 'epic'], enabled: canEdit,
-    queryFn: () => tasksApi.list({ project_id: projectId, page_size: FULL_LIST_SIZE }).then(r => {
-      const d = r.data as { items?: { id: string; title: string }[] } | { id: string; title: string }[]
-      return Array.isArray(d) ? d : (d?.items ?? [])
-    }) })
+    queryFn: () => tasksApi.list({ project_id: projectId, page_size: FULL_LIST_SIZE }).then(r => r.data) })
   const enlazadas = ficha.data?.tasks ?? []
   const libres = (tareas.data ?? []).filter(x => !enlazadas.some(e => e.id === x.id))
-  const refrescar = () => { qc.invalidateQueries({ queryKey: ['epic', epic.id] }); qc.invalidateQueries({ queryKey: ['epics'] }) }
+  const refrescar = () => { qc.invalidateQueries({ queryKey: ['epic', epic.id] }); qc.invalidateQueries({ queryKey: ['epics'] }); qc.invalidateQueries({ queryKey: ['roadmap'] }) }
   const enlazar = async (taskId: string, quitar = false) => {
     try { await (quitar ? epicsApi.unlinkTask(epic.id, taskId) : epicsApi.linkTask(epic.id, taskId)); setElegida(''); refrescar() }
     catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
@@ -281,18 +268,17 @@ export default function EpicsPage(): JSX.Element {
 
   const { data:projectsRaw=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list({}).then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
   const projects = projectsRaw as ProjectItem[]
-  const { data:epicsRaw=[],isLoading } = useQuery({
+  const { data:epics=[],isLoading } = useQuery({
     queryKey:['epics',project],
-    queryFn:()=>epicsApi.list(project).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>epicsApi.list(project).then(r=>r.data).catch(():EpicaSerializada[]=>[]),
     enabled:!!project,
   })
-  const epics = epicsRaw as EpicItem[]
-  const { data:roadmapRaw } = useQuery({
+  const { data:roadmap } = useQuery({
     queryKey:['roadmap',project],
-    queryFn:()=>epicsApi.roadmap(project).then(r=>r.data).catch(()=>null),
-    enabled:!!project&&view==='roadmap',
+    queryFn:()=>epicsApi.roadmap(project).then(r=>r.data).catch(():RoadmapDeEpicas|null=>null),
+    // También en la lista: el avance (tareas hechas) solo lo calcula el roadmap.
+    enabled:!!project,
   })
-  const roadmap = (roadmapRaw ?? null) as { epics?: EpicItem[] } | null
 
   const { mutate:deleteEpic } = useMutation({
     mutationFn: (id: string | number) => epicsApi.delete(id),
@@ -301,6 +287,7 @@ export default function EpicsPage(): JSX.Element {
   })
 
   const roadmapEpics = roadmap?.epics || epics
+  const avancePorEpica = new Map((roadmap?.epics ?? []).map(e => [e.id, e]))
 
   return (
     <PageShell>
@@ -365,7 +352,8 @@ export default function EpicsPage(): JSX.Element {
             {epics.map(epic=>{
               const st  = STATUS_CFG[epic.status ?? 'open']  || STATUS_CFG.open
               const pri = PRIORITY_CFG[epic.priority ?? 'medium'] || PRIORITY_CFG.medium
-              const progress = (epic.task_count ?? 0)>0 ? Math.round((epic.done_tasks||0)/(epic.task_count ?? 0)*100) : 0
+              // La lista no trae `done_tasks` (antes salía siempre 0 %): el avance viene del roadmap.
+              const progress = avancePorEpica.get(epic.id)?.progress ?? 0
               return (
                 <button key={epic.id} type="button" style={{...ps,padding:'16px 20px',border:`1px solid ${alpha(epic.color, '30')}`,cursor:'pointer',width:'100%',textAlign:'left',fontFamily:'inherit'}}
                   onClick={()=>setDetailEpic(epic)}>

@@ -13,7 +13,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { portalApi, portalClientsApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
-import type { Entregable, PortalPeticion, PortalSesionUat, PortalUsuario } from '../services/api/tipos-alm'
+import type { Entregable, PortalPeticion, PortalSesionUat, PortalUsuario, VisibilidadDeWiki, WikiPaginaEnArbol } from '../services/api/tipos-alm'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
 import { useTabListKeys } from '../components/ui/Tabs'
 import {
@@ -46,7 +46,7 @@ const uatSessionSchema = z.object({
 }).superRefine((values, ctx) => {
   if (values.available_from && values.deadline && values.deadline < values.available_from) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['deadline'],
       message: 'La fecha limite no puede ser anterior a la fecha disponible desde',
     })
@@ -55,7 +55,7 @@ const uatSessionSchema = z.object({
 
 const portalClientCreateSchema = z.object({
   full_name: z.string().trim().min(1, 'El nombre es obligatorio'),
-  email: z.string().trim().email('Email invalido'),
+  email: z.string().trim().pipe(z.email('Email invalido')),
   job_title: z.string().optional(),
   company: z.string().optional(),
   phone: z.string().optional(),
@@ -68,7 +68,7 @@ const portalClientCreateSchema = z.object({
 
 const portalClientEditSchema = z.object({
   full_name: z.string().trim().min(1, 'El nombre es obligatorio'),
-  email: z.string().trim().email('Email invalido'),
+  email: z.string().trim().pipe(z.email('Email invalido')),
   job_title: z.string().optional(),
   company: z.string().optional(),
   phone: z.string().optional(),
@@ -103,7 +103,10 @@ type FormDocumento = { title: string; description: string; category: string; fil
 
 /** epics_service.serialize_page: el backend NO envía `visibility` ni tiene ruta para cambiarla
  *  (WikiPageIn no la acepta); el selector de visibilidad no puede funcionar sin ese cambio. */
-interface PaginaWiki { id: string; title: string; slug: string; visibility?: string | null }
+/** El árbol de páginas en una lista (con su profundidad): la visibilidad se fija por página. */
+function aplanarPaginas(paginas: WikiPaginaEnArbol[], nivel = 0): Array<WikiPaginaEnArbol & { nivel: number }> {
+  return paginas.flatMap(p => [{ ...p, nivel }, ...aplanarPaginas(p.children, nivel + 1)])
+}
 
 function StatusBadge({ status, cfg }: { status: string; cfg: Record<string, StatusConfig> }) {
   const t = useAppT()
@@ -868,18 +871,19 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
   const [selectedSpace, setSelectedSpace] = React.useState('')
   const { data: pages = [], isLoading } = useQuery({
     queryKey: ['wiki-pages-portal-op', selectedSpace],
-    queryFn: () => wikiApi.portalPages(selectedSpace).then((r): PaginaWiki[] => r.data),
+    // Antes solo salían las páginas raíz: las subpáginas no se podían publicar.
+    queryFn: () => wikiApi.portalPages(selectedSpace).then(r => aplanarPaginas(r.data)),
     enabled: !!selectedSpace,
   })
   const toast = useToast()
   const qc = useQueryClient()
   const { mutate: setVis } = useMutation({
-    mutationFn: ({ id, visibility }: { id: string; visibility: string }) => wikiApi.portalUpdatePage(id, { visibility }),
+    mutationFn: ({ id, visibility }: { id: string; visibility: VisibilidadDeWiki }) => wikiApi.portalUpdatePage(id, { visibility }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wiki-pages-portal-op', selectedSpace] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const VIS = {
+  const VIS: Record<VisibilidadDeWiki, { label: string; color: string }> = {
     team:   { label: `${t('client_portal.wiki_vis_team')}`, color: 'var(--text-2)' },
     portal: { label: `${t('client_portal.wiki_vis_portal')}`, color: 'var(--accent)' },
     public: { label: `${t('client_portal.wiki_vis_public')}`, color: 'var(--success)' },
@@ -906,15 +910,15 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
         <div className="ds-card ds-card--plano">
           {pages.map((page, i) => (
             <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
-              <span style={{ fontSize: "var(--text-lg)" }}>📄</span>
+              <span style={{ fontSize: "var(--text-lg)", marginLeft: page.nivel * 18 }}>📄</span>
               <div className="u-flex1">
                 <div className="u-base-600">{page.title}</div>
                 <div className="u-text2-xs">{page.slug}</div>
               </div>
               <div className="u-row-6">
-                {Object.entries(VIS).map(([val, cfg]) => (
+                {(Object.entries(VIS) as Array<[VisibilidadDeWiki, { label: string; color: string }]>).map(([val, cfg]) => (
                   <button key={val} onClick={() => setVis({ id: page.id, visibility: val })}
-                    style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${(page.visibility || 'team') === val ? alpha(cfg.color, '60') : 'var(--surface-4)'}`, background: (page.visibility || 'team') === val ? alpha(cfg.color, '15') : 'transparent', color: (page.visibility || 'team') === val ? cfg.color : 'var(--text-3)', fontSize: "var(--text-xs)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${page.visibility === val ? alpha(cfg.color, '60') : 'var(--surface-4)'}`, background: page.visibility === val ? alpha(cfg.color, '15') : 'transparent', color: page.visibility === val ? cfg.color : 'var(--text-3)', fontSize: "var(--text-xs)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {cfg.label}
                   </button>
                 ))}

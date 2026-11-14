@@ -5,28 +5,13 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { biForecastingApi } from '../../services/api'
+import type { PrevisionBi } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { TrendingUp } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
 } from 'recharts'
-
-// TODO type: biForecastingApi response — needs shared type
-interface ForecastPoint {
-  value: number
-  lower?: number
-  upper?: number
-}
-
-interface ForecastResult {
-  forecast?: Array<ForecastPoint | number>
-  // El backend manda las bandas aparte, una lista por limite.
-  lower_bound?: number[]
-  upper_bound?: number[]
-}
-
-const METHODS = ['linear', 'holt', 'prophet'] as const
 
 const S: Record<string, React.CSSProperties> = {
   card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
@@ -41,25 +26,26 @@ export default function BiForecastingPanel() {
   const t              = useAppT()
   const { tokens }     = useChartTheme()
   const [metric, setMetric]   = useState<string>('revenue')
-  const [method, setMethod]   = useState<string>('linear')
+  const [method, setMethod]   = useState<string>('linear_trend')
   const [periods, setPeriods] = useState<number>(6)
-  const [forecastData, setForecastData] = useState<ForecastResult | null>(null)
+  const [forecastData, setForecastData] = useState<PrevisionBi | null>(null)
 
-  const { data: metricsData } = useQuery<{ metrics?: string[] }>({
+  const { data: metricsData } = useQuery({
     queryKey: ['bi-forecast-metrics'],
     queryFn:  () => biForecastingApi.getMetrics().then(r => r.data),
   })
 
-  const forecastMutation = useMutation<ForecastResult, unknown, { metric: string; method: string; periods: number }>({
-    mutationFn: (payload) => biForecastingApi.forecast(payload.metric, { method: payload.method, periods: payload.periods }).then(r => r.data),
+  const forecastMutation = useMutation({
+    mutationFn: (payload: { metric: string; method: string; periods: number }) => biForecastingApi.forecast(payload.metric, { method: payload.method, periods: payload.periods }).then(r => r.data),
     onSuccess:  (data) => setForecastData(data),
   })
 
-  const chartData = forecastData?.forecast?.map((val, i) => ({
+  // Listas paralelas: una posición por periodo en `forecast`, `lower_bound` y `upper_bound`.
+  const chartData = forecastData?.forecast.map((value, i) => ({
     period: `+${i + 1}`,
-    value:  typeof val === 'object' ? val.value : val,
-    lower:  typeof val === 'object' ? val.lower : forecastData?.lower_bound?.[i],
-    upper:  typeof val === 'object' ? val.upper : forecastData?.upper_bound?.[i],
+    value,
+    lower:  forecastData.lower_bound[i],
+    upper:  forecastData.upper_bound[i],
   })) ?? []
 
   return (
@@ -91,7 +77,7 @@ export default function BiForecastingPanel() {
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={S.label}>{t('bi.forecasting.method', 'Método')}</label>
           <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={method} onChange={e => setMethod(e.target.value)} style={S.select}>
-            {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+            {(metricsData?.methods ?? [method]).map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
 

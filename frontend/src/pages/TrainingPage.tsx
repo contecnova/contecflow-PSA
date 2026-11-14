@@ -6,6 +6,8 @@ import { CSSProperties, useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingApi, usersApi } from '../services/api'
+import type { PersonaVisible } from '../services/api'
+import type { Certificacion, Curso, EstadoDeInscripcion, Inscripcion } from '../services/api/tipos-personas'
 import { Button, Modal, Spinner, EmptyState, Table } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -20,50 +22,10 @@ import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-type TrainingStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled'
-
-interface CourseItem {
-  id: string | number
-  title: string
-  description?: string
-  provider?: string
-  category?: string
-  duration_h?: number | string
-  url?: string
-  cost?: number
-  enrolled?: number
-}
-
-interface CertItem {
-  id: string | number
-  user_id?: string | number
-  user_name?: string
-  name: string
-  issuer?: string
-  cert_id?: string
-  obtained_at?: string
-  expires_at?: string
-  url?: string
-  notes?: string
-  is_expired?: boolean
-  expiring_soon?: boolean
-  days_until_expiry?: number
-}
-
-interface EnrollmentItem {
-  id: string | number
-  user_name?: string
-  course_title?: string
-  status?: TrainingStatus
-  start_date?: string
-  end_date?: string
-  score?: number
-}
-
-interface UserItem {
-  id: string | number
-  full_name?: string
-}
+type TrainingStatus = EstadoDeInscripcion
+type CourseItem = Curso
+type CertItem = Certificacion
+type EnrollmentItem = Inscripcion
 
 const STATUS_CFG: Record<TrainingStatus, { color: string; label: string; icon: string }> = {
   planned: { color:'var(--accent)', label:'Planificado', icon:'📅' },
@@ -92,7 +54,7 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
     cost: String(course?.cost ?? ''),
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: { title: string; description: string; provider: string; category: string; duration_h: string; url: string; cost: string }) => isEdit ? trainingApi.updateCourse(course.id, d) : trainingApi.createCourse(d),
+    mutationFn: (d: { title: string; description: string; provider: string; category: string; duration_h: string; url: string; cost: string }): Promise<unknown> => isEdit ? trainingApi.updateCourse(course.id, d) : trainingApi.createCourse(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['training-courses'] }); onClose() },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -138,11 +100,11 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
     url: cert?.url || '',
     notes: cert?.notes || '',
   })
-  const { data: usersRaw = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list({}).then(r => r.data ?? []),
+  // Selector de personas: `/users/directory` (ficha mínima) sirve a cualquier rol; `/users` da 403 al subcontratado.
+  const { data: users = [] } = useQuery<PersonaVisible[]>({
+    queryKey: ['users', 'directory'],
+    queryFn: () => usersApi.directory().then(r => r.data),
   })
-  const users = usersRaw as UserItem[]
   const { mutate, isPending } = useMutation({
     mutationFn: (d: { user_id: string; name: string; issuer: string; cert_id: string; obtained_at: string; expires_at: string; url: string; notes: string }) => isEdit ? trainingApi.updateCert(cert.id, d) : trainingApi.createCert(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['training-certs'] }); onClose() },
@@ -191,23 +153,20 @@ export default function TrainingPage() {
   const [showCertModal, setShowCertModal] = useState(false)
   const [editingCert, setEditingCert] = useState<CertItem | null>(null)
 
-  const { data: coursesRaw = [], isLoading: loadC } = useQuery({
+  const { data: courses = [], isLoading: loadC } = useQuery({
     queryKey: ['training-courses'],
-    queryFn: () => trainingApi.courses({}).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+    queryFn: () => trainingApi.courses({}).then(r => r.data).catch((): CourseItem[] => []),
   })
-  const courses = coursesRaw as CourseItem[]
-  const { data: certsRaw = [], isLoading: loadCert } = useQuery({
+  const { data: certs = [], isLoading: loadCert } = useQuery({
     queryKey: ['training-certs'],
-    queryFn: () => trainingApi.certs({}).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+    queryFn: () => trainingApi.certs({}).then(r => r.data).catch((): CertItem[] => []),
     enabled: tab === 'certs',
   })
-  const certs = certsRaw as CertItem[]
-  const { data: enrollmentsRaw = [] } = useQuery({
+  const { data: enrollments = [] } = useQuery({
     queryKey: ['training-enrollments'],
-    queryFn: () => trainingApi.enrollments({}).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+    queryFn: () => trainingApi.enrollments({}).then(r => r.data).catch((): EnrollmentItem[] => []),
     enabled: tab === 'enrollments',
   })
-  const enrollments = enrollmentsRaw as EnrollmentItem[]
 
   const { mutate: delCourse } = useMutation({
     mutationFn: (id: string | number) => trainingApi.deleteCourse(id),

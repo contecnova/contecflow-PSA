@@ -1,7 +1,7 @@
 """
 Expenses endpoint — project-linked expense management with approval workflow.
 """
-from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi import APIRouter, Depends, Query, Response, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
@@ -16,6 +16,7 @@ from app.core.deps import (
 )
 from app.core.abac_enforce import enforce_abac
 from app.core.uploads import UploadProfile, read_and_validate_upload
+from app.core.paginacion import Paginacion, exponer, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.expense_service import (
@@ -25,7 +26,7 @@ from app.services.expense_service import (
     list_my_expenses as svc_list_my_expenses,
     list_pending_expenses as svc_list_pending_expenses,
     list_all_expenses as svc_list_all_expenses,
-    list_team_expenses as svc_list_team_expenses,
+    team_expenses_page as svc_team_expenses_page,
     create_expense_record as svc_create_expense,
     admin_update_expense as svc_admin_update_expense,
     update_my_expense as svc_update_my_expense,
@@ -46,24 +47,28 @@ def my_expenses(
     project_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    response: Response = None,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    items = [_expense_out(e) for e in svc_list_my_expenses(
-        db, current_user.id, status, project_id, date_from, date_to
-    )]
-    return APIListResponse.ok(items=items)
+    resultado = svc_list_my_expenses(
+        db, current_user.id, status, project_id, date_from, date_to, pagina=pagina,
+    )
+    return lista_paginada(response, resultado.mapear(_expense_out))
 
 
 @router.get("/pending", summary="Gastos pendientes de aprobación (PM/admin)")
 def pending_expenses(
     project_id: Optional[str] = None,
+    response: Response = None,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "expense", action="read")
-    items = [_expense_out(e) for e in svc_list_pending_expenses(db, project_id)]
-    return APIListResponse.ok(items=items, total=len(items))
+    resultado = svc_list_pending_expenses(db, project_id, pagina=pagina)
+    return lista_paginada(response, resultado.mapear(_expense_out))
 
 
 @router.get("", summary="Listar todos los gastos (admin/PM) — alias de /team")
@@ -83,23 +88,22 @@ def team_expenses(
     user_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    response: Response = None,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    """Los totales son de todos los gastos filtrados, no solo de la pagina."""
     enforce_abac(db, current_user, "expense", action="read")
-    expenses = svc_list_team_expenses(
-        db, current_user, status, project_id, user_id, date_from, date_to
+    datos = svc_team_expenses_page(
+        db, current_user, status, project_id, user_id, date_from, date_to, pagina=pagina,
     )
-    total = sum(e.amount for e in expenses)
-    billable = sum(e.amount for e in expenses if e.is_billable)
-    by_category: dict = {}
-    for e in expenses:
-        by_category[e.category] = by_category.get(e.category, 0) + e.amount
+    exponer(response, datos["pagina"])
     return APIResponse.ok(data={
-        "expenses": [_expense_out(e) for e in expenses],
-        "total": round(total, 2),
-        "billable_total": round(billable, 2),
-        "by_category": {k: round(v, 2) for k, v in by_category.items()},
+        "expenses": [_expense_out(e) for e in datos["pagina"].items],
+        "total": round(datos["total"], 2),
+        "billable_total": round(datos["billable_total"], 2),
+        "by_category": {k: round(v, 2) for k, v in datos["by_category"].items()},
     })
 
 

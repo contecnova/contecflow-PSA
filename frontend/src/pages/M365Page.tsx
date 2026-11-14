@@ -9,6 +9,7 @@ import { PRODUCT_NAME } from '../constants/brand'
 import { useState, useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { m365Api, apiUrl } from '../services/api'
+import type { CalendarioM365Leido, EstadoM365, HitosEnCalendarioM365 } from '../services/api/tipos-plataforma'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { LayoutGrid } from 'lucide-react'
@@ -18,29 +19,9 @@ import type { CSSProperties } from 'react'
 import DsBadge from '../components/ui/StatusBadge'
 import { POLL_FREQUENT_MS } from '../constants/timings'
 
-interface M365Status {
-  graph_configured?: boolean
-  teams_webhook_configured?: boolean
-  required_env_vars?: Record<string, boolean>
-}
-
-interface CalendarEvent {
-  subject?: string
-  start?: { dateTime?: string }
-  end?: { dateTime?: string }
-}
-
-interface CalendarPullResult {
-  pulled?: number
-  events?: CalendarEvent[]
-  error?: string
-}
-
-interface MilestonePushResult {
-  created?: number
-  errors?: unknown[]
-  error?: string
-}
+/** El resultado o el error que se pinta en su lugar. */
+type CalendarPullResult = Partial<CalendarioM365Leido> & { error?: string }
+type MilestonePushResult = Partial<HitosEnCalendarioM365> & { error?: string }
 
 interface ApiErrorLike {
   response?: { data?: { detail?: string } }
@@ -232,7 +213,7 @@ function TeamsTab() {
   )
 }
 
-function ConfigTab({ status }: { status?: M365Status | null }) {
+function ConfigTab({ status }: { status?: EstadoM365 | null }) {
   const t = useAppT()
   const envVars = [
     { key: 'AZURE_TENANT_ID',     label: 'Tenant ID de Azure AD',   ok: status?.required_env_vars?.AZURE_TENANT_ID },
@@ -307,7 +288,7 @@ export default function M365Page() {
   const _t = useAppT()
   const [activeTab, setTab] = useState<'calendar' | 'teams' | 'config'>('calendar')
 
-  const { data: status } = useQuery<M365Status>({
+  const { data: status } = useQuery<EstadoM365>({
     queryKey: ['m365-status'],
     queryFn: () => m365Api.status().then(r => r.data),
     refetchInterval: POLL_FREQUENT_MS,

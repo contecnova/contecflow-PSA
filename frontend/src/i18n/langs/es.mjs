@@ -4578,6 +4578,7 @@ const es = {
     default_category_label: 'Categoría por defecto',
     default_category_placeholder: 'Categoría que se asigna al crear',
     default_priority_label: 'Prioridad por defecto',
+    target_project_label: 'Proyecto destino (obligatorio en formularios de tareas)',
     priority_low: 'Baja',
     priority_medium: 'Media',
     priority_high: 'Alta',

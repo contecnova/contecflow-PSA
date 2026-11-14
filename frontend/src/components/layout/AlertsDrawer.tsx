@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { alertsApi } from '../../services/api'
+import type { Alerta } from '../../services/api/tipos-documentos'
 import { X, Bell, ExternalLink } from 'lucide-react'
 import { fmtRelative } from '../../utils/helpers'
 import { useAuth } from '../../context/AuthContext'
@@ -26,16 +27,7 @@ const TYPE_ICONS: Record<string, string> = {
   deadline_risk: '📅', task_blocked: '🔒', hours_deviation: '⏱️', no_imputation: '📋',
 }
 
-// TODO type: backend alert payload — needs shared type from alertsApi
-interface AlertItem {
-  id: string | number
-  severity: string
-  alert_type?: string
-  title: string
-  description?: string
-  created_at: string
-  is_read?: boolean
-}
+type AlertItem = Alerta
 
 interface Props {
   onClose: () => void
@@ -46,9 +38,9 @@ export default function AlertsDrawer({ onClose }: Props) {
   const { hasRole } = useAuth()
   const qc = useQueryClient()
 
-  const { data: alerts = [], isLoading } = useQuery<AlertItem[]>({
+  const { data: alerts = [], isLoading } = useQuery({
     queryKey: ['alerts-drawer'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
     refetchInterval: POLL_FREQUENT_MS,
   })
 
@@ -57,7 +49,7 @@ export default function AlertsDrawer({ onClose }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['alerts-drawer'] })
       qc.invalidateQueries({ queryKey: ['alerts-page'] })
-      qc.invalidateQueries({ queryKey: ['notification-badges'] })
+      qc.invalidateQueries({ queryKey: ['alerts-count'] })
     },
   })
 
@@ -65,7 +57,7 @@ export default function AlertsDrawer({ onClose }: Props) {
     mutationFn: (id: AlertItem['id']) => alertsApi.read(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['alerts-drawer'] })
-      qc.invalidateQueries({ queryKey: ['notification-badges'] })
+      qc.invalidateQueries({ queryKey: ['alerts-count'] })
     },
   })
 

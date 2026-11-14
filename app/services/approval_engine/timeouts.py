@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.models.billing_reports import FinancialApprovalAuditLog
 from app.models.billing_reports import ApprovalRequest
 from app.models.billing_reports import ApprovalDecision
-from app.models.billing_reports import ApprovalStep
 from datetime import timedelta
 
 
@@ -46,17 +45,15 @@ def _cerrar(req, decision: str, nota: str, now: datetime, actor, db: Session) ->
 
 def _siguiente_o_cerrar(req, step, now: datetime, nota: str, db: Session) -> str:
     """Tras aprobar un paso: el siguiente aplicable o, si era el ultimo, aprobada."""
-    from app.services.approval_engine._base import notify_approver
-    from app.services.approval_engine.requests import _step_condition_met
-    pasos = db.query(ApprovalStep).filter(ApprovalStep.workflow_id == req.workflow_id).order_by(
-        ApprovalStep.step_order).all()
-    siguientes = [s for s in pasos if s.step_order > req.current_step and not s.is_optional
-                  and _step_condition_met(s, req)]
-    if siguientes:
-        req.current_step = siguientes[0].step_order
-        req.step_started_at = now
-        req.last_reminder_at = None
-        notify_approver(req, siguientes[0], db)
+    from app.services.approval_engine import pasos as _pasos
+    # Rev. 165: pasos del flujo y de la solicitud; en paralelo, la etapa
+    # sigue esperando a las demás ramas.
+    todos = _pasos.pasos_de(db, req)
+    etapa_ = _pasos.etapa(todos, req.current_step)
+    if any(not _pasos.rama_satisfecha(req, s, etapa_) for s in _pasos.ramas_activas(req, etapa_)
+           if s.id != step.id and not _pasos.es_informativo(s)):
+        return "auto_approved"
+    if _pasos.avanzar(db, req, todos, req.current_step):
         return "auto_approved"
     _cerrar(req, "approved", nota, now, _actor(req, step, db), db)
     return "auto_approved"
@@ -105,7 +102,10 @@ def _handle_timeout_auto_approve(req, step, now: datetime, info: dict, db: Sessi
         decision="approved",
         note="Aprobado automáticamente por timeout",
         decided_at=now,
+        step_ref=step.id,
     ))
+    db.flush()
+    db.refresh(req)
     info["auto_approved"] = True
     return _siguiente_o_cerrar(req, step, now, "Aprobado automáticamente por timeout", db)
 
@@ -170,14 +170,13 @@ def process_approval_timeouts(db: Session) -> dict:
 
     requests = db.query(ApprovalRequest).filter(ApprovalRequest.status == "pending").all()
     for req in requests:
-        step = (
-            db.query(ApprovalStep)
-            .filter(
-                ApprovalStep.workflow_id == req.workflow_id,
-                ApprovalStep.step_order == req.current_step,
-            )
-            .first()
-        )
+        # Rev. 165: la rama de la etapa actual que sigue esperando (con los
+        # pasos que el motor de políticas añadió a la solicitud).
+        from app.services.approval_engine import pasos as _pasos
+        etapa_ = _pasos.etapa(_pasos.pasos_de(db, req), req.current_step)
+        step = next((s for s in _pasos.ramas_activas(req, etapa_)
+                     if not _pasos.es_informativo(s) and not _pasos.rama_satisfecha(req, s, etapa_)),
+                    etapa_[0] if etapa_ else None)
         if not _step_is_expired(step, req, now):
             if _toca_recordatorio(step, req, now):
                 from app.services.approval_engine._base import notify_approver

@@ -4,6 +4,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { analyticsApi, scheduledReportsApi, apiUrl } from '../services/api'
+import type { CatalogoDeMetricas, ConsultaDeMetrica, FilaDeMetrica, OpcionesDeFiltroAnalitico, ResumenDeMetrica } from '../services/api/tipos-analitica'
 import { Card, Button, Spinner, EmptyState, Table, type ColumnaDeTabla } from '../components/ui'
 import { Page } from '../components/ui'
 import {
@@ -195,61 +196,10 @@ type Preset = typeof PRESETS[number]
 /** Celda de una fila de métrica: `label`, `value`, `status` o una serie por columna. */
 type MetricCell = string | number | null | undefined
 
-/** Fila de `/analytics/query/{metric}` (`rows`). */
-interface MetricRow {
-  label?: string
-  value?: number
-  status?: string
-  [columna: string]: MetricCell
-}
-
-/** `meta` de una métrica (registro de métricas del backend). */
-interface MetricMeta {
-  label?: string
-  category?: string
-  description?: string
-  y_label?: string
-  weeks?: string[]
-  error?: string
-}
-
-/** `summary` de una métrica (`compute_summary`). */
-interface MetricSummary {
-  total?: number
-  max?: number
-  avg?: number
-  count?: number
-}
-
-/** Respuesta de `/analytics/query/{metric}` (`_respuesta_de_metrica`). */
-interface MetricResult {
-  metric_id: string
-  meta?: MetricMeta
-  rows: MetricRow[]
-  total: number
-  summary?: MetricSummary
-}
-
-interface CatalogueItem {
-  id: string
-  label: string
-  default_chart?: string
-}
-
-/** `/analytics/catalogue`: métricas agrupadas por categoría. */
-type Catalogue = Record<string, CatalogueItem[]>
-
-interface FilterOption {
-  id: string
-  label: string
-}
-
-/** `/analytics/filters/options`. */
-interface FilterOptions {
-  projects?: FilterOption[]
-  users?: FilterOption[]
-  departments?: string[]
-}
+type MetricRow = FilaDeMetrica
+type MetricResult = ConsultaDeMetrica
+type Catalogue = CatalogoDeMetricas
+type FilterOptions = Partial<OpcionesDeFiltroAnalitico>
 
 /** Configuración de un informe del explorador (lo que se guarda). */
 interface ReportConfig {
@@ -276,19 +226,6 @@ interface UserPreferences {
   [clave: string]: unknown
 }
 
-/** `ScheduledReportOut` (app/schemas/billing_reports.py). */
-interface ScheduledReport {
-  id: string
-  name: string
-  metric?: string | null
-  frequency: string
-  recipients: string[]
-  include_pdf: boolean
-  is_active: boolean
-  last_run_at?: string | null
-  next_run_at?: string | null
-  created_at?: string | null
-}
 
 interface ScheduledReportCreate {
   name: string
@@ -298,13 +235,6 @@ interface ScheduledReportCreate {
   recipients: string[]
 }
 
-/** `ScheduledReportRunOut` (app/schemas/billing_reports.py). */
-interface ScheduledReportRun {
-  ok: boolean
-  /** Con cola (broker) el envio va al worker: 202 `{status: 'queued'}`. */
-  status?: string
-  recipients?: string[]
-}
 
 interface TooltipEntry {
   name?: string
@@ -347,7 +277,7 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { acti
 }
 
 // ── Heatmap component ─────────────────────────────────────────────────────────
-function HeatmapChart({ data, meta }: { data: MetricRow[]; meta?: MetricMeta }) {
+function HeatmapChart({ data, meta }: { data: MetricRow[]; meta?: ConsultaDeMetrica['meta'] }) {
   const traducir = useAppT()
   const weeks = meta?.weeks || []
   if (!data.length || !weeks.length) return <EmptyState svgIcon={<Grid3X3 size={36} />} title={traducir('reports.sin_datos_disponibles')} />
@@ -426,7 +356,7 @@ function TablaDeMetrica({ data, isCurrency, isPercent }: { data: MetricRow[]; is
 }
 
 // ── Chart renderer ────────────────────────────────────────────────────────────
-function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }: { data: MetricRow[]; chartType?: string; meta?: MetricMeta; color?: string; height?: number }) {
+function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }: { data: MetricRow[]; chartType?: string; meta?: ConsultaDeMetrica['meta']; color?: string; height?: number }) {
   const fmtMoneda = useFormatoMoneda()
   const traducir = useAppT()
   // Revisión 2026-11: un cálculo que falla lo dice; antes salía como «sin datos».
@@ -575,7 +505,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
 }
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
-function SummaryBar({ summary, meta, prevSummary }: { summary?: MetricSummary; meta?: MetricMeta; prevSummary?: MetricSummary }) {
+function SummaryBar({ summary, meta, prevSummary }: { summary?: ResumenDeMetrica; meta?: ConsultaDeMetrica['meta']; prevSummary?: ResumenDeMetrica }) {
   const fmtMoneda = useFormatoMoneda()
   const traducir = useAppT()
   if (!summary || !summary.total) return null
@@ -939,7 +869,7 @@ function ScheduledReportsTab() {
     frequency: 'weekly', include_pdf: true,
   })
 
-  const { data: scheduled = [], isLoading } = useQuery<ScheduledReport[]>({
+  const { data: scheduled = [], isLoading } = useQuery({
     queryKey: ['scheduled-reps'],
     queryFn: () => scheduledReportsApi.list().then(r => r.data).catch(() => []),
     refetchInterval: POLL_FREQUENT_MS,
@@ -964,10 +894,10 @@ function ScheduledReportsTab() {
   })
 
   const { mutate: runNow, isPending: running } = useMutation({
-    mutationFn: (id: string): Promise<ScheduledReportRun> => scheduledReportsApi.run(id).then(r => r.data),
+    mutationFn: (id: string) => scheduledReportsApi.run(id).then(r => r.data),
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
-      const to = data.recipients?.join(', ') || '—'
+      const to = data.recipients.join(', ') || '—'
       toast.success(data.status === 'queued' ? `Envío en curso a: ${to}` : `Informe enviado a: ${to}`)
     },
     onError: e => toast.error(extractErr(e, 'Error al ejecutar')),

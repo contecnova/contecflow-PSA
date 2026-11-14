@@ -43,8 +43,8 @@ class WorkflowTransition(Base):
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     project_id      = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    from_state_id   = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False)
-    to_state_id     = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False)
+    from_state_id   = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False, index=True)
+    to_state_id     = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False, index=True)
     label           = Column(String(100), nullable=True)           # "Enviar a QA"
     required_role   = Column(String(50), nullable=True)            # solo este rol puede ejecutar
     requires_comment= Column(Boolean, default=False)               # obliga a añadir comentario
@@ -82,7 +82,7 @@ class ProjectCustomFieldValue(Base):
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    field_id   = Column(String(36), ForeignKey("project_custom_fields.id", ondelete="CASCADE"), nullable=False)
+    field_id   = Column(String(36), ForeignKey("project_custom_fields.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     value      = Column(Text, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

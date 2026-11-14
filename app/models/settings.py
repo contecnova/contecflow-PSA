@@ -122,7 +122,7 @@ class Area(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
     name = Column(String(120), nullable=False)
     description = Column(String(255), nullable=True)
-    manager_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    manager_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -134,7 +134,7 @@ class Department(Base):
     area_id = Column(String(36), ForeignKey("areas.id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
-    manager_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    manager_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

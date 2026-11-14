@@ -12,6 +12,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -24,6 +25,7 @@ from app.models.user import User as UserModel
 from app.models.user import UserRole
 from app.services.audit import audit_log
 from app.core.errores import ErrorDeDominio
+from app.core.paginacion import Pagina, Paginacion, paginar
 
 # ── Status alias normalizer ────────────────────────────────────────────────────
 # PostgreSQL enforces enum types strictly. The frontend uses "pending" to mean
@@ -262,7 +264,8 @@ def list_my_expenses(
     project_id: Optional[str] = None,
     date_from=None,
     date_to=None,
-):
+    pagina: Optional[Paginacion] = None,
+) -> Pagina:
 
     q = db.query(Expense).options(
         joinedload(Expense.project), joinedload(Expense.reviewer)
@@ -274,11 +277,12 @@ def list_my_expenses(
     if project_id:  q = q.filter(del_proyecto(project_id))
     if date_from:   q = q.filter(Expense.expense_date >= date_from)
     if date_to:     q = q.filter(Expense.expense_date <= date_to)
-    return q.order_by(Expense.expense_date.desc()).all()
+    return paginar(q.order_by(Expense.expense_date.desc(), Expense.id), pagina, "expenses.my")
 
 
 
-def list_pending_expenses(db: Session, project_id: Optional[str] = None):
+def list_pending_expenses(db: Session, project_id: Optional[str] = None,
+                          pagina: Optional[Paginacion] = None) -> Pagina:
 
     q = db.query(Expense).options(
         joinedload(Expense.user), joinedload(Expense.project)
@@ -288,7 +292,7 @@ def list_pending_expenses(db: Session, project_id: Optional[str] = None):
     )
     if project_id:
         q = q.filter(del_proyecto(project_id))
-    return q.order_by(Expense.submitted_at).all()
+    return paginar(q.order_by(Expense.submitted_at, Expense.id), pagina, "expenses.pending")
 
 
 def list_all_expenses(
@@ -317,7 +321,7 @@ def list_all_expenses(
     return q.order_by(Expense.created_at.desc()).limit(200).all()
 
 
-def list_team_expenses(
+def query_team_expenses(
     db: Session,
     current_user,
     status=None,
@@ -326,6 +330,7 @@ def list_team_expenses(
     date_from=None,
     date_to=None,
 ):
+    """Consulta de los gastos del equipo, filtrada y ordenada, sin ejecutar."""
 
     q = db.query(Expense).options(
         joinedload(Expense.user), joinedload(Expense.project), joinedload(Expense.reviewer)
@@ -346,7 +351,32 @@ def list_team_expenses(
     if user_id:     q = q.filter(Expense.user_id == user_id)
     if date_from:   q = q.filter(Expense.expense_date >= date_from)
     if date_to:     q = q.filter(Expense.expense_date <= date_to)
-    return q.order_by(Expense.expense_date.desc()).all()
+    return q.order_by(Expense.expense_date.desc(), Expense.id)
+
+
+def team_expenses_page(db: Session, current_user, status=None, project_id=None, user_id=None,
+                       date_from=None, date_to=None, pagina: Optional[Paginacion] = None) -> dict:
+    """Pagina de gastos del equipo y sus totales, calculados sobre TODOS los filtrados.
+
+    Segunda auditoria 2026-11: los totales se sumaban en Python sobre la lista
+    entera; ahora salen de un agregado SQL, asi que paginar la lista no los
+    cambia.
+    """
+    q = query_team_expenses(db, current_user, status, project_id, user_id, date_from, date_to)
+    filtrados = q.order_by(None).with_entities(
+        Expense.id, Expense.amount, Expense.is_billable, Expense.category).subquery()
+    total, facturable = db.query(
+        func.coalesce(func.sum(filtrados.c.amount), 0),
+        func.coalesce(func.sum(case((filtrados.c.is_billable == True, filtrados.c.amount), else_=0)), 0),  # noqa: E712
+    ).one()
+    por_categoria = dict(db.query(filtrados.c.category, func.sum(filtrados.c.amount))
+                         .group_by(filtrados.c.category).all())
+    return {
+        "pagina": paginar(q, pagina, "expenses.team"),
+        "total": float(total),
+        "billable_total": float(facturable),
+        "by_category": por_categoria,
+    }
 
 
 # ── Create / update / delete ───────────────────────────────────────────────────

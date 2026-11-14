@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { contractsApi } from '../services/api'
 
 const STALE = 2 * 60 * 1000
@@ -12,16 +11,10 @@ export type { Contract }
 export type ContractListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
 export function useContracts(params: ContractListParams = {}): UseQueryResult<Contract[]> {
   return useQuery<Contract[]>({
     queryKey: ['contracts', params],
-    queryFn: () => contractsApi.list(params).then((r: { data?: { items?: Contract[] } | Contract[] | null }) => unwrapList<Contract>(r)),
+    queryFn: () => contractsApi.list(params).then(r => r.data),
     staleTime: STALE,
   })
 }
@@ -29,15 +22,15 @@ export function useContracts(params: ContractListParams = {}): UseQueryResult<Co
 export function useAllContracts(): UseQueryResult<Contract[]> {
   return useQuery<Contract[]>({
     queryKey: ['contracts'],
-    queryFn: () => contractsApi.list({}).then((r: { data?: { items?: Contract[] } | Contract[] | null }) => unwrapList<Contract>(r)),
+    queryFn: () => contractsApi.list({}).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useContract(id: string | undefined): UseQueryResult<unknown> {
+export function useContract(id: string | undefined): UseQueryResult<Contract> {
   return useQuery({
     queryKey: ['contracts', id],
-    queryFn: () => contractsApi.get(id).then((r: { data: unknown }) => r.data),
+    queryFn: () => contractsApi.get(id).then(r => r.data),
     enabled: !!id,
     staleTime: STALE,
   })

@@ -509,9 +509,26 @@ def get_roadmap_data(project_id: str, db) -> dict:
 #:
 #: `ilike` marca las condiciones que buscan por texto parcial; las demás son
 #: igualdad exacta.
+def _nql_tareas_visibles(db, viewer):
+    from app.services.tasks.queries import build_task_list_query
+    return build_task_list_query(db, viewer)
+
+
+def _nql_proyectos_visibles(db, viewer):
+    from app.services.project_service import scope_projects_query
+    return scope_projects_query(db.query(Project), db, viewer)
+
+
+def _nql_epicas_visibles(db, viewer):
+    proyectos = _nql_proyectos_visibles(db, viewer).with_entities(Project.id).subquery()
+    return db.query(Epic).filter(Epic.project_id.in_(db.query(proyectos.c.id)))
+
+
+#: `consulta`: la consulta de partida, ya acotada a lo que `viewer` ve (segunda
+#: auditoría 2026-11: antes partía de la tabla entera de la empresa).
 _ENTIDADES_NQL: dict[str, dict] = {
     "task": {
-        "modelo": lambda: Task,
+        "consulta": _nql_tareas_visibles,
         "base": None,
         "campos": {
             "status":   (lambda: Task.status, False),
@@ -525,7 +542,7 @@ _ENTIDADES_NQL: dict[str, dict] = {
         },
     },
     "project": {
-        "modelo": lambda: Project,
+        "consulta": _nql_proyectos_visibles,
         "base": None,
         "campos": {
             "status": (lambda: Project.status, False),
@@ -534,7 +551,7 @@ _ENTIDADES_NQL: dict[str, dict] = {
         "serializar": lambda p: {"id": p.id, "name": p.name, "status": p.status},
     },
     "epic": {
-        "modelo": lambda: Epic,
+        "consulta": _nql_epicas_visibles,
         "base": lambda: Epic.is_active == True,  # noqa: E712
         "campos": {
             "status":   (lambda: Epic.status, False),
@@ -546,7 +563,7 @@ _ENTIDADES_NQL: dict[str, dict] = {
 }
 
 
-def execute_nql_search(entity_type: str, query: str, limit: int, db) -> dict:
+def execute_nql_search(entity_type: str, query: str, limit: int, db, viewer) -> dict:
     """Busca con una consulta NQL sobre una de las entidades declaradas."""
     spec = _ENTIDADES_NQL.get(entity_type)
     if spec is None:
@@ -557,7 +574,7 @@ def execute_nql_search(entity_type: str, query: str, limit: int, db) -> dict:
         )
 
     condiciones = parse_nql(query)
-    q = db.query(spec["modelo"]())
+    q = spec["consulta"](db, viewer)
     if spec["base"]:
         q = q.filter(spec["base"]())
 

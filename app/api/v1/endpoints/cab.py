@@ -11,7 +11,7 @@ cab — all P2 pending features:
   revenue          — ASC 606/IFRS 15 revenue recognition
   risk-scores      — Project risk prediction engine
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, BackgroundTasks, Body
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date, datetime
@@ -26,6 +26,7 @@ logger = logging.getLogger("contecflow.v14")
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.core.ratelimit import limiter
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -354,13 +355,13 @@ def email_logs(
 
 @router.get("/gdpr/requests", response_model=APIListResponse[dict], summary="Listar solicitudes GDPR")
 def list_gdpr_requests(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
+    response: Response,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    items = _svc.list_gdpr_requests(db)
-    return APIListResponse.ok(items=items, page=page, page_size=page_size)
+    # Segunda auditoria 2026-11: `page`/`page_size` se aceptaban y se ignoraban.
+    return lista_paginada(response, _svc.list_gdpr_requests(db, pagina))
 
 
 class GDPRRequestCreate(BaseModel):
@@ -411,7 +412,7 @@ def global_search(
     current_user: User = Depends(get_current_user),
 ):
     """Full-text search across projects, tasks, tickets, users, invoices, opportunities."""
-    return APIResponse.ok(data=_svc.global_search(q, types, limit, db))
+    return APIResponse.ok(data=_svc.global_search(q, types, limit, db, current_user))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

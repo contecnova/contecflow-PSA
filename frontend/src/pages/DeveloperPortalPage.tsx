@@ -5,6 +5,7 @@ import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { developerAppsApi, apiUrl, apiUrlAbsoluta } from '../services/api'
+import type { AplicacionOAuth, SecretoRotado } from '../services/api/tipos-plataforma'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -14,18 +15,6 @@ import { useAppT } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 
-interface DeveloperApp {
-  id: string | number
-  name: string
-  description?: string
-  homepage_url?: string
-  redirect_uris?: string[]
-  scopes?: string[]
-  is_active?: boolean
-  client_id?: string
-  client_secret?: string
-}
-
 interface AppFormState {
   name: string
   description: string
@@ -34,10 +23,6 @@ interface AppFormState {
   scopes: string[]
 }
 
-interface RotatedSecret {
-  client_id?: string
-  client_secret?: string
-}
 
 const FS: CSSProperties = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -47,9 +32,10 @@ const FS: CSSProperties = {
 const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 const MONO: CSSProperties = { fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)', border: '1px solid var(--surface-4)', wordBreak: 'break-all', display: 'block' }
 
-const AVAILABLE_SCOPES = ['read', 'write', 'projects', 'tasks', 'timesheets', 'billing', 'admin']
+// Los de app/core/credenciales_delegadas.py (ALCANCES_VALIDOS); faltaba `expenses`.
+const AVAILABLE_SCOPES = ['read', 'write', 'projects', 'tasks', 'timesheets', 'billing', 'expenses', 'admin']
 
-function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => void }) {
+function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () => void }) {
   const idCampo = useId()
   const qc = useQueryClient()
   const toast = useToast()
@@ -63,7 +49,7 @@ function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => 
     redirect_uris: app?.redirect_uris?.join('\n') || '',
     scopes: app?.scopes || ['read'],
   })
-  const [newSecret, setNewSecret] = useState<RotatedSecret | null>(null)
+  const [newSecret, setNewSecret] = useState<SecretoRotado | null>(null)
 
   const set = (k: keyof AppFormState) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }))
   const toggleScope = (s: string) => setF(p => ({
@@ -78,7 +64,7 @@ function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => 
         ? developerAppsApi.update(app.id, payload).then(r => r.data)
         : developerAppsApi.create(payload).then(r => r.data)
     },
-    onSuccess: (saved: DeveloperApp) => {
+    onSuccess: (saved: AplicacionOAuth) => {
       qc.invalidateQueries({ queryKey: ['developer-apps'] })
       toast.success(isEdit ? t('developer.app_updated') : t('developer.app_created'))
       if (saved.client_secret) {
@@ -155,12 +141,12 @@ function AppModal({ app, onClose }: { app?: DeveloperApp | null; onClose: () => 
   )
 }
 
-function AppDetail({ app, onClose, onRotated }: { app: DeveloperApp; onClose: () => void; onRotated: (data: RotatedSecret) => void }) {
+function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose: () => void; onRotated: (data: SecretoRotado) => void }) {
   const toast = useToast()
   const t = useAppT()
   const { mutate: rotate, isPending: rotating } = useMutation({
     mutationFn: () => developerAppsApi.rotateSecret(app.id).then(r => r.data),
-    onSuccess: (data: RotatedSecret) => onRotated(data),
+    onSuccess: (data: SecretoRotado) => onRotated(data),
     onError: (e: unknown) => toast.error(extractErr(e, t('developer.secret_rotated_error'))),
   })
 
@@ -221,15 +207,14 @@ export default function DeveloperPortalPage(): JSX.Element {
   const t = useAppT()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState<DeveloperApp | null>(null)
-  const [viewCreds, setViewCreds] = useState<DeveloperApp | null>(null)
-  const [rotatedSecret, setRotatedSecret] = useState<RotatedSecret | null>(null)
+  const [editing, setEditing] = useState<AplicacionOAuth | null>(null)
+  const [viewCreds, setViewCreds] = useState<AplicacionOAuth | null>(null)
+  const [rotatedSecret, setRotatedSecret] = useState<SecretoRotado | null>(null)
 
-  const { data: appsRaw = [], isLoading } = useQuery({
+  const { data: apps = [], isLoading } = useQuery({
     queryKey: ['developer-apps'],
     queryFn: () => developerAppsApi.list().then(r => r.data),
   })
-  const apps = appsRaw as DeveloperApp[]
 
   const { mutate: deleteApp } = useMutation({
     mutationFn: (id: string | number) => developerAppsApi.delete(id),

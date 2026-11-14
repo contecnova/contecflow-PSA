@@ -7,13 +7,6 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import MarkdownText from '../ui/MarkdownText'
 import { STALE_AI_NARRATIVE_MS } from '../../constants/timings'
 
-// TODO type: analyticsApi.narrative response — needs shared type
-interface NarrativeData {
-  narrative?: string
-  cached?: boolean
-  source?: string
-  kpis?: { hours_mtd?: number; [k: string]: unknown }
-}
 
 interface NarrativeCardProps {
   lang?: string
@@ -25,7 +18,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
   const [expanded, setExpanded] = useState<boolean>(true)
   const [forceRefresh, setForceRefresh] = useState<boolean>(false)
 
-  const { data, isLoading, isError, isFetching } = useQuery<NarrativeData>({
+  const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ['bi-narrative', lang, forceRefresh],
     queryFn: () => analyticsApi.narrative({ lang, force_refresh: forceRefresh }).then(r => r.data),
     staleTime: STALE_AI_NARRATIVE_MS,

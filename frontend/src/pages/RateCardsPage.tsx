@@ -5,6 +5,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { rateCardsApi } from '../services/api'
+import type { TablaDeTarifas, TarifaAplicaA, TarifaEntrada } from '../services/api/tipos-finanzas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Tag } from 'lucide-react'
@@ -15,28 +16,9 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-type AppliesTo = 'role' | 'department' | 'client'
-
-type RateEntry = {
-  id: string | number
-  label: string
-  billing_rate?: number | null
-  cost_rate?: number | null
-  escalation_pct?: number | null
-  valid_from?: string | null
-  valid_to?: string | null
-  notes?: string | null
-}
-
-type RateTable = {
-  id: string | number
-  name: string
-  description?: string
-  applies_to: AppliesTo
-  is_default?: boolean
-  entry_count?: number
-  entries?: RateEntry[]
-}
+type AppliesTo = TarifaAplicaA
+type RateEntry = TarifaEntrada
+type RateTable = TablaDeTarifas
 
 type EntryFormState = {
   label: string
@@ -334,12 +316,12 @@ export default function RateCardsPage() {
 
   const { data: tables = [], isLoading } = useQuery<RateTable[]>({
     queryKey: ['rate-cards'],
-    queryFn: () => rateCardsApi.list().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => rateCardsApi.list().then(r => r.data),
   })
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: rateCardsApi.create,
-    onSuccess: (res: { data?: { id?: string | number } }) => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['rate-cards'] })
       setShowCreate(false)
       setForm({ name: '', description: '', applies_to: 'role', is_default: false })

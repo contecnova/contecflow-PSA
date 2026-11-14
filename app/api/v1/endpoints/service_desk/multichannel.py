@@ -21,7 +21,7 @@ from app.services.service_desk.multichannel_service import (
     procesar_sms_entrante,
     save_multichannel_config,
 )
-from app.services.service_desk.sms_service import validate_twilio_signature
+from app.services.service_desk.sms_service import urls_de_firma_de_twilio, validate_twilio_signature
 
 router = APIRouter(prefix="/multichannel", tags=["Multi-channel Portal"])
 
@@ -135,7 +135,10 @@ async def inbound_sms(
     # sin ella cualquiera abria tickets. Ahora es obligatoria.
     # Segunda auditoría 2026-11 (#9): con el token de la organización del
     # número receptor (`To`), o el global si no tiene propio.
-    if not await run_db(validate_twilio_signature, str(request.url), form, x_twilio_signature, db):
+    # Segunda auditoría 2026-11 (#23): contra la URL pública (BACKEND_URL), no
+    # solo la que ve la API detrás del proxy.
+    urls = urls_de_firma_de_twilio(request)
+    if not await run_db(validate_twilio_signature, urls, form, x_twilio_signature, db):
         from fastapi import HTTPException
         raise HTTPException(403, "Firma de Twilio ausente o inválida")
 

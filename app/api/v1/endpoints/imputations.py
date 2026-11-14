@@ -6,6 +6,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
@@ -207,12 +208,13 @@ def get_lockout_status(
 @router.get("/alerts", response_model=APIListResponse[ImputationAlertOut], summary="Get missing imputation alerts")
 def get_imputation_alerts(
     acknowledged: bool = False,
+    response: Response = None,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get alerts for missing/incomplete imputations."""
-    items = list_alerts_payload(db, current_user, acknowledged)
-    return APIListResponse.ok(items=items, total=len(items))
+    return lista_paginada(response, list_alerts_payload(db, current_user, acknowledged, pagina))
 
 
 @router.post("/alerts/{alert_id}/dismiss", summary="Dismiss imputation alert")

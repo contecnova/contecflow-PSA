@@ -2,32 +2,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { projectsApi } from '../services/api'
+import type { MemberAddPayload, ProjectCreatePayload, ProjectListItem, ProjectUpdatePayload } from '../services/api'
 import { queryKeys } from '../constants/queryKeys'
 import { STALE_REFERENCE_DATA_MS } from '../constants/timings'
 
-export interface Project {
-  id: string
-  name?: string
-  status?: string
-  client_id?: string
-  [extra: string]: unknown
-}
+/** Elemento de `GET /projects` (`ProjectListItem` de services/api/projects). */
+export type Project = ProjectListItem
 
 export type ProjectListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
-export type AddMemberArgs = { id: string; data: Record<string, unknown> }
+export type AddMemberArgs = { id: string; data: MemberAddPayload }
 export type RemoveMemberArgs = { id: string; memberId: string }
-
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
 
 export function useProjects(params: ProjectListParams = {}): UseQueryResult<Project[]> {
   return useQuery<Project[]>({
     queryKey: queryKeys.projects.list(params),
-    queryFn: () => projectsApi.list(params).then((r) => unwrapList<Project>(r as { data?: { items?: Project[] } | Project[] | null })),
+    queryFn: () => projectsApi.list(params).then((r) => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
@@ -36,7 +26,7 @@ export function useProjects(params: ProjectListParams = {}): UseQueryResult<Proj
 export function useAllProjects(): UseQueryResult<Project[]> {
   return useQuery<Project[]>({
     queryKey: queryKeys.projects.all(),
-    queryFn: () => projectsApi.list({}).then((r) => unwrapList<Project>(r as { data?: { items?: Project[] } | Project[] | null })),
+    queryFn: () => projectsApi.list({}).then((r) => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
@@ -49,19 +39,19 @@ export function useProject(id: string | undefined): UseQueryResult<unknown> {
   })
 }
 
-export function useCreateProject(): UseMutationResult<unknown, unknown, Partial<Project>> {
+export function useCreateProject(): UseMutationResult<unknown, unknown, ProjectCreatePayload> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: Partial<Project>) => projectsApi.create(data as unknown as Parameters<typeof projectsApi.create>[0]),
+    mutationFn: (data: ProjectCreatePayload) => projectsApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects.all() }),
   })
 }
 
-export function useUpdateProject(): UseMutationResult<unknown, unknown, UpdateArgs<Partial<Project>>> {
+export function useUpdateProject(): UseMutationResult<unknown, unknown, UpdateArgs<ProjectUpdatePayload>> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: UpdateArgs<Partial<Project>>) => projectsApi.update(id, data as Parameters<typeof projectsApi.update>[1]),
-    onSuccess: (_: unknown, { id }: UpdateArgs<Partial<Project>>) => {
+    mutationFn: ({ id, data }: UpdateArgs<ProjectUpdatePayload>) => projectsApi.update(id, data),
+    onSuccess: (_: unknown, { id }: UpdateArgs<ProjectUpdatePayload>) => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.all() })
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(id) })
     },
@@ -117,7 +107,7 @@ export function useProjectEVMPortfolio(): UseQueryResult<unknown> {
 export function useAddProjectMember(): UseMutationResult<unknown, unknown, AddMemberArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: AddMemberArgs) => projectsApi.addMember(id, data as unknown as Parameters<typeof projectsApi.addMember>[1]),
+    mutationFn: ({ id, data }: AddMemberArgs) => projectsApi.addMember(id, data),
     onSuccess: (_: unknown, { id }: AddMemberArgs) => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.members(id) })
       qc.invalidateQueries({ queryKey: ['project-team', id] })

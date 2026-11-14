@@ -1,32 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { imputationsApi } from '../services/api'
+import type { Imputacion, ResumenSemanal, SesionDeCronometro } from '../services/api/tipos-personas'
 import { POLL_FAST_MS, STALE_ALWAYS } from '../constants/timings'
 
 const STALE = 60 * 1000 // 1 min — operational data
 
-export interface Imputation {
-  id: string
-  user_id?: string
-  hours?: number
-  status?: string
-  [extra: string]: unknown
-}
+export type Imputation = Imputacion
 
 export type ImputationListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
-export function useMyWeek(weekStart: string | undefined): UseQueryResult<unknown> {
+export function useMyWeek(weekStart: string | undefined): UseQueryResult<ResumenSemanal> {
   return useQuery({
     queryKey: ['my-week', weekStart],
-    queryFn: () => imputationsApi.myWeek(weekStart ? { week_start: weekStart } : {}).then((r: { data: unknown }) => r.data),
+    queryFn: () => imputationsApi.myWeek(weekStart ? { week_start: weekStart } : {}).then((r) => r.data),
     staleTime: STALE,
   })
 }
@@ -34,7 +22,7 @@ export function useMyWeek(weekStart: string | undefined): UseQueryResult<unknown
 export function useImputations(params: ImputationListParams = {}): UseQueryResult<Imputation[]> {
   return useQuery<Imputation[]>({
     queryKey: ['imputations', params],
-    queryFn: () => imputationsApi.list(params).then((r: { data?: { items?: Imputation[] } | Imputation[] | null }) => unwrapList<Imputation>(r)),
+    queryFn: () => imputationsApi.list(params).then((r) => r.data),
     staleTime: STALE,
   })
 }
@@ -88,10 +76,10 @@ export function useRejectImputation(): UseMutationResult<unknown, unknown, strin
   })
 }
 
-export function useTimerCurrent(): UseQueryResult<unknown> {
+export function useTimerCurrent(): UseQueryResult<SesionDeCronometro | null> {
   return useQuery({
     queryKey: ['timer-current'],
-    queryFn: () => imputationsApi.timerCurrent().then((r: { data: unknown }) => r.data).catch(() => null),
+    queryFn: () => imputationsApi.timerCurrent().then((r) => r.data).catch(() => null),
     refetchInterval: POLL_FAST_MS,
     staleTime: STALE_ALWAYS,
   })

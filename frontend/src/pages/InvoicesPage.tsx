@@ -8,6 +8,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, invoicesApi, accountingApi, clientsApi, unwrapList } from '../services/api'
+import type { BorradorDeFacturaDesdePartes, Factura } from '../services/api/tipos-finanzas'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -27,19 +28,6 @@ interface InvoiceLine {
   amount: number
 }
 
-interface InvoiceItem {
-  id: string | number
-  number?: string
-  currency?: string
-  project_code?: string
-  client_name?: string
-  po_reference?: string
-  issue_date?: string
-  due_date?: string
-  total?: number
-  status?: string
-}
-
 interface ProjectItem {
   id: string | number
   code?: string
@@ -52,29 +40,7 @@ interface ClientItem {
   name?: string
 }
 
-interface SyncStatus {
-  last_sync_at?: string
-  pending_count?: number
-}
-
-interface InvoiceSummary {
-  total_invoiced?: number
-  total_paid?: number
-  total_pending?: number
-  overdue_amount?: number
-  overdue_count?: number
-  currency?: string
-  sin_tipo_de_cambio?: Record<string, number>
-}
-
-interface PreviewData {
-  client_name?: string
-  currency?: string
-  lines: InvoiceLine[]
-  imputation_count?: number
-  subtotal?: number
-  total?: number
-}
+type PreviewData = BorradorDeFacturaDesdePartes
 
 interface InvoiceCreateForm {
   project_id: string
@@ -109,15 +75,18 @@ function InvoicesTab() {
 
   // ── Sync contable ────────────────────────────────────────────────────────
   const [syncProvider, setSyncProvider] = useState('xero')
-  const { data: syncStatusRaw } = useQuery({
+  const { data: syncStatus = null } = useQuery({
     queryKey: ['accounting-sync-status'],
     queryFn: () => accountingApi.syncStatus().then(r => r.data).catch(() => null),
     staleTime: STALE_DEFAULT_MS,
   })
-  const syncStatus = (syncStatusRaw ?? null) as SyncStatus | null
+  // get_sync_status: la última sincronización es por integración (`xero` o `quickbooks`) y
+  // los pendientes van en `invoices.pending_sync` (antes se leían `last_sync_at` y `pending_count`, que no llegan).
+  const ultimaSync = syncStatus?.active_integrations.find(i => i.type === syncProvider)?.last_sync ?? null
+  const pendientesDeSync = syncStatus?.invoices.pending_sync ?? 0
   const { mutate: syncBulk, isPending: syncing } = useMutation({
     mutationFn: () => accountingApi.pushBulk({ provider: syncProvider, limit: ACCOUNTING_PUSH_BATCH_SIZE }),
-    onSuccess: (res: { data?: { synced?: number } }) => toast.success(t('invoices.sync_success', { count: res.data?.synced || 0, provider: syncProvider })),
+    onSuccess: (res) => toast.success(t('invoices.sync_success', { count: res.data.synced, provider: syncProvider })),
     onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('invoices.sync_error')),
   })
   const [showCreate, setShowCreate] = useState(false)
@@ -127,13 +96,11 @@ function InvoicesTab() {
   const [pdfLoadingId, setPdfLoadingId] = useState<string | number | null>(null)
   const [form, setForm] = useState<InvoiceCreateForm>({ project_id:'', client_id:'', client_name:'', client_vat:'', client_email:'', issue_date:new Date().toISOString().slice(0,10), due_date:'', tax_rate:21, notes:'', period_from:'', period_to:'', po_reference:'', lines:[] })
 
-  const { data: invoicesRaw = [], isLoading } = useQuery({
+  const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices', selectedProject, statusFilter],
     queryFn: () => invoicesApi.list({ project_id: selectedProject || undefined, status: statusFilter || undefined }).then(r => r.data),
   })
-  const invoices = invoicesRaw as InvoiceItem[]
-  const { data: summaryRaw } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => invoicesApi.summary().then(r => r.data) })
-  const summary = (summaryRaw ?? null) as InvoiceSummary | null
+  const { data: summary = null } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => invoicesApi.summary().then(r => r.data) })
   const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(unwrapList) })
   const projects = projectsRaw as ProjectItem[]
   const { data: clientsRaw = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: SELECTOR_LIST_SIZE }).then(unwrapList) })
@@ -157,7 +124,7 @@ function InvoicesTab() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const downloadPdf = async (inv: InvoiceItem) => {
+  const downloadPdf = async (inv: Factura) => {
     setPdfLoadingId(inv.id)
     toast.info(t('invoices.pdf_generating', { number: inv.number }))
     try {
@@ -254,12 +221,12 @@ function InvoicesTab() {
               {syncing ? t('invoices.syncing') : t('invoices.sync_bulk')}
             </button>
             {syncStatus && (
-              <span style={{ fontSize: "var(--text-xs)", color: syncStatus.last_sync_at ? 'var(--text-3)' : 'var(--warning)' }}>
-                {syncStatus.last_sync_at
-                  ? `Última sync: ${new Date(syncStatus.last_sync_at).toLocaleDateString(localeActivo())}`
+              <span style={{ fontSize: "var(--text-xs)", color: ultimaSync ? 'var(--text-3)' : 'var(--warning)' }}>
+                {ultimaSync
+                  ? `Última sync: ${new Date(ultimaSync.replace(' ', 'T')).toLocaleDateString(localeActivo())}`
                   : 'Sin sincronizar'}
-                    {(syncStatus.pending_count || 0) > 0 && (
-                  <span style={{ marginLeft: 6, color: 'var(--warning)', fontWeight: 600 }}>({syncStatus.pending_count} pendientes)</span>
+                    {pendientesDeSync > 0 && (
+                  <span style={{ marginLeft: 6, color: 'var(--warning)', fontWeight: 600 }}>({pendientesDeSync} pendientes)</span>
                 )}
               </span>
             )}

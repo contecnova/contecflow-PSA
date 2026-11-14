@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { currencyApi, userCostsApi, unwrapList } from '../services/api'
+import api, { currencyApi, invoicesApi, profitabilityApi, userCostsApi, unwrapList } from '../services/api'
+import type { Factura } from '../services/api/tipos-finanzas'
 import { todasLasPaginas } from '../services/api/todasLasPaginas'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -23,38 +24,6 @@ interface ClientItem { status?: string }
 // Campos de `pipeline_service` (auditoria 2026-11: se leian `value`/`amount` y
 // `status`, que no vienen: el pipeline salia a 0 y contaba ganadas y perdidas).
 interface PipelineItem { stage?: string; expected_revenue?: number }
-interface InvoiceItem { status?: string; total?: number; amount?: number }
-interface ProjectProfitItem {
-  project_id?: string | number
-  id?: string | number
-  project_name?: string
-  name?: string
-  client_name?: string
-  // Nombres de `calc_project_profitability` (auditoria 2026-11: se leian
-  // `revenue_actual`/`cost_actual`, que no existen, y salia el presupuesto como
-  // ingreso con coste 0).
-  billing_revenue?: number
-  internal_cost?: number
-  total_cost?: number
-}
-interface CurrencyRate {
-  id: string | number
-  from_currency: string
-  to_currency: string
-  rate: number
-  effective_date?: string
-}
-interface CostSummary {
-  avg_cost_per_hour: number
-  users_with_cost: number
-  total_users: number
-  users_missing_cost: number
-}
-// El resumen trae los totales dentro de `portfolio` (auditoria 2026-11: se leian
-// en la raiz y el panel enseñaba siempre 0).
-interface ProfitSummary {
-  portfolio?: { total_revenue?: number; total_cost?: number }
-}
 interface RateFormState {
   from_currency: string
   to_currency: string
@@ -70,13 +39,13 @@ export default function FinanceDashboardPage(): JSX.Element {
   const toast = useToast()
   const params = dateRange(days)
 
-  const { data: profitSummaryRaw, isLoading: lp, isError: profitError } = useQuery({
+  // El resumen trae los totales dentro de `portfolio` (auditoria 2026-11: se leian en la raiz).
+  const { data: profitSummary = null, isLoading: lp, isError: profitError } = useQuery({
     queryKey: ['fin-dash-profit', days],
-    queryFn: () => api.get('/profitability/summary', { params: { ...params, period: 'custom' } }).then(r => r.data),
+    queryFn: () => profitabilityApi.summary({ ...params, period: 'custom' }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
     retry: 1,
   })
-  const profitSummary = (profitSummaryRaw ?? null) as ProfitSummary | null
 
   // Revisión 2026-11: clientes, pipeline y facturas son la foto de hoy (no del
   // periodo), completos y sin tragarse errores: antes se cortaban en 200/100 y un
@@ -95,50 +64,47 @@ export default function FinanceDashboardPage(): JSX.Element {
   })
   const pipeline = pipelineRaw as PipelineItem[]
 
-  const { data: invoicesDataRaw, isError: e3 } = useQuery({
+  const { data: invoicesData = [], isError: e3 } = useQuery({
     queryKey: ['fin-dash-invoices'],
     queryFn: async () => {
       // `/invoices` pagina con skip/limit (máximo 500): se recorre entero.
-      const todas: unknown[] = []
+      const todas: Factura[] = []
       for (let skip = 0; ; skip += 500) {
-        const lote = unwrapList(await api.get('/invoices', { params: { skip, limit: INVOICES_BATCH_SIZE } })) as unknown[]
+        const lote = (await invoicesApi.list({ skip, limit: INVOICES_BATCH_SIZE })).data
         todas.push(...lote)
         if (lote.length < 500) return todas
       }
     },
     staleTime: STALE_DEFAULT_MS,
   })
-  const invoicesData = (invoicesDataRaw ?? []) as InvoiceItem[]
 
-  const { data: topProjectsRaw = [], isError: e4 } = useQuery({
+  // Nombres de `calc_project_profitability` (auditoria 2026-11: se leian `revenue_actual`/`cost_actual`).
+  const { data: topProjects = [], isError: e4 } = useQuery({
     queryKey: ['fin-dash-top-proj', days],
-    queryFn: () => api.get('/profitability/projects', { params }).then(r => r.data),
+    queryFn: () => profitabilityApi.projects(params).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
-  const topProjects = topProjectsRaw as ProjectProfitItem[]
 
   const qc = useQueryClient()
   const [showRateForm, setShowRateForm] = useState(false)
   const [rateForm, setRateForm] = useState<RateFormState>({ from_currency: fmtMoneda.moneda, to_currency: 'USD', rate: '' })
-  const { data: ratesRaw = [], isError: e5 } = useQuery({
+  const { data: rates = [], isError: e5 } = useQuery({
     queryKey: ['currency-rates'],
     queryFn: () => currencyApi.rates({}).then(r => r.data),
     staleTime: STALE_5_MIN_MS,
   })
-  const rates = ratesRaw as CurrencyRate[]
 
   // Coste/hora real: sólo admin y hr (el endpoint da 403 al resto, que no lo pide).
   const { hasRole } = useAuth()
   const veCostes = hasRole('admin', 'hr')
   const puedeGuardarCambio = hasRole('admin')
-  const { data: costSummaryRaw, isError: e6 } = useQuery({
+  const { data: costSummary = null, isError: e6 } = useQuery({
     queryKey: ['fin-dash-cost-summary'],
     enabled: veCostes,
-    queryFn: () => userCostsApi.summary(undefined).then(r => r.data),
+    queryFn: () => userCostsApi.summary().then(r => r.data),
     staleTime: STALE_5_MIN_MS,
     retry: false,
   })
-  const costSummary = (costSummaryRaw ?? null) as CostSummary | null
   const { mutate: upsertRate, isPending: savingRate } = useMutation({
     mutationFn: (d: { from_currency: string; to_currency: string; rate: number }) => currencyApi.upsert(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['currency-rates'] }); setShowRateForm(false); setRateForm({ from_currency: fmtMoneda.moneda, to_currency:'USD', rate:'' }) },
@@ -159,8 +125,8 @@ export default function FinanceDashboardPage(): JSX.Element {
   const invoices = Array.isArray(invoicesData) ? invoicesData : []
   const pendingInvoices = invoices.filter(i => i.status === 'sent' || i.status === 'overdue')
   const overdueInvoices = invoices.filter(i => i.status === 'overdue')
-  const pendingAmount   = pendingInvoices.reduce((s, i) => s + (i.total || i.amount || 0), 0)
-  const overdueAmount   = overdueInvoices.reduce((s, i) => s + (i.total || i.amount || 0), 0)
+  const pendingAmount   = pendingInvoices.reduce((s, i) => s + (i.total ?? 0), 0)
+  const overdueAmount   = overdueInvoices.reduce((s, i) => s + (i.total ?? 0), 0)
 
   const activeClients    = clients.filter(c => c.status === 'active').length
   const abiertas         = pipeline.filter(o => o.stage !== 'won' && o.stage !== 'lost')
@@ -328,13 +294,13 @@ export default function FinanceDashboardPage(): JSX.Element {
                   const pct  = rev > 0 ? Math.round((mgn / rev) * 100) : 0
                   const mColor = pct >= 30 ? COLOR.success : pct >= 15 ? COLOR.warning : COLOR.danger
                   return (
-                    <tr key={p.project_id || p.id} style={{
+                    <tr key={p.project_id} style={{
                       borderBottom: '1px solid var(--surface-4)',
                       background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
                     }}>
                       <td style={{ padding: '11px 16px' }}>
                         <div style={{ fontSize: "var(--text-base)", fontWeight: 500, color: 'var(--text-1)' }}>
-                          {p.project_name || p.name}
+                          {p.project_name}
                         </div>
                         {p.client_name && (
                           <div className="u-text3-xs">{p.client_name}</div>

@@ -32,7 +32,7 @@ Routes:
   Dashboard:
     GET    /dashboard
 """
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -40,6 +40,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.paginacion import Pagina, Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.services import revenue_service as svc
 from app.core import timeutil
@@ -153,11 +154,14 @@ def list_entries(
     contract_id: Optional[str] = None,
     year: Optional[int] = None,
     month: Optional[int] = None,
+    response: Response = None,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    entries = svc.list_entries(db, contract_id=contract_id, year=year, month=month)
-    return APIListResponse.ok(items=svc.serialize_entries(db, entries))
+    entries = svc.list_entries(db, contract_id=contract_id, year=year, month=month, pagina=pagina)
+    return lista_paginada(response, Pagina(
+        items=svc.serialize_entries(db, entries.items), total=entries.total, pagina=entries.pagina))
 
 
 @router.post("/entries/{entry_id}/reverse", summary="Revertir entrada contable")

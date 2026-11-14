@@ -13,28 +13,12 @@ import { useConfirm } from '../context/ConfirmContext'
 import { pedirReautenticacion, esFalloDeReautenticacion } from '../components/security/reautenticacion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mfaApi } from '../services/api'
+import type { AltaMfa, EstadoMfa } from '../services/api/tipos-plataforma'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Lock } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-
-interface MfaStatus {
-  enabled?: boolean
-  /** Con cualquier segundo factor (TOTP o passkey) el alta pide contrasena o codigo. */
-  reauth_required?: boolean
-  verified_at?: string
-  backup_codes_remaining?: number
-}
-
-interface MfaSetupData {
-  qr_url?: string
-  secret?: string
-}
-
-interface MfaVerifyResponse {
-  data?: { backup_codes?: string[] }
-}
 
 const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 const fs: CSSProperties = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-xl-em)", outline:'none', fontFamily:'inherit', boxSizing:'border-box', letterSpacing:4, textAlign:'center' }
@@ -45,19 +29,19 @@ export default function MFAPage() {
   const toast = useToast()
   const { pedirTexto } = useConfirm()
   const [step, setStep] = useState<'status' | 'setup' | 'verify' | 'done'>('status')
-  const [setupData, setSetupData] = useState<MfaSetupData | null>(null)
+  const [setupData, setSetupData] = useState<AltaMfa | null>(null)
   const [code, setCode] = useState('')
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [disableCode, setDisableCode] = useState('')
   const [showDisable, setShowDisable] = useState(false)
 
-  const { data: status, isLoading } = useQuery<MfaStatus>({
+  const { data: status, isLoading } = useQuery<EstadoMfa>({
     queryKey: ['mfa-status'],
     queryFn: () => mfaApi.status().then(r => r.data),
   })
 
   const { mutate: setup, isPending: setting } = useMutation({
-    mutationFn: async (): Promise<MfaSetupData | null> => {
+    mutationFn: async (): Promise<AltaMfa | null> => {
       // Con una passkey ya registrada, el servidor pide contrasena o codigo.
       // Cancelar el dialogo no es un error.
       let reauth
@@ -67,15 +51,15 @@ export default function MFAPage() {
       }
       return mfaApi.setup(reauth).then(r => r.data)
     },
-    onSuccess: (data: MfaSetupData | null) => { if (!data) return; setSetupData(data); setStep('setup') },
+    onSuccess: (data: AltaMfa | null) => { if (!data) return; setSetupData(data); setStep('setup') },
     onError: (e: unknown) => toast.error(esFalloDeReautenticacion(e)
       ? 'Contraseña o código incorrectos: no se ha empezado el alta.'
       : extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: verify, isPending: verifying, isError: verifyError } = useMutation({
-    mutationFn: (codeValue: string) => mfaApi.verify(codeValue),
-    onSuccess: (data: MfaVerifyResponse) => {
-      setBackupCodes(data.data?.backup_codes || [])
+    mutationFn: (codeValue: string) => mfaApi.verify(codeValue).then(r => r.data),
+    onSuccess: (data) => {
+      setBackupCodes(data.backup_codes)
       setStep('done')
       qc.invalidateQueries({ queryKey: ['mfa-status'] })
     },

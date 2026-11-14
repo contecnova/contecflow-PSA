@@ -4,6 +4,7 @@ import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, deliverablesApi } from '../services/api'
+import type { Entregable } from '../services/api/tipos-alm'
 import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -25,32 +26,6 @@ interface ProjectItem {
 interface UserItem {
   id: string | number
   full_name?: string
-}
-
-interface DeliverableItem {
-  id: string | number
-  project_id?: string | number
-  code?: string
-  name?: string
-  format?: string
-  status?: string
-  overdue?: boolean
-  description?: string
-  planned_date?: string
-  delivered_date?: string
-  accepted_date?: string
-  owner_name?: string
-  owner_id?: string | number
-  client_contact?: string
-  rejection_reason?: string
-  acceptance_criteria?: string
-  sort_order?: number
-  project_code?: string
-}
-
-interface DeliverablesData {
-  deliverables?: DeliverableItem[]
-  summary?: { total?: number; accepted?: number; delivered?: number; overdue?: number; completion_pct?: number }
 }
 
 interface DeliverableFormState {
@@ -78,7 +53,7 @@ const STATUS_CFG = {
   rejected:    { label: 'Rechazado',   color: 'var(--danger)', icon: '❌' },
 }
 
-function StatusDropdown({ del, onUpdate }: { del: DeliverableItem; onUpdate: (status: string) => void }) {
+function StatusDropdown({ del, onUpdate }: { del: Entregable; onUpdate: (status: string) => void }) {
   const [open, setOpen] = useState(false)
   const cfg = STATUS_CFG[del.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
   return (
@@ -104,7 +79,7 @@ function StatusDropdown({ del, onUpdate }: { del: DeliverableItem; onUpdate: (st
   )
 }
 
-function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableItem | null; projectId: string; onClose: () => void }) {
+function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | null; projectId: string; onClose: () => void }) {
   const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
@@ -127,7 +102,7 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: DeliverableIt
   const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: DeliverableFormState) => isEdit ? deliverablesApi.updateInProject(projectId, del!.id, data as unknown as Record<string, unknown>) : deliverablesApi.createForProject(projectId, data as unknown as Record<string, unknown>),
+    mutationFn: (data: DeliverableFormState) => isEdit ? deliverablesApi.updateInProject(projectId, del!.id, data) : deliverablesApi.createForProject(projectId, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', projectId] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); onClose() },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -184,25 +159,23 @@ export default function DeliverablesPage(): JSX.Element {
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState<DeliverableItem | null>(null)
+  const [editing, setEditing] = useState<Entregable | null>(null)
   const [tab, setTab] = useState<'project' | 'overview'>('project')
 
   const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data) })
   const projects = projectsRaw as ProjectItem[]
 
-  const { data: delivDataRaw, isLoading } = useQuery({
+  const { data: delivData, isLoading } = useQuery({
     queryKey: ['deliverables', selectedProject],
     queryFn: () => deliverablesApi.listByProject(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
-  const delivData = (delivDataRaw ?? null) as DeliverablesData | null
 
-  const { data: overviewRaw = [] } = useQuery({
+  const { data: overview = [] } = useQuery({
     queryKey: ['deliverables-overview'],
-    queryFn: () => deliverablesApi.overviewAll().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => deliverablesApi.overviewAll().then(r => r.data),
     enabled: tab === 'overview',
   })
-  const overview = overviewRaw as DeliverableItem[]
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }: { id: string | number; status: string }) => deliverablesApi.updateInProject(selectedProject, id, { status }),
@@ -226,7 +199,7 @@ export default function DeliverablesPage(): JSX.Element {
   })
 
   const deliverables = delivData?.deliverables || []
-  const summary: NonNullable<DeliverablesData['summary']> = delivData?.summary || {}
+  const summary = delivData?.summary
   const { sort: ovSort, setSort: setOvSort, sortedData: sortedOverview } = useSort(overview, 'name')
 
   return (
@@ -254,7 +227,7 @@ export default function DeliverablesPage(): JSX.Element {
             {selectedProject && hasRole('admin', 'pm') && <Button onClick={() => setShowCreate(true)} icon="＋">{t('deliverables.new_deliverable')}</Button>}
           </div>
 
-          {selectedProject && (summary.total ?? 0) > 0 && (
+          {selectedProject && (summary?.total ?? 0) > 0 && (
             <div style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
               {[
                 { label: 'Total', value: summary.total, color: 'var(--text-2)' },

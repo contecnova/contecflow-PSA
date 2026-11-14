@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { alertsApi, apiWsUrl } from '../services/api'
+import type { Alerta } from '../services/api/tipos-documentos'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -28,14 +29,7 @@ type NotificationItem = {
   created_at?: string
 }
 
-type AlertItem = {
-  id: string | number
-  alert_type?: string
-  title?: string
-  description?: string
-  is_read?: boolean
-  created_at?: string | Date | { toISOString?: () => string }
-}
+type AlertItem = Alerta
 
 type NotificationsResponse = {
   notifications: NotificationItem[]
@@ -228,9 +222,9 @@ export default function NotificationsPage() {
     refetchInterval: POLL_DEFAULT_MS,
   })
 
-  const { data: alertsRaw = [], isLoading: alertsLoading } = useQuery<AlertItem[]>({
+  const { data: alertsRaw = [], isLoading: alertsLoading } = useQuery({
     queryKey: ['alerts-count'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data).catch((): AlertItem[] => []),
     refetchInterval: POLL_DEFAULT_MS,
     enabled: hasRole('admin', 'pm', 'hr'),
   })
@@ -244,7 +238,7 @@ export default function NotificationsPage() {
     title: a.title,
     body: a.description,
     is_read: a.is_read,
-    created_at: typeof a.created_at === 'string' ? a.created_at : (a.created_at?.toISOString?.() || ''),
+    created_at: a.created_at,
   }))
 
   const notifications = data?.notifications || []

@@ -14,6 +14,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, automationsApi } from '../services/api'
+import type { AccionDeRegla, CatalogoDeAutomatizaciones, CondicionDeRegla, PlantillaDeRegla, ReglaDeAutomatizacion, SimulacionDeRegla } from '../services/api/tipos-plataforma'
 import { Button, Modal, Spinner, EmptyState, Page, Table } from '../components/ui'
 import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
@@ -44,9 +45,8 @@ const ACTION_ICONS: Record<string, string> = {
 
 // Revisión 2026-11: condiciones en grupo («todas» / «alguna»). La pantalla edita
 // un nivel; un grupo anidado que venga de la API se conserva tal cual.
-type Condicion = { field?: string; operator?: string; value?: string; match?: string; conditions?: Condicion[] }
-const esGrupo = (c: Condicion | null | undefined) => !!c && ('conditions' in c || 'match' in c)
-function aGrupo(c: Condicion | null | undefined): { match: string; conditions: Condicion[] } {
+const esGrupo = (c: CondicionDeRegla | null | undefined) => !!c && ('conditions' in c || 'match' in c)
+function aGrupo(c: CondicionDeRegla | null | undefined): { match: string; conditions: CondicionDeRegla[] } {
   if (!c) return { match: 'all', conditions: [] }
   if (esGrupo(c)) return { match: c.match || 'all', conditions: c.conditions || [] }
   return { match: 'all', conditions: [c] }
@@ -56,54 +56,10 @@ const CRON_PLANTILLAS: Array<[string, string]> = [
   ['cron_monthly', '0 9 1 * *'], ['cron_hourly', '0 * * * *'],
 ]
 
-type AccionRegla = { type: string; params?: Record<string, string> }
-/** Regla tal como la devuelve `GET /automations`. */
-interface ReglaAutomatizacion {
-  id: string
-  name: string
-  description?: string | null
-  project_id?: string | null
-  project_name?: string | null
-  is_global?: boolean
-  is_active: boolean
-  trigger_type: string
-  trigger_conditions?: Condicion | null
-  actions: AccionRegla[]
-  schedule_cron?: string | null
-  run_count?: number
-  last_run_at?: string | null
-  next_run_at?: string | null
-  last_error?: string | null
-}
-interface PlantillaRegla {
-  id: string
-  name: string
-  trigger_type: string
-  trigger_conditions?: Condicion | null
-  actions: AccionRegla[]
-}
-interface EjecucionRegla {
-  executed_at: string
-  success: boolean
-  actions_taken?: Array<{ action: string; ok?: boolean; error?: string }>
-}
-interface ResultadoPrueba {
-  enabled?: boolean
-  scan?: boolean
-  results?: Array<{ action: string; ok: boolean; would?: string; error?: string }>
-}
-
-type ParamDef = { key: string; type: string; options?: string[] | null; required?: boolean }
-type Catalog = {
-  triggers: Array<{ type: string; category: string; fields: string[]; scan?: boolean; schedule?: boolean }>
-  actions: Array<{ type: string; category: string; params: ParamDef[] }>
-  operators: string[]
-}
-
 function useCatalog() {
-  return useQuery<Catalog>({
+  return useQuery<CatalogoDeAutomatizaciones>({
     queryKey: ['automations-catalog'],
-    queryFn: () => automationsApi.catalog().then(r => r.data as Catalog),
+    queryFn: () => automationsApi.catalog().then(r => r.data),
     staleTime: Infinity,
   })
 }
@@ -146,7 +102,7 @@ function highlightText(text: string | null | undefined, term: string) {
 }
 
 // ── Rule card ─────────────────────────────────────────────────────────────────
-function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlightTerm }: { rule: ReglaAutomatizacion; onEdit: (r: ReglaAutomatizacion) => void; onDelete: (id: string) => void; onTest: (r: ReglaAutomatizacion) => void; onToggle: (r: ReglaAutomatizacion) => void; onHistory: (r: ReglaAutomatizacion) => void; highlightTerm: string }) {
+function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlightTerm }: { rule: ReglaDeAutomatizacion; onEdit: (r: ReglaDeAutomatizacion) => void; onDelete: (id: string) => void; onTest: (r: ReglaDeAutomatizacion) => void; onToggle: (r: ReglaDeAutomatizacion) => void; onHistory: (r: ReglaDeAutomatizacion) => void; highlightTerm: string }) {
   const t = useAppT()
   const trigger = { icon: TRIGGER_ICONS[rule.trigger_type] || '⚙️', label: rule.trigger_type }
   const actions = Array.isArray(rule.actions) ? rule.actions : []
@@ -189,7 +145,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
           <span style={{ color: 'var(--purple)', fontWeight: 700 }}>{t('automations.si_label')} </span>
           <span className="u-text1">{trigger.icon} {highlightText(t('automations.trig_' + rule.trigger_type, trigger.label), highlightTerm)}</span>
           {rule.schedule_cron && <span className="u-text2"> · <code>{rule.schedule_cron}</code></span>}
-          {rule.trigger_conditions && aGrupo(rule.trigger_conditions).conditions.map((c: Condicion, i: number) => (
+          {rule.trigger_conditions && aGrupo(rule.trigger_conditions).conditions.map((c: CondicionDeRegla, i: number) => (
             <span key={i} className="u-text2">
               {i === 0 ? ' · ' : ` ${t(aGrupo(rule.trigger_conditions).match === 'any' ? 'automations.or_lbl' : 'automations.and_lbl')} `}
               {esGrupo(c) ? `(${t('automations.nested_group')})` : <>{c.field} {t('automations.op_' + c.operator)} <strong className="u-text1">{c.value}</strong></>}
@@ -222,7 +178,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
 }
 
 // ── Rule editor modal ─────────────────────────────────────────────────────────
-function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () => void }) {
+function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: () => void }) {
   const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
@@ -235,12 +191,12 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
     is_global: rule?.is_global ?? false,
     trigger_type: rule?.trigger_type || 'task_status_changed',
     trigger_conditions: rule?.trigger_conditions || null,
-    actions: rule?.actions || [{ type: 'create_alert', params: { message: '', severity: 'warning' } }] as AccionRegla[],
+    actions: rule?.actions || [{ type: 'create_alert', params: { message: '', severity: 'warning' } }] as AccionDeRegla[],
   })
   const [hasCondition, setHasCondition] = useState(!!rule?.trigger_conditions)
   const inicial = aGrupo(rule?.trigger_conditions)
   const [match, setMatch] = useState(inicial.match)
-  const [condiciones, setCondiciones] = useState<Condicion[]>(
+  const [condiciones, setCondiciones] = useState<CondicionDeRegla[]>(
     inicial.conditions.length ? inicial.conditions : [{ field: '', operator: 'equals', value: '' }])
   const [cron, setCron] = useState<string>(rule?.schedule_cron || '0 9 * * 1-5')
   const cambiarCondicion = (i: number, campo: string, valor: string) =>
@@ -460,11 +416,11 @@ function RuleModal({ rule, onClose }: { rule?: ReglaAutomatizacion; onClose: () 
 }
 
 // ── Executions modal ──────────────────────────────────────────────────────────
-function ExecutionsModal({ rule, onClose }: { rule: ReglaAutomatizacion; onClose: () => void }) {
+function ExecutionsModal({ rule, onClose }: { rule: ReglaDeAutomatizacion; onClose: () => void }) {
   const t = useAppT()
   const { data = [], isLoading } = useQuery({
     queryKey: ['automation_executions', rule.id],
-    queryFn: () => automationsApi.executions(rule.id).then((r): EjecucionRegla[] => (Array.isArray(r.data) ? r.data : [])),
+    queryFn: () => automationsApi.executions(rule.id).then(r => r.data),
     enabled: !!rule?.id,
   })
   return (
@@ -502,24 +458,23 @@ export default function AutomationsPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [editing, setEditing] = useState<ReglaAutomatizacion | null>(null)
+  const [editing, setEditing] = useState<ReglaDeAutomatizacion | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
-  const [execHistory, setExecHistory] = useState<ReglaAutomatizacion | null>(null)
+  const [execHistory, setExecHistory] = useState<ReglaDeAutomatizacion | null>(null)
   const [filterActive, setFilterActive] = useState<boolean | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [testResult, setTestResult] = useState<ResultadoPrueba | null>(null)
+  const [testResult, setTestResult] = useState<SimulacionDeRegla | null>(null)
 
-  const { data: raw = [], isLoading } = useQuery({
+  const { data: rules = [], isLoading } = useQuery({
     queryKey: ['automations'],
-    queryFn: () => automationsApi.list().then((r): ReglaAutomatizacion[] => r.data?.items ?? r.data ?? []),
+    queryFn: () => automationsApi.list().then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
   })
-  const rules = Array.isArray(raw) ? raw : []
 
   const { data: templates = [] } = useQuery({
     queryKey: ['auto-templates'],
-    queryFn: () => automationsApi.templates().then((r): PlantillaRegla[] => r.data),
+    queryFn: () => automationsApi.templates().then(r => r.data),
     enabled: showTemplates,
   })
 
@@ -534,12 +489,12 @@ export default function AutomationsPage(): JSX.Element {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: test } = useMutation({
-    mutationFn: (id: string) => automationsApi.test(id).then((r): ResultadoPrueba => r.data),
+    mutationFn: (id: string) => automationsApi.test(id).then(r => r.data),
     onSuccess: (data) => setTestResult(data),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createFromTemplate } = useMutation({
-    mutationFn: (tpl: PlantillaRegla) => automationsApi.create({
+    mutationFn: (tpl: PlantillaDeRegla) => automationsApi.create({
       name: tpl.name,
       trigger_type: tpl.trigger_type,
       trigger_conditions: tpl.trigger_conditions,

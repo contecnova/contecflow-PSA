@@ -36,7 +36,9 @@ def _get_project_status(tool_input, db, user, now, is_financial_role):
 
 
 def _search_projects(tool_input, db, user, now, is_financial_role):
-    q = db.query(Project)
+    # Segunda auditoría 2026-11: los proyectos que ve el usuario, no toda la empresa.
+    from app.services.project_service import scope_projects_query
+    q = scope_projects_query(db.query(Project), db, user)
     if tool_input.get("query"):
         term = f"%{tool_input['query']}%"
         q = q.filter(or_(Project.name.ilike(term), Project.client_name.ilike(term),

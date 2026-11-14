@@ -76,14 +76,10 @@ if [[ "$MODE" != "--info" ]]; then
   step "Bloqueantes"
   run_gate bloqueante "ruff (app + tests)"          "$PY_BIN" -m ruff check app tests
   run_gate bloqueante "árbol de dependencias"       "$PY_BIN" -m pip check
-  # Los 2 CVEs ignorados no tienen remediación disponible hoy; están listados uno
-  # a uno (no se desactiva el gate) para que un CVE NUEVO sí salga en rojo.
-  #   PYSEC-2026-3447 setuptools — torch 2.11 exige setuptools<82.
-  #   PYSEC-2026-1325 ecdsa      — sin versión corregida publicada; su único
-  #     camino alcanzable ya se migró de python-jose a PyJWT.
+  # Segunda auditoría 2026-11: sin excepciones. setuptools 84.2.1 (torch >= 2.13
+  # ya no exige <82) y python-jose/ecdsa retirados (JWT solo con PyJWT).
   run_gate bloqueante "pip-audit" \
-    "$PY_BIN" -m pip_audit -r requirements.txt \
-      --ignore-vuln PYSEC-2026-3447 --ignore-vuln PYSEC-2026-1325
+    "$PY_BIN" -m pip_audit -r requirements.txt
 
   if [[ "$MODE" != "--fast" ]]; then
     run_gate bloqueante "pytest (suite completa)" \

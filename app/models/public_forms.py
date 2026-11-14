@@ -24,7 +24,7 @@ class PublicForm(Base):
     form_type      = Column(String(20), nullable=False)          # ticket | task
     token          = Column(String(64), nullable=False, unique=True, index=True)
     is_active      = Column(Boolean, default=True)
-    target_project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    target_project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     target_group_id   = Column(String(36), nullable=True)
     default_priority  = Column(String(20), default="medium")
     default_category  = Column(String(100), nullable=True)
@@ -32,7 +32,7 @@ class PublicForm(Base):
     success_message   = Column(String(500), nullable=True)
     notify_emails     = Column(Text, default="[]")               # JSON
     submission_count  = Column(Integer, default=0)
-    created_by     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at     = Column(DateTime(timezone=True), default=_utcnow)
     updated_at     = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 

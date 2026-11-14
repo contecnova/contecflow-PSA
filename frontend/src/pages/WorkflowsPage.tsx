@@ -5,6 +5,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectWorkflowsApi } from '../services/api'
+import type { EstadoDelFlujoDeProyecto, FlujoDelProyecto } from '../services/api/tipos-rendimiento'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -19,29 +20,8 @@ type ProjectItem = {
   name: string
 }
 
-type WorkflowTransition = {
-  id: string | number
-  to_state_id: string | number
-  label?: string
-  required_role?: string
-  requires_comment?: boolean
-}
-
-type WorkflowState = {
-  id: string | number
-  name: string
-  value: string
-  color: string
-  icon?: string
-  is_initial?: boolean
-  is_final?: boolean
-  sort_order?: number
-  transitions_from?: WorkflowTransition[]
-}
-
-type WorkflowData = {
-  states?: WorkflowState[]
-}
+/** custom_fields_service.serialize_state (con sus transiciones de salida). */
+type WorkflowState = EstadoDelFlujoDeProyecto
 
 type StateFormData = {
   name: string
@@ -230,9 +210,9 @@ export default function WorkflowsPage() {
     queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
 
-  const { data: workflow, isLoading } = useQuery<WorkflowData | null>({
+  const { data: workflow, isLoading } = useQuery({
     queryKey: ['workflow', selectedProject],
-    queryFn: () => projectWorkflowsApi.get(selectedProject).then(r => r.data).catch(() => null),
+    queryFn: () => projectWorkflowsApi.get(selectedProject).then(r => r.data).catch((): FlujoDelProyecto | null => null),
     enabled: !!selectedProject,
   })
 

@@ -10,6 +10,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.client_service import (
@@ -31,14 +32,17 @@ def list_clients(
     status: Optional[str] = None,
     industry: Optional[str] = None,
     limit: Optional[int] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=1000),
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
     response: Response = None,
 ):
-    items = _svc.list_clients(db, cu, q=q, status=status, industry=industry, limit=limit)
-    return APIListResponse.ok(items=items, page=page, page_size=page_size)
+    """Segunda auditoria 2026-11: ``page``/``page_size`` se aceptaban y se
+    ignoraban (siempre la lista entera, con ``meta.page_size=50`` aunque fueran
+    mil). Ahora paginan de verdad; sin ellos, la lista entera hasta
+    ``LIST_MAX_ROWS``. ``limit`` sigue siendo «solo las primeras N»."""
+    return lista_paginada(response, _svc.list_clients(
+        db, cu, q=q, status=status, industry=industry, limit=limit, pagina=pagina))
 
 
 @router.post("")
@@ -199,11 +203,12 @@ def update_portal_config(cid: str, data: dict = Body(...), db: Session = Depends
 @router.get("/{cid}/invoices")
 def list_client_invoices(
     cid: str,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
     response: Response = None,
 ):
-    return APIListResponse.ok(items=_svc.list_client_invoices(cid, db))
+    return lista_paginada(response, _svc.list_client_invoices(cid, db, pagina))
 
 
 # ── Tickets del cliente ────────────────────────────────────────────────────────

@@ -80,7 +80,7 @@ class AIAgentExecution(Base):
     status       = Column(String(20), default="pending")       # pending|running|awaiting_approval|done|failed
     result       = Column(Text, nullable=True)                 # final summary
     steps_count  = Column(Integer, default=0)
-    approved_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approved_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     approved_at  = Column(DateTime(timezone=True), nullable=True)
     error        = Column(String(500), nullable=True)
     total_tokens = Column(Integer, default=0)
@@ -133,7 +133,7 @@ class AIPrediction(Base):
     recommended_action = Column(Text, nullable=True)
     features_used   = Column(Text, nullable=True)              # JSON: {feature: weight}
     is_acknowledged = Column(Boolean, default=False)
-    acknowledged_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    acknowledged_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     acknowledged_at = Column(DateTime(timezone=True), nullable=True)
     expires_at      = Column(DateTime(timezone=True), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
@@ -155,7 +155,7 @@ class AIAnomaly(Base):
     severity     = Column(String(20), default="medium")
     data_snapshot = Column(Text, nullable=True)                # JSON: relevant data at detection time
     is_resolved  = Column(Boolean, default=False)
-    resolved_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    resolved_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     resolved_at  = Column(DateTime(timezone=True), nullable=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -180,7 +180,7 @@ class AIGovernanceConfig(Base):
     max_actions_per_day   = Column(Integer, nullable=True)     # rate limit per user
     allowed_roles   = Column(Text, default='["admin","pm"]')   # JSON: list of roles that can use this module
     model_override  = Column(String(80), nullable=True)        # override default model for this module
-    updated_by      = Column(String(36), ForeignKey("users.id"), nullable=True)
+    updated_by      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     updated_at      = Column(DateTime(timezone=True), onupdate=func.now())
 
     updater = relationship("User", foreign_keys=[updated_by])
@@ -227,7 +227,7 @@ class AIMeeting(Base):
     risks_mentioned = Column(Text, nullable=True)              # JSON: risks mentioned
     status       = Column(String(20), default="processing")    # processing | done | failed
     pdf_path     = Column(String(500), nullable=True)          # generated PDF minutes
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     actions  = relationship("AIMeetingAction", back_populates="meeting",
@@ -246,10 +246,10 @@ class AIMeetingAction(Base):
                           nullable=False, index=True)
     description  = Column(Text, nullable=False)
     assignee_name = Column(String(255), nullable=True)         # name as mentioned in transcript
-    assignee_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    assignee_id  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     due_date_text = Column(String(100), nullable=True)         # "next Friday", "end of month"
     due_date     = Column(DateTime(timezone=True), nullable=True)
-    task_id      = Column(String(36), ForeignKey("tasks.id"), nullable=True)  # if created in Contecflow
+    task_id      = Column(String(36), ForeignKey("tasks.id"), nullable=True, index=True)  # if created in Contecflow
     is_created   = Column(Boolean, default=False)              # True if task created in Contecflow
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -276,7 +276,7 @@ class AIContract(Base):
     scope_summary = Column(Text, nullable=True)
     risk_level   = Column(String(20), nullable=True)           # low | medium | high
     scope_creep_alerts = Column(Integer, default=0)
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     clauses  = relationship("AIContractClause", back_populates="contract",
@@ -329,7 +329,7 @@ class AIKBArticle(Base):
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    source_ticket_id = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True)
+    source_ticket_id = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True, index=True)
     title          = Column(String(255), nullable=False)
     content        = Column(Text, nullable=False)
     tags           = Column(Text, nullable=True)               # JSON: list of tags
@@ -340,7 +340,7 @@ class AIKBArticle(Base):
     helpful_votes  = Column(Integer, default=0)
     is_published   = Column(Boolean, default=False)
     is_ai_generated = Column(Boolean, default=True)
-    reviewed_by    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    reviewed_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
     updated_at     = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -376,7 +376,7 @@ class AIClientChatSession(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     client_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"),
                             nullable=False, index=True)
-    project_id     = Column(String(36), ForeignKey("projects.id"), nullable=True)
+    project_id     = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     messages = relationship("AIClientChatMessage", back_populates="session",
@@ -417,7 +417,7 @@ class AIPromptTemplate(Base):
     content    = Column(Text, nullable=False)
     version    = Column(Integer, default=1, nullable=False)
     is_active  = Column(Boolean, default=True)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -461,7 +461,7 @@ class AIAnswerFeedback(Base):
     question        = Column(Text, nullable=True)
     helpful         = Column(Boolean, nullable=False)
     comment         = Column(Text, nullable=True)
-    user_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     client_user_id  = Column(String(36), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -483,7 +483,7 @@ class AskDataExample(Base):
     question        = Column(Text, nullable=False)
     question_norm   = Column(String(500), nullable=False)
     sql             = Column(Text, nullable=False)
-    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     times_used      = Column(Integer, nullable=False, default=0, server_default="0")
     last_used_at    = Column(DateTime(timezone=True), nullable=True)

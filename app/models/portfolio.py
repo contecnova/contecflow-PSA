@@ -29,7 +29,7 @@ class Portfolio(Base):
     budget_spent   = Column(Float, nullable=True)   # Snapshot of spent (updated on demand)
 
     # Owner
-    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Dates
     start_date = Column(Date, nullable=True)

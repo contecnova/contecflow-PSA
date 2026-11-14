@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { ticketsApi } from '../services/api'
+import type { SdTicket } from '../services/api/tipos-sd'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 
 const STALE = 60 * 1000  // 1 min — tickets change more frequently
@@ -68,10 +69,10 @@ export function useCommentTicket(): UseMutationResult<unknown, unknown, CommentA
 
 // NOTE: SD tickets do not have a hard-delete endpoint — use useCloseTicket to close them.
 
-export function useTicketMyQueue(): UseQueryResult<unknown> {
+export function useTicketMyQueue(): UseQueryResult<SdTicket[]> {
   return useQuery({
     queryKey: ['sd-tickets-my-queue'],
-    queryFn: () => ticketsApi.myQueue().then((r: { data: unknown }) => r.data),
+    queryFn: () => ticketsApi.myQueue().then(r => r.data),
     staleTime: STALE,
     refetchInterval: POLL_DEFAULT_MS,
   })

@@ -4,7 +4,8 @@
 import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { formsApi } from '../services/api'
+import { formsApi, projectsApi } from '../services/api'
+import type { FormularioPublico } from '../services/api/tipos-documentos'
 import { Button, Modal, EmptyState, Spinner, Table } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -14,37 +15,18 @@ import { extractErr, localeActivo } from '../utils/helpers'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useAppT } from '../i18n/AppLangContext'
 
-interface PublicForm {
-  id: string | number
-  name: string
-  description?: string
-  form_type?: 'ticket' | 'task' | string
-  is_active?: boolean
-  default_priority?: string
-  default_category?: string
-  success_message?: string
-  token?: string
-  submission_count?: number
-}
+type PublicForm = FormularioPublico
 
+/** `FormCreateIn` / `FormUpdateIn` (endpoints/public_forms.py). */
 interface PublicFormPayload {
   name: string
   description: string
-  form_type: string
+  form_type: FormularioPublico['form_type']
+  target_project_id: string | null
   is_active: boolean
   default_priority: string
   default_category: string
   success_message: string
-}
-
-interface FormSubmission {
-  id: string | number
-  submitted_at?: string
-  submitter_name?: string
-  submitter_email?: string
-  subject?: string
-  priority?: string
-  created_entity_id?: string | number
 }
 
 const FS: CSSProperties = {
@@ -65,6 +47,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
     name: form?.name || '',
     description: form?.description || '',
     form_type: form?.form_type || 'ticket',
+    target_project_id: form?.target_project_id ?? null,
     is_active: form?.is_active ?? true,
     default_priority: form?.default_priority || 'medium',
     default_category: form?.default_category || '',
@@ -75,6 +58,14 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
     setF(p => ({ ...p, [k]: e.target.value }))
   const setCheck = (k: keyof PublicFormPayload) => (e: ChangeEvent<HTMLInputElement>) =>
     setF(p => ({ ...p, [k]: e.target.checked }))
+
+  // Un formulario de tareas necesita proyecto destino (validar_destino): sin este
+  // selector el alta de un formulario de tareas daba siempre 400.
+  const { data: proyectos = [] } = useQuery({
+    queryKey: ['projects-minimal'],
+    queryFn: () => projectsApi.list().then(r => r.data),
+    enabled: f.form_type === 'task',
+  })
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: PublicFormPayload) => isEdit
@@ -102,7 +93,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
         <div className="u-grid2-12">
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('public_forms.type_label')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.form_type} onChange={set('form_type')} style={FS}>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.form_type} onChange={set('form_type')} style={FS} disabled={isEdit}>
               <option value="ticket">{t('public_forms.type_ticket')}</option>
               <option value="task">{t('public_forms.type_task')}</option>
             </select>
@@ -117,6 +108,16 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
             </select>
           </div>
         </div>
+        {f.form_type === 'task' && (
+          <div>
+            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={LS}>{t('public_forms.target_project_label')}</label>
+            <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={f.target_project_id ?? ''} style={FS}
+              onChange={e => setF(p => ({ ...p, target_project_id: e.target.value || null }))}>
+              <option value="">—</option>
+              {proyectos.map(pr => <option key={pr.id} value={pr.id}>{pr.code} · {pr.name}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('public_forms.default_category_label')}</label>
           <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={f.default_category} onChange={set('default_category')} style={FS} placeholder={t('public_forms.default_category_placeholder')} />
@@ -132,7 +133,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
         </label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
           <Button variant="secondary" onClick={onClose}>{t('public_forms.cancel')}</Button>
-          <Button onClick={() => mutate(f)} disabled={isPending || !f.name} loading={isPending}>
+          <Button onClick={() => mutate(f)} disabled={isPending || !f.name || (f.form_type === 'task' && !f.target_project_id)} loading={isPending}>
             {isEdit ? t('public_forms.save_changes') : t('public_forms.create_form')}
           </Button>
         </div>
@@ -143,7 +144,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
 
 function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => void }) {
   const t = useAppT()
-  const { data: subs = [], isLoading } = useQuery<FormSubmission[]>({
+  const { data: subs = [], isLoading } = useQuery({
     queryKey: ['form-submissions', form.id],
     queryFn: () => formsApi.submissions(form.id).then(r => r.data),
   })
@@ -182,7 +183,7 @@ export default function PublicFormsPage() {
   const [editing, setEditing] = useState<PublicForm | null>(null)
   const [viewSubs, setViewSubs] = useState<PublicForm | null>(null)
 
-  const { data: forms = [], isLoading } = useQuery<PublicForm[]>({
+  const { data: forms = [], isLoading } = useQuery({
     queryKey: ['public-forms'],
     queryFn: () => formsApi.list().then(r => r.data),
   })

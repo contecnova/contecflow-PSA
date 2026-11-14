@@ -29,7 +29,7 @@ def _horas(db: Session) -> int:
 
 
 def crear_enlace(db: Session, req, user_id: str) -> str:
-    from jose import jwt
+    import jwt
     from app.core.security import ALGORITHM, get_jwt_signing_key
     kid, key = get_jwt_signing_key()
     token = jwt.encode({"type": _TIPO, "sub": user_id, "req": req.id, "step": req.current_step,

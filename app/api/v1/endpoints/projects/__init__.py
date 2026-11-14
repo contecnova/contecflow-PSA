@@ -35,6 +35,7 @@ from app.services.project_service import (
     remove_member_record,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.services import politica_de_visibilidad
 
 router = APIRouter()
 
@@ -195,15 +196,19 @@ def get_project_team(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.schemas import UserPublic
-    return APIListResponse.ok(items=[UserPublic.model_validate(m) for m in get_project_team_users(db, project_id)])
+    # Segunda auditoría 2026-11: el subcontratado, solo de sus proyectos y con ficha mínima.
+    politica_de_visibilidad.exigir_proyecto_visible(db, current_user, project_id)
+    return APIListResponse.ok(items=politica_de_visibilidad.fichas_para(
+        current_user, get_project_team_users(db, project_id)))
 
 
 # ── Miembros del equipo del proyecto ─────────────────────────────────────────
 @router.get("/{project_id}/members", summary="Listar miembros del equipo")
 def list_members(project_id: str, db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user)):
-    return APIListResponse.ok(items=list_members_payload(db, project_id))
+    politica_de_visibilidad.exigir_proyecto_visible(db, current_user, project_id)
+    return APIListResponse.ok(items=politica_de_visibilidad.recortar_miembros(
+        current_user, list_members_payload(db, project_id)))
 
 
 @router.post("/{project_id}/members", summary="Añadir miembro al equipo")

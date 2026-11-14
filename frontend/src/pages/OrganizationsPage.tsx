@@ -7,6 +7,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { organizationsApi, usersApi } from '../services/api'
+import type { DetalleDeOrganizacion, Organizacion } from '../services/api/tipos-plataforma'
 import { Button, Modal, Spinner, EmptyState, Confirm } from '../components/ui'
 import { UserSelect } from '../components/ui/EntitySelect'
 import PageHeader from '../components/layout/PageHeader'
@@ -31,7 +32,7 @@ const organizationCreateSchema = z.object({
   plan: z.enum(PLAN_VALUES),
   max_users: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
   max_projects: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
-  admin_email: z.string().trim().email('Email inválido').or(z.literal('')).optional(),
+  admin_email: z.string().trim().pipe(z.email('Email inválido')).or(z.literal('')).optional(),
   admin_name: z.string().trim().max(120).optional(),
   domain: z.string().trim().toLowerCase().regex(/^([a-z0-9-]+\.)+[a-z]{2,}$/, 'Dominio inválido').or(z.literal('')).optional(),
   timezone: z.string().optional(),
@@ -42,7 +43,7 @@ const organizationUpdateSchema = z.object({
   plan: z.enum(PLAN_VALUES),
   max_users: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
   max_projects: z.coerce.number().int().positive('Debe ser mayor que 0').max(100000, 'Valor demasiado alto'),
-  admin_email: z.string().trim().email('Email inválido').or(z.literal('')).optional(),
+  admin_email: z.string().trim().pipe(z.email('Email inválido')).or(z.literal('')).optional(),
   timezone: z.string().optional(),
   locale: z.string().optional(),
   primary_color: z.string().optional(),
@@ -50,53 +51,6 @@ const organizationUpdateSchema = z.object({
   require_mfa: z.boolean().optional(),
 })
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Las formas que esta pagina consume
-//
-// Auditoria 2026-09 (modo estricto): el cliente de API devuelve `any` y los
-// estados arrancaban en `null` sin argumento de tipo, con lo que TypeScript los
-// fijaba a `null` **para siempre** y todo lo que se pintaba a partir de ellos
-// era `never`. Se declara lo que esta pagina lee, con los campos opcionales
-// porque este fichero no puede prometer lo que manda el backend.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Una organizacion, tal como la lista el maestro. */
-interface OrganizacionEnLista {
-  id: string | number
-  name?: string
-  slug?: string
-  plan?: string
-  admin_email?: string
-  is_active?: boolean
-  created_at?: string
-  user_count?: number
-  project_count?: number
-  max_users?: number
-  max_projects?: number
-  domain?: string | null
-  suspension_reason?: string | null
-  deletion_purge_after?: string | null
-}
-
-/** Un usuario asignado a una organizacion. */
-interface UsuarioDeOrganizacion {
-  id: string | number
-  full_name?: string
-  role?: string
-  is_active?: boolean
-}
-
-/** El detalle de una organizacion, con sus usuarios. */
-interface DetalleDeOrganizacion extends OrganizacionEnLista {
-  timezone?: string
-  locale?: string
-  primary_color?: string
-  require_mfa?: boolean
-  max_users?: number
-  max_projects?: number
-  users?: UsuarioDeOrganizacion[]
-}
 
 /** El formulario de edicion. Arranca en `null` —no hay formulario hasta que se
  *  abre el modal— y por eso cada campo se lee con `?.`. */
@@ -155,7 +109,7 @@ export default function OrganizationsPage() {
   const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', admin_name:'', domain:'', timezone: defaultTimezone })
   // Revisión multitenant 2026-11: la contraseña inicial del primer admin se enseña una vez.
   const [altaHecha, setAltaHecha] = useState<{ email: string; password: string } | null>(null)
-  const [suspendiendo, setSuspendiendo] = useState<OrganizacionEnLista | null>(null)
+  const [suspendiendo, setSuspendiendo] = useState<Organizacion | null>(null)
   const [motivo, setMotivo] = useState('')
   // Baja definitiva y «entrar como»: un mismo diálogo de motivo para las dos.
   const [pidiendoMotivo, setPidiendoMotivo] = useState<{ tipo: 'baja' | 'entrar'; userId?: string; nombre?: string } | null>(null)
@@ -163,13 +117,13 @@ export default function OrganizationsPage() {
   const createValidation = useFormValidation(organizationCreateSchema)
   const editValidation = useFormValidation(organizationUpdateSchema)
 
-  const { data: orgs = [], isLoading } = useQuery<OrganizacionEnLista[]>({ queryKey:['orgs'], queryFn:() => organizationsApi.list().then(r=>r.data) })
+  const { data: orgs = [], isLoading } = useQuery<Organizacion[]>({ queryKey:['orgs'], queryFn:() => organizationsApi.list().then(r=>r.data) })
   // `selected!` respaldado por el `enabled`: react-query no ejecuta `queryFn`
   // mientras `enabled` sea falso, asi que aqui nunca es null.
   const { data: detail } = useQuery<DetalleDeOrganizacion>({ queryKey:['org-detail', selected], queryFn:() => organizationsApi.get(selected!).then(r=>r.data), enabled:!!selected })
   const removingUser = detail?.users?.find(u => u.id === removingUserId) || null
   // Todos los usuarios activos
-  const { data: allUsers = [] } = useQuery<UsuarioDeOrganizacion[]>({ queryKey:['users'], queryFn:() => usersApi.list({}).then(r=>r.data) })
+  const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list({}).then(r=>r.data) })
   // Mutación para asignar usuario
   const { mutate: assignUser, isPending: isAssigning } = useMutation({
     mutationFn: ({ orgId, userId }: { orgId: string | number; userId: string | number }) => organizationsApi.assignUser(orgId, { user_id: userId }),
@@ -184,9 +138,9 @@ export default function OrganizationsPage() {
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: (d: OrgCreateForm) => organizationsApi.create(d),
-    onSuccess: (r: { data?: { admin_email?: string | null; initial_password?: string | null } }) => {
+    onSuccess: ({ data }) => {
       qc.invalidateQueries({ queryKey: ['orgs'] }); setShowCreate(false); createValidation.setErrors({})
-      if (r?.data?.initial_password && r.data.admin_email) setAltaHecha({ email: r.data.admin_email, password: r.data.initial_password })
+      if (data.initial_password && data.admin_email) setAltaHecha({ email: data.admin_email, password: data.initial_password })
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -228,7 +182,7 @@ export default function OrganizationsPage() {
   async function exportar() {
     try {
       const { data } = await organizationsApi.exportData(selected!)
-      const url = URL.createObjectURL(data as Blob)
+      const url = URL.createObjectURL(data)
       const a = document.createElement('a')
       a.href = url; a.download = `${detail?.slug ?? 'empresa'}-export.zip`; a.click()
       URL.revokeObjectURL(url)

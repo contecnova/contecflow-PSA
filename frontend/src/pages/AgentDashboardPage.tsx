@@ -2,36 +2,11 @@ import { useState, useId } from 'react'
 import type { ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { usersApi, cmdbApi } from '../services/api'
+import { usersApi, cmdbApi, type UserListItem } from '../services/api'
 import { Spinner } from '../components/ui'
 import { Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { BarChart2, User } from 'lucide-react'
-
-interface UserItem {
-  id: string | number
-  full_name?: string
-  username?: string
-}
-
-interface AgentTrendPoint {
-  date: string
-  resolved?: number
-  sla_ok?: number
-  sla_fail?: number
-  csat?: number | null
-}
-
-interface AgentDashboardData {
-  trend?: AgentTrendPoint[]
-  kpis?: {
-    total_resolved?: number
-    avg_resolution_hours?: number
-    sla_compliance_pct?: number
-    avg_csat?: number
-  }
-  current?: { open_tickets?: number }
-}
 
 const TOOLTIP_STYLE = {
   background: 'var(--surface-2)',
@@ -49,18 +24,18 @@ export default function AgentDashboardPage(): JSX.Element {
   const [_inputId, _setInputId] = useState('')
   const [days, setDays] = useState(30)
 
-  const { data: users = [] } = useQuery<UserItem[]>({
+  const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list({}).then(r => Array.isArray(r.data) ? (r.data as UserItem[]) : []).catch(() => []),
+    queryFn: () => usersApi.list({}).then(r => r.data).catch((): UserListItem[] => []),
   })
-  const { data: dash, isLoading } = useQuery<AgentDashboardData | null>({
+  const { data: dash, isLoading } = useQuery({
     queryKey: ['agent-dash', agentId, days],
     queryFn: () => cmdbApi.agentDashboard(agentId, days).then(r => r.data).catch(() => null),
     enabled: !!agentId,
   })
 
   const trend = dash?.trend || []
-  const kpis  = dash?.kpis || {}
+  const kpis  = dash?.kpis
 
   const ChartCard = ({ title, height, children }: { title?: string; height?: number; children: ReactElement }) => (
     <div className="ds-card">

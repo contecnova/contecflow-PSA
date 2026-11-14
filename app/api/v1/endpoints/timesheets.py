@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date, timedelta
@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.services.psa_flows import (
@@ -21,7 +22,6 @@ from app.schemas.timesheets import (
     TimesheetSendBackPayload as SendBackPayload,
 )
 from app.core import timeutil
-from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -80,13 +80,13 @@ def submit_timesheet(
 
 @router.get("/pending", response_model=APIListResponse[TimesheetOut], summary="Timesheets pendientes de revisión (managers)")
 def get_pending_timesheets(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
+    response: Response,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    items = _tsvc.list_pending_timesheets(db)
-    return APIListResponse.ok(items=items, page=page, page_size=page_size)
+    # Segunda auditoria 2026-11: `page`/`page_size` se aceptaban y se ignoraban.
+    return lista_paginada(response, _tsvc.list_pending_timesheets(db, pagina))
 
 
 @router.get("/team", response_model=APIListResponse[TimesheetOut], summary="Todos los timesheets del equipo")
@@ -94,14 +94,13 @@ def get_team_timesheets(
     week_start: Optional[date] = None,
     user_id: Optional[str] = None,
     status: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
+    response: Response = None,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "timesheet", action="read")
-    items = _tsvc.list_team_timesheets(db, week_start, user_id, status)
-    return APIListResponse.ok(items=items, page=page, page_size=page_size)
+    return lista_paginada(response, _tsvc.list_team_timesheets(db, week_start, user_id, status, pagina))
 
 
 @router.post("/{timesheet_id}/review", summary="Aprobar o rechazar timesheet")

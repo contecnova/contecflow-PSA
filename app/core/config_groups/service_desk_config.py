@@ -24,6 +24,11 @@ class ServiceDeskSettingsMixin:
     # remitente SMTP). El buzon (IMAP o Microsoft 365) se configura
     # en Credenciales > «Service Desk mailbox».
     SD_INBOUND_ADDRESS: str = Field(default="", env="SD_INBOUND_ADDRESS")
+    # Numeros de Twilio de la organizacion (E.164, separados por comas). Una
+    # llamada o un SMS a uno de ellos es de esta organizacion; la voz rechaza
+    # los numeros que no declara nadie (segunda auditoria 2026-11, #19). Se lee
+    # por organizacion en la fila del ajuste; el valor del entorno no enruta.
+    TWILIO_PHONE_NUMBERS: str = Field(default="", env="TWILIO_PHONE_NUMBERS")
     # Respuesta a un ticket resuelto: lo reabre. Uno cerrado abre uno nuevo enlazado.
     SD_REOPEN_ON_REPLY: bool = Field(default=True, env="SD_REOPEN_ON_REPLY")
     SD_CHANNEL_TICKET_TYPE: str = Field(default="incident", env="SD_CHANNEL_TICKET_TYPE")

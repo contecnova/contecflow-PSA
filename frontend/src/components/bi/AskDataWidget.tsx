@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { analyticsApi, conectoresApi } from '../../services/api'
+import type { RespuestaDeAskTheData } from '../../services/api/tipos-analitica'
 import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -33,22 +34,7 @@ function ResultTable({ columns, rows }: { columns?: string[]; rows?: Array<Recor
   )
 }
 
-// TODO type: analyticsApi.ask response — needs shared type
-interface AskResult {
-  error?: string
-  row_count?: number
-  truncated?: boolean
-  sql?: string
-  columns?: string[]
-  rows?: Array<Record<string, unknown>>
-  // Revisión 2026-11: ¿responde a esta pregunta o a otra parecida?
-  verification?: { verdict: 'verified' | 'warning' | 'not_checked'; checks: Array<{ name: string; status: string }> }
-  // Revisión 2026-11: valores reales con cero filas, reintento y banco de preguntas validadas.
-  zero_result_hints?: Array<{ table: string; column: string; op: string; searched: string; exists: boolean; closest: string[]; sample: string[] }> | null
-  retried_with_real_values?: { first_sql: string }
-  from_validated_example?: { id: string; question: string }
-  model_sql?: string
-}
+type AskResult = RespuestaDeAskTheData
 
 /** Lo que se buscó y no existe, con los valores que sí hay (revisión 2026-11). */
 function PistasSinFilas({ pistas }: { pistas: AskResult['zero_result_hints'] }) {

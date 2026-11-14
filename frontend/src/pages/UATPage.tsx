@@ -6,6 +6,7 @@
 import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { uatApi, projectsApi, tasksApi } from '../services/api'
+import type { CasoUat, InformeUat } from '../services/api/tipos-proyectos'
 import { Spinner, EmptyState, Button, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -17,34 +18,11 @@ import type { CSSProperties, ChangeEvent } from 'react'
 import { alpha } from '../constants/theme'
 import { UI_FEEDBACK_MS } from '../constants/timings'
 
-type UATStatus = 'pending' | 'passed' | 'failed' | 'blocked' | 'skipped'
+// raci_service.serialize_uat_case / list_uat_cases / export_uat_report. La prioridad es
+// texto libre en la tabla (String(20)); la interfaz ofrece estas cuatro.
+type UATStatus = CasoUat['status']
 type UATPriority = 'critical' | 'high' | 'medium' | 'low'
-
-type UATCase = {
-  id: string | number
-  title: string
-  description?: string
-  expected_result?: string
-  actual_result?: string
-  status: UATStatus
-  priority: UATPriority
-  task_id?: string | number | ''
-  task_title?: string
-  notes?: string
-}
-
-type UATStats = {
-  total: number
-  pending: number
-  passed: number
-  failed: number
-  blocked: number
-}
-
-type UATListResponse = {
-  cases: UATCase[]
-  stats: UATStats
-}
+type UATCase = CasoUat
 
 type UATFormData = {
   title: string
@@ -52,7 +30,7 @@ type UATFormData = {
   expected_result: string
   actual_result: string
   status: UATStatus
-  priority: UATPriority
+  priority: string
   task_id: string
   notes: string
 }
@@ -67,10 +45,6 @@ type TaskItem = {
   title?: string
 }
 
-type ExportReport = {
-  text: string
-  cases_count: number
-}
 
 const STATUS_META: Record<UATStatus, { label: string; color: string; bg: string; icon: string }> = {
   pending:  { label: 'Pendiente', color: 'var(--text-2)',  bg: 'var(--surface-3)',     icon: '⏳' },
@@ -80,7 +54,7 @@ const STATUS_META: Record<UATStatus, { label: string; color: string; bg: string;
   skipped:  { label: 'Omitido',   color: 'var(--text-3)',  bg: 'rgba(122,138,170,0.1)', icon: '⏭' },
 }
 
-const PRIORITY_META: Record<UATPriority, { label: string; color: string }> = {
+const PRIORITY_META: Record<UATPriority, { label: string; color: string }> & Record<string, { label: string; color: string }> = {
   critical: { label: 'Crítica',  color: 'var(--danger)' },
   high:     { label: 'Alta',     color: 'var(--warning)' },
   medium:   { label: 'Media',    color: 'var(--accent)' },
@@ -188,7 +162,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
   )
 }
 
-function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => void; report: ExportReport }) {
+function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => void; report: InformeUat }) {
   const traducir = useAppT()
   const [copied, setCopied] = useState(false)
   const handleCopy = () => {
@@ -227,7 +201,7 @@ export default function UATPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [editCase, setEditCase] = useState<UATCase | null>(null)
-  const [exportReport, setExportReport] = useState<ExportReport | null>(null)
+  const [exportReport, setExportReport] = useState<InformeUat | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<UATCase | null>(null)
 
   const { data: projects = [] } = useQuery<ProjectItem[]>({
@@ -249,7 +223,7 @@ export default function UATPage() {
     },
   })
 
-  const { data: uatData, isLoading } = useQuery<UATListResponse>({
+  const { data: uatData, isLoading } = useQuery({
     queryKey: ['uat-cases', selectedProject, statusFilter],
     queryFn: () => uatApi.list(selectedProject, { status: statusFilter || undefined }).then(r => r.data),
     enabled: !!selectedProject,
@@ -265,7 +239,7 @@ export default function UATPage() {
   })
 
   const { mutate: updateCase } = useMutation({
-    mutationFn: ({ id, data }: { id: string | number; data: UATFormData | UATCase }) => uatApi.update(selectedProject, id, data),
+    mutationFn: ({ id, data }: { id: string; data: UATFormData | UATCase }) => uatApi.update(selectedProject, id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['uat-cases'] }); setEditCase(null); toast.success('Caso actualizado') },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar')),
   })

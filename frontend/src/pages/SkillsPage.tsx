@@ -6,6 +6,8 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { skillsApi, usersApi } from '../services/api'
+import type { SkillDelCatalogo } from '../services/api/tipos-alm'
+import type { CambioDeNivelDeSkill, MatrizDeSkills, PersonaPorSkills, SkillDePersona } from '../services/api/tipos-personas'
 import { Card, Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -20,26 +22,12 @@ const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', bord
 const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ── Tipos de dominio ──────────────────────────────────────────────────────────
-interface CatalogSkill { id: string; name: string; category: string; user_count?: number }
-interface UserSkill {
-  id: string; skill_id?: string; skill_name?: string; category?: string
-  level?: string; years_experience?: number | string; certified?: boolean
-}
-interface MatrixUserSkill { level?: string; certified?: boolean }
-interface MatrixUser {
-  user_id: string; user_name?: string; department?: string
-  skills: Record<string, MatrixUserSkill | undefined>
-}
-interface SkillsMatrixData { users: MatrixUser[]; skills: CatalogSkill[] }
-interface SkillHistoryEntry {
-  id: string; skill_name?: string; old_level?: string; new_level?: string
-  notes?: string; recorded_at?: string; recorded_by?: string
-}
-interface StaffMatchSkill { skill_id: string; skill_name?: string; level?: string; years_experience?: number | string }
-interface StaffMatch {
-  user_id: string; user_name?: string; department?: string; role?: string
-  skill_count?: number; matching_skills: StaffMatchSkill[]
-}
+type CatalogSkill = SkillDelCatalogo
+type UserSkill = SkillDePersona
+type MatrixUser = MatrizDeSkills['users'][number]
+type SkillsMatrixData = MatrizDeSkills
+type SkillHistoryEntry = CambioDeNivelDeSkill
+type StaffMatch = PersonaPorSkills
 interface DomainUser {
   id: string; full_name?: string; job_title?: string; role?: string
   department?: string; is_active?: boolean
@@ -67,7 +55,7 @@ function LevelBadge({ level }: { level?: string }) {
   )
 }
 
-function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: CatalogSkill[] }) {
+function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: SkillsMatrixData['skills'] }) {
   const _levelScore = { basic: 1, intermediate: 2, advanced: 3, expert: 4 }
   const levelColor = (level?: string) => LEVEL_CFG[level || '']?.color || 'transparent'
 
@@ -144,10 +132,10 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
   const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { data: catalog = [] } = useQuery<CatalogSkill[]>({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data) })
-  const { data: userSkills = [] } = useQuery<UserSkill[]>({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data?.items ?? r.data ?? []) })
+  const { data: userSkills = [] } = useQuery<UserSkill[]>({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data) })
   const { data: skillHistory = [] } = useQuery<SkillHistoryEntry[]>({
     queryKey: ['skill-history', user.id],
-    queryFn: () => skillsApi.userHistory(user.id).then(r => r.data?.items ?? r.data ?? []).catch(() => []),
+    queryFn: () => skillsApi.userHistory(user.id).then(r => r.data).catch((): SkillHistoryEntry[] => []),
     enabled: modalTab === 'history',
   })
 
@@ -162,7 +150,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const byCategory = (userSkills as UserSkill[]).reduce<Record<string, UserSkill[]>>((a, s) => { const c = s.category || ''; if (!a[c]) a[c] = []; a[c]!.push(s); return a }, {})
+  const byCategory = userSkills.reduce<Record<string, UserSkill[]>>((a, s) => { const c = s.category || ''; if (!a[c]) a[c] = []; a[c]!.push(s); return a }, {})
 
   return (
     <Modal open title={`Skills — ${user.full_name}`} onClose={onClose} width={620}>
@@ -374,7 +362,7 @@ function UserSkillPreview({ userId }: { userId: string }) {
   const t = useAppT()
   const { data: skills = [] } = useQuery<UserSkill[]>({
     queryKey: ['user-skills-preview', userId],
-    queryFn: () => skillsApi.userSkills(userId).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => skillsApi.userSkills(userId).then(r => r.data),
   })
   if (skills.length === 0) return <div className="u-text3-sm">{t('skills.sin_skills_registrados_haz_clic_para_anadir')}</div>
   return (
@@ -417,7 +405,7 @@ export default function SkillsPage() {
 
   const { data: users = [] } = useQuery<DomainUser[]>({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data as unknown as DomainUser[]),
+    queryFn: () => usersApi.list().then(r => r.data),
     enabled: tab === 'profiles',
   })
 

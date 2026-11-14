@@ -76,20 +76,6 @@ function resolveApiFn(projectId: IdVal, taskId: IdVal, ticketId: IdVal) {
   return () => documentsApi.byProject(projectId, {});
 }
 
-interface DocVersion {
-  file_mime_type?: string | null;
-  file_name?: string | null;
-  file_size?: number | null;
-  download_url?: string | null;
-}
-interface Doc {
-  id: string | number;
-  title?: string;
-  category?: string;
-  latest_version?: DocVersion | null;
-  requires_approval?: boolean;
-  approval_status?: string | null;
-}
 interface DocumentsPanelProps {
   projectId?: IdVal;
   taskId?: IdVal;
@@ -111,14 +97,9 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
   const qKey = resolveQueryKey(projectId, taskId, ticketId);
   const apiFn = resolveApiFn(projectId, taskId, ticketId);
 
-  const { data: docs = [], isLoading } = useQuery<Doc[]>({
+  const { data: docs = [], isLoading } = useQuery({
     queryKey: qKey,
-    queryFn: async () => {
-      const r = await apiFn();
-      const d = r.data as { items?: Doc[] } | Doc[] | undefined;
-      if (Array.isArray(d)) return d;
-      return d?.items ?? [];
-    },
+    queryFn: () => apiFn().then(r => r.data),
     enabled: !!(projectId || taskId || ticketId),
   });
 
@@ -131,7 +112,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
       if (projectId) fd.append('project_id', String(projectId));
       if (taskId)    fd.append('task_id',    String(taskId));
       if (ticketId)  fd.append('ticket_id',  String(ticketId));
-      return documentsApi.upload(fd as unknown as Record<string, unknown>);
+      return documentsApi.upload(fd);
     },
     onSuccess: () => {
       toast.success(t('documents_panel.uploaded_ok'));

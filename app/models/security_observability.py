@@ -151,7 +151,7 @@ class SecurityDetection(Base):
 
     # Status
     status       = Column(String(32),  default=IncidentStatus.OPEN, index=True)
-    assigned_to  = Column(String(36),  ForeignKey("users.id"), nullable=True)
+    assigned_to  = Column(String(36),  ForeignKey("users.id"), nullable=True, index=True)
     resolved_at  = Column(DateTime, nullable=True, index=True)
     # MTTR = resolved_at - detected_at (seconds)
     false_positive_reason = Column(Text, nullable=True)
@@ -199,7 +199,7 @@ class SecurityIncident(Base):
     resolved_at    = Column(DateTime, nullable=True, index=True)
 
     # Team
-    lead_analyst   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    lead_analyst   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     playbook_ref   = Column(String(256), nullable=True)  # link to runbook
     tags           = Column(JSON,  default=list)         # ["brute-force", "account-takeover"]
     timeline_notes = Column(JSON,  default=list)         # [{ts, author, note}]

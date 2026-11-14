@@ -13,16 +13,6 @@ type PortalUsersTabProps = {
   clientName?: string
 }
 
-type ProjectItem = {
-  id: string
-  code?: string
-  name?: string
-}
-
-type ClientDetail = {
-  projects?: ProjectItem[]
-}
-
 type PortalUser = {
   id: string
   full_name: string
@@ -112,7 +102,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
     queryKey: ['portal-clients-org', cid],
     queryFn: () => portalClientsApi.list({ client_org_id: cid }).then(r => r.data),
   })
-  const { data: clientDetail } = useQuery<ClientDetail>({
+  const { data: clientDetail } = useQuery({
     queryKey: ['client-detail-projects', cid],
     queryFn: () => clientsApi.get(cid).then(r => r.data),
   })

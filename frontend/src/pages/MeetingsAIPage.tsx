@@ -13,33 +13,6 @@ import { Video } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 
-interface MeetingAction {
-  id: string | number
-  description?: string
-  assignee_name?: string
-  due_date_text?: string
-  priority?: string
-  is_created?: boolean
-}
-
-interface MeetingItem {
-  id: string | number
-  title?: string
-  platform?: string
-  meeting_date?: string
-  created_at?: string
-  status?: string
-  actions_count?: number
-  created_actions?: number
-}
-
-interface MeetingDetail extends MeetingItem {
-  summary?: string
-  duration_minutes?: number
-  decisions?: string[]
-  actions?: MeetingAction[]
-}
-
 interface ProcessFormState {
   title: string
   transcript: string
@@ -48,9 +21,6 @@ interface ProcessFormState {
   duration_minutes: string
 }
 
-interface CreateTasksResponse {
-  tasks_created?: number
-}
 
 const card: CSSProperties = {
   background: 'var(--surface-2)',
@@ -108,7 +78,15 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
   const s = (k: keyof ProcessFormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
   const { mutate: process, isPending } = useMutation({
-    mutationFn: (d: ProcessFormState) => meetingsAIApi.process(d as unknown as Record<string, unknown>).then(r => r.data),
+    // Segunda auditoría 2026-11: se mandaban `participants` como texto y `duration_minutes`;
+    // el backend espera una lista y `duration_min`, y respondía 422 siempre.
+    mutationFn: (d: ProcessFormState) => meetingsAIApi.process({
+      title: d.title.trim(),
+      transcript: d.transcript,
+      platform: d.platform,
+      participants: d.participants.split(',').map(p => p.trim()).filter(Boolean),
+      duration_min: d.duration_minutes ? Number(d.duration_minutes) : null,
+    }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-meetings'] }); onClose() },
     onError: (e: unknown) => toast.error(extractErr(e, t('meetings_ai.error_process'))),
   })
@@ -170,20 +148,20 @@ export default function MeetingsAIPage() {
   const [showProcess, setShowProcess] = useState(false)
   const [selected, setSelected] = useState<string | number | null>(null)
 
-  const { data: meetingsRaw = [], isLoading } = useQuery({
+  const { data: meetings = [], isLoading } = useQuery({
     queryKey: ['ai-meetings'],
     queryFn: () => meetingsAIApi.list().then(r => r.data),
   })
-  const meetings = meetingsRaw as MeetingItem[]
-  const { data: detailRaw } = useQuery({
+  const { data: detail = null } = useQuery({
     queryKey: ['ai-meeting', selected],
     queryFn: () => meetingsAIApi.get(selected).then(r => r.data),
     enabled: !!selected,
   })
-  const detail = (detailRaw ?? null) as MeetingDetail | null
+  // El detalle no trae fechas: salen de la fila del listado.
+  const resumen = meetings.find(m => m.id === selected)
   const { mutate: createTasks, isPending: creating } = useMutation({
     mutationFn: (id: string | number) => meetingsAIApi.createTasks(id).then(r => r.data),
-    onSuccess: (data: CreateTasksResponse) => { qc.invalidateQueries({ queryKey: ['ai-meeting', selected] }); toast.success(`✅ ${data.tasks_created || 0} tareas creadas en ${PRODUCT_NAME}`) },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['ai-meeting', selected] }); toast.success(`✅ ${data.tasks_created || 0} tareas creadas en ${PRODUCT_NAME}`) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -268,8 +246,8 @@ export default function MeetingsAIPage() {
                 <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, marginBottom: 6 }}>{detail.title}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   {detail.platform && <span>{platCfg(detail.platform).icon} {platCfg(detail.platform).label}</span>}
-                  {detail.duration_minutes && <span>⏱ {detail.duration_minutes} min</span>}
-                  <span>📅 {detail.meeting_date?.slice(0, 10) || detail.created_at?.slice(0, 10)}</span>
+                  {detail.duration_min != null && <span>⏱ {detail.duration_min} min</span>}
+                  {resumen && <span>📅 {(resumen.meeting_date || resumen.created_at).slice(0, 10)}</span>}
                 </div>
               </div>
 
@@ -316,7 +294,6 @@ export default function MeetingsAIPage() {
                         <div className="u-text2-xs">
                           {a.assignee_name && `👤 ${a.assignee_name}`}
                           {a.due_date_text && ` · 📅 ${a.due_date_text}`}
-                          {a.priority && ` · ${a.priority}`}
                         </div>
                       </div>
                       <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 12, background: a.is_created ? 'var(--success-bg)' : 'var(--surface-3)', color: a.is_created ? 'var(--success)' : 'var(--text-2)', fontWeight: 600, flexShrink: 0 }}>

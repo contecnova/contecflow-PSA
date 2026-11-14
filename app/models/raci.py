@@ -38,7 +38,7 @@ class RACIEntry(Base):
     item_type   = Column(String(32),  nullable=False)          # deliverable / milestone / phase / custom
     item_label  = Column(String(200), nullable=False)          # Display label for the row
     item_id     = Column(String(36),  nullable=True)           # Optional FK to the source entity
-    user_id     = Column(String(36),  ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id     = Column(String(36),  ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role        = Column(Enum(RACIRole), nullable=False)
 
     created_at  = Column(DateTime, default=utcnow)
@@ -81,7 +81,7 @@ class SprintRetroNote(Base):
 
     # Manual override / additions
     manual_notes       = Column(Text, nullable=True)
-    facilitated_by_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    facilitated_by_id  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
@@ -156,7 +156,7 @@ class ProjectChangelogEntry(Base):
     is_auto_generated = Column(Boolean, default=False)    # True = came from task aggregation
     source_task_ids   = Column(Text,  nullable=True)      # JSON list of task IDs that generated this
 
-    author_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    author_id  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
     is_active  = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
@@ -196,7 +196,7 @@ class UATCase(Base):
     status          = Column(Enum(UATStatus), default=UATStatus.pending)
     priority        = Column(String(20),  default="medium")  # low | medium | high | critical
 
-    assigned_to_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    assigned_to_id  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     notes           = Column(Text, nullable=True)
 
     executed_at = Column(DateTime, nullable=True)

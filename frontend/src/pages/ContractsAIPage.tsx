@@ -13,6 +13,8 @@ import { useState, useMemo, useId } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contractsAIApi, projectsApi } from '../services/api'
+import type { ProjectListItem } from '../services/api/projects'
+import type { ClausulaDeContratoIa, ContratoIa, ContratoIaDetalle } from '../services/api/tipos-finanzas'
 import { useToast } from '../context/ToastContext'
 import PageHeader from '../components/layout/PageHeader'
 import { Button, Card, Spinner, EmptyState, useDialogo } from '../components/ui'
@@ -21,48 +23,9 @@ import { extractErr } from '../utils/helpers'
 import { useAppLang } from '../i18n/AppLangContext'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-type RiskLevel = 'high' | 'medium' | 'low' | string
-
-type ProjectItem = {
-  id: string | number
-  code?: string
-  name: string
-}
-
-type ContractItem = {
-  id: string | number
-  filename?: string
-  client_name?: string
-  created_at?: string
-  clauses_count?: number
-  at_risk_clauses?: number
-  risk_level?: RiskLevel
-  status?: 'analyzing' | 'failed' | 'done' | string
-}
-
-type ContractClause = {
-  id: string | number
-  clause_type?: string
-  title?: string
-  description?: string
-  is_at_risk?: boolean
-  risk_reason?: string
-  impact_amount?: number | null
-  due_date?: string
-  original_text?: string
-}
-
-type ContractDetail = {
-  id: string | number
-  filename?: string
-  client_name?: string
-  created_at?: string
-  risk_level?: RiskLevel
-  scope_summary?: string
-  total_value?: number | null
-  scope_creep_alerts?: number
-  clauses?: ContractClause[]
-}
+type ContractItem = ContratoIa
+type ContractClause = ClausulaDeContratoIa
+type ContractDetail = ContratoIaDetalle
 
 const CLAUSE_TYPE_LABEL: Record<string, string> = {
   payment:       'Pagos',
@@ -98,7 +61,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
   const { t } = useAppLang()
   const { data, isLoading } = useQuery<ContractDetail | null>({
     queryKey: ['contracts-ai', contractId],
-    queryFn:  () => contractsAIApi.get(contractId).then(r => r.data as ContractDetail),
+    queryFn:  () => contractsAIApi.get(contractId).then(r => r.data),
     enabled:  !!contractId,
   })
 
@@ -260,16 +223,16 @@ export default function ContractsAIPage(): JSX.Element {
   const [clientName, setClientName] = useState('')
   const [openContractId, setOpenContractId] = useState<string | number | null>(null)
 
-  const { data: projects = [] } = useQuery<ProjectItem[]>({
+  const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
-    queryFn:  () => projectsApi.list({}).then(r => ((r.data as unknown as { items?: ProjectItem[] })?.items ?? r.data ?? []) as ProjectItem[]),
+    queryFn:  () => projectsApi.list({}).then(r => r.data),
   })
 
   const { data: contracts = [], isLoading } = useQuery<ContractItem[]>({
     queryKey: ['contracts-ai', { project_id: initialProjectId }],
     queryFn:  () => contractsAIApi.list(
       initialProjectId ? { project_id: initialProjectId } : {}
-    ).then(r => r.data as ContractItem[]),
+    ).then(r => r.data),
   })
 
   const { mutate: analyzeText, isPending: isAnalyzingText } = useMutation({
@@ -293,7 +256,7 @@ export default function ContractsAIPage(): JSX.Element {
       fd.append('file', pdfFile as Blob)
       if (projectId)  fd.append('project_id', projectId)
       if (clientName) fd.append('client_name', clientName)
-      return contractsAIApi.analyzePdf(fd as unknown as Record<string, unknown>)
+      return contractsAIApi.analyzePdf(fd)
     },
     onSuccess: () => {
       toast.success('PDF analizado correctamente')

@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../context/ToastContext'
 import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi, ticketsApi } from '../../services/api'
+import type { SdIncidenteMayor, SdReglaDeEnrutado, SdTicket } from '../../services/api/tipos-sd'
+import type { AxiosResponse } from 'axios'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import { COLOR, alpha } from '../../constants/theme'
@@ -21,18 +23,7 @@ function fmtDate(d?: string | Date | null) {
   return new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-type Ticket = {
-  [k: string]: unknown
-  id: string
-  number?: string
-  title?: string
-  priority?: string
-  status?: string
-  ticket_type?: string
-  requester_name?: string
-  sla_resolution_due?: string
-  assigned_to?: { full_name?: string } | null
-}
+type Ticket = SdTicket
 
 function TRow({ t: ticket, onClick }: { t: Ticket; onClick: () => void }) {
   const tr = useAppT()
@@ -51,12 +42,12 @@ function TRow({ t: ticket, onClick }: { t: Ticket; onClick: () => void }) {
       </td>
       <td style={{ padding: '10px 8px' }}><PBadge v={ticket.priority} /></td>
       <td style={{ padding: '10px 8px' }}><SBadge v={ticket.status} /></td>
-      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{String(ticket.type_label ?? ticket.ticket_type ?? '')}</td>
+      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{ticket.type_label || ticket.ticket_type}</td>
       <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: overdue ? COLOR.danger : 'var(--text-2)', whiteSpace: 'nowrap' }}>
         {due ? `${overdue ? '⚠ ' : ''}${fmtDate(due)}` : '—'}
       </td>
       <td style={{ padding: '10px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-        {ticket.assigned_to?.full_name || <span style={{ color: 'var(--text-4)' }}>{tr('service_desk.unassigned')}</span>}
+        {ticket.assigned_to_name || <span style={{ color: 'var(--text-4)' }}>{tr('service_desk.unassigned')}</span>}
       </td>
     </tr>
   )
@@ -84,11 +75,9 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
   const { data: pagina, isLoading } = useQuery<{ items: Ticket[]; total: number }>({
     queryKey: ['sd-tickets', queueOnly, filterPrio, filterStatus, filterType, queueOnly ? '' : busqueda, page],
     queryFn: () => {
-      const leer = (r: { data: unknown; meta?: { total?: number } }) => {
-        const d = r.data as Ticket[] | { tickets?: Ticket[]; items?: Ticket[] }
-        const items = Array.isArray(d) ? d : (d?.tickets || d?.items || [])
-        return { items, total: Number(r.meta?.total ?? items.length) }
-      }
+      // El interceptor deja la lista en `data` y la paginación en `meta`.
+      const leer = (r: AxiosResponse<Ticket[]> & { meta?: { total?: number } }) =>
+        ({ items: r.data, total: Number(r.meta?.total ?? r.data.length) })
       if (queueOnly) {
         return ticketsApi.myQueue({ page, page_size: TICKETS_POR_PAGINA }).then(leer)
       }
@@ -183,10 +172,10 @@ export function MajorIncidents() {
   const toast = useToast()
   const [showDeclare, setShowDeclare] = useState(false)
 
-  type MI = { [k: string]: unknown; id: string; number?: string; title?: string; severity?: string; status?: string; commander?: string; declared_at?: string; resolved_at?: string }
-  const { data: mis = [], isLoading } = useQuery<MI[]>({
+  type MI = SdIncidenteMayor
+  const { data: mis = [], isLoading } = useQuery({
     queryKey: ['sd-major-incidents'],
-    queryFn: () => sdRoutingApi.majorIncidents().then(r => r.data as MI[]),
+    queryFn: () => sdRoutingApi.majorIncidents().then(r => r.data),
     refetchInterval: POLL_FREQUENT_MS,
   })
 
@@ -320,15 +309,7 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   )
 }
 
-type Rule = {
-  [k: string]: unknown
-  id: string
-  name?: string
-  priority?: number
-  is_active?: boolean
-  conditions?: string
-  actions?: string
-}
+type Rule = SdReglaDeEnrutado
 
 export function RoutingRules() {
   const t = useAppT()
@@ -337,7 +318,7 @@ export function RoutingRules() {
   const [showNew, setShowNew] = useState(false)
   const [editingRule, setEditingRule] = useState<Rule | null>(null)
 
-  const { data: rules = [], isLoading } = useQuery<Rule[]>({
+  const { data: rules = [], isLoading } = useQuery({
     queryKey: ['sd-routing-rules'],
     queryFn: () => sdRoutingApi.list().then(r => r.data),
   })
@@ -468,7 +449,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: Record<string, unknown>) => isEdit
+    mutationFn: (data: Record<string, unknown>): Promise<unknown> => isEdit
       ? sdRoutingApi.update(rule!.id, data)
       : sdRoutingApi.create(data),
     onSuccess: onSaved,

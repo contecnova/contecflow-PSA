@@ -12,17 +12,15 @@ import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
-import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi, apiUrlAbsoluta } from '../../services/api'
+import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi, apiUrlAbsoluta, type UserListItem } from '../../services/api'
+import type { SdCalendarioDeGuardia } from '../../services/api/tipos-sd'
 import DateInput from '../../components/ui/DateInput'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
 import { MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
-type Turno = { id: string; user_id: string; user_name?: string; start_dt: string; end_dt: string; notes?: string | null }
-type Calendario = { id: string; name: string; group_id: string; group_name?: string; is_active: boolean; entries: Turno[] }
-type Ahora = { schedule_id: string; group_name?: string; user_name?: string; until: string }
-type Persona = { id: string; full_name?: string }
+type Calendario = SdCalendarioDeGuardia
+type Persona = UserListItem
 type Cola = { id: string; name: string }
-type Alerta = { id: string; source: string; status: string; severity?: string; title: string; occurrences: number; ticket_id?: string; ticket_number?: string; last_seen_at?: string }
 
 const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
   padding: '9px 13px', color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -36,14 +34,14 @@ export function GuardiasConfig() {
   const toast = useToast()
   const [nuevo, setNuevo] = useState(false)
   const [turnoPara, setTurnoPara] = useState<Calendario | null>(null)
-  const { data: calendarios = [], isLoading } = useQuery<Calendario[]>({
-    queryKey: ['sd-oncall'], queryFn: () => sdOnCallApi.schedules().then(r => r.data as Calendario[]),
+  const { data: calendarios = [], isLoading } = useQuery({
+    queryKey: ['sd-oncall'], queryFn: () => sdOnCallApi.schedules().then(r => r.data),
   })
-  const { data: ahora = [] } = useQuery<Ahora[]>({
-    queryKey: ['sd-oncall-now'], queryFn: () => sdOnCallApi.current().then(r => r.data as Ahora[]), refetchInterval: POLL_DEFAULT_MS,
+  const { data: ahora = [] } = useQuery({
+    queryKey: ['sd-oncall-now'], queryFn: () => sdOnCallApi.current().then(r => r.data), refetchInterval: POLL_DEFAULT_MS,
   })
   const { data: colas = [] } = useQuery<Cola[]>({ queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data) })
-  const { data: personas = [] } = useQuery<Persona[]>({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data as unknown as Persona[]) })
+  const { data: personas = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['sd-oncall'] }); qc.invalidateQueries({ queryKey: ['sd-oncall-now'] }) }
   const err = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   const crear = useMutation({ mutationFn: (d: unknown) => sdOnCallApi.createSchedule(d), onSuccess: () => { refrescar(); setNuevo(false) }, onError: err })
@@ -148,8 +146,8 @@ export function MonitorizacionConfig() {
   const t = useAppT()
   const toast = useToast()
   const url = apiUrlAbsoluta('/sd/events/prometheus')
-  const { data: alertas = [], isLoading } = useQuery<Alerta[]>({
-    queryKey: ['sd-monitoring-alerts'], queryFn: () => sdMonitoringApi.alerts(MONITORING_ALERTS_LIMIT).then(r => r.data as Alerta[]), refetchInterval: POLL_DEFAULT_MS,
+  const { data: alertas = [], isLoading } = useQuery({
+    queryKey: ['sd-monitoring-alerts'], queryFn: () => sdMonitoringApi.alerts(MONITORING_ALERTS_LIMIT).then(r => r.data), refetchInterval: POLL_DEFAULT_MS,
   })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

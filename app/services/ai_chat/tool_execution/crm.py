@@ -9,7 +9,13 @@ from app.models.project import Project
 
 
 def _get_pipeline(tool_input, db, user, now, is_financial_role):
-    q = db.query(Opportunity)
+    # Segunda auditoría 2026-11: las guardas y el alcance de `GET /pipeline/...`.
+    from app.services import politica_de_visibilidad as _vis
+    from app.services.pipeline_service import scope_opportunity_query
+    from app.services.cab_service.busqueda import MODULO_DE_OPORTUNIDADES
+    if not _vis.ve_modulo_financiero(db, user, MODULO_DE_OPORTUNIDADES):
+        return {"error": "Acceso denegado: el pipeline no está disponible para tu rol."}
+    q = scope_opportunity_query(db.query(Opportunity), db, user)
     stage = tool_input.get("stage", "")
     if stage and stage != "all":
         q = q.filter(Opportunity.stage == stage)

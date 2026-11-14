@@ -50,11 +50,11 @@ class ITSMChangeRequest(Base):
     pir_date     = Column(DateTime(timezone=True), nullable=True)
 
     # Relaciones
-    requester_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    owner_id     = Column(String(36), ForeignKey("users.id"), nullable=True)
-    approver_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    requester_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    owner_id     = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    approver_id  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     approved_at  = Column(DateTime(timezone=True), nullable=True)
-    approved_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approved_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     rejected_reason = Column(Text, nullable=True)
 
     # Phase 2 — Change Impact Analysis
@@ -62,16 +62,16 @@ class ITSMChangeRequest(Base):
     impact_analysis_json = Column(Text, nullable=True)
     suggested_window_json = Column(Text, nullable=True)
 
-    related_ticket_id  = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True)
+    related_ticket_id  = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True, index=True)
 
     # Comite de cambios (CAB): sus votos viven en `sd_change_approvals`. Antes
     # el CAB era un JSON en `app_settings`, sin pantalla.
     cab_quorum     = Column(Integer, nullable=True)
     cab_meeting_at = Column(DateTime(timezone=True), nullable=True)
     cab_agenda     = Column(Text, nullable=True)
-    implementer_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    implementer_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     release_id     = Column(String(36), ForeignKey("sd_releases.id", ondelete="SET NULL"), nullable=True, index=True)
-    related_problem_id = Column(String(36), ForeignKey("sd_problems.id"), nullable=True)
+    related_problem_id = Column(String(36), ForeignKey("sd_problems.id"), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -140,7 +140,7 @@ class Release(Base):
     planned_date = Column(DateTime(timezone=True), nullable=True, index=True)
     released_at = Column(DateTime(timezone=True), nullable=True)
     notes = Column(Text, nullable=True)
-    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

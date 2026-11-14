@@ -4,6 +4,8 @@ Contecflow is a multi-tenant Professional Services Automation platform: projects
 
 What was taken from the sister products contecmind and contecintelligence, what Contecflow already had, and what is still a candidate: [docs/COMPARATIVA_CONTECMIND_CONTECINTELLIGENCE.md](docs/COMPARATIVA_CONTECMIND_CONTECINTELLIGENCE.md).
 
+Deploying this release (migrations 158 to head, new environment variables, per-organization webhook secrets and Twilio numbers, smoke tests): [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md), in Spanish.
+
 This README is the complete functional and technical documentation of the solution. It was written on **2026-11-03** by reading the code and measuring it: every screen was traced to the API calls it makes, and every API call to the service, table and background job behind it. Where something could not be verified, it says **"Not verified"**. Where the code does not do what the screen suggests, it says so. Defects found while writing are listed in each section under **Limitations**; nothing was hidden to make the product look complete.
 
 | Measured (2026-11-03) | Value |
@@ -930,6 +932,12 @@ Two separate planning stores coexist and are easy to confuse: **capacity plans**
 
 **Backend guards** (`app/core/deps.py`): `RequireRole(...)` returns 403 unless the role matches; `is_superadmin` always passes. Shortcuts: `require_admin` (admin), `require_admin_or_hr`, `require_admin_or_pm`, `require_any_manager` (admin, pm, team_lead, hr), `require_internal_user` (everyone except subcontractor), `require_superadmin`. Tenant isolation is applied automatically by `TenantSession` (`app/db/session.py`), which adds `organization_id` filters to ORM queries. `enforce_abac()` is **fail-open**: if the organisation has no active ABAC policies it checks nothing (its own docstring says so).
 
+**Subcontractor: least privilege on people and settings** (second audit 2026-11). One rule, in `app/services/politica_de_visibilidad.py`, used by every people and settings endpoint:
+- **People.** The internal staff (admin, pm, team_lead, hr, employee) keep what they had. A `subcontractor` sees their own full profile and, of the people on the projects they can see (`scope_projects_query`: the PM, active `project_members` and task assignees), only the minimal card: `id`, `full_name`, `first_name`, `last_name`, `avatar_url`, `role`, `job_title`. Anyone else answers **404**. No org chart (403), no one else's productivity (403), no email or phone of others (mentions, global search, ticket watchers), no rates.
+- **People picker:** `GET /api/v1/users/directory?search=` (any session) returns minimal cards of the active people the caller may see: the whole company for staff, the project colleagues for a subcontractor. `GET /users` stays internal-only.
+- **Settings.** Each general setting declares an `Audiencia` in its catalog (`settings_service.generales.DEFAULT_SETTINGS`, `DEFAULTS_DE_ORGANIZACION`): `SESION` (any session), `INTERNA` (staff) or `ADMIN`. A subcontractor gets only `SESION`: company name, currency, time zone, language, working hours and the idle-logout pair (the browser applies it). Uncatalogued general keys are `INTERNA`; dotted or sensitive keys are `ADMIN`. `GET /settings/org-defaults` leaves out `vacation_days_per_year` (HR) and `tax_rate` (billing) for a subcontractor. Credentials, integrations, runtime groups, audit log and security settings were already `require_admin`.
+- Tests: `tests/test_subcontratado_minimo_privilegio_2026_11.py`.
+
 **Frontend guards.** `ProtectedRoute roles={[...]}` in `App.tsx` redirects to `/403`; the sidebar (`Layout.tsx`, `NAV_GROUPS`) hides items whose `roles` don't match. `hasRole()` in `AuthContext.tsx` is a plain string comparison: unlike the backend, it does **not** let `is_superadmin` through.
 
 **Default landing page by role** (`landingPathFor` in `App.tsx`): employee → `/work-dashboard`; hr → `/team-dashboard`; admin/pm/team_lead → `/projects-dashboard`; anything else → `/tasks`.
@@ -1153,7 +1161,7 @@ Cell shading comes from the forecast endpoint.
 - **Matriz, Staffing and Catálogo are for admin and hr**, as on the server. Other roles open the page on Perfiles.
 - An employee can add skills to their own profile but can't remove them.
 - Perfiles loads `GET /users` with the default `page_size` of 50, then fires one `GET /skills/users/{id}` per card (N+1 requests).
-- `subcontractor` gets 403 on `/users` (`require_internal_user`).
+- `subcontractor` gets 403 on `/users` (`require_internal_user`); people pickers for them use `GET /users/directory` (minimal cards of their project colleagues).
 
 ### Org chart — `/org-chart`
 *Roles:* admin, pm, hr. Editing is admin-only.
@@ -1169,7 +1177,7 @@ Cell shading comes from the forecast endpoint.
 **Configuration.** The department list comes from Settings (`GET /api/v1/settings/departments`).
 
 **Technical notes.**
-- `GET /api/v1/users/org-chart`, `GET /api/v1/users`
+- `GET /api/v1/users/org-chart` (403 for `subcontractor`), `GET /api/v1/users`
 - `PATCH /api/v1/users/{id}` (title/department), `PATCH /api/v1/users/{id}/manager` (`require_admin`)
 - `GET /api/v1/users/me/approval-chain`, `GET /api/v1/users/{id}/approval-chain` (`require_admin_or_pm`)
 - Chain walk: `user_service.approval_chain_for_user` follows `manager_id` and stops on cycles.
@@ -4187,7 +4195,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **23 groups, 250 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **23 groups, 251 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4221,6 +4229,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **23 gr
 | service_desk | SD_NOTIFY_REQUESTER_ON_RESOLVE | bool | true | Email the requester on resolution | rt |
 | service_desk | SD_NOTIFY_AGENTS_BY_EMAIL | bool | true | Also email agents (in-app alerts always happen) | rt |
 | service_desk | SD_INBOUND_ADDRESS | str | `''` | Support address; identifies the org and is the Reply-To | rt |
+| service_desk | TWILIO_PHONE_NUMBERS | str | `''` | Twilio numbers of the company (E.164, CSV); an incoming call or SMS to one of them belongs to it, and a call to a number no company declares is rejected | per-org row (`sms_service.organizacion_del_numero_de_twilio`) |
 | service_desk | SD_REOPEN_ON_REPLY | bool | true | Inbound reply reopens a resolved ticket | rt |
 | service_desk | SD_CHANNEL_TICKET_TYPE | str | `incident` | Ticket type for new inbound emails (incident, service_request, question) | rt |
 | service_desk | SD_MAIL_MAX_PER_RUN | int | 50 | Inbound emails read per run | rt |
@@ -4713,7 +4722,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - **Measured on a copy with the application role:** a PM sees the 2364 cells and a second visit adds none. The admin's exception is stored for the company only and the global row is unchanged.
 
 **How to use it.**
-1. **Matrix.** The first load seeds a default matrix and fills in a row for every API module derived from the router (the screen lists the modules the API returns, with a filter; a cell shows «—» when the module has no such operation). Roles are the `UserRole` values, `subcontractor` included. By default `subcontractor` is denied every action on `budgets`, `invoices`, `revenue-recognition`, `accounting`, `user-costs`, `rate-cards`, `profitability`, `organizations`, `grc` and `gdpr`, and the writes on `settings` (create/edit/delete) and `users` (create/delete); reads of `settings`/`users` stay open because the UI needs them. This applies to newly seeded global cells (new install or **Seed**). Global cells of modules or actions whose routes were removed are retired on the next load, and `PATCH` of a cell that matches no role and operation answers 422. Toggle `allowed` per role, module and action. The actions are `ver`, `crear`, `editar`, `eliminar`, `aprobar`, `exportar`; the action of a request is derived from its HTTP method and path. **Seed** resets the matrix to the defaults.
+1. **Matrix.** The first load seeds a default matrix and fills in a row for every API module derived from the router (the screen lists the modules the API returns, with a filter; a cell shows «—» when the module has no such operation). Roles are the `UserRole` values, `subcontractor` included. By default `subcontractor` is denied every action on `budgets`, `invoices`, `revenue-recognition`, `accounting`, `user-costs`, `rate-cards`, `profitability`, `organizations`, `grc` and `gdpr`, and the writes on `settings` (create/edit/delete) and `users` (create/delete); reads of `settings`/`users` stay open because the UI needs them; what those reads return to a subcontractor is narrowed by `politica_de_visibilidad` (minimal cards of their project colleagues, `SESION` settings only; see *Roles and permissions*). This applies to newly seeded global cells (new install or **Seed**). Global cells of modules or actions whose routes were removed are retired on the next load, and `PATCH` of a cell that matches no role and operation answers 422. Toggle `allowed` per role, module and action. The actions are `ver`, `crear`, `editar`, `eliminar`, `aprobar`, `exportar`; the action of a request is derived from its HTTP method and path. **Seed** resets the matrix to the defaults.
 2. **SoD rules.** Edit or create pairs `(module_a, action_a)` ⟂ `(module_b, action_b)` with a risk level, the conflicting roles, and an optional mitigating workflow. 10 defaults are seeded (invoices, expenses, contracts, resources/timesheets, absences, settings/approvals, timesheets, grc/approvals, budgets, sd) when the company is created, and in existing companies the first time a self-approval is checked (or the SoD tab is opened). They are seeded only into a company that has none.
 3. **SoD check.** Lists the roles whose matrix allows both sides of an active rule.
 4. **Violations.** Review violations and resolve them with a note.
@@ -5185,12 +5194,12 @@ This section is for developers and operators who install, run, configure, extend
 | PostgreSQL driver | psycopg2-binary 2.9.11 (image `postgres:16-alpine`) |
 | Celery / redis-py | 5.6.3 / 6.4.0 (image `redis:7-alpine`) |
 | APScheduler | 3.11.2 (in-process alternative to beat) |
-| Auth libs | python-jose 3.5.0, PyJWT 2.13.0, bcrypt 4.0.1, pyotp 2.9.0, webauthn 2.7.0 |
+| Auth libs | PyJWT 2.15.0 (sole JWT library; python-jose and its ecdsa/rsa/pyasn1 chain removed in the second 2026-11 audit), bcrypt 4.0.1, pyotp 2.9.0, webauthn 2.7.0 |
 | Rate limiting | slowapi 0.1.9 |
-| Observability | prometheus-client 0.21.1, prometheus-fastapi-instrumentator 8.1.0, sentry-sdk 2.57.0, OpenTelemetry (optional import) |
+| Observability | prometheus-client 0.21.1, prometheus-fastapi-instrumentator 8.1.0, sentry-sdk 2.57.0, OpenTelemetry 1.45.2 / instrumentations 0.66b2 (optional import). With `PROMETHEUS_MULTIPROC_DIR` each uvicorn worker calls `mark_process_dead(os.getpid())` on lifespan shutdown, and `/metrics` reaps live-gauge files of PIDs that no longer exist (POSIX) |
 | Storage | boto3 1.42.83 |
-| Analytics | duckdb 1.3.0, scikit-learn 1.5.0, reportlab 4.4.10 |
-| Optional ML (`requirements-ml.txt`) | torch 2.11.0, sentence-transformers 5.3.0, transformers 5.5.0, prophet 1.3.0, lightgbm 4.6.0, statsmodels 0.14.6. Installed by `setup.sh` if the file exists; **commented out** in the backend Dockerfile. |
+| Analytics | duckdb 1.3.0, scikit-learn 1.5.0, pandas 2.2.3, numpy 2.5.4 (pinned in both `requirements.txt` and `requirements-ml.txt`), reportlab 4.4.10 |
+| Optional ML (`requirements-ml.txt`) | torch 2.15.0 (≥ 2.13 no longer pins `setuptools<82`, so `requirements.txt` carries setuptools 84.2.1), filelock 4.2.10, sentence-transformers 5.6.0, transformers 5.10.4, prophet 1.3.0, lightgbm 4.6.0, statsmodels 0.14.6. Installed by `setup.sh` if the file exists; **commented out** in the backend Dockerfile. |
 
 Python code size: `app/` ≈ 191,900 lines.
 
@@ -5205,6 +5214,7 @@ Python code size: `app/` ≈ 191,900 lines.
 | react-router-dom | ^7.18.3 | 7.18.3 |
 | axios | ^1.15.2 | 1.19.0 |
 | Tailwind CSS | ^3.4.4 | 3.4.19 |
+| zod (form validation) | ^4.6.7 | 4.6.7 |
 | Vitest (jsdom) | ^4.1.5 | 4.1.11 |
 | Charts / diagrams | echarts 6, recharts 2, plotly.js 2, d3 7, @xyflow/react 12, bpmn-js 18 | — |
 | Realtime / offline | yjs + y-websocket, livekit-client, dexie (IndexedDB), workbox-window | — |
@@ -5366,7 +5376,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 468 fields (measured 2026-11-13): 243 in `config.py` and 225 in nine mixins (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 35, `automations_config` 11, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 468)
+#### 4.2 Settings fields (`Settings`, 470)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5642,6 +5652,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SD_NOTIFY_REQUESTER_ON_RESOLVE` | `True` | Service desk mail toggle. |
 | `SD_NOTIFY_AGENTS_BY_EMAIL` | `True` | Service desk mail toggle. |
 | `SD_INBOUND_ADDRESS` | `''` | Support mailbox address. |
+| `TWILIO_PHONE_NUMBERS` | `''` | Twilio numbers of an organisation (E.164, CSV), set per organisation; the env value does not route. |
 | `SD_REOPEN_ON_REPLY` | `True` | Reopen resolved ticket on reply. |
 | `SD_CHANNEL_TICKET_TYPE` | `'incident'` | Ticket type for channel-created tickets. |
 | `SD_MAIL_MAX_PER_RUN` | `50` | Mails read per mailbox run. |
@@ -5761,6 +5772,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `CONTECINTELLIGENCE_ANALYST_ROLES` | `'admin,pm'` | contecintelligence — roles that enter as analyst (CSV) |
 | `CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS` | `120.0` | contecintelligence — timeout of a question (s) |
 | `CONTECINTELLIGENCE_HANDOFF_ENABLED` | `True` | contecintelligence — Ask the Data offers to pass a question |
+| `LIST_MAX_ROWS` | `5000` | **Row cap of an API list (`app/core/paginacion.py`): maximum accepted `limit`, and the cap applied when no `limit` is sent; hitting it without `limit` sets `X-Truncated: true` / `meta.has_more` and logs a warning.** |
 | `BI_ETL_PAGE_SIZE` | `100` | BI ETL connectors — records asked for per request |
 | `BI_ETL_HTTP_TIMEOUT_S` | `20.0` | BI ETL connectors — timeout of a request to the source (s) |
 | `BI_ETL_LOG_MAX_ENTRIES` | `100` | BI ETL connectors — sync log entries kept per connector |
@@ -5872,7 +5884,7 @@ Until the second 2026-11 audit (finding 16) these were read with `os.getenv`/`os
 | `WHISPER_LOCAL_BIN` | `''` | STT provider binary (wins over WHISPER_BIN). |
 | `WHISPER_LOCAL_MODEL` | `''` | STT provider model (wins over WHISPER_MODEL). |
 | `WHISPER_LOCAL_LANGUAGE` | `'es'` | STT provider default language. |
-| `GEOIP_LOOKUP_ENABLED` | `False` | Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (off: privacy). |
+| `GEOIP_LOOKUP_ENABLED` | `True` | Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (on by product decision 2026-11-14; set false to keep IPs in-house). |
 | `GEOIP_LOOKUP_URL` | `'https://ipapi.co/{ip}/json/'` | Geo-IP service; `{ip}` is replaced. |
 | `GEOIP_CACHE_TTL_SECONDS` | `86400` | Per-IP cache of geo-IP answers (s). |
 

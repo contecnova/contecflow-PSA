@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from sqlalchemy.orm import Session, joinedload
 from app.models.cab import GDPRRequest
 from app.models.cab import GDPRRequestType, GDPRRequestStatus
@@ -14,16 +15,17 @@ from app.models.imputation import Imputation as Imp
 from app.models.user import User as UserModel
 from app.services.audit import audit_log
 from app.core import timeutil
+from app.core.paginacion import Pagina, Paginacion, paginar
 
 
 # ─── GDPR ─────────────────────────────────────────────────────────────────────
 
-def list_gdpr_requests(db: Session) -> list:
-    requests = db.query(GDPRRequest).options(
+def list_gdpr_requests(db: Session, pagina: Optional[Paginacion] = None) -> Pagina:
+    q = db.query(GDPRRequest).options(
         joinedload(GDPRRequest.subject_user),
         joinedload(GDPRRequest.processor),
-    ).order_by(GDPRRequest.created_at.desc()).all()
-    return [{
+    ).order_by(GDPRRequest.created_at.desc(), GDPRRequest.id)
+    return paginar(q, pagina, "gdpr.requests").mapear(lambda r: {
         "id": r.id, "request_type": r.request_type, "status": r.status,
         "subject_email": r.subject_email or (r.subject_user.email if r.subject_user else None),
         "subject_name": r.subject_user.full_name if r.subject_user else "Usuario eliminado",
@@ -32,7 +34,7 @@ def list_gdpr_requests(db: Session) -> list:
         "processor": r.processor.full_name if r.processor else None,
         "created_at": str(r.created_at)[:10] if r.created_at else None,
         "notes": r.notes,
-    } for r in requests]
+    })
 
 
 def create_gdpr_request(payload, current_user, db: Session) -> dict:

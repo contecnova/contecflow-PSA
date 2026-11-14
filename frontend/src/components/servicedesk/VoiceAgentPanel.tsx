@@ -24,6 +24,7 @@ import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { voiceAgentApi } from '../../services/api'
+import type { ConfigDelAgenteDeVoz, SesionDeVoz, TurnoDeVoz } from '../../services/api/tipos-analitica'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Phone, Mic, StopCircle, Plus, ExternalLink, Edit2, Trash2 } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState, Modal } from '../ui'
@@ -32,54 +33,11 @@ import { localeActivo } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
 import { useOrgSettings } from '../../hooks/useOrgSettings'
 
-// TODO type: voiceAgentApi payloads — needs shared types
-interface VoiceTurn {
-  id?: string | number
-  speaker?: string
-  text?: string
-  intent?: string
-  created_at?: string
-  ts?: string
-  [k: string]: unknown
-}
-
-interface VoiceEntities {
-  email?: string
-  ticket_ref?: string
-  urgency_words?: string[]
-  [k: string]: unknown
-}
-
-interface VoiceSession {
-  id: string | number
-  caller?: string
-  caller_id?: string
-  channel?: string
-  status?: string
-  created_at?: string
-  closed_at?: string
-  ticket_id?: string | number | null
-  ticket_number?: string | null
-  turns?: VoiceTurn[]
-  transcript?: VoiceTurn[]
-  entities?: VoiceEntities
-  intent?: string
-  resolution?: string
-  [k: string]: unknown
-}
-
-interface DtmfEntry {
-  intent: string
-  label: string
-}
-
-interface VoiceAgentConfig {
-  greeting?: string
-  language?: string
-  max_silence_seconds?: number
-  dtmf_menu?: Record<string, DtmfEntry>
-  intent_keywords?: Record<string, string[]>
-}
+type VoiceTurn = TurnoDeVoz
+type VoiceEntities = SesionDeVoz['entities']
+type VoiceSession = SesionDeVoz
+/** Borrador del editor: lo que el usuario va cambiando antes de guardar. */
+type VoiceAgentConfig = Partial<ConfigDelAgenteDeVoz>
 
 const INTENT_COLORS: Record<string, string> = {
   incident: 'var(--danger)',
@@ -708,7 +666,7 @@ export default function VoiceAgentPanel() {
   // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
   // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
   const sessions: VoiceSession[] = useMemo(
-    () => (sessionsData as { sessions?: VoiceSession[] } | undefined)?.sessions ?? [],
+    () => sessionsData?.sessions ?? [],
     [sessionsData],
   )
   const activeSession = useMemo(
@@ -721,7 +679,7 @@ export default function VoiceAgentPanel() {
 
   const createSessionMutation = useMutation({
     mutationFn: (payload: { caller_id: string; channel: string }) => voiceAgentApi.createSession(payload).then(r => r.data),
-    onSuccess: (data: { session?: VoiceSession; greeting?: string }) => {
+    onSuccess: (data) => {
       setActiveSessionId(data.session?.id ?? null)
       toast.success(`Sesión iniciada · greeting: "${(data.greeting || '').slice(0, 60)}..."`)
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
@@ -923,7 +881,7 @@ export default function VoiceAgentPanel() {
 
       {tab === 'config' && (
         <ConfigEditor
-          config={config as VoiceAgentConfig | undefined}
+          config={config}
           onSave={(draft: VoiceAgentConfig) => saveConfigMutation.mutate(draft)}
           saving={saveConfigMutation.isPending}
         />

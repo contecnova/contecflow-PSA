@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery } from '@tanstack/react-query'
 import { forecastApi } from '../services/api'
+import type { MapaDeCarga, ProyeccionDePersona, ResumenDeCapacidad, SemanaDeCarga } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { EmptyState } from '../components/ui'
@@ -30,62 +31,10 @@ const STATUS_LABEL: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Las formas que esta pagina consume
 //
-// Auditoria 2026-09 (modo estricto): el cliente de API devuelve `any` y ningun
-// componente de este fichero declaraba sus props. Se declara lo que la pagina
-// lee; los campos opcionales lo son porque este fichero no puede prometer lo
-// que manda el backend.
+// Los tipos de la respuesta estan en services/api/tipos-personas.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** El reparto de horas de una semana entre proyectos. */
-interface RepartoDeSemana {
-  project_name?: string
-  hours?: number
-}
-
-/** Una semana de carga de una persona. */
-interface SemanaDeCarga {
-  week: string
-  status?: string
-  load_pct?: number
-  committed_hours?: number
-  available_hours?: number
-  split?: unknown
-  breakdown?: RepartoDeSemana[]
-}
-
-/** Una fila del heatmap: una persona y sus semanas. */
-interface FilaDeCarga {
-  user_id: string | number
-  user_name?: string
-  avg_load_pct?: number
-  overloaded_weeks?: number
-  weeks?: SemanaDeCarga[]
-}
-
-/** La respuesta del heatmap. */
-interface RespuestaDeHeatmap {
-  week_labels?: string[]
-  users?: FilaDeCarga[]
-}
-
-/** El detalle de carga de una persona. */
-interface DetalleDeCarga {
-  user_name?: string
-  weeks?: SemanaDeCarga[]
-}
-
-/** El resumen de cartera. */
-interface ResumenDeCarga {
-  avg_team_load_pct?: number
-  total_available_hrs?: number
-  total_committed_hrs?: number
-  risk_weeks_count?: number
-  overloaded_users_count?: number
-  week_trend?: SemanaDeCarga[]
-  /** Etiquetas de las semanas en riesgo, no las semanas enteras: el
-   *  grafico solo pregunta «esta esta en la lista». */
-  risk_weeks?: string[]
-}
+type FilaDeCarga = MapaDeCarga['users'][number]
 
 /** El estado de carga que corresponde a un porcentaje.
  *
@@ -222,7 +171,7 @@ function UserRow({ user, selectedUser, onSelect, nameWidth = 160 }: UserRowProps
 // ── Panel de detalle de usuario ───────────────────────────────────────────────
 function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: number }) {
   const _toast = useToast()
-  const { data, isLoading } = useQuery<DetalleDeCarga>({
+  const { data, isLoading } = useQuery<ProyeccionDePersona>({
     queryKey: ['forecast-user', userId, weeks],
     queryFn: () => forecastApi.userDetail(userId, { weeks }).then(r => r.data),
     enabled: !!userId,
@@ -287,13 +236,13 @@ export default function ResourceForecastPage() {
   const [view, setView]               = useState('heatmap')   // heatmap | summary | availability
   const nameWidth = useMediaQuery('(max-width: 900px)') ? 96 : 160
 
-  const { data: heatmapData, isLoading: loadingHeatmap } = useQuery<RespuestaDeHeatmap>({
+  const { data: heatmapData, isLoading: loadingHeatmap } = useQuery<MapaDeCarga>({
     queryKey: ['forecast-heatmap', weeks, department],
     queryFn: () => forecastApi.heatmap({ weeks, department: department || undefined }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
-  const { data: summaryData, isLoading: loadingSummary, isError: summaryError } = useQuery<ResumenDeCarga>({
+  const { data: summaryData, isLoading: loadingSummary, isError: summaryError } = useQuery<ResumenDeCapacidad>({
     queryKey: ['forecast-summary', weeks, department],
     queryFn: () => forecastApi.summary({ weeks, department: department || undefined }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,

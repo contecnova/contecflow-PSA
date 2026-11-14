@@ -1,16 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { rateCardsApi } from '../services/api'
+import type { TablaDeTarifas, TarifaEfectiva } from '../services/api/tipos-finanzas'
 
 const STALE = 2 * 60 * 1000
 
-export interface RateCard {
-  id: string
-  name?: string
-  currency?: string
-  [extra: string]: unknown
-}
+/** serialize_rate_table (services/api/tipos-finanzas.ts). */
+export type RateCard = TablaDeTarifas
 
 export type RateParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
@@ -19,33 +15,27 @@ export type EntryArgs = { id: string; data: Record<string, unknown> }
 export type EntryUpdateArgs = { id: string; eid: string; data: Record<string, unknown> }
 export type EntryDeleteArgs = { id: string; eid: string }
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
 export function useRateCards(): UseQueryResult<RateCard[]> {
   return useQuery<RateCard[]>({
     queryKey: ['rate-cards'],
-    queryFn: () => rateCardsApi.list().then((r: { data?: { items?: RateCard[] } | RateCard[] | null }) => unwrapList<RateCard>(r)),
+    queryFn: () => rateCardsApi.list().then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useRateCard(id: string | undefined): UseQueryResult<unknown> {
+export function useRateCard(id: string | undefined): UseQueryResult<RateCard> {
   return useQuery({
     queryKey: ['rate-card', id],
-    queryFn: () => rateCardsApi.get(id).then((r: { data: unknown }) => r.data),
+    queryFn: () => rateCardsApi.get(id).then(r => r.data),
     enabled: !!id,
     staleTime: STALE,
   })
 }
 
-export function useEffectiveRate(params: RateParams = {}): UseQueryResult<unknown> {
+export function useEffectiveRate(params: RateParams = {}): UseQueryResult<TarifaEfectiva> {
   return useQuery({
     queryKey: ['effective-rate', params],
-    queryFn: () => rateCardsApi.effectiveRate(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => rateCardsApi.effectiveRate(params).then(r => r.data),
     staleTime: STALE,
   })
 }

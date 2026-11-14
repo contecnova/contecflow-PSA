@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dashboardApi, analyticsApi, risksApi } from '../services/api'
+import type { RiesgoAbiertoDeLaCartera } from '../services/api/tipos-proyectos'
 import { useAllProjects } from '../hooks/useProjects'
 import { Spinner } from '../components/ui'
 import {
@@ -14,6 +15,7 @@ import {
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { STALE_DEFAULT_MS } from '../constants/timings'
+import type { FilaDeMetrica, KpisDelCuadroDeMando, SaludDeProyecto } from '../services/api/tipos-analitica'
 
 const STATUS_COLORS: Record<string, string> = {
   active:    COLOR.accent,
@@ -24,28 +26,6 @@ const STATUS_COLORS: Record<string, string> = {
   closed:    COLOR.success,
   cancelled: COLOR.danger,
   archived:  'var(--text-3)',
-}
-
-interface DashboardProjectHealth {
-  project_id: string | number
-  project_code?: string
-  project_name?: string
-  schedule_deviation_days?: number
-  budget_used_pct?: number
-  alerts_count?: number
-}
-
-interface ProjectItem {
-  status?: string
-}
-
-interface TypeRow {
-  label?: string
-  value?: number
-}
-
-interface RiskRow {
-  risk_level?: string
 }
 
 export default function ProjectsDashboardPage() {
@@ -63,32 +43,32 @@ export default function ProjectsDashboardPage() {
   const [days, setDays] = useState(30)
   const params = dateRange(days)
 
-  const { data: health = [], isLoading: lh } = useQuery<DashboardProjectHealth[]>({
-    queryKey: ['proj-dash-health', days],
-    queryFn: () => dashboardApi.projectsHealth(params).then(r => r.data).catch(() => []),
+  // `/dashboard/projects-health` y `/dashboard/kpis` no filtran por fechas: son
+  // la foto actual, y no dependen del periodo elegido.
+  const { data: health = [], isLoading: lh } = useQuery<SaludDeProyecto[]>({
+    queryKey: ['proj-dash-health'],
+    queryFn: () => dashboardApi.projectsHealth().then(r => r.data).catch(() => []),
     staleTime: STALE_DEFAULT_MS,
   })
 
-  const { data: allProjects = [] } = useAllProjects() as { data: ProjectItem[] }
+  const { data: allProjects = [] } = useAllProjects()
 
-  const { data: byTypeRaw, isLoading: lt } = useQuery<TypeRow[]>({
+  const { data: byTypeRaw, isLoading: lt } = useQuery<FilaDeMetrica[]>({
     queryKey: ['proj-dash-type', days],
-    queryFn: () => analyticsApi.query('projects_by_type', params).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('projects_by_type', params).then(r => r.data.rows).catch(() => []),
     staleTime: STALE_DEFAULT_MS,
   })
-  const byType: TypeRow[] = byTypeRaw ?? []
+  const byType: FilaDeMetrica[] = byTypeRaw ?? []
 
-  const { data: kpis } = useQuery({
-    queryKey: ['proj-dash-kpis', days],
-    queryFn: () => dashboardApi.kpis().then(r => r.data).catch(() => ({})),
+  const { data: kpis } = useQuery<KpisDelCuadroDeMando | null>({
+    queryKey: ['proj-dash-kpis'],
+    queryFn: () => dashboardApi.kpis().then(r => r.data).catch(() => null),
     staleTime: STALE_DEFAULT_MS,
   })
 
-  const { data: risks = [] } = useQuery<RiskRow[]>({
+  const { data: risks = [] } = useQuery({
     queryKey: ['proj-dash-risks'],
-    queryFn: () => risksApi.portfolioAll().then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
-    }).catch(() => []),
+    queryFn: () => risksApi.portfolioAll().then(r => r.data).catch((): RiesgoAbiertoDeLaCartera[] => []),
     staleTime: STALE_DEFAULT_MS,
   })
 
@@ -100,8 +80,8 @@ export default function ProjectsDashboardPage() {
 
   const total = allProjects.length
   const active = allProjects.filter(p => p.status === 'active').length
-  const isCrit = (p: DashboardProjectHealth) => (p.schedule_deviation_days || 0) > 0 || (p.budget_used_pct || 0) > 100
-  const isWarn = (p: DashboardProjectHealth) => !isCrit(p) && ((p.budget_used_pct || 0) > 80 || (p.alerts_count || 0) > 0)
+  const isCrit = (p: SaludDeProyecto) => (p.schedule_deviation_days || 0) > 0 || (p.budget_used_pct || 0) > 100
+  const isWarn = (p: SaludDeProyecto) => !isCrit(p) && ((p.budget_used_pct || 0) > 80 || (p.alerts_count || 0) > 0)
   const crit = health.filter(isCrit).length
   const warn = health.filter(isWarn).length
   const ok = Math.max(health.length - crit - warn, 0)

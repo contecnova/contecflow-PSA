@@ -8,6 +8,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, revenueRecognitionApi } from '../services/api'
+import type { CierreAsc606, ContratoAsc606, EntradaAsc606DelDiario, ObligacionAsc606, PanelAsc606 } from '../services/api/tipos-finanzas'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -35,80 +36,17 @@ const ASC_METHOD_CFG: Record<string, MethodCfg> = {
   completed_contract:  { label:'Contrato completado', desc:'Todo el importe el mes en que el proyecto cierra', icon:'✅' },
 }
 
-/** `_serialize_obligation` (app/services/revenue_service.py). */
-interface Obligation {
-  id: string
-  contract_id: string
-  milestone_id: string | null
-  name: string
-  allocated_pct: number
-  allocated_amount: number
-  is_satisfied: boolean
-  satisfied_date: string | null
-  // Revisión 158 (auditoría 2026-11): antes el modelo no los tenía y el alta daba 500.
-  method: string | null
-  standalone_price: number | null
-  notes: string | null
-}
+type Obligation = ObligacionAsc606
 
 type ObligationPayload = { name: string; method: string; standalone_price: number; notes: string }
 
-/** `_serialize_contract` (app/services/revenue_service.py). */
-interface RevenueContract {
-  id: string
-  project_id: string | null
-  client_id: string | null
-  name: string
-  contract_value: number
-  currency: string
-  method: string | null
-  start_date: string | null
-  end_date: string | null
-  duration_months: number | null
-  is_active: boolean
-  notes: string | null
-  created_at: string | null
-}
+type RevenueContract = ContratoAsc606
 
-/** `_serialize_entry` (app/services/revenue_service.py). */
-interface RevenueEntry {
-  id: string
-  rev_contract_id: string
-  entry_type: string | null
-  amount: number
-  currency: string
-  period_year: number
-  period_month: number
-  milestone_id: string | null
-  description: string | null
-  reverses_entry_id: string | null
-  created_by: string | null
-  created_at: string | null
-  // Los añade `serialize_entries` (auditoría 2026-11): antes la tabla los leía y no llegaban.
-  contract_name: string | null
-  method: string | null
-  is_reversed: boolean
-}
+type RevenueEntry = EntradaAsc606DelDiario
 
-/** `_serialize_period_close` (app/services/revenue_service.py). */
-interface PeriodClose {
-  id: string
-  period_year: number
-  period_month: number
-  closed_by: string | null
-  closed_at: string | null
-  notes: string | null
-}
+type PeriodClose = CierreAsc606
 
-/** `get_asc606_dashboard` (app/services/revenue_service.py). */
-interface Asc606MonthRow { month: number; year: number; recognized: number; deferred: number; unbilled: number }
-interface Asc606Dashboard {
-  year: number
-  total_recognized: number
-  entry_count: number
-  by_month: Asc606MonthRow[]
-  contracts: RevenueContract[]
-}
+type Asc606Dashboard = PanelAsc606
 
 type ContractPayload = {
   project_id: string; name: string; method: string; contract_value: number; currency: string

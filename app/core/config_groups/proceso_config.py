@@ -105,7 +105,7 @@ class ProcesoSettingsMixin:
 
     # ── Geo-IP of sign-ins (hallazgo 30) ─────────────────────────────────────
     GEOIP_LOOKUP_ENABLED: bool = Field(
-        default=False, description="Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (off: privacy).")
+        default=True, description="Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (on by product decision 2026-11-14; set false to keep IPs in-house).")
     GEOIP_LOOKUP_URL: str = Field(default="https://ipapi.co/{ip}/json/", description="Geo-IP service; `{ip}` is replaced.")
     GEOIP_CACHE_TTL_SECONDS: int = Field(default=86400, description="Per-IP cache of geo-IP answers (s).")
 

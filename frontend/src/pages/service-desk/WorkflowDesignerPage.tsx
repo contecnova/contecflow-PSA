@@ -20,7 +20,7 @@ import {
   ReactFlow, ReactFlowProvider, addEdge, useNodesState, useEdgesState,
   Background, Controls, MiniMap, MarkerType, Handle, Position, useReactFlow,
 } from '@xyflow/react'
-import type { Connection, Edge, Node, NodeProps, XYPosition } from '@xyflow/react'
+import type { Connection, Edge, Node, NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
   GitBranch, Plus, Search, Trash2, Copy, ArrowLeft, Save, CheckCircle,
@@ -28,6 +28,7 @@ import {
   Play, XCircle, Activity,
 } from 'lucide-react'
 import { sdWorkflowDesignerApi, type ApiError } from '../../services/api'
+import type { SdBlueprint, SdDetalleDeEjecucion, SdGrafoDeFlujo, SdPlantillaDeFlujo, SdValidacionDeFlujo, SdValorDeConfigDeNodo } from '../../services/api/tipos-sd'
 import { useToast } from '../../context/ToastContext'
 import { Button, Spinner, Page, StatusBadge, Modal, EmptyState } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -47,76 +48,18 @@ const NODE_VISUAL: Record<string, { color: string; icon: string; label: string }
   create_ticket: { color: 'var(--sky-blue)', icon: '🎫', label: 'Ticket' },
 }
 
-// ── Tipos (app/services/service_desk/workflow_designer_service.py y workflow_engine.py) ──
-type ValorConfig = string | number | null | undefined
+// ── Tipos: respuestas en services/api/tipos-sd.ts; aquí, los del lienzo ──
+type ValorConfig = SdValorDeConfigDeNodo
 type ConfigNodo = Record<string, ValorConfig>
 type DatosNodo = { label?: string; type: string; config?: ConfigNodo }
 type NodoFlujo = Node<DatosNodo>
 type AristaFlujo = Edge<{ branch?: string }>
 
-/** Nodo y arista tal como se guardan en `graph_json`. */
-interface NodoGuardado { id: string; type: string; position?: XYPosition; data?: DatosNodo; label?: string; config?: ConfigNodo }
-interface AristaGuardada { id: string; source: string; target: string; branch?: string; label?: string }
-interface GrafoGuardado { nodes?: NodoGuardado[]; edges?: AristaGuardada[] }
-
-/** `serialize_blueprint`. */
-interface Blueprint {
-  id: string
-  name: string
-  description: string | null
-  process_type: string
-  scope: string | null
-  status: string
-  latest_version: number
-  published_version: number | null
-  is_active: boolean
-  created_at: string
-  updated_at: string | null
-}
-/** `serialize_version`. */
-interface VersionBlueprint {
-  id: string
-  blueprint_id: string
-  version: number
-  graph: GrafoGuardado
-  is_published: boolean
-  published_at: string | null
-  created_at: string
-}
-interface DetalleBlueprint { blueprint: Blueprint; versions: VersionBlueprint[] }
-/** `builtin_templates`. */
-interface PlantillaFlujo { id: string; name: string; description: string; process_type: string; graph: GrafoGuardado }
-/** `workflow_engine.serialize_run`. */
-interface EjecucionFlujo {
-  id: string
-  blueprint_id: string
-  blueprint_version: number
-  target_entity_type: string | null
-  target_entity_id: string | null
-  status: string
-  current_node_id: string | null
-  wake_at: string | null
-  last_error: string | null
-  context: Record<string, unknown>
-  created_by_user_id: string | null
-  started_at: string | null
-  completed_at: string | null
-}
-/** `workflow_engine.serialize_step`. */
-interface PasoFlujo {
-  id: string
-  node_id: string
-  node_type: string
-  status: string
-  branch_taken: string | null
-  payload: Record<string, unknown>
-  error: string | null
-  created_at: string | null
-  completed_at: string | null
-}
-interface DetalleEjecucion { run: EjecucionFlujo; steps: PasoFlujo[] }
-/** `validate_graph`. */
-interface ValidacionGrafo { valid: boolean; errors?: string[]; warnings?: string[] }
+type GrafoGuardado = SdGrafoDeFlujo
+type Blueprint = SdBlueprint
+type PlantillaFlujo = SdPlantillaDeFlujo
+type DetalleEjecucion = SdDetalleDeEjecucion
+type ValidacionGrafo = SdValidacionDeFlujo
 
 /** `detail` de un error del diseñador: texto, o `{message, errors}` si el grafo no valida. */
 type DetalleError = string | { message?: string; errors?: string[] }
@@ -197,7 +140,7 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
 
   const { data: blueprints = [], isLoading } = useQuery({
     queryKey: ['sd-wf-blueprints', filter],
-    queryFn: () => sdWorkflowDesignerApi.blueprints(filter ? { process_type: filter } : undefined).then((r): Blueprint[] => r.data),
+    queryFn: () => sdWorkflowDesignerApi.blueprints(filter ? { process_type: filter } : undefined).then(r => r.data),
   })
 
   const archive = useMutation({
@@ -446,7 +389,7 @@ function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPic
   const qc = useQueryClient()
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['sd-wf-templates'],
-    queryFn: () => sdWorkflowDesignerApi.templates().then((r): PlantillaFlujo[] => r.data),
+    queryFn: () => sdWorkflowDesignerApi.templates().then(r => r.data),
   })
 
   const useTemplate = useMutation({
@@ -512,7 +455,7 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ['sd-wf-blueprint', id],
-    queryFn: () => sdWorkflowDesignerApi.blueprint(id).then((r): DetalleBlueprint => r.data),
+    queryFn: () => sdWorkflowDesignerApi.blueprint(id).then(r => r.data),
   })
 
   const blueprint = detail?.blueprint
@@ -741,12 +684,12 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
 
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ['sd-wf-runs', blueprintId],
-    queryFn: () => sdWorkflowDesignerApi.runs({ blueprint_id: blueprintId }).then((r): EjecucionFlujo[] => r.data),
+    queryFn: () => sdWorkflowDesignerApi.runs({ blueprint_id: blueprintId }).then(r => r.data),
     refetchInterval: POLL_RUN_LIST_MS,
   })
   const { data: runDetail } = useQuery({
     queryKey: ['sd-wf-run', activeRunId],
-    queryFn: () => sdWorkflowDesignerApi.run(activeRunId).then((r): DetalleEjecucion => r.data),
+    queryFn: () => sdWorkflowDesignerApi.run(activeRunId).then(r => r.data),
     enabled: !!activeRunId,
     refetchInterval: POLL_RUN_DETAIL_MS,
   })

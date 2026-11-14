@@ -7,7 +7,9 @@ from app.models.user import User
 
 
 def _get_open_tickets(tool_input, db, user, now, is_financial_role):
-    q = db.query(Ticket).filter(Ticket.status.in_(ESTADOS_DE_TICKET_EN_CURSO))
+    # Segunda auditoría 2026-11: los tickets que ve el usuario (`scope_ticket_query`).
+    from app.services.service_desk.scoping import scope_ticket_query
+    q = scope_ticket_query(db.query(Ticket), db, user).filter(Ticket.status.in_(ESTADOS_DE_TICKET_EN_CURSO))
     if tool_input.get("priority"): q = q.filter(Ticket.priority == tool_input["priority"])
     if tool_input.get("assignee_id"): q = q.filter(Ticket.assigned_to_user_id == tool_input["assignee_id"])
     tickets = q.order_by(Ticket.created_at.asc()).limit(tool_input.get("limit", 15)).all()

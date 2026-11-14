@@ -38,7 +38,7 @@ class Imputation(Base):
 
     # Approval workflow (optional)
     is_approved = Column(Boolean, default=False)
-    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
 
     # Billable flag
@@ -93,8 +93,8 @@ class TimerSession(Base):
 
     # Who and what
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    task_id = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
-    project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Timer state
     started_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -103,7 +103,7 @@ class TimerSession(Base):
     ended_at = Column(DateTime(timezone=True), nullable=True)
 
     # Associated imputation (once stopped)
-    imputation_id = Column(String(36), ForeignKey("imputations.id", ondelete="SET NULL"), nullable=True)
+    imputation_id = Column(String(36), ForeignKey("imputations.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id])  # TODO #56: inverse en User

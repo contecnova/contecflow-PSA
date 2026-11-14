@@ -4,6 +4,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { absencesApi } from '../services/api'
+import type { Absence, CalendarioDeAusencias, SaldoDeVacaciones } from '../services/api/tipos-personas'
 import { Card, Button, Modal, Spinner, EmptyState, useSort, SortableTH, Tabs, SearchInput, FilterSelect } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -23,12 +24,6 @@ const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color:
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
-interface VacationBalance {
-  days_remaining?: number
-  days_taken?: number
-  days_pending?: number
-  days_entitled?: number
-}
 
 interface ApiError {
   response?: { data?: { detail?: unknown } }
@@ -40,18 +35,6 @@ const errDetailText = (err: unknown, fallback: string): string => {
   return (typeof d === 'string' ? d : '') || fallback
 }
 
-type Absence = {
-  [k: string]: unknown
-  id: string
-  type?: string
-  status?: string
-  start_date?: string
-  end_date?: string
-  reason?: string
-  rejection_reason?: string
-  user_name?: string
-  working_days?: number
-}
 
 const typeLabels = (t: TFn): Record<string, string> => ({
   vacation: t('absences.type_vacation_full'),
@@ -78,7 +61,7 @@ const buildAbsenceRequestSchema = (t: TFn) => z.object({
 }).superRefine((data, ctx) => {
   if (data.end_date < data.start_date) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['end_date'],
       message: t('absences.error_end_before_start'),
     })
@@ -113,9 +96,9 @@ function RequestModal({ onClose }: { onClose: () => void }) {
   const endId = `${idPrefix}-end`
   const reasonId = `${idPrefix}-reason`
 
-  const { data: balance } = useQuery<VacationBalance | null>({
+  const { data: balance } = useQuery<SaldoDeVacaciones | null>({
     queryKey: ['vacation-balance-my'],
-    queryFn: () => absencesApi.vacationBalance().then(r => r.data as VacationBalance).catch(() => null),
+    queryFn: () => absencesApi.vacationBalance().then(r => r.data).catch(() => null),
     staleTime: STALE_DEFAULT_MS,
   })
 
@@ -228,14 +211,12 @@ function ReviewModal({ absence, onClose }: { absence: Absence; onClose: () => vo
   )
 }
 
-interface Holiday { date?: string; name?: string }
-interface CalendarData { absences: Absence[]; holidays: Holiday[] }
 
 function CalendarView({ year, month }: { year: number; month: number }) {
   const t = useAppT()
-  const { data } = useQuery<CalendarData>({
+  const { data } = useQuery<CalendarioDeAusencias>({
     queryKey: ['absence-calendar', year, month],
-    queryFn: () => absencesApi.calendar({ year, month }).then(r => r.data as CalendarData),
+    queryFn: () => absencesApi.calendar({ year, month }).then(r => r.data),
   })
 
   if (!data) return <Spinner />
@@ -250,7 +231,7 @@ function CalendarView({ year, month }: { year: number; month: number }) {
   }
   const isHoliday = (day: number) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return data.holidays.find((h: Holiday) => h.date === dateStr)
+    return data.holidays.find((h) => h.date === dateStr)
   }
 
   const MONTH_NAMES = monthNames(t)
@@ -409,26 +390,21 @@ export default function AbsencesPage(): JSX.Element {
   const [calYear, setCalYear] = useState(today.getFullYear())
   const [calMonth, setCalMonth] = useState(today.getMonth() + 1)
 
-  const unwrapAbsences = (r: { data?: unknown }): Absence[] => {
-    const d = r.data as { items?: Absence[] } | Absence[] | null | undefined
-    return (Array.isArray(d) ? d : d?.items ?? []) as Absence[]
-  }
-
   const { data: myAbsences = [], isLoading: loadingMine } = useQuery<Absence[]>({
     queryKey: ['absences-my'],
-    queryFn: () => absencesApi.my({}).then(unwrapAbsences),
+    queryFn: () => absencesApi.my({}).then(r => r.data),
     enabled: tab === 'mine',
   })
 
   const { data: pending = [] } = useQuery<Absence[]>({
     queryKey: ['absences-pending'],
-    queryFn: () => absencesApi.pending().then(unwrapAbsences),
+    queryFn: () => absencesApi.pending().then(r => r.data),
     enabled: hasRole('admin', 'hr', 'pm', 'team_lead'),
   })
 
   const { data: teamAbsences = [] } = useQuery<Absence[]>({
     queryKey: ['team-absences'],
-    queryFn: () => absencesApi.team({}).then(r => r.data as Absence[]),
+    queryFn: () => absencesApi.team({}).then(r => r.data),
     enabled: tab === 'team' && hasRole('admin', 'hr', 'pm', 'team_lead'),
   })
   const [teamSearch, setTeamSearch] = useState('')

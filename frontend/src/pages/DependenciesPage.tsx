@@ -5,6 +5,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
+import type { DependenciaDeTarea } from '../services/api/tipos-proyectos'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -14,7 +15,7 @@ import { alpha } from '../constants/theme'
 import { FULL_LIST_SIZE } from '../constants/pagination'
 
 // Los tipos del Gantt y el autoplanificador (revisión 2026-11): antes ofrecía tipos de Jira que no se podían guardar.
-type DependencyType = 'FS' | 'SS' | 'FF' | 'SF'
+type DependencyType = DependenciaDeTarea['dependency_type']
 const DE_ORDEN = new Set(['FS', 'SS', 'FF', 'SF'])
 type TaskStatus = 'todo' | 'in_progress' | 'done' | 'blocked' | 'in_review' | string
 
@@ -29,14 +30,8 @@ type TaskItem = {
   status?: TaskStatus
 }
 
-type DependencyItem = {
-  id: string | number
-  predecessor_id: string | number
-  successor_id: string | number
-  dependency_type: DependencyType
-  lag_days?: number
-  note?: string
-}
+/** task_service.list_task_dependencies (sin nota: la tabla `task_dependencies` no la tiene). */
+type DependencyItem = DependenciaDeTarea
 
 type EdgeItem = DependencyItem & {
   from_task_id: string | number
@@ -273,11 +268,11 @@ export default function DependenciesPage(): JSX.Element {
     enabled: !!project,
   })
 
-  const { data: deps = [], isLoading } = useQuery<DependencyItem[]>({
+  const { data: deps = [], isLoading } = useQuery({
     queryKey: ['task-deps', project],
     queryFn: () => project
-      ? taskDependenciesApi.getByProject(project).then(r => Array.isArray(r.data) ? r.data : []).catch(() => [])
-      : Promise.resolve([]),
+      ? taskDependenciesApi.getByProject(project).then(r => r.data).catch((): DependencyItem[] => [])
+      : Promise.resolve<DependencyItem[]>([]),
     enabled: !!project,
   })
 
@@ -374,7 +369,7 @@ export default function DependenciesPage(): JSX.Element {
                 <table style={{width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)"}}>
                   <thead>
                     <tr className="u-border-b">
-                      {['Tarea A','Tipo','Tarea B','Lag','Nota',''].map(h => (
+                      {['Tarea A','Tipo','Tarea B','Lag',''].map(h => (
                         <th key={h} style={{textAlign:'left', padding:'8px 12px', fontSize: "var(--text-xs)", color:'var(--text-2)',
                           textTransform:'uppercase', letterSpacing:'.06em'}}>{h}</th>
                       ))}
@@ -409,11 +404,6 @@ export default function DependenciesPage(): JSX.Element {
                           </td>
                           <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize: "var(--text-sm)"}}>
                             {(e.lag_days ?? 0) > 0 ? `+${e.lag_days}d` : '—'}
-                          </td>
-                          <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize: "var(--text-sm)", maxWidth:160}}>
-                            <div style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
-                              {e.note || '—'}
-                            </div>
                           </td>
                           <td className="u-pad-10-12">
                             <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta dependencia?', onConfirm: () => deleteEdge(e.id), danger: true }) }}

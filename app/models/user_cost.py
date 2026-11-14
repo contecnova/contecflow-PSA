@@ -83,7 +83,7 @@ class UserCostProfile(Base):
 
     notes = Column(Text, nullable=True)
 
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete

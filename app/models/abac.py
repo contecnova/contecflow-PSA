@@ -24,7 +24,7 @@ class AttributeDefinition(Base):
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     __table_args__ = (
         Index("idx_attr_def_org_key", "org_id", "attribute_key"),
@@ -48,7 +48,7 @@ class UserAttribute(Base):
     reason = Column(Text, nullable=True)  # Audit trail
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-    assigned_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    assigned_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     __table_args__ = (
         Index("idx_user_attr_user_org", "user_id", "org_id"),
@@ -103,7 +103,7 @@ class ABACPolicy(Base):
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     # Audit trail
     last_evaluated_at = Column(DateTime(timezone=True), nullable=True)

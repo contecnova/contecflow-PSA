@@ -15,32 +15,10 @@ import { localeActivo } from '../utils/helpers'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { STALE_LIVE_MS } from '../constants/timings'
-// Lo que devuelve `olap/query_engine.get_kpi_summary` (auditoria 2026-11: la
+// Los KPI son los de `olap/query_engine.get_kpi_summary` (auditoria 2026-11: la
 // pagina leia `revenue_total`, `cost_total`… que no existen, y salia 0 €). Las
 // cifras de horas y coste son del mes en curso; no hay filtro por periodo.
-interface BiKpis {
-  hours_mtd?: number
-  cost_mtd?: number
-  billability_pct?: number
-  active_projects?: number
-  avg_margin_pct?: number
-  high_risk_projects?: number
-  open_opps?: number
-  pipeline_weighted?: number
-  won_revenue?: number
-}
-
-interface BiProjectHealth {
-  id?: string | number
-  project_id?: string | number
-  code?: string
-  name?: string
-  project_name?: string
-  status?: string
-  risk_level?: string
-  budget_used_pct?: number
-  progress_pct?: number
-}
+import type { KpisOlap, SaludDeProyecto } from '../services/api/tipos-analitica'
 
 function getLocale(lang: string) {
   return localeActivo(lang || undefined)
@@ -85,7 +63,7 @@ export default function BIPage(): JSX.Element {
   // Purge stale Dexie cache on first mount
   useEffect(() => { purgeExpiredBiCache() }, [])
 
-  const { data: kpis, isLoading: loadingKpis } = useQuery<BiKpis | null>({
+  const { data: kpis, isLoading: loadingKpis } = useQuery<KpisOlap | null>({
     queryKey: ['bi-kpis'],
     queryFn: async () => {
       try {
@@ -93,13 +71,13 @@ export default function BIPage(): JSX.Element {
         await cacheBiKpis(periodKey, data)
         return data
       } catch {
-        return await getCachedBiKpis(periodKey)
+        return (await getCachedBiKpis(periodKey)) as KpisOlap | null  // la copia guardada arriba
       }
     },
     staleTime: STALE_LIVE_MS,
   })
 
-  const { data: projectsHealth = [], isLoading: loadingHealth } = useQuery<BiProjectHealth[]>({
+  const { data: projectsHealth = [], isLoading: loadingHealth } = useQuery<SaludDeProyecto[]>({
     queryKey: ['bi-projects-health'],
     queryFn: async () => {
       try {
@@ -107,7 +85,7 @@ export default function BIPage(): JSX.Element {
         await cacheBiProjects(periodKey, data)
         return data ?? []
       } catch {
-        return (await getCachedBiProjects(periodKey)) ?? []
+        return ((await getCachedBiProjects(periodKey)) as SaludDeProyecto[] | null) ?? []
       }
     },
     staleTime: STALE_LIVE_MS,
@@ -136,12 +114,12 @@ export default function BIPage(): JSX.Element {
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 16 }}>
-            <KpiCard label={`${t('bi.kpi_coste')} · ${t('bi.kpi_mes')}`} value={fmtMoneda(kpis?.cost_mtd as number | null | undefined, { decimales: 0 })} />
+            <KpiCard label={`${t('bi.kpi_coste')} · ${t('bi.kpi_mes')}`} value={fmtMoneda(kpis?.cost_mtd, { decimales: 0 })} />
             <KpiCard label={`${t('bi.kpi_horas')} · ${t('bi.kpi_mes')}`} value={fmtNum(kpis?.hours_mtd, lang)}
               note={`${t('bi.kpi_facturables')}: ${fmtPct(kpis?.billability_pct)}`} />
             <KpiCard label={t('bi.kpi_margen')} value={fmtPct(kpis?.avg_margin_pct)} note={t('bi.kpi_margen_nota')} />
-            <KpiCard label={t('bi.kpi_pipeline')} value={fmtMoneda(kpis?.pipeline_weighted as number | null | undefined, { decimales: 0 })}
-              note={`${t('bi.kpi_abiertas')}: ${kpis?.open_opps ?? 0} · ${t('bi.kpi_ganado')}: ${fmtMoneda(kpis?.won_revenue as number | null | undefined, { decimales: 0 })}`} />
+            <KpiCard label={t('bi.kpi_pipeline')} value={fmtMoneda(kpis?.pipeline_weighted, { decimales: 0 })}
+              note={`${t('bi.kpi_abiertas')}: ${kpis?.open_opps ?? 0} · ${t('bi.kpi_ganado')}: ${fmtMoneda(kpis?.won_revenue, { decimales: 0 })}`} />
             <KpiCard label={t('bi.kpi_proyectos')} value={activeProjects}
               note={`${t('bi.kpi_riesgo_alto')}: ${kpis?.high_risk_projects ?? 0}`} />
           </div>
@@ -159,7 +137,7 @@ export default function BIPage(): JSX.Element {
               <div style={{ display: 'grid', gap: 8, padding: 10 }}>
                 {(projectsHealth || []).slice(0, 12).map((p) => (
                   <div
-                    key={p.id || p.project_id || p.code}
+                    key={p.project_id}
                     style={{
                       border: '1px solid var(--surface-4)',
                       borderRadius: 'var(--radius-md)',
@@ -168,7 +146,7 @@ export default function BIPage(): JSX.Element {
                     }}
                   >
                     <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
-                      {p.name || p.project_name || p.code || '—'}
+                      {p.project_name || p.project_code || '—'}
                     </div>
                     <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 3 }}>{t('bi.col_estado')}: {p.status || '—'} · {t('bi.col_riesgo')}: {p.risk_level || '—'}</div>
                     <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 700 }}>{t('bi.col_presupuesto')}: {fmtPct(p.budget_used_pct)} · {t('bi.col_avance')}: {fmtPct(p.progress_pct)}</div>
@@ -189,8 +167,8 @@ export default function BIPage(): JSX.Element {
                   </thead>
                   <tbody>
                     {(projectsHealth || []).slice(0, 12).map((p) => (
-                      <tr key={p.id || p.project_id || p.code} style={{ borderTop: '1px solid var(--surface-4)' }}>
-                        <td style={{ padding: '9px 12px', color: 'var(--text-1)' }}>{p.name || p.project_name || p.code || '—'}</td>
+                      <tr key={p.project_id} style={{ borderTop: '1px solid var(--surface-4)' }}>
+                        <td style={{ padding: '9px 12px', color: 'var(--text-1)' }}>{p.project_name || p.project_code || '—'}</td>
                         <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.status || '—'}</td>
                         <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.risk_level || '—'}</td>
                         <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-1)' }}>{fmtPct(p.budget_used_pct)}</td>

@@ -32,8 +32,16 @@ TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget",
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
-          contexto: Optional[dict] = None) -> None:
-    """Abre la solicitud si hay flujo por defecto para el tipo; si no, nada."""
+          contexto: Optional[dict] = None, evaluacion: Optional[dict] = None) -> None:
+    """Abre la solicitud si hay flujo por defecto para el tipo; si no, nada.
+
+    `evaluacion` (motor de políticas, #26): lo que devolvió
+    `politicas.evaluar`. Su contexto se guarda en la solicitud (para las ramas
+    del diseñador) y su resultado añade niveles, pasos y avisos, o la aprueba
+    sola (`create_approval_request(politicas=…)`).
+    """
+    if evaluacion:
+        contexto = {**(evaluacion.get("contexto") or {}), **(contexto or {})}
     from app.models.user import User
     from app.schemas.approvals import ApprovalRequestIn
     from app.services.approval_engine._base import elegir_flujo
@@ -48,7 +56,7 @@ def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id:
         create_approval_request(
             ApprovalRequestIn(entity_type=tipo, entity_id=entidad_id, entity_summary=resumen[:500],
                               context=contexto or {}),
-            db, solicitante)
+            db, solicitante, politicas=(evaluacion or {}).get("resultado"))
     except Exception:
         # El envio ya esta guardado; su pantalla de revision sigue valiendo.
         db.rollback()

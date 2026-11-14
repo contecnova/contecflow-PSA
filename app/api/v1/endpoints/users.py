@@ -1,6 +1,6 @@
 from fastapi import Body, APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Union
 from datetime import date
 
 from app.db.session import get_db
@@ -9,8 +9,9 @@ from app.core.deps import get_current_user, require_admin, require_admin_or_hr, 
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole, UserStatus
 from app.schemas import (
-    UserCreate, UserUpdate, UserSelfUpdate, UserPublic, UserWithRate, UserLoad
+    PersonaInterna, PersonaVisible, UserCreate, UserUpdate, UserSelfUpdate, UserPublic, UserWithRate, UserLoad
 )
+from app.services import politica_de_visibilidad
 from app.services.user_service import (
     ensure_same_org_user_access as _ensure_same_org_user_access,
     get_load_map_payload,
@@ -23,6 +24,7 @@ from app.services.user_service import (
     get_preferences_payload,
     update_preferences_record,
     list_users_paged,
+    list_directory,
     list_active_users_with_rates,
     get_user_by_id,
     update_self_profile,
@@ -33,7 +35,7 @@ from app.services.user_service import (
 router = APIRouter()
 
 
-@router.get("", response_model=APIListResponse[UserPublic], summary="Listar todos los recursos")
+@router.get("", response_model=APIListResponse[Union[UserPublic, PersonaInterna]], summary="Listar todos los recursos")
 def list_users(
     department: Optional[str] = None,
     role: Optional[UserRole] = None,
@@ -56,7 +58,10 @@ def list_users(
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
         response.headers["X-Page-Size"] = str(page_size)
-    return APIListResponse.ok(items=users, total=total, page=page, page_size=page_size)
+    # Segunda auditoría 2026-11: el empleado recibe la ficha interna de los demás
+    # (sin correo ni teléfono), como en el resto de `politica_de_visibilidad`.
+    items = [politica_de_visibilidad.ficha_de_listado(current_user, u) for u in users]
+    return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/with-rates", response_model=APIListResponse[UserWithRate], summary="Listar recursos con tarifas (admin/hr)")
@@ -77,6 +82,23 @@ def get_load_map(
 ):
     enforce_abac(db, current_user, "user", action="read")
     items = get_load_map_payload(db, current_user, week_start)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
+@router.get("/directory", response_model=APIListResponse[PersonaVisible], summary="Selector de personas (ficha mínima)")
+def get_directory(
+    search: Optional[str] = Query(None, max_length=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Personas activas que quien pregunta puede asignar o mencionar.
+
+    Segunda auditoría 2026-11. Para la plantilla interna, su empresa; para un
+    subcontratado, la gente de sus proyectos (`politica_de_visibilidad`). Solo
+    la ficha mínima: sirve a cualquier rol sin abrir correo, tarifa ni RR. HH.
+    """
+    enforce_abac(db, current_user, "user", action="read")
+    items = list_directory(db, current_user, search)
     return APIListResponse.ok(items=items, total=len(items))
 
 
@@ -166,15 +188,12 @@ def user_approval_chain(
     })
 
 
-@router.get("/{user_id}", response_model=APIResponse[UserWithRate], summary="Detalle de un recurso")
+@router.get("/{user_id}", response_model=APIResponse[Union[UserWithRate, PersonaVisible]], summary="Detalle de un recurso")
 def get_user(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.role == UserRole.employee and current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Acceso denegado")
-
     enforce_abac(db, current_user, "user", user_id, action="read")
 
     user = get_user_by_id(db, user_id)
@@ -182,10 +201,14 @@ def get_user(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     _ensure_same_org_user_access(user, current_user)
 
-    if current_user.role not in [UserRole.admin, UserRole.hr]:
-        user.hourly_rate = None
-
-    return APIResponse.ok(data=user)
+    # Segunda auditoría 2026-11: quién ve qué ficha lo decide la política.
+    if not politica_de_visibilidad.ve_ficha_completa_de(db, current_user, user):
+        return APIResponse.ok(data=PersonaVisible(**politica_de_visibilidad.ficha_minima(user)))
+    ficha = UserWithRate.model_validate(user)
+    if not politica_de_visibilidad.ve_tarifas(current_user):
+        # Sobre la copia: antes se ponía a None en el objeto ORM de la sesión.
+        ficha = ficha.model_copy(update={"hourly_rate": None})
+    return APIResponse.ok(data=ficha)
 
 
 @router.post("", response_model=APIResponse[UserPublic], summary="Crear nuevo recurso")

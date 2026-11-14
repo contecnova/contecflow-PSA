@@ -69,6 +69,17 @@ def test_get_timesheet_lines(client, dev_token, pm_token, db):
         assert "project_name" in data[0]
 
 
+def test_timesheet_lines_traen_billable_y_is_approved(client, dev_token, pm_token, db):
+    """Segunda auditoria 2026-11: la pantalla lee `billable` e `is_approved` de cada linea."""
+    pid = make_project(client, pm_token)
+    add_imputation(client, dev_token, pid)
+    week = str(next_monday())
+    data = client.get(f"/api/v1/timesheets/my/{week}/lines", headers=auth(dev_token)).json()["items"]
+    assert data, "la imputacion de hoy deberia estar en la semana"
+    assert data[0]["billable"] is True
+    assert data[0]["is_approved"] is False
+
+
 def test_get_timesheet_lines_empty_week(client, dev_token, db):
     """Week with no imputations returns empty list."""
     past_week = str(next_monday() - timedelta(weeks=3))

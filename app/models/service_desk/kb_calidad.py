@@ -25,11 +25,11 @@ class KBCorrection(Base):
     question_vec = Column(Text, nullable=True)       # JSON; vacío sin modelo de frases (se compara por palabras)
     is_public = Column(Boolean, default=False, nullable=False)   # también para los clientes del portal
     status = Column(String(20), default="active", nullable=False, index=True)  # active | archived
-    article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="SET NULL"), nullable=True)
+    article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="SET NULL"), nullable=True, index=True)
     gap_id = Column(String(36), nullable=True)
     usage_count = Column(Integer, default=0, nullable=False)
     last_used_at = Column(DateTime(timezone=True), nullable=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -44,11 +44,11 @@ class KBGap(Base):
     source = Column(String(30), nullable=False)           # portal_chat | portal_bot | assistant
     times_asked = Column(Integer, default=1, nullable=False)
     status = Column(String(20), default="open", nullable=False, index=True)   # open | answered | dismissed
-    article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="SET NULL"), nullable=True)
-    correction_id = Column(String(36), ForeignKey("sd_kb_corrections.id", ondelete="SET NULL"), nullable=True)
+    article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="SET NULL"), nullable=True, index=True)
+    correction_id = Column(String(36), ForeignKey("sd_kb_corrections.id", ondelete="SET NULL"), nullable=True, index=True)
     first_asked_at = Column(DateTime(timezone=True), server_default=func.now())
     last_asked_at = Column(DateTime(timezone=True), server_default=func.now())
-    closed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    closed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
 
 class KBFinding(Base):
@@ -58,12 +58,12 @@ class KBFinding(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
     kind = Column(String(20), nullable=False, index=True)        # stale | contradiction
-    article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False)
-    other_article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=True)
+    article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False, index=True)
+    other_article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=True, index=True)
     detail = Column(Text, nullable=True)
     score = Column(Float, nullable=True)
     dedupe_key = Column(String(255), nullable=False)
     status = Column(String(20), default="open", nullable=False, index=True)   # open | resolved | dismissed
     first_seen_at = Column(DateTime(timezone=True), server_default=func.now())
     last_seen_at = Column(DateTime(timezone=True), server_default=func.now())
-    closed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    closed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)

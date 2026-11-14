@@ -26,7 +26,7 @@ from app.models.service_desk import KBArticle
 from app.models.service_desk import ConfigurationItem
 from app.models.service_desk import SDSLAHoliday
 from app.models.service_desk import TicketHistory
-from jose import jwt, JWTError
+import jwt
 from app.core import timeutil
 
 if TYPE_CHECKING:
@@ -606,7 +606,7 @@ def get_client_from_token(authorization: Optional[str], db: Session) -> "Optiona
             ClientUser.id == payload.get("sub"),
             ClientUser.is_active == True,
         ).first()
-    except JWTError as exc:
+    except jwt.PyJWTError as exc:
         logger.debug("Client token validation failed: %s", exc)
         return None
     except Exception:

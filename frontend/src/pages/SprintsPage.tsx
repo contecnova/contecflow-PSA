@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectSprintsApi, tasksApi } from '../services/api'
+import type { SprintDelProyecto, TareaDeSprint } from '../services/api/tipos-proyectos'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -21,47 +22,9 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
-type Task = {
-  [k: string]: unknown
-  id: string
-  code?: string
-  title?: string
-  status?: string
-  priority?: string
-  story_points?: number
-  assignee_name?: string
-}
-type Sprint = {
-  [k: string]: unknown
-  id: string
-  name?: string
-  number?: number
-  status?: string
-  goal?: string
-  tasks?: Task[]
-  went_well?: string
-  to_improve?: string
-  action_items?: string
-  days_remaining: number | null
-  start_date?: string
-  end_date?: string
-  planned_points?: number
-  completed_points?: number
-  task_count?: number
-  velocity?: number
-}
-type RetroInsights = {
-  metrics?: {
-    completion_rate_pct: number
-    velocity_ratio_pct: number
-    blocked: number
-    carryover: number
-  }
-  went_well?: string[]
-  improve?: string[]
-  actions?: { text: string }[]
-  risks?: string[]
-}
+// sprint_service.serialize_task / serialize_sprint y raci_service.get_sprint_retrospective.
+type Task = TareaDeSprint
+type Sprint = SprintDelProyecto
 
 const _STATUS_CFG = {
   planning:  { label: 'Planificación', color: 'var(--purple)', bg: 'var(--purple-bg)' },
@@ -77,11 +40,13 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
   const toast = useToast()
   const [manualNotes, setManualNotes] = useState('')
 
-  const { data: retro, isLoading } = useQuery<{ computed_insights?: RetroInsights; saved_notes?: { manual_notes?: string } }>({
+  const { data: retro, isLoading } = useQuery({
     queryKey: ['retro', sprint.id],
     queryFn: () => projectSprintsApi.retrospective(projectId, sprint.id).then(r => r.data),
-    ...({ onSuccess: (d: { saved_notes?: { manual_notes?: string } }) => { if (d.saved_notes?.manual_notes) setManualNotes(d.saved_notes.manual_notes) } } as object),
   })
+  // TanStack Query v5 ya no llama a `onSuccess` en useQuery: las notas guardadas se cargan aquí.
+  const notasGuardadas = retro?.saved_notes?.manual_notes
+  useEffect(() => { if (notasGuardadas) setManualNotes(notasGuardadas) }, [notasGuardadas])
 
   const { mutate: save, isPending: saving } = useMutation({
     mutationFn: (notes: string) => projectSprintsApi.saveRetrospective(projectId, sprint.id, { manual_notes: notes }),
@@ -279,7 +244,7 @@ function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }: { sprint: Spr
 // ── Burndown Chart ─────────────────────────────────────────────────────────────
 function BurndownChart({ sprintId, projectId }: { sprintId: string; projectId: string }) {
   const t = useAppT()
-  const { data, isLoading } = useQuery<{ burndown?: unknown[] }>({
+  const { data, isLoading } = useQuery({
     queryKey: ['burndown', sprintId],
     queryFn: () => projectSprintsApi.burndown(projectId, sprintId).then(r => r.data),
     enabled: !!sprintId,
@@ -336,23 +301,22 @@ export default function SprintsPage() {
   })
   const projects = Array.isArray(projRaw) ? projRaw : []
 
-  const { data: sprintsRaw = [], isLoading } = useQuery<Sprint[]>({
+  const { data: sprints = [], isLoading } = useQuery({
     queryKey: ['sprints', selectedProject],
     queryFn: () => projectSprintsApi.list(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
-  const sprints: Sprint[] = Array.isArray(sprintsRaw) ? sprintsRaw : []
   const activeSprint = sprints.find((s: Sprint) => s.status === 'active')
   const planningSprints = sprints.filter((s: Sprint) => s.status === 'planning')
   const completedSprints = sprints.filter((s: Sprint) => s.status === 'completed')
 
-  const { data: backlog = [] } = useQuery<Task[]>({
+  const { data: backlog = [] } = useQuery({
     queryKey: ['backlog', selectedProject],
     queryFn: () => projectSprintsApi.backlog(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
 
-  const { data: velocity } = useQuery<{ avg_velocity?: number; sprints?: { sprint: string; name: string; planned: number; completed: number }[] }>({
+  const { data: velocity } = useQuery({
     queryKey: ['velocity', selectedProject],
     queryFn: () => projectSprintsApi.velocity(selectedProject).then(r => r.data),
     enabled: !!selectedProject && activeView === 'velocity',

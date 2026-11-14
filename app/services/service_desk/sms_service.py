@@ -72,27 +72,112 @@ def send_sms(to: str, body: str) -> bool:
         return False
 
 
+#: Ajuste por organizacion con sus numeros de Twilio (E.164, separados por comas).
+CLAVE_NUMEROS_DE_TWILIO = "TWILIO_PHONE_NUMBERS"
+
+
+def _normalizar_numero(numero: Optional[str]) -> str:
+    """Un numero de telefono sin adornos: «+34 600-00-00 02» -> «+34600000002».
+
+    Lo que no parece un telefono (`client:…`, `sip:…`) se compara tal cual.
+    """
+    texto = str(numero or "").strip()
+    if not texto:
+        return ""
+    if all(c.isdigit() or c in "+ -().\u00a0" for c in texto):
+        digitos = "".join(c for c in texto if c.isdigit())
+        return ("+" + digitos) if texto.startswith("+") and digitos else digitos
+    return texto.lower()
+
+
+def organizacion_del_numero_de_twilio(db, numero: Optional[str]) -> Optional[str]:
+    """La organizacion duena del numero de Twilio `numero` (el `To` del webhook).
+
+    Segunda auditoria 2026-11 (#19): la declaran el ajuste por organizacion
+    `TWILIO_PHONE_NUMBERS` (CSV) y la credencial `twilio.from_number`. Un numero
+    que declaran DOS organizaciones no es de ninguna: se registra el error y se
+    devuelve `None`, igual que un numero desconocido — nunca se elige una.
+    """
+    from app.db.session import sin_filtro_de_tenant
+    from app.models.settings import AppSetting, IntegrationCredential
+
+    buscado = _normalizar_numero(numero)
+    if not buscado:
+        return None
+    with sin_filtro_de_tenant(db):
+        ajustes = db.query(AppSetting.organization_id, AppSetting.value).filter(
+            AppSetting.key == CLAVE_NUMEROS_DE_TWILIO, AppSetting.organization_id.isnot(None)).all()
+        credenciales = db.query(IntegrationCredential.organization_id, IntegrationCredential.value).filter(
+            IntegrationCredential.provider == "twilio", IntegrationCredential.key == "from_number",
+            IntegrationCredential.organization_id.isnot(None)).all()
+    orgs = {org for org, valor in ajustes
+            if buscado in {_normalizar_numero(n) for n in (valor or "").split(",")}}
+    orgs |= {org for org, valor in credenciales if _normalizar_numero(valor) == buscado}
+    if len(orgs) > 1:
+        logger.error("Twilio: el numero %s esta declarado en varias organizaciones; se rechaza", buscado)
+        return None
+    return orgs.pop() if orgs else None
+
+
+def twilio_auth_token_de_la_organizacion(db, org_id: Optional[str]) -> Optional[str]:
+    """El token propio de `org_id` (credencial cifrada `twilio.auth_token` o
+    ajuste `TWILIO_AUTH_TOKEN` de esa organizacion) y, si no tiene, el global."""
+    _, global_token, _ = _get_twilio_config()
+    if db is None or not org_id:
+        return global_token
+    from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
+
+    propio = secreto_propio_de_la_organizacion(db, "twilio", "auth_token", "TWILIO_AUTH_TOKEN", org_id)
+    return propio or global_token
+
+
 def twilio_auth_token_para(db, to_phone: Optional[str]) -> Optional[str]:
     """El auth token con el que se verifica un SMS que llego a `to_phone`.
 
     Segunda auditoria 2026-11 (#9): la organizacion sale del numero receptor
-    (credencial `twilio.from_number`); se usa su token propio (credencial
-    cifrada `twilio.auth_token` o ajuste `TWILIO_AUTH_TOKEN` de esa
-    organizacion) y, si no tiene, el global `TWILIO_AUTH_TOKEN`.
+    (`organizacion_del_numero_de_twilio`); se usa su token propio y, si no
+    tiene, el global `TWILIO_AUTH_TOKEN`.
     """
-    _, global_token, _ = _get_twilio_config()
     if db is None:
-        return global_token
-    from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
-    from app.services.service_desk.multichannel_service import _organizacion_por_numero
-
-    org_id = _organizacion_por_numero(db, to_phone)
-    propio = secreto_propio_de_la_organizacion(
-        db, "twilio", "auth_token", "TWILIO_AUTH_TOKEN", org_id) if org_id else None
-    return propio or global_token
+        return twilio_auth_token_de_la_organizacion(None, None)
+    return twilio_auth_token_de_la_organizacion(db, organizacion_del_numero_de_twilio(db, to_phone))
 
 
-def validate_twilio_signature(url: str, params: dict, signature: Optional[str], db=None) -> bool:
+def urls_de_firma_de_twilio(request) -> list[str]:
+    """Las URLs contra las que se comprueba la firma de un webhook de Twilio.
+
+    Segunda auditoria 2026-11 (#23): Twilio firma la URL que tiene configurada
+    (`https://<dominio>/...`). Detras de nginx la API veia `http://...` y toda
+    peticion daba 403. Primero la URL publica (`BACKEND_URL` + ruta y consulta),
+    que es lo que Twilio recomienda detras de proxies; despues la que ve la API
+    (`request.url`, ya con el esquema del proxy de confianza), para despliegues
+    que la exponen con otro nombre. Las dos son la MISMA ruta y consulta: aceptar
+    cualquiera no deja reutilizar una firma en otro endpoint.
+    """
+    from app.core.network import url_publica
+
+    return list(dict.fromkeys([url_publica(request), str(request.url)]))
+
+
+def firma_de_twilio_valida(url, params: dict, signature: Optional[str], token: Optional[str]) -> bool:
+    """HMAC-SHA1 de la URL y los parametros ordenados, en base64 (algoritmo de Twilio).
+
+    `url` es una URL o una lista de candidatas (`urls_de_firma_de_twilio`).
+    """
+    if not token or not signature:
+        return False
+    params = params or {}
+    sufijo = "".join(f"{k}{params[k]}" for k in sorted(params))
+    candidatas = [url] if isinstance(url, str) else list(url)
+    valida = False
+    for candidata in candidatas:
+        datos = candidata + sufijo
+        esperada = base64.b64encode(hmac.new(token.encode(), datos.encode(), hashlib.sha1).digest()).decode()
+        valida |= hmac.compare_digest(esperada, signature)
+    return valida
+
+
+def validate_twilio_signature(url, params: dict, signature: Optional[str], db=None) -> bool:
     """Si la peticion viene de Twilio de verdad.
 
     Auditoria 2026-11: fallaba ABIERTA —sin la libreria de Twilio, sin token o
@@ -103,12 +188,7 @@ def validate_twilio_signature(url: str, params: dict, signature: Optional[str], 
 
     Con `db`, el token es el de la organizacion del numero receptor (`To`).
     """
-    token = twilio_auth_token_para(db, (params or {}).get("To"))
-    if not token or not signature:
-        return False
-    datos = url + "".join(f"{k}{params[k]}" for k in sorted(params))
-    esperada = base64.b64encode(hmac.new(token.encode(), datos.encode(), hashlib.sha1).digest()).decode()
-    return hmac.compare_digest(esperada, signature)
+    return firma_de_twilio_valida(url, params, signature, twilio_auth_token_para(db, (params or {}).get("To")))
 
 
 def build_sms_ticket_notification(ticket_number: str, title: str, status: str) -> str:

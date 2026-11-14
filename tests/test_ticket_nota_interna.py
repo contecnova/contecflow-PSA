@@ -3,7 +3,7 @@
 Auditoria 2026-11: el panel mandaba siempre comentarios publicos y, aunque
 mandara uno interno, la ficha del agente solo devolvia los publicos.
 """
-from jose import jwt
+import jwt
 
 from app.core.config import settings
 from app.models.client_portal import ClientUser

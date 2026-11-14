@@ -12,7 +12,8 @@
 import React, { useState, useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { biGdprApi, unwrapList } from '../../services/api'
+import { biGdprApi } from '../../services/api'
+import type { ConsentimientoBi, InformeDeBorradoRgpd, SolicitudDsr } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import {
@@ -22,71 +23,6 @@ import {
 import { localeActivo } from '../../utils/helpers'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
-
-// TODO type: biGdprApi payloads — needs shared types
-interface DsrItem {
-  id: string | number
-  user_id: string
-  request_type: string
-  status: string
-  created_at: string
-  deadline?: string
-  notes?: string
-  subject_id?: string 
-  resolved_at?: string 
-
-  [k: string]: unknown
-}
-
-interface DsrListResponse {
-  items?: DsrItem[]
-}
-
-interface ConsentItem {
-  user_id: string
-  consented: boolean
-  purpose?: string
-  channel?: string
-  updated_at?: string
-}
-
-interface ConsentListResponse {
-  items?: ConsentItem[]
-}
-
-interface ConsentHistoryEntry {
-  action?: string
-  purpose?: string
-  channel?: string
-  timestamp?: string
-}
-
-interface ConsentHistoryResponse {
-  history?: ConsentHistoryEntry[]
-}
-
-interface MaskItem {
-  dataset?: string
-  entity?: string
-  field?: string
-  mask_type?: string
-  updated_at?: string
-}
-
-interface MaskListResponse {
-  items?: MaskItem[]
-}
-
-interface GdprStats {
-  pending?: number
-  overdue?: number
-  completed?: number
-  consented?: number
-  revoked?: number
-  total_dsrs?: number
-  overdue_ids?: Array<string | number>
-  by_type?: Record<string, number>
-}
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
@@ -112,10 +48,10 @@ function fmt(iso?: string): string {
   catch { return iso }
 }
 
-function isOverdue(dsr: DsrItem): boolean {
+function isOverdue(dsr: SolicitudDsr): boolean {
   if (dsr.status !== 'pending') return false
-  const dl = dsr.deadline ? new Date(dsr.deadline) : new Date(new Date(dsr.created_at).getTime() + 30 * 864e5)
-  return Date.now() > dl.getTime()
+  // El servidor fija `deadline` al crearla (COMPLIANCE_GDPR_MAX_DAYS): sin plazo en duro aquí.
+  return Date.now() > new Date(dsr.deadline).getTime()
 }
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
@@ -154,11 +90,13 @@ function DsrTab() {
   const { confirmar } = useConfirm()
   const [form, setForm]         = useState<DsrForm>({ user_id: '', request_type: 'erasure', notes: '' })
   const [statusFilter, setFilter] = useState<string>('')
-  const [expandedId, setExpanded] = useState<string | number | null>(null)
+  const [expandedId, setExpanded] = useState<string | null>(null)
+  // `erasure-execute` devuelve el informe pero no lo guarda en la solicitud: se conserva aquí.
+  const [informes, setInformes] = useState<Record<string, InformeDeBorradoRgpd>>({})
 
-  const { data, isLoading } = useQuery<DsrListResponse>({
+  const { data: dsrs = [], isLoading } = useQuery({
     queryKey: ['bi-gdpr-dsr', statusFilter],
-    queryFn:  () => biGdprApi.listDsr(statusFilter ? { status: statusFilter } : {}).then(r => r.data as DsrListResponse),
+    queryFn:  () => biGdprApi.listDsr(statusFilter ? { status: statusFilter } : {}).then(r => r.data),
   })
 
   const createMut = useMutation({
@@ -170,15 +108,15 @@ function DsrTab() {
     },
   })
   const resolveMut = useMutation({
-    mutationFn: (id: string | number) => biGdprApi.resolveDsr(id, { resolution_notes: 'Resolved manually' }).then(r => r.data),
+    mutationFn: (id: string) => biGdprApi.resolveDsr(id, { resolution_notes: 'Resolved manually' }).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] }); qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] }) },
   })
   const erasureMut = useMutation({
-    mutationFn: (id: string | number) => biGdprApi.executeDsrErasure(id).then(r => r.data),
-    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] }); qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] }) },
+    mutationFn: (id: string) => biGdprApi.executeDsrErasure(id).then(r => r.data),
+    onSuccess:  (data) => { setInformes(x => ({ ...x, [data.dsr_id]: data.erasure_report })); setExpanded(data.dsr_id); qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] }); qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] }) },
   })
   const portMut = useMutation({
-    mutationFn: (id: string | number) => biGdprApi.executeDsrPortability(id).then(r => r.data as { export?: unknown; dsr_id?: string | number }),
+    mutationFn: (id: string) => biGdprApi.executeDsrPortability(id).then(r => r.data),
     onSuccess:  (data) => {
       qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] })
       const blob = new Blob([JSON.stringify(data.export, null, 2)], { type: 'application/json' })
@@ -188,8 +126,6 @@ function DsrTab() {
       URL.revokeObjectURL(url)
     },
   })
-
-  const dsrs = unwrapList(data) as DsrItem[]
 
   return (
     <div>
@@ -228,12 +164,13 @@ function DsrTab() {
           {dsrs.map((dsr) => {
             const overdue  = isOverdue(dsr)
             const expanded = expandedId === dsr.id
+            const informe  = dsr.erasure_report ?? informes[dsr.id]
             return (
               <div key={dsr.id} style={{ ...S.innerCard }}>
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: isNarrow ? 'wrap' : undefined, gap: 10 }}>
                   <div className="u-flex1-min0">
                     <div className="u-wrap-center-8">
-                      <span className="u-text1-base-600">{dsr.subject_id ?? dsr.user_id}</span>
+                      <span className="u-text1-base-600">{dsr.subject_id}</span>
                       <span style={S.badge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{dsr.request_type}</span>
                       <span style={S.badge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
                       {overdue && <span style={S.badge('var(--danger)')}><AlertTriangle size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />SLA vencido</span>}
@@ -252,7 +189,7 @@ function DsrTab() {
                           <button onClick={async () => {
                               const ok = await confirmar({
                                 title: 'Borrado irreversible de datos personales',
-                                message: `Se borrarán de forma permanente los datos PII del usuario ${dsr.user_id}. Esta acción no se puede deshacer.`,
+                                message: `Se borrarán de forma permanente los datos PII del usuario ${dsr.subject_id}. Esta acción no se puede deshacer.`,
                                 danger: true,
                                 confirmLabel: 'Borrar PII',
                                 palabraConfirmacion: 'BORRAR',
@@ -275,16 +212,16 @@ function DsrTab() {
                         </button>
                       </>
                     )}
-                    {dsr.erasure_report ? (
+                    {informe ? (
                       <button onClick={() => setExpanded(expanded ? null : dsr.id)} style={{ ...S.btnGhost, padding: '4px 8px' }}>
                         {expanded ? '▲' : '▼'}
                       </button>
                     ) : null}
                   </div>
                 </div>
-                {expanded && dsr.erasure_report ? (
+                {expanded && informe ? (
                   <div style={{ marginTop: 10, background: 'var(--surface-4)', borderRadius: 8, padding: '10px 12px', fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)', overflowX: 'auto' }}>
-                    <pre style={{ margin: 0 }}>{JSON.stringify(dsr.erasure_report, null, 2)}</pre>
+                    <pre style={{ margin: 0 }}>{JSON.stringify(informe, null, 2)}</pre>
                   </div>
                 ) : null}
               </div>
@@ -309,19 +246,20 @@ function ConsentTab() {
   const [form, setForm]         = useState<{ user_id: string; purpose: string; channel: string }>({ user_id: '', purpose: 'analytics', channel: 'web' })
   const [histUserId, setHistUser] = useState<string | null>(null)
 
-  const { data: consentsData, isLoading } = useQuery<ConsentListResponse>({
+  const { data: consents = [], isLoading } = useQuery({
     queryKey: ['bi-gdpr-consents'],
-    queryFn:  () => biGdprApi.listConsents().then(r => r.data as ConsentListResponse),
+    queryFn:  () => biGdprApi.listConsents().then(r => r.data),
   })
 
-  const { data: historyData } = useQuery<ConsentHistoryResponse>({
+  const { data: historyData } = useQuery({
     queryKey: ['bi-gdpr-consent-history', histUserId],
-    queryFn:  () => biGdprApi.getConsentHistory(histUserId).then(r => r.data as ConsentHistoryResponse),
+    queryFn:  () => biGdprApi.getConsentHistory(histUserId).then(r => r.data),
     enabled:  !!histUserId,
   })
 
   const toggleMut = useMutation({
-    mutationFn: ({ userId, consented }: { userId: string; consented: boolean }) => biGdprApi.recordConsent({ user_id: userId, granted: consented, purpose: 'analytics', channel: 'web' }).then(r => r.data),
+    // El consentimiento es por usuario y finalidad: se cambia el de la fila, no siempre `analytics`.
+    mutationFn: ({ c, consented }: { c: ConsentimientoBi; consented: boolean }) => biGdprApi.recordConsent({ user_id: c.user_id, granted: consented, purpose: c.purpose, channel: c.channel }).then(r => r.data),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-gdpr-consents'] }),
   })
 
@@ -329,8 +267,6 @@ function ConsentTab() {
     mutationFn: (p: { user_id: string; purpose: string; channel: string }) => biGdprApi.recordConsent({ user_id: p.user_id, granted: true, purpose: p.purpose, channel: p.channel }).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-gdpr-consents'] }); setForm({ user_id: '', purpose: 'analytics', channel: 'web' }) },
   })
-
-  const consents = unwrapList(consentsData) as ConsentItem[]
 
   return (
     <div>
@@ -356,8 +292,8 @@ function ConsentTab() {
         <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>Cargando…</div>
       ) : (
         <div className="u-stack-6">
-          {consents.map((c, i) => (
-            <div key={c.user_id ?? i} style={S.row}>
+          {consents.map((c) => (
+            <div key={`${c.user_id}:${c.purpose}`} style={S.row}>
               <div className="u-flex1-min0">
                 <div className="u-text1-base-600">{c.user_id}</div>
                 <div className="u-text3-xs-mt2">
@@ -367,7 +303,7 @@ function ConsentTab() {
                 </div>
               </div>
               <span style={S.badge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? 'concedido' : 'revocado'}</span>
-              <button onClick={() => toggleMut.mutate({ userId: c.user_id, consented: !c.consented })} disabled={toggleMut.isPending}
+              <button onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
                 title={c.consented ? 'Revocar' : 'Conceder'}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.consented ? 'var(--danger)' : 'var(--success)', padding: 4, display: 'flex' }}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
@@ -396,11 +332,11 @@ function ConsentTab() {
             </span>
             <button onClick={() => setHistUser(null)} style={{ ...S.btnGhost, padding: '3px 8px' }}>✕</button>
           </div>
-          {!(historyData.history?.length) ? (
+          {!historyData.history.length ? (
             <div className="u-text3-sm">{t('bigdpr.sin_historial')}</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {(historyData.history || []).map((h, idx) => (
+              {historyData.history.map((h, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '4px 0', borderBottom: '1px solid var(--surface-4)' }}>
                   <span style={{ color: h.action === 'granted' ? 'var(--success)' : 'var(--danger)', fontWeight: 700, width: 60 }}>{h.action}</span>
                   <span>{h.purpose}</span>
@@ -423,9 +359,9 @@ function MasksTab() {
   const qc = useQueryClient()
   const [form, setForm] = useState<{ entity: string; field: string; mask_type: string }>({ entity: 'user', field: 'email', mask_type: 'hash' })
 
-  const { data: masksData } = useQuery<MaskListResponse>({
+  const { data: masks = [] } = useQuery({
     queryKey: ['bi-gdpr-masks'],
-    queryFn:  () => biGdprApi.getFieldMasks().then(r => r.data as MaskListResponse),
+    queryFn:  () => biGdprApi.getFieldMasks().then(r => r.data),
   })
 
   const addMut = useMutation({
@@ -449,14 +385,14 @@ function MasksTab() {
         </button>
       </div>
       <div className="u-stack-6">
-        {(unwrapList(masksData) as NonNullable<MaskListResponse['items']>).map((m, i) => (
+        {masks.map((m, i) => (
           <div key={i} style={{ ...S.row, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{m.dataset ?? m.entity}.{m.field}</span>
-            <span style={S.badge(MASK_COLOR[m.mask_type ?? ''] ?? 'var(--text-3)')}>{m.mask_type}</span>
+            <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{m.dataset}.{m.field}</span>
+            <span style={S.badge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{m.mask_type}</span>
             <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>{fmt(m.updated_at)}</span>
           </div>
         ))}
-        {!unwrapList(masksData).length && (
+        {!masks.length && (
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '24px 0' }}>
             {t('bi.gdpr.no_masks', 'No hay máscaras configuradas')}
           </div>
@@ -469,15 +405,15 @@ function MasksTab() {
 // ── Tab Stats ─────────────────────────────────────────────────────────────────
 function StatsTab() {
   const t = useAppT()
-  const { data, isLoading } = useQuery<GdprStats>({
+  const { data, isLoading } = useQuery({
     queryKey: ['bi-gdpr-stats'],
-    queryFn:  () => biGdprApi.getStats().then(r => r.data as GdprStats),
+    queryFn:  () => biGdprApi.getStats().then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
   })
 
   const byType = useMemo(() => {
     if (!data?.by_type) return []
-    return Object.entries(data.by_type).map(([type, count]) => ({ type, count: Number(count || 0) }))
+    return Object.entries(data.by_type).map(([type, count]) => ({ type, count }))
   }, [data])
 
   if (isLoading) return <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>{t('bigdpr.cargando_estadisticas')}</div>

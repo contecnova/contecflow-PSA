@@ -9,6 +9,7 @@ import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Plus, ShieldAlert, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import { gastosApi, projectsApi } from '../../services/api'
+import type { Gasto } from '../../services/api/tipos-finanzas'
 import { Button, Modal, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -16,8 +17,8 @@ import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
-type GastoMin = { id: string; code?: string; description?: string; amount?: number | string; currency?: string; status?: string; km?: number | null
-  policy_flags?: { mensaje: string }[] }
+/** Lo que la ficha lee del gasto (serialize_expense). */
+type GastoMin = Pick<Gasto, 'id' | 'code' | 'description' | 'amount' | 'currency' | 'status' | 'km' | 'policy_flags'>
 
 const titulo: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-2)', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }
 const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
@@ -34,7 +35,7 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
   const adj = useQuery({ queryKey: ['gasto', gasto.id, 'justificantes'], queryFn: () => gastosApi.justificantes(gasto.id) })
   const rep = useQuery({ queryKey: ['gasto', gasto.id, 'reparto'], queryFn: () => gastosApi.reparto(gasto.id) })
   const pol = useQuery({ queryKey: ['gasto', gasto.id, 'politicas'], queryFn: () => gastosApi.comprobar(gasto.id) })
-  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data as unknown as { id: string; code?: string; name?: string }[]) })
+  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
   useEffect(() => {
     if (rep.data) setPartes(rep.data.items.map(p => ({ project_id: p.project_id, percentage: String(p.percentage) })))
   }, [rep.data])

@@ -43,8 +43,8 @@ def test_otro_panel_otra_empresa_o_revocado_no_abren_nada(client, admin_token):
     t = datos["token"]
     assert client.get("/api/v1/bi/embed/view", params={"dashboard_id": "otro", "token": t, "org": "1"}).status_code == 401
     assert client.get("/api/v1/bi/embed/view", params={"dashboard_id": "executive", "token": t, "org": "2"}).status_code == 401
-    from jose import jwt
-    jti = jwt.get_unverified_claims(t)["jti"]
+    import jwt
+    jti = jwt.decode(t, options={"verify_signature": False})["jti"]
     client.delete(f"/api/v1/bi/embed/token/{jti}", headers=auth(admin_token))
     assert client.get("/api/v1/bi/embed/view", params={"dashboard_id": "executive", "token": t, "org": "1"}).status_code == 401
 

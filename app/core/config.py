@@ -13,6 +13,7 @@ from app.core.config_groups import (
     EmpresaSettingsMixin,
     INTERRUPTORES_DE_PROCESO,
     ProcesoSettingsMixin,
+    PoliticasSettingsMixin,
 )
 
 
@@ -26,6 +27,7 @@ class Settings(
     ProcesoSettingsMixin,
     EscalasSettingsMixin,
     EmpresaSettingsMixin,
+    PoliticasSettingsMixin,
     BaseSettings,
 ):
     """
@@ -538,6 +540,12 @@ class Settings(
     BUDGET_VARIANCE_EXPLAIN_PCT: float = Field(default=15.0, env="BUDGET_VARIANCE_EXPLAIN_PCT")
     BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT: float = Field(default=1000.0, env="BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT")
     BUDGET_ALM_LINE_TYPE: str = Field(default="licencias", env="BUDGET_ALM_LINE_TYPE")
+
+    # Listados de la API (segunda auditoria 2026-11). Tope de filas que devuelve
+    # un listado: es el maximo que acepta `limit` y lo que se aplica cuando el
+    # cliente no lo manda. Al llegar a el sin `limit`, la respuesta lo dice
+    # (`X-Truncated: true`, `meta.has_more`) y queda en el log.
+    LIST_MAX_ROWS: int = Field(default=5000, env="LIST_MAX_ROWS")
 
     # Conectores ETL de BI (revisión 2026-11).
     BI_ETL_PAGE_SIZE: int = Field(default=100, env="BI_ETL_PAGE_SIZE")

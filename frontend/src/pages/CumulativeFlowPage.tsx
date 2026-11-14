@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { projectsApi, epicsApi } from '../services/api'
+import type { FlujoAcumulado } from '../services/api/tipos-proyectos'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -17,15 +18,8 @@ interface ProjectItem {
   name?: string
 }
 
-interface CfdDataRow {
-  date: string
-  [status: string]: string | number | undefined
-}
-
-interface CfdPayload {
-  data?: CfdDataRow[]
-  statuses?: string[]
-}
+/** epics_service.get_cfd_data: una fila por día con `date` y el recuento de cada estado. */
+type CfdDataRow = FlujoAcumulado['data'][number]
 
 const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -54,9 +48,9 @@ export default function CumulativeFlowPage(): JSX.Element {
   const [days,    setDays]    = useState(30)
 
   const { data:projects=[] } = useQuery<ProjectItem[]>({queryKey:['projects'],queryFn:()=>projectsApi.list({}).then(r=>Array.isArray(r.data)?(r.data as ProjectItem[]):[]).catch(()=>[])})
-  const { data:cfd,isLoading } = useQuery<CfdPayload | null>({
+  const { data:cfd,isLoading } = useQuery({
     queryKey:['cfd',project,days],
-    queryFn:()=>epicsApi.cfd({ project_id: project, days }).then(r=>r.data).catch(()=>null),
+    queryFn:()=>epicsApi.cfd({ project_id: project, days }).then(r=>r.data).catch(():FlujoAcumulado|null=>null),
     enabled:!!project,
   })
 

@@ -11,7 +11,9 @@ import type { AxiosError } from 'axios';
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { documentsApi, projectsApi, usersApi, type ApiError, type PathId } from '../services/api';
+import type { Documento, DocumentoEnLista, PermisoDeDocumento, ReservaDeDocumento, VersionDeDocumento } from '../services/api/tipos-documentos'
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import {
   Upload, Search, Grid3X3, List, Plus, Download, Trash2,
@@ -151,86 +153,11 @@ function KpiCard({ icon: Icon, label, value, color, sub }: { icon: LucideIcon; l
 
 // ── Doc Card (Grid) ─────────────────────────────────────────
 
-type Reserva = { user_id: string; user_name?: string; at?: string; expires_at?: string; mine?: boolean } | null | undefined
-
-/** `DocumentVersionOut` (app/schemas/documents.py). */
-interface DocVersion {
-  id: string
-  version_num: number
-  file_name: string
-  file_size?: number | null
-  file_mime_type?: string | null
-  change_note?: string | null
-  uploader_id?: string
-  uploader_name?: string
-  created_at?: string
-  download_url?: string | null
-  s3_url?: string | null
-}
-
-/** `DocumentListOut` (app/schemas/documents.py). */
-interface DocListItem {
-  id: string
-  title: string
-  category: string
-  is_archived?: boolean
-  requires_approval?: boolean
-  approval_status?: string | null
-  created_by_name?: string
-  created_at: string
-  updated_at?: string | null
-  latest_version?: DocVersion | null
-  checkout?: Reserva
-  // `DocumentListOut` los declara desde la auditoría 2026-11; antes el response_model
-  // los filtraba y las etiquetas, su filtro y la insignia «vN» no salían nunca.
-  tags?: string[]
-  version_count?: number
-}
-
-/** Decisión de un paso en `approval_request.decisions`. */
-interface ApprovalDecision {
-  decision: string
-  approver_name?: string | null
-  step_order?: number
-  decided_at?: string | null
-  note?: string | null
-}
-
-/** `DocumentOut.approval_request` (dict en el backend). */
-interface ApprovalRequest {
-  workflow_name?: string
-  status?: string
-  total_steps?: number
-  current_step?: number
-  current_step_name?: string | null
-  current_approver_name?: string | null
-  current_approver_role?: string | null
-  decisions?: ApprovalDecision[]
-}
-
-/** `DocumentOut` (app/schemas/documents.py). */
-interface DocDetail extends DocListItem {
-  description?: string | null
-  ai_summary?: string | null
-  approved_by_name?: string | null
-  approved_at?: string | null
-  versions?: DocVersion[]
-  tags?: string[]
-  approval_request?: ApprovalRequest | null
-}
-
-/** `DocumentPermissionOut` (app/schemas/documents.py). */
-interface DocPermission {
-  id: string
-  user_id?: string | null
-  user_name?: string | null
-  role?: string | null
-  department?: string | null
-  access_level: string
-  granted_by_name?: string | null
-  granted_at?: string
-  expires_at?: string | null
-}
+type Reserva = ReservaDeDocumento | undefined
+type DocVersion = VersionDeDocumento
+type DocListItem = DocumentoEnLista
+type DocDetail = Documento
+type DocPermission = PermisoDeDocumento
 
 /** `DocumentPermissionCreate` (app/schemas/documents.py). */
 interface PermissionGrant {
@@ -267,12 +194,15 @@ function detalleDeError(e: ApiError): string | undefined {
 /** Quién tiene el documento reservado para editar (revisión 2026-11). */
 function ReservaChip({ reserva }: { reserva: Reserva }) {
   const t = useAppT()
+  const { user } = useAuth()
   if (!reserva) return null
+  // Los listados mandan la reserva sin `mine` (reserva_de_documentos.vigente): se deduce.
+  const mia = reserva.mine ?? reserva.user_id === user?.id
   return (
     <div title={reserva.expires_at ? t('documents.reserva_hasta', { fecha: new Date(reserva.expires_at).toLocaleString() }) : undefined}
       style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 3, fontSize: "var(--text-2xs)", fontWeight: 600,
-        color: reserva.mine ? 'var(--accent)' : 'var(--warning)' }}>
-      <Lock size={10} /> {reserva.mine ? t('documents.reserva_tuya') : t('documents.reserva_de', { nombre: reserva.user_name || '—' })}
+        color: mia ? 'var(--accent)' : 'var(--warning)' }}>
+      <Lock size={10} /> {mia ? t('documents.reserva_tuya') : t('documents.reserva_de', { nombre: reserva.user_name || '—' })}
     </div>
   )
 }
@@ -771,7 +701,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Usuario</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={userId} onChange={e => setUserId(e.target.value)} style={inputStyle}>
               <option value="">{t('documents.selecciona_un_usuario')}</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.email ? ` (${u.email})` : ''}</option>)}
             </select>
           </div>
         )}
@@ -1406,10 +1336,11 @@ export default function DocumentsPage(): JSX.Element {
   const { data: docsRaw = [], isLoading } = useQuery<DocListItem[]>({
     queryKey: ['documents', filterCat, filterStatus, search],
     queryFn: () => {
-      const p: { limit: number; category?: string; search?: string } = { limit: DOCUMENTS_LIST_LIMIT };
+      // `page_size` (el backend no lee `limit`: con él llegaban solo los 50 primeros).
+      const p: { page_size: number; category?: string; search?: string } = { page_size: DOCUMENTS_LIST_LIMIT };
       if (filterCat) p.category = filterCat;
       if (search) p.search = search;
-      return documentsApi.list(p).then(r => Array.isArray(r.data) ? r.data : (r.data?.items ?? []));
+      return documentsApi.list(p).then(r => r.data);
     },
   });
 

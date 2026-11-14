@@ -34,8 +34,8 @@ class SLABreachLog(Base):
     sla_due_at  = Column(DateTime(timezone=True), nullable=False)
     breached_at = Column(DateTime(timezone=True), server_default=func.now())
     breach_minutes = Column(Integer, nullable=True)   # How late
-    agent_id    = Column(String(36), ForeignKey("users.id"), nullable=True)
-    group_id    = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True)
+    agent_id    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    group_id    = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True, index=True)
     priority    = Column(String(20), nullable=True)
     category    = Column(String(100), nullable=True)
 
@@ -68,7 +68,7 @@ class AutomationWorkflow(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True)
+    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     is_global   = Column(Boolean, default=False)
     status      = Column(Enum(WorkflowStatus), default=WorkflowStatus.draft, index=True)
 
@@ -82,7 +82,7 @@ class AutomationWorkflow(Base):
     error_count   = Column(Integer, default=0)
     last_run_at   = Column(DateTime(timezone=True), nullable=True)
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -159,7 +159,7 @@ class ImportJob(Base):
     errors       = Column(Text, nullable=True)    # JSON array of {row, field, error}
     warnings     = Column(Text, nullable=True)    # JSON array
     result_data  = Column(Text, nullable=True)    # JSON: created IDs
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     started_at   = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -188,7 +188,7 @@ class Invoice(Base):
     number      = Column(String(30), nullable=False)   # INV-2025-001
     project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     client_id   = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
-    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True)
+    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True, index=True)
 
     # Client info (snapshot)
     client_name    = Column(String(255), nullable=True)
@@ -219,7 +219,7 @@ class Invoice(Base):
     period_from = Column(Date, nullable=True)
     period_to   = Column(Date, nullable=True)
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     # Stripe payment gateway fields (v23.8)
@@ -288,7 +288,7 @@ class ReportDefinition(Base):
     schedule_cron   = Column(String(50), nullable=True)    # cron expression
     schedule_emails = Column(Text, nullable=True)          # JSON array of emails
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -334,7 +334,7 @@ class ApprovalGroup(Base):
     name        = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     member_ids  = Column(Text, nullable=False, default="[]")  # JSON list of user IDs
-    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     creator = relationship("User", foreign_keys=[created_by])
@@ -354,11 +354,14 @@ class ApprovalWorkflow(Base):
     # Condiciones de activación (JSON): {"amount_gt": 1000, "department": "IT"}
     trigger_conditions = Column(Text, default="{}")
     # Encadenamiento: lanzar otro flujo al aprobar
-    chain_on_approval_workflow_id = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True)
+    chain_on_approval_workflow_id = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True, index=True)
     # Bloqueo duro al superar SLA
     sla_block_on_breach = Column(Boolean, default=False)
     # Reglas de auto-aprobación (JSON): [{"conditions": {...}, "action": "auto_approve"}]
     auto_approval_rules = Column(Text, nullable=True)
+    # Motor de politicas (#26, rev. 165): el diagrama del disenador grafico
+    # (nodos y aristas, JSON). Al guardarlo se compila a `steps`.
+    diagrama = Column(Text, nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     steps = relationship("ApprovalStep", back_populates="workflow",
@@ -377,20 +380,25 @@ class ApprovalStep(Base):
     name         = Column(String(100), nullable=False)  # "Manager directo", "Director", "CFO"
     approver_type = Column(String(30), nullable=False)  # role | user | manager | any_in_department
     approver_role = Column(String(50), nullable=True)   # si approver_type = role
-    approver_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approver_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     approver_department = Column(String(100), nullable=True)
     # Comportamiento
     is_optional     = Column(Boolean, default=False)
     timeout_hours   = Column(Integer, default=72)
     on_timeout      = Column(String(20), default="escalate")  # escalate | auto_approve | reject
-    escalate_to_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    escalate_to_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     # Enterprise v2
     parallel_quorum    = Column(Boolean, default=False)   # múltiples aprobadores en paralelo
     required_approvals = Column(Integer, default=1)        # quórum: cuántos votos positivos se necesitan
     step_condition     = Column(Text, nullable=True)       # JSON: condición para activar el paso
     requires_attachment = Column(Boolean, default=False)   # la decisión debe incluir adjunto
     reminder_hours     = Column(Integer, nullable=True)    # recordatorio tras N horas
-    approver_group_id  = Column(String(36), ForeignKey("approval_groups.id"), nullable=True)
+    approver_group_id  = Column(String(36), ForeignKey("approval_groups.id"), nullable=True, index=True)
+    # Rev. 165: `approve` decide; `inform` solo avisa y el flujo sigue. Varios
+    # pasos con el mismo `step_order` forman una etapa en paralelo.
+    kind               = Column(String(10), nullable=False, default="approve", server_default="approve")
+    # Con approver_type = manager_level: el N-esimo responsable de quien pide.
+    approver_level     = Column(Integer, nullable=True)
 
     workflow       = relationship("ApprovalWorkflow", back_populates="steps")
     approver       = relationship("User", foreign_keys=[approver_user_id])
@@ -404,11 +412,11 @@ class ApprovalRequest(Base):
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    workflow_id  = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True)
+    workflow_id  = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True, index=True)
     entity_type  = Column(String(50), nullable=False)   # timesheet | expense | milestone...
     entity_id    = Column(String(36), nullable=False)   # ID del objeto a aprobar
     entity_summary = Column(String(500), nullable=True) # Descripción legible
-    requested_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    requested_by = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     current_step = Column(Integer, default=1)
     status       = Column(String(30), default="pending")  # pending | approved | rejected | cancelled
     # Timeout tracking: set when a step becomes active, reset on step advance
@@ -419,6 +427,8 @@ class ApprovalRequest(Base):
     final_decision = Column(String(20), nullable=True)
     final_note     = Column(Text, nullable=True)
     completed_at   = Column(DateTime(timezone=True), nullable=True)
+    # Rev. 165: contexto de la solicitud (JSON) para las condiciones de rama.
+    contexto       = Column(Text, nullable=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     requester = relationship("User", foreign_keys=[requested_by])
@@ -434,18 +444,56 @@ class ApprovalDecision(Base):
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    request_id   = Column(String(36), ForeignKey("approval_requests.id", ondelete="CASCADE"), nullable=False)
+    request_id   = Column(String(36), ForeignKey("approval_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     step_order   = Column(Integer, nullable=False)
-    approver_id  = Column(String(36), ForeignKey("users.id"), nullable=False)
+    approver_id  = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     decision     = Column(String(20), nullable=False)   # approved | rejected | delegated
     # En una delegacion: a quien se pasa el paso (ese usuario puede decidirlo).
-    delegate_to  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    delegate_to  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     note           = Column(Text, nullable=True)
     attachment_url = Column(Text, nullable=True)
+    # Rev. 165: el paso (id) de la etapa que decide; en una etapa en paralelo
+    # cada rama cuenta sus votos. Vacio en las decisiones anteriores.
+    step_ref       = Column(String(36), nullable=True)
     decided_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     request  = relationship("ApprovalRequest", back_populates="decisions")
     approver = relationship("User", foreign_keys=[approver_id])
+
+
+class ApprovalRequestStep(Base):
+    """Paso anadido a UNA solicitud por el motor de politicas (rev. 165).
+
+    Mismos campos que `ApprovalStep`; el motor los mezcla con los del flujo
+    (`approval_engine.pasos.pasos_de`). `origen` dice que politica lo pidio.
+    """
+    __tablename__ = "approval_request_steps"
+
+    id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    request_id   = Column(String(36), ForeignKey("approval_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_order   = Column(Integer, nullable=False)
+    name         = Column(String(100), nullable=False)
+    kind         = Column(String(10), nullable=False, default="approve")
+    approver_type = Column(String(30), nullable=False)
+    approver_role = Column(String(50), nullable=True)
+    approver_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    approver_department = Column(String(100), nullable=True)
+    approver_group_id  = Column(String(36), ForeignKey("approval_groups.id", ondelete="SET NULL"), nullable=True, index=True)
+    approver_level     = Column(Integer, nullable=True)
+    is_optional     = Column(Boolean, default=False)
+    timeout_hours   = Column(Integer, nullable=True)
+    on_timeout      = Column(String(20), default="escalate")
+    escalate_to_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    parallel_quorum    = Column(Boolean, default=False)
+    required_approvals = Column(Integer, default=1)
+    step_condition     = Column(Text, nullable=True)
+    requires_attachment = Column(Boolean, default=False)
+    reminder_hours     = Column(Integer, nullable=True)
+    origen          = Column(String(300), nullable=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+    approver = relationship("User", foreign_keys=[approver_user_id])
 
 
 class FinancialApprovalAuditLog(Base):
@@ -488,7 +536,7 @@ class RolePermission(Base):
     action  = Column(String(30),  nullable=False)   # ver | crear | editar | eliminar | aprobar | exportar
     allowed = Column(Boolean, default=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    updated_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     editor = relationship("User", foreign_keys=[updated_by])
 
@@ -512,9 +560,9 @@ class SodRule(Base):
     # JSON list of role ids with known conflict: ["pm", "hr"]
     roles_conflict = Column(Text, default="[]")
     # Mitigation: link to a required approval workflow
-    mitigated_by_workflow_id = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True)
+    mitigated_by_workflow_id = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     mitigating_workflow = relationship("ApprovalWorkflow", foreign_keys=[mitigated_by_workflow_id])
     creator = relationship("User", foreign_keys=[created_by])
@@ -530,7 +578,7 @@ class GrcAuditLog(Base):
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     timestamp     = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    user_id       = Column(String(36), ForeignKey("users.id"), nullable=True)
+    user_id       = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     action_type   = Column(String(80),  nullable=False)   # permission_changed | sod_violation | approval_override | ...
     resource_type = Column(String(80),  nullable=True)    # role_permission | sod_rule | approval | ...
     resource_id   = Column(String(36),  nullable=True)
@@ -550,8 +598,8 @@ class SodViolation(Base):
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    rule_id     = Column(String(36), ForeignKey("grc_sod_rules.id"), nullable=False)
-    user_id     = Column(String(36), ForeignKey("users.id"), nullable=True)
+    rule_id     = Column(String(36), ForeignKey("grc_sod_rules.id"), nullable=False, index=True)
+    user_id     = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     role        = Column(String(50),  nullable=True)
     # Context: what triggered the violation check
     context_type = Column(String(80),  nullable=True)   # approval_request | task_assignment | ...

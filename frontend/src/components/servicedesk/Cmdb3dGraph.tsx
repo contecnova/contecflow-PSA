@@ -6,42 +6,13 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as d3 from 'd3'
 import { cmdb3dApi } from '../../services/api'
+import type { SdGrafo3d, SdNodo3d, SdRadioDeImpacto } from '../../services/api/tipos-sd'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Card, Button, Spinner } from '../ui'
 
-// TODO type: cmdb3dApi payloads — needs shared types
-interface CiNode extends d3.SimulationNodeDatum {
-  id: string
-  label?: string
-  name?: string
-  layer?: number
-  z?: number
-  type?: string
-  [k: string]: unknown
-}
-
-interface CiEdge extends d3.SimulationLinkDatum<CiNode> {
-  source: string | CiNode
-  target: string | CiNode
-  type?: string
-  [k: string]: unknown
-}
-
-interface GraphData {
-  nodes?: CiNode[]
-  edges?: CiEdge[]
-}
-
-interface BlastResult {
-  error?: string
-  ci_name?: string
-  ci_id?: string
-  impacted_cis?: Array<string | { id: string; name?: string; impact_depth?: number }>
-  impacted_count?: number
-  affected_cis?: string[]
-  affected_count?: number
-  [k: string]: unknown
-}
+/** Nodo del grafo (`SdNodo3d`) con el estado que añade la simulación de d3. */
+type CiNode = SdNodo3d & d3.SimulationNodeDatum
+type CiEdge = d3.SimulationLinkDatum<CiNode> & { type: string }
 
 const LAYER_COLORS = [
   'var(--accent)',
@@ -80,10 +51,11 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
   // TODO type: d3.Simulation generics — keep loose to avoid widening every callsite
   const simulationRef = useRef<d3.Simulation<CiNode, CiEdge> | null>(null)
   const [blastCiId, setBlastCiId] = useState<string>('')
-  const [blastResult, setBlastResult] = useState<BlastResult | null>(null)
+  const [blastResult, setBlastResult] = useState<SdRadioDeImpacto | null>(null)
+  const [blastError, setBlastError] = useState<string | null>(null)
   const [maxNodes, setMaxNodes] = useState<number>(80)
 
-  const { data, isLoading } = useQuery<GraphData>({
+  const { data, isLoading } = useQuery({
     queryKey: ['cmdb-3d-graph', maxNodes],
     queryFn: () => cmdb3dApi.getGraph({ max_nodes: maxNodes }).then(r => r.data),
   })
@@ -93,15 +65,17 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
     try {
       const res = await cmdb3dApi.blastRadius(encodeURIComponent(blastCiId.trim()))
       setBlastResult(res.data)
+      setBlastError(null)
     } catch {
-      setBlastResult({ error: 'CI no encontrado o error al calcular' })
+      setBlastResult(null)
+      setBlastError('CI no encontrado o error al calcular')
     }
   }
 
-  const renderGraph = useCallback((graphData: GraphData | undefined, width?: number) => {
+  const renderGraph = useCallback((graphData: SdGrafo3d | undefined, width?: number) => {
     if (!graphData || !svgRef.current) return
-    const nodes = (graphData.nodes ?? []).map(n => ({ ...n }))
-    const links = (graphData.edges ?? []).map(e => ({ ...e }))
+    const nodes: CiNode[] = graphData.nodes.map(n => ({ ...n }))
+    const links: CiEdge[] = graphData.edges.map(e => ({ ...e }))
     if (!nodes.length) return
 
     if (simulationRef.current) simulationRef.current.stop()
@@ -164,7 +138,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
 
     nodeG.append('circle')
       .attr('r', 10)
-      .attr('fill', d => LAYER_COLORS[(d.layer ?? d.z ?? 0) % LAYER_COLORS.length])
+      .attr('fill', d => LAYER_COLORS[d.layer % LAYER_COLORS.length])
       .attr('stroke', 'var(--surface-2)')
       .attr('stroke-width', 2)
 
@@ -174,11 +148,11 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
       .attr('font-size', 10)
       .attr('fill', 'var(--text-2)')
       .attr('font-family', 'var(--font-sans)')
-      .text(d => (d.name ?? d.label ?? d.id ?? '').slice(0, 18))
+      .text(d => (d.name || d.id).slice(0, 18))
 
     simulation.on('tick', () => {
-      const getX = (nodeLike: string | CiNode) => (typeof nodeLike === 'object' ? (nodeLike.x ?? 0) : 0)
-      const getY = (nodeLike: string | CiNode) => (typeof nodeLike === 'object' ? (nodeLike.y ?? 0) : 0)
+      const getX = (nodeLike: CiEdge['source']) => (typeof nodeLike === 'object' ? (nodeLike.x ?? 0) : 0)
+      const getY = (nodeLike: CiEdge['source']) => (typeof nodeLike === 'object' ? (nodeLike.y ?? 0) : 0)
       link
         .attr('x1', d => getX(d.source))
         .attr('y1', d => getY(d.source))
@@ -264,21 +238,18 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
           </Button>
         </div>
 
+        {blastError && (
+          <div style={{
+            marginTop: 12,
+            color: 'var(--danger)',
+            background: 'var(--danger-bg, rgba(239,68,68,0.08))',
+            border: '1px solid var(--danger-border, rgba(239,68,68,0.25))',
+            padding: '8px 12px', borderRadius: 8, fontSize: 'var(--text-sm)',
+          }}>{blastError}</div>
+        )}
         {blastResult && (() => {
-          if (blastResult.error) {
-            return (
-              <div style={{
-                marginTop: 12,
-                color: 'var(--danger)',
-                background: 'var(--danger-bg, rgba(239,68,68,0.08))',
-                border: '1px solid var(--danger-border, rgba(239,68,68,0.25))',
-                padding: '8px 12px', borderRadius: 8, fontSize: 'var(--text-sm)',
-              }}>{blastResult.error}</div>
-            )
-          }
-          // Soporta forma actual del backend (impacted_*) y posibles aliases (affected_*)
-          const list = blastResult.impacted_cis ?? blastResult.affected_cis ?? []
-          const total = blastResult.impacted_count ?? blastResult.affected_count ?? list.length
+          const list = blastResult.impacted_cis
+          const total = blastResult.impacted_count
           const ciName = blastResult.ci_name || blastResult.ci_id
           return (
             <div style={{ marginTop: 12, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
@@ -295,17 +266,15 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
               ) : (
                 <div className="u-wrap-6">
                   {list.slice(0, 20).map((ci, idx) => {
-                    const id = typeof ci === 'string' ? ci : ci.id
-                    const label = typeof ci === 'string' ? ci : (ci.name || ci.id)
-                    const depth = typeof ci === 'object' ? ci.impact_depth : undefined
+                    const depth = ci.impact_depth
                     return (
-                      <span key={id || idx} title={depth != null ? `Profundidad: ${depth}` : undefined} style={{
+                      <span key={ci.id || idx} title={`Profundidad: ${depth}`} style={{
                         fontSize: 'var(--text-xs)',
                         background: 'var(--surface-4)',
                         color: 'var(--text-2)',
                         borderRadius: 'var(--radius-full, 999px)',
                         padding: '2px 9px',
-                      }}>{label}{depth != null && depth > 0 ? ` · L${depth}` : ''}</span>
+                      }}>{ci.name || ci.id}{depth > 0 ? ` · L${depth}` : ''}</span>
                     )
                   })}
                   {list.length > 20 && (

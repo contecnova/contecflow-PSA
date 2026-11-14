@@ -6,7 +6,8 @@
 import { useState, useId } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi } from '../services/api'
+import api, { projectsApi, usersApi } from '../services/api'
+import type { PersonaVisible } from '../services/api'
 import { Avatar, Spinner, EmptyState, Button, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -99,7 +100,7 @@ function RoleCell({ role, onClick, editable }: { role?: string; onClick?: () => 
   )
 }
 
-function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdType; users: UserSlim[]; onClose: () => void; onSaved: () => void }) {
+function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdType; users: PersonaVisible[]; onClose: () => void; onSaved: () => void }) {
   const idCampo = useId()
   const traducir = useAppT()
   const t = useAppT()
@@ -143,7 +144,7 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbStyle}>Persona</label>
           <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.user_id} onChange={onField('user_id')} style={inputStyle}>
             <option value="">Selecciona persona...</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.department || u.role})</option>)}
+            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{(u.job_title || u.role) ? ` (${u.job_title || u.role})` : ''}</option>)}
           </select>
         </div>
         <div>
@@ -184,13 +185,12 @@ export default function RACIPage() {
   })
   const raci = (raciRaw ?? null) as RaciResponse | null
 
-  const { data: usersRaw = [] } = useQuery({
-    queryKey: ['users-slim'],
-    queryFn: () => api.get('/users').then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
-    enabled: true,
+  // Selector de personas: `/users/directory` (ficha mínima) sirve a cualquier rol; `/users` da 403 al subcontratado.
+  const { data: usersData = [] } = useQuery({
+    queryKey: ['users', 'directory'],
+    queryFn: () => usersApi.directory().then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
-  const usersData = usersRaw as UserSlim[]
 
   const { mutate: deleteEntry } = useMutation({
     mutationFn: (entryId: IdType) => api.delete(`/projects/${selectedProject}/raci/${entryId}`),

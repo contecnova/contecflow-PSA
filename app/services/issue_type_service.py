@@ -403,17 +403,42 @@ def _snippet(body: Optional[str], terms: List[str], length: int = 150) -> str:
     return body[:length] + ("…" if len(body) > length else "")
 
 
+def _acotar_indice(query, db: Session, viewer):
+    """Segunda auditoría 2026-11: el índice solo devuelve lo que `viewer` ve.
+
+    Antes bastaba la sesión: cualquiera (también el subcontratado) leía título y
+    fragmento de las tareas, épicas y páginas de wiki de todos los proyectos.
+    Ahora, solo de los proyectos de su alcance (`scope_projects_query`) y, en las
+    tareas, las de su listado (`build_task_list_query`). Las entradas sin proyecto
+    quedan para quien ve todos los proyectos de la empresa.
+    """
+    from sqlalchemy import and_
+    from app.services import politica_de_visibilidad as _vis
+    from app.services.project_service import scope_projects_query
+    from app.services.tasks.queries import build_task_list_query
+    proyectos = scope_projects_query(db.query(Project.id), db, viewer).subquery()
+    tareas = build_task_list_query(db, viewer).with_entities(Task.id).subquery()
+    en_su_proyecto = FTSEntry.project_id.in_(db.query(proyectos.c.id))
+    query = query.filter(or_(
+        and_(FTSEntry.entity_type != "task", en_su_proyecto),
+        and_(FTSEntry.entity_type == "task", en_su_proyecto, FTSEntry.entity_id.in_(db.query(tareas.c.id))),
+        *([FTSEntry.project_id.is_(None)] if not _vis.solo_proyectos_propios(viewer) else []),
+    ))
+    return query
+
+
 def fts_search(
     q: str,
     project_id: Optional[str],
     entity_types: Optional[str],
     limit: int,
     db: Session,
+    viewer,
 ) -> dict:
     if not q or len(q.strip()) < 2:
         raise ValueError("La consulta debe tener al menos 2 caracteres")
     terms = [t.strip() for t in q.split() if t.strip()]
-    query = db.query(FTSEntry)
+    query = _acotar_indice(db.query(FTSEntry), db, viewer)
     if project_id:
         query = query.filter(FTSEntry.project_id == project_id)
     if entity_types:

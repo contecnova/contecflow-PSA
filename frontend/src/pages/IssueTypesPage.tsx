@@ -6,6 +6,7 @@ import { useState, useId } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, issueTypesApi, customFieldsApi } from '../services/api'
+import type { CampoPersonalizado, TipoDeIncidencia } from '../services/api/tipos-rendimiento'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -17,22 +18,7 @@ interface ProjectItem {
   name?: string
 }
 
-interface CustomFieldItem {
-  field_key: string
-  name: string
-}
-
-interface IssueTypeItem {
-  id: string | number
-  name: string
-  value: string
-  icon?: string
-  color: string
-  description?: string
-  is_subtask?: boolean
-  sort_order?: number
-  field_keys?: string[]
-}
+type IssueTypeItem = TipoDeIncidencia
 
 interface IssueTypeFormState {
   name: string
@@ -55,7 +41,7 @@ const _DEP_TYPE_LABELS = {
   blocks:'Bloquea',blocked_by:'Bloqueada por',relates_to:'Relacionada',duplicates:'Duplica',cloned_from:'Clonada de'
 }
 
-function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: string; type: IssueTypeItem | null; customFields: CustomFieldItem[]; onClose: () => void }) {
+function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: string; type: IssueTypeItem | null; customFields: CampoPersonalizado[]; onClose: () => void }) {
   const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
@@ -177,18 +163,16 @@ export default function IssueTypesPage(): JSX.Element {
     queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
   const projects = projectsRaw as ProjectItem[]
-  const { data: typesRaw = [], isLoading } = useQuery({
+  const { data: types = [], isLoading } = useQuery({
     queryKey: ['issue-types', project],
-    queryFn: () => issueTypesApi.list(project).then(r => r.data).catch(() => []),
+    queryFn: () => issueTypesApi.list(project).then(r => r.data).catch((): TipoDeIncidencia[] => []),
     enabled: !!project,
   })
-  const types = typesRaw as IssueTypeItem[]
-  const { data: customFieldsRaw = [] } = useQuery({
+  const { data: customFields = [] } = useQuery({
     queryKey: ['custom-fields', project],
-    queryFn: () => customFieldsApi.list(project).then(r => r.data).catch(() => []),
+    queryFn: () => customFieldsApi.list(project).then(r => r.data).catch((): CampoPersonalizado[] => []),
     enabled: !!project,
   })
-  const customFields = customFieldsRaw as CustomFieldItem[]
 
   const { mutate: initTypes, isPending: initing } = useMutation({
     mutationFn: () => issueTypesApi.init(project).then(r => r.data),

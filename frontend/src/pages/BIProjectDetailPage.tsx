@@ -15,6 +15,7 @@ import {
   Legend,
 } from 'recharts'
 import { analyticsApi } from '../services/api'
+import type { OpcionesDeFiltroAnalitico } from '../services/api/tipos-analitica'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
@@ -45,8 +46,8 @@ type AnalyticsRow = {
   margin?: number
 }
 
-type UserFilterOption = { id: string | number; label?: string }
-type FilterOptions = { users?: UserFilterOption[] }
+
+type FilterOptions = Partial<OpcionesDeFiltroAnalitico>
 
 type MemberRow = AnalyticsRow & { userId?: string | number }
 
@@ -161,27 +162,27 @@ export default function BIProjectDetailPage(): JSX.Element {
 
   const { data: hoursRows = [], isLoading: hoursLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-hours-week', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
   })
 
   const { data: costRows = [], isLoading: costLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-cost-month', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('cost_by_month', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('cost_by_month', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
   })
 
   const { data: marginRows = [], isLoading: marginLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-margin', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('margin_by_project', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('margin_by_project', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
   })
 
   const { data: membersRows = [], isLoading: membersLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-members', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_person', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_person', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
   })
 
   const { data: filterOptions = {} as FilterOptions } = useQuery<FilterOptions>({
     queryKey: ['bi-filter-options-detail'],
-    queryFn: () => analyticsApi.filterOptions().then(r => r.data as FilterOptions).catch(() => ({} as FilterOptions)),
+    queryFn: () => analyticsApi.filterOptions().then(r => r.data).catch((): FilterOptions => ({})),
   })
 
   const marginCard = marginRows?.[0]
@@ -189,7 +190,7 @@ export default function BIProjectDetailPage(): JSX.Element {
 
   const usersByLabel = useMemo<Record<string, string | number>>(() => {
     const out: Record<string, string | number> = {}
-    ;(filterOptions.users || []).forEach((u: UserFilterOption) => {
+    ;(filterOptions.users || []).forEach((u) => {
       out[String(u.label || '').trim().toLowerCase()] = u.id
     })
     return out
@@ -216,12 +217,12 @@ export default function BIProjectDetailPage(): JSX.Element {
   const { data: weeklyByPersonRows = [], isLoading: weeklyByPersonLoading } = useQuery<AnalyticsRow[]>({
     enabled: Boolean(selectedUserId),
     queryKey: ['bi-project-hours-week-person', projectId, weeklyByPersonParams],
-    queryFn: () => analyticsApi.query('hours_by_week', weeklyByPersonParams).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', weeklyByPersonParams).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
   })
 
   const { data: weeklyTeamRows = [], isLoading: weeklyTeamLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-hours-week-team', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => (r.data?.rows || []) as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
   })
 
   const hoursChart = (hoursRows || []).map((r) => ({

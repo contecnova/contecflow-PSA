@@ -18,7 +18,7 @@ client_user_projects = Table(
     "client_user_projects",
     Base.metadata,
     Column("client_user_id", String(36), ForeignKey("client_users.id", ondelete="CASCADE"), primary_key=True),
-    Column("project_id",     String(36), ForeignKey("projects.id",      ondelete="CASCADE"), primary_key=True),
+    Column("project_id",     String(36), ForeignKey("projects.id",      ondelete="CASCADE"), primary_key=True, index=True),
 )
 
 
@@ -82,7 +82,7 @@ class ClientSession(Base):
     __tablename__ = "client_sessions"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    client_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=False)
+    client_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=False, index=True)
     token_hash = Column(String(255), nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -116,7 +116,7 @@ class FeatureRequest(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # FR-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True)
+    client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
 
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
@@ -137,7 +137,7 @@ class FeatureRequest(Base):
     client_rejection_reason = Column(Text, nullable=True)
 
     # Link to internal CR if approved
-    change_request_id = Column(String(36), ForeignKey("change_requests.id"), nullable=True)
+    change_request_id = Column(String(36), ForeignKey("change_requests.id"), nullable=True, index=True)
 
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -168,7 +168,7 @@ class UATSession(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # UAT-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    deliverable_id = Column(String(36), ForeignKey("deliverables.id"), nullable=True)
+    deliverable_id = Column(String(36), ForeignKey("deliverables.id"), nullable=True, index=True)
 
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -186,7 +186,7 @@ class UATSession(Base):
     # Client result
     client_result = Column(Enum(UATStatus, name='uat_session_status'), nullable=True)
     client_notes = Column(Text, nullable=True)
-    client_signed_by = Column(String(36), ForeignKey("client_users.id"), nullable=True)
+    client_signed_by = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
     client_signed_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -205,7 +205,7 @@ class UATTestCase(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     steps = Column(Text, nullable=True)
     expected_result = Column(Text, nullable=True)
@@ -224,12 +224,12 @@ class UATIssue(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     severity = Column(String(20), default="medium")  # low | medium | high | blocker
     status = Column(String(20), default="open")       # open | fixed | wontfix | deferred
-    reported_by = Column(String(36), ForeignKey("client_users.id"), nullable=True)
+    reported_by = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
     steps_to_reproduce = Column(Text, nullable=True)
     screenshot_url = Column(String(500), nullable=True)
     fixed_at = Column(DateTime(timezone=True), nullable=True)
@@ -250,8 +250,8 @@ class ClientMessage(Base):
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Context – message can be linked to different entities
-    feature_request_id = Column(String(36), ForeignKey("feature_requests.id"), nullable=True)
-    uat_session_id = Column(String(36), ForeignKey("uat_sessions.id"), nullable=True)
+    feature_request_id = Column(String(36), ForeignKey("feature_requests.id"), nullable=True, index=True)
+    uat_session_id = Column(String(36), ForeignKey("uat_sessions.id"), nullable=True, index=True)
     thread_id = Column(String(36), nullable=True, index=True)  # Groups messages in a thread
     parent_id = Column(String(36), ForeignKey("client_messages.id"), nullable=True, index=True)
 
@@ -260,8 +260,8 @@ class ClientMessage(Base):
     is_internal = Column(Boolean, default=False)   # Internal team notes not visible to client
 
     # Sender: either client or internal user
-    sender_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True)
-    sender_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    sender_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
+    sender_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     is_read_by_client = Column(Boolean, default=False)
     is_read_by_team = Column(Boolean, default=False)
@@ -290,9 +290,9 @@ class ClientSurvey(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True)
-    milestone_id = Column(String(36), ForeignKey("project_milestones.id"), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
+    milestone_id = Column(String(36), ForeignKey("project_milestones.id"), nullable=True, index=True)
 
     title = Column(String(255), nullable=False)
     status = Column(Enum(SurveyStatus), default=SurveyStatus.pending)
@@ -342,7 +342,7 @@ class ClientDocument(Base):
     signature_ip         = Column(String(64),  nullable=True)   # IP como evidencia
     signed_pdf_path      = Column(String(500), nullable=True)   # ruta al PDF firmado
 
-    uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project")

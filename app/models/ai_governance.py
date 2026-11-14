@@ -42,7 +42,7 @@ class AIGuardrailPolicyModel(Base):
     # Control
     is_active           = Column(Boolean, default=True, index=True)
     priority            = Column(Integer, default=0)   # higher = evaluated first
-    created_by          = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by          = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at          = Column(DateTime(timezone=True), default=utcnow)
     updated_at          = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

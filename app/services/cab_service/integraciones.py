@@ -170,13 +170,26 @@ from app.services.jira_service import JIRA_STATUS_MAP as _ESTADO_DESDE_JIRA  # n
 def sync_jira(db: Session, config, payload: dict):
     """Jira → Contecflow con la conexion de la organizacion (segunda auditoria 2026-11, #23)."""
     from app.services.jira_service import credenciales_del_hub
-    return sincronizar_tareas_con_jira(db, credenciales_del_hub(db, config.organization_id))
+    return sincronizar_tareas_con_jira(db, credenciales_del_hub(db, config.organization_id),
+                                       config.organization_id)
 
 
-def sincronizar_tareas_con_jira(db: Session, cfg_dict: dict):
-    """Jira → Contecflow: el estado de cada incidencia enlazada pasa a su tarea."""
+def sincronizar_tareas_con_jira(db: Session, cfg_dict: dict, org_id: str):
+    """Jira → Contecflow: el estado de cada incidencia enlazada pasa a su tarea.
+
+    Solo las tareas de `org_id`, la organizacion duena de `cfg_dict` (segunda
+    auditoria 2026-11, #10): la consulta no filtraba y dependia del filtro
+    automatico de tenant, que no corre para superadmin ni en sesiones sin
+    inicializar; con el Jira de una organizacion se reescribia el estado de las
+    tareas de otras.
+    """
     synced, errors = 0, []
-    for task in db.query(Task).filter(Task.jira_issue_key != None).limit(200).all():
+    if not org_id:
+        return synced, errors
+    tareas = (db.query(Task)
+              .filter(Task.organization_id == org_id, Task.jira_issue_key != None)  # noqa: E711
+              .limit(200).all())
+    for task in tareas:
         result = get_jira_issue(cfg_dict, task.jira_issue_key)
         if not result.get("ok"):
             errors.append(f"{task.jira_issue_key}: {str(result.get('error', ''))[:100]}")

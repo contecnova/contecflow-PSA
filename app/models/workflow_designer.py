@@ -33,7 +33,7 @@ class WorkflowBlueprint(Base):
     status = Column(Enum(WorkflowBlueprintStatus), default=WorkflowBlueprintStatus.draft)
     is_active = Column(Boolean, default=True)
 
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -57,7 +57,7 @@ class WorkflowBlueprintVersion(Base):
     rules_json = Column(Text, nullable=True)    # declarative rule set compiled from graph
     is_published = Column(Boolean, default=False)
     published_at = Column(DateTime(timezone=True), nullable=True)
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     blueprint = relationship("WorkflowBlueprint", back_populates="versions")
@@ -83,7 +83,7 @@ class WorkflowRun(Base):
     blueprint_id = Column(String(36), ForeignKey("sd_workflow_blueprints.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     blueprint_version_id = Column(String(36), ForeignKey("sd_workflow_blueprint_versions.id", ondelete="SET NULL"),
-                                  nullable=True)
+                                  nullable=True, index=True)
     blueprint_version = Column(Integer, nullable=False)
 
     target_entity_type = Column(String(40), nullable=True)   # ticket | change | approval | manual
@@ -95,7 +95,7 @@ class WorkflowRun(Base):
     last_error = Column(Text, nullable=True)
 
     context_json = Column(JSON, nullable=False, default=dict)
-    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)

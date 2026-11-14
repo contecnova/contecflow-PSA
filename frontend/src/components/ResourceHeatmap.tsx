@@ -111,7 +111,7 @@ const bookingSchema = z.object({
 }).superRefine((data, ctx) => {
   if (data.end_date < data.start_date) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['end_date'],
       message: 'La fecha de fin no puede ser anterior a la de inicio',
     })

@@ -47,7 +47,7 @@ class RevenueContract(Base):
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id      = Column(String(36), ForeignKey("projects.id",      ondelete="CASCADE"), nullable=False, index=True)
-    client_id       = Column(String(36), ForeignKey("clients.id",       ondelete="SET NULL"), nullable=True)
+    client_id       = Column(String(36), ForeignKey("clients.id",       ondelete="SET NULL"), nullable=True, index=True)
 
     name            = Column(String(255), nullable=False)
     contract_value  = Column(Float, nullable=False, default=0.0)
@@ -79,7 +79,7 @@ class RevenueObligation(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id     = Column(String(36), ForeignKey("rev_contracts.id", ondelete="CASCADE"), nullable=False, index=True)
     # Vínculo opcional a un milestone específico (método milestone)
-    milestone_id    = Column(String(36), ForeignKey("project_milestones.id",    ondelete="SET NULL"), nullable=True)
+    milestone_id    = Column(String(36), ForeignKey("project_milestones.id",    ondelete="SET NULL"), nullable=True, index=True)
 
     name            = Column(String(255), nullable=False)
     # % del valor total del contrato asignado a esta obligación (0–100)
@@ -116,7 +116,7 @@ class RevenuePeriodClose(Base):
     period_year     = Column(Integer, nullable=False)
     period_month    = Column(Integer, nullable=False)  # 1–12
 
-    closed_by       = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    closed_by       = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     closed_at       = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     notes           = Column(Text, nullable=True)
 
@@ -151,10 +151,10 @@ class RevenueEntry(Base):
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     rev_contract_id = Column(String(36), ForeignKey("rev_contracts.id", ondelete="RESTRICT"), nullable=False, index=True)
-    period_close_id = Column(String(36), ForeignKey("rev_period_closes.id", ondelete="SET NULL"), nullable=True)
+    period_close_id = Column(String(36), ForeignKey("rev_period_closes.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Origen de la entrada
-    milestone_id    = Column(String(36), ForeignKey("project_milestones.id",   ondelete="SET NULL"), nullable=True)
+    milestone_id    = Column(String(36), ForeignKey("project_milestones.id",   ondelete="SET NULL"), nullable=True, index=True)
     timesheet_id    = Column(String(36), nullable=True)  # referencia libre a hoja de horas
 
     entry_type      = Column(Enum(EntryType), nullable=False, default=EntryType.recognized)
@@ -165,10 +165,10 @@ class RevenueEntry(Base):
     period_month    = Column(Integer, nullable=False)
 
     # Referencia a la entrada que revierte (si es reversal)
-    reverses_entry_id = Column(String(36), ForeignKey("rev_entries.id", ondelete="SET NULL"), nullable=True)
+    reverses_entry_id = Column(String(36), ForeignKey("rev_entries.id", ondelete="SET NULL"), nullable=True, index=True)
 
     description     = Column(Text, nullable=True)
-    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     contract     = relationship("RevenueContract",    back_populates="entries")

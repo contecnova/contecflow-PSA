@@ -1,5 +1,5 @@
 """Tests de Service Desk — tickets, SLA, categorías."""
-from jose import jwt
+import jwt
 from tests.conftest import auth
 from app.core.config import settings
 from app.models.client_portal import ClientUser

@@ -1,40 +1,36 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { assetsApi } from '../services/api'
+import type { AlmActivo, AlmActivoDetalle } from '../services/api/tipos-alm'
 
 const STALE = 2 * 60 * 1000
 
-export interface Asset {
-  id: string
-  name?: string
-  status?: string
-  [extra: string]: unknown
-}
+/** Lo que manda el backend (services/api/tipos-alm). */
+export type Asset = AlmActivo
 
 export type AssetListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 
-export function useAssets(params: AssetListParams = {}): UseQueryResult<unknown> {
+export function useAssets(params: AssetListParams = {}): UseQueryResult<AlmActivo[]> {
   return useQuery({
     queryKey: ['alm-assets', params],
-    queryFn: () => assetsApi.list(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => assetsApi.list(params).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useAllAssets(): UseQueryResult<unknown> {
+export function useAllAssets(): UseQueryResult<AlmActivo[]> {
   return useQuery({
     queryKey: ['alm-assets'],
-    queryFn: () => assetsApi.list({}).then((r: { data: unknown }) => r.data),
+    queryFn: () => assetsApi.list({}).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useAsset(id: string | undefined): UseQueryResult<unknown> {
+export function useAsset(id: string | undefined): UseQueryResult<AlmActivoDetalle> {
   return useQuery({
     queryKey: ['alm-assets', id],
-    queryFn: () => assetsApi.get(id).then((r: { data: unknown }) => r.data),
+    queryFn: () => assetsApi.get(id).then(r => r.data),
     enabled: !!id,
     staleTime: STALE,
   })

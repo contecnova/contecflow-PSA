@@ -13,6 +13,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { changeRolloutApi } from '../../services/api'
+import type { FaseDeDespliegue, PlanDeDespliegue, SimulacionDeDespliegue } from '../../services/api/tipos-cambios'
 import { useAppT } from '../../i18n/AppLangContext'
 import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus } from 'lucide-react'
 import { Card, Button, Spinner, EmptyState } from '../ui'
@@ -20,29 +21,10 @@ import { useToast } from '../../context/ToastContext'
 import { pedirTexto } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 
-// TODO type: changeRolloutApi rollout plan/phase payloads — needs shared types
-interface RolloutPhase {
-  id?: string | number
-  name: string
-  description?: string
-  target_pct: number
-  duration_minutes?: number
-  gate_criteria?: string[]
-  status?: string
-}
+/** Fase que se manda al crear el plan (`RolloutPhaseIn` en endpoints/service_desk/change_rollout.py). */
+type FaseNueva = Pick<FaseDeDespliegue, 'name' | 'description' | 'target_pct' | 'duration_minutes' | 'gate_criteria'>
 
-interface RolloutPlan {
-  id: string | number
-  name?: string
-  title?: string
-  change_request_id: string
-  strategy: string
-  status?: string
-  risk_level?: string
-  current_phase_index?: number
-  created_at?: string
-  rollout_phases?: RolloutPhase[]
-}
+type RolloutPlan = PlanDeDespliegue
 
 interface RolloutForm {
   change_request_id: string
@@ -51,16 +33,7 @@ interface RolloutForm {
   name: string
 }
 
-// TODO type: simulate response — needs shared type
-type SimulateResult = {
-  [k: string]: unknown
-  risk_label?: string
-  risk_score?: number
-  estimated_duration_minutes?: number
-  recommended_window?: string
-  rollback_readiness?: string
-  recommendations?: string[]
-}
+type SimulateResult = SimulacionDeDespliegue
 
 type ApiError = { response?: { data?: { detail?: string } } }
 
@@ -123,7 +96,7 @@ const chip = (color: string): React.CSSProperties => ({
  * Build canonical rollout_phases from strategy + total phases.
  * Each strategy maps to a sensible default progression.
  */
-function buildPhases(strategy: string, total: number | string): RolloutPhase[] {
+function buildPhases(strategy: string, total: number | string): FaseNueva[] {
   const n = Math.max(1, Math.min(10, Number(total) || 3))
   switch (strategy) {
     case 'canary': {
@@ -174,13 +147,13 @@ export default function ChangeRolloutPanel() {
   const [form, setForm] = useState<RolloutForm>({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
   const [simulate, setSimulate] = useState<SimulateResult | null>(null)
 
-  const { data: plansData, isLoading } = useQuery<{ items?: RolloutPlan[] }>({
+  // El interceptor ya desenvuelve `{items, meta}`: `r.data` es el array (antes se leía
+  // `.items` sobre él y la lista salía siempre vacía).
+  const { data: plans = [], isLoading } = useQuery<RolloutPlan[]>({
     queryKey: ['change-rollout-plans', changeRequestFilter],
     queryFn: () => changeRolloutApi.listPlans(changeRequestFilter).then(r => r.data),
     enabled: Boolean(changeRequestFilter.trim()),
   })
-
-  const plans: RolloutPlan[] = plansData?.items ?? []
   const selectedPlan = plans.find(p => p.id === selectedId)
 
   const createMutation = useMutation({
@@ -218,8 +191,8 @@ export default function ChangeRolloutPanel() {
   const advanceMutation = useMutation({
     mutationFn: ({ id, notes }: { id: string | number; notes: string }) =>
       changeRolloutApi.advancePhase(id, { phase_notes: notes || null }).then(r => r.data),
-    onSuccess: (data: { status?: string }) => {
-      const status = data?.status || 'in_progress'
+    onSuccess: (data) => {
+      const status = data.status
       toast.success(status === 'completed' ? 'Rollout completado 🎉' : 'Fase avanzada')
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
@@ -239,7 +212,7 @@ export default function ChangeRolloutPanel() {
   const handleSimulate = async (plan: RolloutPlan) => {
     try {
       const res = await changeRolloutApi.simulatePlan(plan.change_request_id, plan.id)
-      setSimulate(res.data?.simulation ?? res.data?.impact ?? res.data)
+      setSimulate(res.data.simulation)
     } catch (e: unknown) {
       toast.error((e as ApiError)?.response?.data?.detail || 'Error al simular')
     }
@@ -423,7 +396,7 @@ export default function ChangeRolloutPanel() {
                     const cur = selectedPlan.current_phase_index ?? 0
                     const phaseStatus = phase.status || (i < cur ? 'completed' : i === cur ? 'ready' : 'pending')
                     const color = phaseStatus === 'completed' ? 'var(--success)'
-                      : phaseStatus === 'in_progress' || phaseStatus === 'ready' ? 'var(--accent)'
+                      : phaseStatus === 'ready' ? 'var(--accent)'
                       : 'var(--text-3)'
                     return (
                       <div key={phase.id || i} style={{

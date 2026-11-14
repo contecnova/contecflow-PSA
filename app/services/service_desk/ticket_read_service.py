@@ -15,7 +15,9 @@ from app.services.service_desk.scoping import (
 )
 from app.services.service_desk.status_compat import normalize_ticket_status, sanitize_legacy_ticket_statuses
 from app.services.service_desk.ticket_query_service import build_ticket_list_query
-from app.services.service_desk.dynamic_ticket_fields_service import get_ticket_dynamic_fields
+from app.services.service_desk.dynamic_ticket_fields_service import (
+    get_ticket_dynamic_fields, get_tickets_dynamic_fields,
+)
 import logging
 from app.core.errores import ErrorDeDominio
 
@@ -55,11 +57,12 @@ def list_tickets_payload(
 
     total = query.count()
     tickets = query.order_by(Ticket.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    campos = get_tickets_dynamic_fields(db, tickets)
     return {
         "tickets": [
             {
                 **ticket_out(ticket),
-                "dynamic_fields": get_ticket_dynamic_fields(db, ticket.id),
+                "dynamic_fields": campos[ticket.id],
             }
             for ticket in tickets
         ],

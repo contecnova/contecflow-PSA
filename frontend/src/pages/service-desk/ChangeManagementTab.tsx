@@ -6,6 +6,7 @@ import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { changesApi, cmdbApi, sdChangePlanningApi } from '../../services/api'
+import type { CambioItsm, CambioItsmDetalle, EstadoDeCambio } from '../../services/api/tipos-cambios'
 import { CalendarioCambios, Congelaciones, PanelCab, Versiones } from './CambiosPlanificacion'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort } from '../../components/ui'
@@ -17,47 +18,8 @@ import DateInput from '../../components/ui/DateInput'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
 
 type ChangeId = string | number
-type ChangeRisk = 'low' | 'medium' | 'high' | 'critical' | string
-type ChangeStatus =
-  | 'draft'
-  | 'submitted'
-  | 'cab_review'
-  | 'approved'
-  | 'scheduled'
-  | 'in_progress'
-  | 'implemented'
-  | 'post_review'
-  | 'closed_success'
-  | 'closed_failed'
-  | 'cancelled'
-  | string
-
-interface ChangeItem {
-  id: ChangeId
-  number?: string
-  title?: string
-  status?: ChangeStatus
-  risk?: ChangeRisk
-  change_type?: string
-  owner?: string
-  requester?: string
-  planned_start?: string
-  planned_end?: string
-  actual_start?: string
-  actual_end?: string
-  approved_at?: string
-  downtime_minutes?: number
-  description?: string
-  business_justification?: string
-  implementation_plan?: string
-  rollback_plan?: string
-  test_plan?: string
-  impact_description?: string
-  priority?: string
-  affected_cis?: string[]
-  release_id?: string | null
-  rejected_reason?: string | null
-}
+/** El listado manda `serialize_change`; el detalle, ademas, los textos largos. */
+type ChangeItem = CambioItsm & Partial<Omit<CambioItsmDetalle, keyof CambioItsm>>
 
 interface ChangeFormData {
   title: string
@@ -80,7 +42,7 @@ interface ChangeFormData {
 interface StatusAction {
   label: string
   color: string
-  next?: ChangeStatus
+  next?: EstadoDeCambio
   action?: 'approve' | 'reject' | 'open'
 }
 
@@ -122,7 +84,7 @@ function ChangeDetailPanel({
     queryFn: () => changesApi.get(change.id).then(r => r.data),
   })
 
-  const c = (detail || change) as ChangeItem
+  const c = detail || change
   const sc = CHANGE_STATUS_COLOR[c.status ?? ''] || COLOR.text2
   const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? 'var(--orange)' : c.risk === 'medium' ? COLOR.warning : COLOR.success
 
@@ -222,8 +184,8 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
   const { data: cis = [] } = useQuery<{ id: string; name: string; code?: string }[]>({
     queryKey: ['sd-cmdb-items'], queryFn: () => cmdbApi.sdList({ page_size: SELECTOR_LIST_SIZE }).then(r => r.data),
   })
-  const { data: versiones = [] } = useQuery<{ id: string; name: string; version?: string | null; status: string }[]>({
-    queryKey: ['sd-releases'], queryFn: () => sdChangePlanningApi.releases().then(r => r.data as { id: string; name: string; version?: string | null; status: string }[]),
+  const { data: versiones = [] } = useQuery({
+    queryKey: ['sd-releases'], queryFn: () => sdChangePlanningApi.releases().then(r => r.data),
   })
   const alternarCi = (id: string) => setForm(f => ({ ...f, affected_cis: (f.affected_cis ?? []).includes(id)
     ? (f.affected_cis ?? []).filter(x => x !== id) : [...(f.affected_cis ?? []), id] }))
@@ -324,11 +286,10 @@ export default function ChangeManagementTab() {
   const [vista, setVista] = useState<'list' | 'calendar' | 'releases' | 'blackouts'>('list')
   const abrir = (id: string) => setDetail({ id } as ChangeItem)
 
-  const { data: changesRaw = [], isLoading } = useQuery({
+  const { data: changes = [], isLoading } = useQuery<ChangeItem[]>({
     queryKey: ['sd-changes', filterStatus],
     queryFn: () => changesApi.list({ status: filterStatus || undefined }).then(r => r.data),
   })
-  const changes = changesRaw as ChangeItem[]
 
   const { mutate: approve } = useMutation({
     mutationFn: ({ id, approved }: { id: ChangeId; approved: boolean }) => changesApi.approve(id, { approved }),

@@ -14,36 +14,15 @@ import {
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtCurrency, fmtDate, fmtPct } from '../utils/helpers'
 import { pipelineApi } from '../services/api'
+import type { Oportunidad, OportunidadConvertida, Propuesta } from '../services/api/tipos-personas'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import StatusBadge from '../components/ui/StatusBadge'
 import { STALE_ALWAYS } from '../constants/timings'
 
 const STAGES = ['lead', 'qualification', 'proposal', 'negotiation', 'won', 'lost', 'cancelled']
 
-type Opp = {
-  [extra: string]: unknown
-  id: string
-  name?: string
-  client_name?: string
-  code?: string
-  owner_id?: string
-  owner_name?: string
-  stage?: string
-  proposal_status?: string
-  proposal_generated_at?: string
-  proposal_sent_at?: string
-  project_id?: string
-  contract_type?: string
-  client_id?: string | null
-  hourly_rate?: number | null
-  expected_start_date?: string | null
-  expected_duration_weeks?: number | null
-  description?: string
-  probability?: number
-  expected_revenue?: number
-  weighted_revenue?: number
-  expected_close_date?: string
-}
+/** `serialize_opportunity` (app/services/pipeline_service.py). */
+type Opp = Oportunidad
 
 const STAGE_TRANSLATION_KEYS: Record<string, string> = {
   lead: 'pipeline.stage_lead',
@@ -195,13 +174,12 @@ function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label
   )
 }
 
-type ConvertResult = { project_code?: string; message?: string; rev_contract_id?: string }
 
 function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: Opp; onClose: () => void; stageLabels: Record<string, string>; onUpdate: () => void }) {
   const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
-  const [convertResult, setConvertResult] = useState<ConvertResult | null>(null)
+  const [convertResult, setConvertResult] = useState<OportunidadConvertida | null>(null)
   const [showProposal, setShowProposal] = useState(false)
   const [edicion, setEdicion] = useState<OppForm | null>(null)
   const updateOpportunity = useUpdateOpportunity()
@@ -224,7 +202,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
   const convertToProject = useConvertToProject()
 
   // Fetch proposal content on demand
-  const { data: proposalData, refetch: refetchProposal, isFetching: fetchingProposal } = useQuery<{ proposal_content?: string }>({
+  const { data: proposalData, refetch: refetchProposal, isFetching: fetchingProposal } = useQuery<Propuesta>({
     queryKey: ['pipeline-proposal', opp.id],
     queryFn: () => pipelineApi.getProposal(opp.id).then(r => r.data),
     enabled: false,
@@ -261,7 +239,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 
   async function doConvert() {
     try {
-      const res = (await convertToProject.mutateAsync(opp.id)) as { data: ConvertResult }
+      const res = await convertToProject.mutateAsync(opp.id)
       setConvertResult(res.data)
       toast.success(`Proyecto ${res.data.project_code} creado correctamente`)
       onUpdate()
@@ -461,7 +439,7 @@ export default function PipelinePage() {
   // useMemo (auditoría 2026-08, P1-6): con `?? []` / `|| []` esto creaba un
   // array nuevo en cada render, así que los useMemo/useEffect que lo tienen
   // como dependencia se reejecutaban SIEMPRE — no memoizaban nada.
-  const data: Opp[] = useMemo(() => (Array.isArray(rawData) ? (rawData as Opp[]) : []), [rawData])
+  const data: Opp[] = useMemo(() => rawData ?? [], [rawData])
   const createOpportunity = useCreateOpportunity()
   const updateOpportunity = useUpdateOpportunity()
   const deleteOpportunity = useDeleteOpportunity()

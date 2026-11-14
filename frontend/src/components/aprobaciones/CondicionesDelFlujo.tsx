@@ -30,7 +30,7 @@ export default function CondicionesDelFlujo({ workflowId, entityType, actuales, 
   const toast = useToast()
   const [c, setC] = useState({ amount_gt: '', amount_lte: '', department: '', category: '', policy_exceeded: '' })
   const [guardando, setGuardando] = useState(false)
-  const depts = useQuery<{ id?: string; name: string }[]>({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data as unknown as { name: string }[]) })
+  const depts = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
   useEffect(() => {
     setC({
       amount_gt: actuales.amount_gt != null ? String(actuales.amount_gt) : '',

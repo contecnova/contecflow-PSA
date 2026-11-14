@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { useDocCollab } from '../hooks/useDocCollab'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { wikiApi, projectsApi } from '../services/api'
+import type { VisibilidadDeWiki, WikiBloque, WikiEspacio, WikiEtiqueta, WikiPagina, WikiPaginaEnArbol, WikiResultadoDeBusqueda } from '../services/api/tipos-alm'
 import { Button, Spinner, EmptyState, Modal, useDialogo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -16,11 +17,7 @@ import type { CSSProperties } from 'react'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { FOCUS_DEFER_MS } from '../constants/timings'
 
-type Block = { type: string; content?: string }
-type WikiPageT = { [k: string]: unknown; id: string; title?: string; slug?: string; content?: Block[]; visibility?: string; updated_at?: string; children?: WikiPageT[] }
-type Space = { [k: string]: unknown; id: string; name?: string; slug?: string; description?: string; page_count?: number }
-type Tag = { [k: string]: unknown; id: string; name?: string; color?: string; pages_count?: number }
-type Version = { [k: string]: unknown; id: string; version_num?: number; title?: string; change_note?: string; created_at?: string }
+type Block = WikiBloque
 
 const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -209,7 +206,7 @@ function renderBlocks(blocks: Block[], traducir: (clave: string) => string) {
   })
 }
 
-function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string; parentId?: string | null; editPage?: WikiPageT | null; onClose: () => void }) {
+function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string; parentId?: string | null; editPage?: WikiPagina | null; onClose: () => void }) {
   const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
@@ -219,7 +216,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
   const [title,      setTitle]     = useState(editPage?.title || '')
   const [slug,       setSlug]      = useState(editPage?.slug  || '')
   const [blocks,     setBlocks]    = useState<Block[]>(editPage?.content || [{type:'paragraph',content:''}])
-  const [visibility, setVisibility]= useState(editPage?.visibility || 'team')
+  const [visibility, setVisibility]= useState<VisibilidadDeWiki>(editPage?.visibility || 'team')
   const [tplStep,    setTplStep]   = useState(!isEdit)
   const applyingRemoteRef = useRef(false)
 
@@ -239,16 +236,19 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
     }
     sendCollabUpdate(blocks)
   }, [blocks, editPage?.id, sendCollabUpdate])
-  const VIS_OPTS = [
+  const VIS_OPTS: Array<{ value: VisibilidadDeWiki; label: string }> = [
     { value: 'team',   label: 'Solo equipo' },
     { value: 'portal', label: 'Portal cliente' },
     { value: 'public', label: 'Público' },
   ]
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: Record<string, unknown>) => isEdit
-      ? wikiApi.updatePage(editPage!.id, d).then(r=>r.data)
-      : wikiApi.createPage(spaceId, d).then(r=>r.data),
+    // `WikiPageIn` no lleva visibilidad (se ignoraba): va por su ruta propia si cambia.
+    mutationFn: async (d: Record<string, unknown>) => {
+      const guardada = (isEdit ? await wikiApi.updatePage(editPage!.id, d) : await wikiApi.createPage(spaceId, d)).data
+      if (guardada.visibility !== visibility) await wikiApi.portalUpdatePage(guardada.id, { visibility })
+      return guardada
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['wiki-pages', spaceId] }); onClose() },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -305,7 +305,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
               ))}
             </div>
           </div>
-            <Button onClick={()=>mutate({title,slug,content:blocks,parent_id:parentId,is_published:true,visibility})} disabled={isPending||!title||!slug} loading={isPending}>
+            <Button onClick={()=>mutate({title,slug,content:blocks,parent_id:isEdit?editPage!.parent_id:parentId,sort_order:isEdit?(editPage!.sort_order ?? 0):0,is_published:isEdit?editPage!.is_published:true})} disabled={isPending||!title||!slug} loading={isPending}>
               {isPending?'Guardando...':(isEdit?'Guardar':'Crear página')}
             </Button>
           </div>
@@ -315,7 +315,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
   )
 }
 
-function PageTree({ pages, selectedId, onSelect, onNew, level=0 }: { pages: WikiPageT[]; selectedId?: string; onSelect: (p: WikiPageT) => void; onNew: (pid: string) => void; level?: number }) {
+function PageTree({ pages, selectedId, onSelect, onNew, level=0 }: { pages: WikiPaginaEnArbol[]; selectedId?: string; onSelect: (p: WikiPaginaEnArbol) => void; onNew: (pid: string) => void; level?: number }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:1}}>
       {pages.map(p=>(
@@ -360,14 +360,14 @@ function WikiTagsInline() {
   const qc = useQueryClient()
   const [space, setSpace] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<Tag | null>(null)
+  const [editing, setEditing] = useState<WikiEtiqueta | null>(null)
   const [form, setForm] = useState({ name: '', color: 'var(--accent)' })
 
-  const { data: spaces = [] } = useQuery<Space[]>({
+  const { data: spaces = [] } = useQuery<WikiEspacio[]>({
     queryKey: ['wiki-spaces-tags'],
     queryFn: () => wikiApi.spaces().then(r => r.data).catch(() => []),
   })
-  const { data: tags = [], isLoading } = useQuery<Tag[]>({
+  const { data: tags = [], isLoading } = useQuery<WikiEtiqueta[]>({
     queryKey: ['wiki-tags-inline', space],
     queryFn: () => space ? wikiApi.tags(space).then(r => r.data).catch(() => []) : [],
     enabled: !!space,
@@ -449,7 +449,7 @@ function WikiTagsInline() {
             <div key={tag.id} style={{display:'flex',alignItems:'center',gap:8,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-md)',padding:'10px 14px'}}>
               <div style={{width:10,height:10,borderRadius:'50%',background:tag.color||'var(--text-2)',flexShrink:0}}/>
               <span className="u-text1-base-600">{tag.name}</span>
-              <span className="u-text2-xs">{tag.pages_count||0} {traducir('wiki.paginas')}</span>
+              <span className="u-text2-xs">{tag.page_count} {traducir('wiki.paginas')}</span>
               <button onClick={()=>{setEditing(tag);setForm({name:tag.name||'',color:tag.color||'var(--accent)'});setShowForm(true)}}
                 style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)",padding:'0 2px'}}>✎</button>
               <button onClick={()=>{ openConfirmGlobal({ message: '¿Eliminar etiqueta?', onConfirm: () => del(tag.id), danger: true }) }}
@@ -472,29 +472,29 @@ export default function WikiPage() {
   const narrow = useMediaQuery('(max-width: 900px)')
 
   const qc = useQueryClient()
-  const [space,      setSpace]     = useState<Space | null>(null)
-  const [page,       setPage]      = useState<WikiPageT | null>(null)
+  const [space,      setSpace]     = useState<WikiEspacio | null>(null)
+  const [page,       setPage]      = useState<WikiPagina | null>(null)
   const [pageModal,  setPageModal] = useState(false)
-  const [editPage,   setEditPage]  = useState<WikiPageT | null>(null)
+  const [editPage,   setEditPage]  = useState<WikiPagina | null>(null)
   const [parentId,   setParentId]  = useState<string | null>(null)
   const [presentMode, setPresentMode] = useState(false)
   // Auditoria 2026-11 (#41): pantalla completa sin trampa de foco ni Esc.
   const presentRef = useDialogo<HTMLDivElement>(presentMode, () => setPresentMode(false))
   const [spaceModal, setSpaceModal]= useState(false)
   const [searchQ,    setSearchQ]   = useState('')
-  const [searchRes,  setSearchRes] = useState<WikiPageT[] | null>(null)
+  const [searchRes,  setSearchRes] = useState<WikiResultadoDeBusqueda[] | null>(null)
   const [spaceForm,  setSpaceForm] = useState({name:'',slug:'',description:'',project_id:'',is_public:false})
   const [showHistory, setShowHistory] = useState(false)
 
   const { data:projects=[] } = useQuery<Array<{ id?: string; name?: string }>>({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
-  const { data:versions=[], isLoading:lVer } = useQuery<Version[]>({
+  const { data:versions=[], isLoading:lVer } = useQuery({
     queryKey:['wiki-versions', page?.id],
     queryFn:()=>wikiApi.versions(page!.id).then(r=>r.data).catch(()=>[]),
     enabled:!!page?.id && showHistory,
   })
 
-    const { data:spaces=[],isLoading:lSpaces } = useQuery<Space[]>({queryKey:['wiki-spaces'],queryFn:()=>wikiApi.spaces().then(r=>r.data).catch(()=>[])})
-  const { data:pages=[],isLoading:lPages }   = useQuery<WikiPageT[]>({queryKey:['wiki-pages',space?.id],queryFn:()=>wikiApi.pages(space!.id).then(r=>r.data).catch(()=>[]),enabled:!!space})
+    const { data:spaces=[],isLoading:lSpaces } = useQuery<WikiEspacio[]>({queryKey:['wiki-spaces'],queryFn:()=>wikiApi.spaces().then(r=>r.data).catch(()=>[])})
+  const { data:pages=[],isLoading:lPages }   = useQuery<WikiPaginaEnArbol[]>({queryKey:['wiki-pages',space?.id],queryFn:()=>wikiApi.pages(space!.id).then(r=>r.data).catch(()=>[]),enabled:!!space})
 
   const { mutate:createSpace,isPending:cSpace } = useMutation({
     mutationFn: (d: Record<string, unknown>)=>wikiApi.createSpace(d).then(r=>r.data),
@@ -503,11 +503,11 @@ export default function WikiPage() {
   })
   const { mutate:restoreVersion, isPending:restoring } = useMutation({
     mutationFn: (vn: number)=>wikiApi.restorePage(page!.id, vn).then(r=>r.data),
-    onSuccess: (d: { restored_to?: number; new_version?: number })=>{
+    onSuccess: (d, vn)=>{
       qc.invalidateQueries({ queryKey: ['wiki-pages', space?.id] })
       qc.invalidateQueries({ queryKey: ['wiki-versions', page?.id] })
       setShowHistory(false)
-      toast.info(`Restaurado a versión ${d.restored_to}. Nueva versión: ${d.new_version}`)
+      toast.info(`Restaurado a versión ${vn}. Nueva versión: ${d.new_version}`)
       // Recargar página actual
       if (page) wikiApi.getPage(page.id).then(r=>setPage(r.data)).catch(()=>{})
     },
@@ -520,9 +520,9 @@ export default function WikiPage() {
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
-  const openPage = async (p: WikiPageT) => {
-    const full = await wikiApi.getPage(p.id).then(r=>r.data).catch(()=>p)
-    setPage(full)
+  const openPage = async (p: { id: string }) => {
+    try { setPage((await wikiApi.getPage(p.id)).data) }
+    catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
   }
 
   const doSearch = async () => {
@@ -594,7 +594,7 @@ export default function WikiPage() {
                   onKeyDown={e => onKeyboardActivate(e, () => { setSpace(s); setPage(null) })}
                   style={{padding:'8px 10px',borderRadius:'var(--radius-sm)',cursor:'pointer',marginBottom:2,background:space?.id===s.id?'var(--accent-muted)':'transparent',color:space?.id===s.id?'var(--accent)':'var(--text-1)',fontSize: "var(--text-base)"}}>
                   <div style={{fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>📁 {s.name}</div>
-                  <div className="u-text3-xs">{s.page_count||0} {traducir('wiki.paginas')}</div>
+                  <div className="u-text3-xs">{s.page_count} {traducir('wiki.paginas')}</div>
                 </div>
               ))
             }
@@ -697,7 +697,7 @@ export default function WikiPage() {
                 </div>
                 {i===0
                   ? <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,background:'var(--accent-muted)',color:'var(--accent)'}}>Actual</span>
-                  : <button onClick={()=>{ openConfirmGlobal({ message: `¿Restaurar a versión ${v.version_num}? Esto creará una nueva versión con el contenido anterior.`, onConfirm: () => restoreVersion(v.version_num ?? 0), danger: true }) }}
+                  : <button onClick={()=>{ openConfirmGlobal({ message: `¿Restaurar a versión ${v.version_num}? Esto creará una nueva versión con el contenido anterior.`, onConfirm: () => restoreVersion(v.version_num), danger: true }) }}
                       disabled={restoring}
                       style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
                       {restoring?'...':'Restaurar'}

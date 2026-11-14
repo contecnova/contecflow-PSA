@@ -31,6 +31,7 @@ from app.models.revenue import (
 from app.models.financial import ProjectMilestone
 from app.models.project import Project
 from app.core import timeutil
+from app.core.paginacion import Pagina, Paginacion, paginar
 from app.core.errores import ErrorDeDominio
 
 # Un dato que falta —un proyecto sin tarifa— no puede ser silencio: quien opera
@@ -231,7 +232,8 @@ def list_entries(
     contract_id: Optional[str] = None,
     year: Optional[int] = None,
     month: Optional[int] = None,
-):
+    pagina: Optional[Paginacion] = None,
+) -> Pagina:
     q = db.query(RevenueEntry)
     if contract_id:
         q = q.filter(RevenueEntry.rev_contract_id == contract_id)
@@ -239,7 +241,7 @@ def list_entries(
         q = q.filter(RevenueEntry.period_year == year)
     if month:
         q = q.filter(RevenueEntry.period_month == month)
-    return q.order_by(RevenueEntry.created_at.desc()).all()
+    return paginar(q.order_by(RevenueEntry.created_at.desc(), RevenueEntry.id), pagina, "revenue.entries")
 
 
 def _create_entry(

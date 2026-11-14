@@ -11,11 +11,12 @@ import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { userCostsApi, apiErrorMsg, unwrapList } from '../services/api'
+import type { PerfilDeCoste, PresetDePais, ResumenDeCostes } from '../services/api/tipos-finanzas'
 import { Button, Modal, Spinner, EmptyState, Input} from '../components/ui'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
-import { openConfirmGlobal } from '../context/ConfirmContext'
+import { confirmar } from '../context/ConfirmContext'
 import { Wallet, Globe, History, Plus } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -23,10 +24,11 @@ import StatusBadge from '../components/ui/StatusBadge'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { SELECTOR_LIST_SIZE } from '../constants/pagination'
 
-type CountryRow = { [k: string]: unknown; id?: string; country_code?: string; country_name?: string; currency?: string; employer_cost_pct?: number; productive_hours_year?: number; is_default?: boolean; notes?: string }
-type SummaryRow = { [k: string]: unknown; user_id: string; full_name?: string; department?: string; cost_per_hour?: number; source?: string }
+/** Un preset (serialize_country) o uno nuevo a medio rellenar. */
+type CountryRow = Partial<PresetDePais>
+type SummaryRow = ResumenDeCostes['users'][number]
 type UserRow = { [k: string]: unknown; id: string; full_name?: string }
-type ProfileRow = { [k: string]: unknown; id: string; valid_from?: string; valid_to?: string; is_active?: boolean; notes?: string; gross_annual_salary?: number; currency?: string; employer_cost_pct?: number; productive_hours_year?: number; cost_per_hour?: number; total_annual_cost?: number }
+type ProfileRow = PerfilDeCoste
 
 
 
@@ -40,14 +42,14 @@ export default function UserCostsPage() {
   const [historyUser, setHistoryUser] = useState<UserRow | null>(null) // user
   const [search, setSearch] = useState('')
 
-  const { data: summary, isLoading: loadingSummary } = useQuery<{ users?: SummaryRow[]; users_with_cost?: number; users_missing_cost?: number; avg_cost_per_hour?: number }>({
+  const { data: summary, isLoading: loadingSummary } = useQuery<ResumenDeCostes>({
     queryKey: ['user-costs-summary'],
-    queryFn: () => userCostsApi.summary(undefined).then((r: { data: { users?: SummaryRow[] } }) => r.data),
+    queryFn: () => userCostsApi.summary().then(r => r.data),
   })
 
   const { data: countries = [], isLoading: loadingCountries } = useQuery<CountryRow[]>({
     queryKey: ['user-costs-countries'],
-    queryFn: () => userCostsApi.listCountries().then((r: { data: CountryRow[] }) => r.data),
+    queryFn: () => userCostsApi.listCountries().then(r => r.data),
   })
 
   const { data: users = [] } = useQuery<UserRow[]>({
@@ -57,7 +59,7 @@ export default function UserCostsPage() {
 
   const seedCountriesMut = useMutation({
     mutationFn: (force: boolean) => userCostsApi.seedCountries(force),
-    onSuccess: (r: { data: { created: number; updated: number } }) => {
+    onSuccess: (r) => {
       toast.success(`Países cargados: +${r.data.created}, actualizados ${r.data.updated}`)
       qc.invalidateQueries({ queryKey: ['user-costs-countries'] })
     },
@@ -320,7 +322,7 @@ type ProfileForm = {
   notes: string
 }
 
-function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: UserRow; countries: CountryRow[]; existing?: ProfileRow & { country_code?: string; extra_annual_costs?: number }; onClose: () => void; onSaved: () => void }) {
+function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: UserRow; countries: CountryRow[]; existing?: ProfileRow; onClose: () => void; onSaved: () => void }) {
   const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
   const toast = useToast()
@@ -491,10 +493,11 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
 
   const remove = async () => {
     if (preset.is_default) return
-    const ok = await (openConfirmGlobal as unknown as (opts: Record<string, unknown>) => unknown)({
+    // `openConfirmGlobal` no devuelve nada: con él `ok` era siempre undefined y el override no se borraba nunca.
+    const ok = await confirmar({
       title: 'Eliminar override',
       message: `¿Eliminar el override de ${preset.country_name}? Volverá a usarse el predefinido.`,
-      variant: 'danger', confirmLabel: 'Eliminar',
+      danger: true, confirmLabel: 'Eliminar',
     })
     if (!ok) return
     try {
@@ -551,7 +554,7 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
   const { t } = useAppLang()
   const { data: profiles = [], isLoading } = useQuery<ProfileRow[]>({
     queryKey: ['user-costs-history', user.id],
-    queryFn: () => userCostsApi.listProfiles(user.id).then((r: { data: ProfileRow[] }) => r.data),
+    queryFn: () => userCostsApi.listProfiles(user.id).then(r => r.data),
   })
   return (
     <Modal open onClose={onClose} title={`Histórico — ${user.full_name}`} width={620}>

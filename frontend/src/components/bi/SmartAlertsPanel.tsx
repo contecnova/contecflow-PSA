@@ -5,50 +5,11 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { biSmartAlertsApi } from '../../services/api'
+import type { AlertaDisparadaBi, ReglaDeAlertaBi } from '../../services/api/tipos-bi'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import { STALE_10_MIN_MS, STALE_SHORT_MS } from '../../constants/timings'
-
-// TODO type: biSmartAlertsApi payloads — needs shared types
-interface AlertRule {
-  id: string | number
-  name: string
-  metric_key: string
-  condition: string
-  severity: string
-  [k: string]: unknown
-}
-
-interface CorrelatedMetric {
-  metric_key?: string
-  [k: string]: unknown
-}
-
-interface AlertHistoryEntry {
-  id: string | number
-  rule_id?: string | number
-  fired_at?: string
-  severity?: string
-  message?: string
-  acknowledged?: boolean
-  rule_name?: string
-  metric_key?: string
-  condition?: string
-  triggered_at?: string
-  correlated?: CorrelatedMetric[]
-  [k: string]: unknown
-}
-
-interface SupportedMetric {
-  key: string
-  label: string
-}
-
-interface SupportedMetrics {
-  metrics?: SupportedMetric[]
-  conditions?: string[]
-}
 
 const S: Record<string, React.CSSProperties> = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
@@ -67,19 +28,19 @@ export default function SmartAlertsPanel() {
   const [severity, setSeverity] = useState<string>('warning')
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
 
-  const { data: rules } = useQuery<{ items?: AlertRule[] }>({
+  const { data: rules } = useQuery({
     queryKey: ['bi-alert-rules', tick],
-    queryFn: () => biSmartAlertsApi.listRules().then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biSmartAlertsApi.listRules().then(r => r.data).catch(() => ({ items: [] as ReglaDeAlertaBi[], count: 0 })),
     staleTime: STALE_SHORT_MS,
   })
-  const { data: history } = useQuery<{ items?: AlertHistoryEntry[] }>({
+  const { data: history } = useQuery({
     queryKey: ['bi-alert-history', tick],
-    queryFn: () => biSmartAlertsApi.getHistory(50).then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biSmartAlertsApi.getHistory(50).then(r => r.data).catch(() => ({ items: [] as AlertaDisparadaBi[], count: 0 })),
     staleTime: STALE_SHORT_MS,
   })
-  const { data: supported } = useQuery<SupportedMetrics>({
+  const { data: supported } = useQuery({
     queryKey: ['bi-alert-supported-metrics'],
-    queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data).catch(() => ({ metrics: [], conditions: [] })),
+    queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data).catch(() => null),
     staleTime: STALE_10_MIN_MS,
   })
 
@@ -94,13 +55,13 @@ export default function SmartAlertsPanel() {
       setTick(x => x + 1)
     } catch (_) { /* ignore */ }
   }
-  async function deleteRule(id: AlertRule['id']) {
+  async function deleteRule(id: ReglaDeAlertaBi['id']) {
     try { await biSmartAlertsApi.deleteRule(id); setTick(x => x + 1) } catch (_) { /* ignore */ }
   }
   async function seedDefaults() {
     try { await biSmartAlertsApi.seedDefaults(); setTick(x => x + 1) } catch (_) { /* ignore */ }
   }
-  async function ack(id: AlertHistoryEntry['id']) {
+  async function ack(id: AlertaDisparadaBi['id']) {
     try { await biSmartAlertsApi.acknowledge(id); setTick(x => x + 1) } catch (_) { /* ignore */ }
   }
 
@@ -121,7 +82,8 @@ export default function SmartAlertsPanel() {
               {(supported?.metrics || [{ key: 'revenue', label: 'Revenue' }]).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
             <select value={condition} onChange={e => setCondition(e.target.value)} style={{ ...S.input, width: 'auto' }}>
-              {(supported?.conditions || ['trend_down', 'trend_up', 'anomaly', 'threshold_above', 'threshold_below']).map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
+              {/* Sin campo de umbral: las condiciones `threshold_*` se crean desde Configuración (el servidor exige `threshold`). */}
+              {(supported?.conditions ?? ['trend_down', 'trend_up', 'anomaly']).filter(c => !c.startsWith('threshold_')).map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
             </select>
             <select value={severity} onChange={e => setSeverity(e.target.value)} style={{ ...S.input, width: 'auto' }}>
               {['info', 'warning', 'critical'].map(s => <option key={s} value={s}>{s}</option>)}
@@ -133,7 +95,7 @@ export default function SmartAlertsPanel() {
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: rule.severity === 'critical' ? COLOR.danger : rule.severity === 'warning' ? COLOR.warning : COLOR.success, flexShrink: 0 }} />
               <div className="u-flex1">
                 <div className="u-text1-sm-600">{rule.name}</div>
-                <div className="u-text3-2xs">{rule.metric_key} · {String(rule.condition || '').replace(/_/g, ' ')}</div>
+                <div className="u-text3-2xs">{rule.metric_key} · {rule.condition.replace(/_/g, ' ')}</div>
               </div>
               <span style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 'var(--radius-md)', background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)', fontWeight: 700 }}>
                 {rule.enabled ? 'activa' : 'pausada'}
@@ -167,7 +129,7 @@ export default function SmartAlertsPanel() {
               <div className="u-flex1">
                 <div className="u-text1-sm-600">{entry.rule_name}</div>
                 <div className="u-text3-2xs">
-                  {entry.metric_key} · {String(entry.condition || '').replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
+                  {entry.metric_key} · {entry.condition.replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
                 </div>
                 {entry.correlated && entry.correlated.length > 0 && (
                   <div style={{ fontSize: 'var(--text-2xs)', color: COLOR.warning, marginTop: 2 }}>

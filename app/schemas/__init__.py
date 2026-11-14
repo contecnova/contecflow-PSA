@@ -80,5 +80,5 @@ from app.schemas.tasks import (
 )
 from app.schemas.timesheets import ImputationLine, TimesheetOut, TimesheetReview, TimesheetSendBackPayload
 from app.schemas.training import CertificationIn, CourseIn, EnrollmentIn
-from app.schemas.users import UserBase, UserCreate, UserLoad, UserPublic, UserSelfUpdate, UserUpdate, UserWithRate
+from app.schemas.users import PersonaInterna, PersonaVisible, UserBase, UserCreate, UserLoad, UserPublic, UserSelfUpdate, UserUpdate, UserWithRate
 

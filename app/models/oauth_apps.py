@@ -28,7 +28,7 @@ class OAuthApp(Base):
     scopes              = Column(Text, nullable=False, default='["read"]')  # JSON
     is_active           = Column(Boolean, default=True)
     is_first_party      = Column(Boolean, default=False)
-    owner_id            = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    owner_id            = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at          = Column(DateTime(timezone=True), default=_utcnow)
     updated_at          = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 

@@ -74,7 +74,7 @@ def test_el_portal_recibe_sugerencias_publicas_y_cuenta_el_desvio(db):
     from app.models.service_desk import KBArticle
     from app.services.sla_service import get_client_from_token  # noqa: F401
     from app.core.config import settings
-    from jose import jwt
+    import jwt
 
     publico = _articulo(db, "KB-0001")
     _articulo(db, "KB-0002", titulo="VPN: claves internas del concentrador", is_public=False)

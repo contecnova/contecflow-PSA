@@ -18,26 +18,6 @@ import { useToast } from '../../context/ToastContext'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 
-// TODO type: biO365Api config payload — needs shared type
-interface O365Config {
-  tenant_id?: string
-  client_id?: string
-  enabled?: boolean
-  secret_puesto?: boolean
-  reports?: string[]
-  last_sync_at?: string | null
-}
-
-interface Adopcion {
-  total_users?: number
-  active_users?: number
-  adoption_rate?: number
-  by_product?: Record<string, number>
-  fetched_at?: string | null
-}
-
-interface ResultadoSync { ok: boolean; error?: string; synced?: { report: string; ok: boolean; records?: number }[] }
-
 interface O365ConfigForm {
   tenant_id: string
   client_id: string
@@ -63,14 +43,14 @@ export default function BiO365Panel() {
   const [configForm,   setConfigForm]   = useState<O365ConfigForm>({ tenant_id: '', client_id: '', client_secret: '', enabled: true })
   const [configLoaded, setConfigLoaded] = useState<boolean>(false)
 
-  const { data: config } = useQuery<O365Config>({
+  const { data: config } = useQuery({
     queryKey: ['bi-o365-config'],
     queryFn:  () => biO365Api.getConfig().then(r => r.data),
   })
 
   useEffect(() => {
     if (config && !configLoaded) {
-      setConfigForm({ tenant_id: config.tenant_id ?? '', client_id: config.client_id ?? '', client_secret: '', enabled: config.enabled ?? true })
+      setConfigForm({ tenant_id: config.tenant_id, client_id: config.client_id, client_secret: '', enabled: config.enabled })
       setConfigLoaded(true)
     }
   }, [config, configLoaded])
@@ -81,7 +61,7 @@ export default function BiO365Panel() {
     enabled:  tab === 'reports',
   })
 
-  const { data: adoptionData } = useQuery<Adopcion>({
+  const { data: adoptionData } = useQuery({
     queryKey: ['bi-o365-adoption'],
     queryFn:  () => biO365Api.getAdoption().then(r => r.data),
     enabled:  tab === 'adoption',
@@ -98,9 +78,9 @@ export default function BiO365Panel() {
   })
 
   const syncMutation = useMutation({
-    mutationFn: () => biO365Api.triggerSync({}).then(r => r.data as ResultadoSync),
+    mutationFn: () => biO365Api.triggerSync({}).then(r => r.data),
     onSuccess:  (r) => {
-      const filas = (r.synced ?? []).reduce((n, x) => n + (x.records ?? 0), 0)
+      const filas = r.synced.reduce((n, x) => n + (x.records ?? 0), 0)
       if (r.ok) toast.success(t('bio365.sync_ok', { n: filas.toLocaleString(localeActivo()) }))
       else toast.error(t('bio365.sync_fallo', { error: r.error ?? '' }))
       qc.invalidateQueries({ queryKey: ['bi-o365-report'] })
@@ -111,7 +91,7 @@ export default function BiO365Panel() {
   })
   const puedeSincronizar = !!config?.enabled && !!config?.secret_puesto
 
-  const rows = reportData?.rows ?? reportData?.data ?? []
+  const rows = reportData?.rows ?? []
 
   const TAB_NAV = [
     { id: 'reports',  label: t('bio365.tab_informes') },
@@ -203,7 +183,7 @@ export default function BiO365Panel() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
               {([
                 ['bio365.usuarios', adoptionData.total_users.toLocaleString(localeActivo())],
-                ['bio365.activos', (adoptionData.active_users ?? 0).toLocaleString(localeActivo())],
+                ['bio365.activos', adoptionData.active_users.toLocaleString(localeActivo())],
                 ['bio365.adopcion', `${(adoptionData.adoption_rate ?? 0).toLocaleString(localeActivo())} %`],
               ] as const).map(([k, v]) => (
                 <div key={k} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', textAlign: 'center' }}>

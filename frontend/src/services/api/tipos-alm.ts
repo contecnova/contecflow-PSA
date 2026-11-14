@@ -174,6 +174,26 @@ export interface AlmPanel { kpis: AlmKpis; upcoming_renewals: AlmContrato[] }
 /** assign_license_record. */
 export interface AlmAsignacionDeLicencia { id: string; license_id: string; user_id: string | null }
 
+/** GET /alm/licenses/{id} (alm_service.get_license_record): la licencia con sus asignaciones activas. */
+export interface AlmLicenciaDetalle extends AlmLicencia {
+  assignments: Array<{
+    id: string
+    user_id: string | null
+    user_name: string | null
+    asset_id: string | null
+    asset_name: string | null
+    project_id: string | null
+    assigned_at: string
+    expires_at: string | null
+    notes: string | null
+  }>
+}
+
+/** GET /alm/assets/{id} (alm_service.get_asset_record): el activo con las licencias instaladas. */
+export interface AlmActivoDetalle extends AlmActivo {
+  licenses: Array<{ id: string; name: string; version: string | null }>
+}
+
 /** alm_ciclo_de_vida.historial. */
 export interface AlmCambioDeActivo {
   id: string
@@ -362,6 +382,49 @@ export interface SkillDelCatalogo {
 
 // ── Extensiones de cliente (app/services/client_service.py) ──────────────────
 
+/** client_service.get_client_summary: listado, alta y edicion de `/clients`. */
+export interface ClienteResumen {
+  id: string
+  name: string
+  short_name: string | null
+  tax_id: string | null
+  industry: string | null
+  status: string | null
+  contact_name: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  contact_role: string | null
+  website: string | null
+  address: string | null
+  city: string | null
+  country: string | null
+  account_manager_id: string | null
+  account_manager_name: string | null
+  payment_terms: string | null
+  credit_limit: number | null
+  currency: string | null
+  notes: string | null
+  is_active: boolean
+  projects_count: number
+  tickets_count: number
+  invoices_count: number
+  portal_users_count: number
+  created_at: string
+}
+
+/** client_service.get_client_detail (GET /clients/{id}): el resumen con sus relaciones. */
+export interface ClienteDetalle extends ClienteResumen {
+  projects: Array<{ id: string; code: string; name: string; status: string; start_date: string | null; end_date: string | null }>
+  contacts: Array<{ id: string; full_name: string; email: string | null; phone: string | null; job_title: string | null; role: string; is_primary: boolean }>
+  licenses: Array<{ link_id: string; license_id: string; name: string; vendor: string | null; status: string; expiry_date: string | null; total_seats: number | null; notes: string | null }>
+  contracts: Array<{ link_id: string; contract_id: string; reference: string | null; title: string | null; status: string; total_amount: number | null; start_date: string | null; end_date: string | null }>
+  /** Los 20 más recientes. */
+  tickets: Array<{ id: string; code: string; title: string; status: string; priority: string; created_at: string }>
+  portal_users: Array<{ id: string; full_name: string; email: string; job_title: string | null; is_active: boolean; project_id: string | null; last_login: string | null }>
+  /** _portal_config_out: la guardada o la de por defecto. */
+  portal_config: { enabled_modules: string[]; sd_without_project: boolean; sla_tier: string | null; max_portal_users: number | null; max_open_tickets: number | null }
+}
+
 /** list_client_projects / list_available_projects. `status` es el valor plano
  *  del enum ("active"); hasta 2026-11 llegaba "ProjectStatus.active". */
 export interface ClienteProyecto {
@@ -469,6 +532,55 @@ export interface PortalUsuarioCreado { id: string; email: string; project_ids: s
 
 /** clientes.update_client. */
 export interface PortalUsuarioActualizado { ok: boolean; project_ids: string[] }
+
+/** GET /portal/translations (branding_service.traducciones_del_portal): idioma → clave → texto. */
+export type PortalTraducciones = Record<string, Record<string, string>>
+
+/** portal_conversation_service/politicas.py `_policy_out`. */
+export interface PortalPoliticaDeConversacion {
+  id: string
+  organization_id: string
+  topic_type: string
+  is_active: boolean
+  requires_client_message_approval: boolean
+  requires_team_message_approval: boolean
+  redact_sensitive_content: boolean
+  allow_legacy_federation: boolean
+  assignment_mode: string
+  default_group_id: string | null
+  default_role_key: string | null
+  first_response_hours: number | null
+  escalation_hours: number | null
+  approval_role_key: string | null
+  approval_user_id: string | null
+  sensitive_keywords: string[]
+}
+
+/** portal_conversation_service/serializacion.py `_message_out` / `_legacy_message_out` (mismas claves). */
+export interface PortalMensajeDeConversacion {
+  id: string
+  source: 'native' | 'legacy_client_message'
+  conversation_id: string
+  project_id: string | null
+  parent_message_id: string | null
+  sender_type: 'team' | 'client' | 'system'
+  sender_name: string
+  sender_user_id: string | null
+  sender_client_id: string | null
+  message_type: string
+  body: string
+  raw_body: string | null
+  is_internal_note: boolean
+  classification: string
+  grc_status: string
+  is_redacted: boolean
+  moderation_notes: string | null
+  approval_request_id: string | null
+  legacy_message_id: string | null
+  created_at: string
+  delivered_at: string | null
+  read_at: string | null
+}
 
 /** serializacion._uat_test_cases_out. */
 export interface PortalCasoDePrueba {
@@ -639,8 +751,14 @@ export interface WikiEspacio {
   created_at: string | null
 }
 
-/** epics_service.serialize_page dentro de build_page_tree (arbol: `children`). No envia `visibility`. */
-export interface WikiPaginaEnArbol {
+/** POST /epics/wiki/spaces (epics_service.create_wiki_space). */
+export interface WikiEspacioCreado { id: string; name: string; slug: string; project_id: string | null }
+
+/** Quién ve la página (`WikiPageVisibilityIn`). */
+export type VisibilidadDeWiki = 'team' | 'portal' | 'public'
+
+/** epics_service.serialize_page (también PATCH /wiki/pages/{id}/visibility). */
+export interface WikiPaginaResumen {
   id: string
   space_id: string
   parent_id: string | null
@@ -648,12 +766,57 @@ export interface WikiPaginaEnArbol {
   slug: string
   is_published: boolean
   sort_order: number | null
+  visibility: VisibilidadDeWiki
   created_by: string | null
   updated_by: string | null
   created_at: string | null
   updated_at: string | null
+}
+
+/** epics_service.build_page_tree (GET /wiki/spaces/{id}/pages): arbol con `children`. */
+export interface WikiPaginaEnArbol extends WikiPaginaResumen {
   children: WikiPaginaEnArbol[]
 }
+
+/**
+ * Bloque del editor. El backend guarda la lista tal cual (`WikiPageIn.content: List`)
+ * y solo lee `content` de cada bloque para el texto buscable (blocks_to_text).
+ */
+export interface WikiBloque { type: string; content?: string }
+
+/** epics_service.serialize_page_full: detalle, alta y edicion. */
+export interface WikiPagina extends WikiPaginaResumen {
+  content: WikiBloque[]
+  content_text: string
+}
+
+/** epics_service.list_page_versions. */
+export interface WikiVersion {
+  id: string
+  version_num: number
+  title: string
+  change_note: string | null
+  created_by: string | null
+  created_at: string | null
+}
+
+/** POST /wiki/pages/{id}/restore/{n} (epics_service.restore_wiki_version). */
+export interface WikiRestauracion { restored: boolean; new_version: number }
+
+/** GET /wiki/search (epics_service.search_wiki_pages). */
+export interface WikiResultadoDeBusqueda {
+  id: string
+  title: string
+  space_id: string
+  slug: string
+  updated_at: string | null
+}
+
+/** GET /cmdb/wiki-tags/{space} (cmdb_service.list_wiki_tags). */
+export interface WikiEtiqueta { id: string; name: string; color: string; page_count: number }
+
+/** POST/PATCH /cmdb/wiki-tags (cmdb_service.create_wiki_tag / update_wiki_tag). */
+export interface WikiEtiquetaGuardada { id: string; name: string; color: string }
 
 /** GET /ws/ticket (endpoints/ws.py get_ws_ticket). */
 export interface TicketDeWebSocket { ticket: string; expires_in: number }

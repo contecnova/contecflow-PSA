@@ -7,6 +7,7 @@
 import type { AxiosResponse } from 'axios'
 import api from './_core'
 import type { CreationOptionsJSON, RequestOptionsJSON } from '../../lib/webauthn'
+import type { UserPublic } from './users'
 
 // ── Request / response payloads ──────────────────────────────────────────────
 
@@ -39,11 +40,12 @@ export interface ConfiguracionDeEntrada {
   organization: OrganizacionDeEntrada | null
 }
 
+/** `TokenResponse` (app/schemas/auth.py). */
 export interface LoginResponse {
   access_token?: string
   refresh_token?: string
   token_type?: 'bearer'
-  user?: Record<string, unknown>
+  user: UserPublic
   mfa_required?: boolean
   mfa_challenge_token?: string
   mfa_methods?: string[]

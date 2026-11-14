@@ -15,7 +15,8 @@ import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
-import { sdEscalationApi, sdNotificationTemplatesApi, sdGroupsApi, usersApi } from '../../services/api'
+import { sdEscalationApi, sdNotificationTemplatesApi, sdGroupsApi, usersApi, type UserListItem } from '../../services/api'
+import type { SdAviso, SdReglaDeEscalado, SdTextoDeAviso, SdVistaPreviaDeAviso } from '../../services/api/tipos-sd'
 import { PRIORITY_LABEL } from './sdUtils'
 import { RuntimeGroupEditor } from '../settings-sections/SettingsAdvancedSections'
 import { SLOW_INPUT_DEBOUNCE_MS } from '../../constants/timings'
@@ -25,15 +26,9 @@ const DISPARADORES = ['sla_at_risk', 'sla_breached', 'idle_hours', 'priority', '
 const ACCIONES = ['notify_manager', 'notify_group_lead', 'notify_custom', 'reassign_group', 'elevate_priority']
 const PRIORITY_LABEL_MAP = PRIORITY_LABEL as Record<string, string>
 
-type Regla = {
-  id: string; name: string; is_active: boolean; sort_order: number
-  trigger: string; action: string; applies_to_priority?: string | null
-  idle_hours_threshold?: number | null; group_id?: string | null
-  target_group_id?: string | null; notify_user_ids?: string | null; target_priority?: string | null
-}
-type Disparo = { id: string; rule_name?: string; ticket_number?: string; action_taken?: string; triggered_at?: string }
+type Regla = SdReglaDeEscalado
 type Cola = { id: string; name: string }
-type Persona = { id: string; full_name?: string }
+type Persona = UserListItem
 
 const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
   borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
@@ -65,21 +60,21 @@ export function EscalationConfig() {
   const toast = useToast()
   const [editando, setEditando] = useState<Regla | 'nueva' | null>(null)
 
-  const { data: reglas = [], isLoading } = useQuery<Regla[]>({
-    queryKey: ['sd-escalation'], queryFn: () => sdEscalationApi.list().then(r => r.data as Regla[]),
+  const { data: reglas = [], isLoading } = useQuery({
+    queryKey: ['sd-escalation'], queryFn: () => sdEscalationApi.list().then(r => r.data),
   })
-  const { data: disparos = [] } = useQuery<Disparo[]>({
-    queryKey: ['sd-escalation-logs'], queryFn: () => sdEscalationApi.logs(15).then(r => r.data as Disparo[]),
+  const { data: disparos = [] } = useQuery({
+    queryKey: ['sd-escalation-logs'], queryFn: () => sdEscalationApi.logs(15).then(r => r.data),
   })
   const { data: colas = [] } = useQuery<Cola[]>({
     queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
-  const { data: personas = [] } = useQuery<Persona[]>({
-    queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data as unknown as Persona[]),
+  const { data: personas = [] } = useQuery({
+    queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data),
   })
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['sd-escalation'] }) }
   const { mutate: guardar, isPending } = useMutation({
-    mutationFn: ({ id, ...d }: Record<string, unknown>) =>
+    mutationFn: ({ id, ...d }: Record<string, unknown>): Promise<unknown> =>
       id ? sdEscalationApi.update(String(id), d) : sdEscalationApi.create(d),
     onSuccess: () => { refrescar(); setEditando(null); toast.success(t('sd_cfg.esc_saved')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -272,8 +267,8 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
 }
 
 // ── Avisos ───────────────────────────────────────────────────────────────────
-type TextoIdioma = { subject: string; body_html: string; is_active: boolean; customized: boolean }
-type Aviso = { code: string; event: string; role: string; languages: Record<string, TextoIdioma> }
+type TextoIdioma = SdTextoDeAviso
+type Aviso = SdAviso
 const VARIABLES = ['ticket_number', 'ticket_title', 'ticket_status', 'ticket_priority', 'requester_name',
   'assignee_name', 'group_name', 'comment_author', 'comment_body', 'resolution', 'sla_due', 'link']
 
@@ -286,9 +281,9 @@ export function NotificationsConfig() {
   const [idioma, setIdioma] = useState('es')
   const [editando, setEditando] = useState<Aviso | null>(null)
 
-  const { data: avisos = [], isLoading } = useQuery<Aviso[]>({
+  const { data: avisos = [], isLoading } = useQuery({
     queryKey: ['sd-notification-templates'],
-    queryFn: () => sdNotificationTemplatesApi.list().then(r => r.data as Aviso[]),
+    queryFn: () => sdNotificationTemplatesApi.list().then(r => r.data),
   })
   const refrescar = () => qc.invalidateQueries({ queryKey: ['sd-notification-templates'] })
   const { mutate: guardar, isPending } = useMutation({
@@ -372,14 +367,14 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
   const [subject, setSubject] = useState(texto.subject)
   const [body, setBody] = useState(texto.body_html)
   const [activo, setActivo] = useState(texto.is_active)
-  const [vista, setVista] = useState<{ subject: string; body_html: string } | null>(null)
+  const [vista, setVista] = useState<SdVistaPreviaDeAviso | null>(null)
   const cuerpoRef = useRef<HTMLTextAreaElement>(null)
 
   // La vista previa se pide al servidor: es él quien sustituye y escapa.
   useEffect(() => {
     const h = setTimeout(() => {
       sdNotificationTemplatesApi.preview({ subject, body_html: body })
-        .then(r => setVista(r.data as { subject: string; body_html: string }))
+        .then(r => setVista(r.data))
         .catch(() => setVista(null))
     }, SLOW_INPUT_DEBOUNCE_MS)
     return () => clearTimeout(h)

@@ -11,30 +11,13 @@ import { Database } from 'lucide-react'
 import { COLOR, alpha } from '../constants/theme'
 import { useAppLang } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
-import { biIntelligenceApi, biPlatformApi, unwrapList, wsApi, apiWsUrl } from '../services/api'
+import { biIntelligenceApi, biPlatformApi, wsApi, apiWsUrl } from '../services/api'
+import type { DiferenciaDeInstantaneasBi } from '../services/api/tipos-bi'
 import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
 import { localeActivo } from '../utils/helpers'
 import { STALE_DEFAULT_MS, STALE_PREVIEW_MS, WS_STREAM_RECONNECT_MS } from '../constants/timings'
 import { DATA_PREVIEW_ROWS } from '../constants/pagination'
-
-interface ReportPresetItem {
-  id: string
-  name: string
-}
-
-
-interface LineageResponse {
-  edges?: unknown[]
-}
-
-interface SnapshotItem {
-  id: string | number
-}
-
-interface SnapshotDiff {
-  change_count?: number
-}
 
 interface StreamFrame {
   type?: string
@@ -64,15 +47,14 @@ export default function DataPlatformPage(): JSX.Element {
 
   const [phase3Tick, setPhase3Tick] = useState(0)
   const [datasetKey, setDatasetKey] = useState('olap.fact_projects')
-  const [snapshotDiff, setSnapshotDiff] = useState<SnapshotDiff | null>(null)
+  const [snapshotDiff, setSnapshotDiff] = useState<DiferenciaDeInstantaneasBi | null>(null)
 
-  const { data: reportPresetsRaw } = useQuery({
+  const { data: reportPresets = [] } = useQuery({
     queryKey: ['data-platform-report-presets'],
     // El interceptor ya deja la lista en `r.data` (envelope APIListResponse).
-    queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data as ReportPresetItem[]).catch(() => [] as ReportPresetItem[]),
+    queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data).catch(() => []),
     staleTime: STALE_DEFAULT_MS,
   })
-  const reportPresets = unwrapList(reportPresetsRaw) as ReportPresetItem[]
   const { data: previewData, refetch: refetchPreview } = useQuery({
     queryKey: ['data-platform-preview', presetId],
     queryFn: () => biIntelligenceApi.previewPreset({ preset_id: presetId, limit: DATA_PREVIEW_ROWS }).then(r => r.data).catch(() => null),
@@ -83,15 +65,14 @@ export default function DataPlatformPage(): JSX.Element {
     queryFn: () => biIntelligenceApi.deliveryOverview().then(r => r.data).catch(() => null),
     staleTime: STALE_PREVIEW_MS,
   })
-    const { data: phase3LineageRaw, refetch: refetchPhase3Lineage } = useQuery({
+    const { data: phase3Lineage, refetch: refetchPhase3Lineage } = useQuery({
     queryKey: ['data-platform-lineage', phase3Tick],
     queryFn: () => biPlatformApi.lineage().then(r => r.data).catch(() => ({ edges: [], audit: [] })),
     staleTime: STALE_PREVIEW_MS,
   })
-  const phase3Lineage = (phase3LineageRaw ?? { edges: [] }) as LineageResponse
-  const { data: phase3SnapshotsRaw, refetch: refetchPhase3Snapshots } = useQuery({
+  const { data: phase3SnapshotItems = [], refetch: refetchPhase3Snapshots } = useQuery({
     queryKey: ['data-platform-snapshots', datasetKey, phase3Tick],
-    queryFn: () => biPlatformApi.listSnapshots(datasetKey).then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biPlatformApi.listSnapshots(datasetKey).then(r => r.data).catch(() => []),
     staleTime: STALE_PREVIEW_MS,
   })
   
@@ -120,8 +101,7 @@ export default function DataPlatformPage(): JSX.Element {
     return () => { closed = true; if (ws) ws.close() }
   }, [streamLive])
 
-  const phase3LineageEdges = phase3Lineage?.edges || []
-  const phase3SnapshotItems = unwrapList(phase3SnapshotsRaw) as SnapshotItem[]
+  const phase3LineageEdges = phase3Lineage?.edges ?? []
 
   async function handleCreateSnapshot() {
     try {
@@ -193,7 +173,7 @@ export default function DataPlatformPage(): JSX.Element {
                 <button onClick={handleDiffLastSnapshots} style={S.btnSecondary}>{t('dataplatform.diff_ultimos_2')}</button>
                 <button onClick={() => refetchPhase3Lineage()} style={S.btnSecondary}>{t('dataplatform.refrescar')}</button>
               </div>
-              {snapshotDiff && <div className="u-text3-xs">{t('dataplatform.cambios', { n: snapshotDiff?.change_count ?? 0 })}</div>}
+              {snapshotDiff && <div className="u-text3-xs">{t('dataplatform.cambios', { n: snapshotDiff.change_count })}</div>}
             </div>
           </div>
         </div>

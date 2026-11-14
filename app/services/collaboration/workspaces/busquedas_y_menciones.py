@@ -147,13 +147,17 @@ def mention_suggestions(
                 ).all()
             }
 
-    consulta = db.query(User).filter(User.organization_id == org)
+    from app.services import politica_de_visibilidad as _vis
+    # Segunda auditoría 2026-11: el subcontratado solo menciona a la gente de
+    # sus proyectos, y sin ver su correo.
+    consulta = _vis.acotar_personas(db.query(User).filter(User.organization_id == org), db, user)
+    ve_contacto = _vis.ve_contacto_ajeno(user)
     if q:
         ql = q.lstrip("@").lower()
         consulta = consulta.filter(or_(
             func.lower(User.username).like(f"{ql}%"),
             func.lower(User.full_name).like(f"%{ql}%"),
-            func.lower(User.email).like(f"{ql}%"),
+            *([func.lower(User.email).like(f"{ql}%")] if ve_contacto else []),
         ))
     filas = consulta.limit(_CANDIDATOS_A_MENCIONAR).all()
     if ids_permitidos is not None:
@@ -165,7 +169,7 @@ def mention_suggestions(
             "id": u.id,
             "username": getattr(u, "username", None),
             "full_name": getattr(u, "full_name", None) or getattr(u, "username", None),
-            "email": u.email,
+            "email": u.email if ve_contacto else None,
         }
         for u in filas[:limit]
     ]

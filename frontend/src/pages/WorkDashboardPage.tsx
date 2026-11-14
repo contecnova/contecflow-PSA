@@ -2,6 +2,9 @@ import { CSSProperties, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, analyticsApi, approvalsApi, expensesApi, absencesApi } from '../services/api'
+import type { FilaDeMetrica } from '../services/api/tipos-analitica'
+import type { Absence } from '../services/api/tipos-personas'
+import type { Gasto } from '../services/api/tipos-finanzas'
 import {
   Clock, Plus, Timer, Ticket, CheckCircle2, AlertTriangle, Calendar,
   Bell, Wallet, Plane, ArrowUpRight, ArrowDownRight, Minus, ArrowRight,
@@ -18,10 +21,8 @@ import { STALE_DEFAULT_MS } from '../constants/timings'
 import { COUNT_ONLY_PAGE_SIZE, FULL_LIST_SIZE } from '../constants/pagination'
 
 type TaskStatResponse = { open: number; overdue: number; done: number }
-type HourRow = { label?: string; value?: number }
+type HourRow = FilaDeMetrica
 type ApprovalItem = { id: string | number }
-type ExpenseItem = { id: string | number }
-type AbsenceItem = { status?: string }
 type DashboardTrendRow = {
   label: string
   hours: number
@@ -184,7 +185,7 @@ export default function WorkDashboardPage(): JSX.Element {
     queryKey: ['work-dash-my-week', userId],
     queryFn: async (): Promise<number> => {
       const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfWeekIso(), date_to: new Date().toISOString().slice(0, 10) })
-      return ((r.data?.rows as Array<{ value?: number }> | undefined) || []).reduce((s: number, x) => s + (x.value || 0), 0)
+      return r.data.rows.reduce((s: number, x) => s + (x.value || 0), 0)
     },
     enabled: !!userId, staleTime: STALE_DEFAULT_MS,
   })
@@ -193,7 +194,7 @@ export default function WorkDashboardPage(): JSX.Element {
     queryKey: ['work-dash-my-month', userId],
     queryFn: async (): Promise<number | null> => {
       const r = await analyticsApi.query('hours_by_week', { user_id: userId, date_from: startOfMonthIso(), date_to: new Date().toISOString().slice(0, 10) })
-      return ((r.data?.rows as Array<{ value?: number }> | undefined) || []).reduce((s: number, x) => s + (x.value || 0), 0)
+      return r.data.rows.reduce((s: number, x) => s + (x.value || 0), 0)
     },
     enabled: !!userId, staleTime: STALE_DEFAULT_MS,
   })
@@ -204,11 +205,10 @@ export default function WorkDashboardPage(): JSX.Element {
     staleTime: STALE_DEFAULT_MS,
   })
 
-  const { data: expenses = [], isLoading: le, isError: e4 } = useQuery<ExpenseItem[]>({
+  const { data: expenses = [], isLoading: le, isError: e4 } = useQuery<Gasto[]>({
     queryKey: ['work-dash-expenses'],
-    queryFn: () => expensesApi.my({ status: 'pending' }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }),
+    // `pending` es alias de `submitted` en el backend (expense_service._STATUS_ALIASES).
+    queryFn: () => expensesApi.my({ status: 'submitted' }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
@@ -216,16 +216,14 @@ export default function WorkDashboardPage(): JSX.Element {
     queryKey: ['work-dash-hours-trend', userId],
     queryFn: async (): Promise<HourRow[]> => {
       const r = await analyticsApi.query('hours_by_month', { ...dateRange(180), ...(userId ? { user_id: userId } : {}) })
-      return (r.data?.rows as HourRow[] | undefined) || []
+      return r.data.rows
     },
     enabled: !!userId, staleTime: STALE_DEFAULT_MS,
   })
 
-  const { data: absences = [], isLoading: lab, isError: e6 } = useQuery<AbsenceItem[]>({
+  const { data: absences = [], isLoading: lab, isError: e6 } = useQuery<Absence[]>({
     queryKey: ['work-dash-absences'],
-    queryFn: () => absencesApi.my({}).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }),
+    queryFn: () => absencesApi.my({}).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
@@ -241,7 +239,7 @@ export default function WorkDashboardPage(): JSX.Element {
   const hoursWeek    = (myWeekHours ?? 0) as number
   const pendingApprv = approvals.length
   const pendingExp   = expenses.length
-  const pendingAbsences = absences.filter((absence: AbsenceItem) => absence.status === 'pending').length
+  const pendingAbsences = absences.filter((absence) => absence.status === 'pending').length
 
   const hoursTarget  = (user?.weekly_capacity_hours ?? 40) as number
   const hoursWeekPct = Math.min(Math.round((hoursWeek / Math.max(hoursTarget, 1)) * 100), 100)

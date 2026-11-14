@@ -5,6 +5,8 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { projectsApi, projectChangesApi, cabApi } from '../services/api'
+import type { CambioEnCab } from '../services/api/tipos-cambios'
+import type { SolicitudDeCambio } from '../services/api/tipos-proyectos'
 import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -18,7 +20,6 @@ import { alpha } from '../constants/theme'
 import DsBadge from '../components/ui/StatusBadge'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-type ImpactLevel = 'low' | 'medium' | 'high' | 'critical' | string
 type ChangeStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'implemented' | string
 type MainTab = 'changes' | 'cab'
 type ChangesTab = 'project' | 'pending'
@@ -27,49 +28,6 @@ type ProjectPick = {
   id: string | number
   code?: string
   name?: string
-}
-
-type ChangeRequest = {
-  id: string | number
-  code?: string
-  project_id: string | number
-  project_code?: string
-  project_name?: string
-  title: string
-  description?: string
-  justification?: string
-  impact?: ImpactLevel
-  cost_impact?: number
-  schedule_impact_days?: number
-  scope_impact?: string
-  requester_name?: string
-  requester?: string
-  owner_name?: string
-  status?: ChangeStatus
-  resolution_notes?: string
-  votes?: { approve?: number; reject?: number; total?: number }
-  my_vote?: string
-}
-
-type ChangesSummary = {
-  total?: number
-  pending?: number
-  approved?: number
-  total_cost_impact?: number
-  total_schedule_impact?: number
-}
-
-type ChangesData = {
-  change_requests?: ChangeRequest[]
-  summary?: ChangesSummary
-}
-
-type MaintenanceWindow = {
-  id: string | number
-  name?: string
-  start_dt?: string
-  end_dt?: string
-  environment?: string
 }
 
 type RoleAuth = {
@@ -119,7 +77,7 @@ const reviewSchema = z.object({
 }).superRefine((values, ctx) => {
   if (!values.approved && !values.resolution_notes) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['resolution_notes'],
       message: 'Las notas de resolucion son obligatorias al rechazar',
     })
@@ -131,7 +89,7 @@ function StatusBadge({ status }: { status?: ChangeStatus }) {
   return <DsBadge color={cfg.color}>{cfg.label}</DsBadge>
 }
 
-function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; projectId: string | number; onClose: () => void }) {
+function CRFormModal({ cr, projectId, onClose }: { cr?: SolicitudDeCambio | null; projectId: string | number; onClose: () => void }) {
   const fmtMoneda = useFormatoMoneda()
   const t = useAppT() as (key: string) => string
   const idPrefix = useId()
@@ -220,7 +178,7 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: ChangeRequest | null; pr
   )
 }
 
-function ReviewCRModal({ cr, projectId, onClose }: { cr: ChangeRequest; projectId: string | number; onClose: () => void }) {
+function ReviewCRModal({ cr, projectId, onClose }: { cr: SolicitudDeCambio; projectId: string | number; onClose: () => void }) {
   const t = useAppT() as (key: string) => string
   const idPrefix = useId()
   const toast = useToast()
@@ -280,7 +238,7 @@ function CABBoard() {
   const t = useAppT() as (key: string) => string
   const { hasRole } = useAuth() as RoleAuth
   // Cerrar es de admin en el servidor. Contra el recuento, o con empate, pide motivo (revisión 2026-11).
-  const cerrar = async (cr: ChangeRequest, decision: 'approved' | 'rejected') => {
+  const cerrar = async (cr: CambioEnCab, decision: 'approved' | 'rejected') => {
     const aFavor = cr.votes?.approve ?? 0, enContra = cr.votes?.reject ?? 0
     const mayoria = aFavor > enContra ? 'approved' : enContra > aFavor ? 'rejected' : null
     if (decision === mayoria) { close({ id: cr.id, decision }); return }
@@ -295,13 +253,13 @@ function CABBoard() {
   }
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: pendingCRs = [], isLoading } = useQuery<ChangeRequest[]>({
+  const { data: pendingCRs = [], isLoading } = useQuery({
     queryKey: ['cab-pending'],
-    queryFn: () => cabApi.changes().then(r => (r.data?.items ?? r.data ?? []) as ChangeRequest[]),
+    queryFn: () => cabApi.changes().then(r => r.data),
   })
-  const { data: windows = [] } = useQuery<MaintenanceWindow[]>({
+  const { data: windows = [] } = useQuery({
     queryKey: ['maintenance-windows'],
-    queryFn: () => cabApi.windows().then(r => (r.data?.items ?? r.data ?? []) as MaintenanceWindow[]),
+    queryFn: () => cabApi.windows().then(r => r.data),
   })
   const { mutate: vote, isPending: _saving } = useMutation({
     mutationFn: ({ id, vote, comment }: { id: string | number; vote: 'approve' | 'reject' | 'abstain'; comment?: string }) => cabApi.vote(id, { vote, comment }),
@@ -391,42 +349,42 @@ export default function ChangesPage(): JSX.Element {
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState<string | number>('')
   const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState<ChangeRequest | null>(null)
-  const [reviewing, setReviewing] = useState<ChangeRequest | null>(null)
+  const [editing, setEditing] = useState<SolicitudDeCambio | null>(null)
+  const [reviewing, setReviewing] = useState<SolicitudDeCambio | null>(null)
   const [tab, setTab] = useState<ChangesTab>('project')
 
   const { data: projects = [] } = useQuery<ProjectPick[]>({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => (r.data ?? []) as ProjectPick[]) })
 
-  const { data: changesData, isLoading } = useQuery<ChangesData>({
+  const { data: changesData, isLoading } = useQuery({
     queryKey: ['changes', selectedProject],
-    queryFn: () => projectChangesApi.list(selectedProject).then(r => r.data as ChangesData),
+    queryFn: () => projectChangesApi.list(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
 
-  const { data: allPending = [] } = useQuery<ChangeRequest[]>({
+  const { data: allPending = [] } = useQuery({
     queryKey: ['all-pending-crs'],
-    queryFn: () => projectChangesApi.allPending().then(r => (r.data?.items ?? r.data ?? []) as ChangeRequest[]),
+    queryFn: () => projectChangesApi.allPending().then(r => r.data),
     enabled: hasRole('admin', 'pm') && tab === 'pending',
   })
 
   const { mutate: submit, isPending: saving } = useMutation({
-    mutationFn: (cr: ChangeRequest) => projectChangesApi.submit(cr.project_id, cr.id),
+    mutationFn: (cr: SolicitudDeCambio) => projectChangesApi.submit(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['changes', selectedProject] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: implement } = useMutation({
-    mutationFn: (cr: ChangeRequest) => projectChangesApi.implement(cr.project_id, cr.id),
+    mutationFn: (cr: SolicitudDeCambio) => projectChangesApi.implement(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['changes', selectedProject] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: del } = useMutation({
-    mutationFn: (cr: ChangeRequest) => projectChangesApi.delete(cr.project_id, cr.id),
+    mutationFn: (cr: SolicitudDeCambio) => projectChangesApi.delete(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['changes', selectedProject] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const crs = changesData?.change_requests || []
-  const summary = changesData?.summary || {}
+  const summary = changesData?.summary
 
   return (
     <PageShell>
@@ -470,7 +428,7 @@ export default function ChangesPage(): JSX.Element {
             {selectedProject && <Button onClick={() => setShowCreate(true)} icon="＋">{t('changes.nueva_cr')}</Button>}
           </div>
 
-          {selectedProject && (summary.total ?? 0) > 0 && (
+          {selectedProject && (summary?.total ?? 0) > 0 && (
             <div style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
               {[
                 { label: 'Total CRs', value: summary.total, color: 'var(--text-2)' },

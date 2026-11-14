@@ -24,6 +24,11 @@ vi.mock('../services/api', () => ({
   default: { get: (url: string) => Promise.resolve({ data: respuestas[url] ?? [] }) },
   unwrapList: (r: { data: unknown }) => r.data,
   currencyApi: { rates: () => Promise.resolve({ data: [] }), upsert: vi.fn() },
+  profitabilityApi: {
+    summary: () => Promise.resolve({ data: respuestas['/profitability/summary'] }),
+    projects: () => Promise.resolve({ data: respuestas['/profitability/projects'] }),
+  },
+  invoicesApi: { list: () => Promise.resolve({ data: [] }) },
   userCostsApi: { summary: () => Promise.resolve({ data: null }) },
 }))
 vi.mock('../services/api/todasLasPaginas', () => ({ todasLasPaginas: () => Promise.resolve({ data: [] }) }))

@@ -10,15 +10,13 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 
-type Carga = { run_at: string; status: string; detail: Record<string, unknown> } | null
-type Estado = { last_run: Carga; last_ok: Carga; company_rows: Record<string, number> }
 
 export default function EstadoDelAlmacen() {
   const { t } = useAppLang()
   const { user } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data } = useQuery<Estado>({ queryKey: ['olap-status'], queryFn: () => analyticsApi.olapStatus().then(r => r.data) })
+  const { data } = useQuery({ queryKey: ['olap-status'], queryFn: () => analyticsApi.olapStatus().then(r => r.data) })
   const cargar = useMutation({
     mutationFn: () => analyticsApi.olapRefresh(),
     onSuccess: () => { toast.success(t('dataexplorer.almacen_cargado')); qc.invalidateQueries({ queryKey: ['olap-status'] }) },

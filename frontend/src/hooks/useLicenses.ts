@@ -1,41 +1,37 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { licensesApi } from '../services/api'
+import type { AlmLicencia, AlmLicenciaDetalle } from '../services/api/tipos-alm'
 
 const STALE = 2 * 60 * 1000
 
-export interface License {
-  id: string
-  product?: string
-  status?: string
-  [extra: string]: unknown
-}
+/** Lo que manda el backend (services/api/tipos-alm). */
+export type License = AlmLicencia
 
 export type LicenseListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 export type AssignArgs = { id: string; data: Record<string, unknown> }
 
-export function useLicenses(params: LicenseListParams = {}): UseQueryResult<unknown> {
+export function useLicenses(params: LicenseListParams = {}): UseQueryResult<AlmLicencia[]> {
   return useQuery({
     queryKey: ['alm-licenses', params],
-    queryFn: () => licensesApi.list(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => licensesApi.list(params).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useAllLicenses(): UseQueryResult<unknown> {
+export function useAllLicenses(): UseQueryResult<AlmLicencia[]> {
   return useQuery({
     queryKey: ['alm-licenses'],
-    queryFn: () => licensesApi.list({}).then((r: { data: unknown }) => r.data),
+    queryFn: () => licensesApi.list({}).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useLicense(id: string | undefined): UseQueryResult<unknown> {
+export function useLicense(id: string | undefined): UseQueryResult<AlmLicenciaDetalle> {
   return useQuery({
     queryKey: ['alm-licenses', id],
-    queryFn: () => licensesApi.get(id).then((r: { data: unknown }) => r.data),
+    queryFn: () => licensesApi.get(id).then(r => r.data),
     enabled: !!id,
     staleTime: STALE,
   })

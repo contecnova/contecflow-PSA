@@ -48,24 +48,6 @@ def scope_contract_query(q, db: Session, current_user: User):
     )
 
 
-def list_contracts(
-    db: Session,
-    current_user: User,
-    project_id: Optional[str] = None,
-    client_id: Optional[str] = None,
-    status: Optional[str] = None,
-):
-    q = db.query(Contract).options(joinedload(Contract.work_orders)).filter(Contract.is_active == True)
-    q = scope_contract_query(q, db, current_user)
-    if project_id:
-        q = q.filter(Contract.project_id == project_id)
-    if client_id:
-        q = q.filter(Contract.client_id == client_id)
-    if status:
-        q = q.filter(Contract.status == status)
-    return q.order_by(Contract.created_at.desc()).all()
-
-
 def check_project_access(db: Session, project_id: str, organization_id: str) -> bool:
     """Returns True if the project belongs to the given organization."""
     project = db.query(Project).filter(

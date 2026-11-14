@@ -5,12 +5,13 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from app.schemas.governance import PolicyPackUpsert, EvidenceCreate
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_admin
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -157,6 +158,8 @@ def create_evidence(
 def list_evidence(
     framework: Optional[str] = Query(default=None),
     control_id: Optional[str] = Query(default=None),
+    response: Response = None,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -166,9 +169,9 @@ def list_evidence(
         organization_id=organization_id,
         framework=framework.upper() if framework else None,
         control_id=control_id,
+        pagina=pagina,
     )
-    items = [
-        {
+    return lista_paginada(response, rows.mapear(lambda r: {
             "id": r.id,
             "framework": r.framework,
             "control_id": r.control_id,
@@ -177,10 +180,7 @@ def list_evidence(
             "artifact_uri": r.artifact_uri,
             "artifact_hash": r.artifact_hash,
             "created_at": r.created_at,
-        }
-        for r in rows
-    ]
-    return APIListResponse.ok(items=items)
+        }))
 
 
 def _linea_base_medida(db, org) -> dict:

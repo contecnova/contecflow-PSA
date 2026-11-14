@@ -98,7 +98,7 @@ class RecurringTask(Base):
     title            = Column(String(500), nullable=False)
     description      = Column(Text, nullable=True)
     priority         = Column(String(20), default="medium")
-    assignee_id      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    assignee_id      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     estimated_hours  = Column(Float, nullable=True)
     story_points     = Column(Integer, nullable=True)
 
@@ -111,7 +111,7 @@ class RecurringTask(Base):
 
     last_generated   = Column(Date, nullable=True)             # last date a task was created
     is_active        = Column(Boolean, default=True)
-    created_by       = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by       = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
 
     project  = relationship("Project")
@@ -162,7 +162,7 @@ class VendorScore(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     vendor_id        = Column(String(36), ForeignKey("alm_vendors.id", ondelete="CASCADE"), nullable=False, index=True)
     period           = Column(String(20), nullable=False)       # e.g. "Q1-2026", "2026"
-    evaluator_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    evaluator_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Dimension scores (0-10)
     sla_score        = Column(Float, nullable=True)             # meets contracted SLAs

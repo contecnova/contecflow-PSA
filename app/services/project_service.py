@@ -372,7 +372,14 @@ def scope_projects_query(q, db: Session, current_user):
             _Task.assignee_id == current_user.id,
             _Task.project_id.isnot(None),
         ).subquery()
+        # Segunda auditoría 2026-11: el miembro explícito y activo del equipo
+        # (`project_members`) ve el proyecto aunque aún no tenga tareas ni horas.
+        member_project_ids = db.query(ProjectMember.project_id).filter(
+            ProjectMember.user_id == current_user.id,
+            ProjectMember.is_active.is_(True),
+        ).subquery()
         q = q.filter((Project.id.in_(project_ids)) | (Project.id.in_(task_project_ids))
+                     | Project.id.in_(member_project_ids)
                      | Project.id.in_(concedidos or [""]))
 
     if vetados:

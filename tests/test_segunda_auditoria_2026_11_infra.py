@@ -51,6 +51,31 @@ def test_compose_da_a_la_api_un_directorio_multiproceso_vacio_en_cada_arranque()
     assert '--workers "${API_WORKERS:-4}"' in cmd
 
 
+def test_al_apagarse_el_worker_se_marca_muerto_en_el_directorio_multiproceso(monkeypatch, tmp_path):
+    """Cada worker de uvicorn ejecuta su `lifespan`; al cerrarlo, `mark_process_dead(os.getpid())`.
+
+    Solo caen los gauges `live*` de ESTE pid: los de otros workers vivos y los
+    de modo `all` (que llevan su pid como etiqueta) se quedan.
+    """
+    import os
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    monkeypatch.setenv("PROMETHEUS_MULTIPROC_DIR", str(tmp_path))
+    propio = tmp_path / f"gauge_livesum_{os.getpid()}.db"
+    otro_worker = tmp_path / f"gauge_livesum_{os.getpid() + 1}.db"
+    modo_all = tmp_path / f"gauge_all_{os.getpid()}.db"
+    for f in (propio, otro_worker, modo_all):
+        f.write_bytes(b"")
+
+    with TestClient(app):
+        assert propio.exists()
+    assert not propio.exists()
+    assert otro_worker.exists() and modo_all.exists()
+
+
 def test_la_variable_de_compose_es_la_que_lee_la_configuracion(monkeypatch):
     from app.core.config import Settings
 

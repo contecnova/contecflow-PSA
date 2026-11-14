@@ -72,6 +72,7 @@ from app.services.advanced_config_service.numeracion_y_campos import (  # noqa: 
     update_custom_field,
     delete_custom_field,
     get_custom_field_values,
+    exigir_lectura_de_valores,
     save_custom_field_values,
 )
 

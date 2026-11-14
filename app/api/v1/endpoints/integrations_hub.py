@@ -166,7 +166,7 @@ def sync_jira_hub(
     from app.services import jira_service
     from app.services.cab_service.integraciones import sincronizar_tareas_con_jira
     cfg = jira_service.credenciales_del_hub(db, current_user.organization_id)
-    synced, errors = sincronizar_tareas_con_jira(db, cfg)
+    synced, errors = sincronizar_tareas_con_jira(db, cfg, current_user.organization_id)
     jira_service.marcar_sincronizacion_completa(db, current_user.organization_id)
     if errors and not synced:
         raise HTTPException(400, errors[0])

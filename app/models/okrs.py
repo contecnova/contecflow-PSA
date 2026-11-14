@@ -28,9 +28,9 @@ class Objective(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     title       = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
-    owner_id    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    owner_id    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     team_id     = Column(String(36), nullable=True)          # departamento libre
-    project_id  = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    project_id  = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     period      = Column(Enum(OKRPeriod), default=OKRPeriod.q1)
     year        = Column(Integer, nullable=False, default=lambda: __import__('datetime').datetime.now().year)
     status      = Column(Enum(OKRStatus), default=OKRStatus.draft)
@@ -65,7 +65,7 @@ class KeyResult(Base):
     target_value  = Column(Float, nullable=True, default=100)
     current_value = Column(Float, nullable=True, default=0)
     unit          = Column(String(50), nullable=True)        # %, €, usuarios, NPS…
-    owner_id      = Column(String(36), ForeignKey("users.id"), nullable=True)
+    owner_id      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     due_date      = Column(Date, nullable=True)
     progress      = Column(Float, default=0.0)   # 0-100
     notes         = Column(Text, nullable=True)
@@ -91,7 +91,7 @@ class KRCheckin(Base):
                         nullable=False, index=True)
     value      = Column(Float, nullable=False)
     note       = Column(String(500), nullable=True)
-    author_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    author_id  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     kr         = relationship("KeyResult", back_populates="checkins")
     author     = relationship("User", foreign_keys=[author_id])

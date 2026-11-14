@@ -29,7 +29,7 @@ class WikiTag(Base):
     name       = Column(String(80),  nullable=False)
     color      = Column(String(20),  default="#7a8aaa")
     is_active  = Column(Boolean, default=True, nullable=False)
-    created_by = Column(String(36),  ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36),  ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     page_tags  = relationship("WikiPageTag", back_populates="tag",
                               cascade="all, delete-orphan")
@@ -72,7 +72,7 @@ class WikiExportJob(Base):
                         nullable=False, index=True)
     status     = Column(String(20), default="pending")   # pending, done, error
     file_path  = Column(String(500), nullable=True)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -127,7 +127,7 @@ class SprintPlan(Base):
     ai_reasoning   = Column(Text,     nullable=True)  # explicación de la IA
     is_active      = Column(Boolean, default=True, nullable=False)
     status         = Column(String(20), default="draft")   # draft, accepted, rejected
-    created_by     = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by     = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
     tasks          = relationship("SprintPlanTask", back_populates="plan",
                                   cascade="all, delete-orphan")
@@ -141,7 +141,7 @@ class SprintPlanTask(Base):
     plan_id     = Column(String(36), ForeignKey("sprint_plans.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     task_id     = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
-                         nullable=False)
+                         nullable=False, index=True)
     priority    = Column(Integer, default=0)        # orden sugerido por IA
     ai_note     = Column(String(500), nullable=True)
     plan        = relationship("SprintPlan", back_populates="tasks")
@@ -184,7 +184,7 @@ class CMDBChangelog(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     item_id    = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="CASCADE"),
                         nullable=False, index=True)
-    user_id    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    user_id    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     action     = Column(String(30), nullable=False)   # created | updated | deleted
     field      = Column(String(100), nullable=True)   # campo cambiado
     old_value  = Column(Text, nullable=True)
@@ -213,7 +213,7 @@ class CMDBDiscoveryProvider(Base):
     # Cadence control (ITSM-P04)
     scan_interval_minutes = Column(Integer, default=60)                 # run every N minutes
     next_run_at           = Column(DateTime(timezone=True), nullable=True)  # next scheduled run
-    created_by      = Column(String(36),  ForeignKey("users.id"), nullable=True)
+    created_by      = Column(String(36),  ForeignKey("users.id"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     updated_at      = Column(DateTime(timezone=True), server_default=func.now(),
                              onupdate=func.now())
@@ -263,8 +263,8 @@ class CMDBAgentRegistration(Base):
     last_checkin_at = Column(DateTime(timezone=True), nullable=True)
     last_checkin_ip = Column(String(45), nullable=True)
     last_hostname   = Column(String(255), nullable=True)
-    ci_id         = Column(String(36),  ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True)
-    created_by    = Column(String(36),  ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    ci_id         = Column(String(36),  ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_by    = Column(String(36),  ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

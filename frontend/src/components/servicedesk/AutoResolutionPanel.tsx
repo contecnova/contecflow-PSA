@@ -10,61 +10,15 @@
 import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
+import type { ConfigDeAutoResolucion, EstadisticasDeAutoResolucion } from '../../services/api/tipos-analitica'
 import { Card, Button, Spinner, Modal} from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 
-type AutoResolutionConfig = {
-  threshold_auto?: number
-  threshold_suggest?: number
-  auto_close_hours_after_resolution?: number
-  validation_window_hours?: number
-  default_job_limit?: number
-}
-
-type AutoResolutionBucket = {
-  bucket: string
-  total: number
-  success: number
-  failed: number
-  success_rate?: number | null
-}
-
-type RuntimeStats = {
-  processed?: number
-  auto_resolved?: number
-  failed?: number
-}
-
-type RuntimeInfo = {
-  running?: boolean
-  status?: string
-  started_at?: string | null
-  completed_at?: string | null
-  duration_ms?: number | null
-  stats?: RuntimeStats
-  error?: string | null
-}
-
-type JobHistoryItem = {
-  status?: string
-  started_at?: string | null
-  duration_ms?: number | null
-  stats?: RuntimeStats
-  error?: string | null
-}
-
-type AutoResolutionStats = {
-  total_auto_resolved?: number
-  pct_of_all_tickets?: number
-  feedback_total_validated?: number
-  overall_success_rate?: number
-  per_bucket?: AutoResolutionBucket[]
-  runtime?: RuntimeInfo | null
-  job_history?: JobHistoryItem[]
-}
+type AutoResolutionConfig = Partial<ConfigDeAutoResolucion>
+type AutoResolutionStats = EstadisticasDeAutoResolucion
 
 const errMsg = (e: unknown, fallback: string): string => {
   const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -220,12 +174,11 @@ export default function AutoResolutionPanel() {
   const toast = useToast()
   const qc = useQueryClient()
   const [feedbackTicketId, setFeedbackTicketId] = useState<string | number | null>(null)
-  // TODO type: auto-resolution config payload — needs shared type
   const [cfgDraft, setCfgDraft] = useState<AutoResolutionConfig | null>(null)
 
   const { data: config, isLoading: configLoading } = useQuery<AutoResolutionConfig>({
     queryKey: ['sd-auto-resolution-config'],
-    queryFn: () => autoResolutionApi.getConfig().then(r => r.data as AutoResolutionConfig),
+    queryFn: () => autoResolutionApi.getConfig().then(r => r.data),
   })
 
   useEffect(() => {
@@ -236,16 +189,16 @@ export default function AutoResolutionPanel() {
 
   const { data: stats, isLoading: statsLoading } = useQuery<AutoResolutionStats>({
     queryKey: ['sd-auto-resolution-stats'],
-    queryFn: () => autoResolutionApi.getStats().then(r => r.data as AutoResolutionStats),
+    queryFn: () => autoResolutionApi.getStats().then(r => r.data),
     refetchInterval: POLL_FREQUENT_MS,
   })
 
   const { mutate: runJob, isPending: runningJob } = useMutation({
     mutationFn: () => autoResolutionApi.runJob({ run_async: true, limit: cfgDraft?.default_job_limit ?? 25 }),
     onSuccess: (res) => {
-      const r = res.data || {}
+      const r = res.data
       if (r.status === 'queued') {
-        toast.success(`Job encolado (lote ${r.limit ?? 25}). Puedes seguir trabajando mientras procesa.`)
+        toast.success(`Job encolado (lote ${r.limit}). Puedes seguir trabajando mientras procesa.`)
       } else if (r.status === 'already_running') {
         toast.warning('Ya hay un job de auto-resolución en ejecución.')
       } else {
@@ -261,7 +214,7 @@ export default function AutoResolutionPanel() {
   const { mutate: runCloseJob, isPending: runningClose } = useMutation({
     mutationFn: () => autoResolutionApi.runCloseJob(),
     onSuccess: (res) => {
-      const r = res.data || {}
+      const r = res.data
       toast.success(
         `Auto-cierre: ${r.auto_closed ?? 0} cerrados · ${r.validated ?? 0} validados · ${r.failed ?? 0} fallidos`
       )

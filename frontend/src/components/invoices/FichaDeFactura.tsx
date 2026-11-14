@@ -12,6 +12,7 @@ import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import { invoicesApi } from '../../services/api'
+import type { Factura, LineaDeFactura } from '../../services/api/tipos-finanzas'
 import { Button, Modal, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -20,13 +21,10 @@ import { extractErr, formatearMoneda } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
-type Linea = { description: string; quantity: number; unit: string; unit_price: number; discount_pct: number; amount?: number; source_type?: string | null; source_ids?: unknown }
-type Factura = {
-  id: string; number: string; status: string; client_name?: string; client_email?: string; client_vat?: string; client_address?: string
-  issue_date?: string; due_date?: string; paid_date?: string; tax_rate?: number; currency?: string; notes?: string; po_reference?: string
-  period_from?: string; period_to?: string; subtotal?: number; tax_amount?: number; total?: number; project_code?: string; project_name?: string
-  lines?: Linea[]
-}
+/** Línea del formulario: la de la ficha (InvoiceLineOut) o una nueva, sin id ni importe. `source_ids` se reenvía tal cual
+ *  para que el servidor no libere las horas facturadas al guardar. */
+type Linea = Pick<LineaDeFactura, 'description' | 'quantity' | 'unit' | 'unit_price' | 'discount_pct'>
+  & Partial<Pick<LineaDeFactura, 'amount' | 'source_type' | 'source_ids'>>
 const CABECERA = ['client_name', 'client_vat', 'client_email', 'client_address', 'issue_date', 'due_date', 'po_reference', 'notes'] as const
 
 const dinero = (n: number | undefined, moneda: string) => formatearMoneda(n ?? 0, moneda)
@@ -40,7 +38,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: f, isLoading } = useQuery<Factura>({ queryKey: ['invoice', id], queryFn: () => invoicesApi.get(id).then(r => r.data as Factura) })
+  const { data: f, isLoading } = useQuery<Factura>({ queryKey: ['invoice', id], queryFn: () => invoicesApi.get(id).then(r => r.data) })
   const [editando, setEditando] = useState(false)
   const [form, setForm] = useState<Record<string, string | number>>({})
   const [lineas, setLineas] = useState<Linea[]>([])

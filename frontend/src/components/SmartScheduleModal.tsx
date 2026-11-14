@@ -18,6 +18,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   smartScheduleApi, taskDependenciesApi, tasksApi,
 } from '../services/api'
+import type { FechaSugerida } from '../services/api/tipos-analitica'
 import { useToast } from '../context/ToastContext'
 import { Sparkles, X, RefreshCw } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -25,14 +26,12 @@ import { useDialogo } from './ui'
 import DateInput from './ui/DateInput'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
 
-interface Suggestion {
-  task_id: string | number
+/** Una sugerencia del modelo con lo que el usuario edita en el modal. */
+type Suggestion = Omit<FechaSugerida, 'suggested_start' | 'suggested_due'> & {
   suggested_start?: string | null
   suggested_due?: string | null
-  rationale?: string | null
   _selected?: boolean
   _title?: string
-  [key: string]: unknown
 }
 
 interface SmartScheduleModalProps {
@@ -67,9 +66,9 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       project_id: projectId || null,
       max_tasks: maxTasks,
     }).then(r => r.data),
-    onSuccess: async (data: { scheduled?: Suggestion[]; unscheduled_count?: number; message?: string } | undefined) => {
-      const arr: Suggestion[] = Array.isArray(data?.scheduled) ? data!.scheduled! : []
-      setUnscheduledCount(data?.unscheduled_count || 0)
+    onSuccess: async (data) => {
+      const arr: Suggestion[] = data.scheduled
+      setUnscheduledCount(data.unscheduled_count || 0)
 
       // Buscar títulos de cada task para mostrar al user. Hacemos una llamada
       // ligera por proyecto si está disponible; si no, una a una.
@@ -89,7 +88,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
         _title: title_map[String(s.task_id)] || `Tarea #${String(s.task_id).slice(0, 8)}`,
       })))
       if (arr.length === 0) {
-        toast.info(data?.message || 'No hay tareas sin fecha para planificar.')
+        toast.info(data.message || 'No hay tareas sin fecha para planificar.')
       }
     },
     onError: (e: ErrLike) => {
@@ -116,14 +115,14 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       const updates = suggestions
         .filter(s => s._selected && s.suggested_start && s.suggested_due)
         .map(s => ({
-          id: s.task_id,
+          id: String(s.task_id),
           start_date: s.suggested_start,
           due_date: s.suggested_due,
         }))
       if (updates.length === 0) {
         return Promise.reject(new Error('No hay tareas seleccionadas'))
       }
-      return taskDependenciesApi.bulkDates(updates as unknown as Record<string, unknown>).then(r => r.data)
+      return taskDependenciesApi.bulkDates(updates).then(r => r.data)
     },
     onSuccess: (_data) => {
       const n = suggestions.filter(s => s._selected).length

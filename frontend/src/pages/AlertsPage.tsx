@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
-import { alertsApi, type PathId, type UserPublic, type ProjectListItem } from '../services/api'
+import { alertsApi, type PathId } from '../services/api'
+import type { Alerta } from '../services/api/tipos-documentos'
 import { Button, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -13,22 +14,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { POLL_FREQUENT_MS } from '../constants/timings'
 
-/** `AlertOut` (app/schemas/alerts.py). */
-interface Alert {
-  id: string
-  alert_type: string
-  severity: string
-  title: string
-  description: string | null
-  value: number | null
-  threshold: number | null
-  unit: string | null
-  user: UserPublic | null
-  project: ProjectListItem | null
-  is_read: boolean
-  is_resolved: boolean
-  created_at: string
-}
+type Alert = Alerta
 
 function alertSourceUrl(alert: Alert) {
   if (alert.project?.id) return `/projects/${alert.project.id}`
@@ -68,7 +54,7 @@ export default function AlertsPage(): JSX.Element {
 
   const { data: alerts = [], isLoading } = useQuery<Alert[]>({
     queryKey: ['alerts-page'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
     refetchInterval: POLL_FREQUENT_MS,
     enabled: tab === 'operational',
   })
@@ -81,13 +67,13 @@ export default function AlertsPage(): JSX.Element {
 
   const { mutate: resolve } = useMutation({
     mutationFn: (id: PathId) => alertsApi.resolve(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['alerts-page'] }); qc.invalidateQueries({ queryKey: ['alerts-count'] }) },
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
   const { mutate: markRead } = useMutation({
     mutationFn: (id: PathId) => alertsApi.read(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts-page'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['alerts-page'] }); qc.invalidateQueries({ queryKey: ['alerts-count'] }) },
     onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 

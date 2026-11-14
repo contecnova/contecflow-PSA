@@ -506,6 +506,10 @@ def _parar_servicios(_scheduler) -> None:
                 logger.info("   ⏭️  Scheduler ya detenido; se omite shutdown")
         except Exception as e:
             logger.warning(f"Scheduler shutdown error: {e}")
+    # Segunda auditoría 2026-11: cada worker de uvicorn se da de baja en el
+    # directorio multiproceso de Prometheus con su propio PID.
+    from app.core.metrics import marcar_worker_terminado
+    marcar_worker_terminado()
     logger.info("   ✅ Shutdown completo")
 
 
@@ -977,6 +981,13 @@ async def request_logger(request: Request, call_next):
         logger.log(level, f"   └─ {method} {_url_sin_secretos(request)}")
 
     return response
+
+
+# Segunda auditoría 2026-11 (#23): el esquema que vio el cliente (https) cuando
+# la petición llega por un proxy de confianza. Se registra el último para ser el
+# más externo: todo lo que hay debajo ve ya `request.url` con el esquema bueno.
+from app.core.network import EsquemaDelProxyMiddleware  # noqa: E402
+app.add_middleware(EsquemaDelProxyMiddleware)
 
 
 @app.get("/health", tags=["Health"])

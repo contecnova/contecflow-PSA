@@ -12,6 +12,7 @@ from app.core.abac_enforce import enforce_abac
 from app.core.config import settings as app_settings
 from app.models.user import User, UserRole
 import app.services.settings_service as _svc
+from app.services.politica_de_visibilidad import audiencia_de
 from app.core.responses import APIListResponse, APIResponse
 from app.schemas.settings import (
     SettingOut,
@@ -71,30 +72,15 @@ def put_app_translations(payload: dict, db: Session = Depends(get_db), current_u
 
 @router.get("/org-defaults", summary="Defaults de organización (moneda, zona horaria, idioma, jornada)")
 def get_org_defaults(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Returns the effective organisation defaults: UI overrides → env fallback."""
-    g_str = _svc.get_runtime_str
-    g_int = _svc.get_runtime_int
-    g_float = _svc.get_runtime_float
-    org_id = getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data={
-        "currency": g_str(db, "DEFAULT_CURRENCY", org_id),
-        "timezone": g_str(db, "DEFAULT_TIMEZONE", org_id),
-        "language": g_str(db, "DEFAULT_LANGUAGE", org_id),
-        "working_hours_per_day": g_float(db, "DEFAULT_WORKING_HOURS_PER_DAY", org_id),
-        "weekly_capacity_hours": g_float(db, "DEFAULT_WEEKLY_CAPACITY_HOURS", org_id),
-        "vacation_days_per_year": g_int(db, "DEFAULT_VACATION_DAYS_PER_YEAR", org_id),
-        "tax_rate": g_float(db, "DEFAULT_TAX_RATE", org_id),
-        "currencies": _svc.monedas(db, org_id),
-    })
-
-def _es_admin(user: User) -> bool:
-    return bool(user.is_superadmin) or getattr(user.role, "value", user.role) == "admin"
+    """Valores efectivos (pantalla → entorno), solo los de la audiencia de quien pregunta."""
+    return APIResponse.ok(data=_svc.defaults_de_organizacion(
+        db, getattr(current_user, "organization_id", None), audiencia_de(current_user)))
 
 
 @router.get("/general", response_model=APIListResponse[SettingOut])
 def get_general_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Sin secretos: ver `ajustes_generales_para`.
-    items = _svc.ajustes_generales_para(db, _es_admin(current_user), bool(current_user.is_superadmin))
+    # Sin secretos y por audiencia: ver `ajustes_generales_para`.
+    items = _svc.ajustes_generales_para(db, audiencia_de(current_user), bool(current_user.is_superadmin))
     return APIListResponse.ok(items=items, total=len(items))
 
 @router.patch("/general/{key}", response_model=APIResponse[SettingOut])

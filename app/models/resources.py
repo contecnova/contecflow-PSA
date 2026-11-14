@@ -68,11 +68,11 @@ class SkillHistory(Base):
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    skill_id    = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False)
+    skill_id    = Column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
     old_level   = Column(Enum(SkillLevel), nullable=True)
     new_level   = Column(Enum(SkillLevel), nullable=False)
     notes       = Column(String(255), nullable=True)
-    recorded_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    recorded_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     recorded_at = Column(DateTime(timezone=True), server_default=func.now())
     user        = relationship("User", foreign_keys=[user_id])
     skill       = relationship("Skill", foreign_keys=[skill_id])
@@ -115,7 +115,7 @@ class Absence(Base):
     reason = Column(Text, nullable=True)
 
     # Approval
-    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(String(255), nullable=True)
 
@@ -167,9 +167,9 @@ class ChangeRequest(Base):
     is_active = Column(Boolean, default=True)
 
     # People
-    requested_by = Column(String(36), ForeignKey("users.id"), nullable=True)
-    reviewed_by = Column(String(36), ForeignKey("users.id"), nullable=True)
-    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    requested_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    reviewed_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     # Dates
     submitted_at = Column(Date, nullable=True)
@@ -208,7 +208,7 @@ class Deliverable(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # DEL-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    phase_id = Column(String(36), ForeignKey("project_phases.id"), nullable=True)
+    phase_id = Column(String(36), ForeignKey("project_phases.id"), nullable=True, index=True)
 
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -234,7 +234,7 @@ class Deliverable(Base):
     accepted_date = Column(Date, nullable=True)
 
     # Ownership
-    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True)  # Responsible
+    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)  # Responsible
 
     # Client acceptance
     client_contact = Column(String(255), nullable=True)
@@ -242,7 +242,7 @@ class Deliverable(Base):
     rejection_reason = Column(Text, nullable=True)
 
     # Billing link
-    milestone_id = Column(String(36), ForeignKey("project_milestones.id"), nullable=True)
+    milestone_id = Column(String(36), ForeignKey("project_milestones.id"), nullable=True, index=True)
 
     # Document
     document_url = Column(String(500), nullable=True)
@@ -280,7 +280,7 @@ class ResourceAlert(Base):
     # Lifecycle
     triggered_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     acknowledged_at = Column(DateTime(timezone=True), nullable=True)
-    acknowledged_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    acknowledged_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id])

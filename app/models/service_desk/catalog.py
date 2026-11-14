@@ -32,7 +32,7 @@ class ServiceItem(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    category_id = Column(String(36), ForeignKey("sd_service_categories.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(String(36), ForeignKey("sd_service_categories.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     ticket_type = Column(Enum(TicketType), default=TicketType.service_request)
@@ -46,7 +46,7 @@ class ServiceItem(Base):
 
     auto_assign_group = Column(String(100), nullable=True)
     requires_approval = Column(Boolean, default=False)
-    approval_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approval_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     # Tareas de cumplimiento (JSON): [{"title": ..., "group_id": ...}]. Cada una
     # nace como ticket hijo en su cola al pedirse el servicio (o al aprobarse).
     fulfillment_tasks = Column(Text, nullable=True)
@@ -86,6 +86,6 @@ class SLAPolicy(Base):
     timezone = Column(String(64), nullable=True)
     # Calendario de servicio (jornada, zona y festivos) que manda sobre los
     # `business_*` de arriba. NULL: se usan los de la propia política.
-    calendar_id = Column(String(36), ForeignKey("sla_calendars.id", ondelete="SET NULL"), nullable=True)
+    calendar_id = Column(String(36), ForeignKey("sla_calendars.id", ondelete="SET NULL"), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

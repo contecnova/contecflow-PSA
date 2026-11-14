@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { epicsApi } from '../services/api'
 
 const STALE = 2 * 60 * 1000
@@ -11,27 +10,22 @@ export type { Epic }
 
 export type UpdateArgs<T> = { id: string; data: T }
 
-export function useEpics(projectId: string | undefined): UseQueryResult<unknown> {
+export function useEpics(projectId: string | undefined): UseQueryResult<Epic[]> {
   return useQuery({
     queryKey: ['epics', projectId],
-    queryFn: () => epicsApi.list(projectId).then((r: { data: unknown }) => r.data),
+    queryFn: () => epicsApi.list(projectId).then(r => r.data),
     enabled: !!projectId,
     staleTime: STALE,
   })
 }
 
-export function useAllEpics(): UseQueryResult<unknown> {
-  return useQuery({
-    queryKey: ['epics'],
-    queryFn: () => epicsApi.list(undefined).then((r: { data: unknown }) => r.data),
-    staleTime: STALE,
-  })
-}
+// POST /epics exige `project_id` en la query (antes se llamaba sin él: 422 siempre).
+export type CreateEpicArgs = { projectId: string; data: Partial<Epic> }
 
-export function useCreateEpic(): UseMutationResult<unknown, unknown, Partial<Epic>> {
+export function useCreateEpic(): UseMutationResult<unknown, unknown, CreateEpicArgs> {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: Partial<Epic>) => epicsApi.create(data),
+    mutationFn: ({ projectId, data }: CreateEpicArgs) => epicsApi.createForProject(projectId, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['epics'] }),
   })
 }

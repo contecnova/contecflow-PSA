@@ -6,30 +6,15 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mentionsApi } from '../services/api'
+import type { ComentarioEnHilo, Mencion } from '../services/api/tipos-personas'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AtSign } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-interface MentionItem {
-  id: string | number
-  entity_type: string
-  entity_id?: string
-  is_read?: boolean
-  created_at?: string
-  context_text?: string
-}
-
-interface CommentItem {
-  id: string | number
-  content: string
-  is_resolved?: boolean
-  created_by_email?: string
-  created_by_name?: string
-  replies?: CommentItem[]
-  entry_id?: string | number
-}
+type MentionItem = Mencion
+type CommentItem = ComentarioEnHilo
 
 const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -60,9 +45,9 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
             <span className="u-text3-xs">{mention.created_at?timeAgo(mention.created_at):''}</span>
             {!mention.is_read&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{t('mentions.new')}</span>}
           </div>
-          {mention.context_text&&(
+          {mention.context&&(
             <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',lineHeight:1.5,marginBottom:8,background:'var(--surface-1)',padding:'8px 12px',borderRadius:'var(--radius-sm)',borderLeft:'2px solid var(--surface-4)'}}>
-              &quot;...{mention.context_text.slice(0,200)}{mention.context_text.length>200?'...':''}&quot;
+              &quot;...{mention.context.slice(0,200)}{mention.context.length>200?'...':''}&quot;
             </div>
           )}
           <div className="u-text3-mono-xs">
@@ -88,12 +73,11 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
   const [replyTo,    setReplyTo]    = useState<string | number | null>(null)
   const [replyContent,setReplyContent]=useState('')
 
-  const { data:commentsRaw=[], isLoading } = useQuery({
+  const { data:comments=[], isLoading } = useQuery({
     queryKey:['comments',entityType,entityId],
-    queryFn:()=>mentionsApi.comments(entityType, entityId).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>mentionsApi.comments(entityType, entityId).then(r=>r.data).catch(():CommentItem[]=>[]),
     enabled:!!entityId,
   })
-  const comments = commentsRaw as CommentItem[]
 
   const { mutate:addComment, isPending:adding } = useMutation({
     mutationFn: (d: { content: string; parent_id: string | number | null }) => mentionsApi.createComment(entityType, entityId, d).then(r=>r.data),
@@ -178,11 +162,10 @@ export default function MentionsPage() {
   const [demoEntity, setDemoEntity] = useState('')
   const [demoType,   setDemoType]   = useState('task')
 
-  const { data:mentionsRaw=[], isLoading } = useQuery({
+  const { data:mentions=[], isLoading } = useQuery({
     queryKey:['mentions',onlyUnread],
-    queryFn:()=>mentionsApi.mentions(onlyUnread).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>mentionsApi.mentions(onlyUnread).then(r=>r.data).catch(():MentionItem[]=>[]),
   })
-  const mentions = mentionsRaw as MentionItem[]
 
   const { mutate:markRead } = useMutation({
     mutationFn: (id: string | number)=>mentionsApi.markMentionRead(id),

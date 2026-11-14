@@ -6,6 +6,7 @@ import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { okrsApi, usersApi, projectsApi } from '../services/api'
+import type { EstadoDeObjetivo, Objetivo, PeriodoDeObjetivo, ResultadoClave } from '../services/api/tipos-proyectos'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
 import { Trophy, Plus } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
@@ -18,38 +19,13 @@ import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type PeriodOpt = 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'H1' | 'H2' | 'annual' | ''
-type OkrStatus = 'draft' | 'active' | 'completed' | 'cancelled' | string
-type KrType = 'percentage' | 'number' | 'boolean' | 'currency' | string
 
 type UserPick = { id: string | number; full_name?: string; username?: string }
 type ProjectPick = { id: string | number; code?: string; name?: string }
 type DepartmentPick = { id?: string | number; name?: string } | string
 
-type KeyResult = {
-  id: string | number
-  title: string
-  kr_type?: KrType
-  current_value?: number
-  target_value?: number
-  unit?: string
-  owner_name?: string
-  progress?: number
-}
-
-type Objective = {
-  id: string | number
-  title: string
-  description?: string
-  period?: string
-  year?: number
-  status?: OkrStatus
-  owner_id?: string | number | null
-  owner_name?: string
-  project_id?: string | number | null
-  team_id?: string | number | null
-  progress?: number
-  key_results?: KeyResult[]
-}
+type KeyResult = ResultadoClave
+type Objective = Objetivo
 
 const PERIOD_OPTS = ['Q1','Q2','Q3','Q4','H1','H2','annual']
 const KR_TYPE_CFG: Record<string, { icon: string; label: string; unit: string }> = {
@@ -337,7 +313,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
           <div className="ds-field">
             <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('okrs.periodo')}</label>
-            <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value }))} className="ds-input">
+            <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value as PeriodoDeObjetivo }))} className="ds-input">
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
@@ -349,7 +325,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">Estado</label>
-            <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="ds-input">
+            <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as EstadoDeObjetivo }))} className="ds-input">
               {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
@@ -468,9 +444,9 @@ export default function OKRsPage() {
   const [editingObj, setEditingObj] = useState<Objective | null>(null)
   const [addKRFor, setAddKRFor] = useState<Objective | null>(null)
 
-  const { data: objectives = [], isLoading } = useQuery<Objective[]>({
+  const { data: objectives = [], isLoading } = useQuery({
     queryKey: ['okrs', year, period],
-    queryFn: () => okrsApi.list({ year, ...(period && { period }) }).then(r => (r.data?.items ?? r.data ?? []) as Objective[]),
+    queryFn: () => okrsApi.list({ year, ...(period && { period }) }).then(r => r.data),
   })
 
   const { mutate: deleteObj } = useMutation({

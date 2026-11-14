@@ -6,6 +6,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, permissionsApi } from '../services/api'
+import type { PermisoDeProyecto } from '../services/api/tipos-plataforma'
 import { Avatar, Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -28,16 +29,6 @@ interface UserItem {
   job_title?: string
 }
 
-interface PermissionItem {
-  id: IdType
-  user_id: IdType
-  level: string
-  can_see_financials?: boolean
-  can_see_rates?: boolean
-  can_export?: boolean
-  user?: UserItem
-}
-
 interface PermissionFormState {
   user_id: string
   level: string
@@ -58,7 +49,7 @@ const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px
 const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-function PermissionForm({ projectId, users, perm, onClose }: { projectId: string; users: UserItem[]; perm: PermissionItem | null; onClose: () => void }) {
+function PermissionForm({ projectId, users, perm, onClose }: { projectId: string; users: UserItem[]; perm: PermisoDeProyecto | null; onClose: () => void }) {
   const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
@@ -160,7 +151,7 @@ export default function ProjectPermissionsPage() {
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
-  const [editingPerm, setEditingPerm] = useState<PermissionItem | null>(null)
+  const [editingPerm, setEditingPerm] = useState<PermisoDeProyecto | null>(null)
 
   const { data: projectsRaw = [] } = useQuery({
     queryKey: ['projects'],
@@ -174,12 +165,11 @@ export default function ProjectPermissionsPage() {
   })
   const allUsers = allUsersRaw as UserItem[]
 
-  const { data: permsRaw = [], isLoading } = useQuery({
+  const { data: perms = [], isLoading } = useQuery({
     queryKey: ['permissions', selectedProject],
-    queryFn: () => permissionsApi.list(selectedProject).then(r => r.data).catch(() => []),
+    queryFn: () => permissionsApi.list(selectedProject).then(r => r.data).catch((): PermisoDeProyecto[] => []),
     enabled: !!selectedProject,
   })
-  const perms = permsRaw as PermissionItem[]
 
   const { mutate: revoke } = useMutation({
     mutationFn: (pid: IdType) => permissionsApi.delete(selectedProject, pid),
@@ -188,7 +178,7 @@ export default function ProjectPermissionsPage() {
   })
 
   const selectedProj = projects.find((p) => String(p.id) === selectedProject)
-  const assignedUserIds = new Set(perms.map(p => p.user_id))
+  const assignedUserIds = new Set<IdType>(perms.map(p => p.user_id))
   const availableUsers = allUsers.filter(u => !assignedUserIds.has(u.id))
 
   const byLevel = Object.fromEntries(LEVELS.map(l => [l.value, perms.filter(p => p.level === l.value)]))

@@ -61,7 +61,7 @@ class GitDeployment(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
     task_id        = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
     project_id     = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
-    pr_id          = Column(String(36), ForeignKey("git_pull_requests.id", ondelete="SET NULL"), nullable=True)
+    pr_id          = Column(String(36), ForeignKey("git_pull_requests.id", ondelete="SET NULL"), nullable=True, index=True)
     provider       = Column(SAEnum(GitProvider), default=GitProvider.github)
     repo_full_name = Column(String(256))
     environment    = Column(String(128), default="production")

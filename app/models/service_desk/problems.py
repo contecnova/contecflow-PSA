@@ -39,7 +39,7 @@ class Problem(Base):
     investigation_started_at = Column(DateTime(timezone=True), nullable=True)
     rca_due_date = Column(DateTime(timezone=True), nullable=True)      # SLA deadline for RCA
     rca_evidence = Column(Text, nullable=True)                          # Supporting evidence (JSON/text)
-    rca_approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    rca_approved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     rca_approved_at = Column(DateTime(timezone=True), nullable=True)
 
     # KEDB lifecycle (ITSM-P02)
@@ -49,10 +49,10 @@ class Problem(Base):
     kedb_effectiveness_score = Column(Float, nullable=True)            # 0-100 (% tickets resolved via workaround)
     kb_article_id = Column(String(36), nullable=True)                  # Auto-generated KB article
 
-    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
+    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
 
-    owner_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    owner_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -84,8 +84,8 @@ class KnownError(Base):
     # JSON list of CI ids / service names affected
     affects_json = Column(Text, nullable=True)
     category_id  = Column(String(36), ForeignKey("sd_service_categories.id", ondelete="SET NULL"), nullable=True, index=True)
-    kb_article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="SET NULL"), nullable=True)
-    published_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    kb_article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="SET NULL"), nullable=True, index=True)
+    published_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     published_at  = Column(DateTime(timezone=True), nullable=True)
     expires_at    = Column(DateTime(timezone=True), nullable=True)
     reviewed_at   = Column(DateTime(timezone=True), nullable=True)
@@ -108,7 +108,7 @@ class KnownErrorTicket(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     known_error_id = Column(String(36), ForeignKey("sd_known_errors.id", ondelete="CASCADE"), nullable=False, index=True)
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
-    incident_link_id = Column(String(36), ForeignKey("sd_incident_to_problem.id", ondelete="SET NULL"), nullable=True)
+    incident_link_id = Column(String(36), ForeignKey("sd_incident_to_problem.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
@@ -138,7 +138,7 @@ class ProblemRcaTemplate(Base):
     # True = built-in system template (non-deletable via API)
     is_system   = Column(Boolean, default=False, nullable=False)
     is_active   = Column(Boolean, default=True, nullable=False)
-    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     creator = relationship("User", foreign_keys=[created_by])
@@ -160,7 +160,7 @@ class IncidentToProblem(Base):
     # True = this ticket is considered the primary/causal incident
     is_causal  = Column(Boolean, default=False, nullable=False)
     notes      = Column(Text, nullable=True)
-    linked_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    linked_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     linked_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
@@ -187,8 +187,8 @@ class MajorIncident(Base):
     declared_at   = Column(DateTime(timezone=True), server_default=func.now())
     resolved_at   = Column(DateTime(timezone=True), nullable=True)
 
-    incident_commander_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    communication_lead_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    incident_commander_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    communication_lead_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     impact_statement  = Column(Text, nullable=True)
     resolution_summary = Column(Text, nullable=True)

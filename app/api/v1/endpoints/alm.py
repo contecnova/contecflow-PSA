@@ -2,12 +2,13 @@
 ALM — Asset & License Management endpoints
 Enterprise-grade gestión de proveedores, contratos, licencias y activos.
 """
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.services.alm_ciclo_de_vida import (
     abrir_ticket_de_renovacion_confirmado, activo_o_404, activos_del_ci, historial, proximos_vencimientos,
@@ -40,9 +41,10 @@ def alm_dashboard(db: Session = Depends(get_db), _=Depends(get_current_user)):
 
 # ── Vendors ───────────────────────────────────────────────────────────────────
 @router.get("/vendors")
-def list_vendors(q: Optional[str] = None, category: Optional[str] = None,
+def list_vendors(response: Response, q: Optional[str] = None, category: Optional[str] = None,
+                 pagina: Paginacion = Depends(paginacion),
                  db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return APIListResponse.ok(items=list_vendors_records(q, category, db))
+    return lista_paginada(response, list_vendors_records(q, category, db, pagina))
 
 @router.post("/vendors")
 def create_vendor(data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
@@ -65,9 +67,10 @@ def delete_vendor(vid: str, db: Session = Depends(get_db), cu=Depends(require_an
 # ── Contracts ─────────────────────────────────────────────────────────────────
 @router.get("/contracts")
 def list_contracts(vendor_id: Optional[str] = None, status: Optional[str] = None,
-                   expiring_days: Optional[int] = None,
+                   expiring_days: Optional[int] = None, response: Response = None,
+                   pagina: Paginacion = Depends(paginacion),
                    db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return APIListResponse.ok(items=list_contracts_records(vendor_id, status, expiring_days, db))
+    return lista_paginada(response, list_contracts_records(vendor_id, status, expiring_days, db, pagina))
 
 @router.post("/contracts")
 def create_contract(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_any_manager)):
@@ -91,8 +94,10 @@ def delete_contract(cid: str, db: Session = Depends(get_db), cu=Depends(require_
 @router.get("/licenses")
 def list_licenses(vendor_id: Optional[str] = None, status: Optional[str] = None,
                   expiring_days: Optional[int] = None, compliance_only: bool = False,
+                  response: Response = None, pagina: Paginacion = Depends(paginacion),
                   db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return APIListResponse.ok(items=list_licenses_records(vendor_id, status, expiring_days, compliance_only, db))
+    return lista_paginada(response, list_licenses_records(
+        vendor_id, status, expiring_days, compliance_only, db, pagina))
 
 @router.post("/licenses")
 def create_license(data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_any_manager)):
@@ -150,8 +155,9 @@ def list_assets_by_ci(ci_id: str, db: Session = Depends(get_db), _=Depends(get_c
 @router.get("/assets")
 def list_assets(type: Optional[str] = None, status: Optional[str] = None,
                 assigned_to: Optional[str] = None, q: Optional[str] = None,
+                response: Response = None, pagina: Paginacion = Depends(paginacion),
                 db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return APIListResponse.ok(items=list_assets_records(type, status, assigned_to, q, db))
+    return lista_paginada(response, list_assets_records(type, status, assigned_to, q, db, pagina))
 
 @router.post("/assets")
 def create_asset(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_any_manager)):

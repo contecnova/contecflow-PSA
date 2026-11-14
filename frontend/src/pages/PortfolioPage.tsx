@@ -10,7 +10,8 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../context/ToastContext';
 import { extractErr } from '../utils/helpers';
-import { portfolioApi, projectsApi } from '../services/api';
+import { portfolioApi, projectsApi } from '../services/api'
+import type { Cartera, PanelDeCartera } from '../services/api/tipos-analitica';
 import { useAppT } from '../i18n/AppLangContext'
 import {
   Briefcase, Plus, ChevronRight, ChevronDown, X, Check,
@@ -27,16 +28,7 @@ import { POLL_DEFAULT_MS } from '../constants/timings'
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
 type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
 
-type PortfolioItem = {
-  id: string | number
-  name: string
-  description?: string
-  status: PortfolioStatus
-  budget_total?: number | null
-  project_count?: number
-  start_date?: string
-  end_date?: string
-}
+type PortfolioItem = Cartera
 
 type PortfolioFormData = {
   name: string
@@ -53,35 +45,9 @@ type ProjectItem = {
   status?: string
 }
 
-type MilestoneItem = {
-  id: string | number
-  title: string
-  due_date?: string
-  is_completed?: boolean
-}
 
-type DashboardProject = {
-  project_id: string | number
-  project_name: string
-  rag: RagLevel
-  pct_complete: number
-  cpi?: number | null
-  spi?: number | null
-  bac?: number | null
-  ac?: number | null
-  milestones: MilestoneItem[]
-}
 
-type PortfolioDashboardData = {
-  portfolio_name: string
-  project_count: number
-  status: PortfolioStatus
-  budget_envelope?: number | null
-  budget_spent?: number | null
-  budget_pct: number
-  health_counts: { red: number; yellow: number; green: number }
-  projects: DashboardProject[]
-}
+type PortfolioDashboardData = PanelDeCartera
 
 // ── utils ──────────────────────────────────────────────────────────────────────
 const _fmt  = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -392,7 +358,7 @@ export default function PortfolioPage() {
 
   const { data: portfolios = [], isLoading } = useQuery<PortfolioItem[]>({
     queryKey: ['portfolios'],
-    queryFn: () => portfolioApi.list().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => portfolioApi.list().then(r => r.data),
   });
 
   const { mutate: createPortfolio } = useMutation({

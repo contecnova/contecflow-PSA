@@ -231,11 +231,28 @@ services:
       # que atendía el scrape. app/core/metrics.py usa MultiProcessCollector
       # cuando la variable está definida (config.py la lee con AliasChoices).
       PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus-multiproc
+      # Segunda auditoría 2026-11 (#23): delante de la API siempre está nginx,
+      # así que la app cree sus `X-Forwarded-For/-Proto/-Host` (IP real del
+      # cliente, esquema https, host público). Se fuerzan aquí y no se leen del
+      # .env, igual que DATABASE_URL: el .env de desarrollo deja la confianza
+      # apagada y en 127.0.0.1, que dentro de compose no es nginx.
+      # Las redes: la IP de nginx en la red de compose la asigna Docker en cada
+      # arranque, dentro de sus rangos privados. La API no publica puerto, así
+      # que solo la alcanzan contenedores de esa red. Se puede acotar con
+      # CONTECFLOW_PROXY_CIDRS (p. ej. la subred de `docker network inspect
+      # contecflow_default`).
+      TRUST_PROXY_HEADERS: "1"
+      TRUSTED_PROXY_CIDRS: ${CONTECFLOW_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
     # El directorio se vacía en cada arranque: los ficheros de una ejecución
     # anterior (PIDs que ya no existen) inflarían los contadores.
     # Varios workers son seguros porque Redis es obligatorio en este stack:
     # rate limiting y tickets de WS son compartidos. Sin Redis habría que
     # dejarlo en 1.
+    # `--no-proxy-headers`: las cabeceras de proxy las interpreta la app
+    # (TRUSTED_PROXY_CIDRS, arriba), no uvicorn. uvicorn 0.29 solo admite IPs
+    # exactas en FORWARDED_ALLOW_IPS (las redes llegan en la 0.31) y la de nginx
+    # cambia en cada arranque; con `*` tomaría como cliente el PRIMER
+    # X-Forwarded-For, que lo escribe quien llama. Una sola política, no dos.
     command:
       - sh
       - -c
@@ -243,7 +260,7 @@ services:
         rm -rf "$$PROMETHEUS_MULTIPROC_DIR" &&
         mkdir -p "$$PROMETHEUS_MULTIPROC_DIR" &&
         exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-        --workers "${API_WORKERS:-4}"
+        --workers "${API_WORKERS:-4}" --no-proxy-headers
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}

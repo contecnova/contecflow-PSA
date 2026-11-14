@@ -4,6 +4,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { timesheetsApi, imputationsApi } from '../services/api'
+import type { EstadoDeTimesheet, LineaDeTimesheet, Timesheet } from '../services/api/tipos-personas'
 import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -15,29 +16,9 @@ import { useAppT } from '../i18n/AppLangContext'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 
-type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | string
-
-type TimesheetItem = {
-  id: string | number
-  week_start: string
-  week_end?: string
-  user_name?: string
-  status: TimesheetStatus
-  total_hours?: number
-  billable_hours?: number
-  total_cost?: number
-  review_notes?: string
-}
-
-type TimesheetLine = {
-  id: string | number
-  date: string
-  hours: number
-  project_name?: string
-  description?: string
-  is_billable?: boolean
-  is_approved?: boolean
-}
+type TimesheetStatus = EstadoDeTimesheet
+type TimesheetItem = Timesheet
+type TimesheetLine = LineaDeTimesheet
 
 type TeamSortKey = 'user_name' | 'week_start' | 'total_hours' | 'billable_hours' | 'total_cost' | 'status'
 
@@ -75,7 +56,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
 
   const { data: lines = [], isLoading } = useQuery<TimesheetLine[]>({
     queryKey: ['timesheet-lines', weekStart],
-    queryFn: () => timesheetsApi.weekLines(weekStart).then(r => r.data as TimesheetLine[]),
+    queryFn: () => timesheetsApi.weekLines(weekStart).then(r => r.data),
   })
 
   const { mutate: updateLine, isPending: updating } = useMutation({
@@ -101,7 +82,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
-  const byDay: Record<string, TimesheetLine[]> = (lines as TimesheetLine[]).reduce((a, l) => {
+  const byDay: Record<string, TimesheetLine[]> = lines.reduce((a, l) => {
     const d = l.date
     if (!a[d]) a[d] = []
     a[d].push(l)
@@ -163,7 +144,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description}</div>}
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                        {l.is_billable && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--success-bg)', color: 'var(--success)',
+                        {l.billable && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--success-bg)', color: 'var(--success)',
                           border: '1px solid var(--success-border)', borderRadius: 20, padding: '1px 7px' }}>Facturable</span>}
                         {l.is_approved && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)',
                           border: '1px solid var(--accent-border)', borderRadius: 20, padding: '1px 7px' }}>✓ Aprobado</span>}
@@ -267,18 +248,18 @@ export default function TimesheetsPage() {
 
   const { data: mySheets = [], isLoading: loadingMine } = useQuery<TimesheetItem[]>({
     queryKey: ['timesheets-mine'],
-    queryFn: () => timesheetsApi.my().then(r => r.data as TimesheetItem[]),
+    queryFn: () => timesheetsApi.my().then(r => r.data),
   })
 
   const { data: pending = [], isLoading: loadingPending } = useQuery<TimesheetItem[]>({
     queryKey: ['timesheets-pending'],
-    queryFn: () => timesheetsApi.pending().then(r => (r.data?.items ?? r.data ?? []) as TimesheetItem[]),
+    queryFn: () => timesheetsApi.pending().then(r => r.data),
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
   const { data: teamSheets = [], isLoading: loadingTeam } = useQuery<TimesheetItem[]>({
     queryKey: ['timesheets-team'],
-    queryFn: () => timesheetsApi.team().then(r => (r.data?.items ?? r.data ?? []) as TimesheetItem[]),
+    queryFn: () => timesheetsApi.team().then(r => r.data),
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 

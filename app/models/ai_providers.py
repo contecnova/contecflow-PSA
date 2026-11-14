@@ -69,7 +69,7 @@ class AIProvider(Base):
 
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     updated_at   = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     is_active    = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
 
@@ -80,8 +80,8 @@ class AIUsageLog(Base):
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    provider_id  = Column(String(36), ForeignKey("ai_providers.id", ondelete="SET NULL"), nullable=True)
-    user_id      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    provider_id  = Column(String(36), ForeignKey("ai_providers.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_id      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     module       = Column(String(50),  nullable=False)   # nexusagent, oracle, sprint, meetings...
     model        = Column(String(100), nullable=True)
     tokens_in    = Column(Integer, default=0)

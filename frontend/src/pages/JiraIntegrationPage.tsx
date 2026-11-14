@@ -6,6 +6,7 @@ import {
   ArrowUpFromLine, Link2, Eye, EyeOff, AlertTriangle,
 } from 'lucide-react'
 import { jiraApi } from '../services/api'
+import type { ConfigJira, IssueDeJira, TareaVinculadaAJira } from '../services/api/tipos-plataforma'
 import { apiUrlAbsoluta } from '../services/api/urls'
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
@@ -17,34 +18,6 @@ import { extractErr, localeActivo } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { DELAYED_REFETCH_MS } from '../constants/timings'
-
-interface JiraConfig {
-  jira_url?: string
-  jira_email?: string
-  jira_project_key?: string
-  token_hint?: string
-}
-
-interface JiraIssue {
-  key: string
-  summary?: string
-  status?: string
-  priority?: string
-}
-
-interface JiraLinkedTask {
-  id: string | number
-  title?: string
-  jira_issue_key?: string
-  status?: string
-  jira_synced_at?: string
-}
-
-interface JiraSyncResult {
-  created?: number
-  updated?: number
-}
-
 
 interface JiraFormState {
   jira_url: string
@@ -153,7 +126,7 @@ export default function JiraIntegrationPage(): JSX.Element {
   const [connStatus, setConnStatus] = useState<boolean | null>(null)
 
   // ── queries ────────────────────────────────────────────────────────────────
-  const { data: config, isLoading: loadingConfig } = useQuery<JiraConfig>({
+  const { data: config, isLoading: loadingConfig } = useQuery<ConfigJira>({
     queryKey: ['jira-config'],
     queryFn:  () => jiraApi.config().then(r => r.data),
   })
@@ -168,13 +141,14 @@ export default function JiraIntegrationPage(): JSX.Element {
     }))
   }, [config])
 
-  const { data: issues, isLoading: loadingIssues } = useQuery<JiraIssue[]>({
+  // GET /jira/issues devuelve `{total, issues}` (antes se leia como lista y la tabla salia siempre vacia).
+  const { data: issues, isLoading: loadingIssues } = useQuery<IssueDeJira[]>({
     queryKey: ['jira-issues'],
-    queryFn:  () => jiraApi.issues().then(r => r.data),
+    queryFn:  () => jiraApi.issues().then(r => r.data.issues),
     enabled:  connStatus === true,
   })
 
-  const { data: linked, isLoading: loadingLinked } = useQuery<JiraLinkedTask[]>({
+  const { data: linked, isLoading: loadingLinked } = useQuery<TareaVinculadaAJira[]>({
     queryKey: ['jira-linked'],
     queryFn:  () => jiraApi.linked().then(r => r.data),
   })
@@ -196,13 +170,15 @@ export default function JiraIntegrationPage(): JSX.Element {
     onSuccess: (d) => {
       setConnStatus(d.ok)
       if (d.ok) { toast.success(`${t('jira_integration.connected_as')} ${d.display_name}`); qc.invalidateQueries({ queryKey: ['jira-issues'] }) }
-      else toast.error(d.error || t('jira_integration.connection_error'))
+      else toast.error(t('jira_integration.connection_error'))
     },
     onError: () => { setConnStatus(false); toast.error(t('jira_integration.connection_error')) },
   })
 
   const syncPull = useMutation({
-    mutationFn: (payload: Record<string, never>) => jiraApi.sync(payload).then(r => r.data as JiraSyncResult),
+    // JiraSyncIn deja `project_id` opcional, pero sin el las issues nuevas crearian
+    // tareas sin proyecto (`tasks.project_id` es NOT NULL): se pide el proyecto.
+    mutationFn: (payload: { project_id: string }) => jiraApi.sync(payload).then(r => r.data),
     onSuccess: (d) => {
       qc.invalidateQueries({ queryKey: ['jira-linked'] })
       toast.success(`${t('jira_integration.sync_complete')} ${d.created} ${t('jira_integration.created')}, ${d.updated} ${t('jira_integration.updated')}`)
@@ -216,13 +192,13 @@ export default function JiraIntegrationPage(): JSX.Element {
     // `d.pushed`, que el backend no devuelve (es `created`).
     mutationFn: () => jiraApi.push({ project_id: proyectoPush, jira_project_key: form.jira_project_key || undefined }).then(r => r.data),
     onSuccess: (d) => {
-      if (d?.status === 'queued') {
+      if ('status' in d) {
         toast.success('Envío a Jira en curso: las tareas aparecerán vinculadas en unos minutos.')
         setTimeout(() => qc.invalidateQueries({ queryKey: ['jira-linked'] }), DELAYED_REFETCH_MS)
         return
       }
       qc.invalidateQueries({ queryKey: ['jira-linked'] })
-      toast.success(`${t('jira_integration.push_complete')} ${d?.created ?? 0} ${t('jira_integration.tasks_pushed')}`)
+      toast.success(`${t('jira_integration.push_complete')} ${d.created} ${t('jira_integration.tasks_pushed')}`)
     },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.push_error'))),
   })
@@ -240,9 +216,8 @@ export default function JiraIntegrationPage(): JSX.Element {
     saveConfig.mutate({ ...resto, ...(jira_api_token ? { jira_api_token } : {}) })
   }
 
-  // Normaliza ambas formas: array crudo vs {issues, total} / {tasks, count}
-  const issueList = Array.isArray(issues) ? issues : []
-  const linkedList = Array.isArray(linked) ? linked : []
+  const issueList = issues ?? []
+  const linkedList = linked ?? []
   const issueCount = issueList.length
   const linkedCount = linkedList.length
 
@@ -296,7 +271,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                     <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
                       type={showToken ? 'text' : 'password'}
                       autoComplete="current-password"
-                      placeholder={config?.token_hint ? `\u2022\u2022\u2022\u2022\u2022\u2022${config.token_hint}` : t('jira_integration.token_placeholder')}
+                      placeholder={config?.jira_api_token_hint || t('jira_integration.token_placeholder')}
                       value={form.jira_api_token}
                       onChange={e => setForm(p => ({ ...p, jira_api_token: e.target.value }))}
                       style={{ ..._fs, paddingRight: 36 }}
@@ -311,8 +286,8 @@ export default function JiraIntegrationPage(): JSX.Element {
                   </div>
                 </div>
                 <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={_ls}>{t('jira_integration.project_key_label')}</label>
-                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={_ls}>{t('jira_integration.project_key_label')}</label>
+                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`}
                     type="text"
                     placeholder={t('jira_integration.project_key_placeholder')}
                     value={form.jira_project_key}
@@ -342,14 +317,15 @@ export default function JiraIntegrationPage(): JSX.Element {
           <Card>
             <SectionTitle>{t('jira_integration.sync_actions_section')}</SectionTitle>
             <div className="u-stack-10">
+              <ProjectSelect value={proyectoPush} onChange={(id) => setProyectoPush(id)} placeholder="Proyecto de las tareas…" />
               <button
-                onClick={() => syncPull.mutate({})}
-                disabled={syncPull.isPending}
+                onClick={() => syncPull.mutate({ project_id: proyectoPush })}
+                disabled={syncPull.isPending || !proyectoPush}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
                   background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
-                  borderRadius: 'var(--radius-md)', cursor: syncPull.isPending ? 'not-allowed' : 'pointer',
-                  opacity: syncPull.isPending ? 0.5 : 1, width: '100%', textAlign: 'left',
+                  borderRadius: 'var(--radius-md)', cursor: syncPull.isPending || !proyectoPush ? 'not-allowed' : 'pointer',
+                  opacity: syncPull.isPending || !proyectoPush ? 0.5 : 1, width: '100%', textAlign: 'left',
                 }}
               >
                 {syncPull.isPending
@@ -361,15 +337,14 @@ export default function JiraIntegrationPage(): JSX.Element {
                   <div className="u-text3-xs">{t('jira_integration.import_button_subtitle')}</div>
                 </div>
               </button>
-              <ProjectSelect value={proyectoPush} onChange={(id) => setProyectoPush(id)} placeholder="Proyecto a enviar a Jira…" />
               <button
                 onClick={() => pushToJira.mutate()}
                 disabled={pushToJira.isPending || !proyectoPush}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
                   background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)',
-                  borderRadius: 'var(--radius-md)', cursor: pushToJira.isPending ? 'not-allowed' : 'pointer',
-                  opacity: pushToJira.isPending ? 0.5 : 1, width: '100%', textAlign: 'left',
+                  borderRadius: 'var(--radius-md)', cursor: pushToJira.isPending || !proyectoPush ? 'not-allowed' : 'pointer',
+                  opacity: pushToJira.isPending || !proyectoPush ? 0.5 : 1, width: '100%', textAlign: 'left',
                 }}
               >
                 {pushToJira.isPending

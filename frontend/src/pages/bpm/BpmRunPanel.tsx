@@ -10,6 +10,7 @@ import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Modal, Spinner, EmptyState, Table } from '../../components/ui'
 import { bpmnInstancesApi, apiErrorMsg } from '../../services/api'
+import type { InstanciaBpmn, PasoDeBandejaBpmn, PasoDeInstanciaBpmn } from '../../services/api/tipos-documentos'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 
@@ -34,41 +35,9 @@ function parseVars(text: string): Record<string, unknown> {
   return out
 }
 
-/** `serializar_paso` (app/services/bpmn_engine.py). */
-interface BpmnStep {
-  id: string
-  instance_id: string
-  element_id: string
-  element_type: string
-  name: string | null
-  status: string
-  candidate_role: string | null
-  due_at: string | null
-  completed_by_user_id: string | null
-  result: unknown
-  created_at: string | null
-  completed_at: string | null
-  human: boolean
-}
-
-/** Paso de la bandeja: el paso más el proceso y las variables de su instancia. */
-type InboxStep = BpmnStep & { process_name: string | null; variables: Record<string, unknown> }
-
-/** `serializar` (app/services/bpmn_engine.py); el listado añade `process_name` y no trae pasos. */
-interface BpmnInstance {
-  id: string
-  process_id: string
-  version: number
-  status: string
-  variables: Record<string, unknown>
-  error: string | null
-  started_by_user_id: string | null
-  started_at: string | null
-  ended_at: string | null
-  active_steps: string[]
-  steps?: BpmnStep[]
-  process_name?: string | null
-}
+type BpmnStep = PasoDeInstanciaBpmn
+type InboxStep = PasoDeBandejaBpmn
+type BpmnInstance = InstanciaBpmn
 
 function CompleteModal({ step, onClose }: { step: InboxStep; onClose: () => void }) {
   const { t } = useAppLang()
@@ -143,10 +112,10 @@ export default function BpmRunPanel() {
   const [completing, setCompleting] = useState<InboxStep | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
   const { data: inbox = [], isLoading: loadingInbox } = useQuery<InboxStep[]>({
-    queryKey: ['bpmn-inbox'], queryFn: () => bpmnInstancesApi.inbox().then(r => (Array.isArray(r.data) ? r.data : [])),
+    queryKey: ['bpmn-inbox'], queryFn: () => bpmnInstancesApi.inbox().then(r => r.data),
   })
   const { data: instances = [], isLoading: loadingInst } = useQuery<BpmnInstance[]>({
-    queryKey: ['bpmn-instances'], queryFn: () => bpmnInstancesApi.list().then(r => (Array.isArray(r.data) ? r.data : [])),
+    queryKey: ['bpmn-instances'], queryFn: () => bpmnInstancesApi.list().then(r => r.data),
   })
   return (
     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>

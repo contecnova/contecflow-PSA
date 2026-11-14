@@ -1,42 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { trainingApi } from '../services/api'
+import type { Certificacion, Curso, Inscripcion } from '../services/api/tipos-personas'
 
 const STALE = 2 * 60 * 1000
 
-export interface TrainingCourse {
-  id: string
-  title?: string
-  [extra: string]: unknown
-}
-
-export interface TrainingCert {
-  id: string
-  title?: string
-  [extra: string]: unknown
-}
-
-export interface TrainingEnrollment {
-  id: string
-  user_id?: string
-  course_id?: string
-  [extra: string]: unknown
-}
+export type TrainingCourse = Curso
+export type TrainingCert = Certificacion
+export type TrainingEnrollment = Inscripcion
 
 export type TrainingParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
 export function useTrainingCourses(params: TrainingParams = {}): UseQueryResult<TrainingCourse[]> {
   return useQuery<TrainingCourse[]>({
     queryKey: ['training-courses', params],
-    queryFn: () => trainingApi.courses(params).then((r: { data?: { items?: TrainingCourse[] } | TrainingCourse[] | null }) => unwrapList<TrainingCourse>(r)),
+    queryFn: () => trainingApi.courses(params).then((r) => r.data),
     staleTime: STALE,
   })
 }
@@ -44,7 +23,7 @@ export function useTrainingCourses(params: TrainingParams = {}): UseQueryResult<
 export function useTrainingCerts(params: TrainingParams = {}): UseQueryResult<TrainingCert[]> {
   return useQuery<TrainingCert[]>({
     queryKey: ['training-certs', params],
-    queryFn: () => trainingApi.certs(params).then((r: { data?: { items?: TrainingCert[] } | TrainingCert[] | null }) => unwrapList<TrainingCert>(r)),
+    queryFn: () => trainingApi.certs(params).then((r) => r.data),
     staleTime: STALE,
   })
 }
@@ -52,7 +31,7 @@ export function useTrainingCerts(params: TrainingParams = {}): UseQueryResult<Tr
 export function useTrainingEnrollments(params: TrainingParams = {}): UseQueryResult<TrainingEnrollment[]> {
   return useQuery<TrainingEnrollment[]>({
     queryKey: ['training-enrollments', params],
-    queryFn: () => trainingApi.enrollments(params).then((r: { data?: { items?: TrainingEnrollment[] } | TrainingEnrollment[] | null }) => unwrapList<TrainingEnrollment>(r)),
+    queryFn: () => trainingApi.enrollments(params).then((r) => r.data),
     staleTime: STALE,
   })
 }

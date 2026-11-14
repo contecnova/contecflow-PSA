@@ -50,7 +50,7 @@ class BPMNProcess(Base):
     is_seeded = Column(Boolean, default=False, nullable=False)   # came from initial inventory
     is_active = Column(Boolean, default=True, nullable=False)
 
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -76,7 +76,7 @@ class BPMNProcessVersion(Base):
     is_published = Column(Boolean, default=False, nullable=False)
     published_at = Column(DateTime(timezone=True), nullable=True)
 
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     process = relationship("BPMNProcess", back_populates="versions")
@@ -97,7 +97,7 @@ class BPMNInstance(Base):
     status = Column(String(20), nullable=False, default="running", index=True)  # running | completed | cancelled | failed
     variables = Column(Text, nullable=True)       # JSON
     error = Column(String(500), nullable=True)
-    started_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    started_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -119,7 +119,7 @@ class BPMNInstanceStep(Base):
     candidate_role = Column(String(40), nullable=True)   # de la calle (lane) del diagrama
     due_at = Column(DateTime(timezone=True), nullable=True)   # temporizadores
     arrived = Column(Integer, nullable=False, default=1)      # fichas llegadas (union paralela)
-    completed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    completed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     result = Column(Text, nullable=True)          # JSON: variables que aporto quien lo completo
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)

@@ -43,18 +43,23 @@ export { API_BASE_URL, apiUrl, apiUrlAbsoluta, apiWsUrl, wsBase } from './urls'
 export { leccionesApi } from './lecciones'
 export { gastosApi } from './gastos'
 export { presupuestosApi } from './presupuestos'
+export { politicasApi } from './politicas'
+export type { ParametrosDeSimulacion } from './politicas'
 export type { Presupuesto, FichaPresupuesto, Partida, Informe as InformeDePresupuesto, Ambito as AmbitoDePresupuesto, Plantilla as PlantillaDePresupuesto, Campana as CampanaDePresupuesto, Area as AreaDeEmpresa, Comparacion as ComparacionDePresupuestos, Recurrencia, MetodoPrevision, Pedido as PedidoDePresupuesto, Traspaso as TraspasoDePresupuesto, RenglonDelCuadro } from './presupuestos'
 export type { Justificante, Parte as ParteDeGasto, Politica as PoliticaDeGasto, Incumplimiento } from './gastos'
 export type { Leccion, Accion as AccionDeMejora, Borrador as BorradorDeLeccion, Recomendacion, Pendiente as PendienteDeLeccion, Hecho, OrigenLeccion } from './lecciones'
 export type { Ficha as FichaDocumental, DocHit, Enlace, DocDetalle, Aprobacion, EstadoProducto, Fuente, Metrica, RespuestaCI } from './conectores'
-export { usersApi } from './users'
+export { usersApi, esFichaCompleta } from './users'
 export type {
   UserListItem,
+  PersonaVisible,
+  PersonaInterna,
   UserListParams,
   UserCreatePayload,
   UserUpdatePayload,
   UserProductivityParams,
   UserManagerUpdate,
+  ApprovalChain,
   ApprovalChainNode,
   UserPublic,
   UserWithRate,
@@ -108,10 +113,4 @@ export type {
   RuntimeFlagsResponse,
   IntegrationProvider,
   IntegrationStatus,
-  IntegrationProviderConfig,
-  IntegrationField,
-  IntegrationFieldUpdate,
-  IntegrationTestResult,
-  AuditLogParams,
-  AuditLogEntry,
-} from './settings'
+  Int

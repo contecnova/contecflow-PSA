@@ -61,7 +61,7 @@ interface NotificationRule {
   [key: string]: unknown
 }
 
-interface RulePayload {
+type RulePayload = {
   scope: string
   notify_messages: string
   desktop_push: boolean
@@ -295,7 +295,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   }, [rules])
 
   const saveRule = useMutation({
-    mutationFn: (payload: RulePayload) => collabApi.upsertRule(payload as unknown as Record<string, unknown>),
+    mutationFn: (payload: RulePayload) => collabApi.upsertRule(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-notification-rules'] }),
     onError: () => toast.error('No se pudieron guardar preferencias de notificación'),
   })

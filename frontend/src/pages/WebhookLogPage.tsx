@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { enterpriseApi } from '../services/api'
+import type { EntregaDeWebhook, EventoDeWebhook, WebhookSaliente } from '../services/api/tipos-plataforma'
 import { Spinner, EmptyState, Modal, Table } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -12,32 +13,6 @@ import { Webhook } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { POLL_FREQUENT_MS } from '../constants/timings'
-
-interface WebhookItem {
-  id: string
-  name?: string
-  url?: string
-}
-
-interface WebhookLogItem {
-  id: string
-  webhook_id?: string
-  webhook_name?: string
-  webhook_url?: string
-  event?: string
-  status_code?: number | null
-  success?: boolean
-  error?: string | null
-  duration_ms?: number | null
-  payload?: string | null
-  response?: string | null
-  created_at?: string | null
-}
-
-interface DeliveriesPage {
-  items: WebhookLogItem[]
-  total: number
-}
 
 const PAGE_SIZE = 50
 
@@ -57,21 +32,21 @@ const selectStyle = {
 
 export default function WebhookLogPage() {
   const t = useAppT()
-  const [selectedLog, setSelectedLog] = useState<WebhookLogItem | null>(null)
+  const [selectedLog, setSelectedLog] = useState<EntregaDeWebhook | null>(null)
   const [webhookId, setWebhookId] = useState('')
   const [event, setEvent] = useState('')
   const [estado, setEstado] = useState<'' | 'ok' | 'ko'>('')
   const [page, setPage] = useState(1)
 
   // Webhooks salientes configurados (para el filtro y el KPI)
-  const { data: webhooks = [] } = useQuery<WebhookItem[]>({
+  const { data: webhooks = [] } = useQuery({
     queryKey: ['outbound-webhooks'],
-    queryFn: () => enterpriseApi.outboundWebhooks().then(r => (Array.isArray(r.data) ? r.data : [])).catch(() => []),
+    queryFn: () => enterpriseApi.outboundWebhooks().then(r => r.data).catch((): WebhookSaliente[] => []),
   })
 
-  const { data: eventos = [] } = useQuery<{ value: string; label: string }[]>({
+  const { data: eventos = [] } = useQuery({
     queryKey: ['outbound-webhook-events'],
-    queryFn: () => enterpriseApi.outboundWebhookEvents().then(r => (Array.isArray(r.data) ? r.data : [])).catch(() => []),
+    queryFn: () => enterpriseApi.outboundWebhookEvents().then(r => r.data).catch((): EventoDeWebhook[] => []),
     staleTime: Infinity,
   })
 
@@ -84,14 +59,10 @@ export default function WebhookLogPage() {
     page,
     page_size: PAGE_SIZE,
   }
-  const { data, isLoading, refetch } = useQuery<DeliveriesPage>({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['webhook-deliveries', filtros],
     // El interceptor deja la lista en `r.data` y la paginación en `r.meta`.
-    queryFn: () => enterpriseApi.webhookDeliveries(filtros).then(r => {
-      const items = (Array.isArray(r.data) ? r.data : []) as WebhookLogItem[]
-      const meta = (r as { meta?: { total?: number } }).meta
-      return { items, total: Number(meta?.total ?? items.length) }
-    }),
+    queryFn: () => enterpriseApi.webhookDeliveries(filtros).then(r => ({ items: r.data, total: r.meta?.total ?? r.data.length })),
     placeholderData: keepPreviousData,
     refetchInterval: POLL_FREQUENT_MS,
   })

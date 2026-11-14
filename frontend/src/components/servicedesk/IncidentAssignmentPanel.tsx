@@ -12,61 +12,21 @@
  *   POST /sd/tickets/{id}/recommend-assignment
  *     -> {
  *          recommended_user_id, recommended_name, confidence, all_scores: [
- *            {user_id, name, score, kw_score, workload_score, is_on_call, active_tickets}
+ *            {user_id, name, score, available, components: {availability, historical_speed, historical_csat, skill_match}}
  *          ], method_used, reasoning, lgbm_available,
  *        }
+ * Tipos: SdEstadisticasDeAsignacion y SdRecomendacionDeAsignacion (services/api/tipos-sd.ts).
  */
 import React, { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { incidentAssignmentApi, ticketsApi } from '../../services/api'
+import { incidentAssignmentApi, ticketsApi, type ApiError } from '../../services/api'
+import type { SdRecomendacionDeAsignacion } from '../../services/api/tipos-sd'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { UserCheck, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
-
-// TODO type: incidentAssignmentApi payloads — needs shared types
-interface AgentScore {
-  user_id: string | number
-  name: string
-  score: number
-  kw_score?: number
-  workload_score?: number
-  is_on_call?: boolean
-  active_tickets?: number
-}
-
-interface Recommendation {
-  recommended_user_id?: string | number
-  recommended_name?: string
-  confidence?: number
-  all_scores?: AgentScore[]
-  method_used?: string
-  reasoning?: string
-  lgbm_available?: boolean
-}
-
-interface AgentLoad {
-  user_id: string | number
-  agent_id?: string | number
-  name?: string
-  agent_name?: string
-  open_tickets?: number
-  active_tickets?: number
-  capacity?: number
-  specializations?: string[]
-  is_on_call?: boolean
-  groups?: string[]
-}
-
-interface AssignmentStats {
-  total_recommendations?: number
-  last_recommendation_at?: string
-  lgbm_available?: boolean
-  total_unassigned?: number
-  agent_loads?: AgentLoad[]
-}
 
 const fieldLabel: React.CSSProperties = {
   fontSize: 'var(--text-2xs)',
@@ -96,11 +56,11 @@ export default function IncidentAssignmentPanel() {
   const [ticketTitle, setTicketTitle] = useState<string>('')
   const [ticketDescription, setTicketDescription] = useState<string>('')
   const [priority, setPriority] = useState<string>('p3_medium')
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
+  const [recommendation, setRecommendation] = useState<SdRecomendacionDeAsignacion | null>(null)
 
   const [applySuccess, setApplySuccess] = useState<boolean>(false)
 
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<AssignmentStats>({
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['incident-assign-stats'],
     queryFn: () => incidentAssignmentApi.stats().then(r => r.data),
     refetchInterval: POLL_FREQUENT_MS,
@@ -108,15 +68,15 @@ export default function IncidentAssignmentPanel() {
 
   const candidates = stats?.agent_loads ?? []
 
-  const recommendMutation = useMutation<Recommendation, unknown, string>({
+  const recommendMutation = useMutation<SdRecomendacionDeAsignacion, ApiError, string>({
     mutationFn: (id) => {
       const candidate_agents = candidates.map((a) => ({
-        user_id: String(a.user_id ?? a.agent_id),
-        name: a.name ?? a.agent_name ?? a.user_id,
-        active_tickets: Number(a.active_tickets ?? a.open_tickets ?? 0),
-        capacity: Number(a.capacity ?? 10),
-        specializations: Array.isArray(a.specializations) ? a.specializations : [],
-        is_on_call: Boolean(a.is_on_call ?? false),
+        user_id: a.user_id,
+        name: a.name,
+        active_tickets: a.active_tickets,
+        capacity: a.capacity,
+        specializations: a.specializations,
+        is_on_call: a.is_on_call,
       }))
       return ticketsApi.recommendAssignment(id, {
         title: ticketTitle || `Incident ${id}`,
@@ -124,7 +84,7 @@ export default function IncidentAssignmentPanel() {
         priority,
         ticket_type: 'incident',
         candidate_agents,
-      }).then(r => r.data as Recommendation)
+      }).then(r => r.data)
     },
     onSuccess: (data) => {
       setRecommendation(data)
@@ -133,7 +93,7 @@ export default function IncidentAssignmentPanel() {
     },
   })
 
-  const applyMutation = useMutation<unknown, unknown, { ticketId: string; userId: string | number | undefined }>({
+  const applyMutation = useMutation<unknown, ApiError, { ticketId: string; userId: string }>({
     mutationFn: ({ ticketId, userId }) =>
       ticketsApi.update(ticketId, { assigned_to_user_id: userId }),
     onSuccess: () => {
@@ -245,7 +205,7 @@ export default function IncidentAssignmentPanel() {
                   <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-1)' }}>
                     {recommendation.recommended_name}
                     <span style={{ marginLeft: 10, fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--success)' }}>
-                      {Math.round((recommendation.confidence ?? 0) * 100)}%
+                      {Math.round(recommendation.confidence * 100)}%
                     </span>
                   </div>
                   {recommendation.reasoning && (
@@ -273,7 +233,7 @@ export default function IncidentAssignmentPanel() {
                     )}
                     {applyMutation.isError && (
                       <div style={{ marginTop: 6, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>
-                        {(applyMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al aplicar asignación'}
+                        {applyMutation.error?.response?.data?.detail || 'Error al aplicar asignación'}
                       </div>
                     )}
                   </div>
@@ -294,12 +254,19 @@ export default function IncidentAssignmentPanel() {
                   <div style={fieldLabel}>{t('sd.assign.top_agents', 'Top candidatos')}</div>
                   <div className="u-stack-6">
                     {allScores.slice(0, 5).map((rec, i) => {
-                      const score = Math.round((rec.score ?? 0) * 100)
+                      const score = Math.round(rec.score * 100)
                       const scoreColor = score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--text-3)'
-                      const breakdown = []
-                      if (rec.kw_score != null) breakdown.push(`kw ${Math.round(rec.kw_score * 100)}%`)
-                      if (rec.workload_score != null) breakdown.push(`carga ${Math.round(rec.workload_score * 100)}%`)
-                      if (rec.is_on_call) breakdown.push('on-call')
+                      // Auditoría 2026-11: leía `kw_score`, `workload_score`, `is_on_call` y
+                      // `active_tickets`, que la recomendación no trae: el desglose son los
+                      // `components` de la puntuación y la carga sale de `agent_loads`.
+                      const c = rec.components
+                      const breakdown = [
+                        `disp. ${Math.round(c.availability * 100)}%`,
+                        `rapidez ${Math.round(c.historical_speed * 100)}%`,
+                        `CSAT ${Math.round(c.historical_csat * 100)}%`,
+                        `skills ${Math.round(c.skill_match * 100)}%`,
+                      ]
+                      const carga = candidates.find(a => a.user_id === rec.user_id)
                       return (
                         <div key={rec.user_id || i} style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -310,18 +277,18 @@ export default function IncidentAssignmentPanel() {
                         }}>
                           <div className="u-flex1-min0">
                             <div className="u-text1-sm-600">
-                              {rec.name ?? rec.user_id}
+                              {rec.name || rec.user_id}
                             </div>
-                            {breakdown.length > 0 && (
-                              <div className="u-text3-xs-mt2">
-                                {breakdown.join(' · ')}
-                              </div>
-                            )}
+                            <div className="u-text3-xs-mt2">
+                              {breakdown.join(' · ')}
+                            </div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                            <span className="u-text3-xs">
-                              {rec.active_tickets ?? 0} tickets
-                            </span>
+                            {carga && (
+                              <span className="u-text3-xs">
+                                {carga.open_tickets} tickets
+                              </span>
+                            )}
                             <span style={{
                               fontSize: 'var(--text-sm)', fontWeight: 700, color: scoreColor,
                               background: `color-mix(in srgb, ${scoreColor} 15%, transparent)`,
@@ -345,7 +312,7 @@ export default function IncidentAssignmentPanel() {
               border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)',
               borderRadius: 8, padding: '8px 12px',
             }}>
-              {(recommendMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al obtener recomendación'}
+              {recommendMutation.error?.response?.data?.detail || 'Error al obtener recomendación'}
             </div>
           )}
         </div>

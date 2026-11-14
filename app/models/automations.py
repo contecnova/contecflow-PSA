@@ -99,7 +99,7 @@ class AutomationRule(Base):
     description = Column(String(500), nullable=True)
 
     # Scope
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True)  # None = global
+    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)  # None = global
     is_active   = Column(Boolean, default=True)
     is_global   = Column(Boolean, default=False)  # Applies to all projects
 
@@ -120,7 +120,7 @@ class AutomationRule(Base):
     last_run_at   = Column(DateTime(timezone=True), nullable=True)
     last_error    = Column(String(500), nullable=True)
 
-    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
 

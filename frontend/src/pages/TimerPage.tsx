@@ -6,6 +6,8 @@ import type { CSSProperties } from 'react'
 import type { TaskListParams, TaskListItem } from '../services/api/tasks'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { imputationsApi, projectsApi, tasksApi } from '../services/api'
+import type { Imputacion, SesionDeCronometro } from '../services/api/tipos-personas'
+import { useAuth } from '../context/AuthContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { useDialogo, Table } from '../components/ui'
@@ -27,30 +29,11 @@ const LS: CSSProperties = {
   letterSpacing: '0.07em', display: 'block', marginBottom: 5,
 }
 
-interface TimerData {
-  id?: string
-  project_id?: string | number
-  project_name?: string | null
-  task_id?: string | number | null
-  task_name?: string | null
-  started_at: string
-  paused_at?: string | null
-  total_elapsed_seconds?: number | null
-  paused_duration_secs?: number | null
-}
+type TimerData = SesionDeCronometro
 
 type ApiErr = { response?: { data?: { detail?: string } } }
 
-interface TimerHistoryItem {
-  id: string
-  timer_session_id?: string | null
-  description?: string | null
-  hours?: number | null
-  hours_imputed?: number | null
-  is_billable?: boolean
-  created_at?: string | null
-  project?: { id?: string | number; name?: string | null; code?: string | null } | null
-}
+type TimerHistoryItem = Imputacion
 
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600)
@@ -100,16 +83,12 @@ function StartModal({ onClose, onStart, isPending }: {
 
   const { data: projects = [] } = useQuery<Array<{ id: string; name?: string }>>({
     queryKey: ['projects-list-timer'],
-    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE, status: 'active' }).then((r: { data: unknown }) =>
-      Array.isArray(r.data) ? r.data : ((r.data as { items?: unknown[] }).items || [])
-    ),
+    queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE, status: 'active' }).then((r) => r.data),
   })
 
   const { data: tasks = [] } = useQuery<TaskListItem[]>({
     queryKey: ['tasks-for-project-timer', projectId],
-    queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: LARGE_PAGE_SIZE } as TaskListParams).then((r: { data: unknown }) =>
-      Array.isArray(r.data) ? r.data : ((r.data as { items?: TaskListItem[] }).items || [])
-    ),
+    queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: LARGE_PAGE_SIZE } as TaskListParams).then((r) => r.data),
     enabled: !!projectId,
   })
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
@@ -205,9 +184,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
 
   const { data: tasks = [] } = useQuery<TaskListItem[]>({
     queryKey: ['tasks-for-stop-timer', currentTimer?.project_id, 'mine'],
-    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, assigned_to_me: true, page_size: LARGE_PAGE_SIZE } as TaskListParams).then((r: { data: unknown }) =>
-      Array.isArray(r.data) ? r.data : ((r.data as { items?: TaskListItem[] }).items || [])
-    ),
+    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, assigned_to_me: true, page_size: LARGE_PAGE_SIZE } as TaskListParams).then((r) => r.data),
     enabled: !!currentTimer?.project_id,
   })
 
@@ -304,6 +281,7 @@ export default function TimerPage() {
   const t       = useAppT()
   const toast   = useToast()
   const qc      = useQueryClient()
+  const { user } = useAuth()
   const [elapsed,    setElapsed]   = useState(0)
   const [showStart,  setShowStart] = useState(false)
   const [showStop,   setShowStop]  = useState(false)
@@ -311,7 +289,7 @@ export default function TimerPage() {
 
   const { data: currentTimer } = useQuery<TimerData | null>({
     queryKey: ['timer-current'],
-    queryFn: () => imputationsApi.timerCurrent().then((r: { data: TimerData | null }) => r.data),
+    queryFn: () => imputationsApi.timerCurrent().then((r) => r.data),
     refetchInterval: NOTIFICATIONS_POLL_MS,
   })
 
@@ -329,13 +307,12 @@ export default function TimerPage() {
     staleTime: STALE_5_MIN_MS,
   })
 
+  // Solo las suyas: sin `user_id`, a un responsable `GET /imputations` le devuelve las de todos.
   const { data: timerHistory = [] } = useQuery<TimerHistoryItem[]>({
-    queryKey: ['timer-history'],
-    queryFn: () => imputationsApi.list({ page_size: DEFAULT_PAGE_SIZE }).then((r: { data: unknown }) => {
-      const data = r.data
-      const items: TimerHistoryItem[] = Array.isArray(data) ? data : ((data as { items?: TimerHistoryItem[] }).items || [])
-      return items.filter((imp) => imp.timer_session_id)
-    }),
+    queryKey: ['timer-history', user?.id],
+    queryFn: () => imputationsApi.list({ page_size: DEFAULT_PAGE_SIZE, user_id: user?.id })
+      .then((r) => r.data.filter((imp) => imp.timer_session_id)),
+    enabled: !!user?.id,
     refetchInterval: POLL_DEFAULT_MS,
   })
 
@@ -548,7 +525,7 @@ export default function TimerPage() {
               ) },
               { key: 'hours', label: 'Horas', render: (_v, s) => (
                 <span style={{ color: 'var(--text-1)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-                  {typeof s.hours === 'number' ? s.hours.toFixed(2) : (s.hours_imputed?.toFixed(2) || '—')}h
+                  {s.hours.toFixed(2)}h
                 </span>
               ) },
               { key: 'is_billable', label: 'Tipo', render: (_v, s) => (

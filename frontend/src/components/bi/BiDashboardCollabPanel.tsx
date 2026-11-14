@@ -8,17 +8,17 @@
  *   GET   /bi/collaboration/shared-views                                          -> { items }
  *   POST  /bi/collaboration/shared-views                                          { name, dashboard_key, filters }
  *   PATCH /bi/collaboration/shared-views/{id}                                     { active }
- *   GET   /bi/collaboration/dashboards/{key}/shares                               -> { items }
+ *   GET   /bi/collaboration/dashboards/{key}/shares                               -> lista
  *   POST  /bi/collaboration/dashboards/{key}/shares                               { target_user_id, target_user_name, permission }
  *   DEL   /bi/collaboration/dashboards/{key}/shares/{shareId}
- *   GET   /bi/collaboration/dashboards/{key}/versions                             -> { items }
+ *   GET   /bi/collaboration/dashboards/{key}/versions                             -> lista
  *   POST  /bi/collaboration/dashboards/{key}/versions/{versionId}/restore
- *   GET   /bi/collaboration/notifications?include_read=false                      -> { items }
+ *   GET   /bi/collaboration/notifications?include_read=false                      -> lista
  *   PATCH /bi/collaboration/notifications/{id}                                    { is_read }
  */
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { biCollaborationApi, unwrapList } from '../../services/api'
+import { biCollaborationApi } from '../../services/api'
 import type { ComentarioBi } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
@@ -75,41 +75,6 @@ interface BiDashboardCollabPanelProps {
   dashboardKey?: string
 }
 
-
-// Auditoria 2026-09 (modo estricto): las cinco listas de este panel salian de
-// `datos?.items ?? datos?.<lista> ?? []` con el cliente de API sin tipar, asi
-// que todo lo que se pinta debajo era `any`. Se declara lo que el panel lee.
-
-/** Una comparticion del panel con otra persona. */
-interface ComparticionDeBi {
-  id: string
-  target_user_name?: string
-  target_user_id?: string | number
-  user_name?: string
-  user_id?: string | number
-  permission?: string
-}
-
-/** Una version guardada del panel. */
-interface VersionDeBi {
-  id: string
-  version?: number
-  label?: string
-  change_log?: string
-  created_by_name?: string
-  created_at?: string
-}
-
-/** Un aviso del panel. */
-interface AvisoDeBi {
-  id: string
-  event_type?: string
-  type?: string
-  message?: string
-  dashboard_key?: string
-  created_at?: string
-  is_read?: boolean
-}
 
 export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDashboardCollabPanelProps) {
   const t = useAppT()
@@ -229,12 +194,12 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al marcar leída'),
   })
 
-  // Comentarios y vistas: APIListResponse, llegan como lista (tipos-grc).
+  // Todas son APIListResponse: llegan como lista (tipos-grc, tipos-bi).
   const comments: ComentarioBi[] = commentsData ?? []
   const views = viewsData ?? []
-  const shares = unwrapList(sharesData, 'shares') as ComparticionDeBi[]
-  const versions = unwrapList(versionsData, 'versions') as VersionDeBi[]
-  const notifications = unwrapList(notificationsData, 'notifications') as AvisoDeBi[]
+  const shares = sharesData ?? []
+  const versions = versionsData ?? []
+  const notifications = notificationsData ?? []
 
   function submitComment() {
     const msg = newComment.trim()
@@ -446,21 +411,21 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                 }}>
                   <div className="u-flex1-min0">
                     <div className="u-text1-sm-600">
-                      {s.target_user_name || s.user_name || s.target_user_id || s.user_id}
+                      {s.user_name || s.user_id}
                     </div>
                     <div className="u-text3-xs-mt2">
-                      <span className="u-mono">{s.target_user_id || s.user_id}</span>
+                      <span className="u-mono">{s.user_id}</span>
                     </div>
                   </div>
                   <div className="u-row-center-8">
                     {s.permission === 'view' && <Lock size={12} style={{ color: 'var(--text-3)' }} />}
-                    <span style={chip(PERMISSION_COLOR[s.permission ?? ''] || 'var(--text-3)')}>
-                      {PERMISSION_LABEL[s.permission ?? ''] || s.permission}
+                    <span style={chip(PERMISSION_COLOR[s.permission] || 'var(--text-3)')}>
+                      {PERMISSION_LABEL[s.permission] || s.permission}
                     </span>
                     <button aria-label="Revocar acceso"
                       type="button"
                       onClick={async () => {
-                        if (await confirmar({ message: `¿Revocar acceso de ${s.target_user_name || s.user_name}?`, danger: true, confirmLabel: 'Revocar' })) {
+                        if (await confirmar({ message: `¿Revocar acceso de ${s.user_name || s.user_id}?`, danger: true, confirmLabel: 'Revocar' })) {
                           revokeShareMutation.mutate(s.id)
                         }
                       }}
@@ -558,11 +523,11 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     <div className="u-row-center-6">
                       <Bell size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                       <span className="u-text1-sm-600">
-                        {n.event_type || n.type || 'evento'}
+                        {n.event_type}
                       </span>
                     </div>
                     <div className="u-hint">
-                      {n.message || n.dashboard_key || ''}
+                      {n.dashboard_key}
                       {n.created_at && ` · ${new Date(n.created_at).toLocaleString(localeActivo())}`}
                     </div>
                   </div>

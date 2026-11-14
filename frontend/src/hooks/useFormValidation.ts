@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { CSSProperties, Dispatch, SetStateAction } from 'react'
-import type { ZodSchema } from 'zod'
+import type { ZodType } from 'zod'
 import {
   getFieldErrorStyle,
   validateSchema,
@@ -16,7 +16,7 @@ export interface UseFormValidationResult<T> {
   inputStyle: (baseStyle: CSSProperties, field: string) => CSSProperties
 }
 
-export function useFormValidation<T>(schema: ZodSchema<T>): UseFormValidationResult<T> {
+export function useFormValidation<T>(schema: ZodType<T>): UseFormValidationResult<T> {
   const [errors, setErrors] = useState<FieldErrors>({})
 
   const clearFieldError = useCallback((field: string) => {

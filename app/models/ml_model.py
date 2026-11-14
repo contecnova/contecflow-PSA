@@ -47,7 +47,7 @@ class MLPredictionLog(Base):
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
-    ml_model_id     = Column(String(36), ForeignKey("ml_models.id", ondelete="SET NULL"), nullable=True)
+    ml_model_id     = Column(String(36), ForeignKey("ml_models.id", ondelete="SET NULL"), nullable=True, index=True)
     project_id      = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Snapshot of features at prediction time

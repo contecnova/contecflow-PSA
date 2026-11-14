@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { gitApi, apiUrl } from '../services/api'
+import type { EstadoDeDespliegue, EstadoDePullRequest } from '../services/api/tipos-proyectos'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { GitBranch } from 'lucide-react'
@@ -15,33 +16,6 @@ import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
 import { UI_FEEDBACK_MS } from '../constants/timings'
 
-type PrStatus = 'open' | 'draft' | 'merged' | 'closed'
-type DeployStatus = 'pending' | 'running' | 'success' | 'failure' | 'cancelled'
-
-interface PullRequestItem {
-  id: string | number
-  status?: PrStatus
-  repo_full_name?: string
-  pr_number?: number
-  pr_url?: string
-  pr_title?: string
-  source_branch?: string
-  author_login?: string
-  task_id?: string | number
-  merged_at?: string
-  created_at?: string
-}
-
-interface DeploymentItem {
-  id: string | number
-  status?: DeployStatus
-  repo_full_name?: string
-  sha?: string
-  environment?: string
-  task_id?: string | number
-  deployed_at?: string
-  created_at?: string
-}
 
 const STATUS_PR = {
   open:   { key: 'git_integration.status_open',   color: 'var(--success)', bg: 'var(--success-bg)' },
@@ -58,7 +32,7 @@ const STATUS_DEPLOY = {
   cancelled: { key: 'git_integration.status_cancelled',color: 'var(--text-2)', bg: 'var(--surface-2)' },
 }
 
-function PRStatusPill({ status }: { status?: PrStatus }) {
+function PRStatusPill({ status }: { status?: EstadoDePullRequest }) {
   const t = useAppT()
   const s = (status && STATUS_PR[status]) || STATUS_PR.open
   return (
@@ -70,7 +44,7 @@ function PRStatusPill({ status }: { status?: PrStatus }) {
   )
 }
 
-function DeployPill({ status }: { status?: DeployStatus }) {
+function DeployPill({ status }: { status?: EstadoDeDespliegue }) {
   const t = useAppT()
   const s = (status && STATUS_DEPLOY[status]) || STATUS_DEPLOY.pending
   return (
@@ -89,19 +63,17 @@ export default function GitPage(): JSX.Element {
 
   const { data: webhooks } = useQuery({
     queryKey: ['git-webhooks'],
-    queryFn: () => gitApi.webhooks().then(r => r.data as { github?: { ruta: string; secreto: boolean }; gitlab?: { ruta: string; secreto: boolean } }),
+    queryFn: () => gitApi.webhooks().then(r => r.data),
   })
-  const { data: prsRaw = [], isLoading: loadPR } = useQuery({
+  const { data: prs = [], isLoading: loadPR } = useQuery({
     queryKey: ['git-prs'],
-    queryFn: () => gitApi.pullRequests().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => gitApi.pullRequests().then(r => r.data),
   })
-  const prs = prsRaw as PullRequestItem[]
 
-  const { data: deploysRaw = [], isLoading: loadDep } = useQuery({
+  const { data: deploys = [], isLoading: loadDep } = useQuery({
     queryKey: ['git-deploys'],
-    queryFn: () => gitApi.deployments().then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => gitApi.deployments().then(r => r.data),
   })
-  const deploys = deploysRaw as DeploymentItem[]
 
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleString(localeActivo(), {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',

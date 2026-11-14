@@ -10,27 +10,14 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { alertClustersApi } from '../../services/api'
+import type { ClusterDeAlertas } from '../../services/api/tipos-analitica'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import { DELAYED_REFETCH_SHORT_MS, POLL_DEFAULT_MS } from '../../constants/timings'
 
-// TODO type: alertClustersApi payload — needs shared type
-interface AlertCluster {
-  cluster_id: string | number
-  size: number
-  ticket_ids?: Array<string | number>
-  ticket_numbers?: string[]
-  ci_id?: string
-  category?: string
-  priority?: string
-  correlation_score?: number
-  suggested_action?: string
-  root_ci_ids?: string[]
-  earliest_at?: string
-  latest_at?: string
-}
+type AlertCluster = ClusterDeAlertas
 
 const PRIORITY_LABELS: Record<string, string> = {
   p1_critical: 'P1 Crítico',
@@ -183,7 +170,7 @@ export default function AlertCorrelationPanel() {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
-  const { data: clustersData, isLoading: clustersLoading } = useQuery<{ clusters?: AlertCluster[]; window_hours?: number; total?: number }>({
+  const { data: clustersData, isLoading: clustersLoading } = useQuery({
     queryKey: ['sd-alert-clusters'],
     queryFn: () => alertClustersApi.list().then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
@@ -201,7 +188,7 @@ export default function AlertCorrelationPanel() {
   const { mutate: mergeMutate, variables: mergeVars, isPending: isMerging } = useMutation({
     mutationFn: ({ ticket_ids }: { ticket_ids: Array<string | number>; cluster_id: string | number }) => alertClustersApi.merge({ ticket_ids, auto_rca: true }),
     onSuccess: (res) => {
-      const num = res.data?.problem_number || res.data?.problem_id || ''
+      const num = res.data.problem_number
       toast.success(`Problema ${num} creado desde el cluster`)
       qc.invalidateQueries({ queryKey: ['sd-alert-clusters'] })
       qc.invalidateQueries({ queryKey: ['sd-alert-clusters-stats'] })
@@ -223,14 +210,14 @@ export default function AlertCorrelationPanel() {
       }
       // Con cola el escaneo va al worker (202 `{status: 'queued'}`): se avisa y se
       // refresca mas tarde.
-      if (res.data?.status === 'queued') {
+      if (!('clusters_found' in res.data)) {
         toast.success('Escaneo en curso: los resultados aparecerán en unos instantes.')
         setTimeout(refrescar, DELAYED_REFETCH_SHORT_MS)
         return
       }
-      const found = res.data?.clusters_detected ?? res.data?.clusters_found ?? 0
-      // El backend devuelve `problems_created` (se leian claves que no existen).
-      const created = res.data?.problems_created ?? 0
+      // run_correlation_scan_job: `clusters_found` y `problems_created`.
+      const found = res.data.clusters_found
+      const created = res.data.problems_created
       toast.success(`Escáner: ${found} clusters · ${created} problemas auto-creados`)
       refrescar()
     },

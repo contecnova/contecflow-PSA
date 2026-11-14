@@ -7,28 +7,22 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { clientsApi } from '../services/api'
 
 // Tipo de respuesta del cliente de API (services/api/tipos.ts, auditoria 2026-11 #39).
 import type { Client } from '../services/api/tipos'
+import type { ClienteDetalle } from '../services/api/tipos-alm'
 import { STALE_5_MIN_MS, STALE_REFERENCE_DATA_MS } from '../constants/timings'
 export type { Client }
 
 export type ClientListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
 // ── List ──────────────────────────────────────────────────────────────────────
 export function useClients(params: ClientListParams = {}): UseQueryResult<Client[]> {
   return useQuery<Client[]>({
     queryKey: ['clients', params],
-    queryFn: () => clientsApi.list(params).then((r: { data?: { items?: Client[] } | Client[] | null }) => unwrapList<Client>(r)),
+    queryFn: () => clientsApi.list(params).then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
@@ -37,16 +31,16 @@ export function useClients(params: ClientListParams = {}): UseQueryResult<Client
 export function useAllClients(): UseQueryResult<Client[]> {
   return useQuery<Client[]>({
     queryKey: ['clients'],
-    queryFn: () => clientsApi.list({}).then((r: { data?: { items?: Client[] } | Client[] | null }) => unwrapList<Client>(r)),
+    queryFn: () => clientsApi.list({}).then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
 }
 
 // ── Single ────────────────────────────────────────────────────────────────────
-export function useClient(id: string | undefined): UseQueryResult<unknown> {
+export function useClient(id: string | undefined): UseQueryResult<ClienteDetalle> {
   return useQuery({
     queryKey: ['client', id],
-    queryFn: () => clientsApi.get(id).then((r: { data: unknown }) => r.data),
+    queryFn: () => clientsApi.get(id).then(r => r.data),
     enabled: !!id,
     staleTime: STALE_5_MIN_MS,
   })

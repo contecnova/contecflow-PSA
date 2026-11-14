@@ -169,7 +169,7 @@ def resumen(org) -> dict:
 # ── Token de elección: prueba de que la contraseña ya se comprobó ────────────
 
 def token_de_eleccion(user) -> str:
-    from jose import jwt
+    import jwt
     from app.core.security import ALGORITHM, get_jwt_signing_key
     minutos = int(settings.TENANT_SELECTION_TOKEN_MINUTES or 5)
     kid, key = get_jwt_signing_key()

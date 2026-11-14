@@ -73,8 +73,12 @@ def delete_project_custom_field(
 def get_task_custom_values(
     project_id: str, task_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    # Segunda auditoría 2026-11: solo pedía sesión; ahora, la guarda de lectura
+    # de la tarea (`get_task_record`: 404 si no la ve, 403 si no participa).
+    from app.services.task_service import get_task_record
+    get_task_record(db, task_id, current_user)
     return APIListResponse.ok(items=_svc.get_task_custom_values(project_id, task_id, db))
 
 

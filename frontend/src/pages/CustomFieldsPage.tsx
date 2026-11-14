@@ -4,6 +4,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, customFieldsApi } from '../services/api'
+import type { CampoPersonalizado } from '../services/api/tipos-rendimiento'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -21,16 +22,7 @@ interface ProjectItem {
   name?: string
 }
 
-interface CustomField {
-  id: string | number
-  name: string
-  field_key: string
-  field_type: string
-  options?: string[]
-  is_required?: boolean
-  show_in_list?: boolean
-  sort_order?: number
-}
+type CustomField = CampoPersonalizado
 
 interface FieldFormState {
   name: string
@@ -190,12 +182,11 @@ export default function CustomFieldsPage(): JSX.Element {
   })
   const projects = projectsRaw as ProjectItem[]
 
-  const { data: fieldsRaw = [], isLoading } = useQuery({
+  const { data: fields = [], isLoading } = useQuery({
     queryKey: ['custom-fields', selectedProject],
-    queryFn: () => customFieldsApi.list(selectedProject).then(r => r.data).catch(() => []),
+    queryFn: () => customFieldsApi.list(selectedProject).then(r => r.data).catch((): CustomField[] => []),
     enabled: !!selectedProject,
   })
-  const fields = fieldsRaw as CustomField[]
 
   const { mutate: deleteField } = useMutation({
     mutationFn: (fid: string | number) => customFieldsApi.delete(selectedProject, fid),

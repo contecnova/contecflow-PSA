@@ -5,7 +5,7 @@ Gestiona tokens JWT seguros para iframes embebidos, configuración CSP/origins
 y el flujo SSO para aplicaciones externas.
 
 Diseño:
-- Tokens firmados con python-jose (HS256, TTL configurable)
+- Tokens firmados con PyJWT (HS256, TTL configurable)
 - Metadatos en AppSetting JSON blob keyed by org_id
 - Sin migraciones: todo el estado en sd_app_settings / bi_app_settings
 """
@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from jose import JWTError, jwt
+import jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -114,7 +114,7 @@ def validate_embed_token(db: Session, org_id: str, token: str) -> dict:
     try:
         claims = jwt.decode(token, _embed_secret(org_id), algorithms=[_EMBED_ALGO])
     # intentional: chained re-raise preserves context
-    except JWTError as exc:
+    except jwt.PyJWTError as exc:
         raise ErrorDeDominio(401, f"Token de embed inválido: {exc}") from exc
 
     if claims.get("type") != "embed":
@@ -243,7 +243,7 @@ def sso_exchange_token(
         try:
             external_claims = jwt.decode(external_token, secret, algorithms=[algorithm])
             break
-        except JWTError:
+        except jwt.PyJWTError:
             continue
 
     if external_claims is None:

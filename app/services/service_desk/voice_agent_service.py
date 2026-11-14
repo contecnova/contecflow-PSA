@@ -278,3 +278,80 @@ def list_sessions(
         items = [s for s in items if s.get("status") == status]
     items.sort(key=lambda s: s.get("created_at", ""), reverse=True)
     return items[:limit]
+
+
+# ── Llamadas entrantes de Twilio (varias organizaciones) ───────────────────────
+#
+# Segunda auditoria 2026-11 (#19): la voz era MONO-ORGANIZACION (token global,
+# sesion sin organizacion). Ahora la organizacion sale del numero llamado (`To`),
+# la firma se verifica con el token de ESA organizacion (o el global si no tiene
+# propio, como el SMS) y la llamada se atiende dentro de su contexto de tenant.
+# Un numero desconocido, de dos organizaciones o de una desactivada se rechaza.
+
+LLAMADA_ACEPTADA = "aceptada"
+LLAMADA_NUMERO_DESCONOCIDO = "numero_desconocido"
+LLAMADA_FIRMA_INVALIDA = "firma_invalida"
+
+
+def verificar_llamada_de_twilio(
+    db: Session, url, form: Dict[str, Any], firma: Optional[str],
+) -> tuple[str, Optional[str]]:
+    """`(veredicto, org_id)` de un webhook de voz de Twilio.
+
+    Con numero conocido la firma se comprueba con el token de su organizacion.
+    Con numero desconocido no hay organizacion: la firma se comprueba con el
+    token global solo para distinguir a Twilio (rechazo limpio de la llamada)
+    de un tercero (403); en ningun caso se atiende la llamada.
+    """
+    from app.services.entrada_service import organizacion_desactivada
+    from app.services.service_desk.sms_service import (
+        firma_de_twilio_valida,
+        organizacion_del_numero_de_twilio,
+        twilio_auth_token_de_la_organizacion,
+    )
+
+    org_id = organizacion_del_numero_de_twilio(db, form.get("To"))
+    if org_id is not None and organizacion_desactivada(db, org_id):
+        org_id = None
+    token = twilio_auth_token_de_la_organizacion(db, org_id)
+    if not firma_de_twilio_valida(url, form, firma, token):
+        return LLAMADA_FIRMA_INVALIDA, None
+    if org_id is None:
+        logging.getLogger(__name__).warning(
+            "Twilio voz: llamada a %r sin organizacion; se rechaza", form.get("To"))
+        return LLAMADA_NUMERO_DESCONOCIDO, None
+    return LLAMADA_ACEPTADA, org_id
+
+
+def atender_llamada_de_twilio(db: Session, org_id: str, caller_id: str, call_sid: str) -> Dict[str, Any]:
+    """Abre la sesion de voz de la llamada en `org_id` y devuelve `{session_id, config}`."""
+    from app.services.service_desk.ticket_events import como_organizacion
+
+    with como_organizacion(db, org_id):
+        creada = create_session(db, org_id, caller_id, channel="phone")
+        session_id = creada["session"]["id"]
+        add_transcript_turn(db, org_id, session_id, "bot", f"Incoming call from {caller_id} (SID: {call_sid})")
+        return {"session_id": session_id, "config": get_config(db, org_id)}
+
+
+def registrar_opcion_de_twilio(db: Session, org_id: str, session_id: Optional[str], digito: str) -> Dict[str, Any]:
+    """La opcion DTMF elegida en `org_id`: `{label, queue, language}`.
+
+    El turno se anota solo si la sesion es de esa organizacion; un `session_id`
+    ajeno o inexistente no se toca (antes cualquiera escribia en cualquiera).
+    """
+    from app.services.service_desk.ticket_events import como_organizacion
+
+    with como_organizacion(db, org_id):
+        cfg = get_config(db, org_id)
+        opcion = (cfg.get("dtmf_menu") or {}).get(digito, {})
+        etiqueta = opcion.get("label", "") if isinstance(opcion, dict) else str(opcion)
+        cola = opcion.get("intent", "general") if isinstance(opcion, dict) else (opcion or "general")
+        if session_id:
+            try:
+                add_transcript_turn(db, org_id, session_id, "user", f"DTMF selection: {digito} → {etiqueta or cola}")
+            except ValueError:
+                logging.getLogger(__name__).warning(
+                    "Twilio voz: sesion %s no es de la organizacion %s; no se anota", session_id, org_id)
+    return {"label": etiqueta, "queue": cola or "general",
+            "language": cfg.get("language", app_settings.DEFAULT_LANGUAGE)}

@@ -111,8 +111,8 @@ class ALMCostCenter(Base):
     code           = Column(String(20), nullable=False)  # CC-001 (unique per-tenant — ver __table_args__)
     name           = Column(String(200), nullable=False)
     description    = Column(Text, nullable=True)
-    department_id  = Column(String(36), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
-    manager_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    department_id  = Column(String(36), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
+    manager_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     budget_annual  = Column(Float, nullable=True)   # € presupuesto anual
     currency       = Column(String(3), default=settings.DEFAULT_CURRENCY)
     is_active      = Column(Boolean, default=True)
@@ -161,7 +161,7 @@ class ALMContract(Base):
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    vendor_id        = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True)
+    vendor_id        = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True, index=True)
     title            = Column(String(300), nullable=False)
     reference        = Column(String(100), nullable=True)   # Nº contrato interno
     type             = Column(Enum(ALMContractType), nullable=False)
@@ -185,9 +185,9 @@ class ALMContract(Base):
     invoice_email    = Column(String(200), nullable=True)
 
     # Responsabilidad
-    cost_center_id   = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True)
-    owner_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    project_id       = Column(String(36), ForeignKey("projects.id",  ondelete="SET NULL"), nullable=True)
+    cost_center_id   = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    project_id       = Column(String(36), ForeignKey("projects.id",  ondelete="SET NULL"), nullable=True, index=True)
 
     # Documentos
     document_url     = Column(String(1000), nullable=True)
@@ -202,7 +202,7 @@ class ALMContract(Base):
     response_hours = Column(Float, nullable=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
     updated_at       = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by       = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by       = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     vendor      = relationship("ALMVendor",     back_populates="contracts")
     cost_center = relationship("ALMCostCenter", back_populates="contracts")
@@ -216,8 +216,8 @@ class ALMLicense(Base):
 
     id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    contract_id          = Column(String(36), ForeignKey("alm_contracts.id", ondelete="SET NULL"), nullable=True)
-    vendor_id            = Column(String(36), ForeignKey("alm_vendors.id",   ondelete="SET NULL"), nullable=True)
+    contract_id          = Column(String(36), ForeignKey("alm_contracts.id", ondelete="SET NULL"), nullable=True, index=True)
+    vendor_id            = Column(String(36), ForeignKey("alm_vendors.id",   ondelete="SET NULL"), nullable=True, index=True)
 
     name                 = Column(String(300), nullable=False)
     product_name         = Column(String(200), nullable=True)
@@ -240,8 +240,8 @@ class ALMLicense(Base):
     annual_cost          = Column(Float, nullable=True)
 
     # Responsabilidad
-    cost_center_id       = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True)
-    project_id           = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    cost_center_id       = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True, index=True)
+    project_id           = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     environment          = Column(String(20), default="all")  # prod|staging|dev|all
     is_compliance_req    = Column(Boolean, default=False)
 
@@ -265,9 +265,9 @@ class ALMLicenseAssignment(Base):
     license_id   = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id      = Column(String(36), ForeignKey("users.id",        ondelete="SET NULL"), nullable=True, index=True)
     asset_id     = Column(String(36), ForeignKey("alm_assets.id",   ondelete="SET NULL"), nullable=True, index=True)
-    project_id   = Column(String(36), ForeignKey("projects.id",     ondelete="SET NULL"), nullable=True)
+    project_id   = Column(String(36), ForeignKey("projects.id",     ondelete="SET NULL"), nullable=True, index=True)
     assigned_at  = Column(DateTime(timezone=True), server_default=func.now())
-    assigned_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    assigned_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     expires_at   = Column(Date, nullable=True)
     notes        = Column(String(500), nullable=True)
     is_active    = Column(Boolean, default=True)
@@ -299,19 +299,19 @@ class ALMAsset(Base):
     is_active           = Column(Boolean, default=True, nullable=False)
 
     # Asignación
-    assigned_to_id      = Column(String(36), ForeignKey("users.id",        ondelete="SET NULL"), nullable=True)
-    department_id       = Column(String(36), ForeignKey("departments.id",  ondelete="SET NULL"), nullable=True)
-    project_id          = Column(String(36), ForeignKey("projects.id",     ondelete="SET NULL"), nullable=True)
+    assigned_to_id      = Column(String(36), ForeignKey("users.id",        ondelete="SET NULL"), nullable=True, index=True)
+    department_id       = Column(String(36), ForeignKey("departments.id",  ondelete="SET NULL"), nullable=True, index=True)
+    project_id          = Column(String(36), ForeignKey("projects.id",     ondelete="SET NULL"), nullable=True, index=True)
     location            = Column(String(200), nullable=True)  # Oficina / sala / rack
 
     # Financiero
-    vendor_id           = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True)
+    vendor_id           = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True, index=True)
     purchase_date       = Column(Date, nullable=True)
     purchase_price      = Column(Float, nullable=True)
     currency            = Column(String(3), default=settings.DEFAULT_CURRENCY)
     warranty_expiry     = Column(Date, nullable=True)
     depreciation_years  = Column(Integer, default=3)
-    cost_center_id      = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True)
+    cost_center_id      = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # IP / red (para servidores/VMs)
     ip_address          = Column(String(50),  nullable=True)
@@ -328,7 +328,7 @@ class ALMAsset(Base):
     next_maintenance_date = Column(Date, nullable=True)
     maintenance_contract = Column(String(255), nullable=True)
     # El ticket de renovacion abierto: el escaneo diario no abre otro mientras siga abierto.
-    refresh_ticket_id   = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True)
+    refresh_ticket_id   = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
 
     notes               = Column(Text, nullable=True)
     created_at          = Column(DateTime(timezone=True), server_default=func.now())
@@ -353,7 +353,7 @@ class ALMAssetHistory(Base):
     field_name  = Column(String(100), nullable=False)
     old_value   = Column(String(500), nullable=True)
     new_value   = Column(String(500), nullable=True)
-    changed_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    changed_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     note        = Column(String(255), nullable=True)
     changed_at  = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -370,7 +370,7 @@ class ALMSoftwareInstall(Base):
     license_id   = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
     asset_id     = Column(String(36), ForeignKey("alm_assets.id",   ondelete="CASCADE"), nullable=False, index=True)
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
-    installed_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    installed_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     version      = Column(String(50), nullable=True)
     is_active    = Column(Boolean, default=True, nullable=False)
     notes        = Column(String(500), nullable=True)
@@ -391,5 +391,5 @@ class ALMRenewalAlert(Base):
     days_before  = Column(Integer, nullable=False)       # cuántos días antes del vencimiento
     is_sent      = Column(Boolean, default=False)
     sent_at      = Column(DateTime(timezone=True), nullable=True)
-    recipient_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    recipient_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())

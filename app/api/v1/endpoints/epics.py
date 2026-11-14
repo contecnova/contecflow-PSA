@@ -191,7 +191,7 @@ def get_roadmap(project_id: str = Query(...),
 def nql_search(p: NQLIn, db: Session = Depends(get_db), cu: User = Depends(get_current_user),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
-    return APIResponse.ok(data=execute_nql_search(p.entity_type, p.query, p.limit, db))
+    return APIResponse.ok(data=execute_nql_search(p.entity_type, p.query, p.limit, db, cu))
 
 
 @router.get("/filters")

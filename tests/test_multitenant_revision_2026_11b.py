@@ -104,13 +104,14 @@ def test_EL_HALLAZGO_el_resumen_predictivo_solo_ensena_la_empresa_propia():
 def test_EL_HALLAZGO_el_estado_interno_global_no_lo_ve_el_admin_de_una_empresa(db):
     from app.models.settings import AppSetting
     from app.services.settings_service import ajustes_generales_para
+    from app.services.politica_de_visibilidad import Audiencia
     db.add(AppSetting(key="predictive.retraining.last_eval", value='{"results": ["org-b"]}', organization_id=None))
     db.add(AppSetting(key="itsm.estado_propio", value="mio", organization_id="1"))
     db.commit()
-    claves = {f["key"] for f in ajustes_generales_para(db, True, False)}
+    claves = {f["key"] for f in ajustes_generales_para(db, Audiencia.ADMIN, False)}
     assert "predictive.retraining.last_eval" not in claves
     assert "itsm.estado_propio" in claves  # lo de su empresa, si
-    assert "predictive.retraining.last_eval" in {f["key"] for f in ajustes_generales_para(db, True, True)}
+    assert "predictive.retraining.last_eval" in {f["key"] for f in ajustes_generales_para(db, Audiencia.ADMIN, True)}
 
 
 # ── Entradas sin usuario ─────────────────────────────────────────────────────

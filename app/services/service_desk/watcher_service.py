@@ -26,6 +26,26 @@ def serialize_ticket_watcher(watcher: TicketWatcher) -> dict:
     }
 
 
+def watchers_para(db: Session, viewer, ticket_id: str) -> list[dict]:
+    """Seguidores de un ticket que `viewer` ve (segunda auditoría 2026-11).
+
+    Antes bastaba la sesión: cualquier usuario leía los seguidores, con su
+    correo, de cualquier ticket de la empresa. Ahora el ticket tiene que estar
+    en su alcance (`scope_ticket_query`, 404 si no) y el correo de otras
+    personas sigue la `politica_de_visibilidad` (el subcontratado no lo ve).
+    """
+    from app.services import politica_de_visibilidad
+    from app.services.service_desk.scoping import scope_ticket_query
+    if not scope_ticket_query(db.query(Ticket.id), db, viewer).filter(Ticket.id == ticket_id).first():
+        raise ErrorDeDominio(404, "Ticket no encontrado")
+    filas = [serialize_ticket_watcher(w) for w in list_ticket_watchers(db, ticket_id)]
+    if not politica_de_visibilidad.ve_contacto_ajeno(viewer):
+        for fila in filas:
+            if fila["user_id"] != viewer.id:
+                fila["user_email"] = None
+    return filas
+
+
 def ensure_ticket_exists(db: Session, ticket_id: str) -> None:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:

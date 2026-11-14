@@ -93,10 +93,10 @@ class Opportunity(Base):
     contract_type   = Column(String(30), nullable=True)   # fixed_price | time_material | retainer | hourly_bag
 
     # Link to project if won
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
 
     # Proposal / SOW tracking
-    proposal_template_id  = Column(String(36), ForeignKey("proposal_templates.id", ondelete="SET NULL"), nullable=True)
+    proposal_template_id  = Column(String(36), ForeignKey("proposal_templates.id", ondelete="SET NULL"), nullable=True, index=True)
     proposal_content      = Column(Text, nullable=True)              # rendered Markdown
     proposal_generated_at = Column(DateTime(timezone=True), nullable=True)
     proposal_sent_at      = Column(DateTime(timezone=True), nullable=True)
@@ -121,7 +121,7 @@ class OpportunityActivity(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     opportunity_id = Column(String(36), ForeignKey("opportunities.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     type = Column(String(30), default="note")  # note | call | meeting | email | stage_change
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -181,9 +181,9 @@ class Contract(Base):
     document_url = Column(String(500), nullable=True)
     notes = Column(Text, nullable=True)
     payment_terms = Column(String(255), nullable=True)   # "30 days", "milestone"
-    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True)
+    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True, index=True)
 
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -203,7 +203,7 @@ class WorkOrder(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     code = Column(String(30), nullable=False)  # WO-001
     contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
 
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -271,8 +271,8 @@ class Risk(Base):
     response_type = Column(String(20), nullable=True)  # avoid | mitigate | transfer | accept
 
     # People
-    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    identified_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    identified_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     # Dates
     identified_date = Column(Date, server_default=func.current_date())
@@ -315,6 +315,6 @@ class ProposalTemplate(Base):
     # Markdown content with {{variable}} placeholders
     content         = Column(Text, nullable=False, default="")
     is_active       = Column(Boolean, nullable=False, default=True)
-    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at      = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

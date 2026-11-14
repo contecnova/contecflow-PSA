@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from app.core.config import settings
 from app.models.user import User, UserRole
 from app.models.imputation import Imputation
+from app.models.task import Task, TaskComment
 from app.models.imputation import ImputationAlert
 from app.models.user import User as UserModel
 from app.schemas import WeekSummary
@@ -18,6 +19,7 @@ from app.schemas.time_tracking import LockoutStatusOut
 from app.schemas.time_tracking import ImputationAlertOut
 from app.core.errores import ErrorDeDominio
 from app.core import timeutil
+from app.core.paginacion import Pagina, Paginacion, paginar
 
 from app.services.imputation_service._comun import (
     get_lockout_cutoff,
@@ -119,23 +121,21 @@ def lockout_status_payload(current_user: User, db: Session):
     )
 
 
-def list_alerts_payload(db: Session, current_user: User, acknowledged: bool) -> list:
+def list_alerts_payload(db: Session, current_user: User, acknowledged: bool,
+                        pagina: Optional[Paginacion] = None) -> Pagina:
     """Return ImputationAlertOut list for the current user."""
     q = db.query(ImputationAlert).filter(ImputationAlert.user_id == current_user.id)
     if not acknowledged:
         q = q.filter(ImputationAlert.dismissed_at == None)
-    alerts = q.order_by(ImputationAlert.alert_date.desc()).all()
-    return [
-        ImputationAlertOut(
+    return paginar(q.order_by(ImputationAlert.alert_date.desc(), ImputationAlert.id),
+                   pagina, "imputations.alerts").mapear(lambda a: ImputationAlertOut(
             id=a.id,
             user_id=a.user_id,
             alert_date=a.alert_date,
             alert_type=a.alert_type,
             created_at=a.created_at,
             dismissed_at=a.dismissed_at,
-        )
-        for a in alerts
-    ]
+        ))
 
 
 def dismiss_alert_record(db: Session, alert_id: str, current_user: User) -> dict:
@@ -212,9 +212,18 @@ def list_imputations_query(
     page_size: int,
 ):
 
+    # Segunda auditoria 2026-11 (N+1): `ImputationOut.task` es un `TaskOut`
+    # completo —responsable, autor y comentarios con su autor—; sin cargarlos
+    # aqui, cada fila hacia su propia consulta de comentarios. `TaskOut.real_hours`
+    # suma `Task.imputations`: su `lazy="selectin"` no se aplica al llegar a la
+    # tarea desde una imputacion (SQLAlchemy corta el ciclo y cae a carga
+    # perezosa, una consulta por fila), asi que se pide de forma explicita.
     q = db.query(Imputation).options(
         joinedload(Imputation.user),
-        joinedload(Imputation.task),
+        joinedload(Imputation.task).selectinload(Task.imputations),
+        joinedload(Imputation.task).joinedload(Task.assignee),
+        joinedload(Imputation.task).joinedload(Task.reporter),
+        joinedload(Imputation.task).selectinload(Task.comments).joinedload(TaskComment.author),
         joinedload(Imputation.project),
     ).filter(Imputation.is_active == True)
 

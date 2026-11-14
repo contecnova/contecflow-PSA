@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
+import type { AlertasDeMetricas, CatalogoDeMetricas, ConsultaDeMetrica, EtapaDelEmbudoOlap, HorasPorSemana, KpisOlap, MargenMensualOlap, NarrativaEjecutiva, OpcionesDeFiltroAnalitico, SaludDeProyectoOlap, UtilizacionAvanzada, UtilizacionOlap } from '../services/api/tipos-analitica'
 import { analyticsApi } from '../services/api'
 import { STALE_10_MIN_MS, STALE_5_MIN_MS } from '../constants/timings'
 
@@ -8,99 +8,99 @@ const STALE = 2 * 60 * 1000
 
 export type AnalyticsParams = Record<string, unknown>
 
-export function useAnalyticsQuery(metricId: string | undefined, params: AnalyticsParams = {}): UseQueryResult<unknown> {
+export function useAnalyticsQuery(metricId: string | undefined, params: AnalyticsParams = {}): UseQueryResult<ConsultaDeMetrica> {
   return useQuery({
     queryKey: ['analytics', metricId, params],
-    queryFn: () => analyticsApi.query(metricId, params).then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.query(metricId, params).then(r => r.data),
     enabled: !!metricId,
     staleTime: STALE,
   })
 }
 
-export function useAnalyticsFilterOptions(): UseQueryResult<unknown> {
+export function useAnalyticsFilterOptions(): UseQueryResult<OpcionesDeFiltroAnalitico> {
   return useQuery({
     queryKey: ['analytics-filter-options'],
-    queryFn: () => analyticsApi.filterOptions().then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.filterOptions().then(r => r.data),
     staleTime: STALE_5_MIN_MS,
   })
 }
 
-export function useHoursWeek(params: AnalyticsParams = {}): UseQueryResult<unknown> {
+export function useHoursWeek(params: AnalyticsParams = {}): UseQueryResult<HorasPorSemana> {
   return useQuery({
     queryKey: ['analytics-hours-week', params],
-    queryFn: () => analyticsApi.hoursWeek(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.hoursWeek(params).then(r => r.data),
     staleTime: STALE_5_MIN_MS,
   })
 }
 
-export function useUtilization(params: AnalyticsParams = {}): UseQueryResult<unknown> {
+export function useUtilization(params: AnalyticsParams = {}): UseQueryResult<UtilizacionAvanzada> {
   return useQuery({
     queryKey: ['analytics-utilization', params],
-    queryFn: () => analyticsApi.utilization(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.utilization(params).then(r => r.data),
     staleTime: STALE_5_MIN_MS,
   })
 }
 
-export function useMetricBreaches(params: AnalyticsParams = {}): UseQueryResult<unknown> {
+export function useMetricBreaches(params: AnalyticsParams = {}): UseQueryResult<AlertasDeMetricas> {
   return useQuery({
     queryKey: ['analytics-metric-breaches', params],
-    queryFn: () => analyticsApi.metricBreaches(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.metricBreaches(params).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useAnalyticsNarrative(params: AnalyticsParams = {}): UseQueryResult<unknown> {
+export function useAnalyticsNarrative(params: AnalyticsParams = {}): UseQueryResult<NarrativaEjecutiva> {
   return useQuery({
     queryKey: ['analytics-narrative', params],
-    queryFn: () => analyticsApi.narrative(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.narrative(params).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useOlapKpis(params: AnalyticsParams = {}): UseQueryResult<unknown> {
+export function useOlapKpis(params: AnalyticsParams = {}): UseQueryResult<KpisOlap> {
   return useQuery({
     queryKey: ['olap-kpis', params],
-    queryFn: () => analyticsApi.olapKpis(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.olapKpis(params).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useOlapPipelineFunnel(): UseQueryResult<unknown> {
+export function useOlapPipelineFunnel(): UseQueryResult<EtapaDelEmbudoOlap[]> {
   return useQuery({
     queryKey: ['olap-pipeline-funnel'],
-    queryFn: () => analyticsApi.olapFunnel().then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.olapFunnel().then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useOlapPortfolioHealth(): UseQueryResult<unknown> {
+export function useOlapPortfolioHealth(): UseQueryResult<SaludDeProyectoOlap[]> {
   return useQuery({
     queryKey: ['olap-portfolio-health'],
-    queryFn: () => analyticsApi.olapPortfolio().then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.olapPortfolio().then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useOlapMarginEvolution(months: number | string | undefined): UseQueryResult<unknown> {
+export function useOlapMarginEvolution(months: number | string | undefined): UseQueryResult<MargenMensualOlap[]> {
   return useQuery({
     queryKey: ['olap-margin-evolution', months],
-    queryFn: () => analyticsApi.olapMargin(months).then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.olapMargin(months).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useOlapUtilization(): UseQueryResult<unknown> {
+export function useOlapUtilization(): UseQueryResult<UtilizacionOlap[]> {
   return useQuery({
     queryKey: ['olap-utilization'],
-    queryFn: () => analyticsApi.olapUtilization().then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.olapUtilization().then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useAnalyticsCatalogue(): UseQueryResult<unknown> {
+export function useAnalyticsCatalogue(): UseQueryResult<CatalogoDeMetricas> {
   return useQuery({
     queryKey: ['analytics-catalogue'],
-    queryFn: () => analyticsApi.catalogue().then((r: { data: unknown }) => r.data),
+    queryFn: () => analyticsApi.catalogue().then(r => r.data),
     staleTime: STALE_10_MIN_MS,
   })
 }

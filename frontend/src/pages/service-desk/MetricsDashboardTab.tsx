@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sdMetricsApi } from '../../services/api'
+import type { SdRendimientoDeAgente } from '../../services/api/tipos-sd'
 import { Spinner, EmptyState, useSort, SortableTH, ariaSort } from '../../components/ui'
 import { KpiCard } from '../../components/dashboard/DashKit'
 import { COLOR, alpha } from '../../constants/theme'
@@ -235,45 +236,26 @@ function StarRating({ value }: { value: number | null }) {
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 /* ── Main component ───────────────────────────────────────────────────────── */
-type ItilMetrics = {
-  sla_compliance_pct?: number
-  fcr_percent?: number
-  mttr_minutes?: number | null
-  avg_csat?: number
-  by_type?: Record<string, number>
-  by_priority?: Record<string, number>
-  volume?: { total?: number; open?: number; resolved?: number; breached_sla?: number }
-}
-
-type AgentPerf = {
-  [k: string]: unknown
-  agent_id: string
-  agent_name?: string
-  total: number
-  resolved: number
-  mttr_minutes?: number | null
-  avg_csat?: number | null
-  sla_breaches: number
-}
+type AgentPerf = SdRendimientoDeAgente
 
 export default function MetricsDashboardTab() {
   const { t } = useAppLang()
   const [days, setDays] = useState(30)
 
-  const { data: metrics, isLoading } = useQuery<ItilMetrics>({
+  const { data: metrics, isLoading } = useQuery({
     queryKey: ['sd-itil-metrics', days],
     queryFn: () => {
       const { d_from, d_to } = dateRange(days)
-      return sdMetricsApi.itil({ date_from: d_from, date_to: d_to }).then(r => r.data as ItilMetrics)
+      return sdMetricsApi.itil({ date_from: d_from, date_to: d_to }).then(r => r.data)
     },
     staleTime: STALE_DEFAULT_MS,
   })
 
-  const { data: agents } = useQuery<AgentPerf[]>({
+  const { data: agents } = useQuery({
     queryKey: ['sd-agent-perf', days],
     queryFn: () => {
       const { d_from, d_to } = dateRange(days)
-      return sdMetricsApi.agentPerformance({ date_from: d_from, date_to: d_to }).then(r => r.data as AgentPerf[])
+      return sdMetricsApi.agentPerformance({ date_from: d_from, date_to: d_to }).then(r => r.data)
     },
     staleTime: STALE_DEFAULT_MS,
   })

@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { semanticApi, usersApi } from '../services/api'
+import type { ConfigDelMotorSemantico, EstadisticasDelMotorSemantico, PerfilSemantico, SugerenciaDeAsignacionDeTicket } from '../services/api/tipos-analitica'
 import { Button, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -43,66 +44,15 @@ const _COMPLEXITY_CFG = {
   complex: { label: 'Compleja', color: 'var(--danger)', bg: 'var(--danger-bg)' },
 }
 
-/** `list_profiles_with_users` (app/services/semantic_engine_service.py). */
-interface SemProfile {
-  id: string
-  user_id: string
-  user_name: string | null
-  profile_text: string
-  has_embedding: boolean
-  open_tickets: number
-  open_tasks: number
-  max_load: number
-  is_available: boolean
-}
+type SemProfile = PerfilSemantico
+type SemConfig = ConfigDelMotorSemantico
+type SemStats = EstadisticasDelMotorSemantico
 
 /** Fila de la tabla de perfiles: cada usuario, tenga perfil o no. */
 type ProfileRow = Partial<SemProfile> & { user_id: string; user_name: string; has_profile: boolean }
 
-/** `serialize_config` (app/services/semantic_engine_service.py). */
-interface SemConfig {
-  engine_mode: string
-  threshold_ticket: number
-  threshold_task: number
-  threshold_expert_cache: number
-  load_balance_weight: number
-  threshold_critical: number
-  threshold_high: number
-  threshold_medium: number
-  threshold_low: number
-  history_decay_days: number
-  auto_assign_tickets: boolean
-  auto_assign_tasks: boolean
-  embeddings_backend: string
-  local_model_name: string | null
-  effective_model_name: string
-  backend_en_uso: string | null
-}
-
-/** `get_stats` (app/services/semantic_engine_service.py). */
-interface SemStats {
-  total_suggestions: number
-  accepted: number
-  rejected: number
-  pending: number
-  accuracy_pct: number | null
-  profiles: number
-  cache_size: number
-  expert_feedback: number
-  by_mode: Record<string, number>
-}
-
-/** Sugerencia (`_result` de semantic_classifier + `enrich_result`), o el error al pedirla. */
-interface TestResult {
-  suggested_user_id?: string | null
-  suggested_user_name?: string | null
-  confidence?: number
-  engine_mode?: string
-  needs_review?: boolean
-  reasoning?: string | null
-  top_candidates?: Record<string, { score: number; name: string }>
-  error?: string
-}
+/** La sugerencia pedida, o el error al pedirla. */
+type TestResult = Partial<SugerenciaDeAsignacionDeTicket> & { error?: string }
 
 /** FastAPI devuelve `detail` como texto o, en un 422, como lista de errores. */
 type ErrorDeValidacion = AxiosError<{ detail?: string | Array<{ msg?: string }> }>
@@ -276,7 +226,7 @@ export default function SemanticEnginePage() {
 
   const { data: config = {}, isLoading: _loadingCfg } = useQuery<Partial<SemConfig>>({
     queryKey: ['sem-config'],
-    queryFn: () => semanticApi.config().then((r: { data: SemConfig }) => r.data),
+    queryFn: () => semanticApi.config().then(r => r.data),
   })
 
   useEffect(() => {
@@ -284,12 +234,12 @@ export default function SemanticEnginePage() {
   }, [config.local_model_name])
   const { data: profiles = [], isLoading: _loadingProfiles } = useQuery<SemProfile[]>({
     queryKey: ['sem-profiles'],
-    queryFn: () => semanticApi.profiles().then((r: { data: SemProfile[] }) => r.data),
+    queryFn: () => semanticApi.profiles().then(r => r.data),
     enabled: tab === 'profiles' || tab === 'overview',
   })
   const { data: stats = {} } = useQuery<Partial<SemStats>>({
     queryKey: ['sem-stats'],
-    queryFn: () => semanticApi.stats().then((r: { data: SemStats }) => r.data),
+    queryFn: () => semanticApi.stats().then(r => r.data),
   })
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
@@ -298,7 +248,7 @@ export default function SemanticEnginePage() {
   })
 
   const { mutate: saveConfig, isPending: savingConfig } = useMutation({
-    mutationFn: (d: Record<string, unknown>) => semanticApi.updateConfig(d).then((r: { data: { config?: SemConfig } }) => r.data),
+    mutationFn: (d: Record<string, unknown>) => semanticApi.updateConfig(d).then(r => r.data),
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: ['sem-config'] })
       const previous = qc.getQueryData(['sem-config'])

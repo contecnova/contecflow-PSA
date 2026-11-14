@@ -32,7 +32,7 @@ class ConectorLlamada(Base):
     estado_http = Column(Integer, nullable=True)
     ms = Column(Integer, nullable=False, default=0)
     error = Column(String(500), nullable=True)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (Index("ix_conector_llamadas_producto_fecha", "producto", "created_at"),)
@@ -51,7 +51,7 @@ class EnlaceDocumental(Base):
     tamano = Column(Integer, nullable=True)
     origen = Column(String(20), nullable=False, default="enlazado")   # subido | enlazado | sugerido
     nota = Column(String(500), nullable=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (

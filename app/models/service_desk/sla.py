@@ -20,7 +20,7 @@ class SLAEvent(Base):
     sla_type   = Column(String(20), default="resolution")  # response | resolution
     note       = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
 class SDSLAHoliday(Base):
     """Festivos en los que el SLA no corre (por política de negocio)."""
@@ -31,7 +31,7 @@ class SDSLAHoliday(Base):
     name        = Column(String(255), nullable=False)
     holiday_date = Column(String(10), nullable=False)   # YYYY-MM-DD
     country     = Column(String(2), nullable=True)      # ISO 3166-1 alpha-2, null = global
-    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id", ondelete="CASCADE"), nullable=True)
+    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id", ondelete="CASCADE"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     sla_policy = relationship("SLAPolicy")
@@ -50,11 +50,11 @@ class EscalationRule(Base):
     trigger         = Column(Enum(EscalationTrigger), nullable=False)
     applies_to_priority = Column(String(100), nullable=True)   # JSON list of priorities, null = all
     idle_hours_threshold = Column(Float, nullable=True)        # for idle_hours trigger
-    group_id        = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True)  # solo esta cola
+    group_id        = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True, index=True)  # solo esta cola
 
     # Acción
     action          = Column(Enum(EscalationAction), nullable=False)
-    target_group_id = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True)
+    target_group_id = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True, index=True)
     notify_user_ids = Column(Text, nullable=True)              # JSON: [user_id, ...]
     target_priority = Column(String(30), nullable=True)        # for elevate_priority
 
@@ -103,7 +103,7 @@ class OnCallEntry(Base):
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     schedule_id = Column(String(36), ForeignKey("sd_oncall_schedules.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     start_dt    = Column(DateTime(timezone=True), nullable=False)
     end_dt      = Column(DateTime(timezone=True), nullable=False)
     notes       = Column(String(255), nullable=True)

@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from app.models.financial import Timesheet, TimesheetStatus
 from app.models.imputation import Imputation
 from app.core import timeutil
+from app.core.paginacion import Pagina, Paginacion, paginar
 
 
 def get_timesheet_lines(db: Session, user_id: str, week_start: date) -> list:
@@ -35,21 +36,22 @@ def get_timesheet_lines(db: Session, user_id: str, week_start: date) -> list:
             "task_title": imp.task.title if imp.task else None,
             "description": imp.description,
             "billable": imp.is_billable,
+            # Segunda auditoria 2026-11: la pantalla oculta editar y borrar en las aprobadas.
+            "is_approved": bool(imp.is_approved),
         }
         for imp in imputations
     ]
 
 
-def list_pending_timesheets(db: Session) -> list:
-    """Devuelve todos los timesheets pendientes de revisión."""
-    timesheets = (
+def list_pending_timesheets(db: Session, pagina: Optional[Paginacion] = None) -> Pagina:
+    """Timesheets pendientes de revisión (una página; sin ella, hasta LIST_MAX_ROWS)."""
+    q = (
         db.query(Timesheet)
         .options(joinedload(Timesheet.user))
         .filter(Timesheet.status == TimesheetStatus.submitted)
-        .order_by(Timesheet.week_start.desc())
-        .all()
+        .order_by(Timesheet.week_start.desc(), Timesheet.id)
     )
-    return _enrich(timesheets)
+    return paginar(q, pagina, "timesheets.pending").mapear(_enrich_one)
 
 
 def list_team_timesheets(
@@ -57,7 +59,8 @@ def list_team_timesheets(
     week_start: Optional[date],
     user_id: Optional[str],
     status: Optional[str],
-) -> list:
+    pagina: Optional[Paginacion] = None,
+) -> Pagina:
     """Devuelve timesheets del equipo con filtros opcionales."""
     q = db.query(Timesheet).options(joinedload(Timesheet.user))
     if week_start:
@@ -66,8 +69,12 @@ def list_team_timesheets(
         q = q.filter(Timesheet.user_id == user_id)
     if status:
         q = q.filter(Timesheet.status == status)
-    timesheets = q.order_by(Timesheet.week_start.desc()).all()
-    return _enrich(timesheets)
+    return paginar(q.order_by(Timesheet.week_start.desc(), Timesheet.id), pagina,
+                   "timesheets.team").mapear(_enrich_one)
+
+
+def _enrich_one(ts) -> dict:
+    return _enrich([ts])[0]
 
 
 def _enrich(timesheets) -> list:

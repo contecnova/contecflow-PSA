@@ -19,8 +19,10 @@ from app.core.config_groups.automations_config import AutomationsSettingsMixin
 from app.core.config_groups.proceso_config import INTERRUPTORES_DE_PROCESO, ProcesoSettingsMixin
 from app.core.config_groups.escalas_config import EscalasSettingsMixin
 from app.core.config_groups.empresa_config import EmpresaSettingsMixin
+from app.core.config_groups.politicas_config import PoliticasSettingsMixin
 
 __all__ = [
+    "PoliticasSettingsMixin",
     "AISettingsMixin",
     "SLASettingsMixin",
     "HealthSettingsMixin",

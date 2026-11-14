@@ -52,8 +52,8 @@ class Leccion(Base):
     ci_id = Column(String(36), nullable=True)
     vector = Column(Text, nullable=True)                           # JSON, si hay modelo de embeddings
 
-    autor_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    validada_por = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    autor_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    validada_por = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     validada_en = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -74,7 +74,7 @@ class LeccionUso(Base):
     contexto_id = Column(String(64), nullable=True)
     valor = Column(String(12), nullable=False)                     # util | aplicada | no_aplica
     nota = Column(String(500), nullable=True)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (Index("ix_leccion_usos_contexto", "contexto_tipo", "contexto_id"),)
@@ -92,5 +92,5 @@ class LeccionAccion(Base):
     estado = Column(String(12), nullable=False, default="abierta", index=True)  # abierta | en_curso | hecha | descartada
     resultado = Column(Text, nullable=True)
     cerrada_en = Column(DateTime(timezone=True), nullable=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

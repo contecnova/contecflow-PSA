@@ -210,7 +210,7 @@ class CollaborationTeam(Base):
     description = Column(Text, nullable=True)
     is_private = Column(Boolean, nullable=False, default=False)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)  # auto-sync
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     is_archived = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -271,7 +271,7 @@ class CollaborationChannel(Base):
     is_default = Column(Boolean, nullable=False, default=False)
     is_archived = Column(Boolean, nullable=False, default=False)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -335,7 +335,7 @@ class CollaborationGroupConversation(Base):
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     title = Column(String(160), nullable=True)
     icon_url = Column(String(500), nullable=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -421,7 +421,7 @@ class CollaborationMessageVersion(Base):
     body = Column(Text, nullable=True)
     body_html = Column(Text, nullable=True)
     metadata_json = Column(JSON, nullable=False, default=dict)
-    edited_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    edited_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     edited_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
@@ -470,8 +470,8 @@ class CollaborationMention(Base):
     message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="CASCADE"), nullable=False, index=True)
     mentioned_user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     mentioned_client_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=True, index=True)
-    mentioned_team_id = Column(String(36), ForeignKey("collaboration_teams.id", ondelete="CASCADE"), nullable=True)
-    mentioned_channel_id = Column(String(36), ForeignKey("collaboration_channels.id", ondelete="CASCADE"), nullable=True)
+    mentioned_team_id = Column(String(36), ForeignKey("collaboration_teams.id", ondelete="CASCADE"), nullable=True, index=True)
+    mentioned_channel_id = Column(String(36), ForeignKey("collaboration_channels.id", ondelete="CASCADE"), nullable=True, index=True)
     is_everyone = Column(Boolean, nullable=False, default=False)  # @here / @channel
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -502,8 +502,8 @@ class CollaborationAttachment(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="CASCADE"), nullable=True, index=True)
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    uploaded_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    uploaded_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True)
+    uploaded_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    uploaded_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String(500), nullable=False)
     mime_type = Column(String(160), nullable=True)
     size_bytes = Column(Integer, nullable=False, default=0)
@@ -531,7 +531,7 @@ class CollaborationAttachmentVersion(Base):
     storage_key = Column(String(800), nullable=False)
     size_bytes = Column(Integer, nullable=False, default=0)
     sha256 = Column(String(64), nullable=True)
-    uploaded_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    uploaded_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -545,7 +545,7 @@ class CollaborationCall(Base):
     id = Column(String(36), primary_key=True, default=_uid)
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    initiated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    initiated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     kind = Column(Enum(CallKind), nullable=False, default=CallKind.video)
     status = Column(Enum(CallStatus), nullable=False, default=CallStatus.ringing)
     livekit_room = Column(String(160), nullable=False)
@@ -614,7 +614,7 @@ class CollaborationNotification(Base):
     client_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=True, index=True)
     kind = Column(Enum(NotificationKind), nullable=False, default=NotificationKind.message)
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="CASCADE"), nullable=True, index=True)
-    message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="CASCADE"), nullable=True)
+    message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="CASCADE"), nullable=True, index=True)
     title = Column(String(200), nullable=False)
     body = Column(Text, nullable=True)
     payload = Column(JSON, nullable=False, default=dict)
@@ -655,7 +655,7 @@ class CollaborationIntegration(Base):
     access_token_enc = Column(Text, nullable=True)
     refresh_token_enc = Column(Text, nullable=True)
     token_expires_at = Column(DateTime(timezone=True), nullable=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -670,7 +670,7 @@ class CollaborationWebhook(Base):
     name = Column(String(120), nullable=False)
     url = Column(String(800), nullable=True)
     secret_token = Column(String(160), nullable=False, default=_uid)
-    target_channel_id = Column(String(36), ForeignKey("collaboration_channels.id", ondelete="SET NULL"), nullable=True)
+    target_channel_id = Column(String(36), ForeignKey("collaboration_channels.id", ondelete="SET NULL"), nullable=True, index=True)
     events = Column(JSON, nullable=False, default=list)  # ['message.created', 'channel.created', ...]
     is_active = Column(Boolean, nullable=False, default=True)
     last_called_at = Column(DateTime(timezone=True), nullable=True)
@@ -708,7 +708,7 @@ class CollaborationModerationCase(Base):
     reason = Column(String(40), nullable=False)  # av | dlp | reported | banned_word
     findings = Column(JSON, nullable=False, default=dict)
     verdict = Column(Enum(ModerationVerdict), nullable=False, default=ModerationVerdict.pending)
-    reviewer_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewer_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -742,7 +742,7 @@ class CollaborationLegalHold(Base):
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
 
 class CollaborationAuditEvent(Base):
@@ -752,7 +752,7 @@ class CollaborationAuditEvent(Base):
     id = Column(String(36), primary_key=True, default=_uid)
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     actor_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    actor_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True)
+    actor_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
     action = Column(String(80), nullable=False, index=True)
     entity_type = Column(String(60), nullable=False, index=True)
     entity_id = Column(String(36), nullable=True, index=True)
@@ -772,7 +772,7 @@ class CollaborationPinnedMessage(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="CASCADE"), nullable=False, index=True)
-    pinned_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    pinned_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     pinned_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (UniqueConstraint("conversation_id", "message_id", name="uq_pin_message"),)
@@ -798,7 +798,7 @@ class CollaborationDraft(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    parent_message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="SET NULL"), nullable=True)
+    parent_message_id = Column(String(36), ForeignKey("collaboration_messages.id", ondelete="SET NULL"), nullable=True, index=True)
     body = Column(Text, nullable=False, default="")
     metadata_json = Column(JSON, nullable=False, default=dict)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -829,7 +829,7 @@ class CollaborationBotExecution(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     bot_id = Column(String(36), ForeignKey("collaboration_bot_apps.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="SET NULL"), nullable=True, index=True)
-    triggered_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    triggered_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     command = Column(String(80), nullable=True)
     input_payload = Column(JSON, nullable=False, default=dict)
     output_payload = Column(JSON, nullable=False, default=dict)

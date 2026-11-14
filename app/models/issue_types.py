@@ -77,7 +77,7 @@ class TaskDependencyMeta(Base):
     dep_type      = Column(Enum(TaskDepType), default=TaskDepType.blocks, nullable=False)
     lag_days      = Column(Integer, default=0)    # días de retraso tras finalizar
     note          = Column(String(500), nullable=True)
-    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -99,10 +99,10 @@ class EpicDependencyMeta(Base):
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     epic_id       = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
-    depends_on_id = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False)
+    depends_on_id = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     dep_type      = Column(Enum(EpicDepType), default=EpicDepType.finish_to_start)
     lag_days      = Column(Integer, default=0)
-    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
 
 

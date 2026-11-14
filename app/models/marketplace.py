@@ -37,7 +37,7 @@ class GanttBaseline(Base):
     budget_at_freeze = Column(Float, nullable=True)
 
     is_initial  = Column(Boolean, default=False)                 # True = the "contract baseline"
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -49,12 +49,12 @@ class WhatIfTask(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     scenario_id = Column(String(36), ForeignKey("scenario_models.id", ondelete="CASCADE"),
                          nullable=False, index=True)
-    task_id     = Column(String(36), ForeignKey("tasks.id"), nullable=True)   # NULL = new hypothetical task
+    task_id     = Column(String(36), ForeignKey("tasks.id"), nullable=True, index=True)   # NULL = new hypothetical task
     title       = Column(String(255), nullable=False)
     start_date  = Column(Date, nullable=True)
     end_date    = Column(Date, nullable=True)
     estimated_hours = Column(Float, nullable=True)
-    assigned_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    assigned_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     # Overrides: what changes from the real plan
     delta_days  = Column(Integer, nullable=True)   # shift ±n days from original
     delta_hours = Column(Float, nullable=True)     # extra/fewer hours
@@ -114,7 +114,7 @@ class IntegrationInstance(Base):
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"),
                              nullable=False, index=True)
-    connector_id   = Column(String(36), ForeignKey("integration_connectors.id"), nullable=False)
+    connector_id   = Column(String(36), ForeignKey("integration_connectors.id"), nullable=False, index=True)
     name           = Column(String(100), nullable=False)             # "Production Salesforce"
 
     # Stored encrypted in prod; NULL in config response
@@ -129,7 +129,7 @@ class IntegrationInstance(Base):
     last_error      = Column(Text, nullable=True)
 
     is_enabled      = Column(Boolean, default=True)
-    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     updated_at      = Column(DateTime(timezone=True), onupdate=func.now())
 

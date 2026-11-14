@@ -133,6 +133,110 @@ def delete_custom_field(field_id: str, db: Session) -> dict:
     return {"ok": True}
 
 
+# ── Lectura de valores: la guarda de la entidad dueña ─────────────────────────
+# Segunda auditoría 2026-11: `GET /advanced-config/custom-fields/values/{id}`
+# solo pedía sesión y devolvía los valores de cualquier entidad. Ahora quien lee
+# tiene que poder leer la entidad, con el alcance del listado de su tipo.
+
+#: Módulo GRC de los contratos (el primer segmento de su ruta).
+MODULO_DE_CONTRATOS = "contracts"
+
+def _ve_proyecto(db, viewer, entity_id) -> bool:
+    from app.models.project import Project
+    from app.services.project_service import scope_projects_query
+    return scope_projects_query(db.query(Project.id), db, viewer).filter(Project.id == entity_id).first() is not None
+
+
+def _ve_tarea(db, viewer, entity_id) -> bool:
+    from app.services.task_service import get_task_record
+    get_task_record(db, entity_id, viewer)  # 404/403 si no la ve
+    return True
+
+
+def _ve_persona(db, viewer, entity_id) -> bool:
+    from app.models.user import User
+    from app.services import politica_de_visibilidad
+    objetivo = db.query(User).filter(User.id == entity_id).first()
+    # Los campos extra son de la ficha completa: con la mínima, no.
+    return objetivo is not None and politica_de_visibilidad.ve_ficha_completa_de(db, viewer, objetivo)
+
+
+def _ve_cliente(db, viewer, entity_id) -> bool:
+    from app.models.clients import Client
+    return db.query(Client.id).filter(Client.id == entity_id).first() is not None
+
+
+def _ve_ticket(db, viewer, entity_id) -> bool:
+    from app.models.service_desk import Ticket
+    from app.services.service_desk.scoping import scope_ticket_query
+    return scope_ticket_query(db.query(Ticket.id), db, viewer).filter(Ticket.id == entity_id).first() is not None
+
+
+def _ve_riesgo(db, viewer, entity_id) -> bool:
+    from app.models.pipeline import Risk
+    riesgo = db.query(Risk.project_id).filter(Risk.id == entity_id).first()
+    return riesgo is not None and riesgo.project_id is not None and _ve_proyecto(db, viewer, riesgo.project_id)
+
+
+def _ve_factura(db, viewer, entity_id) -> bool:
+    from app.models.billing_reports import Invoice
+    from app.services import politica_de_visibilidad
+    from app.services.billing_reports_service._comun import _scope_invoice_query
+    from app.services.cab_service.busqueda import MODULO_DE_FACTURAS
+    return (politica_de_visibilidad.ve_modulo_financiero(db, viewer, MODULO_DE_FACTURAS)
+            and _scope_invoice_query(db).filter(Invoice.id == entity_id).first() is not None)
+
+
+def _ve_oportunidad(db, viewer, entity_id) -> bool:
+    from app.models.pipeline import Opportunity
+    from app.services import politica_de_visibilidad
+    from app.services.pipeline_service import scope_opportunity_query
+    from app.services.cab_service.busqueda import MODULO_DE_OPORTUNIDADES
+    return (politica_de_visibilidad.ve_modulo_financiero(db, viewer, MODULO_DE_OPORTUNIDADES)
+            and scope_opportunity_query(db.query(Opportunity), db, viewer)
+            .filter(Opportunity.id == entity_id).first() is not None)
+
+
+def _ve_contrato(db, viewer, entity_id) -> bool:
+    from app.models.pipeline import Contract
+    from app.services import politica_de_visibilidad
+    from app.services.contract_service import scope_contract_query
+    return (politica_de_visibilidad.ve_modulo_financiero(db, viewer, MODULO_DE_CONTRATOS)
+            and scope_contract_query(db.query(Contract), db, viewer)
+            .filter(Contract.id == entity_id).first() is not None)
+
+
+#: Tipo de entidad (`CustomField.entity`) → ¿la ve `viewer`? Un tipo sin
+#: resolutor (ausencia, documento, gasto...) solo lo lee quien escribe sus
+#: valores: el administrador (`POST .../values` exige `require_admin`).
+_LECTURA_POR_ENTIDAD = {
+    "project": _ve_proyecto,
+    "task": _ve_tarea,
+    "user": _ve_persona,
+    "client": _ve_cliente,
+    "ticket": _ve_ticket,
+    "risk": _ve_riesgo,
+    "invoice": _ve_factura,
+    "opportunity": _ve_oportunidad,
+    "contract": _ve_contrato,
+}
+
+
+def exigir_lectura_de_valores(db: Session, viewer, entity_id: str) -> None:
+    """404 si `viewer` no puede leer la entidad dueña de esos valores."""
+    from app.core.errores import ErrorDeDominio
+    from app.models.user import UserRole
+    tipos = {fila[0] for fila in db.query(CustomField.entity).join(
+        CustomFieldValue, CustomFieldValue.field_id == CustomField.id,
+    ).filter(CustomFieldValue.entity_id == entity_id).distinct()}
+    es_admin = getattr(viewer, "is_superadmin", False) or viewer.role == UserRole.admin
+    for tipo in tipos:
+        resolutor = _LECTURA_POR_ENTIDAD.get(tipo)
+        visible = resolutor(db, viewer, entity_id) if resolutor else es_admin
+        if not visible:
+            raise ErrorDeDominio(status_code=404, detail="Entidad no encontrada")
+
+
 def get_custom_field_values(entity_id: str, db: Session) -> dict:
     values = (
         db.query(CustomFieldValue)

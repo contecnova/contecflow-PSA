@@ -14,6 +14,7 @@
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { Client, Contract, Epic, Sprint } from '../../services/api/tipos'
+import type { HitoDeFacturacion } from '../../services/api/tipos-finanzas'
 import {
   clientsApi, usersApi, projectsApi,
   sprintsApi, epicsApi, contractsApi,
@@ -69,7 +70,7 @@ export interface NamedEntity extends BaseEntity {
 export type SprintEntity = Sprint
 export type EpicEntity = Epic
 export type ContractEntity = Contract
-export interface MilestoneEntity extends NamedEntity {}
+export type MilestoneEntity = HitoDeFacturacion
 
 export interface TaskEntity {
   id: string
@@ -165,15 +166,15 @@ export interface UserSelectProps {
 }
 
 export function UserSelect({ value = '', onChange, placeholder = 'Seleccionar usuario…', filterRole, required = false, style, filterFn }: UserSelectProps) {
+  // Selector de personas: `/users/directory` (ficha mínima) sirve a cualquier rol; `/users` da 403 al subcontratado.
   const { data: rawUsers = [], isLoading } = useQuery<UserEntity[]>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list().then((r: { data: UserEntity[] }) => r.data),
+    queryKey: ['users', 'directory'],
+    queryFn: () => usersApi.directory().then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
 
-  let users = filterRole
-    ? rawUsers.filter((u) => u.role === filterRole && u.is_active !== false)
-    : rawUsers.filter((u) => u.is_active !== false)
+  // El directorio ya trae solo personas activas.
+  let users = filterRole ? rawUsers.filter((u) => u.role === filterRole) : rawUsers
   if (filterFn) users = users.filter(filterFn)
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -319,11 +320,7 @@ export interface ContractSelectProps {
 export function ContractSelect({ value = '', onChange, placeholder = 'Seleccionar contrato…', required = false, style }: ContractSelectProps) {
   const { data: contracts = [], isLoading } = useQuery<ContractEntity[]>({
     queryKey: ['contracts'],
-    queryFn: () => contractsApi.list(undefined).then((r: { data: { items?: ContractEntity[] } | ContractEntity[] }) => {
-      const d = r.data
-      if (Array.isArray(d)) return d
-      return d?.items ?? []
-    }),
+    queryFn: () => contractsApi.list(undefined).then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -351,11 +348,7 @@ export interface MilestoneSelectProps {
 export function MilestoneSelect({ value = '', onChange, projectId, placeholder = 'Seleccionar hito…', required = false, style }: MilestoneSelectProps) {
   const { data: milestones = [], isLoading } = useQuery<MilestoneEntity[]>({
     queryKey: ['milestones', projectId],
-    queryFn: () => milestonesApi.list(projectId).then((r: { data: { items?: MilestoneEntity[] } | MilestoneEntity[] }) => {
-      const d = r.data
-      if (Array.isArray(d)) return d
-      return d?.items ?? []
-    }),
+    queryFn: () => milestonesApi.list(projectId).then(r => r.data),
     enabled: !!projectId,
     staleTime: STALE_REFERENCE_DATA_MS,
   })

@@ -214,8 +214,24 @@ def test_nginx_propaga_la_ip_real():
     """Sin X-Forwarded-For, el rate limiting por IP cuenta todas las peticiones
     como procedentes de nginx y un solo cliente agota la cuota de todos."""
     conf = NGINX.read_text(encoding="utf-8")
-    for cabecera in ("X-Real-IP", "X-Forwarded-For", "X-Forwarded-Proto"):
+    for cabecera in ("X-Real-IP", "X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host"):
         assert cabecera in conf, f"nginx no propaga {cabecera}"
+
+
+def test_nginx_no_pisa_el_esquema_del_proxy_de_delante(compose):
+    """Segunda auditoría 2026-11 (#23): nginx escucha en http y el TLS termina
+    delante. Con `X-Forwarded-Proto $scheme` la API veía siempre http y la firma
+    de Twilio (sobre la URL https) no cuadraba."""
+    conf = NGINX.read_text(encoding="utf-8")
+    assert not re.search(r"^\s*proxy_set_header\s+X-Forwarded-Proto\s+\$scheme;", conf, re.M)
+    proto = conf.count("X-Forwarded-Proto $contecflow_forwarded_proto")
+    assert proto == conf.count("proxy_pass http://contecflow_api;"), "algún proxy_pass sin el esquema original"
+    assert conf.count("X-Forwarded-Host  $contecflow_forwarded_host") == proto
+    # Y la API cree esas cabeceras de nginx (y solo de la red de compose).
+    api = compose["services"]["api"]
+    assert str(api["environment"]["TRUST_PROXY_HEADERS"]) == "1"
+    assert "CONTECFLOW_PROXY_CIDRS" in api["environment"]["TRUSTED_PROXY_CIDRS"]
+    assert "--no-proxy-headers" in api["command"][-1]
 
 
 def test_el_index_no_se_cachea():

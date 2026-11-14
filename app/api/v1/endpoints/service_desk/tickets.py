@@ -41,7 +41,7 @@ from app.services.service_desk.sla_event_service import (
     pause_ticket_sla_from_payload, resume_ticket_sla, list_sla_events,
 )
 from app.services.service_desk.watcher_service import (
-    list_ticket_watchers, serialize_ticket_watcher, watch_ticket_command, unwatch_ticket_command,
+    watchers_para, watch_ticket_command, unwatch_ticket_command,
 )
 from app.services.service_desk.merge_split_service import (
     merge_ticket_command, split_ticket_command, list_ticket_merges_payload,
@@ -355,8 +355,8 @@ def get_sla_events(ticket_id: str, db: Session = Depends(get_db), current_user: 
 
 
 @router.get("/tickets/{ticket_id}/watchers", summary="Ver seguidores del ticket")
-def get_watchers(ticket_id: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return APIListResponse.ok(items=[serialize_ticket_watcher(w) for w in list_ticket_watchers(db, ticket_id)])
+def get_watchers(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return APIListResponse.ok(items=watchers_para(db, current_user, ticket_id))
 
 
 @router.post("/tickets/{ticket_id}/watch", summary="Seguir ticket", status_code=201)

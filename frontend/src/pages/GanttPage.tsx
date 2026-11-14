@@ -4,11 +4,12 @@
  * drops the old 26px-column custom grid.
  */
 import { useState, useCallback, useMemo } from 'react'
-import type { ComponentProps } from 'react'
 import { useToast } from '../context/ToastContext'
 import type { ToastMessage } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, taskDependenciesApi, projectsApi, aiCopilotApi } from '../services/api'
+import type { SugerenciaDelGantt, SugerenciasDelGantt } from '../services/api/tipos-analitica'
+import type { CambioDeFechas, DependenciaDeTarea } from '../services/api/tipos-proyectos'
 import PageHeader from '../components/layout/PageHeader'
 import { BarChart2 } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
@@ -21,38 +22,12 @@ import { Sparkles } from 'lucide-react'
 import { STALE_DEFAULT_MS, STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
 
-interface ProjectItem {
-  id: string | number
-  code?: string
-  name?: string
-}
-
-interface TaskItem {
-  id: string | number
-  title?: string
-  project_id?: string | number
-  created_at?: string
-  start_date?: string
-  due_date?: string
-  [key: string]: unknown
-}
-
 interface DateOverride {
   start_date?: string
   due_date?: string
 }
 
-interface AiSuggestion {
-  task_id?: string | number
-  severity?: string
-  type?: string
-  message?: string
-  suggestions?: string[]
-}
-
-interface DependencyItem {
-  [key: string]: unknown
-}
+type AiSuggestion = SugerenciaDelGantt
 
 export default function GanttPage(): JSX.Element {
   const traducir = useAppT()
@@ -71,36 +46,33 @@ export default function GanttPage(): JSX.Element {
   const puedeEditar = useAuth().hasRole('admin', 'pm')
 
   // ── data ────────────────────────────────────────────────────────────────────
-  const { data: projects = [] } = useQuery<ProjectItem[]>({
+  const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn:  () => projectsApi.list({}).then(r => (r.data as unknown as { items?: ProjectItem[] })?.items ?? (r.data as unknown as ProjectItem[]) ?? []),
+    queryFn:  () => projectsApi.list({}).then(r => r.data),
   })
 
-  const { data: rawTasks = [], isLoading } = useQuery<TaskItem[]>({
+  const { data: rawTasks = [], isLoading } = useQuery({
     queryKey: ['gantt-tasks', projectId],
     queryFn:  () => {
       const params = { page_size: SCHEDULE_TASKS_LIST_SIZE, ...(projectId ? { project_id: projectId } : {}) }
-      return tasksApi.list(params)
-          .then(r => Array.isArray(r.data) ? (r.data as unknown as TaskItem[]) : (((r.data as unknown as { items?: TaskItem[] })?.items || []) as TaskItem[]))
+      return tasksApi.list(params).then(r => r.data)
     },
     staleTime: STALE_NEAR_LIVE_MS,
   })
 
-        const { data: dependencies = [] } = useQuery<DependencyItem[]>({
+  const { data: dependencies = [] } = useQuery({
     queryKey: ['task-deps', projectId],
     queryFn: () =>
       projectId
-        ? taskDependenciesApi.getByProject(projectId)
-            .then(r => (Array.isArray(r.data) ? (r.data as DependencyItem[]) : []))
-            .catch(() => [])
-        : Promise.resolve([]),
+        ? taskDependenciesApi.getByProject(projectId).then(r => r.data).catch((): DependenciaDeTarea[] => [])
+        : Promise.resolve<DependenciaDeTarea[]>([]),
     staleTime: STALE_SHORT_MS,
   })
 
   // Item #47: sugerencias IA (overdue/stalled) por proyecto. Solo cargamos
   // cuando hay project_id seleccionado — sin él la heurística no puede
   // contextualizar y el endpoint requiere proyecto específico.
-  const { data: aiSuggestionsResp } = useQuery<{ suggestions?: AiSuggestion[] }>({
+  const { data: aiSuggestionsResp } = useQuery<Pick<SugerenciasDelGantt, 'suggestions'>>({
     queryKey: ['ai-gantt-suggestions', projectId],
     queryFn: () =>
       projectId
@@ -122,7 +94,7 @@ export default function GanttPage(): JSX.Element {
   }, [aiSuggestionsResp])
 
   // Optimistic local overrides for in-flight drags
-  const [localDates, setLocalDates] = useState<Record<string | number, DateOverride>>({})
+  const [localDates, setLocalDates] = useState<Record<string, DateOverride>>({})
 
   const tasks = useMemo(() => {
     const filtered = filter
@@ -135,10 +107,12 @@ export default function GanttPage(): JSX.Element {
       due_date:   localDates[t.id]?.due_date   ?? t.due_date,
     }))
   }, [rawTasks, localDates, filter])
+  // GanttChart pinta filas genéricas (con índice): la copia deja pasar el proyecto tal cual.
+  const filasDeProyecto = useMemo(() => projects.map(p => ({ ...p })), [projects])
 
   // ── mutations ───────────────────────────────────────────────────────────────
   const { mutate: saveDates } = useMutation({
-    mutationFn: (updates: Array<{ id: string | number; start_date?: string; due_date?: string }>) => taskDependenciesApi.bulkDates(updates as unknown as Record<string, unknown>),
+    mutationFn: (updates: CambioDeFechas[]) => taskDependenciesApi.bulkDates(updates),
     onSuccess:  () => { invalidate('tasks'); setLocalDates({}); toast.success(t('gantt.dates_saved')) },
     onError:    (e: unknown) => {
       setLocalDates({})
@@ -162,7 +136,7 @@ export default function GanttPage(): JSX.Element {
   })
 
   // ── handlers ────────────────────────────────────────────────────────────────
-  const handleTaskUpdate = useCallback(({ id, start, end }: { id: string | number; start: string; end: string }) => {
+  const handleTaskUpdate = useCallback(({ id, start, end }: { id: string; start: string; end: string }) => {
     setLocalDates(prev => ({ ...prev, [id]: { start_date: start, due_date: end } }))
     saveDates([{ id, start_date: start, due_date: end }])
   }, [saveDates])
@@ -242,13 +216,13 @@ export default function GanttPage(): JSX.Element {
       ) : (
         <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }}>
           <GanttChart
-            tasks={tasks as unknown as ComponentProps<typeof GanttChart>['tasks']}
-            projects={projects as unknown as ComponentProps<typeof GanttChart>['projects']}
+            tasks={tasks}
+            projects={filasDeProyecto}
             mode="project"
             onTaskUpdate={puedeEditar ? handleTaskUpdate : undefined}
             onDepCreate={puedeEditar ? handleDepCreate : undefined}
             showBaseline={showBaseline}
-            dependencies={dependencies as unknown as ComponentProps<typeof GanttChart>['dependencies']}
+            dependencies={dependencies}
             aiSuggestions={aiSuggestionsByTask}
           />
         </div>

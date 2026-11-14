@@ -110,7 +110,7 @@ def test_EL_ESTRUCTURAL_get_current_client_publica_el_contexto_de_tenant(db):
     """
     from datetime import datetime, timedelta, timezone
 
-    from jose import jwt
+    import jwt
 
     from app.api.v1.endpoints.client_portal import (
         ALGORITHM,
@@ -154,7 +154,7 @@ def test_un_token_que_no_es_de_cliente_no_deja_contexto(db):
     from datetime import datetime, timedelta, timezone
 
     from fastapi import HTTPException
-    from jose import jwt
+    import jwt
 
     from app.api.v1.endpoints.client_portal import (
         ALGORITHM,

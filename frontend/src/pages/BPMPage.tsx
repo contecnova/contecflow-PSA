@@ -8,6 +8,7 @@ import { Button, Page } from '../components/ui'
 import { Network, Plus, X, ChevronLeft, Edit3, Download, Search, Play } from 'lucide-react'
 import BpmRunPanel from './bpm/BpmRunPanel'
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
+import type { ProcesoBpmn } from '../services/api/tipos-documentos'
 import { useToast } from '../context/ToastContext'
 import { useAppLang } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
@@ -1917,16 +1918,7 @@ const editModeBadge: CSSProperties = {
 const metaText: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-2)' }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-type BackendProcess = {
-  id: string
-  key: string
-  category: string
-  name: string
-  description?: string
-  owner?: string | null
-  sla?: string | null
-  latest_version?: number
-}
+type BackendProcess = ProcesoBpmn
 type Process = {
   id: string
   category: string
@@ -1969,13 +1961,13 @@ export default function BPMPage(): JSX.Element {
   const reloadBackend = async () => {
     try {
       const r = await bpmnProcessesApi.list({ include_inactive: false })
-      const list: BackendProcess[] = r.data || []
+      const list = r.data
       // Lazily fetch latest XML per process key (only ones we don't have yet)
       const updates: Record<string, string> = {}
-      await Promise.all(list.map(async (p: BackendProcess) => {
+      await Promise.all(list.map(async p => {
         try {
           const detail = await bpmnProcessesApi.get(p.id)
-          const xml = detail.data?.latest?.bpmn_xml
+          const xml = detail.data.latest?.bpmn_xml
           if (xml) updates[p.key] = xml
         } catch { /* skip */ }
       }))
@@ -2131,8 +2123,8 @@ export default function BPMPage(): JSX.Element {
     if (!selectedProcess?._backendId) return
     try {
       const r = await bpmnProcessesApi.start(selectedProcess._backendId)
-      const inst = r.data as { status?: string; error?: string } | null
-      if (inst?.status === 'failed') toast.error(inst.error || traducir('bpm.estado_failed'))
+      const inst = r.data
+      if (inst.status === 'failed') toast.error(inst.error || traducir('bpm.estado_failed'))
       else toast.success(traducir('bpm.instancia_iniciada'))
       setSelectedProcess(null)
       setView('run')

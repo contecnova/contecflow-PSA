@@ -52,7 +52,7 @@ class StatusPageComponent(Base):
     is_public   = Column(Boolean, default=True)
 
     # Vínculo con CI (sincroniza el estado automáticamente)
-    ci_id       = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True)
+    ci_id       = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True, index=True)
 
     uptime_30d_pct = Column(Float, nullable=True)        # calculado periódicamente
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
@@ -78,7 +78,7 @@ class StatusPageIncident(Base):
     resolved_at  = Column(DateTime(timezone=True), nullable=True)
 
     # Ticket ITSM vinculado
-    ticket_id    = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True)
+    ticket_id    = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True, index=True)
 
     component = relationship("StatusPageComponent", back_populates="incidents")
     ticket    = relationship("Ticket")
@@ -101,7 +101,7 @@ class MonitoringAlert(Base):
     severity = Column(String(30), nullable=True)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
-    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True)
+    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True, index=True)
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
     occurrences = Column(Integer, default=1, nullable=False)
     first_seen_at = Column(DateTime(timezone=True), server_default=func.now())

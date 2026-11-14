@@ -14,15 +14,13 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
 import { COLOR, alpha } from '../../constants/theme'
 import { sdChangePlanningApi } from '../../services/api'
+import type { SdCambioEnCalendario, SdComiteDeCambio, SdCongelacion, SdVersionDeCambios } from '../../services/api/tipos-sd'
 import { etiquetaSd } from './sdUtils'
 import DateInput from '../../components/ui/DateInput'
 
-type Choque = { change_id: string; number: string; cis: string[] }
-type CambioCal = { id: string; number: string; title: string; status: string; change_type: string; risk: string; planned_start: string; planned_end?: string | null; conflicts: Choque[]; in_blackout: boolean }
-type Congelacion = { id: string; name: string; reason?: string | null; start_at: string; end_at: string }
-type Version = { id: string; name: string; version?: string | null; status: string; planned_date?: string | null; notes?: string | null; changes?: { id: string; number: string; title: string; status: string }[] }
-type Voto = { user_id: string; name?: string | null; decision: string; note?: string | null }
-type Cab = { status: string; quorum?: number | null; meeting?: { scheduled_at: string; agenda?: string } | null; votes: Voto[] }
+type CambioCal = SdCambioEnCalendario
+type Congelacion = SdCongelacion
+type Version = SdVersionDeCambios
 
 const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
   padding: '9px 13px', color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -39,8 +37,7 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
   const hasta = new Date(mes.getFullYear(), mes.getMonth() + 1, 1)
   const { data, isLoading } = useQuery({
     queryKey: ['sd-change-calendar', mes.toISOString()],
-    queryFn: () => sdChangePlanningApi.calendar(mes.toISOString(), hasta.toISOString())
-      .then(r => r.data as { changes: CambioCal[]; blackouts: Congelacion[]; releases: Version[] }),
+    queryFn: () => sdChangePlanningApi.calendar(mes.toISOString(), hasta.toISOString()).then(r => r.data),
   })
   // Un día por fila con lo que empieza ese día; congelaciones y versiones arriba.
   const dias = useMemo(() => {
@@ -110,7 +107,7 @@ export function Congelaciones() {
   const toast = useToast()
   const [editando, setEditando] = useState<Congelacion | 'nueva' | null>(null)
   const { data: filas = [], isLoading } = useQuery<Congelacion[]>({
-    queryKey: ['sd-change-blackouts'], queryFn: () => sdChangePlanningApi.blackouts().then(r => r.data as Congelacion[]),
+    queryKey: ['sd-change-blackouts'], queryFn: () => sdChangePlanningApi.blackouts().then(r => r.data),
   })
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['sd-change-blackouts'] }); qc.invalidateQueries({ queryKey: ['sd-change-calendar'] }) }
   const guardar = useMutation({
@@ -178,7 +175,7 @@ export function Versiones({ onOpen }: { onOpen: (id: string) => void }) {
   const toast = useToast()
   const [editando, setEditando] = useState<Version | 'nueva' | null>(null)
   const { data: filas = [], isLoading } = useQuery<Version[]>({
-    queryKey: ['sd-releases'], queryFn: () => sdChangePlanningApi.releases().then(r => r.data as Version[]),
+    queryKey: ['sd-releases'], queryFn: () => sdChangePlanningApi.releases().then(r => r.data),
   })
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['sd-releases'] }); qc.invalidateQueries({ queryKey: ['sd-change-calendar'] }) }
   const guardar = useMutation({
@@ -254,9 +251,9 @@ export function PanelCab({ changeId }: { changeId: string | number }) {
   const toast = useToast()
   const { user } = useAuth()
   const [nota, setNota] = useState('')
-  const { data: cab } = useQuery<Cab | null>({
+  const { data: cab } = useQuery<SdComiteDeCambio | null>({
     queryKey: ['sd-change-cab', changeId],
-    queryFn: () => sdChangePlanningApi.cab(changeId).then(r => r.data as Cab).catch(() => null),
+    queryFn: () => sdChangePlanningApi.cab(changeId).then(r => r.data).catch(() => null),
   })
   const votar = useMutation({
     mutationFn: (approve: boolean) => sdChangePlanningApi.vote(changeId, { approve, note: nota }),

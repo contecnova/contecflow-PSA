@@ -46,8 +46,35 @@ export interface UserPublic {
   impersonated_by: string | null
 }
 
-/** Elemento de `GET /users` (`APIListResponse[UserPublic]`). */
-export type UserListItem = UserPublic
+/** `PersonaVisible` (app/schemas/users.py): ficha mínima de `GET /users/directory`, el
+ *  selector de personas que sirve a cualquier rol (también al subcontratado, que recibe
+ *  403 en `GET /users`). Sin correo, tarifa ni datos de RR. HH. */
+export interface PersonaVisible {
+  id: string
+  full_name: string
+  first_name: string | null
+  last_name: string | null
+  avatar_url: string | null
+  role: string | null
+  job_title: string | null
+}
+
+/** `PersonaInterna` (app/schemas/users.py): la fila de `GET /users` de otra persona cuando
+ *  quien pregunta no ve la ficha ajena (el empleado). Sin correo, teléfono, manager ni acceso. */
+export interface PersonaInterna extends PersonaVisible {
+  department: string | null
+  is_active: boolean
+}
+
+/** Elemento de `GET /users` (`APIListResponse[Union[UserPublic, PersonaInterna]]`): la ficha
+ *  completa para quien la puede ver (y la propia del empleado); la interna para el resto.
+ *  Distinguir con `'email' in u` (`esFichaCompleta`). */
+export type UserListItem = UserPublic | PersonaInterna
+
+/** La fila de `GET /users` trae la ficha completa (correo, teléfono, manager...). */
+export function esFichaCompleta(u: UserListItem): u is UserPublic {
+  return 'email' in u
+}
 
 /** `UserWithRate` (app/schemas/users.py): `GET /users/{id}`. */
 export interface UserWithRate extends UserPublic {
@@ -132,17 +159,33 @@ export interface UserManagerUpdate {
   department?: string | null
 }
 
+/** Un responsable de la cadena (user_service.approval_chain_for_user). */
 export interface ApprovalChainNode {
-  user_id: string
+  id: string
   full_name: string
+  job_title: string | null
+  department: string | null
   role: string
+  /** 1 = aprobador directo; hasta 5 niveles. */
   level: number
+}
+
+/** GET /users/{id}/approval-chain y /users/me/approval-chain. */
+export interface ApprovalChain {
+  user_id: string
+  user_name: string
+  chain: ApprovalChainNode[]
+  direct_approver: ApprovalChainNode | null
 }
 
 export const usersApi = {
   list: (params?: UserListParams): Promise<AxiosResponse<UserListItem[]>> =>
     // Auditoría 2026-11: sin `page`, todas las páginas (antes, solo las 50 primeras).
     todasLasPaginas('/users', params as Record<string, unknown> | undefined),
+
+  /** Selector de personas para asignar o mencionar (lista entera, sin paginar). */
+  directory: (params?: { search?: string }): Promise<AxiosResponse<PersonaVisible[]>> =>
+    api.get('/users/directory', { params }),
 
   load: (params?: Record<string, unknown>): Promise<AxiosResponse<unknown>> =>
     api.get('/users/load', { params }),
@@ -159,21 +202,4 @@ export const usersApi = {
   deactivate: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.delete(`/users/${id}`),
 
-  deletePermanent: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
-    api.delete(`/users/${id}/permanent`),
-
-  orgChart: (): Promise<AxiosResponse<unknown>> =>
-    api.get('/users/org-chart'),
-
-  updateManager: (id: string, data: UserManagerUpdate): Promise<AxiosResponse<UserListItem>> =>
-    api.patch(`/users/${id}/manager`, data),
-
-  updateMe: (data: UserSelfUpdatePayload): Promise<AxiosResponse<UserPublic>> =>
-    api.patch('/users/me', data),
-
-  approvalChain: (userId: string): Promise<AxiosResponse<ApprovalChainNode[]>> =>
-    api.get(`/users/${userId}/approval-chain`),
-
-  myApprovalChain: (): Promise<AxiosResponse<ApprovalChainNode[]>> =>
-    api.get('/users/me/approval-chain'),
-} as const
+  deletePermanent: (id: string)

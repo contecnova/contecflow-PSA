@@ -21,12 +21,12 @@ class KBArticle(Base):
     summary = Column(String(500), nullable=True)
     status = Column(Enum(KBStatus), default=KBStatus.draft, index=True)
 
-    category_id = Column(String(36), ForeignKey("sd_service_categories.id"), nullable=True)
+    category_id = Column(String(36), ForeignKey("sd_service_categories.id"), nullable=True, index=True)
     tags = Column(String(500), nullable=True)
     is_public = Column(Boolean, default=True)
 
     created_from_ticket_id = Column(String(36), nullable=True)
-    service_item_id = Column(String(36), ForeignKey("sd_service_items.id"), nullable=True)
+    service_item_id = Column(String(36), ForeignKey("sd_service_items.id"), nullable=True, index=True)
 
     view_count = Column(Integer, default=0)
     # Veces que un cliente dijo «esto me lo resuelve» antes de abrir un ticket.
@@ -39,8 +39,8 @@ class KBArticle(Base):
     helpful_count = Column(Integer, default=0)
     not_helpful_count = Column(Integer, default=0)
 
-    author_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    reviewer_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    author_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    reviewer_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -70,7 +70,7 @@ class KBArticleVersion(Base):
     tags = Column(String(500), nullable=True)
     status = Column(Enum(KBStatus), default=KBStatus.draft)
     change_note = Column(String(255), nullable=True)
-    changed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    changed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     article = relationship("KBArticle", back_populates="versions")
@@ -89,8 +89,8 @@ class Announcement(Base):
     starts_at = Column(DateTime(timezone=True), nullable=True)
     ends_at = Column(DateTime(timezone=True), nullable=True)
 
-    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     ci = relationship("ConfigurationItem")

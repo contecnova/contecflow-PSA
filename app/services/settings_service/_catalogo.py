@@ -40,6 +40,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SD_NOTIFY_REQUESTER_ON_RESOLVE", "bool", "Email the requester when the ticket is resolved"),
         ("SD_NOTIFY_AGENTS_BY_EMAIL", "bool", "Also email agents (they always get in-app alerts)"),
         ("SD_INBOUND_ADDRESS", "str", "Support address: identifies the organization and is the Reply-To"),
+        ("TWILIO_PHONE_NUMBERS", "str", "Twilio — numbers of this company (E.164, CSV): a call or SMS to one of them belongs to it; unknown numbers are rejected"),
         ("SD_REOPEN_ON_REPLY", "bool", "Inbound — a reply reopens a resolved ticket"),
         ("SD_CHANNEL_TICKET_TYPE", "str", "Inbound — ticket type for new emails (incident, service_request, question)"),
         ("SD_MAIL_MAX_PER_RUN", "int", "Inbound — emails read per run"),
@@ -261,6 +262,11 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("EXPENSE_MILEAGE_RATE", "float", "Expenses — mileage rate per km (the amount of a mileage expense = km × rate)"),
         ("EXPENSE_ATTACHMENT_MAX_MB", "int", "Expenses — maximum size of a receipt or document (MB)"),
         ("EXPENSE_MANAGER_ROLES", "str", "Expenses — roles that see and handle everyone's expenses and their receipts (CSV)"),
+    ],
+    "politicas": [
+        ("POLICY_SIMULATION_DEFAULT_LAST_N", "int", "Policies — the simulator replays the last N entities of the domain unless a date range is given"),
+        ("POLICY_SIMULATION_MAX_ENTITIES", "int", "Policies — maximum entities one simulation replays"),
+        ("POLICY_DOCUMENT_TYPES", "str", "Policies — document types an outcome «require attachment» can ask for (CSV)"),
     ],
     "presupuestos": [
         ("BUDGET_LINE_TYPES", "str", "Budgets — line types (CSV); «personal» is costed from time entries"),

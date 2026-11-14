@@ -41,7 +41,7 @@ class Expense(Base):
     # Who / What
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
-    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True)
+    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True, index=True)
 
     # Expense details
     category    = Column(Enum(ExpenseCategory), nullable=False)
@@ -49,6 +49,10 @@ class Expense(Base):
     amount      = Column(Money, nullable=False)
     currency    = Column(String(3), default=settings.DEFAULT_CURRENCY)
     expense_date = Column(Date, nullable=False)
+    # Rev. 165 (motor de politicas #26): donde se hizo el gasto, para las
+    # tablas de referencia por pais y ciudad. El formulario lo expone en #27.
+    country     = Column(String(2), nullable=True)    # ISO 3166-1 alfa-2
+    city        = Column(String(120), nullable=True)
     is_billable = Column(Boolean, default=True)     # Charge to client?
 
     # Receipt
@@ -58,7 +62,7 @@ class Expense(Base):
     # Approval workflow
     status       = Column(Enum(ExpenseStatus), default=ExpenseStatus.draft, nullable=False, index=True)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
-    reviewed_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
+    reviewed_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     reviewed_at  = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(String(500), nullable=True)
     reimbursed_at = Column(DateTime(timezone=True), nullable=True)
@@ -95,7 +99,7 @@ class ExpenseAttachment(Base):
     content_type = Column(String(120), nullable=True)
     size_bytes = Column(Integer, nullable=True)
     storage_key = Column(String(500), nullable=False)
-    uploaded_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    uploaded_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -128,5 +132,5 @@ class ExpensePolicy(Base):
     justificacion_desde = Column(Float, nullable=True)      # importe desde el que hace falta explicar (notas)
     accion = Column(String(10), nullable=False, default="bloquear")   # bloquear | avisar
     activa = Column(Boolean, nullable=False, default=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

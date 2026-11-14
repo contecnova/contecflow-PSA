@@ -172,25 +172,40 @@ def create_ticket(
 
 
 # ── Twilio Webhook (no auth — validated by Twilio signature) ──────────────────
+#
+# Segunda auditoria 2026-11 (#19): varias organizaciones. La organizacion sale
+# del numero llamado (`To`, ajuste por organizacion `TWILIO_PHONE_NUMBERS` o
+# credencial `twilio.from_number`), la firma se verifica con su token y la
+# llamada se atiende en su contexto. Numero desconocido: `<Reject/>` (200 si la
+# firma es de Twilio con el token global, para que Twilio cuelgue sin error de
+# aplicacion; 403 si no). Firma invalida: 403.
 
-def _rechazo_si_no_es_twilio(request: Request, form: dict):
-    """Respuesta 403 en TwiML si la peticion no trae una firma de Twilio valida.
-
-    Segunda auditoria 2026-11 (#9): la voz es MONO-ORGANIZACION por diseno —se
-    verifica solo con el `TWILIO_AUTH_TOKEN` global y la sesion se crea sin
-    organizacion—. El token por organizacion vale solo para el SMS entrante.
-    """
+def _twiml(cuerpo: str, status_code: int = 200):
     from fastapi import Response
 
-    from app.services.service_desk.sms_service import validate_twilio_signature
+    return Response(content=f'<?xml version="1.0" encoding="UTF-8"?>\n<Response>{cuerpo}</Response>',
+                    media_type="application/xml", status_code=status_code)
 
-    if validate_twilio_signature(str(request.url), form, request.headers.get("X-Twilio-Signature")):
-        return None
-    return Response(
-        content='<?xml version="1.0"?><Response><Reject /></Response>',
-        media_type="application/xml",
-        status_code=403,
+
+async def _llamada_verificada(request: Request, db: Session):
+    """`(form, org_id, None)` si se atiende; `(form, None, respuesta)` si no."""
+    from app.core.async_db import run_db
+    from app.services.service_desk.voice_agent_service import (
+        LLAMADA_ACEPTADA,
+        LLAMADA_NUMERO_DESCONOCIDO,
+        verificar_llamada_de_twilio,
     )
+    from app.services.service_desk.sms_service import urls_de_firma_de_twilio
+
+    form = dict(await request.form())
+    veredicto, org_id = await run_db(
+        verificar_llamada_de_twilio, db, urls_de_firma_de_twilio(request), form,
+        request.headers.get("X-Twilio-Signature"))
+    if veredicto == LLAMADA_ACEPTADA:
+        return form, org_id, None
+    if veredicto == LLAMADA_NUMERO_DESCONOCIDO:
+        return form, None, _twiml('<Reject reason="rejected" />')
+    return form, None, _twiml("<Reject />", status_code=403)
 
 
 @router.post(
@@ -205,64 +220,50 @@ async def twilio_ivr_webhook(
 ):
     """
     Twilio calls this endpoint when a call is received.
-    Validates the Twilio signature (X-Twilio-Signature header) and responds with TwiML.
-    Creates a voice session for tracking.
 
     Production usage:
-      1. Configure Twilio phone number webhook URL to point here.
-      2. Set TWILIO_AUTH_TOKEN env var for signature validation.
-      3. Optionally set TWILIO_ACCOUNT_SID for outbound calls.
+      1. Configure the Twilio phone number's voice webhook URL to point here.
+      2. Declare the number in the organization's `TWILIO_PHONE_NUMBERS`
+         runtime setting (or its `twilio.from_number` credential).
+      3. Give the organization its own auth token (credential `twilio.auth_token`
+         or setting `TWILIO_AUTH_TOKEN`); without one the global env token is used.
     """
-    from app.services.service_desk.voice_agent_service import get_config
+    from html import escape
 
-    # ── Twilio signature validation ───────────────────────────────────────────
-    # Auditoria 2026-11: solo se comprobaba si habia TWILIO_AUTH_TOKEN en el
-    # entorno (fallaba abierta). Ahora usa el validador comun, que rechaza sin
-    # token o sin firma.
-    form_body = await request.form()
-    rechazo = _rechazo_si_no_es_twilio(request, dict(form_body))
-    if rechazo is not None:
-        return rechazo
+    from app.core.async_db import run_db
+    from app.services.service_desk.voice_agent_service import atender_llamada_de_twilio
 
     # Audit #C7: async is needed for await request.form(); DB ops are
     # offloaded to the threadpool via run_db so the sync ORM never blocks
     # the event loop while Twilio waits for TwiML.
-    from app.core.async_db import run_db
+    form, org_id, rechazo = await _llamada_verificada(request, db)
+    if rechazo is not None:
+        return rechazo
 
-    # ── Parse Twilio form data ────────────────────────────────────────────────
-    form_data = dict(form_body)
-    caller_id = form_data.get("From", "unknown")
-    call_sid  = form_data.get("CallSid", "")
-    org_id    = None  # Mono-organización por diseño (segunda auditoría 2026-11, #9)
-
-    # Create a tracking session
-    session = await run_db(create_session, db, org_id, caller_id, channel="phone")
-    await run_db(add_transcript_turn, db, org_id, session["id"], "bot", f"Incoming call from {caller_id} (SID: {call_sid})")
-
-    # ── Load greeting from config ─────────────────────────────────────────────
-    cfg = await run_db(get_config, db, org_id)
+    # Segunda auditoria 2026-11 (#19): `create_session` devuelve
+    # `{session, greeting}` y aqui se leia `session["id"]` (KeyError: el webhook
+    # respondia 500 a toda llamada). Ahora el servicio da el id.
+    atendida = await run_db(atender_llamada_de_twilio, db, org_id,
+                            form.get("From", "unknown"), form.get("CallSid", ""))
+    cfg = atendida["config"]
     greeting = cfg.get("greeting", "Gracias por llamar. ¿En qué le podemos ayudar?")
-    language  = cfg.get("language", settings.DEFAULT_LANGUAGE)
+    language = escape(str(cfg.get("language", settings.DEFAULT_LANGUAGE)))
     dtmf_menu = cfg.get("dtmf_menu", {})
 
-    # ── Build TwiML response ──────────────────────────────────────────────────
+    # El texto de la configuracion se escapa: va dentro de XML.
     gather_verbs = "\n".join(
-        f'<Say language="{language}">{item.get("label", key)}</Say>'
+        f'<Say language="{language}">{escape(str(item.get("label", key)))}</Say>'
         for key, item in sorted((dtmf_menu or {}).items())
     )
-
-    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say language="{language}">{greeting}</Say>
-  <Gather numDigits="1" action="/api/v1/sd/voice/webhook/twilio/gather?session_id={session['id']}" method="POST" timeout="5">
+    accion = escape(f"/api/v1/sd/voice/webhook/twilio/gather?session_id={atendida['session_id']}")
+    return _twiml(f"""
+  <Say language="{language}">{escape(str(greeting))}</Say>
+  <Gather numDigits="1" action="{accion}" method="POST" timeout="5">
     {gather_verbs}
   </Gather>
   <Say language="{language}">No hemos recibido ninguna selección. Le transferimos con un agente.</Say>
   <Dial><Queue>general</Queue></Dial>
-</Response>"""
-
-    from fastapi import Response
-    return Response(content=twiml, media_type="application/xml")
+""")
 
 
 @router.post(
@@ -277,41 +278,27 @@ async def twilio_gather_webhook(
     db: Session = Depends(get_db),
 ):
     """Processes DTMF digit selection from a Twilio <Gather> verb."""
-    from app.services.service_desk.voice_agent_service import get_config
+    from html import escape
 
-    # Audit #C7: see twilio_ivr_webhook above for the same pattern.
     from app.core.async_db import run_db
+    from app.services.service_desk.voice_agent_service import registrar_opcion_de_twilio
 
-    form_data = dict(await request.form())
     # Auditoria 2026-11: este callback no tenia ninguna autenticacion y escribia
-    # en la transcripcion de cualquier `session_id`.
-    rechazo = _rechazo_si_no_es_twilio(request, form_data)
+    # en la transcripcion de cualquier `session_id`. Ahora firma de la
+    # organizacion del numero llamado y solo sesiones de esa organizacion.
+    form, org_id, rechazo = await _llamada_verificada(request, db)
     if rechazo is not None:
         return rechazo
-    digit     = form_data.get("Digits", "")
-    org_id    = None
+    digit = form.get("Digits", "")
+    opcion = await run_db(registrar_opcion_de_twilio, db, org_id, session_id, digit)
+    elegida = opcion["label"] or opcion["queue"]
 
-    cfg = await run_db(get_config, db, org_id)
-    dtmf_menu = cfg.get("dtmf_menu", {})
-    language  = cfg.get("language", settings.DEFAULT_LANGUAGE)
-
-    selected_option = (dtmf_menu or {}).get(digit, {})
-    selected_label = selected_option.get("label", "") if isinstance(selected_option, dict) else str(selected_option)
-    selected_queue = selected_option.get("intent", "general") if isinstance(selected_option, dict) else (selected_option or "general")
-
-    if session_id:
-        await run_db(add_transcript_turn, db, org_id, session_id, "user", f"DTMF selection: {digit} → {selected_label or selected_queue}")
-
-    if digit and (selected_label or selected_queue):
-        message = f"Ha seleccionado: {selected_label or selected_queue}. Le transferimos ahora."
+    if digit and elegida:
+        message = f"Ha seleccionado: {elegida}. Le transferimos ahora."
     else:
         message = "Opción no válida. Le transferimos con un agente."
 
-    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say language="{language}">{message}</Say>
-    <Dial><Queue>{selected_queue or 'general'}</Queue></Dial>
-</Response>"""
-
-    from fastapi import Response
-    return Response(content=twiml, media_type="application/xml")
+    return _twiml(f"""
+  <Say language="{escape(str(opcion["language"]))}">{escape(message)}</Say>
+  <Dial><Queue>{escape(str(opcion["queue"]))}</Queue></Dial>
+""")

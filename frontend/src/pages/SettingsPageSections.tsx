@@ -8,6 +8,9 @@ import { settingsApi, advancedConfigApi, type SettingOut, type DepartmentOut, ty
 import { useAuth } from '../context/AuthContext'
 import { presupuestosApi } from '../services/api'
 import { usersApi, organizationsApi, biSmartAlertsApi, esignApi, apiUrl, type UserListItem, type UserCreatePayload, type UserUpdatePayload } from '../services/api'
+import type { ClaveDeFirma, ConfigDeFirma } from '../services/api/tipos-finanzas'
+import type { Organizacion } from '../services/api/tipos-plataforma'
+import type { MetricasDeAlertaBi } from '../services/api/tipos-bi'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import { Search, Layers, Sparkles, Building2 } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -52,7 +55,6 @@ const styles: Record<string, CSSProperties> = {
 // siendo asignables a `Record<string, unknown>`, que es lo que piden los
 // métodos de escritura de settingsApi/advancedConfigApi.
 
-type Organizacion = { id: string; name: string; slug?: string | null; is_active?: boolean }
 
 /** Usuario del listado (`UserPublic`). `GET /users` no manda `hourly_rate` (es
  *  confidencial): la ficha de edición la completa con `GET /users/{id}` (`UserWithRate`). */
@@ -104,9 +106,6 @@ type AlertConfig = {
   threshold_unit?: string | null
 } & Partial<Record<NotifyKey, boolean>>
 
-type AlertRule = { id: string; name: string; metric_key: string; condition: string; threshold?: number | null; severity: string; enabled: boolean }
-type MetricOption = { key: string; label: string; is_custom?: boolean }
-type SupportedMetrics = { metrics?: MetricOption[]; conditions?: unknown[] }
 type RuleForm = { name: string; metric_key: string; condition: string; threshold: string | number; severity: string; cooldown_minutes: string | number }
 
 type RateEntry = { id: string; label: string; cost_rate: number | null; billing_rate: number | null }
@@ -166,8 +165,6 @@ type TaskTypeEdit = Omit<TaskTypeForm, 'value'>
 
 type DepartmentForm = { name: string; description: string; area_id: string }
 
-type MetricFormula = { operand_a?: string; operator?: string; operand_b_type?: string; operand_b?: string | number; scale?: string | number }
-type CustomMetric = { key: string; label: string; description?: string | null; formula?: MetricFormula | null }
 type MetricForm = { label: string; description: string; operand_a: string; operator: string; operand_b_type: string; operand_b: string; scale: string | number }
 
 type InputChange = ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -410,17 +407,17 @@ function UsersSection() {
 // Zod schema mirroring backend UserBase/UserCreate (app/schemas/users.py)
 const userFormSchemaBase = z.object({
   username: z.string().trim().min(1, 'El usuario es obligatorio').max(150, 'Máximo 150 caracteres'),
-  email: z.string().trim().min(1, 'El email es obligatorio').email('Email inválido').max(200, 'Máximo 200 caracteres'),
+  email: z.string().trim().min(1, 'El email es obligatorio').pipe(z.email('Email inválido').max(200, 'Máximo 200 caracteres')),
   full_name: z.string().trim().min(1, 'El nombre completo es obligatorio').max(255, 'Máximo 255 caracteres'),
   role: z.string().min(1, 'Selecciona un rol'),
   department: z.union([z.literal(''), z.string().max(100)]).optional(),
   job_title: z.union([z.literal(''), z.string().max(150)]).optional(),
-  weekly_capacity_hours: z.coerce.number({ invalid_type_error: 'Debe ser un número' })
+  weekly_capacity_hours: z.coerce.number({ error: 'Debe ser un número' })
     .min(0, 'No puede ser negativo')
     .max(168, 'Máximo 168h/semana'),
   hourly_rate: z.union([
     z.literal(''),
-    z.coerce.number({ invalid_type_error: 'Debe ser un número' }).nonnegative('No puede ser negativo'),
+    z.coerce.number({ error: 'Debe ser un número' }).nonnegative('No puede ser negativo'),
   ]).optional(),
   timezone: z.union([z.literal(''), z.string()]).optional(),
   organization_ids: z.array(z.string()).optional(),
@@ -661,10 +658,10 @@ function AlertConfigSection() {
   const { mutate: update } = useMutation({ mutationFn: ({ type, data }: { type: string; data: Partial<AlertConfig> }) => advancedConfigApi.updateAlertConfig(type, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['alert-configs'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
 
   // — BI custom alert rules —
-  const { data: rulesData = { items: [] } } = useQuery<{ items?: AlertRule[] }>({ queryKey: ['bi-alert-rules'], queryFn: () => biSmartAlertsApi.listRules().then(r => r.data) })
-  const { data: metricsData = { metrics: [], conditions: [] } } = useQuery<SupportedMetrics>({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
-  const rules = rulesData.items ?? []
-  const metrics = metricsData.metrics ?? []
+  const { data: rulesData } = useQuery({ queryKey: ['bi-alert-rules'], queryFn: () => biSmartAlertsApi.listRules().then(r => r.data) })
+  const { data: metricsData } = useQuery<MetricasDeAlertaBi>({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
+  const rules = rulesData?.items ?? []
+  const metrics = metricsData?.metrics ?? []
 
   const { mutate: createRule, isPending: isCreating } = useMutation({
     mutationFn: biSmartAlertsApi.createRule,
@@ -1698,10 +1695,10 @@ function MetricsSection() {
   const toast = useToast()
   const qc = useQueryClient()
 
-  const { data: metricsData = { metrics: [] } } = useQuery<SupportedMetrics>({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
-  const { data: customData = { items: [] } } = useQuery<{ items?: CustomMetric[] }>({ queryKey: ['bi-custom-metrics'], queryFn: () => biSmartAlertsApi.listCustomMetrics().then(r => r.data) })
-  const builtinMetrics = (metricsData.metrics ?? []).filter(m => !m.is_custom)
-  const customMetrics = customData.items ?? []
+  const { data: metricsData } = useQuery<MetricasDeAlertaBi>({ queryKey: ['bi-alert-metrics'], queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data) })
+  const { data: customData } = useQuery({ queryKey: ['bi-custom-metrics'], queryFn: () => biSmartAlertsApi.listCustomMetrics().then(r => r.data) })
+  const builtinMetrics = (metricsData?.metrics ?? []).filter(m => !m.is_custom)
+  const customMetrics = customData?.items ?? []
 
   const { mutate: createMetric, isPending: isCreating } = useMutation({
     mutationFn: biSmartAlertsApi.createCustomMetric,
@@ -1762,12 +1759,12 @@ function MetricsSection() {
         ) : (
           <div style={styles.colGap8}>
             {customMetrics.map(cm => {
-              const f: MetricFormula = cm.formula ?? {}
+              const f = cm.formula
               const la = builtinMetrics.find(m => m.key === f.operand_a)?.label ?? f.operand_a
               const lb = f.operand_b_type === 'metric'
                 ? (builtinMetrics.find(m => m.key === f.operand_b)?.label ?? f.operand_b)
                 : f.operand_b
-              const scale = parseFloat(String(f.scale)) !== 1 ? ` × ${f.scale}` : ''
+              const scale = f.scale !== 1 ? ` × ${f.scale}` : ''
               return (
                 <div key={cm.key} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                   <div className="u-flex1-min0">
@@ -1858,11 +1855,9 @@ function MetricsSection() {
 
 // ── E-firma (Electronic Signature) settings ───────────────────────────────────
 
-type ESignFieldKey =
-  | 'docusign_integration_key' | 'docusign_account_id' | 'docusign_secret_key' | 'docusign_base_url'
-  | 'adobe_sign_client_id' | 'adobe_sign_client_secret' | 'adobe_sign_base_url'
-/** Respuesta de GET /esign/config (app/api/v1/endpoints/esign.py): claves en texto (secretos como '***') y dos indicadores. */
-type ESignConfig = Partial<Record<ESignFieldKey, string>> & { docusign_configured?: boolean; adobe_configured?: boolean }
+type ESignFieldKey = ClaveDeFirma
+/** GET /esign/config, o el formulario a medio rellenar. */
+type ESignConfig = Partial<ConfigDeFirma>
 type ESignProvider = {
   id: string
   label: string

@@ -1,46 +1,36 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query'
-// TODO type: services/api still JS.
 import { expensesApi } from '../services/api'
+import type { Gasto } from '../services/api/tipos-finanzas'
 
 const STALE = 2 * 60 * 1000
 
-export interface Expense {
-  id: string
-  amount?: number
-  status?: string
-  [extra: string]: unknown
-}
+/** serialize_expense (services/api/tipos-finanzas.ts). */
+export type Expense = Gasto
 
 export type ExpenseListParams = Record<string, unknown>
 export type UpdateArgs<T> = { id: string; data: T }
 
-function unwrapList<T>(r: { data?: { items?: T[] } | T[] | null }): T[] {
-  const d = r?.data
-  if (Array.isArray(d)) return d
-  return d?.items ?? []
-}
-
 export function useMyExpenses(params: ExpenseListParams = {}): UseQueryResult<Expense[]> {
   return useQuery<Expense[]>({
     queryKey: ['expenses-my', params],
-    queryFn: () => expensesApi.my(params).then((r: { data?: { items?: Expense[] } | Expense[] | null }) => unwrapList<Expense>(r)),
+    queryFn: () => expensesApi.my(params).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function useTeamExpenses(params: ExpenseListParams = {}): UseQueryResult<unknown> {
+export function useTeamExpenses(params: ExpenseListParams = {}): UseQueryResult<Expense[]> {
   return useQuery({
     queryKey: ['expenses-team', params],
-    queryFn: () => expensesApi.list(params).then((r: { data: unknown }) => r.data),
+    queryFn: () => expensesApi.list(params).then(r => r.data),
     staleTime: STALE,
   })
 }
 
-export function usePendingExpenses(): UseQueryResult<unknown> {
+export function usePendingExpenses(): UseQueryResult<Expense[]> {
   return useQuery({
     queryKey: ['expenses-pending'],
-    queryFn: () => expensesApi.pending().then((r: { data: unknown }) => r.data),
+    queryFn: () => expensesApi.pending().then(r => r.data),
     staleTime: STALE,
   })
 }

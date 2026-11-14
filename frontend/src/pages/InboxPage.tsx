@@ -55,7 +55,7 @@ export default function InboxPage(): JSX.Element {
     { id: 'notifications', label: t('inbox.tab_notifications'), count: (alertCount + notifUnreadCount) || undefined },
     { id: 'mentions',      label: t('inbox.tab_mentions'),      count: mentionCount || undefined },
     { id: 'approvals',     label: t('inbox.tab_approvals'),     count: approvalCount || undefined },
-  ] as const
+  ]
 
   return (
     <PageShell>
@@ -66,7 +66,7 @@ export default function InboxPage(): JSX.Element {
       showListExport={false}
       />
       <Tabs
-        items={items as unknown as { id: string; label: string; count?: number }[]}
+        items={items}
         active={tab}
         onChange={(value) => setTab(value as InboxTab)}
         ariaLabel={t('inbox.title')}

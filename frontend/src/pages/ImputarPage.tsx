@@ -3,6 +3,8 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services/api'
+import type { AnomaliasDeImputacion } from '../services/api/tipos-analitica'
+import type { Imputacion, ResumenSemanal, SesionDeCronometro } from '../services/api/tipos-personas'
 import { queueImputation } from '../services/offlineQueue'
 import { Button, Card, Drawer } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -26,31 +28,11 @@ interface Anomaly {
   suggestion?: string
   [k: string]: unknown
 }
-interface AnomaliesData {
-  anomalies?: Anomaly[]
-  period?: { from?: string; to?: string }
-  total_entries?: number
-}
-interface WeekDayEntry { date?: string; hours?: number }
-interface WeekData {
-  by_day?: WeekDayEntry[]
-  week_start?: string
-  total_hours?: number
-  capacity_hours?: number
-  load_pct?: number
-}
+type AnomaliesData = Partial<AnomaliasDeImputacion>
+type WeekData = ResumenSemanal
 
 interface ProjectOption { id: string; code?: string; name?: string }
 interface TaskOption { id: string; code?: string; title?: string }
-interface ActiveTimer { total_elapsed_seconds?: number | null }
-interface ImputationRow {
-  id: string
-  hours: number
-  description?: string
-  is_billable?: boolean
-  project?: { name?: string }
-  task?: { title?: string }
-}
 
 interface WeekGridProps {
   weekData: WeekData | undefined
@@ -98,7 +80,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
             base.setDate(base.getDate() + i)
             dayIso = base.toISOString().split('T')[0]
           }
-          const entry = dayIso ? byDay.find((e: WeekDayEntry) => e.date === dayIso) : byDay[i]
+          const entry = dayIso ? byDay.find((e) => e.date === dayIso) : byDay[i]
           const hasHours = entry && (entry.hours ?? 0) > 0
           const dayAnomaly = dayIso ? anomaliesByDate?.[dayIso] : null
           return (
@@ -256,37 +238,31 @@ export default function ImputarPage(): JSX.Element {
 
   const { data: projects = [] } = useQuery<ProjectOption[]>({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => (r.data ?? []) as unknown as ProjectOption[]),
+    queryFn: () => projectsApi.list().then(r => r.data),
   })
 
   const { data: tasks = [] } = useQuery<TaskOption[]>({
     queryKey: ['tasks-my', form.project_id],
     // Auditoría 2026-11 (#25): `GET /tasks` no tiene filtro `assigned_to` (lo ignoraba y salían
     // todas las tareas del proyecto); el suyo es `assigned_to_me`, como en TimerPage.
-    queryFn: () => tasksApi.list({ project_id: form.project_id, assigned_to_me: true }).then(r => {
-      const d = r.data as unknown as { items?: TaskOption[] } | TaskOption[] | null | undefined
-      return (Array.isArray(d) ? d : d?.items ?? []) as TaskOption[]
-    }),
+    queryFn: () => tasksApi.list({ project_id: form.project_id, assigned_to_me: true }).then(r => r.data),
     enabled: !!form.project_id,
   })
 
   const { data: weekData } = useQuery<WeekData>({
     queryKey: ['my-week'],
-    queryFn: () => imputationsApi.myWeek({}).then(r => r.data as WeekData),
+    queryFn: () => imputationsApi.myWeek({}).then(r => r.data),
   })
 
-  const { data: activeTimer } = useQuery<ActiveTimer | null>({
+  const { data: activeTimer } = useQuery<SesionDeCronometro | null>({
     queryKey: ['timer-current'],
-    queryFn: () => imputationsApi.timerCurrent().then(r => r.data as ActiveTimer).catch(() => null),
+    queryFn: () => imputationsApi.timerCurrent().then(r => r.data).catch(() => null),
     refetchInterval: NOTIFICATIONS_POLL_MS,
   })
 
-  const { data: todayImputations = [] } = useQuery<ImputationRow[]>({
+  const { data: todayImputations = [] } = useQuery<Imputacion[]>({
     queryKey: ['imputations-today'],
-    queryFn: () => imputationsApi.list({ date_from: today, date_to: today, user_id: user?.id }).then(r => {
-      const d = r.data as unknown as { items?: ImputationRow[] } | ImputationRow[] | null | undefined
-      return (Array.isArray(d) ? d : d?.items ?? []) as ImputationRow[]
-    }),
+    queryFn: () => imputationsApi.list({ date_from: today, date_to: today, user_id: user?.id }).then(r => r.data),
   })
 
   // Item #48: anomalías de imputación del propio user (últimos 30 días).
@@ -296,7 +272,7 @@ export default function ImputarPage(): JSX.Element {
     queryFn: () =>
       user?.id
         ? aiCopilotApi.timesheetSuggestions(user.id)
-            .then(r => r.data as AnomaliesData)
+            .then(r => r.data)
             .catch(() => ({ anomalies: [] }))
         : Promise.resolve({ anomalies: [] }),
     enabled: !!user?.id,
@@ -398,7 +374,7 @@ export default function ImputarPage(): JSX.Element {
       setForceDuplicate(false)
     }
   }
-  const todayHours = todayImputations.reduce((s: number, i: ImputationRow) => s + i.hours, 0)
+  const todayHours = todayImputations.reduce((s: number, i: Imputacion) => s + i.hours, 0)
   const canSubmit = form.project_id && form.hours > 0 && form.date
 
   return (

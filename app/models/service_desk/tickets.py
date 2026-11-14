@@ -30,7 +30,7 @@ class Ticket(Base):
     impact = Column(Enum(TicketImpact), default=TicketImpact.user)
     support_level = Column(Enum(SupportLevel), default=SupportLevel.l1)
 
-    requester_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    requester_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     requester_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
     requester_name = Column(String(255), nullable=True)
     # Auditoria 2026-09. Esta columna no existia y el servicio de SMS entrantes
@@ -63,7 +63,7 @@ class Ticket(Base):
     requester_email = Column(String(255), nullable=True)
 
     assigned_to_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    assigned_group_id = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True)
+    assigned_group_id = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True, index=True)
 
     # Context – all optional, works without project
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
@@ -72,14 +72,14 @@ class Ticket(Base):
     # Tipo de recurso vinculado (proyecto, licencia, contrato, activo...)
     linked_resource_type = Column(String(50), nullable=True)   # project|license|contract|asset
     linked_resource_id   = Column(String(36), nullable=True)   # ID del recurso
-    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True)
+    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True, index=True)
     ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True, index=True)
-    service_item_id = Column(String(36), ForeignKey("sd_service_items.id"), nullable=True)
+    service_item_id = Column(String(36), ForeignKey("sd_service_items.id"), nullable=True, index=True)
 
     problem_id = Column(String(36), ForeignKey("sd_problems.id"), nullable=True, index=True)
-    parent_ticket_id = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True)
+    parent_ticket_id = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True, index=True)
 
-    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True)
+    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True, index=True)
     sla_response_due = Column(DateTime(timezone=True), nullable=True)
     sla_resolution_due = Column(DateTime(timezone=True), nullable=True)
     sla_response_status = Column(Enum(SLAStatus), default=SLAStatus.ok)
@@ -89,7 +89,7 @@ class Ticket(Base):
 
     resolution = Column(Text, nullable=True)
     resolution_code = Column(String(50), nullable=True)
-    kb_article_id = Column(String(36), ForeignKey("sd_kb_articles.id"), nullable=True)
+    kb_article_id = Column(String(36), ForeignKey("sd_kb_articles.id"), nullable=True, index=True)
 
     csat_score = Column(Integer, nullable=True)
     csat_comment = Column(Text, nullable=True)
@@ -115,7 +115,7 @@ class Ticket(Base):
     # tercero. El reloj lo sella `ticket_events` al entrar en `pending_third`
     # y lo vigila `sla_monitor_service`; el plazo es `resolution_hours` del
     # contrato (ALM).
-    uc_contract_id = Column(String(36), ForeignKey("alm_contracts.id", ondelete="SET NULL"), nullable=True)
+    uc_contract_id = Column(String(36), ForeignKey("alm_contracts.id", ondelete="SET NULL"), nullable=True, index=True)
     uc_started_at = Column(DateTime(timezone=True), nullable=True)
     uc_due = Column(DateTime(timezone=True), nullable=True)
     uc_breached = Column(Boolean, default=False, nullable=False, server_default=sa_false())
@@ -198,8 +198,8 @@ class TicketEvent(Base):
     # approval_decided
     kind = Column(String(40), nullable=False)
     data = Column(Text, nullable=True)  # JSON con el detalle de cada tipo
-    actor_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    actor_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True)
+    actor_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    actor_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     processed_at = Column(DateTime(timezone=True), nullable=True, index=True)
     attempts = Column(Integer, default=0, nullable=False)
@@ -218,7 +218,7 @@ class TicketApproval(Base):
     approver_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     status = Column(String(20), default="pending", nullable=False, index=True)  # pending | approved | rejected
     comment = Column(Text, nullable=True)
-    decided_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    decided_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     decided_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -258,8 +258,8 @@ class TicketComment(Base):
     is_public = Column(Boolean, default=True)
     is_solution = Column(Boolean, default=False)
 
-    author_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    author_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True)
+    author_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    author_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
     author_name = Column(String(255), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -279,7 +279,7 @@ class TicketHistory(Base):
     field_name = Column(String(100), nullable=False)
     old_value = Column(String(500), nullable=True)
     new_value = Column(String(500), nullable=True)
-    changed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    changed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     # NOTE: This model uses 'changed_at', NOT 'created_at' — keep consistent
     changed_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -291,8 +291,8 @@ class TicketTimeLog(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     minutes = Column(Integer, nullable=False)
     description = Column(String(255), nullable=True)
     billable = Column(Boolean, default=False)
@@ -313,7 +313,7 @@ class TicketLink(Base):
     target_id    = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     link_type    = Column(Enum(TicketLinkType), nullable=False)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     source = relationship("Ticket", foreign_keys=[source_id])
     target = relationship("Ticket", foreign_keys=[target_id])
@@ -325,7 +325,7 @@ class TicketWatcher(Base):
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     ticket_id  = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id    = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id    = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     ticket = relationship("Ticket")
@@ -338,9 +338,9 @@ class TicketMerge(Base):
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     primary_id     = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
-    merged_id      = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False)
+    merged_id      = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     reason         = Column(String(500), nullable=True)
-    merged_by_user = Column(String(36), ForeignKey("users.id"), nullable=True)
+    merged_by_user = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     merged_at      = Column(DateTime(timezone=True), server_default=func.now())
 
     primary_ticket = relationship("Ticket", foreign_keys=[primary_id])
@@ -354,15 +354,15 @@ class TicketTemplate(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     ticket_type = Column(Enum(TicketType), nullable=False)
-    category_id = Column(String(36), ForeignKey("sd_service_categories.id"), nullable=True)
+    category_id = Column(String(36), ForeignKey("sd_service_categories.id"), nullable=True, index=True)
 
     # JSON: [{field, label, type, required, options}]
     custom_fields = Column(Text, nullable=True)
 
     default_priority    = Column(Enum(TicketPriority), default=TicketPriority.p3_medium)
-    default_group_id    = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True)
-    default_sla_id      = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True)
-    auto_assign_to_id   = Column(String(36), ForeignKey("users.id"), nullable=True)
+    default_group_id    = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True, index=True)
+    default_sla_id      = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True, index=True)
+    auto_assign_to_id   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     description_template = Column(Text, nullable=True)  # texto de ayuda para el solicitante
     is_active   = Column(Boolean, default=True)
@@ -378,7 +378,7 @@ class CannedResponse(Base):
     category    = Column(String(100), nullable=True)       # Categoría para agrupar
     shortcut    = Column(String(50),  nullable=True)       # /shortcut para autocompletar
     is_active   = Column(Boolean,     default=True)
-    created_by  = Column(String(36),  ForeignKey("users.id"), nullable=True)
+    created_by  = Column(String(36),  ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     creator     = relationship("User", foreign_keys=[created_by])

@@ -10,6 +10,7 @@ import type { CSSProperties, ChangeEvent, DragEvent, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { reportBuilderApi, biReportBuilderV2Api } from '../services/api'
+import type { ColumnaDeEntidadBi, EntidadDeInformeBi, EsquemaDeInformes, PlantillaDeInforme, VistaPreviaDeInforme, VistaPreviaDePresetBiV2 } from '../services/api/tipos-bi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
@@ -23,31 +24,19 @@ import { REPORT_BUILDER_ROW_LIMIT } from '../constants/pagination'
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-type ColumnDef = { label: string; type?: string }
-type EntityDef = { label: string; group?: string; columns: Record<string, ColumnDef> }
-type OperatorDef = { label: string }
-type ReportSchema = {
-  entities: Record<string, EntityDef>
-  operators: Record<string, OperatorDef>
-  groups: Record<string, string>
-}
+type ColumnDef = ColumnaDeEntidadBi
+type EntityDef = EntidadDeInformeBi
+type OperatorDef = EsquemaDeInformes['operators'][string]
 type ReportFilter = { column: string; operator: string; value: string }
 type ReportSort = { column: string; direction: string }
-type ReportQuery = {
-  entity: string
-  columns: string[]
-  filters: ReportFilter[]
-  sort: ReportSort | null
-  limit: number
-}
-type PreviewResult = { rows: Record<string, unknown>[]; columns?: string[]; count?: number; truncated?: boolean; error?: boolean }
-type Template = { id: string; name: string; query?: Partial<ReportQuery> }
+/** La vista previa, o una vacía marcada con `error` si la consulta falla. */
+type PreviewResult = VistaPreviaDeInforme & { error?: boolean }
 
 const EMPTY_FILTER: ReportFilter = { column: '', operator: 'eq', value: '' }
 const NULL_OPS = new Set(['is_null', 'is_not_null'])
 
 function useSchema() {
-  return useQuery<ReportSchema>({
+  return useQuery({
     queryKey: ['report-schema'],
     queryFn: () => reportBuilderApi.schema().then(r => r.data),
     staleTime: Infinity,
@@ -295,19 +284,17 @@ function PreviewTable({ rows, columns, entityDef }: { rows?: Record<string, unkn
 }
 
 // ── BI presets tab (Report Builder v2) ─────────────────────────────────────
-type BiPreset = { id: string; name: string }
-type BiPreviewData = { columns?: string[]; rows?: Record<string, unknown>[] }
 
 function BiPresetsTab() {
   const traducir = useAppT()
   const [selected, setSelected] = useState('finance_revenue_by_client')
-  const [previewData, setPreview] = useState<BiPreviewData | null>(null)
-  const { data: presets } = useQuery<{ items: BiPreset[] }>({
+  const [previewData, setPreview] = useState<VistaPreviaDePresetBiV2 | null>(null)
+  // APIListResponse: llega como lista (antes se leía `.items` y no salía ningún preset).
+  const { data: items = [] } = useQuery({
     queryKey: ['rbv2-presets'],
-    queryFn: () => biReportBuilderV2Api.listPresets({ grouped: false }).then(r => r.data).catch(() => ({ items: [] })),
+    queryFn: () => biReportBuilderV2Api.listPresets().then(r => r.data).catch(() => []),
     staleTime: STALE_DEFAULT_MS,
   })
-  const items = presets?.items || []
 
   async function runPreview() {
     try { const res = await biReportBuilderV2Api.preview(selected, 10); setPreview(res.data) } catch (_) { /* ignore */ }
@@ -319,7 +306,7 @@ function BiPresetsTab() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = res.data.filename || 'report.json'
+      a.download = res.data.filename
       a.click()
       URL.revokeObjectURL(url)
     } catch (_) { /* ignore */ }
@@ -362,19 +349,19 @@ function BiPresetsTab() {
             <table className="u-table-sm">
               <thead>
                 <tr style={{ background: 'var(--surface-3)' }}>
-                  {(previewData.columns || []).map(c => (
+                  {previewData.columns.map(c => (
                     <th key={c} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 700, fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--surface-4)' }}>{c.replace(/_/g, ' ')}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {(previewData.rows || []).map((row, ri) => (
+                {previewData.rows.map((row, ri) => (
                   <tr key={ri} className="u-border-b">
-                    {(previewData.columns || []).map(c => <td key={c} style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{(row[c] ?? '—') as ReactNode}</td>)}
+                    {previewData.columns.map(c => <td key={c} style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{(row[c] ?? '—') as ReactNode}</td>)}
                   </tr>
                 ))}
-                {!(previewData.rows || []).length && (
-                  <tr><td colSpan={(previewData.columns || []).length || 1} style={{ padding: 16, textAlign: 'center', color: 'var(--text-3)' }}>{traducir('reportbuilder.sin_datos_para_este_preset')}</td></tr>
+                {!previewData.rows.length && (
+                  <tr><td colSpan={previewData.columns.length || 1} style={{ padding: 16, textAlign: 'center', color: 'var(--text-3)' }}>{traducir('reportbuilder.sin_datos_para_este_preset')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -449,7 +436,7 @@ export default function ReportBuilderPage() {
       const res = await reportBuilderApi.preview(buildQuery())
       setPreview(res.data)
     } catch {
-      setPreview({ rows: [], count: 0, error: true })
+      setPreview({ rows: [], count: 0, truncated: false, error: true })
     } finally {
       setLoading(false)
     }
@@ -461,8 +448,8 @@ export default function ReportBuilderPage() {
     const res = await reportBuilderApi.export(q, { responseType: 'blob' })
     // Revisión 2026-11: la exportación trae todo hasta REPORT_EXPORT_MAX_ROWS;
     // si la fuente tiene más, se dice (antes se cortaba en 2.000 en silencio).
-    const total = Number((res as { headers?: Record<string, string> }).headers?.['x-total-count'] ?? 0)
-    const filas = Number((res as { headers?: Record<string, string> }).headers?.['x-page-size'] ?? 0)
+    const total = Number(res.headers['x-total-count'] ?? 0)
+    const filas = Number(res.headers['x-page-size'] ?? 0)
     if (total > filas && filas > 0) toast.warning(traducir('reportbuilder.csv_parcial', { filas: filas.toLocaleString(), total: total.toLocaleString() }))
     const url = URL.createObjectURL(res.data)
     const a = document.createElement('a')
@@ -484,21 +471,21 @@ export default function ReportBuilderPage() {
     }
   }
 
-  const { data: templates = [] } = useQuery<Template[]>({
+  const { data: templates = [] } = useQuery({
     queryKey: ['report-templates'],
     queryFn: () => reportBuilderApi.templates().then(r => r.data),
   })
 
   const { mutate: deleteTpl } = useMutation({
-    mutationFn: (id: string) => reportBuilderApi.deleteTemplate(id),
+    mutationFn: (id: PlantillaDeInforme['id']) => reportBuilderApi.deleteTemplate(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['report-templates'] }),
   })
 
-  const loadTemplate = (tpl: Template) => {
-    const q = tpl.query || {}
-    setEntity(q.entity || '')
-    setColumns(q.columns || [])
-    setFilters(q.filters || [])
+  const loadTemplate = (tpl: PlantillaDeInforme) => {
+    const q = tpl.query
+    setEntity(q.entity)
+    setColumns(q.columns)
+    setFilters(q.filters.map(f => ({ column: f.column, operator: f.operator, value: f.value == null ? '' : String(f.value) })))
     setSort(q.sort || { column: '', direction: 'asc' })
     setPreview(null)
     setTab('builder')
@@ -545,9 +532,9 @@ export default function ReportBuilderPage() {
               <div className="u-flex1-min0">
                 <div style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', fontWeight: 600 }}>{t.name}</div>
                 <div className="u-text2-xs-mt2">
-                  {entities[t.query?.entity || '']?.label || t.query?.entity}
-                  {' · '}{(t.query?.columns || []).length} columnas
-                  {' · '}{(t.query?.filters || []).length} filtros
+                  {entities[t.query.entity]?.label || t.query.entity}
+                  {' · '}{t.query.columns.length} columnas
+                  {' · '}{t.query.filters.length} filtros
                 </div>
               </div>
               <button onClick={() => loadTemplate(t)}

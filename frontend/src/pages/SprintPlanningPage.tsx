@@ -4,6 +4,8 @@ import { extractErr, localeActivo } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
+import type { EstadoDePlanDeSprint, PlanDeSprint, PlanDeSprintGenerado } from '../services/api/tipos-proyectos'
+import type { EstimacionDelBacklog } from '../services/api/tipos-analitica'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -18,36 +20,7 @@ interface ProjectItem {
   name?: string
 }
 
-type PlanStatus = 'draft' | 'accepted' | 'rejected'
-
-interface SprintPlanTask {
-  task_id: string | number
-  title: string
-  priority?: 'critical' | 'high' | 'medium' | 'low'
-  story_points: number
-  unestimated?: boolean
-}
-
-interface SprintPlanResult {
-  id: string | number
-  name: string
-  status: PlanStatus
-  task_count: number
-  total_points: number
-  team_capacity: number
-  utilization_pct?: number
-  ai_reasoning?: string
-  unestimated_count?: number
-  created_at?: string
-  tasks: SprintPlanTask[]
-}
-
-interface SemanticEstimate {
-  total_base_hours: number
-  risk_premium_pct: number
-  recommended_hours: number
-  fit_in_sprint: boolean
-}
+type PlanStatus = EstadoDePlanDeSprint
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -68,8 +41,8 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
   const toast = useToast()
   const [form, setForm] = useState({ name: '', team_capacity: 40, sprint_id: '' })
   const set = (k: 'name' | 'team_capacity' | 'sprint_id') => (v: string | number) => setForm((f) => ({ ...f, [k]: v }))
-  const [result, setResult] = useState<SprintPlanResult | null>(null)
-  const [semEstimate, setSemEstimate] = useState<SemanticEstimate | null>(null)
+  const [result, setResult] = useState<PlanDeSprintGenerado | null>(null)
+  const [semEstimate, setSemEstimate] = useState<EstimacionDelBacklog | null>(null)
   const [estimating, setEstimating] = useState(false)
 
   const estimateBacklog = async () => {
@@ -78,14 +51,14 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
     try {
       // Obtener TODAS las tareas del backlog (con y sin story_points)
       const tasksRes = await tasksApi.list({ project_id: projectId, status: 'todo', page_size: LARGE_PAGE_SIZE })
-      const tasks = (tasksRes.data ?? []) as unknown as Array<{ id: string | number; title: string; description?: string; story_points?: number }>
+      const tasks = tasksRes.data
       if (!tasks.length) { toast.info(t('sprint_planning.no_todo_tasks')); return }
       const res = await semanticApi.estimateSprint({
-        tasks: tasks.map((task: { id: string | number; title: string; description?: string; story_points?: number }) => ({ id: task.id, title: task.title, description: task.description || '', story_points: task.story_points })),
+        tasks: tasks.map(task => ({ id: task.id, title: task.title, description: task.description || '', story_points: task.story_points })),
         team_capacity_hours: form.team_capacity * 2, // aprox 2h por story point
       })
-      setSemEstimate(res.data as SemanticEstimate)
-      const unest = tasks.filter((tk: { story_points?: number }) => !tk.story_points).length
+      setSemEstimate(res.data)
+      const unest = tasks.filter(tk => !tk.story_points).length
       if (unest > 0) toast.info(`${unest} ${t('sprint_planning.unestimated_toast_suffix')}`)
     } catch (e: unknown) {
       const message = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('sprint_planning.error_estimate')
@@ -110,7 +83,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
       project_id: projectId,
       sprint_id: form.sprint_id || null,
     }).then(r => r.data),
-    onSuccess: (data) => { setResult(data as SprintPlanResult); qc.invalidateQueries({ queryKey: ['sprint-plans', projectId] }) },
+    onSuccess: (data) => { setResult(data); qc.invalidateQueries({ queryKey: ['sprint-plans', projectId] }) },
     onError: (e: unknown) => toast.error(extractErr(e, t('sprint_planning.error_generate'))),
   })
 
@@ -229,28 +202,27 @@ export default function SprintPlanningPage() {
   const qc = useQueryClient()
   const [project, setProject] = useState('')
   const [showGenerate, setShowGenerate] = useState(false)
-  const [expandPlan, setExpandPlan] = useState<string | number | null>(null)
+  const [expandPlan, setExpandPlan] = useState<string | null>(null)
 
   const { data: projectsRaw = [] } = useQuery({
     queryKey: ['projects'],
     queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
   })
   const projects = projectsRaw as ProjectItem[]
-  const { data: plansRaw = [], isLoading } = useQuery({
+  const { data: plans = [], isLoading } = useQuery({
     queryKey: ['sprint-plans', project],
-    queryFn: () => sprintPlansApi.get(project).then(r => r.data).catch(()=>[]),
+    queryFn: () => sprintPlansApi.get(project).then(r => r.data).catch((): PlanDeSprint[] => []),
     enabled: !!project,
   })
-  const plans = plansRaw as SprintPlanResult[]
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({id, status}: { id: string | number; status: PlanStatus }) => sprintPlansApi.updateStatus(id, status).then(r => r.data),
+    mutationFn: ({id, status}: { id: string; status: PlanStatus }) => sprintPlansApi.updateStatus(id, status).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sprint-plans', project] }),
     onError: (e: unknown) => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
   })
 
   const { mutate: deletePlan } = useMutation({
-    mutationFn: (id: string | number) => sprintPlansApi.delete(id),
+    mutationFn: (id: string) => sprintPlansApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sprint-plans', project] }); setExpandPlan(null) },
     onError: (e: unknown) => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
   })

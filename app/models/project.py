@@ -92,7 +92,7 @@ class Project(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     # Optimistic locking (P1-5): incremented on every PATCH
     version = Column(Integer, default=1, nullable=False)
 

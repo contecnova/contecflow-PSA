@@ -497,3 +497,540 @@ export type SdActivoDeCi = {
   ci_id: string | null
   [extra: string]: unknown
 }
+
+// ── Configuracion operativa: enrutado, escalado, avisos, guardias ──────────
+
+/** POST /sd/escalation-rules: `{ok, id}`. */
+export type SdOkConId = { ok: boolean; id: string }
+
+/** Borrados de cmdb_service (calendarios y festivos SLA). */
+export type SdOkConMensaje = { ok: boolean; message: string }
+
+/** Altas que solo devuelven el id (turno de guardia, incidente de la página de estado). */
+export type SdIdCreado = { id: string }
+
+/** routing_rule_service.serialize_routing_rule: `conditions` y `actions` son JSON en texto. */
+export type SdReglaDeEnrutado = {
+  id: string
+  name: string
+  is_active: boolean
+  priority: number
+  conditions: string
+  actions: string
+}
+
+/** major_incident_service.serialize_major_incident (`declared_at` con `str()`, no ISO estricto). */
+export type SdIncidenteMayor = {
+  id: string
+  number: string
+  title: string
+  status: string
+  severity: string
+  declared_at: string
+  resolved_at: string | null
+  commander: string | null
+  impact_statement: string | null
+  notifications_sent: number
+}
+
+/** escalation_service.serialize_escalation_rule (`applies_to_priority` y `notify_user_ids`: JSON en texto). */
+export type SdReglaDeEscalado = {
+  id: string
+  name: string
+  is_active: boolean
+  sort_order: number
+  trigger: string
+  action: string
+  applies_to_priority: string | null
+  idle_hours_threshold: number | null
+  group_id: string | null
+  target_group_id: string | null
+  notify_user_ids: string | null
+  target_priority: string | null
+}
+
+/** escalation_service.serialize_escalation_log. */
+export type SdDisparoDeEscalado = {
+  id: string
+  rule_name: string | null
+  ticket_number: string | null
+  action_taken: string | null
+  triggered_at: string | null
+}
+
+/** notification_template_service.listar: textos de un aviso en un idioma. */
+export type SdTextoDeAviso = {
+  subject: string
+  body_html: string
+  is_active: boolean
+  customized: boolean
+  default_subject: string
+  default_body_html: string
+}
+
+/** notification_template_service.listar (`code` = `sd.<event>.<role>`). */
+export type SdAviso = { code: string; event: string; role: string; languages: Record<string, SdTextoDeAviso> }
+
+/** notification_template_service.guardar / restaurar (`is_active` solo al guardar). */
+export type SdAvisoGuardado = { code: string; language: string; customized: boolean; is_active?: boolean }
+
+/** notification_template_service.vista_previa. */
+export type SdVistaPreviaDeAviso = { subject: string; body_html: string }
+
+/** oncall_service.serialize_oncall_schedule (turnos incluidos). */
+export type SdCalendarioDeGuardia = {
+  id: string
+  name: string
+  group_id: string
+  group_name: string | null
+  rotation: string | null
+  timezone: string | null
+  is_active: boolean
+  description: string | null
+  entries: { id: string; user_id: string; user_name: string | null; start_dt: string; end_dt: string; notes: string | null }[]
+}
+
+/** oncall_service.serialize_current_oncall_entry. */
+export type SdDeGuardiaAhora = {
+  schedule_id: string
+  schedule_name: string | null
+  group_name: string | null
+  user_id: string
+  user_name: string | null
+  user_email: string | null
+  until: string
+}
+
+/** monitoring_ingest.ultimas. */
+export type SdAlertaDeMonitor = {
+  id: string
+  source: string
+  status: string
+  severity: string | null
+  title: string
+  occurrences: number
+  ticket_id: string | null
+  ticket_number: string | null
+  first_seen_at: string | null
+  last_seen_at: string | null
+}
+
+/** buzones.ultimos_mensajes. */
+export type SdCorreoEntrante = {
+  id: string
+  received_at: string | null
+  sender: string | null
+  outcome: string
+  reason: string | null
+  ticket_id: string | null
+  ticket_number: string | null
+  channel: string | null
+}
+
+/** buzones.probar_buzon: `unread` es null si Graph no lo da. */
+export type SdPruebaDeBuzon = { ok: boolean; protocol: string | null; unread?: number | null; error?: string }
+
+/** buzones.leer_buzon: o el recuento de la pasada o el motivo por el que no se leyó. */
+export type SdLecturaDeBuzon =
+  | { error: string }
+  | { created: number; commented: number; ignored: number; failed: number }
+
+/** catalog_approval_service.mis_pendientes. */
+export type SdAprobacionPendiente = {
+  approval_id: string
+  ticket_id: string
+  number: string
+  title: string
+  requester_name: string | null
+  service_item_name: string | null
+  created_at: string | null
+}
+
+// ── Pagina de estado ───────────────────────────────────────────────────────
+
+/** status_page_service.enlace_publico (`embed` solo si la organización existe). */
+export type SdEnlaceDePaginaDeEstado = { slug: string | null; url: string | null; embed?: string }
+
+/** status_page_service.serialize_status_component. */
+export type SdComponenteDeEstado = {
+  id: string
+  name: string
+  description: string | null
+  group_name: string | null
+  sort_order: number
+  status: 'operational' | 'degraded_performance' | 'partial_outage' | 'major_outage' | 'maintenance'
+  is_public: boolean
+  ci_id: string | null
+  uptime_30d_pct: number | null
+}
+
+// ── Planificacion de cambios y CAB ─────────────────────────────────────────
+
+/** change_calendar_service.serializar_congelacion. */
+export type SdCongelacion = { id: string; name: string; reason: string | null; start_at: string; end_at: string }
+
+/** change_calendar_service.serializar_version (`changes` en listado y altas, no en el calendario). */
+export type SdVersionDeCambios = {
+  id: string
+  name: string
+  version: string | null
+  status: string
+  notes: string | null
+  planned_date: string | null
+  released_at: string | null
+  owner_id: string | null
+  owner_name: string | null
+  changes?: { id: string; number: string; title: string; status: string }[]
+}
+
+/** change_calendar_service.choques. */
+export type SdChoqueDeCambio = { change_id: string; number: string; title: string; planned_start: string; planned_end: string; cis: string[] }
+
+/** change_calendar_service.calendario: un cambio del periodo. */
+export type SdCambioEnCalendario = {
+  id: string
+  number: string
+  title: string
+  status: string
+  change_type: string
+  risk: string
+  planned_start: string
+  planned_end: string | null
+  release_id: string | null
+  conflicts: SdChoqueDeCambio[]
+  in_blackout: boolean
+}
+
+/** change_calendar_service.calendario. */
+export type SdCalendarioDeCambios = { changes: SdCambioEnCalendario[]; blackouts: SdCongelacion[]; releases: SdVersionDeCambios[] }
+
+/** cab_workflow_service.get_workflow. */
+export type SdComiteDeCambio = {
+  change_id: string
+  /** `requester` | `cab` (en revisión), `rejected`, `executor` o el estado del cambio. */
+  status: string
+  cab_members: string[]
+  quorum: number | null
+  meeting: { scheduled_at: string; agenda: string | null } | null
+  votes: { user_id: string; name: string | null; approved: boolean; decision: string; note: string | null; voted_at: string | null }[]
+  executor_user_id: string | null
+}
+
+/** POST /sd/changes/{id}/cab/vote. */
+export type SdVotoDeComite = { ok: boolean; workflow: SdComiteDeCambio | null }
+
+// ── Formularios dinamicos ──────────────────────────────────────────────────
+
+/** Condición de un campo o de una pista de enrutado (dict libre que guarda el administrador). */
+export type SdCondicionDinamica = { field?: string; equals?: unknown; in?: unknown[] }
+
+/**
+ * Campo dinámico. Las reglas son `list[dict]` libres (DynamicRulesIn): esto es
+ * lo que escriben `_default_rules`, el asistente de importación y la pantalla.
+ */
+export type SdCampoDinamico = {
+  id: string
+  label?: string
+  type?: string
+  required?: boolean
+  options?: string[]
+  visible_when?: SdCondicionDinamica | null
+  data_source?: string | null
+  data_attribute?: string | null
+  source_column?: string
+}
+
+/** dynamic_forms_service.reglas_o_sembrar / _save_rules_with_history. */
+export type SdReglasDinamicas = {
+  version: number
+  updated_at: string
+  updated_by: string | null
+  cmdb_context_enabled: boolean
+  customer_context_enabled: boolean
+  fields: SdCampoDinamico[]
+  routing_hints: { when?: SdCondicionDinamica; set?: Record<string, unknown> }[]
+}
+
+/** Entrada del historial (`GET /sd/dynamic-forms/history`, lista desenvuelta). */
+export type SdInstantaneaDinamica = { snapshot_id: string; created_at: string; created_by: string | null; reason: string; rules: SdReglasDinamicas }
+
+/** `rollback` e `import/apply` (`field_count` solo en este). */
+export type SdReglasDinamicasGuardadas = { ok: boolean; rules: SdReglasDinamicas; field_count?: number }
+
+/** POST /sd/dynamic-forms/import/preview. */
+export type SdVistaPreviaDeImportacion = {
+  columns: string[]
+  row_count: number
+  generated_fields: SdCampoDinamico[]
+  sample_rows: Record<string, string>[]
+}
+
+/** dynamic_forms_service._context_options_payload. */
+export type SdOpcionesDeContexto = {
+  clients: { id: string; name: string }[]
+  services: { id: string; name: string; ticket_type: string }[]
+  cis: { id: string; code: string; name: string; ci_type: string; status: string; environment: string; project_id: string | null }[]
+}
+
+// ── Metricas ───────────────────────────────────────────────────────────────
+
+/** analytics_service.get_itil_metrics_payload. */
+export type SdMetricasItil = {
+  period: { from: string; to: string }
+  volume: { total: number; open: number; resolved: number; breached_sla: number }
+  sla_compliance_pct: number
+  mttr_minutes: number
+  mttr_hours: number
+  fcr_percent: number
+  avg_csat: number | null
+  by_type: Record<string, number>
+  by_priority: Record<string, number>
+  breach_by_priority: Record<string, number>
+}
+
+/** analytics_service.get_agent_performance_payload. */
+export type SdRendimientoDeAgente = {
+  agent_id: string
+  agent_name: string
+  total: number
+  resolved: number
+  open: number
+  mttr_minutes: number
+  avg_csat: number | null
+  sla_breaches: number
+}
+
+/** cmdb_service.get_agent_dashboard (`GET /cmdb/agent-dashboard/{id}`). */
+export type SdPanelDeAgente = {
+  agent_id: string
+  period_days: number
+  current: { open_tickets: number }
+  kpis: { total_resolved: number; avg_resolution_hours: number; sla_compliance_pct: number; avg_csat: number | null }
+  trend: { date: string; resolved: number; sla_ok: number; sla_fail: number; csat: number | null }[]
+}
+
+// ── Asignacion y autorresolucion ───────────────────────────────────────────
+
+/** incident_assignment_service._agregar_agentes (id y nombre duplicados a propósito). */
+export type SdCargaDeAgente = {
+  user_id: string
+  agent_id: string
+  agent_name: string
+  name: string
+  open_tickets: number
+  active_tickets: number
+  capacity: number
+  specializations: string[]
+  is_on_call: boolean
+  groups: string[]
+}
+
+/** incident_assignment_service.get_assignment_stats (los contadores solo existen tras la primera recomendación). */
+export type SdEstadisticasDeAsignacion = {
+  total_recommendations?: number
+  last_recommendation_at?: string
+  agent_loads: SdCargaDeAgente[]
+  total_unassigned: number
+  lgbm_available: boolean
+}
+
+/** ml_routing_service.score_agent_for_ticket_ml, resumido por recommend_assignment. */
+export type SdPuntuacionDeAgente = {
+  user_id: string
+  name: string
+  score: number
+  available: boolean
+  components: { availability: number; historical_speed: number; historical_csat: number; skill_match: number }
+}
+
+/** incident_assignment_service.recommend_assignment. */
+export type SdRecomendacionDeAsignacion = {
+  recommended_user_id: string | null
+  recommended_name: string | null
+  confidence: number
+  all_scores: SdPuntuacionDeAgente[]
+  recommendations: SdPuntuacionDeAgente[]
+  method_used: string
+  reasoning: string
+  lgbm_available: boolean
+}
+
+/** POST /sd/tickets/{id}/auto-resolution/feedback. */
+export type SdValoracionDeAutorresolucion = { recorded: boolean; ticket_id: string; success: boolean }
+
+// ── RCA guiado ─────────────────────────────────────────────────────────────
+
+/** rca_wizard_service._build_initial_state: un paso (se numeran desde 1). */
+export type SdPasoRca = { step: number; label: string; prompt: string; answer: string | null; ai_hint: string | null }
+
+/** rca_wizard_service: estado del asistente guardado en el problema. */
+export type SdAsistenteRca = {
+  template: string
+  started_at: string
+  current_step: number
+  total_steps: number
+  completed: boolean
+  steps: SdPasoRca[]
+  derived_root_cause: string | null
+  derived_workaround: string | null
+  derived_classification: string | null
+  completed_at: string | null
+}
+
+/** GET /rca-wizard: `wizard` es null si aún no se ha empezado. */
+export type SdEstadoRca = { wizard: SdAsistenteRca | null }
+
+/** POST /rca-wizard/start y /step. */
+export type SdEstadoRcaGuardado = { ok: boolean; wizard: SdAsistenteRca }
+
+/** POST /rca-wizard/ai-assist. */
+export type SdPistaRca = { ok: boolean; hint: string; provider: string }
+
+/** POST /rca-wizard/complete. */
+export type SdRcaCompletado = {
+  ok: boolean
+  rca: { root_cause: string; workaround: string | null; rca_type: string; template: string; completed_at: string }
+}
+
+// ── Grafo 3D de la CMDB ────────────────────────────────────────────────────
+
+/** cmdb_3d_service.get_3d_graph: nodo. */
+export type SdNodo3d = {
+  id: string
+  name: string
+  type: string
+  layer: number
+  layer_label: string
+  x: number
+  y: number
+  z: number
+  status: string
+}
+
+/** cmdb_3d_service.get_3d_graph (`layers`: claves numéricas que llegan como texto). */
+export type SdGrafo3d = {
+  nodes: SdNodo3d[]
+  edges: { source: string; target: string; type: string }[]
+  layers: Record<string, string>
+  node_count: number
+  edge_count: number
+}
+
+/** cmdb_3d_service.calculate_blast_radius (un CI fuera del grafo llega como `{id, name: id, type: 'unknown'}`). */
+export type SdRadioDeImpacto = {
+  ci_id: string
+  ci_name: string
+  impacted_count: number
+  impacted_cis: (Partial<SdNodo3d> & { id: string; name: string; type: string; impact_depth: number })[]
+  max_depth_reached: number
+}
+
+// ── Diseñador de flujos ────────────────────────────────────────────────────
+
+/** Valor de configuración de un nodo. */
+export type SdValorDeConfigDeNodo = string | number | null | undefined
+
+/** Nodo tal como lo guarda la pantalla en el grafo (dict libre en el backend). */
+export type SdNodoDeFlujoGuardado = {
+  id: string
+  type: string
+  position?: { x: number; y: number }
+  data?: { label?: string; type: string; config?: Record<string, SdValorDeConfigDeNodo> }
+  label?: string
+  config?: Record<string, SdValorDeConfigDeNodo>
+}
+export type SdAristaDeFlujoGuardada = { id: string; source: string; target: string; branch?: string; label?: string }
+export type SdGrafoDeFlujo = { nodes?: SdNodoDeFlujoGuardado[]; edges?: SdAristaDeFlujoGuardada[] }
+
+/** workflow_designer_service.serialize_blueprint. */
+export type SdBlueprint = {
+  id: string
+  name: string
+  description: string | null
+  process_type: string
+  scope: string | null
+  status: string
+  latest_version: number
+  published_version: number | null
+  is_active: boolean
+  created_at: string
+  updated_at: string | null
+}
+
+/** workflow_designer_service.serialize_version. */
+export type SdVersionDeBlueprint = {
+  id: string
+  blueprint_id: string
+  version: number
+  graph: SdGrafoDeFlujo
+  rules: Record<string, unknown>
+  is_published: boolean
+  published_at: string | null
+  created_at: string
+}
+
+/** GET /workflow-designer/blueprints/{id}. */
+export type SdDetalleDeBlueprint = { blueprint: SdBlueprint; versions: SdVersionDeBlueprint[] }
+
+/** workflow_designer_service.builtin_templates. */
+export type SdPlantillaDeFlujo = { id: string; name: string; process_type: string; description: string; graph: SdGrafoDeFlujo }
+
+/** workflow_designer_service.validate_graph (sin recuentos si el grafo no tiene listas o está vacío). */
+export type SdValidacionDeFlujo = { valid: boolean; errors: string[]; warnings: string[]; node_count?: number; edge_count?: number }
+
+/** POST /blueprints/{id}/publish/{version}. */
+export type SdBlueprintPublicado = { ok: boolean; blueprint_id: string; published_version: number }
+
+/** DELETE /blueprints/{id} (archivado). */
+export type SdBlueprintArchivado = { ok: boolean; archived: boolean }
+
+/** workflow_engine.serialize_run. */
+export type SdEjecucionDeFlujo = {
+  id: string
+  blueprint_id: string
+  blueprint_version: number
+  target_entity_type: string | null
+  target_entity_id: string | null
+  status: string
+  current_node_id: string | null
+  wake_at: string | null
+  last_error: string | null
+  context: Record<string, unknown>
+  created_by_user_id: string | null
+  started_at: string | null
+  completed_at: string | null
+}
+
+/** workflow_engine.serialize_step. */
+export type SdPasoDeEjecucion = {
+  id: string
+  node_id: string
+  node_type: string
+  status: string
+  branch_taken: string | null
+  payload: Record<string, unknown>
+  error: string | null
+  created_at: string | null
+  completed_at: string | null
+}
+
+/** Ejecución con su historial (detalle, inicio y reanudación). */
+export type SdDetalleDeEjecucion = { run: SdEjecucionDeFlujo; steps: SdPasoDeEjecucion[] }
+
+/** POST /runs/{id}/cancel. */
+export type SdEjecucionCancelada = { ok: boolean; run: SdEjecucionDeFlujo }
+
+// ── Calendarios SLA (`/cmdb/sla-calendars`) ────────────────────────────────
+
+/** cmdb_service.list_sla_holidays / add / update (`holiday_date`: YYYY-MM-DD). */
+export type SdFestivoSla = { id: string; holiday_date: string; name: string | null }
+
+/** cmdb_service.check_is_business_day. */
+export type SdComprobacionDeDia = {
+  date: string
+  is_business_day: boolean
+  is_weekend: boolean
+  is_holiday: boolean
+  holiday_name: string | null
+  day_of_week: string
+}

@@ -5,9 +5,9 @@ import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi, sprintsApi, cmdbApi } from '../services/api'
+import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi, sprintsApi, cmdbApi, usersApi } from '../services/api'
 import type { CampoPersonalizado, ConfigDelTablero, EstimacionDeEsfuerzo, FlujoDelProyecto, SugerenciaDeAsignacion, TipoDeIncidencia, ValorDeCampoPersonalizado } from '../services/api/tipos-rendimiento'
-import type { ApiError, ProjectListItem, TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskListParams, UserListItem, MovementLogEntry } from '../services/api'
+import type { ApiError, ProjectListItem, TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskListParams, PersonaVisible, MovementLogEntry } from '../services/api'
 import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
 import VirtualList from '../components/ui/VirtualList'
@@ -368,9 +368,10 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
     }
   }, [task])
 
-  const { data: users = [] } = useQuery<UserListItem[]>({
-    queryKey: ['users'],
-    queryFn: () => import('../services/api').then(m => m.usersApi.list().then(r => r.data)),
+  const { data: users = [] } = useQuery<PersonaVisible[]>({
+    // Selector de personas: `/users/directory` sirve a cualquier rol (`/users` da 403 al subcontratado).
+    queryKey: ['users', 'directory'],
+    queryFn: () => usersApi.directory().then(r => r.data),
   })
 
   const statusOptions = useWorkflowStatusOptions(task?.project_id, t)
@@ -1123,9 +1124,10 @@ export default function TasksPage() {
   const kanbanStatuses = (kanbanColumns.backlog?.length ? ['backlog'] : []).concat(STATUSES)
 
   // ── Bulk operations ──────────────────────────────────────────────────────
-  const { data: allUsers = [] } = useQuery<UserListItem[]>({
-    queryKey: ['users'],
-    queryFn: () => import('../services/api').then(m => m.usersApi.list().then(r => r.data)),
+  const { data: allUsers = [] } = useQuery<PersonaVisible[]>({
+    // Selector de personas: `/users/directory` sirve a cualquier rol (`/users` da 403 al subcontratado).
+    queryKey: ['users', 'directory'],
+    queryFn: () => usersApi.directory().then(r => r.data),
     staleTime: STALE_REFERENCE_DATA_MS,
   })
 
@@ -1475,9 +1477,10 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: users = [] } = useQuery<UserListItem[]>({
-    queryKey: ['users'],
-    queryFn: () => import('../services/api').then(m => m.usersApi.list().then(r => r.data)),
+  const { data: users = [] } = useQuery<PersonaVisible[]>({
+    // Selector de personas: `/users/directory` sirve a cualquier rol (`/users` da 403 al subcontratado).
+    queryKey: ['users', 'directory'],
+    queryFn: () => usersApi.directory().then(r => r.data),
   })
   const [form, setForm] = useState<NewTaskForm>({
     title: '', project_id: '', status: 'todo', priority: 'medium',

@@ -292,6 +292,6 @@ def fts_search(
     cu: User = Depends(get_current_user),
 ):
     try:
-        return APIResponse.ok(data=_svc.fts_search(q, project_id, entity_types, limit, db))
+        return APIResponse.ok(data=_svc.fts_search(q, project_id, entity_types, limit, db, cu))
     except ValueError as e:
         raise HTTPException(400, str(e))

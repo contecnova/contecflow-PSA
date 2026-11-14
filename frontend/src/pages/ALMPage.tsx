@@ -4,7 +4,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import type { ZodSchema } from 'zod'
+import type { ZodType } from 'zod'
 import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from '../services/api'
 import type { UserListItem } from '../services/api'
 import type { AlmActivo, AlmCentroDeCoste, AlmContrato, AlmKpis, AlmLicencia, AlmProveedor } from '../services/api/tipos-alm'
@@ -108,7 +108,7 @@ type CmdbItem = { id: string; code?: string; name: string }
 /** Cambio de un campo de texto, select, textarea o DateInput. */
 type CambioDeCampo = { target: { value: string } }
 /** Lo que `useFormValidation(esquema)` entrega como datos válidos. */
-type DatosValidos<S> = S extends ZodSchema<infer T> ? T : never
+type DatosValidos<S> = S extends ZodType<infer T> ? T : never
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const card: CSSProperties  = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -387,10 +387,10 @@ const almContractSchema = z.object({
   tags: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (values.start_date && values.end_date && values.end_date < values.start_date) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_date'], message: 'La fecha fin no puede ser anterior a la fecha inicio' })
+    ctx.addIssue({ code: 'custom', path: ['end_date'], message: 'La fecha fin no puede ser anterior a la fecha inicio' })
   }
   if (values.start_date && values.renewal_date && values.renewal_date < values.start_date) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['renewal_date'], message: 'La fecha de renovacion no puede ser anterior a la fecha inicio' })
+    ctx.addIssue({ code: 'custom', path: ['renewal_date'], message: 'La fecha de renovacion no puede ser anterior a la fecha inicio' })
   }
 })
 
@@ -402,7 +402,7 @@ const almLicenseAssignSchema = z.object({
   notes: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (!values.user_id && !values.asset_id) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['user_id'], message: 'Selecciona un usuario o un activo' })
+    ctx.addIssue({ code: 'custom', path: ['user_id'], message: 'Selecciona un usuario o un activo' })
   }
 })
 
@@ -427,7 +427,7 @@ const almLicenseSchema = z.object({
   notes: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (values.purchase_date && values.expiry_date && values.expiry_date < values.purchase_date) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['expiry_date'], message: 'La fecha de expiracion no puede ser anterior a la fecha de compra' })
+    ctx.addIssue({ code: 'custom', path: ['expiry_date'], message: 'La fecha de expiracion no puede ser anterior a la fecha de compra' })
   }
 })
 
@@ -461,7 +461,7 @@ const almAssetSchema = z.object({
   maintenance_contract: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (values.purchase_date && values.warranty_expiry && values.warranty_expiry < values.purchase_date) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['warranty_expiry'], message: 'La garantia no puede terminar antes de la fecha de compra' })
+    ctx.addIssue({ code: 'custom', path: ['warranty_expiry'], message: 'La garantia no puede terminar antes de la fecha de compra' })
   }
 })
 

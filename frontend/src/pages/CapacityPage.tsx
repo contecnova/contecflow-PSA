@@ -11,6 +11,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, capacityApi, unwrapList } from '../services/api'
+import type { PlanDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
@@ -38,14 +39,7 @@ type ProjectItem = {
   status?: string
 }
 
-type CapacityPlan = {
-  id: string | number
-  user_id: string | number
-  week_start: string
-  project_id?: string | number | null
-  project_name?: string
-  planned_hours?: number
-}
+type CapacityPlan = PlanDeCapacidad
 
 type AssignPrefill = {
   user_id?: string | number
@@ -322,7 +316,7 @@ export default function CapacityPage(): JSX.Element {
     queryFn: () => capacityApi.board({
       week_from: weekStarts[0],
       week_to:   weekStarts[weekStarts.length - 1],
-    }).then(r => r.data as CapacityPlan[]),
+    }).then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
 

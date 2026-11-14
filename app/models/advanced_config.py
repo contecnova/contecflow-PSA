@@ -49,7 +49,7 @@ class ProjectTemplate(Base):
     estimated_weeks = Column(Integer, nullable=True)
     estimated_hours = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -64,7 +64,7 @@ class TemplatePhase(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False)
+    template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     order = Column(Integer, default=0)
@@ -80,7 +80,7 @@ class TemplateTask(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    phase_id = Column(String(36), ForeignKey("template_phases.id", ondelete="CASCADE"), nullable=False)
+    phase_id = Column(String(36), ForeignKey("template_phases.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     estimated_hours = Column(Float, nullable=True)
@@ -95,7 +95,7 @@ class TemplateRisk(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False)
+    template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     category = Column(String(50), nullable=True)
     probability = Column(String(20), default="medium")
@@ -110,7 +110,7 @@ class TemplateDeliverable(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False)
+    template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     format = Column(String(100), nullable=True)
     acceptance_criteria = Column(Text, nullable=True)
@@ -216,9 +216,9 @@ class RateOverride(Base):
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    table_id     = Column(String(36), ForeignKey("rate_tables.id", ondelete="CASCADE"), nullable=False)
-    client_id    = Column(String(36), ForeignKey("clients.id",  ondelete="CASCADE"), nullable=True)
-    project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    table_id     = Column(String(36), ForeignKey("rate_tables.id", ondelete="CASCADE"), nullable=False, index=True)
+    client_id    = Column(String(36), ForeignKey("clients.id",  ondelete="CASCADE"), nullable=True, index=True)
+    project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     role_label   = Column(String(100), nullable=False)   # debe coincidir con RateEntry.label
     billing_rate = Column(Rate, nullable=False)
     valid_from   = Column(Date, nullable=True)
@@ -256,7 +256,7 @@ class UserVacationBalance(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     year = Column(Integer, nullable=False)
-    policy_id = Column(String(36), ForeignKey("vacation_policies.id"), nullable=True)
+    policy_id = Column(String(36), ForeignKey("vacation_policies.id"), nullable=True, index=True)
     days_entitled = Column(Float, default=settings.DEFAULT_VACATION_DAYS_PER_YEAR)
     days_taken = Column(Float, default=0)
     days_pending = Column(Float, default=0)  # Requested but not yet approved
@@ -334,7 +334,7 @@ class CustomFieldValue(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    field_id = Column(String(36), ForeignKey("custom_fields.id", ondelete="CASCADE"), nullable=False)
+    field_id = Column(String(36), ForeignKey("custom_fields.id", ondelete="CASCADE"), nullable=False, index=True)
     entity_id = Column(String(36), nullable=False, index=True)  # ID of the project/task/user
     value = Column(Text, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

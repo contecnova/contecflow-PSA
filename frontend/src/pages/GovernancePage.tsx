@@ -25,30 +25,6 @@ const MODULE_CFG: Record<string, { icon: string; labelKey: string; descKey: stri
   mcp:                  { icon: '🔌', labelKey: 'governance.mcp_label',                   descKey: 'governance.mcp_desc' },
 }
 
-interface GovConfigItem {
-  module: string
-  is_enabled: boolean
-}
-
-interface GovLogItem {
-  id: string | number
-  created_at?: string
-  module?: string
-  input_summary?: string
-  action_type?: string
-  tokens_used?: number
-}
-
-interface GovStatsItem {
-  calls?: number
-  tokens?: number
-}
-
-interface GovStats {
-  total_calls?: number
-  by_module?: Record<string, GovStatsItem>
-}
-
 interface ProviderItem {
   name?: string
   is_default?: boolean
@@ -60,15 +36,15 @@ export default function GovernancePage(): JSX.Element {
   const toast = useToast()
   const [tab, setTab] = useState('modules')
 
-  const { data: configs = [], isLoading: _loadingConfigs } = useQuery<GovConfigItem[]>({
+  const { data: configs = [], isLoading: _loadingConfigs } = useQuery({
     queryKey: ['gov-config'],
     queryFn: () => governanceApi.config().then(r => r.data),
   })
-  const { data: stats } = useQuery<GovStats>({
+  const { data: stats } = useQuery({
     queryKey: ['gov-stats'],
     queryFn: () => governanceApi.stats().then(r => r.data),
   })
-  const { data: logs = [] } = useQuery<GovLogItem[]>({
+  const { data: logs = [] } = useQuery({
     queryKey: ['gov-logs'],
     queryFn: () => governanceApi.logs().then(r => r.data),
     enabled: tab === 'audit',
@@ -84,7 +60,7 @@ export default function GovernancePage(): JSX.Element {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const moduleEntries = stats?.by_module ? (Object.entries(stats.by_module) as Array<[string, GovStatsItem]>) : []
+  const moduleEntries = stats?.by_module ? Object.entries(stats.by_module) : []
   const chartData = moduleEntries.length
     ? moduleEntries.map(([k, v]) => ({
         name: MODULE_CFG[k] ? t(MODULE_CFG[k].labelKey) : k,
@@ -219,7 +195,7 @@ export default function GovernancePage(): JSX.Element {
             <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-sm)", alignItems: 'center' }}>
               <span className="u-text2-mono-xs">{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module ?? '']?.icon} {MODULE_CFG[l.module ?? ''] ? t(MODULE_CFG[l.module ?? ''].labelKey) : l.module}</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.action_type || t('governance.dash')}</span>
               <span className="u-warning">{(l.tokens_used || 0).toLocaleString(localeActivo())}</span>
             </div>
           ))}

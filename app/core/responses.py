@@ -43,6 +43,7 @@ class APIListResponse(BaseModel, Generic[T]):
         total: Optional[int] = None,
         page: Optional[int] = None,
         page_size: Optional[int] = None,
+        has_more: Optional[bool] = None,
     ) -> "APIListResponse[T]":
         return cls(
             items=items,
@@ -50,5 +51,6 @@ class APIListResponse(BaseModel, Generic[T]):
                 total=total if total is not None else len(items),
                 page=page,
                 page_size=page_size,
+                has_more=has_more,
             ),
         )

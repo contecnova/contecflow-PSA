@@ -4,6 +4,8 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, risksApi } from '../services/api'
+import type { RiesgosDelProyecto } from '../services/api/tipos'
+import type { RiesgoSerializado } from '../services/api/tipos-proyectos'
 import { Card, Button, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -15,53 +17,17 @@ import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | string
-type RiskStatus = 'identified' | 'analyzing' | 'mitigating' | 'monitoring' | 'closed' | 'materialized' | string
-type RiskProbability = 'very_low' | 'low' | 'medium' | 'high' | 'very_high' | string
-type RiskImpact = 'negligible' | 'minor' | 'moderate' | 'major' | 'critical' | string
+type RiskStatus = RiesgoSerializado['status']
+type RiskProbability = RiesgoSerializado['probability']
+type RiskImpact = RiesgoSerializado['impact']
 
 type ProjectItem = { id: string | number; code?: string; name: string }
 type UserItem = { id: string | number; full_name?: string }
 
-type RiskItem = {
-  id: string | number
-  code?: string
-  project_id: string | number
-  project_name?: string
-  title: string
-  description?: string
-  category?: string
-  category_label?: string
-  probability: RiskProbability
-  probability_label?: string
-  impact: RiskImpact
-  impact_label?: string
-  status: RiskStatus
-  status_label?: string
-  response_type?: string
-  owner_id?: string | number
-  owner_name?: string
-  review_date?: string
-  cost_impact_min?: number | string
-  cost_impact_max?: number | string
-  schedule_impact_days?: number | string
-  mitigation_plan?: string
-  contingency_plan?: string
-  notes?: string
-  risk_level?: RiskLevel
-}
-
-type RiskSummary = {
-  total?: number
-  open?: number
-  critical_count?: number
-  high_count?: number
-}
-
-type RisksResponse = {
-  risks: RiskItem[]
-  summary: RiskSummary
-}
+/** risk_service.serialize_risk; `project_name` solo en la vista de cartera. */
+type RiskItem = RiesgoSerializado & { project_name?: string }
+type RiskSummary = Partial<RiesgosDelProyecto['summary']>
+type RisksResponse = { risks: RiskItem[]; summary: RiskSummary }
 
 type RiskFormState = {
   title: string
@@ -341,11 +307,8 @@ export default function RisksPage() {
   const { data: risksData, isLoading } = useQuery<RisksResponse>({
     queryKey: ['risks', selectedProject],
     queryFn: () => selectedProject
-      ? risksApi.list<RiskItem>(selectedProject, {}).then(r => r.data)
-      : risksApi.portfolioAll().then(r => {
-          const items = (r.data?.items ?? r.data ?? []) as RiskItem[]
-          return { risks: items, summary: { total: items.length } }
-        }),
+      ? risksApi.list<RiesgoSerializado>(selectedProject, {}).then(r => r.data)
+      : risksApi.portfolioAll().then(r => ({ risks: r.data, summary: { total: r.data.length } })),
   })
 
   const { mutate: deleteRisk } = useMutation({

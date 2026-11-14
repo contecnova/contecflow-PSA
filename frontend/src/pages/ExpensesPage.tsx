@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, expensesApi } from '../services/api'
+import type { Gasto, GastosDelEquipo } from '../services/api/tipos-finanzas'
 import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -72,30 +73,8 @@ function fmt(amount: unknown, currency?: string) {
 }
 
 // ── Expense row ───────────────────────────────────────────────────────────────
-type Expense = {
-  [k: string]: unknown
-  id: string
-  code?: string
-  category?: string
-  description?: string
-  amount?: unknown
-  currency?: string
-  status?: string
-  expense_date?: string
-  project_id?: string
-  project_name?: string
-  user_name?: string
-  notes?: string
-  receipt_url?: string
-  km?: number | null
-  policy_flags?: { mensaje: string }[]
-  is_billable?: boolean
-  submitted_at?: string
-  reviewed_by_name?: string
-  rejection_reason?: string
-  reimbursed_at?: string
-  requester_name?: string
-}
+/** serialize_expense (services/api/tipos-finanzas.ts). */
+type Expense = Gasto
 
 function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onAction?: (exp: Expense) => ReactNode; isManager?: boolean }) {
   const t = useAppT()
@@ -136,7 +115,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
       <div className="u-row-6">
         {onAction && onAction(expense)}
       </div>
-      {detalle && <DetalleDeGasto gasto={{ ...expense, amount: expense.amount as number }} editable={expense.status === 'draft' || !!isManager} onClose={() => setDetalle(false)} />}
+      {detalle && <DetalleDeGasto gasto={expense} editable={expense.status === 'draft' || !!isManager} onClose={() => setDetalle(false)} />}
     </div>
   )
 }
@@ -158,7 +137,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
     project_id:  expense?.project_id  || '',
     category:    expense?.category    || 'travel',
     description: expense?.description || '',
-    amount:      (expense?.amount as string | number) || '',
+    amount:      expense?.amount ?? '',
     currency:    expense?.currency    || defaultCurrency,
     expense_date: expense?.expense_date || new Date().toISOString().slice(0, 10),
     is_billable: expense?.is_billable ?? true,
@@ -283,9 +262,9 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
   const [reason, setReason] = useState('')
   const { mutate, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => expensesApi.review(expense.id, d),
-    onSuccess: (r: { data?: { avisos_de_presupuesto?: string[] } }) => {
+    onSuccess: (r) => {
       // Control presupuestario (BUDGET_CONTROL_POLICY = avisar): se aprueba, y se dice de qué presupuesto se pasa.
-      for (const aviso of r?.data?.avisos_de_presupuesto ?? []) toast.warning(aviso, 8000)
+      for (const aviso of r.data.avisos_de_presupuesto) toast.warning(aviso, 8000)
       qc.invalidateQueries({ queryKey: ['expenses-pending'] }); qc.invalidateQueries({ queryKey: ['expenses-team'] }); onClose()
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -341,7 +320,7 @@ function MyExpenses() {
 
   const { data: raw = [], isLoading } = useQuery<Expense[]>({
     queryKey: ['expenses-my', statusFilter],
-    queryFn: () => expensesApi.my({ status: statusFilter || undefined }).then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => expensesApi.my({ status: statusFilter || undefined }).then(r => r.data),
   })
   const expenses: Expense[] = Array.isArray(raw) ? raw : []
   const filteredExpenses = expenses.filter(e => {
@@ -473,7 +452,7 @@ function PendingApproval() {
   const filteredPending = expenses.filter(e => {
     if (pendSearch) {
       const q = pendSearch.toLowerCase()
-      const haystack = `${e.code || ''} ${e.description || ''} ${e.user_name || ''} ${e.requester_name || ''}`.toLowerCase()
+      const haystack = `${e.code || ''} ${e.description || ''} ${e.user_name || ''}`.toLowerCase()
       if (!haystack.includes(q)) return false
     }
     if (pendCat && e.category !== pendCat) return false
@@ -551,8 +530,7 @@ function TeamExpenses() {
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
   const projects: Array<{ id?: string; code?: string; name?: string }> = Array.isArray(projRaw) ? projRaw : []
 
-  type TeamData = { expenses?: Expense[]; total?: number; billable_total?: number; by_category?: Record<string, number> }
-  const { data: raw, isLoading } = useQuery<TeamData>({
+  const { data: raw, isLoading } = useQuery<GastosDelEquipo>({
     queryKey: ['expenses-team', projectFilter, statusFilter],
     queryFn: () => expensesApi.team({ project_id: projectFilter || undefined, status: statusFilter || undefined }).then(r => r.data),
   })
@@ -705,7 +683,7 @@ export default function ExpensesPage(): JSX.Element {
               try {
                 const r = await expensesApi.exportExcel()
                 const nombre = /filename="?([^";]+)"?/.exec(String(r.headers?.['content-disposition'] ?? ''))?.[1] || 'gastos.xlsx'
-                downloadBlob(r.data as Blob, nombre)
+                downloadBlob(r.data, nombre)
               } catch (e) {
                 toast.error(extractErr(e, 'No se pudo exportar'))
               }

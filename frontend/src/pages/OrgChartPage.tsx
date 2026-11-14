@@ -53,11 +53,6 @@ interface OrgChartData {
   total: number
 }
 
-interface ApprovalChainData {
-  user_name: string
-  chain: OrgUser[]
-}
-
 function getRoleColor(role: string) {
   return ROLE_COLOR[role as keyof typeof ROLE_COLOR] ?? '#7a8aaa'
 }
@@ -506,13 +501,13 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
   const [selectedUserId, setSelectedUserId] = useState('')
   const [search, setSearch] = useState('')
 
-  const { data: chain } = useQuery<ApprovalChainData>({
+  const { data: chain } = useQuery({
     queryKey: ['approval-chain', selectedUserId],
     queryFn: () => (
       selectedUserId
         ? usersApi.approvalChain(selectedUserId)
         : usersApi.myApprovalChain()
-    ).then(r => r.data as unknown as ApprovalChainData),
+    ).then(r => r.data),
     enabled: true,
     staleTime: STALE_LIVE_MS,
   })
