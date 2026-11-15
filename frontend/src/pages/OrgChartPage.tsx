@@ -145,10 +145,9 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
         </div>
 
         <div className="orgc-card-2">
-          💡 <strong>{t('orgchart.como_funciona_la_aprobacion')}</strong> {t('orgchart.cuando')} {user.full_name.split(' ')[0]} {t('orgchart.envie_un_gasto_solicite_una_ausencia_o')}
-          {managerId
-            ? ' ' + t('pagina_orgc.recibira_la_notificacion_para_aprobar_o', { v1: eligible.find(u=>u.id===managerId)?.full_name || t('pagina_orgc.su_manager') })
-            : t('pagina_orgc.quedara_pendiente_de_asignacion_de_aprobador')}
+          💡 <strong>{t('orgchart.como_funciona_la_aprobacion')}</strong> {managerId
+            ? t('orgchart.aprobacion_con_aprobador', { nombre: user.full_name.split(' ')[0], aprobador: eligible.find(u=>u.id===managerId)?.full_name || t('pagina_orgc.su_manager') })
+            : t('orgchart.aprobacion_sin_aprobador', { nombre: user.full_name.split(' ')[0] })}
         </div>
 
         <div className="u-actions-10">

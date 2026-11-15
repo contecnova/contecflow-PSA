@@ -457,7 +457,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               <div className="portdash-row-2"><Zap size={18} /></div>
               <div>
                 <div className="portdash-txt-1">
-                  {traducir('portaldashboard.tienes')} {totalActions} {traducir('portaldashboard.accion_es_pendiente_s')}
+                  {traducir('portaldashboard.acciones_pendientes', { n: totalActions })}
                 </div>
                 <div className="u-text2-sm">
                   {traducir('portaldashboard.estos_son_los_puntos_donde_el_proyecto')}

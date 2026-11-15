@@ -394,7 +394,7 @@ export default function BiQueryBuilderPanel() {
                 />
                 {results.rows.length > 200 && (
                   <div className="biqubupa-box-10">
-                    {traducir('biquerybuilder.mostrando_200_de')} {results.rows.length} {traducir('ci.n_filas')}
+                    {traducir('biquerybuilder.mostrando_200_de_n', { n: results.rows.length })}
                   </div>
                 )}
               </div>

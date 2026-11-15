@@ -313,7 +313,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
 
           {missingRequired.length > 0 && (
             <div style={styles.warningInlineXs}>
-              <AlertCircle size={12} />{' '}{t('pagina_perf.faltan')}{' '}{missingRequired.length}{' '}{t('pagina_perf.respuesta_s_obligatoria_s')}
+              <AlertCircle size={12} />{' '}{t('pagina_perf.faltan_respuestas', { n: missingRequired.length })}
             </div>
           )}
 
@@ -827,7 +827,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
               <label className="ds-field__label">
                 <UsersIcon size={11} className="perf-box-38" />{' '}{t('pagina_perf.pares')}
                 <span className="ds-muted perf-label-4">
-                  ({peerIds.length} {traducir('performancereviews.seleccionados_de')} {peerOptions.length}{' '}{t('pagina_perf.elegibles')}
+                  {t('pagina_perf.pares_seleccionados', { n: peerIds.length, total: peerOptions.length })}
                 </span>
               </label>
               {peerData?.reason_blocked ? (
@@ -1078,7 +1078,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
                         <Icon size={11} /> {label}
                         {g.anonymized && (
                           <span className="perf-row-8">
-                            <Lock size={9} />{' '}{t('pagina_perf.oculto_n')}{g.count}{t('pagina_perf.umbral')}{data.anonymity_threshold})
+                            <Lock size={9} />{' '}{t('pagina_perf.oculto_umbral', { n: g.count, umbral: data.anonymity_threshold })}
                           </span>
                         )}
                       </div>
@@ -1335,7 +1335,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
               </span>
             )}
             <span className="ds-muted u-xs">
-              {cycle.total_reviews || 0}{' '}{t('pagina_perf.evaluaciones')}{' '}{cycle.pending}{' '}{t('pagina_perf.pendientes')}{' '}{t('pagina_perf.n_enviadas', { n: cycle.submitted })}
+              {t('pagina_perf.ciclo_resumen', { total: cycle.total_reviews || 0, pendientes: cycle.pending, enviadas: cycle.submitted })}
             </span>
             {avgScore && (
               <span className="perf-label-10">

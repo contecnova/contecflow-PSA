@@ -108,7 +108,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
           {rule.description && <div className="aut-rule-desc">{highlightText(rule.description, highlightTerm)}</div>}
         </div>
         <div className="aut-rule-actions">
-          <button type="button" aria-pressed={rule.is_active} aria-label={`${rule.is_active ? t('automations.pause_btn') : t('automations.activate_btn')} ${rule.name}`} onClick={() => onToggle(rule)}
+          <button type="button" aria-pressed={rule.is_active} aria-label={t(rule.is_active ? 'automations.pause_rule_aria' : 'automations.activate_rule_aria', { name: rule.name })} onClick={() => onToggle(rule)}
             className={`aut-btn ${rule.is_active ? 'aut-btn--pause' : 'aut-btn--resume'}`}>
             {rule.is_active ? t('automations.pause_btn') : t('automations.activate_btn')}
           </button>
@@ -361,7 +361,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                     </select>
                   </div>
                   {form.actions.length > 1 && (
-                    <button type="button" aria-label={`${t('common.delete')} ${t('automations.action_lbl')} ${i + 1}`} onClick={() => removeAction(i)}
+                    <button type="button" aria-label={t('automations.delete_action_aria', { n: i + 1 })} onClick={() => removeAction(i)}
                       className="aut-icon-btn aut-icon-btn--end">×</button>
                   )}
                 </div>

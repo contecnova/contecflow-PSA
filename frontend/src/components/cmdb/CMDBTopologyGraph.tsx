@@ -577,7 +577,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
         {centerName && (
           <span className="cmdbgrap-box-12">
             {t('cmdbtopologygraph.centro')} <strong className="u-accent">{centerName}</strong>
-            {' · '}{nodes.length} {t('cmdbtopologygraph.nodos')} {edges.length} {t('cmdbtopologygraph.aristas')}
+            {' · '}{t('cmdbtopologygraph.resumen_grafo', { nodos: nodes.length, aristas: edges.length })}
           </span>
         )}
       </div>

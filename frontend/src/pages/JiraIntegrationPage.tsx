@@ -184,7 +184,7 @@ export default function JiraIntegrationPage(): JSX.Element {
     mutationFn: (payload: { project_id: string }) => jiraApi.sync(payload).then(r => r.data),
     onSuccess: (d) => {
       qc.invalidateQueries({ queryKey: ['jira-linked'] })
-      toast.success(`${t('jira_integration.sync_complete')} ${d.created} ${t('jira_integration.created')}, ${d.updated} ${t('jira_integration.updated')}`)
+      toast.success(t('jira_integration.sync_resumen', { created: d.created, updated: d.updated }))
     },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.sync_error'))),
   })
@@ -201,7 +201,7 @@ export default function JiraIntegrationPage(): JSX.Element {
         return
       }
       qc.invalidateQueries({ queryKey: ['jira-linked'] })
-      toast.success(`${t('jira_integration.push_complete')} ${d.created} ${t('jira_integration.tasks_pushed')}`)
+      toast.success(t('jira_integration.push_resumen', { n: d.created }))
     },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.push_error'))),
   })

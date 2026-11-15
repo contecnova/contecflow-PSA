@@ -556,7 +556,7 @@ export function GovernedConversationInbox({
       <div className="goveconv-row-6">
         <div>
           <div className="goveconv-box-6">{title}</div>
-          <div className="u-text2-sm">{conversations.length} {t('governedconversations.conversacion_es')} {headerKpi} {t('governedconversations.sin_leer')}</div>
+          <div className="u-text2-sm">{t('governedconversations.resumen', { n: conversations.length, sin_leer: headerKpi })}</div>
         </div>
         <div className="u-wrap-10">
           {projectOptions.length > 1 && (

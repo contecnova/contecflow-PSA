@@ -243,7 +243,7 @@ export default function MetricsDashboardTab() {
             {t('metricsdashboard.metricas_itil')}
           </h2>
           <p className="medata-box-9">
-            {t('metricsdashboard.service_desk_ultimos')} {days} {t('metricsdashboard.dias')}
+            {t('metricsdashboard.service_desk_ultimos_dias', { n: days })}
           </p>
         </div>
         <div className="u-row-6">

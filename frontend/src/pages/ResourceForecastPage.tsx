@@ -347,7 +347,7 @@ export default function ResourceForecastPage() {
       {view === 'summary' && (
         <div className="rfc-panel">
           <div className="rfc-text-md-strong">
-            {t('resourceforecast.tendencia_de_carga_del_equipo')} {t('prevision_recursos_ui.n_semanas', { n: weeks })}
+            {t('prevision_recursos_ui.tendencia_semanas', { n: weeks })}
           </div>
           {loadingSummary ? (
             <div className="rfc-state-muted-3">

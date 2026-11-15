@@ -16,6 +16,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { CHART_COLORS_EXTENDED, COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { descripcionMetrica, etiquetaCategoriaMetrica, etiquetaMetrica } from '../i18n/catalogoMetricas'
 import useMediaQuery from '../hooks/useMediaQuery'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -42,17 +43,8 @@ const STATUS_COLORS: Record<string, string> = {
   ok: 'var(--success)', warning: 'var(--warning)', critical: 'var(--danger)',
   Crítico: 'var(--danger)', Alto: 'var(--warning)', Medio: 'var(--accent)', Bajo: 'var(--success)',
 }
-const CAT_KEYS: Record<string, string> = {
-  Horas: 'reportes_ui.cat_horas', Costes: 'reportes_ui.cat_costes', Rentabilidad: 'reportes_ui.cat_rentabilidad', Capacidad: 'reportes_ui.cat_capacidad',
-  Proyectos: 'reportes_ui.cat_proyectos', Negocio: 'reportes_ui.cat_negocio', RRHH: 'reportes_ui.cat_rrhh', 'Service Desk': 'reportes_ui.cat_service_desk',
-  Agilidad: 'reportes_ui.cat_agilidad', ALM: 'reportes_ui.cat_alm', IA: 'reportes_ui.cat_ia', Estrategia: 'reportes_ui.cat_estrategia',
-  Bienestar: 'reportes_ui.cat_bienestar', OKR: 'reportes_ui.cat_okr', NPS: 'reportes_ui.cat_nps', Formación: 'reportes_ui.cat_formacion',
-  Git: 'reportes_ui.cat_git', Ingresos: 'reportes_ui.cat_ingresos', Gastos: 'reportes_ui.cat_gastos', Sprints: 'reportes_ui.cat_sprints',
-  Tareas: 'reportes_ui.cat_tareas', Portfolio: 'reportes_ui.cat_portfolio', Facturación: 'reportes_ui.cat_facturacion', Alertas: 'reportes_ui.cat_alertas',
-  Automatizaciones: 'reportes_ui.cat_automatizaciones', CMDB: 'reportes_ui.cat_cmdb',
-}
 /** Nombre visible de una categoría (las desconocidas, que vienen del catálogo, se muestran tal cual). */
-const etiquetaCategoria = (cat: string | undefined, t: (k: string) => string) => (cat && CAT_KEYS[cat] ? t(CAT_KEYS[cat]) : cat ?? '')
+const etiquetaCategoria = (cat: string | undefined, t: Parameters<typeof etiquetaCategoriaMetrica>[0]) => etiquetaCategoriaMetrica(t, cat)
 const CAT_ICONS: Record<string, string> = { Horas: '⏱️', Costes: '💸', Rentabilidad: '💰', Capacidad: '📅', Proyectos: '⬡', Negocio: '💼', RRHH: '👥', 'Service Desk': '🎫', Agilidad: '🏃', ALM: '🔑', IA: '🧠', Estrategia: '🎯', Bienestar: '🧘', OKR: '🎯', NPS: '⭐', Formación: '🎓', Git: '🔀', Ingresos: '📈', Gastos: '🧾', Sprints: '🏃', Tareas: '✅', Portfolio: '🗂️', Facturación: '🧾', Alertas: '🔔', Automatizaciones: '⚙️', CMDB: '🖥️' }
 
 
@@ -641,7 +633,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
               <option value="">{traducir('reports.seleccionar_metrica')}</option>
               {catalogue && Object.entries(catalogue).map(([cat, items]) => (
                 <optgroup key={cat} label={`${CAT_ICONS[cat] || '📊'} ${etiquetaCategoria(cat, traducir)}`}>
-                  {items.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  {items.map(item => <option key={item.id} value={item.id}>{etiquetaMetrica(traducir, item.id, item.label)}</option>)}
                 </optgroup>
               ))}
             </select>
@@ -729,7 +721,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           <div className="rep-state-muted">
             <div className="rep-text-42">📊</div>
             <div className="rep-text-muted-md-em-strong">{traducir('reports.selecciona_una_metrica_para_empezar')}</div>
-            <div className="u-text3-sm">{traducir('reportes_ui.elige_entre', { n: Object.values(catalogue || {}).flat().length || '…' })} {traducir('reports.metricas_disponibles')}</div>
+            <div className="u-text3-sm">{traducir('reportes_ui.elige_entre_metricas', { n: Object.values(catalogue || {}).flat().length || '…' })}</div>
           </div>
           {/* Métricas populares como acceso rápido */}
           <div className="rep-grid-2">
@@ -758,19 +750,19 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           <div className="rep-row-10">
             <div className="u-min0">
               <div className="u-wrap-center-8">
-                <h3 className="rep-title-lg-strong">{result.meta?.label}</h3>
+                <h3 className="rep-title-lg-strong">{etiquetaMetrica(traducir, metric, result.meta?.label)}</h3>
                 <span className="rep-card-muted">
-                  {result.meta?.category}
+                  {etiquetaCategoria(result.meta?.category, traducir)}
                 </span>
                 <span className="u-text3-xs">{traducir('reportes_ui.n_registros', { n: result.total })}</span>
               </div>
-              <p className="rep-text-muted-base">{result.meta?.description}</p>
+              <p className="rep-text-muted-base">{descripcionMetrica(traducir, metric, result.meta?.description)}</p>
             </div>
             <div className="u-wrap-8">
               {onSave && (
                 <div className="rep-row-11">
                   <input className="rep-fs rep-input-2" aria-label={traducir('reports.report_name')} value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} />
-                  <Button size="sm" onClick={() => onSave({ name: reportName || result.meta?.label, metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>{traducir('reportes_ui.guardar')}</Button>
+                  <Button size="sm" onClick={() => onSave({ name: reportName || etiquetaMetrica(traducir, metric, result.meta?.label), metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>{traducir('reportes_ui.guardar')}</Button>
                 </div>
               )}
               <button className="rep-btn-success-sm" onClick={() => {
@@ -1216,7 +1208,7 @@ export default function ReportsPage() {
       {mode === 'overview' && (
         <div>
           <p className="rep-text-muted-base-2">
-            {totalMetrics} {traducir('reports.metricas_disponibles_en')} {Object.keys(catalogue || {}).length} {traducir('reports.categorias_haz_clic_en_cualquier_metrica_para')}
+            {traducir('reports.metricas_en_categorias', { n: totalMetrics, categorias: Object.keys(catalogue || {}).length })}
           </p>
           {catalogue && Object.entries(catalogue).map(([cat, items]) => (
             <div className="rep-text-3" key={cat}>
@@ -1230,7 +1222,7 @@ export default function ReportsPage() {
                     <span className="rep-text-muted-2xs-4">
                       {({bar:'▬',bar_grouped:'▮▮',bar_stacked:'▰',line:'∿',area:'◭',pie:'◔',donut:'◎',heatmap:'▦'} as Record<string, string>)[item.default_chart] || '📊'}
                     </span>
-                    {item.label}
+                    {etiquetaMetrica(traducir, item.id, item.label)}
                   </button>
                 ))}
               </div>

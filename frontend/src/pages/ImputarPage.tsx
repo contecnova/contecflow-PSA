@@ -172,8 +172,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
           </button>
         </div>
         <div className="u-text3-sm">
-          {t('pagina_imput.periodo_analizado')}{' '}{anomaliesData?.period?.from} → {anomaliesData?.period?.to}
-          {' · '}{t('pagina_imput.n_imputaciones', { n: anomaliesData?.total_entries ?? 0 })}
+          {t('pagina_imput.periodo_resumen', { desde: anomaliesData?.period?.from ?? '', hasta: anomaliesData?.period?.to ?? '', n: anomaliesData?.total_entries ?? 0 })}
         </div>
         {items.length === 0 ? (
           <div className="imput-box-3">

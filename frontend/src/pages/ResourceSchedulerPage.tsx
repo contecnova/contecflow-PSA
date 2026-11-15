@@ -542,7 +542,7 @@ export default function ResourceSchedulerPage() {
               <div className="rsch-row-6"
                 key={u.user_id}
                 onMouseDown={e => handlePersonDragStart(e, u)}
-                title={`${u.user_name} · ${u.avg_load_pct}% ${t('dashboard.load_label').toLowerCase()} · ${t('resource_scheduler.person_drag_hint')}`}
+                title={t('resource_scheduler.person_tooltip', { nombre: u.user_name, pct: u.avg_load_pct })}
                 role="button"
                 tabIndex={0}
               >
@@ -692,8 +692,8 @@ export default function ResourceSchedulerPage() {
                           role="button"
                           tabIndex={0}
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCellMouseDown(e, user.user_id, colIdx) } }}
-                          title={weekData ? `${weekData.week} · ${loadPct}% ${t('dashboard.load_label').toLowerCase()} · ${weekData.available_hours}h ${t('resources.available').toLowerCase()}` : ''}
-                          aria-label={weekData ? `${weekData.week} · ${loadPct}% ${t('dashboard.load_label').toLowerCase()} · ${weekData.available_hours}h ${t('resources.available').toLowerCase()}` : undefined}
+                          title={weekData ? t('resource_scheduler.cell_tooltip', { semana: weekData.week, pct: loadPct, horas: weekData.available_hours }) : ''}
+                          aria-label={weekData ? t('resource_scheduler.cell_tooltip', { semana: weekData.week, pct: loadPct, horas: weekData.available_hours }) : undefined}
                           style={{ '--rsch-box-13-transition': isDrag ? 'none' : 'background 0.15s', width: CELL_W, '--rsch-box-13-background': isDrag ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : utilColor(loadPct) } as CSSProperties}
                         />
                       )

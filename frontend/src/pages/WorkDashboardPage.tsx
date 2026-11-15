@@ -315,7 +315,7 @@ export default function WorkDashboardPage(): JSX.Element {
           {isLoading ? <><GaugeCardSkeleton /><GaugeCardSkeleton /></> : <>
             <GaugeCard label={t('work_dashboard.gauge_hours_target')}
               value={hoursWeekPct} color={hoursColor}
-              sub={`${hoursWeek.toFixed(1)}h ${t('work_dashboard.of_word')} ${hoursTarget}h ${t('work_dashboard.target_word')}`} />
+              sub={t('work_dashboard.hours_target_sub', { horas: hoursWeek.toFixed(1), objetivo: hoursTarget })} />
             <GaugeCard label={t('work_dashboard.gauge_tasks_completed')}
               value={taskCompletionPct} color={COLOR.success}
               sub={t('work_dashboard.task_resolution_ratio')} />

@@ -495,7 +495,7 @@ export default function SprintsPage() {
       {selectedProject && !isLoading && activeView === 'backlog' && (
         <div>
           <div className="spr-backlog-head">
-            <div className="spr-backlog-title">{t('sprints.backlog_del_proyecto')}{backlog.length} {t('sprints.tareas_sin_sprint')}</div>
+            <div className="spr-backlog-title">{t('sprints.backlog_titulo', { n: backlog.length })}</div>
           </div>
           {backlog.length === 0 ? (
             <EmptyState icon="✅" title={t('sprints.backlog_vacio')} description={t('sprints.backlog_vacio_desc')} />

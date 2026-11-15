@@ -186,8 +186,8 @@ export default function BPMPage(): JSX.Element {
   const [catalogo, setCatalogo] = useState<{ lang: string; procesos: ProcesoCatalogo[] } | null>(null)
   useEffect(() => {
     let vigente = true
-    cargarTextosCatalogo(lang).then(({ lang: cargado, textos }) => {
-      if (vigente) setCatalogo({ lang: cargado, procesos: construirCatalogo(textos, traducir) })
+    cargarTextosCatalogo(lang).then(({ lang: cargado, textos, lineales }) => {
+      if (vigente) setCatalogo({ lang: cargado, procesos: construirCatalogo(textos, traducir, lineales) })
     }).catch(e => console.warn('[BPM] catalogue texts failed:', e))
     return () => { vigente = false }
     // `traducir` cambia con el idioma; el efecto ya depende de `lang`.

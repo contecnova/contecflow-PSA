@@ -614,7 +614,7 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
       {initialSession.test_cases.length > 0 && (
         <div className="u-mb-16">
           <div className="cpp-section-title">
-            {`${t('client_portal.uat_detail_cases_title')} (${initialSession.stats.passed}/${initialSession.stats.total} ${t('client_portal.uat_detail_approved')})`}
+            {t('client_portal.uat_detail_cases_summary', { passed: initialSession.stats.passed, total: initialSession.stats.total })}
           </div>
           <div className="u-stack-8">
             {initialSession.test_cases.map(tc => {
@@ -642,7 +642,7 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
       {initialSession.issues.length > 0 && (
         <div>
           <div className="cpp-section-title">
-            {`${t('client_portal.uat_issues_title')} (${initialSession.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open')})`}
+            {t('client_portal.uat_issues_summary', { n: initialSession.issues.filter(i => i.status === 'open').length })}
           </div>
           <div className="u-stack-8">
             {initialSession.issues.map(issue => {

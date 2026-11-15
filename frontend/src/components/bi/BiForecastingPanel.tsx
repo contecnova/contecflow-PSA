@@ -7,6 +7,8 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { biForecastingApi } from '../../services/api'
 import type { PrevisionBi } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
+import { etiquetaMetricaBi } from '../../i18n/catalogoMetricas'
+import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { TrendingUp } from 'lucide-react'
 import {
@@ -25,6 +27,7 @@ const S: Record<string, React.CSSProperties> = {
 export default function BiForecastingPanel() {
   const idCampo = React.useId()
   const t              = useAppT()
+  const fmtMoneda      = useFormatoMoneda()
   const { tokens }     = useChartTheme()
   const [metric, setMetric]   = useState<string>('revenue')
   const [method, setMethod]   = useState<string>('linear_trend')
@@ -70,7 +73,7 @@ export default function BiForecastingPanel() {
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={S.label}>{t('bi.forecasting.metric', 'Métrica')}</label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => setMetric(e.target.value)} style={S.select}>
             {(metricsData?.metrics ?? ['revenue', 'tickets', 'utilization', 'hours']).map(m => (
-              <option key={m} value={m}>{m}</option>
+              <option key={m} value={m}>{etiquetaMetricaBi(t, m, m, fmtMoneda.simbolo)}</option>
             ))}
           </select>
         </div>

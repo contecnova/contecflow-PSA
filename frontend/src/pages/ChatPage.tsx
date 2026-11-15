@@ -611,7 +611,7 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
             <div className="chat-hint-xs">{traducir('chat.selecciona_un_usuario')}</div>
           ) : (
             <div className="chat-hint-xs">
-              {traducir('chat.anade_miembros')} {traducir(tab === 'group' ? 'chat.min_one' : 'chat.optional')}
+              {traducir(tab === 'group' ? 'chat.anade_miembros_minimo' : 'chat.anade_miembros_opcional')}
             </div>
           )}
           <input aria-label={traducir('chat.search_users')} value={search} onChange={(e) => updateForm({ search: e.target.value })} placeholder={traducir('chat.search_users')}

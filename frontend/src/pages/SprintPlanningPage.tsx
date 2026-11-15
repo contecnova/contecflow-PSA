@@ -146,7 +146,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
           <>
             <div className="spl-result">
               <div className="spl-result__title">✅ {t('sprint_planning.plan_generated_label')}: {result.name}</div>
-              <div className="u-text2-sm">{result.task_count} {t('sprint_planning.tasks_label')} · {result.total_points}{traducir('sprintplanning.p_de')} {result.team_capacity}p</div>
+              <div className="u-text2-sm">{t('sprint_planning.resultado_meta', { tareas: result.task_count, puntos: result.total_points, capacidad: result.team_capacity })}</div>
             </div>
             {/* Barra de utilización */}
             <div>
@@ -271,7 +271,7 @@ export default function SprintPlanningPage() {
                       <span className="spl-status">{t('sprint_planning.status_' + plan.status)}</span>
                     </div>
                     <div className="spl-plan__meta">
-                      {plan.task_count} {t('sprint_planning.tasks_label')} · {plan.total_points}{traducir('sprintplanning.p_de')} {plan.team_capacity}p ({pct}% {t('sprint_planning.utilization_label')})
+                      {t('sprint_planning.plan_meta', { tareas: plan.task_count, puntos: plan.total_points, capacidad: plan.team_capacity, pct })}
                     </div>
                   </div>
                   <div className="u-row-8">

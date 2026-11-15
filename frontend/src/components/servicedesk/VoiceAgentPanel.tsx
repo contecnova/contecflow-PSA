@@ -512,7 +512,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
         )}
 
         <div>
-          <div className="voagpa-fieldlabel">{t('voiceagent.transcripcion')}{transcript.length} {t('voiceagent.turnos')}</div>
+          <div className="voagpa-fieldlabel">{t('voiceagent.transcripcion_turnos', { n: transcript.length })}</div>
           <div className="voagpa-stack-3">
             {transcript.length === 0 ? (
               <div className="voagpa-box-4">

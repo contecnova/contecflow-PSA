@@ -330,7 +330,9 @@ export default function DataGovernancePage(): JSX.Element {
               </div>
               <label className="dg-check">
                 <input type="checkbox" aria-label={t('datagovernance.mostrar_inactivas')} checked={showInactiveSharedViews} onChange={e => setShowInactiveSharedViews(e.target.checked)} />
-                {t('datagovernance.mostrar_inactivas')} ({t('datagovernance.n_activas', { n: activeSharedViews })}{showInactiveSharedViews ? ` · ${t('datagovernance.n_inactivas', { n: inactiveSharedViews })}` : ''})
+                {showInactiveSharedViews
+                  ? t('datagovernance.mostrar_inactivas_con_ambas', { activas: activeSharedViews, inactivas: inactiveSharedViews })
+                  : t('datagovernance.mostrar_inactivas_con_activas', { activas: activeSharedViews })}
               </label>
               <div className="dg-views">
                 {sortedSharedViews.length === 0

@@ -629,7 +629,7 @@ export default function AIHubPage(): JSX.Element {
             <div role="status" className={`aih-card aih-card--pad-md aih-diag aih-tone--${diagResults.error > 0 ? 'danger' : diagResults.warning > 0 ? 'warning' : 'success'}`}>
               <div className="aih-diag-head">
                 <div className="u-md-700">
-                  {traducir('aihub.diagnostico')} {traducir('aihub.healthy_of_total', { healthy: diagResults.healthy, total: diagResults.total })}
+                  {traducir('aihub.diagnostico_resumen', { healthy: diagResults.healthy, total: diagResults.total })}
                 </div>
                 <button type="button" onClick={() => setDiagResults(null)} aria-label={t('common.close')} className="aih-close aih-close--lg"><span aria-hidden="true">✕</span></button>
               </div>
@@ -667,7 +667,7 @@ export default function AIHubPage(): JSX.Element {
                 <div className="u-min0">
                   <div className="aih-active-eyebrow">{t('ai.provider_active_default')}</div>
                   <div className="aih-active-name">{defaultProvider.name}</div>
-                  <div className="u-text2-sm">{t('ai.model_label')}: {defaultProvider.default_model} · {intFmt.format(defaultProvider.total_requests || 0)} {t('ai.requests').toLowerCase()} · {moneyFmt.format(defaultProvider.total_cost_usd || 0)} {t('ai.spent')}</div>
+                  <div className="u-text2-sm">{t('ai.provider_resumen', { modelo: defaultProvider.default_model, n: intFmt.format(defaultProvider.total_requests || 0), coste: moneyFmt.format(defaultProvider.total_cost_usd || 0) })}</div>
                 </div>
               </div>
             </div>

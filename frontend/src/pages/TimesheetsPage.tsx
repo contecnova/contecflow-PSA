@@ -366,7 +366,7 @@ export default function TimesheetsPage() {
                 <div key={ts.week_start} className={`ts-sheet ${SHEET_BORDER[ts.status] ?? ''}`}>
                   <div className="u-flex1">
                     <div className="ts-sheet-title">
-                      {t('timesheets.semana_del')} {fmtDate(ts.week_start)} {t('timesheets.al')} {fmtDate(ts.week_end)}
+                      {t('timesheets.semana_rango', { desde: fmtDate(ts.week_start), hasta: fmtDate(ts.week_end) })}
                     </div>
                     <div className="ts-sheet-meta">
                       <span>{t('timesheets.total')}: <span className="ts-strong">{fmtHours(ts.total_hours)}</span></span>
@@ -418,7 +418,7 @@ export default function TimesheetsPage() {
                   <div className="u-flex1">
                     <div className="u-md-700">{ts.user_name}</div>
                     <div className="u-text2-sm-mt2">
-                      {t('timesheets.semana_del')} {fmtDate(ts.week_start)} · {fmtHours(ts.total_hours)} · {t('timesheets.n_facturables', { horas: fmtHours(ts.billable_hours) })}
+                      {t('timesheets.semana_del_fecha', { fecha: fmtDate(ts.week_start) })} · {fmtHours(ts.total_hours)} · {t('timesheets.n_facturables', { horas: fmtHours(ts.billable_hours) })}
                     </div>
                   </div>
                   <StatusBadge status={ts.status} />

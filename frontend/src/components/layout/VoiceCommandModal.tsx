@@ -247,7 +247,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         {audioBlob && !transcribeResult && (
           <div className="vocomo-box-5">
             <div className="vocomo-box-6">
-              {traducir('voicecommand.audio_grabado')}{Math.round(audioBlob.size / 1024)} {traducir('voicecommand.kb')}
+              {traducir('voicecommand.audio_grabado_kb', { kb: Math.round(audioBlob.size / 1024) })}
             </div>
             <audio src={URL.createObjectURL(audioBlob)} controls aria-label={traducir('voicecommand.audio_grabado_2')}
               className="vocomo-box-7" />

@@ -450,7 +450,7 @@ function StatsTab() {
         <div style={{ ...S.innerCard, borderColor: 'var(--danger-border)' }}>
           <div className="bigdpa-box-8">
             <AlertTriangle size={14} className="bigdprpa-sx3" />
-            {data?.overdue} DSR{data?.overdue !== 1 ? 's' : ''} {t('bigdpr.ha')}{data?.overdue !== 1 ? 'n' : ''} {t('bigdpr.superado_el_plazo_gdpr_30_dias')}
+            {t(data?.overdue === 1 ? 'bigdpr.dsr_vencida_uno' : 'bigdpr.dsr_vencidas_otros', { n: data?.overdue ?? 0 })}
           </div>
           <div className="u-text3-mono-xs">
             {(data?.overdue_ids ?? []).join(', ')}

@@ -11,9 +11,15 @@
 /** Cualquier `t` de la app (con o sin proveedor): solo se le pide clave y, si la acepta, respaldo. */
 type Traducir = (clave: string, segundo?: never) => string
 
-/** Normaliza el código para que sea un segmento de clave válido. */
+/** Normaliza el código para que sea un segmento de clave válido (sin tildes: «Formación» → `formacion`). */
 function segmento(codigo: string): string {
-  return codigo.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '')
+  return codigo
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
 }
 
 export function etiquetaCodigo(

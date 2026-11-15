@@ -19,6 +19,7 @@
 //   node scripts/check_i18n_duplicates.mjs            # gate (sale 1 si hay)
 //   node scripts/check_i18n_duplicates.mjs --report   # informe, sale 0
 import { readFileSync } from 'node:fs'
+import ts from 'typescript'
 
 import { APP_LANGUAGES } from '../src/i18n/appTranslations.mjs'
 
@@ -27,37 +28,31 @@ const soloInforme = process.argv.includes('--report')
 /**
  * Claves declaradas en un fichero de idioma, con su ruta de anidamiento real.
  *
- * Se sigue el balance de llaves línea a línea en lugar de fiarse de la
- * indentación: en estos ficheros la indentación NO es fiable — hay namespaces a
- * 2 espacios y otros a 4 en el mismo objeto, que es justo lo que hizo invisible
- * el duplicado.
+ * Se lee el AST (parser de TypeScript) en lugar de seguir las líneas: en estos
+ * ficheros hay líneas con varias claves (`a: 'x', b: 'y'`) y namespaces con
+ * sangrías distintas, y un análisis por líneas se deja duplicados sin ver
+ * (Segunda auditoría 2026-11: `service_desk.type_change` y otras 7 claves del
+ * castellano, que el gate anterior daba por limpias).
  */
 function clavesDeclaradas(ruta) {
-  const lineas = readFileSync(ruta, 'utf8').split('\n')
-  const pila = [] // ruta de claves de los objetos abiertos
-  const declaradas = [] // { ruta, linea }
+  const fuente = readFileSync(ruta, 'utf8')
+  const sf = ts.createSourceFile(ruta, fuente, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+  const declaradas = [] // { ruta, linea, esObjeto }
 
-  for (let i = 0; i < lineas.length; i++) {
-    const linea = lineas[i]
-    // Se ignoran los comentarios de línea completa.
-    if (linea.trim().startsWith('//')) continue
-
-    const abre = linea.match(/^\s*([A-Za-z0-9_]+)\s*:\s*\{\s*$/)
-    if (abre) {
-      declaradas.push({ ruta: [...pila, abre[1]].join('.'), linea: i + 1, esObjeto: true })
-      pila.push(abre[1])
-      continue
+  const visitar = (nodo, camino) => {
+    if (ts.isObjectLiteralExpression(nodo)) {
+      for (const p of nodo.properties) {
+        if (!ts.isPropertyAssignment(p) || !(ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))) continue
+        const completa = camino ? `${camino}.${p.name.text}` : p.name.text
+        const { line } = sf.getLineAndCharacterOfPosition(p.getStart())
+        declaradas.push({ ruta: completa, linea: line + 1, esObjeto: ts.isObjectLiteralExpression(p.initializer) })
+        visitar(p.initializer, completa)
+      }
+      return
     }
-
-    const hoja = linea.match(/^\s*([A-Za-z0-9_]+)\s*:\s*(['"`])/)
-    if (hoja) {
-      declaradas.push({ ruta: [...pila, hoja[1]].join('.'), linea: i + 1, esObjeto: false })
-      continue
-    }
-
-    // Cierre de objeto: `},` o `}` a solas.
-    if (/^\s*\}\s*,?\s*;?\s*$/.test(linea) && pila.length) pila.pop()
+    ts.forEachChild(nodo, (h) => visitar(h, camino))
   }
+  visitar(sf, '')
   return declaradas
 }
 

@@ -882,7 +882,7 @@ export function PortalInvoices() {
                   </div>
                 </div>
                 <div className="poadse-box-16">
-                  {traducir('portaladvanced.base')} {formatMoney(inv.subtotal, cur)} {traducir('portaladvanced.iva')} {formatMoney(inv.tax_amount, cur)}
+                  {traducir('portaladvanced.base_iva', { base: formatMoney(inv.subtotal, cur), iva: formatMoney(inv.tax_amount, cur) })}
                 </div>
                 {inv.client_approval_status === 'pending' && (
                   <>

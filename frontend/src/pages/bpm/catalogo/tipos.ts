@@ -37,3 +37,19 @@ export type TextoProceso = {
 }
 
 export type TextosCatalogo = Record<string, TextoProceso>
+
+/** Proceso que es una cadena lineal de pasos (inicio, tareas, fin): sin SLA ni responsable. */
+export type EstructuraLineal = {
+  id: string
+  category: string
+  /** Número de pasos (los textos de cada idioma deben tener el mismo). */
+  pasos: number
+}
+
+export type TextoLineal = {
+  name: string
+  description: string
+  steps: string[]
+}
+
+export type TextosLineales = Record<string, TextoLineal>

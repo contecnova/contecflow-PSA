@@ -8,6 +8,8 @@ import { biSmartAlertsApi } from '../../services/api'
 import type { AlertaDisparadaBi, ReglaDeAlertaBi } from '../../services/api/tipos-bi'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { etiquetaMetricaBi } from '../../i18n/catalogoMetricas'
+import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import { localeActivo } from '../../utils/helpers'
 import { STALE_10_MIN_MS, STALE_SHORT_MS } from '../../constants/timings'
 import './SmartAlertsPanel.css'
@@ -22,6 +24,7 @@ const S: Record<string, React.CSSProperties> = {
 
 export default function SmartAlertsPanel() {
   const { t } = useAppLang()
+  const fmtMoneda = useFormatoMoneda()
   const [tick, setTick] = useState<number>(0)
   const [name, setName] = useState<string>('')
   const [metric, setMetric] = useState<string>('revenue')
@@ -44,6 +47,12 @@ export default function SmartAlertsPanel() {
     queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data).catch(() => null),
     staleTime: STALE_10_MIN_MS,
   })
+
+  /** Las métricas propias de la empresa traen su etiqueta; las del sistema se traducen por código. */
+  const etiquetaDeMetrica = (clave: string): string => {
+    const m = supported?.metrics?.find(x => x.key === clave)
+    return m?.is_custom ? m.label : etiquetaMetricaBi(t, clave, m?.label ?? clave, fmtMoneda.simbolo)
+  }
 
   async function evaluateNow() {
     try { await biSmartAlertsApi.evaluate(); setTick(x => x + 1) } catch (_) { /* ignore */ }
@@ -80,7 +89,7 @@ export default function SmartAlertsPanel() {
             <input aria-label={t('smartalerts.nombre_de_la_regla')} value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')}
               className="smalpa-input" />
             <select value={metric} onChange={e => setMetric(e.target.value)} className="smalpa-input2">
-              {(supported?.metrics || [{ key: 'revenue', label: 'Revenue' }]).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+              {(supported?.metrics || [{ key: 'revenue', label: 'Revenue', is_custom: false }]).map(m => <option key={m.key} value={m.key}>{etiquetaDeMetrica(m.key)}</option>)}
             </select>
             <select value={condition} onChange={e => setCondition(e.target.value)} className="smalpa-input2">
               {/* Sin campo de umbral: las condiciones `threshold_*` se crean desde Configuración (el servidor exige `threshold`). */}
@@ -96,7 +105,7 @@ export default function SmartAlertsPanel() {
               <div className="smalpa-box-2" style={{ background: rule.severity === 'critical' ? COLOR.danger : rule.severity === 'warning' ? COLOR.warning : COLOR.success }} />
               <div className="u-flex1">
                 <div className="u-text1-sm-600">{rule.name}</div>
-                <div className="u-text3-2xs">{rule.metric_key} · {rule.condition.replace(/_/g, ' ')}</div>
+                <div className="u-text3-2xs">{etiquetaDeMetrica(rule.metric_key)} · {rule.condition.replace(/_/g, ' ')}</div>
               </div>
               <span className="smalpa-box-3" style={{ background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)' }}>
                 {rule.enabled ? 'activa' : 'pausada'}
@@ -130,11 +139,11 @@ export default function SmartAlertsPanel() {
               <div className="u-flex1">
                 <div className="u-text1-sm-600">{entry.rule_name}</div>
                 <div className="u-text3-2xs">
-                  {entry.metric_key} · {entry.condition.replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
+                  {etiquetaDeMetrica(entry.metric_key)} · {entry.condition.replace(/_/g, ' ')} ·{entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
                 </div>
                 {entry.correlated && entry.correlated.length > 0 && (
                   <div className="smalpa-box-6" style={{ color: COLOR.warning }}>
-                    {t('smartalerts.correlada_con')} {entry.correlated.map(c => c.metric_key).join(', ')}
+                    {t('smartalerts.correlada_con')} {entry.correlated.map(c => etiquetaDeMetrica(c.metric_key)).join(', ')}
                   </div>
                 )}
               </div>

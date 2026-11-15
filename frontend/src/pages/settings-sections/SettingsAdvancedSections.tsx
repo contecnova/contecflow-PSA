@@ -265,14 +265,14 @@ export function IdiomasSection() {
             })}
             {filteredKeys.length > 200 && (
               <div className="seadse-box-11">
-                {t('settingsadvanced.mostrando_200_de')} {filteredKeys.length} {t('settingsadvanced.claves_usa_el_filtro_para_buscar_mas')}
+                {t('settingsadvanced.mostrando_200_de_n', { n: filteredKeys.length })}
               </div>
             )}
           </div>
 
           <div className="seadse-row-3">
             <div className="u-text2-sm">
-              {filteredKeys.length} {t('settingsadvanced.claves')} {allKeys.length} {t('settingsadvanced.total')} {hasUnsaved && <span className="u-warning">{t('settingsadvanced.cambios_sin_guardar')}</span>}
+              {t('settingsadvanced.claves_de_total', { n: filteredKeys.length, total: allKeys.length })}{hasUnsaved && <> · <span className="u-warning">{t('settingsadvanced.cambios_sin_guardar')}</span></>}
             </div>
             <div className="u-row-8">
               <button className="seadse-box-32" onClick={() => saveAppTrans()} disabled={!hasUnsaved}
@@ -464,7 +464,7 @@ export function LogLevelSection() {
             <div className="seadse-box-17">
               {t('settingsadvanced.nivel_actual')} <strong>{serverLevel.contecflow}</strong>
               <span className="seadse-box-18">
-                {t('settingsadvanced.root')} {serverLevel.root} {t('settingsadvanced.uvicorn')} {serverLevel.uvicorn || serverLevel.root})
+                {t('settingsadvanced.nivel_root_uvicorn', { root: serverLevel.root, uvicorn: serverLevel.uvicorn || serverLevel.root })}
               </span>
             </div>
           )}

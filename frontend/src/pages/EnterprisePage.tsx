@@ -405,7 +405,9 @@ function IntegrationsTab() {
 
   const { mutate: sync } = useMutation({
     mutationFn: (id: string) => id === JIRA_ID ? integrationsHubApi.syncJira() : oauthIntegrationsApi.sync(id, {}),
-    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`${t('pagina_ent.sincronizados_elementos', { synced: r?.data?.synced ?? 0 })}${r?.data?.errors?.length ? t('pagina_ent.con_error', { length: r.data.errors.length }) : ''}`) },
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(r?.data?.errors?.length
+        ? t('pagina_ent.sincronizados_con_error', { synced: r?.data?.synced ?? 0, length: r.data.errors.length })
+        : t('pagina_ent.sincronizados_elementos', { synced: r?.data?.synced ?? 0 })) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 

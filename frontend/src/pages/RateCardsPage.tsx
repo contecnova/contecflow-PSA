@@ -284,7 +284,7 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
             <label className="rc-lbl" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('tarifas_ui.escalado_anual_pct')}</label>
             <input className="rc-inp" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} min="0" max="20" step="0.5" />
             <div className="rc-text-muted-xs">
-              {traducir('ratecards.se_creara_una_copia_de')}{table.name}{traducir('ratecards.con_todas_las_tarifas_incrementadas_en_este')}
+              {traducir('ratecards.copia_con_incremento', { nombre: table.name })}
             </div>
           </div>
           <div className="u-actions-8">

@@ -124,7 +124,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       {/* Progress */}
       <div>
         <div className="rcwimo-row-1">
-          <span>{traducir('bpm.paso')} {currentStep} {traducir('rcawizardmodal.de')} {totalSteps}</span>
+          <span>{traducir('rcawizardmodal.paso_x_de_y', { actual: currentStep, total: totalSteps })}</span>
           <span>{progress}{traducir('pagina_perf.completado')}</span>
         </div>
         <div className="rcwimo-box-3">

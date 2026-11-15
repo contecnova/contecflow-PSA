@@ -295,7 +295,7 @@ export default function OrganizationsPage() {
             </div>
             {detail.deletion_purge_after && (
               <div className="orgs-box-3">
-                {t('pagina_orgs.baja_pedida_sus_datos_se_borraran')}{' '}{detail.deletion_purge_after.slice(0, 10)}{t('pagina_orgs.hasta_entonces_se_puede_deshacer_y')}
+                {t('pagina_orgs.baja_pedida_fecha', { fecha: detail.deletion_purge_after.slice(0, 10) })}
               </div>
             )}
             <div className="orgs-grid-2">

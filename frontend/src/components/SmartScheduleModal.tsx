@@ -277,7 +277,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
         {/* Footer */}
         <div className="smscmo-row-4">
           <div className="u-text3-sm">
-            {selectedCount} {traducir('smartschedulemodal.de')} {suggestions.length} {traducir('tasks.selected')}
+            {traducir('smartschedulemodal.n_de_total_seleccionadas', { n: selectedCount, total: suggestions.length })}
           </div>
           <div className="u-row-8">
             <button onClick={onClose} disabled={isApplying}

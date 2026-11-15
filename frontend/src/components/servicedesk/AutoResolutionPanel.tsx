@@ -448,7 +448,7 @@ export default function AutoResolutionPanel() {
                   <span className="aurepa-box-15">{formatDateTime(run.started_at)}</span>
                   <span className="aurepa-box-16">{formatDurationMs(run.duration_ms)}</span>
                   {run.stats
-                    ? <span className="aurepa-box-17">{processed} {t('autoresolution.procesados')} {autoResolved} {t('autoresolution.auto_resueltos')} {failed} {t('autoresolution.fallidos')}</span>
+                    ? <span className="aurepa-box-17">{t('autoresolution.resumen_ejecucion', { procesados: processed, autoresueltos: autoResolved, fallidos: failed })}</span>
                     : run.error
                       ? <span className="aurepa-box-18">{run.error}</span>
                       : <span className="aurepa-box-19">—</span>

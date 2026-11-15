@@ -103,7 +103,7 @@ export default function IncidentAssignmentPanel() {
           </span>
           {stats?.total_recommendations != null && (
             <span className="u-text3-xs">
-              {stats.total_recommendations} {t('incidentassignment.recomendaciones')} {stats.total_unassigned ?? 0} {t('incidentassignment.sin_asignar')}
+              {t('incidentassignment.resumen', { recomendaciones: stats.total_recommendations, sin_asignar: stats.total_unassigned ?? 0 })}
             </span>
           )}
         </div>

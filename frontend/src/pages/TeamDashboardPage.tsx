@@ -161,7 +161,7 @@ export default function TeamDashboardPage() {
           <KpiCard icon={<KpiIcon icon={GraduationCap} />} label={t('team_dashboard.kpi_trainings')}
             value={trainingTotal}
             color={COLOR.accent} accentBar={COLOR.accent}
-            sub={`${trainingCompleted} ${t('team_dashboard.completed_fem_plural')} · ${trainingInProgress} ${t('team_dashboard.in_progress_lower')}`} />
+            sub={t('team_dashboard.trainings_sub', { completadas: trainingCompleted, en_curso: trainingInProgress })} />
           <KpiCard icon={<KpiIcon icon={Plane} />} label={t('team_dashboard.kpi_absences_today')}
             value={todayAbsences}
             color={todayAbsences > 0 ? COLOR.warning : COLOR.success}
@@ -181,13 +181,13 @@ export default function TeamDashboardPage() {
           {okrPct != null && (
             <GaugeCard label={t('team_dashboard.gauge_okrs_completed')}
               value={okrPct} color={okrColor}
-              sub={`${completedOkrs} ${t('team_dashboard.of_word')} ${totalOkrs} ${t('team_dashboard.objectives')}`} />
+              sub={t('team_dashboard.okrs_sub', { completados: completedOkrs, total: totalOkrs })} />
           )}
           {trainingTotal > 0 && (
             <GaugeCard label={t('team_dashboard.gauge_training_completed')}
               value={Math.round((trainingCompleted / trainingTotal) * 100)}
               color={COLOR.success}
-              sub={`${trainingCompleted} ${t('team_dashboard.of_word')} ${trainingTotal} ${t('team_dashboard.trainings_lower')}`} />
+              sub={t('team_dashboard.trainings_gauge_sub', { completadas: trainingCompleted, total: trainingTotal })} />
           )}
         </div>
 

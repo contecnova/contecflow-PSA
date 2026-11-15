@@ -102,7 +102,7 @@ export default function UserCostsPage() {
         meta={
           (summary && (
             <span>
-              {summary.users_with_cost} {t('usercosts.con_coste')} {summary.users_missing_cost} {t('usercosts.sin_coste_media')} {fmtMoneda(summary.avg_cost_per_hour, { decimales: 0 })}/h
+              {t('usercosts.resumen_meta', { con: summary.users_with_cost, sin: summary.users_missing_cost, media: fmtMoneda(summary.avg_cost_per_hour, { decimales: 0 }) })}
             </span>
           )) as never
         }
@@ -575,7 +575,7 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
                   {p.is_active && <span className="uc-current">{t('usercosts.vigente')}</span>}
                 </div>
                 <div className="u-text3-xs">
-                  {t('usercosts.historico_linea', { bruto: fmtMoneda(p.gross_annual_salary, { moneda: p.currency, decimales: 0 }), pct: ((p.employer_cost_pct ?? 0) * 100).toFixed(1) })} · {p.productive_hours_year}{t('usercosts.h_ano')}
+                  {t('usercosts.historico_linea', { bruto: fmtMoneda(p.gross_annual_salary, { moneda: p.currency, decimales: 0 }), pct: ((p.employer_cost_pct ?? 0) * 100).toFixed(1) })} · {t('usercosts.n_horas_ano', { n: p.productive_hours_year })}
                   {p.notes && <> · {p.notes}</>}
                 </div>
               </div>

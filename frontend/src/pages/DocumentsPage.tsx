@@ -1158,7 +1158,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             );
                           })}
                           <span className="docs-label-7">
-                            {t('pagina_docs.paso')}{' '}{doc.approval_request.current_step} {t('documents.de')} {doc.approval_request.total_steps}
+                            {t('pagina_docs.paso_x_de_y', { actual: doc.approval_request.current_step, total: doc.approval_request.total_steps })}
                           </span>
                         </div>
                         {/* Current step info */}
@@ -1439,7 +1439,9 @@ export default function DocumentsPage(): JSX.Element {
 
       {/* Count */}
       <div className="ds-muted u-sm">
-        {isLoading ? t('pagina_docs.cargando') : `${t(docs.length === 1 ? 'pagina_docs.documentos_uno' : 'pagina_docs.documentos_otros', { n: docs.length })}${(search || filterCat || filterStatus || activeTags.length) ? t('pagina_docs.filtrado') : ''}`}
+        {isLoading ? t('pagina_docs.cargando') : ((search || filterCat || filterStatus || activeTags.length)
+          ? t(docs.length === 1 ? 'pagina_docs.documentos_uno_filtrado' : 'pagina_docs.documentos_otros_filtrado', { n: docs.length })
+          : t(docs.length === 1 ? 'pagina_docs.documentos_uno' : 'pagina_docs.documentos_otros', { n: docs.length }))}
       </div>
 
       {/* Content */}
