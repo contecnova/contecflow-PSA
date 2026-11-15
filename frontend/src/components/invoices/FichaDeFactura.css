@@ -135,3 +135,8 @@
   width: 70px;
   display: inline-block;
 }
+
+/* ── Estilos estaticos extraidos de FichaDeFactura.tsx (#17) ── */
+.fichadef-sx1.fichadef-sx1 {
+  border-radius: 20px;
+}

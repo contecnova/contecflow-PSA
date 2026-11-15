@@ -632,3 +632,68 @@
   font-weight: 800;
   color: var(--on-accent-light);
 }
+
+/* ── PortalCard ─ especificidad 0 para que un className de quien lo usa gane. */
+:where(.portal-card) {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg, 12px);
+  padding: var(--portal-card-pad, 20px);
+  box-shadow: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+:where(.portal-card--accent) {
+  border-color: var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 6%, transparent);
+}
+:where(.portal-card--click) { cursor: pointer; }
+:where(.portal-card--click:hover) { border-color: var(--accent-border-strong); }
+
+/* ── Estilos estaticos extraidos de PortalUI.tsx (#17) ── */
+.portalui-sx1.portalui-sx1 {
+  background: var(--surface-1);
+  border-right: 1px solid var(--surface-4);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.18s ease;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 5;
+}
+.portalui-sx2 {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+}
+.portalui-sx3 {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-light);
+  z-index: 4;
+}
+.portalui-sx4 {
+  display: flex;
+  flex-direction: column;
+}
+.portalui-sx5 {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-blur-soft);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 24px;
+  z-index: var(--z-modal);
+  overflow-y: auto;
+}
+.portalui-sx6.portalui-sx6 {
+  box-shadow: var(--shadow-dialog);
+}
+.portalui-sx7.portalui-sx7 {
+  border-radius: var(--radius-lg, 12px);
+}

@@ -130,3 +130,30 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Estilos estaticos extraidos de GlobalSearch.tsx (#17) ── */
+.globalse-sx1 {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-light);
+  z-index: var(--z-drag);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+}
+.globalse-sx2 {
+  width: 100%;
+  max-width: 620px;
+  background: var(--surface-1);
+  border-radius: 16px;
+  border: .5px solid var(--surface-4);
+  overflow: hidden;
+  box-shadow: var(--shadow-modal-soft);
+}
+.globalse-sx3.globalse-sx3 {
+  border-radius: 8px;
+}

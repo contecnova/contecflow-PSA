@@ -4,3 +4,14 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ── Estilos estaticos extraidos de Breadcrumbs.tsx (#17) ── */
+.breadcru-sx1 {
+  color: var(--text-3);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+.breadcru-sx2 {
+  color: var(--text-4);
+  flex-shrink: 0;
+}

@@ -107,8 +107,8 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
       <label className="u-col-full"><span className="fodepa-etiqueta">{t('pres.como_se_calcula_la_partida')}</span>
         <div role="radiogroup" aria-label={t('pres.como_se_calcula_la_partida')} className="u-wrap-6">
           {modos.map(m => (
-            <button className="fodepa-box-1" key={m} type="button" role="radio" aria-checked={f.modo === m} onClick={() => setF(v => ({ ...v, modo: m }))}
-              style={{ borderRadius: 99, border: `1px solid ${f.modo === m ? 'var(--accent)' : 'var(--surface-4)'}`, background: f.modo === m ? 'var(--accent-muted)' : 'transparent', color: f.modo === m ? 'var(--accent)' : 'var(--text-2)' }}>{t(`pres.modo_${m}`)}</button>
+            <button className="fodepa-box-1 formular-sx1" key={m} type="button" role="radio" aria-checked={f.modo === m} onClick={() => setF(v => ({ ...v, modo: m }))}
+              style={{ border: `1px solid ${f.modo === m ? 'var(--accent)' : 'var(--surface-4)'}`, background: f.modo === m ? 'var(--accent-muted)' : 'transparent', color: f.modo === m ? 'var(--accent)' : 'var(--text-2)' }}>{t(`pres.modo_${m}`)}</button>
           ))}
         </div>
         <span className="fodepa-etiqueta2">{t(`pres.modo_${f.modo}_ayuda`)}</span>

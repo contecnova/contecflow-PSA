@@ -5,3 +5,10 @@
   justify-content: center;
   padding: 60px;
 }
+
+/* ── Estilos en linea extraidos de InboxPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.inboxpag-sx1 {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--surface-4);
+}

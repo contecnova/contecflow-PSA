@@ -142,9 +142,94 @@ def _bloquear(db: Session, pares: list[tuple]) -> list[HuecoDeCupo]:
     return filas
 
 
-def _ocupan(db: Session, ids: list[str]) -> dict:
-    return dict(db.query(ReservaDeCupo.hueco_id, func.count(ReservaDeCupo.id)).filter(
-        ReservaDeCupo.hueco_id.in_(ids), ReservaDeCupo.estado == "ocupa").group_by(ReservaDeCupo.hueco_id).all())
+def _ocupan(db: Session, ids: list[str], excluir: Optional[str] = None) -> dict:
+    q = db.query(ReservaDeCupo.hueco_id, func.count(ReservaDeCupo.id)).filter(
+        ReservaDeCupo.hueco_id.in_(ids), ReservaDeCupo.estado == "ocupa")
+    if excluir:
+        q = q.filter(ReservaDeCupo.absence_id != excluir)
+    return dict(q.group_by(ReservaDeCupo.hueco_id).all())
+
+
+# ── Ausencias que ya existían (rev. 167) ─────────────────────────────────────
+#
+# Un cupo cuenta también las ausencias anteriores a él: cuando se crea la fila
+# de una plaza (o se publica la política) se «siembran» sus reservas con las
+# ausencias aprobadas —y pendientes, si la plaza se da al pedir— de ese día que
+# encajan en el cupo (misma regla, mismo turno y grupo). Es idempotente: una
+# ausencia que ya tiene reserva en esa plaza no se vuelve a contar.
+
+def _estados_que_cuentan(cupo: dict) -> tuple:
+    from app.models.resources import AbsenceStatus
+    if (cupo.get("momento") or "solicitud") == "aprobacion":
+        return (AbsenceStatus.approved,)
+    return (AbsenceStatus.approved, AbsenceStatus.pending)
+
+
+def _sembrar(db: Session, h: HuecoDeCupo, cupo: dict, excluir: Optional[str], org: Optional[str]) -> int:
+    """Reservas `ocupa` para las ausencias existentes que caen en esta plaza. No confirma."""
+    from app.models.resources import Absence
+    from app.services import politicas
+    ya = {a for (a,) in db.query(ReservaDeCupo.absence_id).filter(ReservaDeCupo.hueco_id == h.id)}
+    q = db.query(Absence).filter(Absence.is_active.is_(True), Absence.status.in_(_estados_que_cuentan(cupo)),
+                                 Absence.start_date <= h.fecha, Absence.end_date >= h.fecha)
+    if excluir:
+        q = q.filter(Absence.id != excluir)
+    n = 0
+    for a in q.all():
+        if a.id in ya:
+            continue
+        ev = politicas.evaluar(db, "ausencias", a, organization_id=a.organization_id)
+        mio = next((c for c in (ev["resultado"].get("propios") or [])
+                    if c.get("tipo") == TIPO and c.get("clave") == cupo.get("clave")), None)
+        if mio is None or (h.fecha, h.turno, h.grupo) not in huecos_de(mio, ev["contexto"].get("_ausencia") or {}):
+            continue
+        db.add(ReservaDeCupo(id=str(uuid.uuid4()), organization_id=org or a.organization_id, hueco_id=h.id,
+                             absence_id=a.id, estado="ocupa", por_encima=False,
+                             pedida_en=a.requested_at or a.created_at or ahora()))
+        n += 1
+    if n:
+        db.flush()
+    return n
+
+
+def sembrar_politica(db: Session, politica: dict) -> int:
+    """Al publicar una política con cupos: cuenta en ellos las ausencias que ya
+    existen (de hoy en adelante). Confirma."""
+    from app.core import timeutil
+    from app.models.resources import Absence
+    from app.services import politicas
+    claves = {r.get("clave") for regla in politica.get("reglas") or [] for r in regla.get("resultados") or []
+              if (r or {}).get("tipo") == TIPO and r.get("clave")}
+    if not claves:
+        return 0
+    n = 0
+    for a in db.query(Absence).filter(Absence.is_active.is_(True), Absence.end_date >= timeutil.today()).all():
+        if getattr(a.status, "value", a.status) not in ("approved", "pending"):
+            continue
+        ev = politicas.evaluar(db, "ausencias", a, organization_id=a.organization_id)
+        aus = ev["contexto"].get("_ausencia") or {}
+        for c in ev["resultado"].get("propios") or []:
+            if c.get("tipo") != TIPO or c.get("clave") not in claves:
+                continue
+            if getattr(a.status, "value", a.status) not in [getattr(x, "value", x) for x in _estados_que_cuentan(c)]:
+                continue
+            huecos = huecos_de(c, aus)
+            if not huecos:
+                continue
+            with seccion(db):
+                _asegurar(db, a.organization_id, c["clave"], huecos, int(c.get("maximo") or 0))
+                for h in _bloquear(db, [(c["clave"], huecos)]):
+                    if db.query(ReservaDeCupo.id).filter(ReservaDeCupo.hueco_id == h.id,
+                                                         ReservaDeCupo.absence_id == a.id).first() is None:
+                        db.add(ReservaDeCupo(id=str(uuid.uuid4()), organization_id=a.organization_id, hueco_id=h.id,
+                                             absence_id=a.id, estado="ocupa", por_encima=False,
+                                             pedida_en=a.requested_at or a.created_at or ahora()))
+                        n += 1
+                db.flush()
+                for hid, k in _ocupan(db, [h.id for h in _bloquear(db, [(c["clave"], huecos)])]).items():
+                    db.query(HuecoDeCupo).filter(HuecoDeCupo.id == hid).update({"ocupadas": k})
+                db.commit()
+    return n
 
 
 def _si_lleno(cupo: dict) -> str:
@@ -173,7 +258,16 @@ def reservar(db: Session, absence_id: str, pedida_en: datetime, peticiones: list
             _asegurar(db, org, p["cupo"]["clave"], p["huecos"], int(p["cupo"].get("maximo") or 0))
         filas = _bloquear(db, [(p["cupo"]["clave"], p["huecos"]) for p in peticiones])
         por_clave = {(h.clave, h.fecha, h.turno, h.grupo): h for h in filas}
-        ocupan = _ocupan(db, [h.id for h in filas])
+        # Plazas recién creadas (sin ninguna reserva): cuentan las ausencias que ya había.
+        con_reservas = {hid for (hid,) in db.query(ReservaDeCupo.hueco_id).filter(
+            ReservaDeCupo.hueco_id.in_([h.id for h in filas])).distinct()}
+        for p in peticiones:
+            for f, t, g in p["huecos"]:
+                h = por_clave[(p["cupo"]["clave"], f, t, g)]
+                if h.id not in con_reservas:
+                    _sembrar(db, h, p["cupo"], absence_id, org)
+                    con_reservas.add(h.id)
+        ocupan = _ocupan(db, [h.id for h in filas], excluir=absence_id)
         llenos, peor = [], None
         for p in peticiones:
             maximo = int(p["cupo"].get("maximo") or 0)

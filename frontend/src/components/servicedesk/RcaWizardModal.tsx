@@ -41,7 +41,7 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
       </div>
       <div className="u-stack-10">
         {TEMPLATES.map(t => (
-          <label className="rcwimo-row-4" key={t.value} style={{ background: tpl === t.value ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)' }}>
+          <label className="rcwimo-row-4 rcawizar-sx1" key={t.value} style={{ background: tpl === t.value ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}` }}>
             <input type="radio" name="tpl" value={t.value} aria-label={t.label} checked={tpl === t.value} onChange={() => setTpl(t.value)} className="rcwimo-box-1" />
             <div>
               <div className="rcwimo-txt-2" style={{ color: tpl === t.value ? 'var(--accent)' : 'var(--text-1)' }}>{t.label}</div>
@@ -52,7 +52,7 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
       </div>
       <div className="u-row-end">
         <Button onClick={() => onStart(tpl)} loading={isPending}>
-          Iniciar wizard ▶
+          {traducir('rcawizard.iniciar_wizard')}
         </Button>
       </div>
     </div>
@@ -90,7 +90,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
   const { mutate: submitStep, isPending: submitting } = useMutation({
     mutationFn: () => problemsApi.rcaWizardStep(problemId, { step: currentStep, answer }),
     onSuccess: () => { setAnswer(''); setAiHint(null); onRefresh() },
-    onError: () => toast.error('Error al guardar respuesta'),
+    onError: () => toast.error(traducir('rcawizard.error_al_guardar_respuesta')),
   })
 
   // El cierre exige todos los pasos respondidos: la respuesta del último se
@@ -100,8 +100,8 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       await problemsApi.rcaWizardStep(problemId, { step: currentStep, answer })
       return problemsApi.rcaWizardComplete(problemId)
     },
-    onSuccess: (res) => { toast.success('RCA completado y aplicado al problema'); onComplete(res.data.rca) },
-    onError: () => toast.error('Error al completar el wizard'),
+    onSuccess: (res) => { toast.success(traducir('rcawizard.rca_completado_y_aplicado_al_problema')); onComplete(res.data.rca) },
+    onError: () => toast.error(traducir('rcawizard.error_al_completar_el_wizard')),
   })
 
   const getAiHint = async () => {
@@ -110,7 +110,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       const res = await problemsApi.rcaWizardAiAssist(problemId, { step: currentStep })
       setAiHint(res.data.hint || 'Sin sugerencia disponible')
     } catch {
-      toast.error('Error al obtener sugerencia IA')
+      toast.error(traducir('rcawizard.error_al_obtener_sugerencia_ia'))
     } finally {
       setAiLoading(false)
     }
@@ -124,8 +124,8 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       {/* Progress */}
       <div>
         <div className="rcwimo-row-1">
-          <span>Paso {currentStep} {traducir('rcawizardmodal.de')} {totalSteps}</span>
-          <span>{progress}% completado</span>
+          <span>{traducir('bpm.paso')} {currentStep} {traducir('rcawizardmodal.de')} {totalSteps}</span>
+          <span>{progress}{traducir('pagina_perf.completado')}</span>
         </div>
         <div className="rcwimo-box-3">
           <div className="rcwimo-box-11" style={{ width: `${progress}%` }} />
@@ -135,7 +135,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       {/* Previous steps summary */}
       {anteriores.length > 0 && (
         <div className="rcwimo-box-4">
-          <div className="rcwimo-box-5">Respuestas anteriores</div>
+          <div className="rcwimo-box-5">{traducir('rcawizard.respuestas_anteriores')}</div>
           {anteriores.map(s => (
             <div key={s.step} className="rcwimo-box-6">
               <span className="u-600">P{s.step} · {s.label}:</span> {s.answer}
@@ -150,12 +150,12 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           {stepDef?.label || `Paso ${currentStep}`}
         </div>
         {stepDef?.prompt && (
-          <div className="rcwimo-box-12" style={{ background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}`, borderRadius: 'var(--radius-sm)' }}>
+          <div className="rcwimo-box-12 rcawizar-sx2" style={{ background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}` }}>
             💡 {stepDef.prompt}
           </div>
         )}
 
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rcwimo-ls">Tu respuesta</label>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rcwimo-ls">{traducir('portalsupportdesk.tu_respuesta')}</label>
         <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
           value={answer}
           onChange={e => setAnswer(e.target.value)}
@@ -166,8 +166,8 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
 
         {/* AI hint */}
         {(aiHint ?? stepDef?.ai_hint) && (
-          <div className="rcwimo-sp-1" style={{ background: alpha(COLOR.success, '10'), border: `1px solid ${alpha(COLOR.success, '25')}`, borderRadius: 8 }}>
-            <div className="rcwimo-box-13" style={{ color: COLOR.success }}>🤖 Sugerencia IA</div>
+          <div className="rcwimo-sp-1 rcawizar-sx3" style={{ background: alpha(COLOR.success, '10'), border: `1px solid ${alpha(COLOR.success, '25')}` }}>
+            <div className="rcwimo-box-13" style={{ color: COLOR.success }}>{traducir('rcawizard.sugerencia_ia')}</div>
             <div className="rcwimo-txt-1">{aiHint ?? stepDef?.ai_hint}</div>
           </div>
         )}
@@ -176,16 +176,16 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       {/* Actions */}
       <div className="rcwimo-row-2">
         <Button variant="secondary" onClick={getAiHint} loading={aiLoading} disabled={aiLoading}>
-          🤖 Sugerencia IA
+          {traducir('rcawizard.sugerencia_ia')}
         </Button>
         <div className="u-row-10">
           {isLast ? (
             <Button onClick={() => completeWizard()} loading={completing} disabled={!answer.trim() || submitting}>
-              ✅ Finalizar RCA
+              {traducir('rcawizard.finalizar_rca')}
             </Button>
           ) : (
             <Button onClick={() => submitStep()} loading={submitting} disabled={!answer.trim()}>
-              Siguiente →
+              {traducir('rcawizard.siguiente')}
             </Button>
           )}
         </div>
@@ -218,7 +218,7 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
   const { mutate: startWizard, isPending: starting } = useMutation({
     mutationFn: (template: string) => problemsApi.rcaWizardStart(problem.id, { template }),
     onSuccess: () => refetch(),
-    onError: () => toast.error('Error al iniciar el wizard'),
+    onError: () => toast.error(traducir('rcawizard.error_al_iniciar_el_wizard')),
   })
 
   const handleComplete = (result: SdRcaCompletado['rca']) => {
@@ -244,15 +244,15 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
       ) : wizardState?.completed ? (
         <div className="rcwimo-box-9">
           <div className="rcwimo-box-10">✅</div>
-          <div className="rcwimo-box-14" style={{ color: COLOR.success }}>RCA completado</div>
+          <div className="rcwimo-box-14" style={{ color: COLOR.success }}>{traducir('rcawizard.rca_completado')}</div>
           <div className="u-text2-base-mb20">
             {traducir('rcawizardmodal.los_campos_del_problema_han_sido_actualizados')}
           </div>
           <div className="rcwimo-row-3">
             <Button variant="secondary" onClick={() => startWizard(wizardState.template || 'five_whys')} loading={starting}>
-              Reiniciar wizard
+              {traducir('rcawizard.reiniciar_wizard')}
             </Button>
-            <Button onClick={onClose}>Cerrar</Button>
+            <Button onClick={onClose}>{traducir('common.close')}</Button>
           </div>
         </div>
       ) : (

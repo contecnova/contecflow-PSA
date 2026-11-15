@@ -74,7 +74,7 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
   const c = (step.tool && colors[step.tool]) || 'var(--text-2)'
   return (
     <div className="nexus-row">
-      <div className="nexus-row-2" style={{ borderRadius: 'var(--radius-sm)', background: alpha(c, '20'), border: `1px solid ${alpha(c, '40')}`, color: c }}>
+      <div className="nexus-row-2 nexusage-sx1" style={{ background: alpha(c, '20'), border: `1px solid ${alpha(c, '40')}`, color: c }}>
         {step.step}
       </div>
       <div className="u-flex1-min0">
@@ -106,8 +106,8 @@ function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: E
   return (
     <button type="button" role="listitem" onClick={onAbrir} aria-current={seleccionada || undefined}
       onMouseEnter={() => setEncima(true)} onMouseLeave={() => setEncima(false)}
-      className="nexus-btn" style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${seleccionada ? alpha(sc.color, '55') : 'transparent'}`, background: seleccionada ? alpha(sc.color, '12') : encima ? 'var(--surface-3)' : 'transparent' }}>
-      <span aria-hidden className="nexus-row-3" style={{ borderRadius: 9, background: sc.bg, color: sc.color, border: `1px solid ${alpha(sc.color, '40')}` }}>
+      className="nexus-btn nexusage-sx2" style={{ border: `1px solid ${seleccionada ? alpha(sc.color, '55') : 'transparent'}`, background: seleccionada ? alpha(sc.color, '12') : encima ? 'var(--surface-3)' : 'transparent' }}>
+      <span aria-hidden className="nexus-row-3 nexusage-sx3" style={{ background: sc.bg, color: sc.color, border: `1px solid ${alpha(sc.color, '40')}` }}>
         {ICONO_DE_ESTADO[estado]}
       </span>
       <span className="nexus-stack">
@@ -125,7 +125,7 @@ function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: E
           {pasos > 0 && <><span aria-hidden>·</span><span>{t('nexusagent.n_pasos', { n: pasos })}</span></>}
         </span>
       </span>
-      <span aria-hidden className="nexus-label-3" style={{ color: seleccionada || encima ? 'var(--accent)' : 'var(--text-3)' }}>›</span>
+      <span aria-hidden className={`nexus-label-3 ${seleccionada || encima ? 'nexusage-sx4' : 'nexusage-sx5'}`}>›</span>
     </button>
   )
 }
@@ -289,7 +289,7 @@ export default function ContecflowAgentPage() {
         </div>
       )}
 
-      <div className="nexus-grid" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 260px' }}>
+      <div className={`nexus-grid ${isNarrow ? 'nexusage-sx6' : 'nexusage-sx7'}`}>
         <div className="u-min0">
           {/* Input */}
           <div style={{ ...card, padding: 24, marginBottom: 20 }}>
@@ -309,8 +309,8 @@ export default function ContecflowAgentPage() {
                 <span className="u-text3-xs">{traducir('nexusagent.enter_para_ejecutar')}</span>
                 <label className="nexus-label-5">
                   <button type="button" aria-label={traducir('nexusagent.streaming')} aria-pressed={streaming} onClick={() => setStreaming(s => !s)}
-                    className="nexus-btn-2" style={{ background: streaming ? 'var(--accent)' : 'var(--surface-4)' }}>
-                    <div className="nexus-card-2" style={{ left: streaming ? 14 : 2 }} />
+                    className={`nexus-btn-2 ${streaming ? 'nexusage-sx8' : 'nexusage-sx9'}`}>
+                    <div className={`nexus-card-2 ${streaming ? 'nexusage-sx10' : 'nexusage-sx11'}`} />
                   </button>
                   {traducir('nexusagent.streaming')}
                 </label>
@@ -360,7 +360,7 @@ export default function ContecflowAgentPage() {
                   {result.status && STATUS_CFG[result.status] ? t(`nexusagent.estado_${result.status}`) : result.status}
                 </span>
               </div>
-              <div className="nexus-card-5" style={{ marginBottom: result.steps?.length ? 16 : 0 }}>
+              <div className={`nexus-card-5 ${result.steps?.length ? 'nexusage-sx12' : 'nexusage-sx13'}`}>
                 <MarkdownText text={result.result ?? ''} />
               </div>
               {(result.steps?.length ?? 0) > 0 && (
@@ -406,7 +406,7 @@ export default function ContecflowAgentPage() {
             </div>
             {EXAMPLES.map((ex, i) => (
               <button key={i} onClick={() => { setInstruction(traducir(ex.text)); textareaRef.current?.focus() }}
-                className="nexus-btn-3" style={{ border: 'none', borderBottom: i < EXAMPLES.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
+                className={`nexus-btn-3 nexusage-sx14 ${i < EXAMPLES.length - 1 ? 'nexusage-sx15' : 'nexusage-sx16'}`}>
                 <span className="nexus-label-9">{ex.icon}</span>
                 <span className="nexus-label-10">{traducir(ex.text)}</span>
               </button>

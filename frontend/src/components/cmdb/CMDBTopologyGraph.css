@@ -121,3 +121,15 @@
   display: inline-block;
   flex-shrink: 0;
 }
+
+/* ── Estilos estaticos extraidos de CMDBTopologyGraph.tsx (#17) ── */
+.cmdbtopo-sx1 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+  color: var(--text-1);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}

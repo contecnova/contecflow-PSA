@@ -236,3 +236,17 @@
   width: auto;
   margin-left: 8px;
 }
+
+/* ── Estilos estaticos extraidos de ResourceHeatmap.tsx (#17) ── */
+.resource-sx1.resource-sx1 {
+  border-radius: var(--radius-sm);
+}
+.resource-sx2.resource-sx2 {
+  border-radius: 4px;
+}
+.resource-sx3.resource-sx3 {
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 12%, transparent);
+}
+.resource-sx4.resource-sx4 {
+  border-left: 1px solid color-mix(in srgb, var(--surface-4) 8%, transparent);
+}

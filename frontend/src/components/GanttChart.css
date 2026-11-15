@@ -169,3 +169,17 @@
   white-space: nowrap;
   flex: 1;
 }
+
+/* ── Estilos estaticos extraidos de GanttChart.tsx (#17) ── */
+.ganttcha-sx1.ganttcha-sx1 {
+  border-radius: var(--radius-sm);
+}
+.ganttcha-sx2 {
+  width: 10px;
+  height: 3px;
+  background: var(--on-dark-faint);
+  border-radius: 2px;
+}
+.ganttcha-sx3 {
+  cursor: ew-resize;
+}

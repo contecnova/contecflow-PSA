@@ -91,6 +91,13 @@ Cada regla tiene un test que falla si se rompe.
 
 ### Segunda auditoría 2026-11: cambios de comportamiento
 
+- **Catálogo de procesos BPM traducido a es/en/zh y búsqueda de ALM en el servidor.**
+  - *Catálogo (antes ~1.200 textos solo en castellano dentro de `BPMPage.tsx`, 61 procesos).* Ahora está en `frontend/src/pages/bpm/catalogo/`: `estructura.ts` (ids, categoría, nº de pasos, SLA en días hábiles como número, nodos y flujos del diagrama; no depende del idioma) y `textos/{es,en,zh}.ts` (nombre, descripción, responsable, SLA textual, pasos, nombre de cada nodo y etiquetas de flujo, por id de proceso y de nodo). `index.ts` los une (`construirCatalogo`) y genera el XML con `bpm/generadorBpmn.ts` (extraído de la página). Los textos se piden con `import()` por idioma, como los diccionarios principales: un usuario descarga solo su idioma (~40 KB de fuente, ~36 KB el chino) y la estructura (~43 KB de fuente) viaja con el chunk de la página. Se descartó meter ~1.200 claves en `langs/*.mjs`: habría engordado el chunk inicial del castellano y el diccionario de cada idioma con textos que solo usa una página. Medición: el chunk `BPMPage` pesaba 90,75 kB (minificado) con el catálogo dentro; el build posterior no se pudo medir porque falla por un error ajeno (`SettingsAdvancedSections.tsx:37`, `t` declarada dos veces), así que no se da cifra «después». El XML generado en castellano es idéntico byte a byte al original (comprobado contra el código anterior). Las claves nuevas del diccionario están en `bpm.sla_dia_habil`, `bpm.sla_dias_habiles` y `bpm.blank_*` (diagrama en blanco, que antes llevaba «Inicio/Actividad/Fin» en castellano). Los 20 SLA expresables como «N días hábiles» son un número y se formatean con el idioma; el resto (p. ej. «P1: 4h | P2: 8h») sigue siendo texto traducido. `catalogo.test.ts` comprueba que los tres idiomas tienen exactamente las mismas claves que la estructura (pasos, nodos, etiquetas, SLA, nombre de diagrama) y que no hay textos vacíos.
+  - *Backend.* `app/services/bpmn_process_service.py::PROCESS_CATALOGUE` es **otro** catálogo (55 procesos lineales, sembrados como filas por organización con `seed_catalogue`); comparte 16 claves con el del frontend. Son datos de la organización (editables, guardados con nombre y XML), no plantillas de interfaz, y siguen en castellano. Para que los 16 solapados no pisen la traducción: un registro sembrado y sin editar (`is_seeded` y versión 1) ya no sustituye el diagrama del catálogo; en cuanto el usuario lo edita (versión 2) se respeta su XML. Pendiente (no hecho): traducir el nombre de los 39 procesos sembrados que no están en el catálogo del frontend y se muestran como propios.
+  - *ALM.* `GET /alm/contracts` acepta `q` (título, referencia y nombre del proveedor, sin distinguir mayúsculas; `%` y `_` cuentan como texto) y `renewal_urgent` (renueva de hoy a +`DIAS_RENOVACION_URGENTE`=60 días, la misma constante que usa el serializador para el campo `renewal_urgent`). `GET /alm/licenses` acepta `q` (nombre y proveedor) y `type`. `ContractsTab` y `LicensesTab` de `ALMPage` pagan siempre en el servidor: desaparece el modo «pedir la lista entera y filtrar en el navegador» (que además se quedaba corto en el tope del servidor). Prueba: `tests/test_alm_busqueda_servidor_2026_11.py`. Nota: el importe resumen de contratos y licencias sigue siendo el de la página mostrada cuando hay más de una.
+
+- **Clave de proceso BPMN única en la base (#33, migración `168_indice_unico_procesos_bpmn`).** `clave_unica` solo comprobaba en código; dos altas simultáneas podían duplicar la clave. Ahora hay un índice único `(organization_id, key)` y otro parcial `(key) WHERE organization_id IS NULL` para el catálogo global (NULL no choca con NULL). `create_process` convierte el `IntegrityError` en `ErrorDeDominio` 409 (antes habría sido 500). La migración resuelve los duplicados previos conservando la clave de la fila más antigua y poniendo `_dup_<n>` a las demás (no borra nada; el sufijo no se revierte en el downgrade).
+
 - **Geo-IP activado por defecto (decisión de producto, 14-11-2026):** `GEOIP_LOOKUP_ENABLED=True`. La IP pública de cada inicio de sesión y refresco se envía a `GEOIP_LOOKUP_URL` (ipapi.co por defecto) para el riesgo de sesión (cambio de país/ASN). Es una transferencia de datos personales a un tercero: requiere base legal y aviso de privacidad, salida a Internet y vigilar la cuota del proveedor. Para no enviarla: `GEOIP_LOOKUP_ENABLED=false`.
 
 - **CSRF:** las exenciones de los webhooks de Twilio (voz) y entrada multicanal apuntaban a `/api/v1/service-desk/...`; las rutas reales son `/api/v1/sd/voice/webhook/twilio` y `/api/v1/sd/multichannel/inbound/`. Sin efecto práctico hoy (Twilio no envía cookies), pero la lista ya casa con las rutas.
@@ -1228,6 +1235,79 @@ versiones y guardas).
    nombre) y políticas en BORRADOR; quita de los ejemplos los tipos de documento no configurados.
 
 Tests: `tests/test_gastos_sobre_motor_de_politicas.py`.
+
+## 22 quater. Ausencias gobernadas por reglas (tarea #25, revisión 167)
+
+Reglas de arquitectura:
+
+1. **Un solo motor de reglas.** Toda regla de ausencias es una política del dominio `ausencias`
+   (`app/services/politicas/dominios/ausencias.py`): campos tipados (tipo, días, periodo, turno,
+   equipo, departamento, oficina, rol, persona, sustituto, saldo que queda, antelación, días
+   seguidos, compañeros ausentes, cobertura que queda…), resultado propio `cupo` y `waitlist`.
+   El motor gana tres extensiones genéricas (documentadas en 22 bis y en el README):
+   `Dominio.resultados_propios` + `resolver_propio` (resultados de un solo dominio, validados por
+   sus `Parametro` y pintados genéricamente por `EditorDeResultados`), `admite_lista_de_espera`
+   (decisión `block > waitlist > review > auto_approve > allow`), `tipos_de_documento` y
+   `opciones_dinamicas` (opciones `enum` por empresa en `/policies/options`), y el tipo de campo
+   `periodo` (`overlaps` / `not_overlaps`). Evaluar sigue sin efectos: `resolver_propio` solo lee.
+2. **Un solo motor de aprobaciones.** La aprobación es SIEMPRE `approval_engine` con
+   `entity_type = leave`: el flujo del tipo (`tipos_de_ausencia.workflow_id`, nuevo parámetro
+   `fuentes.abrir(…, workflow_id=)`) o el que elijan sus condiciones, más niveles y pasos de las
+   políticas. `POST /absences/{id}/review` con solicitud abierta es un VOTO en ella
+   (`decide_approval_request`); sin solicitud, la decisión directa de un responsable. La decisión
+   final llega siempre a `solicitudes.aplicar_decision` (vía `fuentes.aplicar` →
+   `absence_service.review_absence`). `approved_by` queda como «quién cerró»; el historial es
+   `approval_decisions` + `eventos_de_ausencia`.
+3. **Cupos sin carreras** (`app/services/ausencias/cupos.py`): plazas en `huecos_de_cupo` (única
+   por empresa, clave, fecha, turno, grupo), creadas con `INSERT … ON CONFLICT DO NOTHING` y
+   bloqueadas con `SELECT … FOR UPDATE` por id (PostgreSQL); en SQLite, cerrojo de proceso +
+   `UPDATE version` (cerrojo de escritura). La reserva va en una transacción NUEVA, después de
+   confirmar la ausencia; se cuentan las reservas `ocupa` con las filas bloqueadas. Una petición
+   es atómica (todas sus plazas o espera en todas). La `clave` del cupo la genera la pantalla y
+   viaja con las versiones de la política. Promoción: la primera petición en espera (por
+   `pedida_en`) que ya cabe entera.
+   Siembra (`cupos._sembrar`, `cupos.sembrar_politica` vía el gancho `Dominio.al_publicar`): una
+   plaza sin reservas y cada política publicada con cupos cuentan las ausencias que ya existían
+   (aprobadas; y pendientes si la plaza se da al pedir) que encajan en esa regla, turno y grupo.
+   Ampliar (`solicitudes.ampliar`): evalúa el tramo nuevo, reserva o espera sus plazas y vuelve a
+   aprobación si hace falta; rechazarla devuelve el fin anterior (`_rechazar_ampliacion`).
+4. **Momento de la plaza**: `solicitud` (reserva al pedir; en espera no se abre el flujo hasta
+   tener plaza) o `aprobacion` (reserva al aprobar; sin plaza queda aprobada en espera y pasa a
+   aprobada al liberarse una). `si_lleno` son resultados del motor: `waitlist`, `block` (409 al
+   reservar, 422 si la evaluación ya lo ve lleno) u otros (cupo blando: ocupa «por encima»).
+5. **Turnos y cuadrante** (`turnos.py`): rotaciones (`patrones_de_turnos`, ciclo de N días +
+   miembros con desfase; una persona no puede estar en dos a la vez) y cambios por día
+   (`asignaciones_de_turno`, mandan sobre rotación y festivo). Festivos de `holidays`
+   (`applies_to` = país u oficina del turno). Sin cuadrante, lunes a viernes salvo festivos.
+   `cobertura()` da por día y turno requeridas/asignadas/ausentes/pendientes/en espera, y con
+   `simular` el impacto de una ausencia (vista previa, campo `cobertura_restante`, bandeja).
+6. **Documentos** (`documentos.py`): sobre el almacén de siempre (`s3_service.file_storage`,
+   `core.uploads.validate_upload`, `collaboration._storage.scan_with_av`, URL firmada); una
+   `Document` por versión, enlazada por `documentos_de_ausencia` (borrarla por retención borra el
+   documento). No salen en `/documents` y `documents_service.check_document_access` consulta
+   `documentos.acceso_por_el_repositorio`. Categoría especial: la persona, RRHH y
+   `acceso_especial_ausencias` (un admin solo si está). Ver, descargar y denegado →
+   `document_access_logs` + `audit_logs`. Retención y bloqueo legal: tipo `absence_documents`
+   (`app/db/bloqueo_legal.py`, campos `id`, `absence_id`, `user_id`).
+7. **Plazos**: requisitos por tipo (`requisitos_documentales_de_tipo`), por política
+   (`require_attachment` con claves de `tipos_de_documento_de_ausencia`) y a mano.
+   `app.worker.ausencias_pasada_diaria` (07:10, `_por_organizacion`): genera los que se repiten,
+   recuerda una vez antes de vencer, marca vencidos y escala una vez a `escalar_a` (o al
+   responsable; al que lo pidió si es manual); y reintenta la lista de espera.
+8. **Compatibilidad**: `absences.type` guarda la clave del tipo (el enum era `absencetype`; la 167
+   lo pasa a `VARCHAR(50)` y crea los 7 tipos de sistema en cada empresa; `catalogo.asegurar`
+   los crea en una empresa nueva). `AbsenceType` queda como lista de claves de sistema. El API
+   antiguo (`type`) sigue valiendo. Saldo de vacaciones: todos los tipos con `saldo = vacaciones`
+   (`ausencias/saldos.py`; `absence_service.get_vacation_balance` lo usa).
+9. **Visibilidad**: `privada` → el tipo y el motivo solo los ven la persona, RRHH y el acceso
+   especial (`absence_service.puede_ver_tipo`); `equipo` → su equipo y quien gestiona.
+10. **Sin JSON a mano**: tipos, documentos, turnos, rotaciones, cuadrante y cupos se editan en
+    `AbsencesPage` → Configuración (`components/ausencias/admin/*`) y en Políticas.
+
+Tests: `tests/test_ausencias_reglas.py` (cupo al pedir y al aprobar, promoción al cancelar y
+rechazar, bloqueo si lleno, carrera por la última plaza con 8 hilos, documento con plazo,
+recordatorio y escalado, parte médico: acceso y auditoría, retención, migración 167, API
+antiguo, flujo multinivel, aislamiento por empresa, ejemplos).
 
 ## 23. PRD MVP — Chat interno back office
 ### Objetivo

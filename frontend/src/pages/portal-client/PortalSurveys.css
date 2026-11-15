@@ -141,3 +141,14 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ── Estilos estaticos extraidos de PortalSurveys.tsx (#17) ── */
+.portalsu-sx7 {
+  margin-bottom: 16px;
+}
+.portalsu-sx8.portalsu-sx8 {
+  border-radius: var(--radius-md);
+}
+.portalsu-sx9.portalsu-sx9 {
+  border-radius: 8px;
+}

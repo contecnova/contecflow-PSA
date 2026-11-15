@@ -111,7 +111,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
         <div className="orgc-card">
           <div className="u-md-600">{user.full_name}</div>
           <div className="orgc-box">
-            {user.email && <>{user.email} · </>}<span style={{ color: getRoleColor(user.role) }}>{getRoleLabel(user.role, t)}</span>
+            {user.email && <>{user.email} · </>}<span className="orgchart-sx2" style={{ '--orgchart-v1': getRoleColor(user.role) } as React.CSSProperties}>{getRoleLabel(user.role, t)}</span>
           </div>
         </div>
 
@@ -130,7 +130,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
         <div>
           <label id={`${idCampo}-eta133`} htmlFor={`${idCampo}-a133`} style={LS}>{t('pagina_orgc.reporta_a_aprobador_directo')}</label>
           <div className="orgc-box-2">
-            {t('orgchart.esta_persona_aprobara_los')} <strong>gastos</strong>, <strong>ausencias</strong> e <strong>imputaciones</strong> {t('orgchart.de')} {user.full_name.split(' ')[0]}.
+            {t('orgchart.esta_persona_aprobara_los')} <strong>{t('pagina_orgc.gastos_min')}</strong>, <strong>{t('pagina_orgc.ausencias_min')}</strong> {t('pagina_orgc.y')} <strong>{t('pagina_orgc.imputaciones_min')}</strong> {t('orgchart.de')} {user.full_name.split(' ')[0]}.
           </div>
           <select id={`${idCampo}-a133`} aria-labelledby={`${idCampo}-eta133`} value={managerId} onChange={e => setManagerId(e.target.value)} style={IS}>
             <option value="">{t('orgchart.sin_manager_nivel_raiz_aprobacion_manual')}</option>
@@ -174,7 +174,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
 
   return (
     <div>
-      <div className="orgc-row" style={{ marginLeft:indent, borderLeft: depth > 0 ? '2px solid var(--surface-4)' : 'none' }}>
+      <div className={`orgc-row ${depth > 0 ? 'orgchart-sx3' : 'orgchart-sx4'}`} style={{ marginLeft:indent }}>
         {hasChildren
           ? <button onClick={() => setExpanded(e=>!e)}
               className="orgc-btn">
@@ -199,7 +199,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
         </span>
         {hasChildren && (
           <span className="orgc-label-3">
-            {node.children?.length ?? 0} reporte{(node.children?.length ?? 0)!==1?'s':''}
+            {t((node.children?.length ?? 0) === 1 ? 'pagina_orgc.reportes_uno' : 'pagina_orgc.reportes_otros', { n: node.children?.length ?? 0 })}
           </span>
         )}
         {isAdmin && (
@@ -362,7 +362,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
           <option value="">{t('orgchart.todos_los_departamentos')}</option>
           {depts.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        <span className="u-text3-sm">{filtered.length} persona{filtered.length!==1?'s':''}</span>
+        <span className="u-text3-sm">{t(filtered.length === 1 ? 'pagina_orgc.personas_uno' : 'pagina_orgc.personas_otros', { n: filtered.length })}</span>
       </div>
 
       {/* Tabla */}
@@ -379,7 +379,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
             {filtered.map((u, i) => {
               const managerUser = allUsers.find(m => m.id === u.manager_id)
               return (
-                <tr key={u.id} className="u-border-b" style={{ background: i%2===0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                <tr key={u.id} className={`u-border-b ${i%2===0 ? 'orgchart-sx5' : 'orgchart-sx6'}`}>
                   <td className="orgc-td" aria-label={`${u.full_name ?? ''} · ${u.email ?? ''}`}>
                     <div className="orgc-row-8">
                       <div className="orgc-row-9" style={{ background: ROLE_COLOR[u.role]||'var(--text-3)' }}>
@@ -391,10 +391,10 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                       </div>
                     </div>
                   </td>
-                  <td className="orgc-td" style={{ color: u.job_title ? 'var(--text-1)' : 'var(--text-4)', fontStyle: u.job_title ? 'normal' : 'italic' }}>
+                  <td className={`orgc-td ${u.job_title ? 'orgchart-sx7' : 'orgchart-sx8'}`}>
                     {u.job_title || '—'}
                   </td>
-                  <td className="orgc-td" style={{ color: u.department ? 'var(--text-1)' : 'var(--text-4)', fontStyle: u.department ? 'normal' : 'italic' }}>
+                  <td className={`orgc-td ${u.department ? 'orgchart-sx7' : 'orgchart-sx8'}`}>
                     {u.department || '—'}
                   </td>
                   <td className="orgc-td">
@@ -499,14 +499,14 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
           <button
             type="button"
             onClick={() => setSelectedUserId('')}
-            className="orgc-btn-5" style={{ borderRadius:7, background: !selectedUserId ? 'var(--accent-muted)' : 'transparent', border: !selectedUserId ? '1px solid var(--accent-glow)' : '1px solid transparent', fontWeight: !selectedUserId ? 600 : 400, color: !selectedUserId ? 'var(--accent)' : 'var(--text-2)' }}>
+            className={`orgc-btn-5 orgchart-sx9 ${!selectedUserId ? 'orgchart-sx10' : 'orgchart-sx11'}`}>
             {t('pagina_orgc.mi_propia_cadena')}
           </button>
           {puedeVerOtras && filteredUsers.map(u => (
             <button key={u.id}
               type="button"
               onClick={() => setSelectedUserId(u.id)}
-              className="orgc-btn-6" style={{ borderRadius:7, background: selectedUserId===u.id ? 'var(--accent-muted)' : 'transparent', border: selectedUserId===u.id ? '1px solid var(--accent-glow)' : '1px solid transparent' }}>
+              className={`orgc-btn-6 orgchart-sx9 ${selectedUserId===u.id ? 'orgchart-sx12' : 'orgchart-sx13'}`}>
               <div className="orgc-box-9">{u.full_name}</div>
               <div className="u-text3-xs">
                 {u.job_title || getRoleLabel(u.role, t)}{u.department ? ` · ${u.department}` : ''}
@@ -589,7 +589,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                             </span>
                           </div>
                           {/* Aprobador */}
-                          <div className="orgc-row-14" style={{ background: idx===0 ? 'rgba(0,229,160,0.06)' : 'var(--surface-1)', border: `1px solid ${idx===0 ? 'rgba(0,229,160,0.25)' : 'var(--surface-4)'}`, borderRadius:'var(--radius-md)' }}>
+                          <div className={`orgc-row-14 orgchart-sx14 ${idx===0 ? 'orgchart-sx15' : 'orgchart-sx16'}`} style={{ border: `1px solid ${idx===0 ? 'var(--success-border)' : 'var(--surface-4)'}` }}>
                             <div className="orgc-row-15" style={{ background: getRoleColor(approver.role) }}>
                               {approver.full_name?.charAt(0)}
                             </div>
@@ -673,7 +673,7 @@ export default function OrgChartPage() {
       {/* Tabs */}
       <div className="orgc-row-17">
         {TABS.map(tabObj => (
-          <button key={tabObj.id} onClick={() => setTab(tabObj.id)} className="orgc-btn-7" style={{ borderRadius:8, border:`1px solid ${tab===tabObj.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab===tabObj.id ? 'var(--accent-muted)' : 'transparent', color: tab===tabObj.id ? 'var(--accent)' : 'var(--text-2)' }} title={tabObj.desc}>{tabObj.label}</button>
+          <button key={tabObj.id} onClick={() => setTab(tabObj.id)} className={`orgc-btn-7 orgchart-sx17 ${tab===tabObj.id ? 'orgchart-sx18' : 'orgchart-sx19'}`} style={{ border:`1px solid ${tab===tabObj.id ? 'var(--accent)' : 'var(--surface-4)'}` }} title={tabObj.desc}>{tabObj.label}</button>
         ))}
       </div>
 

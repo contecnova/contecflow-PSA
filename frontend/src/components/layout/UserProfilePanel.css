@@ -365,3 +365,14 @@
   font-family: inherit;
   box-sizing: border-box;
 }
+
+/* ── Estilos estaticos extraidos de UserProfilePanel.tsx (#17) ── */
+.userprof-sx1.userprof-sx1 {
+  border-radius: 8px;
+}
+.userprof-sx2.userprof-sx2 {
+  border-radius: 9px;
+}
+.userprof-sx3.userprof-sx3 {
+  border-radius: var(--radius-md);
+}

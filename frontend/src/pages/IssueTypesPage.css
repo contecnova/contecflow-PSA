@@ -174,3 +174,35 @@
   color: var(--text-3);
   line-height: 1.7;
 }
+
+/* ── Estilos en linea extraidos de IssueTypesPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.issuetyp-sx1.issuetyp-sx1 {
+  border-radius: 50%;
+}
+.issuetyp-sx2.issuetyp-sx2 {
+  border: 3px solid var(--on-accent-light);
+}
+.issuetyp-sx3.issuetyp-sx3 {
+  border: 2px solid transparent;
+}
+.issuetyp-sx4.issuetyp-sx4 {
+  border-radius: var(--radius-sm);
+}
+.issuetyp-sx5.issuetyp-sx5 {
+  background: var(--accent-muted);
+}
+.issuetyp-sx6.issuetyp-sx6 {
+  background: transparent;
+}
+.issuetyp-sx7.issuetyp-sx7 {
+  border-radius: var(--radius-md);
+}
+.issuetyp-sx8.issuetyp-sx8 {
+  background: color-mix(in srgb, var(--text-1) 2%, transparent);
+}
+.issuetyp-sx9.issuetyp-sx9 {
+  color: var(--success);
+}
+.issuetyp-sx10.issuetyp-sx10 {
+  color: var(--text-3);
+}

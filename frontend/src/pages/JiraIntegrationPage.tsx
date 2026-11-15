@@ -235,7 +235,7 @@ export default function JiraIntegrationPage(): JSX.Element {
       showListExport={false}
       />
 
-      <div className="jira-grid" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 2fr)' }}>
+      <div className={`jira-grid ${isNarrow ? 'jirainte-sx2' : 'jirainte-sx3'}`}>
 
         {/* ── left: configuration + sync actions ── */}
         <div className="jira-stack">
@@ -299,15 +299,14 @@ export default function JiraIntegrationPage(): JSX.Element {
                   />
                 </div>
                 <div className="jira-row-2">
-                  <Button type="submit" loading={saveConfig.isPending} icon={<Settings2 size={13} />} style={{ flex: 1 }}>
+                  <Button type="submit" loading={saveConfig.isPending} icon={<Settings2 size={13} />} className="jirainte-sx1">
                     {t('jira_integration.save_button')}
                   </Button>
                   <Button
                     variant="secondary"
                     loading={testConn.isPending}
                     onClick={() => testConn.mutate()}
-                    icon={<RefreshCw size={13} />}
-                    style={{ flex: 1 }}
+                    icon={<RefreshCw size={13} />} className="jirainte-sx1"
                   >
                     {t('jira_integration.test_button')}
                   </Button>
@@ -324,11 +323,11 @@ export default function JiraIntegrationPage(): JSX.Element {
               <button
                 onClick={() => syncPull.mutate({ project_id: proyectoPush })}
                 disabled={syncPull.isPending || !proyectoPush}
-                className="jira-btn-2" style={{ cursor: syncPull.isPending || !proyectoPush ? 'not-allowed' : 'pointer', opacity: syncPull.isPending || !proyectoPush ? 0.5 : 1 }}
+                className={`jira-btn-2 ${syncPull.isPending || !proyectoPush ? 'jirainte-sx4' : 'jirainte-sx5'}`}
               >
                 {syncPull.isPending
                   ? <Spinner size={16} />
-                  : <ArrowDownToLine size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                  : <ArrowDownToLine size={16} className="jira-box-6" />
                 }
                 <div>
                   <div className="u-text1-base-600">{t('jira_integration.import_button_title')}</div>
@@ -338,11 +337,11 @@ export default function JiraIntegrationPage(): JSX.Element {
               <button
                 onClick={() => pushToJira.mutate()}
                 disabled={pushToJira.isPending || !proyectoPush}
-                className="jira-btn-3" style={{ cursor: pushToJira.isPending || !proyectoPush ? 'not-allowed' : 'pointer', opacity: pushToJira.isPending || !proyectoPush ? 0.5 : 1 }}
+                className={`jira-btn-3 ${pushToJira.isPending || !proyectoPush ? 'jirainte-sx4' : 'jirainte-sx5'}`}
               >
                 {pushToJira.isPending
                   ? <Spinner size={16} />
-                  : <ArrowUpFromLine size={16} style={{ color: 'var(--purple)', flexShrink: 0 }} />
+                  : <ArrowUpFromLine size={16} className="jira-box-7" />
                 }
                 <div>
                   <div className="u-text1-base-600">{t('jira_integration.export_button_title')}</div>
@@ -351,7 +350,7 @@ export default function JiraIntegrationPage(): JSX.Element {
               </button>
             </div>
             <div className="jira-row-3">
-              <AlertTriangle size={14} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} />
+              <AlertTriangle size={14} className="jira-box-8" />
               <p className="jira-text">
                 {t('jira_integration.webhook_note')}{' '}
                 <code className="jira-box-5">/jira/webhook</code>{' '}

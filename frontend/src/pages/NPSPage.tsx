@@ -173,14 +173,14 @@ export default function NPSPage() {
   const latestHealth = health[0]?.health_score
 
   return (
-    <PageShell style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <PageShell className="nps-box-15">
       <PageHeader
         icon={<Star size={18} />}
         title={t('nps.title')}
         subtitle={t('nps.subtitle')}
       showListExport={false}
       />
-      <div className="nps-grid" style={{ gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '260px minmax(0, 1fr)' }}>
+      <div className={`nps-grid ${narrow ? 'npspage-sx1' : 'npspage-sx2'}`}>
         {/* Leaderboard sidebar */}
         <div className="nps-card">
           <div className="nps-box-5">
@@ -190,7 +190,7 @@ export default function NPSPage() {
           {clients.filter(c => !leaderboard.find(l => l.client_id === c.id)).length > 0 && leaderboard.length === 0 && (
             <div className="nps-box-6">
               {clients.map(c => (
-                <button key={c.id} onClick={() => setClientId(c.id)} className="nps-btn" style={{ background: clientId === c.id ? 'var(--surface-4)' : 'none' }}>
+                <button key={c.id} onClick={() => setClientId(c.id)} className={`nps-btn ${clientId === c.id ? 'npspage-sx3' : 'npspage-sx4'}`}>
                   <span className="nps-label-2">{c.name}</span>
                   <span className="nps-label-3">—</span>
                 </button>
@@ -198,7 +198,7 @@ export default function NPSPage() {
             </div>
           )}
           {leaderboard.map((l, i) => (
-            <button key={l.client_id} onClick={() => setClientId(l.client_id)} className="nps-btn-2" style={{ background: clientId === l.client_id ? 'var(--surface-4)' : 'none', border: 'none', borderLeft: clientId === l.client_id ? '3px solid var(--info)' : '3px solid transparent' }}>
+            <button key={l.client_id} onClick={() => setClientId(l.client_id)} className={`nps-btn-2 npspage-sx5 ${clientId === l.client_id ? 'npspage-sx6' : 'npspage-sx7'}`}>
               <span className="nps-label-4">{i + 1}</span>
               <span className="nps-label-5">{l.client_name}</span>
               <HealthBadge score={l.health_score} />
@@ -210,7 +210,7 @@ export default function NPSPage() {
         </div>
         {/* Right panel */}
         {!clientId ? (
-          <div className="nps-card-2" style={{ padding: narrow ? '32px 16px' : 60 }}>
+          <div className={`nps-card-2 ${narrow ? 'npspage-sx8' : 'npspage-sx9'}`}>
             {t('nps.select_client')}
           </div>
         ) : (
@@ -243,7 +243,7 @@ export default function NPSPage() {
                   {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', String(d))}</option>)}
                 </select>
               </div>
-              <div className="nps-grid-2" style={{ gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '120px minmax(0, 1fr)' }}>
+              <div className={`nps-grid-2 ${narrow ? 'npspage-sx1' : 'npspage-sx10'}`}>
                 <div>
                   <NPSGauge nps={summary?.nps} />
                   <div className="nps-stack-2">
@@ -276,11 +276,11 @@ export default function NPSPage() {
                   <label style={ls}>{t('nps.score_label')}</label>
                   <div className="u-wrap-6">
                     {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
-                      <button key={n} onClick={() => setScoreInput(n)} className="nps-btn-4" style={{ borderRadius: 'var(--radius-sm)', background: scoreInput === n
+                      <button key={n} onClick={() => setScoreInput(n)} className={`nps-btn-4 npspage-sx11 ${scoreInput === n ? 'npspage-sx12' : 'npspage-sx13'}`} style={{ background: scoreInput === n
                           ? (n >= 9 ? 'color-mix(in srgb, var(--success) 25%, var(--surface-2))'
                              : n >= 7 ? 'color-mix(in srgb, var(--orange) 25%, var(--surface-2))'
                              : 'color-mix(in srgb, var(--danger) 25%, var(--surface-2))')
-                          : 'var(--surface-4)', border: `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? 'var(--orange)' : 'var(--danger)') : 'var(--surface-5)'}`, color: scoreInput === n ? 'var(--text-1)' : 'var(--text-2)' }}>{n}</button>
+                          : 'var(--surface-4)', border: `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? 'var(--orange)' : 'var(--danger)') : 'var(--surface-5)'}` }}>{n}</button>
                     ))}
                   </div>
                 </div>

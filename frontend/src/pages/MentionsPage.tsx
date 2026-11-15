@@ -37,7 +37,7 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
     return t('mentions.time_minutes', { count: m })
   }
   return (
-    <div className="ment-box" style={{ background: mention.is_read?'transparent':'var(--accent-muted)', border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}`, borderRadius: 8 }}>
+    <div className={`ment-box mentions-sx1 ${mention.is_read ? 'mentions-sx2' : 'mentions-sx3'}`} style={{ border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}` }}>
       <div className="ment-row">
         <div className="ment-box-2">{icon}</div>
         <div className="u-flex1">
@@ -100,7 +100,7 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
 
   const CommentNode = ({ comment, depth=0 }: { comment: CommentItem; depth?: number }) => (
     <div className="ment-box-3" style={{ marginLeft:depth*20 }}>
-      <div className="ment-box-4" style={{ background:comment.is_resolved?'rgba(255,255,255,0.03)':'var(--surface-1)', borderRadius:8, border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}`, opacity:comment.is_resolved?0.6:1 }}>
+      <div className={`ment-box-4 mentions-sx1 ${comment.is_resolved ? 'mentions-sx4' : 'mentions-sx5'}`} style={{ border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}` }}>
         <div className="ment-row-3">
           <div className="u-row-center-8">
             <span className="ment-label">{comment.created_by_email || comment.created_by_name || t('pagina_ment.usuario')}</span>
@@ -206,7 +206,7 @@ export default function MentionsPage() {
           ['comments', t('mentions.tab_comments')],
         ] as const).map(([tabKey, label])=>(
           <button key={tabKey} onClick={()=>setTab(tabKey)}
-            className="ment-btn-5" style={{ background:tab===tabKey?'var(--accent-muted)':'transparent', color:tab===tabKey?'var(--accent)':'var(--text-2)' }}>
+            className={`ment-btn-5 ${tab===tabKey ? 'mentions-sx6' : 'mentions-sx7'}`}>
             {label}
           </button>
         ))}

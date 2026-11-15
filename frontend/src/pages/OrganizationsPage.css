@@ -195,3 +195,30 @@
   gap: 12px;
   font-size: var(--text-sm);
 }
+
+/* ── Estilos estaticos extraidos de OrganizationsPage.tsx (#17) ── */
+.organiza-sx1 {
+  margin-left: 8px;
+}
+
+/* ── Estilos en linea extraidos de OrganizationsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.organiza-sx2.organiza-sx2 {
+  grid-template-columns: 1fr 360px;
+}
+.organiza-sx3.organiza-sx3 {
+  grid-template-columns: 1fr;
+}
+.organiza-sx4.organiza-sx4 {
+  color: var(--danger);
+}
+.organiza-sx5.organiza-sx5 {
+  color: var(--text-2);
+}
+.organiza-sx6.organiza-sx6 {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.organiza-sx7.organiza-sx7 {
+  opacity: 1;
+  pointer-events: auto;
+}

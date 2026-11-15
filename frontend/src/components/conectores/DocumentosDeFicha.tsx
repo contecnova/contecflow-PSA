@@ -187,7 +187,7 @@ function Resultado({ h, onAbrir, onEnlazar, ya }: { h: DocHit; onAbrir: () => vo
   const t = useAppT()
   return (
     <div className="dodefi-fila2">
-      <ExternalLink size={14} color="var(--text-3)" style={{ marginTop: 3 }} aria-hidden />
+      <ExternalLink size={14} color="var(--text-3)" className="document-sx1" aria-hidden />
       <div className="u-flex1-min0">
         <button type="button" onClick={onAbrir} className="dodefi-box-4">{h.title}</button>
         {h.snippet && <div className="dodefi-sub6">{h.snippet}</div>}

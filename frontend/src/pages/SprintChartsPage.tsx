@@ -18,6 +18,11 @@ import {
   ComposedChart, Area, Line, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
+
+// Recharts pinta el tooltip con estilos inline propios: solo se sobrescriben con estas props.
+const TOOLTIP_CONTENT = { background: 'var(--surface-2)', border: '1px solid var(--surface-5)', borderRadius: 8, fontSize: 'var(--text-sm)' }
+const TOOLTIP_LABEL = { color: 'var(--text-1)', fontWeight: 600 }
+const TOOLTIP_ITEM = { color: 'var(--text-2)' }
 import './SprintChartsPage.css'
 
 interface ProjectItem {
@@ -121,9 +126,9 @@ export default function SprintChartsPage() {
                 <XAxis dataKey="sprint" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-xs)" }} />
                 <YAxis tick={{ fill: 'var(--text-2)', fontSize: "var(--text-xs)" }} />
                 <Tooltip
-                  contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-5)', borderRadius: 8, fontSize: "var(--text-sm)" }}
-                  labelStyle={{ color: 'var(--text-1)', fontWeight: 600 }}
-                  itemStyle={{ color: 'var(--text-2)' }}
+                  contentStyle={TOOLTIP_CONTENT}
+                  labelStyle={TOOLTIP_LABEL}
+                  itemStyle={TOOLTIP_ITEM}
                 />
                 <Legend wrapperStyle={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }} />
                 <Bar dataKey="planned"   name={t('sprint_charts_page.planificados')} fill="var(--surface-5)" radius={[4,4,0,0]} />
@@ -163,9 +168,9 @@ export default function SprintChartsPage() {
                   <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-xs)" }} />
                   <YAxis tick={{ fill: 'var(--text-2)', fontSize: "var(--text-xs)" }} />
                   <Tooltip
-                    contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-5)', borderRadius: 8, fontSize: "var(--text-sm)" }}
-                    labelStyle={{ color: 'var(--text-1)', fontWeight: 600 }}
-                    itemStyle={{ color: 'var(--text-2)' }}
+                    contentStyle={TOOLTIP_CONTENT}
+                    labelStyle={TOOLTIP_LABEL}
+                    itemStyle={TOOLTIP_ITEM}
                   />
                   <Legend wrapperStyle={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }} />
                   <Area

@@ -57,7 +57,7 @@ function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: 
         strokeLinecap="round"
         transform={`rotate(-90 ${size/2} ${size/2})`} />
       <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="central"
-        className="okr-svg-2" style={{ fontSize: size > 40 ? 11 : 9, fill: color }}>
+        className={`okr-svg-2 ${size > 40 ? 'okrspage-sx1' : 'okrspage-sx2'}`} style={{ fill: color }}>
         {Math.round(pct)}%
       </text>
     </svg>
@@ -142,7 +142,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
   const color = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : pct >= 30 ? 'var(--warning)' : 'var(--danger)'
 
   return (
-    <div className="okr-box-6" style={{ border:`1px solid ${alpha(color, '25')}`, borderRadius:12 }}>
+    <div className="okr-box-6 okrspage-sx3" style={{ border:`1px solid ${alpha(color, '25')}` }}>
       <div className="okr-row-3">
         <button onClick={() => setExpanded(s => !s)}
           className="okr-btn-3">

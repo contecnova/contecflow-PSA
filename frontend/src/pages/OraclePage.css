@@ -133,3 +133,26 @@
   color: var(--accent);
   line-height: 1.5;
 }
+
+/* ── Estilos en linea extraidos de OraclePage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.oraclepa-sx1.oraclepa-sx1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.oraclepa-sx2.oraclepa-sx2 {
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+.oraclepa-sx3.oraclepa-sx3 {
+  border-radius: var(--radius-sm);
+}
+.oraclepa-sx4.oraclepa-sx4 {
+  font-weight: 700;
+}
+.oraclepa-sx5.oraclepa-sx5 {
+  font-weight: 400;
+}
+.oraclepa-sx6.oraclepa-sx6 {
+  margin-bottom: 10px;
+}
+.oraclepa-sx7.oraclepa-sx7 {
+  margin-bottom: 0;
+}

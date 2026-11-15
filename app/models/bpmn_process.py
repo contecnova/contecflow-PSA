@@ -11,7 +11,7 @@ from __future__ import annotations
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -26,6 +26,16 @@ class BPMNProcessStatus(str, enum.Enum):
 
 class BPMNProcess(Base):
     __tablename__ = "bpmn_processes"
+    # Segunda auditoria 2026-11 (#33): la unicidad de la clave estaba solo en
+    # codigo (`clave_unica`) y dos altas simultaneas podian duplicarla. El
+    # primer indice cubre cada organizacion; como NULL no choca con NULL en
+    # PostgreSQL ni en SQLite, el catalogo global lleva el suyo, parcial.
+    __table_args__ = (
+        Index("uq_bpmn_processes_org_key", "organization_id", "key", unique=True),
+        Index("uq_bpmn_processes_key_global", "key", unique=True,
+              postgresql_where=text("organization_id IS NULL"),
+              sqlite_where=text("organization_id IS NULL")),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"),

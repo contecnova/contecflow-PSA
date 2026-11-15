@@ -141,8 +141,8 @@ export default function BiO365Panel() {
         <div className="u-stack-16">
           <div className="u-wrap-6">
             {(config?.reports ?? []).map(key => ({ key, label: t(`bio365.informe_${key}`) })).map(r => (
-              <button className="bio3pa-box-7" key={r.key} onClick={() => setSelectedReport(r.key)}
-                style={{ borderRadius: 20, fontWeight: selectedReport === r.key ? 700 : 400, border: `1.5px solid ${selectedReport === r.key ? 'var(--accent)' : 'var(--surface-4)'}`, background: selectedReport === r.key ? 'var(--accent-muted)' : 'transparent', color: selectedReport === r.key ? 'var(--accent)' : 'var(--text-2)' }}>
+              <button className="bio3pa-box-7 bio365pa-sx1" key={r.key} onClick={() => setSelectedReport(r.key)}
+                style={{ fontWeight: selectedReport === r.key ? 700 : 400, border: `1.5px solid ${selectedReport === r.key ? 'var(--accent)' : 'var(--surface-4)'}`, background: selectedReport === r.key ? 'var(--accent-muted)' : 'transparent', color: selectedReport === r.key ? 'var(--accent)' : 'var(--text-2)' }}>
                 {r.label}
               </button>
             ))}
@@ -204,7 +204,7 @@ export default function BiO365Panel() {
       {tab === 'config' && (
         <div className="u-stack-14">
           <div className="u-row-center-8">
-            <Settings size={14} style={{ color: 'var(--text-3)' }} />
+            <Settings size={14} className="bio365pa-sx2" />
             <span className="u-text1-base-600">
               {t('bi.o365.graph_config', 'Microsoft Graph API')}
             </span>

@@ -127,7 +127,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
     },
     onSuccess: (_data) => {
       const n = suggestions.filter(s => s._selected).length
-      toast.success(`Aplicadas ${n} tareas. Las fechas se han guardado.`)
+      toast.success(traducir('smartschedule.aplicadas_n_tareas_las_fechas_se_han', { n }))
       qc.invalidateQueries({ queryKey: ['gantt-tasks'] })
       qc.invalidateQueries({ queryKey: ['tasks'] })
       qc.invalidateQueries({ queryKey: ['tasks-my'] })
@@ -160,20 +160,10 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
   if (!open) return null
 
   return (
-    <div role="presentation" onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-      zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
+    <div role="presentation" onClick={onClose} className="smartsch-sx1">
       <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         onClick={e => e.stopPropagation()}
-        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
-        style={{
-        width: 720, maxWidth: '95vw', maxHeight: '88vh',
-        background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-        borderRadius: 12, padding: '22px 26px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-        display: 'flex', flexDirection: 'column',
-      }}>
+        onKeyDown={e => { if (e.key === 'Escape') onClose() }} className="smartsch-sx2">
         {/* Header */}
         <div className="smscmo-row-1">
           <div>
@@ -181,7 +171,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
               <Sparkles size={18} color="var(--accent)" /> {traducir('smartschedulemodal.auto_planificar_tareas_sin_fecha')}
             </h3>
             <div className="smscmo-box-1">
-              {projectName ? <>Proyecto: <strong>{projectName}</strong></> : 'Todas las tareas sin fecha visibles'}
+              {projectName ? <>{traducir('smartschedule.proyecto')} <strong>{projectName}</strong></> : 'Todas las tareas sin fecha visibles'}
               {unscheduledCount > 0 && <> · {unscheduledCount} {traducir('smartschedulemodal.sin_planificar')}</>}
             </div>
           </div>
@@ -207,18 +197,14 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
             disabled={isLoading || isApplying}
             style={{ cursor: isLoading ? 'wait' : 'pointer' }}
           >
-            <RefreshCw size={13} /> Regenerar
+            <RefreshCw size={13} /> {traducir('smartschedule.regenerar')}
           </button>
         </div>
 
         {/* Body */}
         <div className="smscmo-box-4">
           {error && (
-            <div style={{
-              background: 'rgba(239,68,68,0.12)', border: '1px solid var(--danger)',
-              color: 'var(--danger)', padding: '10px 14px', borderRadius: 8,
-              fontSize: 'var(--text-sm)', marginBottom: 12,
-            }}>⚠ {error}</div>
+            <div className="smartsch-sx3">⚠ {error}</div>
           )}
           {isLoading ? (
             <div className="smscmo-box-5">
@@ -291,12 +277,12 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
         {/* Footer */}
         <div className="smscmo-row-4">
           <div className="u-text3-sm">
-            {selectedCount} {traducir('smartschedulemodal.de')} {suggestions.length} seleccionadas
+            {selectedCount} {traducir('smartschedulemodal.de')} {suggestions.length} {traducir('tasks.selected')}
           </div>
           <div className="u-row-8">
             <button onClick={onClose} disabled={isApplying}
               className="smscmo-box-7">
-              Cancelar
+              {traducir('common.cancel')}
             </button>
             <button className="smscmo-box-8"
               onClick={() => applySelected()}

@@ -731,3 +731,54 @@
   margin-bottom: -1px;
   transition: all 0.15s;
 }
+
+/* ── Estilos en linea extraidos de EnterprisePage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.enterpri-sx1 {
+  color: var(--success);
+}
+.enterpri-sx2 {
+  color: var(--danger);
+}
+.enterpri-sx3.enterpri-sx3 {
+  color: var(--success);
+}
+.enterpri-sx4.enterpri-sx4 {
+  color: var(--danger);
+}
+.enterpri-sx5.enterpri-sx5 {
+  border-radius: 8px;
+}
+.enterpri-sx6.enterpri-sx6 {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.enterpri-sx7.enterpri-sx7 {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.enterpri-sx8.enterpri-sx8 {
+  border-radius: var(--radius-md);
+}
+.enterpri-sx9.enterpri-sx9 {
+  color: var(--accent);
+}
+.enterpri-sx10.enterpri-sx10 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.enterpri-sx11.enterpri-sx11 {
+  grid-template-columns: 1fr 1fr;
+}
+.enterpri-sx12.enterpri-sx12 {
+  color: var(--warning);
+}
+.enterpri-sx13.enterpri-sx13 {
+  border: none;
+}
+.enterpri-sx14.enterpri-sx14 {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+.enterpri-sx15.enterpri-sx15 {
+  color: var(--text-2);
+  border-bottom: 2px solid transparent;
+}

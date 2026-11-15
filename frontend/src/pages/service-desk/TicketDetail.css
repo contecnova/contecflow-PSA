@@ -16,7 +16,7 @@ textarea.tkd-input { resize: vertical; }
 .tkd-input--merge-r { flex: 2 1 200px; }
 
 /* Respuestas rapidas */
-.tkd-canned { position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 4px; background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: var(--radius-md); box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3); z-index: var(--z-mobile-nav); max-height: 340px; overflow: hidden; display: flex; flex-direction: column; }
+.tkd-canned { position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 4px; background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: var(--z-mobile-nav); max-height: 340px; overflow: hidden; display: flex; flex-direction: column; }
 .tkd-canned__search { padding: 10px 12px; border-bottom: 1px solid var(--surface-4); }
 .tkd-canned__input { width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-1); font-size: var(--text-base); outline: none; font-family: inherit; box-sizing: border-box; }
 .tkd-canned__list { overflow-y: auto; flex: 1; }
@@ -37,7 +37,7 @@ textarea.tkd-input { resize: vertical; }
 /* Panel */
 .tkd-panel { background: var(--surface-0); border: 1px solid var(--surface-4); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
 .tkd-panel--embedded { height: calc(100vh - 210px); min-height: 520px; }
-.tkd-panel--floating { position: fixed; top: 12px; right: 12px; width: 560px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); z-index: var(--z-dropdown); box-shadow: -8px 0 32px rgba(0, 0, 0, 0.25); }
+.tkd-panel--floating { position: fixed; top: 12px; right: 12px; width: 560px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); z-index: var(--z-dropdown); box-shadow: var(--shadow-lg); }
 .tkd-head { padding: 16px 20px; border-bottom: 1px solid var(--surface-4); background: var(--surface-1); position: sticky; top: 0; z-index: 10; }
 .tkd-head__top { display: flex; justify-content: space-between; align-items: flex-start; }
 .tkd-head__meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }

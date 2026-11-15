@@ -109,7 +109,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
   const s = STATUS[status] || STATUS.pending
 
   return (
-    <div className="mbill-box" style={{ border: `1px solid ${alpha(s.color, '30')}`, borderRadius: 12 }}>
+    <div className="mbill-box mileston-sx1" style={{ border: `1px solid ${alpha(s.color, '30')}` }}>
       <div className="mbill-row">
         <div className="u-flex1-min0">
           <div className="mbill-row-2">
@@ -328,7 +328,7 @@ export default function MilestoneBillingPage(): JSX.Element {
               <div className="mbill-row-5">
                 {Object.entries(STATUS).map(([k, v], i) => (
                   <div key={k} className="u-row-center-6">
-                    <div className="mbill-box-3" style={{ background: v.bg, color: v.color, opacity: byStatus[k]?.length > 0 ? 1 : 0.3 }}>
+                    <div className={`mbill-box-3 ${byStatus[k]?.length > 0 ? 'mileston-sx2' : 'mileston-sx3'}`} style={{ background: v.bg, color: v.color }}>
                       {v.icon} {t(v.label)} {byStatus[k]?.length > 0 ? `(${byStatus[k].length})` : ''}
                     </div>
                     {i < Object.keys(STATUS).length - 1 && (

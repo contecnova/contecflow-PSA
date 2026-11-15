@@ -1,19 +1,23 @@
 /**
  * ExpensesPage — gestión completa de gastos con flujo de aprobación
- * Vistas: Mis gastos | Pendientes aprobación | Equipo | Resumen por proyecto
+ * Vistas: Mis gastos | Pendientes aprobación | Equipo
+ *
+ * Fase 2 (rev. 166): las tres listas se paginan en el servidor (page/page_size;
+ * total en meta.total o X-Total-Count) con búsqueda, categoría, fechas y orden
+ * también en el servidor; los totales salen de `/my/totals`, `/pending/totals`
+ * y del propio `/team`, así que no dependen de la página cargada. Estilos en
+ * ExpensesPage.css y textos en i18n (`expenses.*`).
  */
 import { useState, useId } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr, localeActivo, downloadBlob } from '../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import { extractErr, localeActivo, downloadBlob, fmtDate } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
-import { useInvalidate } from '../hooks/useInvalidate'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, expensesApi } from '../services/api'
-import type { GastosDelEquipo } from '../services/api/tipos-finanzas'
-import type { GastoConPoliticas } from '../services/api/gastos'
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { projectsApi, expensesApi, gastosApi } from '../services/api'
+import type { FiltrosDeGastos, GastoConPoliticas } from '../services/api/gastos'
 import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect } from '../components/ui'
+import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Receipt } from 'lucide-react'
@@ -32,91 +36,118 @@ import IndicadorDePolitica from '../components/politicas/IndicadorDePolitica'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 import { POLL_FREQUENT_MS } from '../constants/timings'
+import './ExpensesPage.css'
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const CATEGORIES: Record<string, { label: string; icon: string; color: string }> = {
-  travel:        { label: 'Viajes',          icon: '✈️',  color: 'var(--accent)' },
-  accommodation: { label: 'Alojamiento',     icon: '🏨',  color: 'var(--purple)' },
-  meals:         { label: 'Dietas',          icon: '🍽️',  color: 'var(--warning)' },
-  software:      { label: 'Software',        icon: '💻',  color: 'var(--success)' },
-  hardware:      { label: 'Hardware',        icon: '🖥️',  color: 'var(--warning)' },
-  training:      { label: 'Formación',       icon: '📚',  color: 'var(--danger)' },
-  subcontract:   { label: 'Subcontratación', icon: '🤝',  color: 'var(--purple)' },
-  other:         { label: 'Otros',           icon: '📦',  color: 'var(--text-2)' },
+/** Icono y color de cada categoría; el nombre sale de i18n (`expenses.cat_<clave>`). */
+const CATEGORIES: Record<string, { icon: string; color: string }> = {
+  travel:        { icon: '✈️', color: 'var(--accent)' },
+  accommodation: { icon: '🏨', color: 'var(--purple)' },
+  meals:         { icon: '🍽️', color: 'var(--warning)' },
+  software:      { icon: '💻', color: 'var(--success)' },
+  hardware:      { icon: '🖥️', color: 'var(--warning)' },
+  training:      { icon: '📚', color: 'var(--danger)' },
+  subcontract:   { icon: '🤝', color: 'var(--purple)' },
+  other:         { icon: '📦', color: 'var(--text-2)' },
 }
-const STATUSES: Record<string, { label: string; color: string }> = {
-  draft:      { label: 'Borrador',    color: 'var(--text-2)' },
-  submitted:  { label: 'Enviado',     color: 'var(--warning)' },
-  approved:   { label: 'Aprobado',    color: 'var(--success)' },
-  rejected:   { label: 'Rechazado',   color: 'var(--danger)' },
-  reimbursed: { label: 'Reembolsado', color: 'var(--accent)' },
+const STATUSES: Record<string, string> = {
+  draft: 'var(--text-2)', submitted: 'var(--warning)', approved: 'var(--success)',
+  rejected: 'var(--danger)', reimbursed: 'var(--accent)',
 }
+/** Filas por página de las tres listas. */
+const POR_PAGINA = 25
+/** Tooltip de recharts: es una prop del gráfico (no un `style`), con tokens. */
+const TOOLTIP: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 'var(--text-xs)' }
+const EJE = { fontSize: 'var(--text-2xs)', fill: 'var(--text-2)' }
 
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+function useEtiquetas() {
+  const t = useAppT()
+  return {
+    categoria: (c: string) => t(`expenses.cat_${c}`, c),
+    estado: (s: string) => t(`expenses.st_${s}`, s),
+  }
+}
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUSES[status] || { label: status, color: 'var(--text-2)' }
-  return (
-    <DsBadge color={cfg.color} caps={false}>{cfg.label}</DsBadge>
-  )
+  const { estado } = useEtiquetas()
+  return <DsBadge color={STATUSES[status] ?? 'var(--text-2)'} caps={false}>{estado(status)}</DsBadge>
 }
 
 function CatBadge({ cat }: { cat: string }) {
-  const cfg = CATEGORIES[cat] || { label: cat, icon: '📦', color: 'var(--text-2)' }
+  const { categoria } = useEtiquetas()
+  const cfg = CATEGORIES[cat] ?? CATEGORIES.other
+  return <DsBadge color={cfg.color} caps={false}>{cfg.icon} {categoria(cat)}</DsBadge>
+}
+
+function fmt(amount: unknown, currency?: string | null) {
+  const v = Number(amount).toLocaleString(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return currency ? `${v} ${currency}` : v
+}
+
+type Expense = GastoConPoliticas
+type Orden = { key: string; dir: 'asc' | 'desc' }
+
+/** Paginación, orden y filtros comunes de las tres listas (todo va al servidor). */
+function useListaPaginada(ordenInicial: string, dirInicial: 'asc' | 'desc') {
+  const [page, setPage] = useState(1)
+  const { sort, setSort } = useSort<Expense>([], ordenInicial, dirInicial)
+  const ordenar = (k: string) => { setSort(k); setPage(1) }
+  const conFiltro = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1) }
+  const parametros = (extra: Partial<FiltrosDeGastos>): FiltrosDeGastos => ({
+    ...extra, sort: (sort as Orden).key || undefined, direction: (sort as Orden).dir, page, page_size: POR_PAGINA,
+  })
+  return { page, setPage, sort, ordenar, conFiltro, parametros }
+}
+
+function Paginas({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
   return (
-    <DsBadge color={cfg.color} caps={false}>{cfg.icon} {cfg.label}</DsBadge>
+    <div className="exp-paginacion">
+      <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / POR_PAGINA))} onChange={onChange}
+        total={total} pageSize={POR_PAGINA} />
+    </div>
   )
 }
 
-function fmt(amount: unknown, currency?: string) {
-  const v = Number(amount)
-  if (!currency) return `${v.toLocaleString(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  return `${v.toLocaleString(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+function FiltroDeFecha({ valor, onChange, etiqueta }: { valor: string; onChange: (v: string) => void; etiqueta: string }) {
+  return <DateInput aria-label={etiqueta} value={valor} onChange={e => onChange(e.target.value)}
+    className={`exp-fecha${valor ? ' exp-fecha--activa' : ''}`} />
 }
 
 // ── Expense row ───────────────────────────────────────────────────────────────
-/** serialize_expense (services/api/tipos-finanzas.ts + lo que añade la rev. 166). */
-type Expense = GastoConPoliticas
-
 function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onAction?: (exp: Expense) => ReactNode; isManager?: boolean }) {
   const t = useAppT()
   const [detalle, setDetalle] = useState(false)
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
-      <span className="u-text3-mono-xs">{expense.code}</span>
-      <CatBadge cat={expense.category || ''} />
-      <div>
-        <button type="button" onClick={() => setDetalle(true)} title={t('gas.abrir_detalle')}
-          style={{ fontSize: "var(--text-base)", fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-1)', textAlign: 'left', fontFamily: 'inherit' }}>
+    <div className="exp-fila" role="row">
+      <span className="u-text3-mono-xs" role="cell">{expense.code}</span>
+      <span role="cell"><CatBadge cat={expense.category || ''} /></span>
+      <div role="cell">
+        <button type="button" onClick={() => setDetalle(true)} title={t('gas.abrir_detalle')} className="exp-descripcion">
           {expense.description}
         </button>
         {' '}<IndicadorDePolitica resumen={expense.policy_summary} />
         <div className="u-text2-xs-mt2">
-          {expense.project_name || 'Sin proyecto'} · {expense.expense_date}
-          {isManager && <span style={{ marginLeft: 8 }}>· {expense.user_name}</span>}
+          {expense.project_name || t('expenses.sin_proyecto')} · {fmtDate(expense.expense_date)}
+          {isManager && <span className="exp-separado">· {expense.user_name}</span>}
         </div>
         {expense.receipt_url && (
-          <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer"
-            onClick={ev => ev.stopPropagation()}
-            style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 3 }}>
-            🔗 Justificante
+          <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer" onClick={ev => ev.stopPropagation()} className="exp-enlace">
+            🔗 {t('expenses.receipt')}
           </a>
         )}
       </div>
-      <span style={{ fontSize: "var(--text-md)", fontWeight: 700, textAlign: 'right', color: expense.is_billable ? 'var(--success)' : 'var(--text-1)' }}>
+      <span role="cell" className={`exp-importe${expense.is_billable ? ' exp-importe--facturable' : ''}`}>
         {fmt(expense.amount, expense.currency)}
-        {expense.is_billable && <span style={{ fontSize: "var(--text-2xs)", color: 'rgba(52,211,153,0.50)', display: 'block' }}>facturable</span>}
+        {expense.is_billable && <span className="exp-importe__nota">{t('expenses.facturable_min')}</span>}
       </span>
-      <StatusBadge status={expense.status || ''} />
-      <div className="u-text3-xs">
-        {expense.status === 'submitted' && expense.submitted_at && `Enviado ${expense.submitted_at.slice(0, 10)}`}
+      <span role="cell"><StatusBadge status={expense.status || ''} /></span>
+      <div className="u-text3-xs" role="cell">
+        {expense.status === 'submitted' && expense.submitted_at && t('expenses.enviado_el', { fecha: fmtDate(expense.submitted_at) })}
         {expense.status === 'approved' && expense.reviewed_by_name && `✓ ${expense.reviewed_by_name}`}
         {expense.status === 'rejected' && <span className="u-danger">{expense.rejection_reason}</span>}
-        {expense.status === 'reimbursed' && expense.reimbursed_at && `💰 ${expense.reimbursed_at}`}
+        {expense.status === 'reimbursed' && expense.reimbursed_at && `💰 ${fmtDate(expense.reimbursed_at)}`}
       </div>
-      <div className="u-row-6">
+      <div className="u-row-6" role="cell">
         {onAction && onAction(expense)}
       </div>
       {detalle && <DetalleDeGasto gasto={expense} editable={expense.status === 'draft' || !!isManager} onClose={() => setDetalle(false)} />}
@@ -124,13 +155,28 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
   )
 }
 
+function Cabecera({ sort, onSort, ultima }: { sort: Orden; onSort: (k: string) => void; ultima: string }) {
+  const t = useAppT()
+  return (
+    <div className="exp-fila exp-fila--cabecera" role="row">
+      <SortableTH col="code" sort={sort} onSort={onSort}>#</SortableTH>
+      <SortableTH col="category" sort={sort} onSort={onSort}>{t('expenses.tipo')}</SortableTH>
+      <SortableTH col="description" sort={sort} onSort={onSort}>{t('expenses.descripcion_2')}</SortableTH>
+      <SortableTH col="amount" sort={sort} onSort={onSort}>{t('expenses.amount')}</SortableTH>
+      <SortableTH col="status" sort={sort} onSort={onSort}>{t('expenses.estado')}</SortableTH>
+      <SortableTH col="expense_date" sort={sort} onSort={onSort}>{ultima}</SortableTH>
+      <span />
+    </div>
+  )
+}
+
 // ── Create/Edit expense modal ─────────────────────────────────────────────────
 function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => void }) {
   const idCampo = useId()
-  const traducir = useAppT()
+  const t = useAppT()
+  const { categoria } = useEtiquetas()
   const qc = useQueryClient()
   const toast = useToast()
-  const { invalidate: _invalidate } = useInvalidate()
   const { currency: defaultCurrency, currencies: monedasDeLaEmpresa } = useOrgSettings()
   const isEdit = !!expense
   const [ocrLoading, setOcrLoading] = useState(false)
@@ -155,8 +201,9 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
   })
   const { lang } = useAppLang()
   const paises = [...CODIGOS_DE_PAIS].sort((a, b) => nombreDePais(a, lang).localeCompare(nombreDePais(b, lang)))
-  // Ciudades y viajes que ya usó esta persona: se eligen, no se reescriben.
-  const previos: Expense[] = qc.getQueryData<Expense[]>(['expenses-my', '']) ?? []
+  // Ciudades y viajes que ya usó esta persona (lo que hay en caché de sus listas): se eligen, no se reescriben.
+  const previos: Expense[] = qc.getQueriesData<{ items: Expense[] }>({ queryKey: ['expenses-my'] })
+    .flatMap(([, d]) => d?.items ?? [])
   const ciudades = [...new Set(previos.filter(e => e.city && (!form.country || e.country === form.country)).map(e => e.city as string))].sort()
   const viajes = [...new Set(previos.map(e => e.trip).filter(Boolean) as string[])].sort()
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -167,21 +214,21 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
   const { mutate, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => isEdit ? expensesApi.updateMy(expense!.id, d) : expensesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, t('expenses.error_guardar'))),
   })
+  const id = (k: string) => `${idCampo}-${k}`
 
   return (
-    <Modal open title={isEdit ? 'Editar gasto' : 'Nuevo gasto'} onClose={onClose} width={580}>
-      {/* OCR receipt scan button */}
+    <Modal open title={isEdit ? t('expenses.editar_gasto') : t('expenses.new_expense')} onClose={onClose} width={580}>
       {!isEdit && (
-        <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-glow)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: "var(--text-xl)" }}>📷</span>
-          <div style={{ flex: '1 1 180px', minWidth: 0 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 2 }}>{traducir('expenses.escanear_recibo_con_ia')}</div>
-            <div className="u-text2-xs">{traducir('expenses.sube_una_foto_o_pdf_y_el')}</div>
+        <div className="exp-ocr">
+          <span className="exp-ocr__icono" aria-hidden>📷</span>
+          <div className="exp-ocr__texto">
+            <div className="exp-ocr__titulo">{t('expenses.escanear_recibo_con_ia')}</div>
+            <div className="u-text2-xs">{t('expenses.sube_una_foto_o_pdf_y_el')}</div>
           </div>
-          <label style={{ cursor: 'pointer' }}>
-            <input type="file" accept="image/*,.pdf" aria-label={traducir('expenses.escanear_recibo_con_ia')} style={{ display: 'none' }} onChange={async e => {
+          <label className="exp-ocr__subir">
+            <input type="file" accept="image/*,.pdf" aria-label={t('expenses.escanear_recibo_con_ia')} onChange={async e => {
               const file = e.target.files?.[0]
               if (!file) return
               setOcrLoading(true)
@@ -193,106 +240,106 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
                   ...f,
                   amount:       ex.amount  ?? f.amount,
                   currency:     ex.currency ?? f.currency,
-                  description:  ex.description || (ex.merchant ? `Gasto en ${ex.merchant}` : f.description),
+                  description:  ex.description || (ex.merchant ? t('expenses.gasto_en', { comercio: ex.merchant }) : f.description),
                   expense_date: ex.date    ?? f.expense_date,
                   category:     ex.category ?? f.category,
                 }))
-                toast.success('¡Recibo escaneado! Revisa y completa los campos.')
+                toast.success(t('expenses.recibo_escaneado'))
               } catch (err) {
-                toast.error(extractErr(err, 'Error al escanear recibo'))
+                toast.error(extractErr(err, t('expenses.error_escanear')))
               } finally {
                 setOcrLoading(false)
                 e.target.value = ''
               }
             }} />
-            <Button variant="secondary" disabled={ocrLoading} style={{ pointerEvents: 'none' }}>
-              {ocrLoading ? '⏳ Analizando...' : '📎 Subir recibo'}
-            </Button>
+            <span className="exp-ocr__boton"><Button variant="secondary" disabled={ocrLoading}>
+              {ocrLoading ? `⏳ ${t('expenses.analizando')}` : `📎 ${t('expenses.subir_recibo')}`}
+            </Button></span>
           </label>
         </div>
       )}
       <div className="u-grid2-14">
-        <div className="u-col-full">
-          <label style={ls}>{traducir('expenses.descripcion')}</label>
-          <input value={form.description} onChange={set('description')} style={fs} placeholder={traducir('expenses.descripcion_del_gasto')} aria-label={traducir('expenses.descripcion_del_gasto')} />
+        <div className="u-col-full ds-field">
+          <label htmlFor={id('desc')} className="ds-field__label">{t('expenses.descripcion')}</label>
+          <input id={id('desc')} value={form.description} onChange={set('description')} className="ds-input" placeholder={t('expenses.descripcion_del_gasto')} />
         </div>
-        <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('expenses.category')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.category} onChange={set('category')} style={fs}>
-            {Object.entries(CATEGORIES).map(([v, c]) => <option key={v} value={v}>{c.icon} {c.label}</option>)}
+        <div className="ds-field">
+          <label htmlFor={id('cat')} className="ds-field__label">{t('expenses.category')}</label>
+          <select id={id('cat')} value={form.category} onChange={set('category')} className="ds-input">
+            {Object.entries(CATEGORIES).map(([v, c]) => <option key={v} value={v}>{c.icon} {categoria(v)}</option>)}
           </select>
         </div>
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Proyecto</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={set('project_id')} style={fs}>
-            <option value="">{traducir('expenses.sin_proyecto')}</option>
+        <div className="ds-field">
+          <label htmlFor={id('proy')} className="ds-field__label">{t('expenses.proyecto')}</label>
+          <select id={id('proy')} value={form.project_id} onChange={set('project_id')} className="ds-input">
+            <option value="">{t('expenses.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
-        <div>
-          <label id={`${idCampo}-eta239`} htmlFor={`${idCampo}-a239`} style={ls}>Importe *</label>
-          <input id={`${idCampo}-a239`} aria-labelledby={`${idCampo}-eta239`} type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} style={fs}
-            placeholder={form.km ? traducir('gas.importe_por_km') : 'Importe'} />
+        <div className="ds-field">
+          <label htmlFor={id('imp')} className="ds-field__label">{t('expenses.importe_obligatorio')}</label>
+          <input id={id('imp')} type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} className="ds-input"
+            placeholder={form.km ? t('gas.importe_por_km') : t('expenses.amount')} />
         </div>
-        <div>
-          <label style={ls}>{traducir('gas.km')}</label>
-          <input type="number" step="0.1" min={0} value={form.km} onChange={set('km')} style={fs} placeholder={traducir('gas.km_ayuda')} aria-label={traducir('gas.km')} />
+        <div className="ds-field">
+          <label htmlFor={id('km')} className="ds-field__label">{t('gas.km')}</label>
+          <input id={id('km')} type="number" step="0.1" min={0} value={form.km} onChange={set('km')} className="ds-input" placeholder={t('gas.km_ayuda')} />
         </div>
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Moneda</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.currency} onChange={set('currency')} style={fs}>
+        <div className="ds-field">
+          <label htmlFor={id('mon')} className="ds-field__label">{t('expenses.currency')}</label>
+          <select id={id('mon')} value={form.currency} onChange={set('currency')} className="ds-input">
             {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{traducir('expenses.fecha_del_gasto')}</label>
-          <DateInput id={`${idCampo}-4`} value={form.expense_date} onChange={set('expense_date')} style={fs} />
+        <div className="ds-field">
+          <label htmlFor={id('fecha')} className="ds-field__label">{t('expenses.fecha_del_gasto')}</label>
+          <DateInput id={id('fecha')} value={form.expense_date} onChange={set('expense_date')} className="ds-input" />
         </div>
-        <div>
-          <label htmlFor={`${idCampo}-pais`} style={ls}>{traducir('gas.pais')}</label>
-          <select id={`${idCampo}-pais`} aria-label={traducir('gas.pais')} value={form.country} onChange={set('country')} style={fs}>
-            <option value="">{traducir('gas.sin_pais')}</option>
+        <div className="ds-field">
+          <label htmlFor={id('pais')} className="ds-field__label">{t('gas.pais')}</label>
+          <select id={id('pais')} value={form.country} onChange={set('country')} className="ds-input">
+            <option value="">{t('gas.sin_pais')}</option>
             {paises.map(c => <option key={c} value={c}>{nombreDePais(c, lang)} ({c})</option>)}
           </select>
         </div>
-        <div>
-          <label htmlFor={`${idCampo}-ciudad`} style={ls}>{traducir('gas.ciudad')}</label>
-          <input id={`${idCampo}-ciudad`} aria-label={traducir('gas.ciudad')} list={`${idCampo}-ciudades`} value={form.city} onChange={set('city')} style={fs} maxLength={120} />
-          <datalist id={`${idCampo}-ciudades`}>{ciudades.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
+        <div className="ds-field">
+          <label htmlFor={id('ciudad')} className="ds-field__label">{t('gas.ciudad')}</label>
+          <input id={id('ciudad')} list={id('ciudades')} value={form.city} onChange={set('city')} className="ds-input" maxLength={120} />
+          <datalist id={id('ciudades')}>{ciudades.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
         </div>
         {form.category === 'meals' && (
-          <div>
-            <label htmlFor={`${idCampo}-asis`} style={ls}>{traducir('gas.asistentes')}</label>
-            <input id={`${idCampo}-asis`} aria-label={traducir('gas.asistentes')} type="number" min={1} step={1} value={form.attendees} onChange={set('attendees')} style={fs}
-              aria-describedby={`${idCampo}-asis-ayuda`} />
-            <span id={`${idCampo}-asis-ayuda`} className="u-text3-xs">{traducir('gas.asistentes_ayuda')}</span>
+          <div className="ds-field">
+            <label htmlFor={id('asis')} className="ds-field__label">{t('gas.asistentes')}</label>
+            <input id={id('asis')} type="number" min={1} step={1} value={form.attendees} onChange={set('attendees')} className="ds-input"
+              aria-describedby={id('asis-ayuda')} />
+            <span id={id('asis-ayuda')} className="ds-field__hint">{t('gas.asistentes_ayuda')}</span>
           </div>
         )}
-        <div>
-          <label htmlFor={`${idCampo}-viaje`} style={ls}>{traducir('gas.viaje')}</label>
-          <input id={`${idCampo}-viaje`} aria-label={traducir('gas.viaje')} list={`${idCampo}-viajes`} value={form.trip} onChange={set('trip')} style={fs} maxLength={120}
-            aria-describedby={`${idCampo}-viaje-ayuda`} />
-          <datalist id={`${idCampo}-viajes`}>{viajes.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
-          <span id={`${idCampo}-viaje-ayuda`} className="u-text3-xs">{traducir('gas.viaje_ayuda')}</span>
+        <div className="ds-field">
+          <label htmlFor={id('viaje')} className="ds-field__label">{t('gas.viaje')}</label>
+          <input id={id('viaje')} list={id('viajes')} value={form.trip} onChange={set('trip')} className="ds-input" maxLength={120}
+            aria-describedby={id('viaje-ayuda')} />
+          <datalist id={id('viajes')}>{viajes.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
+          <span id={id('viaje-ayuda')} className="ds-field__hint">{t('gas.viaje_ayuda')}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 24 }}>
-          <input type="checkbox" id="billable" aria-labelledby="billable-etiqueta" checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
-          <label htmlFor="billable" id="billable-etiqueta" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{traducir('expenses.gasto_facturable_al_cliente')}</label>
+        <div className="exp-check">
+          <input type="checkbox" id={id('fact')} checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
+          <label htmlFor={id('fact')}>{t('expenses.gasto_facturable_al_cliente')}</label>
         </div>
-        <div className="u-col-full">
-          <label id={`${idCampo}-eta262`} htmlFor={`${idCampo}-a262`} style={ls}>Notas adicionales</label>
-          <textarea id={`${idCampo}-a262`} aria-labelledby={`${idCampo}-eta262`} value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Notas adicionales" />
+        <div className="u-col-full ds-field">
+          <label htmlFor={id('notas')} className="ds-field__label">{t('expenses.notas_adicionales')}</label>
+          <textarea id={id('notas')} value={form.notes} onChange={set('notes')} rows={2} className="ds-input exp-textarea" placeholder={t('expenses.notas_adicionales')} />
         </div>
-        <div style={{ gridColumn: '1/-1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('gas.justificantes_en_el_detalle')}</div>
-        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <div className="exp-nota">{t('gas.justificantes_en_el_detalle')}</div>
+        <div className="exp-pie">
+          <Button variant="secondary" onClick={onClose}>{t('expenses.cancelar')}</Button>
           <Button onClick={() => {
             const { km, attendees, ...resto } = form
             const base = { ...resto, attendees: form.category === 'meals' && attendees ? Number(attendees) : null }
             mutate(km ? { ...base, km: Number(km), amount: Number(resto.amount) || 0 } : base)
           }}
             disabled={isPending || !form.description || (!form.amount && !form.km) || !form.expense_date} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear gasto'}
+            {isPending ? t('expenses.guardando') : isEdit ? t('expenses.guardar_cambios') : t('expenses.crear_gasto')}
           </Button>
         </div>
       </div>
@@ -302,7 +349,8 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
 
 // ── Review modal ──────────────────────────────────────────────────────────────
 function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => void }) {
-  const traducir = useAppT()
+  const t = useAppT()
+  const idCampo = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const [reason, setReason] = useState('')
@@ -313,39 +361,34 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
       for (const aviso of r.data.avisos_de_presupuesto) toast.warning(aviso, 8000)
       qc.invalidateQueries({ queryKey: ['expenses-pending'] }); qc.invalidateQueries({ queryKey: ['expenses-team'] }); onClose()
     },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, t('expenses.error_revisar'))),
   })
   return (
-    <Modal open title={`Revisar gasto — ${expense.code}`} onClose={onClose} width={480}>
-      <div style={{ marginBottom: 16, background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{expense.description}</div>
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
+    <Modal open title={t('expenses.revisar_gasto', { code: expense.code ?? '' })} onClose={onClose} width={480}>
+      <div className="exp-revision">
+        <div className="exp-revision__titulo">{expense.description}</div>
+        <div className="exp-revision__datos">
           <span>👤 {expense.user_name}</span>
           <span><CatBadge cat={expense.category || ''} /></span>
-          <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmt(expense.amount, expense.currency)}</span>
+          <span className="exp-revision__importe">{fmt(expense.amount, expense.currency)}</span>
         </div>
-        {expense.notes && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 8 }}>{expense.notes}</div>}
+        {expense.notes && <div className="exp-revision__notas">{expense.notes}</div>}
         {expense.receipt_url && (
-          <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
-            🔗 Ver justificante / factura adjunta
+          <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer" className="exp-enlace">
+            🔗 {t('expenses.ver_justificante')}
           </a>
         )}
       </div>
-      <div className="u-mb-16">
-        <label style={ls}>{traducir('expenses.motivo_de_rechazo_si_aplica')}</label>
-        <input value={reason} onChange={e => setReason(e.target.value)} style={fs} placeholder={traducir('expenses.motivo_de_rechazo')} aria-label={traducir('expenses.motivo_de_rechazo')} />
+      <div className="u-mb-16 ds-field">
+        <label htmlFor={`${idCampo}-motivo`} className="ds-field__label">{t('expenses.motivo_de_rechazo_si_aplica')}</label>
+        <input id={`${idCampo}-motivo`} value={reason} onChange={e => setReason(e.target.value)} className="ds-input" placeholder={t('expenses.motivo_de_rechazo')} />
       </div>
       <div className="u-actions-10">
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <button onClick={() => mutate({ approved: false, rejection_reason: reason })} disabled={isPending || !reason}
-          style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--danger)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
-          ✗ Rechazar
-        </button>
-        <button onClick={() => mutate({ approved: true })} disabled={isPending}
-          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '9px 18px', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
-          ✓ Aprobar
-        </button>
+        <Button variant="secondary" onClick={onClose}>{t('expenses.cancelar')}</Button>
+        <button type="button" onClick={() => mutate({ approved: false, rejection_reason: reason })} disabled={isPending || !reason}
+          className="exp-decision exp-decision--rechazar">✗ {t('expenses.rechazar')}</button>
+        <button type="button" onClick={() => mutate({ approved: true })} disabled={isPending}
+          className="exp-decision exp-decision--aprobar">✓ {t('expenses.approve')}</button>
       </div>
     </Modal>
   )
@@ -353,7 +396,8 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
 
 // ── Tab: Mis gastos ───────────────────────────────────────────────────────────
 function MyExpenses() {
-  const traducir = useAppT()
+  const t = useAppT()
+  const { categoria, estado } = useEtiquetas()
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -363,116 +407,103 @@ function MyExpenses() {
   const [catFilter, setCatFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const lista = useListaPaginada('expense_date', 'desc')
+  const filtros = { status: statusFilter, category: catFilter, q: search, date_from: dateFrom, date_to: dateTo }
 
-  const { data: raw = [], isLoading } = useQuery<Expense[]>({
-    queryKey: ['expenses-my', statusFilter],
-    queryFn: () => expensesApi.my({ status: statusFilter || undefined }).then(r => r.data),
+  const q = useQuery({
+    queryKey: ['expenses-my', filtros, lista.sort, lista.page],
+    queryFn: () => gastosApi.mios(lista.parametros(filtros)),
+    placeholderData: keepPreviousData,
   })
-  const expenses: Expense[] = Array.isArray(raw) ? raw : []
-  const filteredExpenses = expenses.filter(e => {
-    if (search) {
-      const q = search.toLowerCase()
-      const haystack = `${e.code || ''} ${e.description || ''} ${e.category || ''}`.toLowerCase()
-      if (!haystack.includes(q)) return false
-    }
-    if (catFilter && e.category !== catFilter) return false
-    if (dateFrom && e.expense_date && e.expense_date < dateFrom) return false
-    if (dateTo && e.expense_date && e.expense_date > dateTo) return false
-    return true
-  })
-  const { sort: expSort, setSort: setExpSort, sortedData: sortedExpenses } = useSort(filteredExpenses, 'expense_date', 'desc')
-  const dateInput = (val: string): CSSProperties => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
+  const totales = useQuery({ queryKey: ['expenses-my', 'totales', filtros], queryFn: () => gastosApi.totalesMios(filtros) })
+  const expenses = q.data?.items ?? []
   const hasFilter = search || statusFilter || catFilter || dateFrom || dateTo
 
   const [confirmando, setConfirmando] = useState<Expense | null>(null)
   const [detalleDe, setDetalleDe] = useState<Expense | null>(null)
+  const refrescar = () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }) }
   const { mutate: submit, isPending: saving } = useMutation({
     mutationFn: (id: string) => expensesApi.submitMy(id),
-    onSuccess: () => { setConfirmando(null); qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: () => { setConfirmando(null); refrescar() },
+    onError: (e: unknown) => toast.error(extractErr(e, t('expenses.error_enviar'))),
   })
   const { mutate: recall } = useMutation({
     mutationFn: (id: string) => expensesApi.recall(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: refrescar,
+    onError: (e: unknown) => toast.error(extractErr(e, t('expenses.error_retirar'))),
   })
   const { mutate: del } = useMutation({
     mutationFn: (id: string) => expensesApi.deleteMy(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses-my'] }),
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, t('expenses.error_eliminar'))),
   })
-
-  const total = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
-  const pending = expenses.filter(e => e.status === 'submitted').length
+  const pendientes = totales.data?.submitted_count ?? 0
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 14, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {[
-            { label: 'Total', value: fmt(total), color: 'var(--text-1)' },
-            { label: 'Pendientes', value: pending, color: pending > 0 ? 'var(--warning)' : 'var(--text-2)' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ ...card, padding: '10px 16px', minWidth: 120 }}>
-              <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color }}>{value}</div>
-              <div className="u-text2-xs">{label}</div>
-            </div>
-          ))}
+      <div className="exp-cabecera">
+        <div className="exp-kpis">
+          <div className="ds-card exp-kpi">
+            <div className="exp-kpi__valor">{totales.data ? fmt(totales.data.total_amount) : '—'}</div>
+            <div className="u-text2-xs">{t('expenses.total')}</div>
+          </div>
+          <div className="ds-card exp-kpi">
+            <div className={`exp-kpi__valor ${pendientes > 0 ? 'exp-kpi__valor--aviso' : 'exp-kpi__valor--apagado'}`}>{totales.data ? pendientes : '—'}</div>
+            <div className="u-text2-xs">{t('expenses.pendientes_kpi')}</div>
+          </div>
         </div>
-        <Button onClick={() => setShowCreate(true)} style={{ marginLeft: 'auto' }}>{traducir('expenses.nuevo_gasto')}</Button>
+        <span className="exp-accion-principal"><Button onClick={() => setShowCreate(true)}>{t('expenses.nuevo_gasto')}</Button></span>
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <SearchInput value={search} onChange={setSearch} placeholder={traducir('expenses.buscar_codigo_o_descripcion')} style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 320 }} />
-        <FilterSelect value={statusFilter} onChange={setStatusFilter} placeholder="Estado" options={Object.entries(STATUSES).map(([v, c]) => ({ value: v, label: c.label }))} />
-        <FilterSelect value={catFilter} onChange={setCatFilter} placeholder="Tipo" options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${c.label}` }))} />
-        <DateInput aria-label="Desde" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dateInput(dateFrom)} />
-        <span className="u-text3">—</span>
-        <DateInput aria-label="Hasta" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dateInput(dateTo)} />
+      <div className="exp-filtros">
+        <div className="exp-busqueda"><SearchInput value={search} onChange={lista.conFiltro(setSearch)} placeholder={t('expenses.buscar_codigo_o_descripcion')} /></div>
+        <FilterSelect value={statusFilter} onChange={lista.conFiltro(setStatusFilter)} placeholder={t('expenses.estado')}
+          options={Object.keys(STATUSES).map(v => ({ value: v, label: estado(v) }))} />
+        <FilterSelect value={catFilter} onChange={lista.conFiltro(setCatFilter)} placeholder={t('expenses.tipo')}
+          options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${categoria(v)}` }))} />
+        <FiltroDeFecha valor={dateFrom} onChange={lista.conFiltro(setDateFrom)} etiqueta={t('expenses.desde')} />
+        <span className="u-text3" aria-hidden>—</span>
+        <FiltroDeFecha valor={dateTo} onChange={lista.conFiltro(setDateTo)} etiqueta={t('expenses.hasta')} />
         {hasFilter && (
-          <button onClick={() => { setSearch(''); setStatusFilter(''); setCatFilter(''); setDateFrom(''); setDateTo('') }}
-            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
+          <button type="button" className="exp-limpiar" onClick={() => {
+            setSearch(''); setStatusFilter(''); setCatFilter(''); setDateFrom(''); setDateTo(''); lista.setPage(1)
+          }}>{t('expenses.limpiar')}</button>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{sortedExpenses.length} / {expenses.length}</span>
       </div>
 
-      {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="💸" title={traducir('expenses.sin_gastos')} description="Crea tu primer gasto para empezar a registrarlos." />
-      ) : sortedExpenses.length === 0 ? (
-        <EmptyState icon="🔍" title={traducir('expenses.sin_resultados')} description="Ningún gasto coincide con los filtros aplicados." />
+      {q.isLoading ? <Spinner /> : q.isError ? (
+        <div role="alert" className="u-danger">{extractErr(q.error, t('expenses.error_cargar'))}</div>
+      ) : expenses.length === 0 ? (
+        hasFilter
+          ? <EmptyState icon="🔍" title={t('expenses.sin_resultados')} description={t('expenses.ningun_gasto_coincide')} />
+          : <EmptyState icon="💸" title={t('expenses.sin_gastos')} description={t('expenses.crea_primer_gasto')} />
       ) : (
-        <div style={{ ...card, overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-            <SortableTH col="code" sort={expSort} onSort={setExpSort}>#</SortableTH>
-            <SortableTH col="category" sort={expSort} onSort={setExpSort}>Tipo</SortableTH>
-            <SortableTH col="description" sort={expSort} onSort={setExpSort}>{traducir('expenses.descripcion_2')}</SortableTH>
-            <SortableTH col="amount" sort={expSort} onSort={setExpSort}>Importe</SortableTH>
-            <SortableTH col="status" sort={expSort} onSort={setExpSort}>Estado</SortableTH>
-            <SortableTH col="expense_date" sort={expSort} onSort={setExpSort}>Info</SortableTH>
-            <span></span>
+        <>
+          <div className="ds-card exp-tabla" role="table" aria-label={t('expenses.tab_mis')}>
+            <Cabecera sort={lista.sort as Orden} onSort={lista.ordenar} ultima={t('expenses.info')} />
+            {expenses.map(e => (
+              <ExpenseRow key={e.id} expense={e} isManager={false} onAction={(exp) => (
+                <div className="exp-acciones">
+                  {exp.status === 'draft' && <>
+                    <button type="button" className="exp-mini" onClick={() => setEditing(exp)} title={t('expenses.editar_gasto')} aria-label={t('expenses.editar_gasto')}>✏</button>
+                    <button type="button" className="exp-mini exp-mini--aviso" onClick={() => setConfirmando(exp)} title={t('expenses.enviar_gasto')}
+                      aria-label={t('expenses.enviar_gasto')} disabled={saving}>↑ {t('expenses.enviar')}</button>
+                    <button type="button" className="exp-mini exp-mini--peligro" title={t('expenses.eliminar_gasto')} aria-label={t('expenses.eliminar_gasto')}
+                      onClick={() => openConfirmGlobal({ message: t('expenses.eliminar_confirmar'), onConfirm: () => del(exp.id), danger: true })}>🗑</button>
+                  </>}
+                  {exp.status === 'submitted' && (
+                    <button type="button" className="exp-mini" onClick={() => recall(exp.id)} title={t('expenses.retirar_gasto')} aria-label={t('expenses.retirar_gasto')}>
+                      ↩ {t('expenses.retirar')}</button>
+                  )}
+                  {exp.status === 'rejected' && (
+                    <button type="button" className="exp-mini exp-mini--peligro-relleno" onClick={() => setEditing(exp)}
+                      title={t('expenses.editar_rechazado')} aria-label={t('expenses.editar_rechazado')}>✏ {t('expenses.editar')}</button>
+                  )}
+                </div>
+              )} />
+            ))}
           </div>
-          {sortedExpenses.map(e => (
-            <ExpenseRow key={e.id} expense={e} isManager={false} onAction={(exp) => (
-              <div style={{ display: 'flex', gap: 5 }}>
-                {exp.status === 'draft' && <>
-                  <button onClick={() => setEditing(exp)} title="Editar gasto" aria-label="Editar gasto"
-                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
-                  <button onClick={() => setConfirmando(exp)} title="Enviar gasto" aria-label="Enviar gasto"
-                    style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-sm)" }} disabled={saving}>↑ Enviar</button>
-                  <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este gasto?', onConfirm: () => del(exp.id), danger: true }) }} title="Eliminar gasto" aria-label="Eliminar gasto"
-                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
-                </>}
-                {exp.status === 'submitted' && (
-                  <button onClick={() => recall(exp.id)} title="Retirar gasto" aria-label="Retirar gasto"
-                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>↩ Retirar</button>
-                )}
-                {exp.status === 'rejected' && (
-                  <button onClick={() => setEditing(exp)} title="Editar gasto rechazado" aria-label="Editar gasto rechazado"
-                    style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏ Editar</button>
-                )}
-              </div>
-            )} />
-          ))}
-        </div>
+          <Paginas page={lista.page} total={q.data?.total ?? 0} onChange={lista.setPage} />
+        </>
       )}
       {showCreate && <ExpenseModal onClose={() => setShowCreate(false)} />}
       {editing && <ExpenseModal expense={editing} onClose={() => setEditing(null)} />}
@@ -488,85 +519,67 @@ function MyExpenses() {
 
 // ── Tab: Pendientes aprobación ────────────────────────────────────────────────
 function PendingApproval() {
-  const traducir = useAppT()
-  const toast = useToast()
-  const qc = useQueryClient()
+  const t = useAppT()
+  const { categoria } = useEtiquetas()
   const [reviewing, setReviewing] = useState<Expense | null>(null)
-
-  const { data: raw = [], isLoading } = useQuery<Expense[]>({
-    queryKey: ['expenses-pending'],
-    queryFn: () => expensesApi.pending().then(r => r.data),
-    refetchInterval: POLL_FREQUENT_MS,
-  })
-  const expenses: Expense[] = Array.isArray(raw) ? raw : []
   const [pendSearch, setPendSearch] = useState('')
   const [pendCat, setPendCat] = useState('')
   const [pendFrom, setPendFrom] = useState('')
   const [pendTo, setPendTo] = useState('')
-  const filteredPending = expenses.filter(e => {
-    if (pendSearch) {
-      const q = pendSearch.toLowerCase()
-      const haystack = `${e.code || ''} ${e.description || ''} ${e.user_name || ''}`.toLowerCase()
-      if (!haystack.includes(q)) return false
-    }
-    if (pendCat && e.category !== pendCat) return false
-    if (pendFrom && e.expense_date && e.expense_date < pendFrom) return false
-    if (pendTo && e.expense_date && e.expense_date > pendTo) return false
-    return true
-  })
-  const { sort: pendSort, setSort: setPendSort, sortedData: sortedPending } = useSort(filteredPending, 'expense_date', 'desc')
-  const dateInput = (val: string): CSSProperties => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
-  const hasFilter = pendSearch || pendCat || pendFrom || pendTo
+  const lista = useListaPaginada('submitted_at', 'asc')
+  const filtros = { category: pendCat, q: pendSearch, date_from: pendFrom, date_to: pendTo }
 
-  const { mutate: _reimburse } = useMutation({
-    mutationFn: (id: string) => expensesApi.reimburse(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses-pending'] }),
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  const q = useQuery({
+    queryKey: ['expenses-pending', filtros, lista.sort, lista.page],
+    queryFn: () => gastosApi.pendientes(lista.parametros(filtros)),
+    refetchInterval: POLL_FREQUENT_MS,
+    placeholderData: keepPreviousData,
   })
+  const totales = useQuery({ queryKey: ['expenses-pending', 'totales', filtros], queryFn: () => gastosApi.totalesPendientes(filtros),
+    refetchInterval: POLL_FREQUENT_MS })
+  const expenses = q.data?.items ?? []
+  const hasFilter = pendSearch || pendCat || pendFrom || pendTo
 
   return (
     <div>
-      <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
-        {expenses.length > 0 ? `${expenses.length} gasto(s) pendientes de revisión · ${fmt(expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0))} total` : 'No hay gastos pendientes'}
+      <div className="exp-resumen" aria-live="polite">
+        {totales.data && totales.data.count > 0
+          ? t('expenses.pendientes_resumen', { n: totales.data.count, total: fmt(totales.data.total_amount) })
+          : totales.data ? t('expenses.no_hay_pendientes') : ''}
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <SearchInput value={pendSearch} onChange={setPendSearch} placeholder={traducir('expenses.buscar_codigo_descripcion_o_solicitante')} style={{ minWidth: 240, flex: '1 1 240px', maxWidth: 360 }} />
-        <FilterSelect value={pendCat} onChange={setPendCat} placeholder="Tipo" options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${c.label}` }))} />
-        <DateInput aria-label="Desde" value={pendFrom} onChange={e => setPendFrom(e.target.value)} style={dateInput(pendFrom)} />
-        <span className="u-text3">—</span>
-        <DateInput aria-label="Hasta" value={pendTo} onChange={e => setPendTo(e.target.value)} style={dateInput(pendTo)} />
+      <div className="exp-filtros">
+        <div className="exp-busqueda"><SearchInput value={pendSearch} onChange={lista.conFiltro(setPendSearch)} placeholder={t('expenses.buscar_codigo_descripcion_o_solicitante')} /></div>
+        <FilterSelect value={pendCat} onChange={lista.conFiltro(setPendCat)} placeholder={t('expenses.tipo')}
+          options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${categoria(v)}` }))} />
+        <FiltroDeFecha valor={pendFrom} onChange={lista.conFiltro(setPendFrom)} etiqueta={t('expenses.desde')} />
+        <span className="u-text3" aria-hidden>—</span>
+        <FiltroDeFecha valor={pendTo} onChange={lista.conFiltro(setPendTo)} etiqueta={t('expenses.hasta')} />
         {hasFilter && (
-          <button onClick={() => { setPendSearch(''); setPendCat(''); setPendFrom(''); setPendTo('') }}
-            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
+          <button type="button" className="exp-limpiar" onClick={() => {
+            setPendSearch(''); setPendCat(''); setPendFrom(''); setPendTo(''); lista.setPage(1)
+          }}>{t('expenses.limpiar')}</button>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{sortedPending.length} / {expenses.length}</span>
       </div>
-      {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="✅" title={traducir('expenses.sin_pendientes')} description="No hay gastos pendientes de revisión." />
-      ) : sortedPending.length === 0 ? (
-        <EmptyState icon="🔍" title={traducir('expenses.sin_resultados')} description="Ningún gasto pendiente coincide con los filtros aplicados." />
+      {q.isLoading ? <Spinner /> : q.isError ? (
+        <div role="alert" className="u-danger">{extractErr(q.error, t('expenses.error_cargar'))}</div>
+      ) : expenses.length === 0 ? (
+        hasFilter
+          ? <EmptyState icon="🔍" title={t('expenses.sin_resultados')} description={t('expenses.ningun_pendiente_coincide')} />
+          : <EmptyState icon="✅" title={t('expenses.sin_pendientes')} description={t('expenses.no_hay_pendientes_texto')} />
       ) : (
-        <div style={{ ...card, overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-            <SortableTH col="code" sort={pendSort} onSort={setPendSort}>#</SortableTH>
-            <SortableTH col="category" sort={pendSort} onSort={setPendSort}>Tipo</SortableTH>
-            <SortableTH col="description" sort={pendSort} onSort={setPendSort}>{traducir('expenses.descripcion_2')}</SortableTH>
-            <SortableTH col="amount" sort={pendSort} onSort={setPendSort}>Importe</SortableTH>
-            <SortableTH col="status" sort={pendSort} onSort={setPendSort}>Estado</SortableTH>
-            <SortableTH col="expense_date" sort={pendSort} onSort={setPendSort}>Solicitante</SortableTH>
-            <span></span>
+        <>
+          <div className="ds-card exp-tabla" role="table" aria-label={t('expenses.tab_pendientes')}>
+            <Cabecera sort={lista.sort as Orden} onSort={lista.ordenar} ultima={t('expenses.solicitante')} />
+            {expenses.map(e => (
+              <ExpenseRow key={e.id} expense={e} isManager onAction={(exp) => (
+                <div className="exp-acciones">
+                  <button type="button" className="exp-mini exp-mini--aviso exp-mini--revisar" onClick={() => setReviewing(exp)}>{t('expenses.revisar')}</button>
+                </div>
+              )} />
+            ))}
           </div>
-          {sortedPending.map(e => (
-            <ExpenseRow key={e.id} expense={e} isManager onAction={(exp) => (
-              <div style={{ display: 'flex', gap: 5 }}>
-                <button onClick={() => setReviewing(exp)}
-                  style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
-                  Revisar
-                </button>
-              </div>
-            )} />
-          ))}
-        </div>
+          <Paginas page={lista.page} total={q.data?.total ?? 0} onChange={lista.setPage} />
+        </>
       )}
       {reviewing && <ReviewModal expense={reviewing} onClose={() => setReviewing(null)} />}
     </div>
@@ -575,96 +588,95 @@ function PendingApproval() {
 
 // ── Tab: Equipo (resumen + todos) ─────────────────────────────────────────────
 function TeamExpenses() {
-  const traducir = useAppT()
+  const t = useAppT()
+  const { categoria, estado } = useEtiquetas()
+  const idCampo = useId()
   const toast = useToast()
   const [projectFilter, setProjectFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [_period, _setPeriod] = useState('')
+  const lista = useListaPaginada('expense_date', 'desc')
+  const filtros = { project_id: projectFilter, status: statusFilter }
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
   const projects: Array<{ id?: string; code?: string; name?: string }> = Array.isArray(projRaw) ? projRaw : []
 
-  const { data: raw, isLoading } = useQuery<GastosDelEquipo>({
-    queryKey: ['expenses-team', projectFilter, statusFilter],
-    queryFn: () => expensesApi.team({ project_id: projectFilter || undefined, status: statusFilter || undefined }).then(r => r.data),
+  const q = useQuery({
+    queryKey: ['expenses-team', filtros, lista.sort, lista.page],
+    queryFn: () => gastosApi.equipo(lista.parametros(filtros)),
+    placeholderData: keepPreviousData,
   })
-
-  const expenses: Expense[] = raw?.expenses || []
-  const { sort: teamSort, setSort: setTeamSort, sortedData: sortedTeam } = useSort(expenses, 'expense_date', 'desc')
-  const total = raw?.total || 0
-  const billable = raw?.billable_total || 0
-  const byCat: Record<string, number> = raw?.by_category || {}
-
-  const catChartData = Object.entries(byCat).map(([k, v]) => ({
-    name: CATEGORIES[k]?.label || k,
-    value: v,
-    color: CATEGORIES[k]?.color || 'var(--text-2)',
+  const expenses = q.data?.items ?? []
+  const total = q.data?.importe_total ?? 0
+  const billable = q.data?.facturable_total ?? 0
+  const catChartData = Object.entries(q.data?.por_categoria ?? {}).map(([k, v]) => ({
+    name: categoria(k), value: v, color: CATEGORIES[k]?.color || 'var(--text-2)',
   }))
 
   const qcTeam = useQueryClient()
   const { mutate: reimburse } = useMutation({
     mutationFn: (id: string) => expensesApi.reimburse(id),
     onSuccess: () => qcTeam.invalidateQueries({ queryKey: ['expenses-team'] }),
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, t('expenses.error_reembolsar'))),
   })
+  const kpis = [
+    { label: t('expenses.total_gastos'), value: fmt(total), mod: '', icon: '💸' },
+    { label: t('expenses.billable'), value: fmt(billable), mod: 'exito', icon: '📄' },
+    { label: t('expenses.no_facturable'), value: fmt(total - billable), mod: 'apagado', icon: '🔒' },
+    { label: t('expenses.n_gastos'), value: q.data?.total ?? 0, mod: 'acento', icon: '🧾' },
+  ]
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} style={{ ...fs, width: 'auto', maxWidth: '100%' }}>
-          <option value="">{traducir('expenses.todos_los_proyectos')}</option>
+      <div className="exp-filtros">
+        <label htmlFor={`${idCampo}-proy`} className="u-sr-only">{t('expenses.proyecto')}</label>
+        <select id={`${idCampo}-proy`} value={projectFilter} onChange={e => { setProjectFilter(e.target.value); lista.setPage(1) }} className="ds-input exp-select">
+          <option value="">{t('expenses.todos_los_proyectos')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, width: 'auto' }}>
-          <option value="">{traducir('expenses.todos_los_estados')}</option>
-          {Object.entries(STATUSES).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
+        <label htmlFor={`${idCampo}-est`} className="u-sr-only">{t('expenses.estado')}</label>
+        <select id={`${idCampo}-est`} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); lista.setPage(1) }} className="ds-input exp-select">
+          <option value="">{t('expenses.todos_los_estados')}</option>
+          {Object.keys(STATUSES).map(v => <option key={v} value={v}>{estado(v)}</option>)}
         </select>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
-        {[
-          { label: 'Total gastos', value: fmt(total), color: 'var(--text-1)', icon: '💸' },
-          { label: 'Facturable', value: fmt(billable), color: 'var(--success)', icon: '📄' },
-          { label: 'No facturable', value: fmt(total - billable), color: 'var(--text-2)', icon: '🔒' },
-          { label: 'Nº gastos', value: expenses.length, color: 'var(--accent)', icon: '🧾' },
-        ].map(({ label, value, color, icon }) => (
-          <div key={label} style={{ ...card, padding: '14px 18px' }}>
-            <div style={{ fontSize: "var(--text-xl)", marginBottom: 6 }}>{icon}</div>
-            <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color }}>{value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+      <div className="exp-kpis-equipo">
+        {kpis.map(({ label, value, mod, icon }) => (
+          <div key={label} className="ds-card exp-kpi-equipo">
+            <div className="exp-kpi-equipo__icono" aria-hidden>{icon}</div>
+            <div className={`exp-kpi-equipo__valor${mod ? ` exp-kpi-equipo__valor--${mod}` : ''}`}>{value}</div>
+            <div className="exp-kpi-equipo__etiqueta">{label}</div>
           </div>
         ))}
       </div>
 
-      {/* Chart by category */}
       {catChartData.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 20, marginBottom: 24 }}>
-          <div style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>{traducir('expenses.por_categoria')}</div>
+        <div className="exp-graficos">
+          <div className="ds-card exp-grafico">
+            <div className="exp-grafico__titulo">{t('expenses.por_categoria')}</div>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie data={catChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} paddingAngle={2}>
                   {catChartData.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
-                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} />
+                <Tooltip formatter={v => fmt(v)} contentStyle={TOOLTIP} />
               </PieChart>
             </ResponsiveContainer>
             {catChartData.map(d => (
-              <div key={d.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-sm)", padding: '2px 0' }}>
-                <span style={{ color: d.color }}>● {d.name}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{fmt(d.value)}</span>
+              <div key={d.name} className="exp-leyenda">
+                <span className="exp-leyenda__nombre" style={{ '--exp-color': d.color } as CSSProperties}>● {d.name}</span>
+                <span className="exp-leyenda__valor">{fmt(d.value)}</span>
               </div>
             ))}
           </div>
-          <div style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>{traducir('expenses.distribucion')}</div>
+          <div className="ds-card exp-grafico">
+            <div className="exp-grafico__titulo">{t('expenses.distribucion')}</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={catChartData} margin={{ top: 0, right: 0, left: -10, bottom: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                <XAxis dataKey="name" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} angle={-30} textAnchor="end" />
-                <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
-                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} />
+                <XAxis dataKey="name" tick={EJE} angle={-30} textAnchor="end" />
+                <YAxis tick={EJE} />
+                <Tooltip formatter={v => fmt(v)} contentStyle={TOOLTIP} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {catChartData.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Bar>
@@ -674,33 +686,26 @@ function TeamExpenses() {
         </div>
       )}
 
-      {/* Table */}
-      {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="💸" title={traducir('expenses.sin_gastos_del_equipo')} description="No hay gastos para los filtros seleccionados." />
+      {q.isLoading ? <Spinner /> : q.isError ? (
+        <div role="alert" className="u-danger">{extractErr(q.error, t('expenses.error_cargar'))}</div>
+      ) : expenses.length === 0 ? (
+        <EmptyState icon="💸" title={t('expenses.sin_gastos_del_equipo')} description={t('expenses.sin_gastos_filtros')} />
       ) : (
-        <div style={{ ...card, overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', minWidth: 820, gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-            <SortableTH col="code" sort={teamSort} onSort={setTeamSort}>#</SortableTH>
-            <SortableTH col="category" sort={teamSort} onSort={setTeamSort}>Tipo</SortableTH>
-            <SortableTH col="description" sort={teamSort} onSort={setTeamSort}>{traducir('expenses.descripcion_2')}</SortableTH>
-            <SortableTH col="amount" sort={teamSort} onSort={setTeamSort}>Importe</SortableTH>
-            <SortableTH col="status" sort={teamSort} onSort={setTeamSort}>Estado</SortableTH>
-            <SortableTH col="expense_date" sort={teamSort} onSort={setTeamSort}>{traducir('expenses.revision')}</SortableTH>
-            <span></span>
+        <>
+          <div className="ds-card exp-tabla" role="table" aria-label={t('expenses.tab_equipo')}>
+            <Cabecera sort={lista.sort as Orden} onSort={lista.ordenar} ultima={t('expenses.revision')} />
+            {expenses.map(e => (
+              <ExpenseRow key={e.id} expense={e} isManager onAction={(exp) => (
+                <div>
+                  {exp.status === 'approved' && (
+                    <button type="button" className="exp-mini exp-mini--acento" onClick={() => reimburse(exp.id)}>💰 {t('expenses.reembolsar')}</button>
+                  )}
+                </div>
+              )} />
+            ))}
           </div>
-          {sortedTeam.map(e => (
-            <ExpenseRow key={e.id} expense={e} isManager onAction={(exp) => (
-              <div>
-                {exp.status === 'approved' && (
-                  <button onClick={() => reimburse(exp.id)}
-                    style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-strong)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
-                    💰 Reembolsar
-                  </button>
-                )}
-              </div>
-            )} />
-          ))}
-        </div>
+          <Paginas page={lista.page} total={q.data?.total ?? 0} onChange={lista.setPage} />
+        </>
       )}
     </div>
   )
@@ -715,10 +720,10 @@ export default function ExpensesPage(): JSX.Element {
   const [tab, setTab] = useState('my')
 
   const TABS = [
-    { id: 'my', label: 'Mis gastos' },
+    { id: 'my', label: t('expenses.tab_mis') },
     ...(isManager ? [
-      { id: 'pending', label: '⏳ Pendientes aprobación' },
-      { id: 'team', label: 'Equipo' },
+      { id: 'pending', label: `⏳ ${t('expenses.tab_pendientes')}` },
+      { id: 'team', label: t('expenses.tab_equipo') },
     ] : []),
   ]
 
@@ -731,7 +736,7 @@ export default function ExpensesPage(): JSX.Element {
         showListExport={false}
         actions={<>
           {hasRole('admin') && <Link to="/settings/policies" className="u-text2-sm">{t('gas.politicas_de_gasto')}</Link>}
-          <button
+          <button type="button" className="exp-boton-exportar"
             onClick={async () => {
               // Por el cliente (refresco de sesión y errores); antes abría la URL en otra pestaña.
               try {
@@ -739,22 +744,17 @@ export default function ExpensesPage(): JSX.Element {
                 const nombre = /filename="?([^";]+)"?/.exec(String(r.headers?.['content-disposition'] ?? ''))?.[1] || 'gastos.xlsx'
                 downloadBlob(r.data, nombre)
               } catch (e) {
-                toast.error(extractErr(e, 'No se pudo exportar'))
+                toast.error(extractErr(e, t('expenses.error_exportar')))
               }
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6,
-              background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-              borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)',
-              cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
-            📊 Exportar Excel
+            }}>
+            📊 {t('expenses.exportar_excel')}
           </button>
         </>}
       />
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
-            {t.label}
+      <div className="exp-tabs" role="tablist" aria-label={t('expenses.title')}>
+        {TABS.map(x => (
+          <button key={x.id} type="button" role="tab" aria-selected={tab === x.id} className="exp-tab" onClick={() => setTab(x.id)}>
+            {x.label}
           </button>
         ))}
       </div>

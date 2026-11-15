@@ -14,3 +14,7 @@
   flex: 1;
   min-width: 0;
 }
+:where(.uitool) { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+:where(.uitool--dense) { gap: 8px; margin-bottom: 12px; }
+.uitool--dense > .uitool-row-2 { gap: 6px; }
+.uitool:not(.uitool--dense) > .uitool-row-2 { gap: 8px; }

@@ -89,7 +89,7 @@ function CalendarTab() {
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('m365.dias')}</label>
             <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={days} onChange={e => setDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
-          <button onClick={pullCalendar} disabled={!upn || syncLoading} className="m365-btn" style={{ cursor: upn ? 'pointer' : 'not-allowed' }}>
+          <button onClick={pullCalendar} disabled={!upn || syncLoading} className={`m365-btn ${upn ? 'm365page-sx1' : 'm365page-sx2'}`}>
             {syncLoading ? t('pagina_m365.sincronizando') : t('pagina_m365.pull_eventos')}
           </button>
         </div>
@@ -123,14 +123,14 @@ function CalendarTab() {
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('m365.dias')}</label>
             <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={msDays} onChange={e => setMsDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
-          <button onClick={pushMilestones} disabled={!msUpn || msLoading} className="m365-btn-2" style={{ cursor: msUpn ? 'pointer' : 'not-allowed' }}>
+          <button onClick={pushMilestones} disabled={!msUpn || msLoading} className={`m365-btn-2 ${msUpn ? 'm365page-sx1' : 'm365page-sx2'}`}>
             {msLoading ? t('pagina_m365.creando_eventos') : t('pagina_m365.push_milestones')}
           </button>
         </div>
         {msResult && !msResult.error && (
           <div className="m365-box-9">
             <span className="u-success">✓ {msResult.created}{' '}{t('pagina_m365.milestones_sincronizados')}</span>
-            {(msResult.errors?.length ?? 0) > 0 && <span className="m365-label">⚠ {msResult.errors?.length} errores</span>}
+            {(msResult.errors?.length ?? 0) > 0 && <span className="m365-label">⚠ {t('pagina_m365.n_errores', { n: msResult.errors?.length ?? 0 })}</span>}
           </div>
         )}
         {msResult?.error && <div className="m365-box-8">⚠ {typeof msResult.error === 'string' ? msResult.error : JSON.stringify(msResult.error)}</div>}
@@ -185,7 +185,7 @@ function TeamsTab() {
               <input aria-label={t('m365.color_hex_sin')} value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
               {TEAMS_BRAND_PRESETS.map(c => (
                 <button aria-label={t('pagina_m365.color_de_marca_teams', { c })} key={c} onClick={() => setColor(c)} title={t('pagina_m365.color_de_marca_teams', { c })}
-                  className="m365-btn-3" style={{ background: `#${c}`, border: color === c ? '2px solid var(--text-1)' : '2px solid transparent', borderRadius: 4 }} />
+                  className={`m365-btn-3 m365page-sx3 ${color === c ? 'm365page-sx4' : 'm365page-sx5'}`} style={{ background: `#${c}` }} />
               ))}
             </div>
           </div>
@@ -299,7 +299,7 @@ export default function M365Page() {
   const teamsOk = status?.teams_webhook_configured
 
   return (
-    <PageShell style={{ maxWidth: 900, margin: '0 auto' }}>
+    <PageShell className="m365-box-21">
       <PageHeader
         icon={<LayoutGrid size={18} />}
         title={t('pagina_m365.microsoft_365')}
@@ -320,7 +320,7 @@ export default function M365Page() {
       {/* Tabs */}
       <div className="m365-row-5">
         {[['calendar', t('pagina_m365.calendario')], ['teams', t('pagina_m365.teams')], ['config', t('pagina_m365.configuracion')]].map(([tabId, label]) => (
-          <button key={tabId} onClick={() => setTab(tabId as 'calendar' | 'teams' | 'config')} className="m365-btn-5" style={{ background: activeTab === tabId ? 'var(--accent-glow)' : 'none', border: `1px solid ${activeTab === tabId ? 'var(--info)' : 'var(--surface-5)'}`, borderRadius: 8, color: activeTab === tabId ? 'var(--info)' : 'var(--text-2)' }}>
+          <button key={tabId} onClick={() => setTab(tabId as 'calendar' | 'teams' | 'config')} className={`m365-btn-5 m365page-sx6 ${activeTab === tabId ? 'm365page-sx7' : 'm365page-sx8'}`} style={{ border: `1px solid ${activeTab === tabId ? 'var(--info)' : 'var(--surface-5)'}` }}>
             {label}
           </button>
         ))}

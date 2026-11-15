@@ -75,7 +75,7 @@ export default function MFAPage() {
   if (isLoading) return <PageShell><Spinner /></PageShell>
 
   return (
-    <PageShell style={{ maxWidth: 640, margin: '0 auto' }}>
+    <PageShell className="mfa-box-11">
       <PageHeader icon={<Lock size={18} />} title={t('mfa.title')} subtitle={t('mfa.subtitle')} showListExport={false} />
 
       {/* Status card */}
@@ -143,7 +143,7 @@ export default function MFAPage() {
 
       {/* Done step — backup codes */}
       {step === 'done' && backupCodes.length > 0 && (
-        <div style={{ ...card, padding:'24px 28px', background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)' }}>
+        <div style={{ ...card, padding:'24px 28px', background:'var(--success-bg)', border:'.5px solid var(--success-border)' }}>
           <div className="mfa-box-6">{t('mfa.activated')}</div>
           <div className="mfa-box-7">
             {t('mfa.backup_codes_info')}
@@ -167,7 +167,7 @@ export default function MFAPage() {
             ['⏱', t('mfa.how_3_title'), t('mfa.how_3_desc')],
             ['🆘', t('mfa.how_4_title'), t('mfa.how_4_desc')],
           ].map(([icon, title, desc], i) => (
-            <div key={i} className="mfa-row-4" style={{ borderBottom: i < 3 ? '.5px solid var(--surface-4)' : 'none' }}>
+            <div key={i} className={`mfa-row-4 ${i < 3 ? 'mfapage-sx1' : 'mfapage-sx2'}`}>
               <span className="mfa-label-2">{icon}</span>
               <div>
                 <div className="mfa-box-9">{title}</div>
@@ -186,7 +186,7 @@ export default function MFAPage() {
             <div className="mfa-row-3">
               <Button variant="secondary" onClick={() => setShowDisable(false)}>{t('mfa.cancel')}</Button>
               <button onClick={() => disable(disableCode)} disabled={disableCode.length !== 6 || disabling}
-                className="mfa-btn" style={{ opacity: disableCode.length !== 6 ? 0.6 : 1 }}>
+                className={`mfa-btn ${disableCode.length !== 6 ? 'mfapage-sx3' : 'mfapage-sx4'}`}>
                 {disabling ? t('mfa.disabling') : t('mfa.confirm_disable')}
               </button>
             </div>

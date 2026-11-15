@@ -178,3 +178,11 @@
   letter-spacing: 0.06em;
   margin-bottom: 10px;
 }
+
+/* ── Estilos estaticos extraidos de BiGovernancePanel.tsx (#17) ── */
+.bigovern-sx1 {
+  padding: 20px 22px;
+}
+.bigovern-sx2 {
+  color: var(--warning);
+}

@@ -34,7 +34,7 @@
   border: 1px solid var(--surface-4);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+  box-shadow: var(--shadow-lg);
   font-family: var(--font-sans);
 }
 
@@ -473,4 +473,28 @@
 
 .rsch-box-16 {
   background: var(--rsch-box-16-background);
+}
+
+/* Añadidos a mano: panel de personas (antes estilo en línea). */
+.rsch-personas {
+  width: 160px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.rsch-personas--estrecho {
+  width: auto;
+  max-height: 180px;
+}
+
+/* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
+.rsch-input:focus-visible,
+.rsch-input-2:focus-visible,
+.rsch-input-3:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }

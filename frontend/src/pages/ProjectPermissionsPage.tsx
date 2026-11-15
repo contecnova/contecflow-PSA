@@ -269,11 +269,11 @@ export default function ProjectPermissionsPage() {
                         </span>
                       </td>
                       {[perm.can_see_financials, perm.can_see_rates, perm.can_export].map((v, idx) => (
-                        <td key={idx} className="u-pad-10-12">
+                        <td key={idx} className="u-pad-10-12" aria-label={v ? t('common.yes') : t('common.no')}>
                           <span className="pperm-text-lg" style={{ '--pperm-text-lg-color': v ? 'var(--success)' : 'var(--danger)' } as CSSProperties}><span aria-hidden="true">{v ? '✓' : '✕'}</span><span className="u-sr-only">{v ? t('common.yes') : t('common.no')}</span></span>
                         </td>
                       ))}
-                      <td className="u-pad-10-12">
+                      <td className="u-pad-10-12" aria-label={t('permisos_proyecto_ui.col_acciones')}>
                         <div className="u-row-8">
                           <button className="pperm-btn-xs" onClick={() => { setEditingPerm(perm); setShowForm(true) }}>
                             {t('common.edit')}

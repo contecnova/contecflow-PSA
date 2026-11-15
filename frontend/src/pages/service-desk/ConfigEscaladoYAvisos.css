@@ -215,3 +215,8 @@
   padding: 16px;
   background: var(--surface-1);
 }
+
+/* ── Estilos estaticos extraidos de ConfigEscaladoYAvisos.tsx (#17) ── */
+.configes-sx1.configes-sx1 {
+  border-radius: var(--radius-full);
+}

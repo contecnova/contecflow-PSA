@@ -11,3 +11,14 @@
   font-size: var(--text-sm);
   color: var(--text-2);
 }
+
+/* Añadidos a mano. */
+.pred-shell-movil {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.pred-enlace {
+  color: var(--accent);
+  text-decoration: underline;
+}

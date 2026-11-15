@@ -89,11 +89,11 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
   if (isUnread) {
     return (
       <button type="button" onClick={() => onMarkRead(notif.id)}
-        className="notif-btn" style={{ border:`1px solid ${alpha(cfg.color, '25')}`, borderRadius:'var(--radius-md)' }}
+        className="notif-btn notifica-sx1" style={{ border:`1px solid ${alpha(cfg.color, '25')}` }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '50') }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '25') }}>
         <div className="notif-box" style={{ background: cfg.color }} />
-        <div className="notif-row" style={{ borderRadius:'var(--radius-md)', background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}` }}>
+        <div className="notif-row notifica-sx1" style={{ background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}` }}>
           {cfg.icon}
         </div>
         <div className="u-flex1-min0">
@@ -112,18 +112,18 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
 
   return (
     <div
-      className="notif-row-3" style={{ background: isUnread ? 'var(--surface-2)' : 'transparent', border:`1px solid ${isUnread ? alpha(cfg.color, '25') : 'transparent'}`, borderRadius:'var(--radius-md)', cursor: isUnread ? 'pointer' : 'default' }}
+      className={`notif-row-3 notifica-sx1 ${isUnread ? 'notifica-sx2' : 'notifica-sx3'}`} style={{ border:`1px solid ${isUnread ? alpha(cfg.color, '25') : 'transparent'}` }}
       >
       {/* Badge indicador de no leído */}
       <div className="notif-box-6" style={{ background: isUnread ? cfg.color : 'transparent' }} />
       {/* Icono tipo */}
-      <div className="notif-row" style={{ borderRadius:'var(--radius-md)', background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}` }}>
+      <div className="notif-row notifica-sx1" style={{ background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}` }}>
         {cfg.icon}
       </div>
       {/* Contenido */}
       <div className="u-flex1-min0">
         <div className="notif-row-2">
-          <div className="notif-box-7" style={{ fontWeight: isUnread ? 700 : 400 }}>{notif.title}</div>
+          <div className={`notif-box-7 ${isUnread ? 'notifica-sx4' : 'notifica-sx5'}`}>{notif.title}</div>
           <div className="notif-box-8">
             {notif.created_at?.slice(0,16).replace('T',' ') || ''}
           </div>
@@ -314,7 +314,7 @@ export default function NotificationsPage() {
         }
       }
     }
-  }, [user, qc])
+  }, [user, qc, t])
 
   const FILTERS = [
     { id:'all',    label:t('pagina_notif.todas') },
@@ -336,8 +336,8 @@ export default function NotificationsPage() {
         subtitle={t('notifications.subtitle')}
         actions={
           <div className="u-row-center-8">
-            <div className="notif-row-5" style={{ color: wsConnected ? 'var(--success)' : 'var(--text-3)' }}>
-              <div className="notif-box-12" style={{ background: wsConnected ? 'var(--success)' : 'var(--text-3)' }} />
+            <div className={`notif-row-5 ${wsConnected ? 'notifica-sx6' : 'notifica-sx7'}`}>
+              <div className={`notif-box-12 ${wsConnected ? 'notifica-sx8' : 'notifica-sx9'}`} />
               {wsConnected ? t('pagina_notif.tiempo_real_activo') : t('pagina_notif.desconectado')}
             </div>
             {unreadCount > 0 && (
@@ -370,7 +370,7 @@ export default function NotificationsPage() {
       <div className="notif-row-6">
         {FILTERS.map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
-            className="notif-btn-2" style={{ borderRadius:8, border:`1px solid ${filter===f.id?'var(--accent-border-strong)':'var(--surface-4)'}`, background:filter===f.id?'var(--accent-muted)':'transparent', color:filter===f.id?'var(--accent)':'var(--text-2)' }}>
+            className={`notif-btn-2 notifica-sx10 ${filter===f.id ? 'notifica-sx11' : 'notifica-sx12'}`} style={{ border:`1px solid ${filter===f.id?'var(--accent-border-strong)':'var(--surface-4)'}` }}>
             {f.label}
           </button>
         ))}

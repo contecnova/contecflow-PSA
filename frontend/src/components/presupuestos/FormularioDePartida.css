@@ -66,3 +66,8 @@
 .fodepa-campo--w260 { width: min(260px, 100%); }
 .fodepa-campo--flex1 { flex: 1 1 220px; }
 .fodepa-campo--flex2 { flex: 2 1 220px; }
+
+/* ── Estilos estaticos extraidos de FormularioDePartida.tsx (#17) ── */
+.formular-sx1.formular-sx1 {
+  border-radius: 99px;
+}

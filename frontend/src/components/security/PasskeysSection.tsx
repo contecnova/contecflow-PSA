@@ -70,7 +70,7 @@ export default function PasskeysSection() {
               <>
                 <input aria-label={t('passkeys.name')} value={editando.name} onChange={e => setEditando({ id: p.id, name: e.target.value })}
                   className="ds-input u-flex1" />
-                <button type="button" className="ds-btn" onClick={() => renombrar(editando)}>{t('common.save')}</button>
+                <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm" onClick={() => renombrar(editando)}>{t('common.save')}</button>
               </>
             ) : (
               <>

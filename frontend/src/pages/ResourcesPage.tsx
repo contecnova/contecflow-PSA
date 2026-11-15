@@ -208,7 +208,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
       </div>
       <div className="res-metrics">
         {[
-          { label: t('resources_page.carga'),      value: `${load.toFixed(0)}%`,                           tone },
+          { label: t('resources_page.carga'),      value: `${load.toFixed(0)}%`,                           tone: tono },
           { label: t('resources_page.horas_sem'),  value: `${resource.hours_this_week?.toFixed(1) ?? 0}h`, tone: 'text' },
           { label: t('resources_page.proyectos'),  value: resource.active_projects ?? 0,                  tone: 'text' },
         ].map(m => (

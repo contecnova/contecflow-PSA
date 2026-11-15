@@ -135,9 +135,9 @@ function ConversationListItem({ conversation, selected, onSelect, mode }: Conver
   const unread = mode === 'team' ? conversation.unread_for_team : conversation.unread_for_client
   const lastPreview = conversation.last_message?.body || conversation.title
   return (
-    <button className="goveconv-box-13"
+    <button className="goveconv-box-13 governed-sx1"
       onClick={() => onSelect(conversation.id)}
-      style={{ border: `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}`, background: selected ? 'var(--accent-muted)' : 'var(--surface-1)', borderRadius: 12 }}
+      style={{ border: `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}`, background: selected ? 'var(--accent-muted)' : 'var(--surface-1)' }}
     >
       <div className="goveconv-row-1">
         <div className="goveconv-txt-1">{conversation.title || 'Conversación sin título'}</div>
@@ -146,7 +146,7 @@ function ConversationListItem({ conversation, selected, onSelect, mode }: Conver
       <div className="goveconv-row-2">
         <StatusBadge color={conversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[conversation.source] || conversation.source}</StatusBadge>
         {conversation.pending_review_count > 0 && <StatusBadge color="var(--warning)">{conversation.pending_review_count} {t('governedconversations.revision')}</StatusBadge>}
-        {conversation.is_sla_breached && <StatusBadge color="var(--danger)">SLA vencido</StatusBadge>}
+        {conversation.is_sla_breached && <StatusBadge color="var(--danger)">{t('governedconversations.sla_vencido')}</StatusBadge>}
         {unread > 0 && <StatusBadge color="var(--danger)">{unread} {t('governedconversations.sin_leer')}</StatusBadge>}
       </div>
       <div className="goveconv-txt-3">{lastPreview ? String(lastPreview).slice(0, 120) : 'Sin mensajes aún'}</div>
@@ -168,7 +168,7 @@ function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
   const borderColor = message.grc_status === 'pending_review' ? 'var(--warning-border)' : 'var(--surface-4)'
   return (
     <div className="goveconv-stack-1" style={{ alignItems: alignSelf }}>
-      <div className="goveconv-box-14" style={{ background: bubbleBg, border: `1px solid ${borderColor}`, borderRadius: 'var(--radius-lg)' }}>
+      <div className="goveconv-box-14 governed-sx2" style={{ background: bubbleBg, border: `1px solid ${borderColor}` }}>
         <div className="goveconv-row-1">
           <div className="u-sm-700">{message.sender_name}</div>
           <div className="u-text3-2xs">{(message.created_at || '').slice(0, 16)}</div>
@@ -176,8 +176,8 @@ function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
         <div className="goveconv-row-2">
           <StatusBadge color={message.sender_type === 'client' ? 'var(--warning)' : 'var(--accent)'}>{message.sender_type}</StatusBadge>
           <StatusBadge color={grc.color}>{grc.text}</StatusBadge>
-          {message.is_internal_note && <StatusBadge color="var(--danger)">Interna</StatusBadge>}
-          {message.is_redacted && <StatusBadge color="var(--accent)">Redactada</StatusBadge>}
+          {message.is_internal_note && <StatusBadge color="var(--danger)">{t('governedconversations.interna')}</StatusBadge>}
+          {message.is_redacted && <StatusBadge color="var(--accent)">{t('governedconversations.redactada')}</StatusBadge>}
           {message.source === 'legacy_client_message' && <StatusBadge color="var(--warning)">Legacy</StatusBadge>}
         </div>
         <div className="goveconv-txt-4">{message.body}</div>
@@ -185,10 +185,10 @@ function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
         {mode === 'team' && message.grc_status === 'pending_review' && (
           <div className="goveconv-row-3">
             <button onClick={() => onReview(message, 'approved')} className="goveconv-box-2">
-              Aprobar
+              {t('aus.aprobar')}
             </button>
             <button onClick={() => onReview(message, 'rejected')} className="goveconv-box-3">
-              Rechazar
+              {t('aus.rechazar')}
             </button>
           </div>
         )}
@@ -214,7 +214,7 @@ function ConversationComposer({ mode, value, onChange, onSend, sending, canInter
   const { t } = useAppLang()
   return (
     <div className="goveconv-cardstyle">
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="goveconv-labelstyle">Responder</label>
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="goveconv-labelstyle">{t('mentions.reply')}</label>
       <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -289,7 +289,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
   if (!open) return null
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-modal)', padding: 20 }}>
+    <div className="governed-sx3">
       <div ref={dialogRef} role="dialog" aria-modal="true" className="goveconv-cardstyle2">
         <div className="goveconv-box-4">{mode === 'team' ? 'Nueva conversación gobernada' : 'Nueva conversación con el equipo'}</div>
         <div className="u-grid2-14">
@@ -298,13 +298,13 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
             <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className="goveconv-inputstyle" />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="goveconv-labelstyle">Tipo</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="goveconv-labelstyle">{t('alm.type')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.topic_type} onChange={(event) => setForm((prev) => ({ ...prev, topic_type: event.target.value }))} className="goveconv-inputstyle">
               {TOPIC_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="goveconv-labelstyle">Proyecto</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="goveconv-labelstyle">{t('gas.proyecto')}</label>
             <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.project_id} onChange={(event) => setForm((prev) => ({ ...prev, project_id: event.target.value }))} className="goveconv-inputstyle">
               <option value="">{t('governedconversations.sin_proyecto')}</option>
               {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
@@ -313,13 +313,13 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
           {mode === 'team' && (
             <>
               <div>
-                <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="goveconv-labelstyle">Equipo invitado</label>
+                <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="goveconv-labelstyle">{t('governedconversations.equipo_invitado')}</label>
                 <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} multiple value={form.internal_user_ids} onChange={(event) => setForm((prev) => ({ ...prev, internal_user_ids: Array.from(event.target.selectedOptions).map((option) => option.value) }))} className="goveconv-inputstyle3">
                   {teamUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="goveconv-labelstyle">Usuarios portal invitados</label>
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="goveconv-labelstyle">{t('governedconversations.usuarios_portal_invitados')}</label>
                 <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} multiple value={form.client_user_ids} onChange={(event) => setForm((prev) => ({ ...prev, client_user_ids: Array.from(event.target.selectedOptions).map((option) => option.value) }))} className="goveconv-inputstyle3">
                   {clientUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
                 </select>
@@ -327,12 +327,12 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
             </>
           )}
           <div className="u-col-full">
-            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="goveconv-labelstyle">Primer mensaje</label>
+            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="goveconv-labelstyle">{t('governedconversations.primer_mensaje')}</label>
             <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} rows={5} className="goveconv-inputstyle4" />
           </div>
         </div>
         <div className="goveconv-row-5">
-          <button onClick={onClose} className="goveconv-box-5">Cancelar</button>
+          <button onClick={onClose} className="goveconv-box-5">{t('common.cancel')}</button>
           <button className="goveconv-box-17" onClick={() => onSubmit(form)} disabled={saving || !form.title.trim() || !form.body.trim()} style={{ cursor: saving || !form.title.trim() || !form.body.trim() ? 'not-allowed' : 'pointer', opacity: saving || !form.title.trim() || !form.body.trim() ? 0.6 : 1 }}>
             {saving ? 'Creando…' : 'Crear conversación'}
           </button>
@@ -463,7 +463,7 @@ export function GovernedConversationInbox({
       qc.invalidateQueries({ queryKey: [queryPrefix] })
       setSelectedConversationId(created.id)
       setShowCreate(false)
-      toast.success('Conversación creada')
+      toast.success(t('governedconversations.conversacion_creada'))
     },
     onError: (error) => toast.error(extractErr(error, 'No se pudo crear la conversación')),
   })
@@ -491,7 +491,7 @@ export function GovernedConversationInbox({
     mutationFn: ({ messageId, decision }: { messageId: string; decision: 'approved' | 'rejected' }) => portalConversationsApi.reviewMessage(selectedConversationId, messageId, { decision }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [queryPrefix] })
-      toast.success('Revisión aplicada')
+      toast.success(t('governedconversations.revision_aplicada'))
     },
     onError: (error) => toast.error(extractErr(error, 'No se pudo revisar el mensaje')),
   })
@@ -570,7 +570,7 @@ export function GovernedConversationInbox({
       </div>
 
       {loadingConversations ? (
-        <div className="goveconv-box-8">Cargando conversaciones…</div>
+        <div className="goveconv-box-8">{t('governedconversations.cargando_conversaciones')}</div>
       ) : conversations.length === 0 ? (
         <div className="goveconv-cardstyle3">
           <div className="goveconv-box-9">💬</div>
@@ -592,7 +592,7 @@ export function GovernedConversationInbox({
                   <div>
                     <div className="goveconv-txt-5">{selectedConversation.title}</div>
                     <div className="goveconv-box-11">
-                      Tipo: {selectedConversation.topic_type || 'general'}
+                      {t('risks_page.tipo')} {selectedConversation.topic_type || 'general'}
                       {selectedConversation.assigned_group_name ? ` · Cola: ${selectedConversation.assigned_group_name}` : ''}
                       {selectedConversation.assigned_role_key ? ` · Rol: ${selectedConversation.assigned_role_key}` : ''}
                     </div>
@@ -601,12 +601,12 @@ export function GovernedConversationInbox({
                     <StatusBadge color={selectedConversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[selectedConversation.source] || selectedConversation.source}</StatusBadge>
                     {selectedConversation.policy?.requires_client_message_approval && <StatusBadge color="var(--warning)">{t('governedconversations.aprobacion_cliente')}</StatusBadge>}
                     {selectedConversation.policy?.requires_team_message_approval && <StatusBadge color="var(--warning)">{t('governedconversations.aprobacion_equipo')}</StatusBadge>}
-                    {selectedConversation.is_sla_breached && <StatusBadge color="var(--danger)">SLA vencido</StatusBadge>}
+                    {selectedConversation.is_sla_breached && <StatusBadge color="var(--danger)">{t('governedconversations.sla_vencido')}</StatusBadge>}
                   </div>
                 </div>
                 {Array.isArray(selectedConversation.participants) && selectedConversation.participants.length > 0 && (
                   <div className="u-text2-sm">
-                    Participantes: {selectedConversation.participants.map((participant) => participant.display_name).join(', ')}
+                    {t('governedconversations.participantes')} {selectedConversation.participants.map((participant) => participant.display_name).join(', ')}
                   </div>
                 )}
               </div>
@@ -614,7 +614,7 @@ export function GovernedConversationInbox({
 
             <div className="goveconv-cardstyle5">
               {loadingMessages ? (
-                <div className="u-text2-base">Cargando mensajes…</div>
+                <div className="u-text2-base">{t('governedconversations.cargando_mensajes')}</div>
               ) : (
                 <div className="u-stack-12">
                   {messages.map((message) => (
@@ -701,7 +701,7 @@ export function ConversationPoliciesPanel() {
     mutationFn: ({ topicType, payload }: { topicType: string; payload: PolicyPayload }) => portalConversationsApi.updatePolicy(topicType, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-conversation-policies'] })
-      toast.success('Política guardada')
+      toast.success(t('grc.retencion_guardada'))
     },
     onError: (error) => toast.error(extractErr(error, 'No se pudo guardar la política')),
   })
@@ -726,9 +726,9 @@ export function ConversationPoliciesPanel() {
               <div>
                 <label className="goveconv-labelstyle">{t('governedconversations.modo_de_asignacion')}</label>
                 <select value={draft.assignment_mode || 'manual'} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], assignment_mode: event.target.value } }))} className="goveconv-inputstyle">
-                  <option value="manual">Manual</option>
+                  <option value="manual">{t('governedconversations.manual')}</option>
                   <option value="owner_based">{t('governedconversations.owner_del_proyecto')}</option>
-                  <option value="role_pool">Pool / rol</option>
+                  <option value="role_pool">{t('governedconversations.pool_rol')}</option>
                 </select>
               </div>
               <div>
@@ -743,19 +743,19 @@ export function ConversationPoliciesPanel() {
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-fr`} htmlFor={`${idCampo}-${policy.id}-fr`} className="goveconv-labelstyle">Primera respuesta SLA (h)</label>
+                <label id={`${idCampo}-${policy.id}-et-fr`} htmlFor={`${idCampo}-${policy.id}-fr`} className="goveconv-labelstyle">{t('governedconversations.primera_respuesta_sla_h')}</label>
                 <input id={`${idCampo}-${policy.id}-fr`} aria-labelledby={`${idCampo}-${policy.id}-et-fr`} type="number" min={0} value={draft.first_response_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], first_response_hours: Number(event.target.value) } }))} className="goveconv-inputstyle" />
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-esc`} htmlFor={`${idCampo}-${policy.id}-esc`} className="goveconv-labelstyle">Escalado SLA (h)</label>
+                <label id={`${idCampo}-${policy.id}-et-esc`} htmlFor={`${idCampo}-${policy.id}-esc`} className="goveconv-labelstyle">{t('governedconversations.escalado_sla_h')}</label>
                 <input id={`${idCampo}-${policy.id}-esc`} aria-labelledby={`${idCampo}-${policy.id}-et-esc`} type="number" min={0} value={draft.escalation_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], escalation_hours: Number(event.target.value) } }))} className="goveconv-inputstyle" />
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-apr`} htmlFor={`${idCampo}-${policy.id}-apr`} className="goveconv-labelstyle">Rol aprobador</label>
+                <label id={`${idCampo}-${policy.id}-et-apr`} htmlFor={`${idCampo}-${policy.id}-apr`} className="goveconv-labelstyle">{t('governedconversations.rol_aprobador')}</label>
                 <input id={`${idCampo}-${policy.id}-apr`} aria-labelledby={`${idCampo}-${policy.id}-et-apr`} value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} className="goveconv-inputstyle" placeholder="admin" />
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-kw`} htmlFor={`${idCampo}-${policy.id}-kw`} className="goveconv-labelstyle">Keywords sensibles</label>
+                <label id={`${idCampo}-${policy.id}-et-kw`} htmlFor={`${idCampo}-${policy.id}-kw`} className="goveconv-labelstyle">{t('governedconversations.keywords_sensibles')}</label>
                 <input id={`${idCampo}-${policy.id}-kw`} aria-labelledby={`${idCampo}-${policy.id}-et-kw`} value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} className="goveconv-inputstyle" placeholder="password, token, iban" />
               </div>
             </div>

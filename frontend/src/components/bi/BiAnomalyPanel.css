@@ -110,3 +110,25 @@
   font-weight: 600;
   font-family: inherit;
 }
+
+/* ── Estilos estaticos extraidos de BiAnomalyPanel.tsx (#17) ── */
+.bianomal-sx1 {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--orange-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--orange);
+}
+.bianomal-sx2 {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--danger-bg-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+}

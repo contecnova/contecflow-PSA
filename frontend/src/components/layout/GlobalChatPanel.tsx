@@ -286,7 +286,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   const saveRule = useMutation({
     mutationFn: (payload: RulePayload) => collabApi.upsertRule(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-notification-rules'] }),
-    onError: () => toast.error('No se pudieron guardar preferencias de notificación'),
+    onError: () => toast.error(t('globalchat.no_se_pudieron_guardar_preferencias_de_notificacion')),
   })
 
   const updateNotifyMode = (value: string) => {
@@ -446,11 +446,11 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   if (minimized) {
     return (
-      <button className="glchpa-row-14"
+      <button className="glchpa-row-14 globalch-sx1"
         onClick={() => setMinimized(false)}
-        aria-label="Abrir chat"
-        title="Abrir chat"
-        style={{ boxShadow: '0 10px 28px rgba(0,0,0,0.28)', transform: visible ? 'translateY(0)' : 'translateY(10px)', opacity: visible ? 1 : 0 }}
+        aria-label={t('globalchat.abrir_chat')}
+        title={t('globalchat.abrir_chat')}
+        style={{ transform: visible ? 'translateY(0)' : 'translateY(10px)', opacity: visible ? 1 : 0 }}
       >
         <MessageSquare size={16} />
         <span className="u-sm-700">Chat</span>
@@ -495,7 +495,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         <div className="glchpa-row-1">
           <div className="glchpa-row-2">
             <MessageSquare size={16} />
-            <div className="glchpa-box-1">Chat interno</div>
+            <div className="glchpa-box-1">{t('globalchat.chat_interno')}</div>
           </div>
           <div className="glchpa-row-3">
               <button
@@ -505,13 +505,13 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               >
                 {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
               </button>
-            <button aria-label="Abrir chat completo" onClick={onOpenFull} title="Abrir chat completo" className="glchpa-row-4">
+            <button aria-label={t('globalchat.abrir_chat_completo')} onClick={onOpenFull} title={t('globalchat.abrir_chat_completo')} className="glchpa-row-4">
               <ExternalLink size={14} />
             </button>
-            <button aria-label="Minimizar" onClick={() => setMinimized(true)} title="Minimizar" className="glchpa-row-4">
+            <button aria-label={t('globalchat.minimizar')} onClick={() => setMinimized(true)} title={t('globalchat.minimizar')} className="glchpa-row-4">
               <Minus size={14} />
             </button>
-            <button aria-label="Cerrar" onClick={onClose} title="Cerrar" className="glchpa-row-4">
+            <button aria-label={t('common.close')} onClick={onClose} title={t('common.close')} className="glchpa-row-4">
               <X size={14} />
             </button>
           </div>
@@ -519,7 +519,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
         <div className="glchpa-row-5">
           <div className="glchpa-box-2">
-            <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+            <Search size={13} className="globalch-sx2" />
             <input aria-label={t('globalchat.buscar_conversacion')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -537,15 +537,15 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         </div>
 
         <div className="glchpa-row-7">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-xs">Notificaciones</label>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-xs">{t('nav.notifications')}</label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
             value={notifyMode}
             onChange={(e) => updateNotifyMode(e.target.value)}
             className="glchpa-fieldstyle3"
           >
             <option value="all">{t('globalchat.todas')}</option>
-            <option value="mentions">Solo menciones</option>
-            <option value="none">Silencio</option>
+            <option value="mentions">{t('globalchat.solo_menciones')}</option>
+            <option value="none">{t('globalchat.silencio')}</option>
           </select>
           <label className="glchpa-row-8">
             <input type="checkbox" aria-label={t('globalchat.no_molestar_22_00_08_00')} checked={dndEnabled} onChange={(e) => updateDnd(e.target.checked)} />
@@ -555,10 +555,10 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
         {newDirectOpen && (
           <div className="glchpa-box-3">
-            <input aria-label="Buscar persona"
+            <input aria-label={t('globalchat.buscar_persona')}
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
-              placeholder="Buscar persona"
+              placeholder={t('globalchat.buscar_persona')}
               className="glchpa-fieldstyle"
             />
             <div className="glchpa-stack-1">

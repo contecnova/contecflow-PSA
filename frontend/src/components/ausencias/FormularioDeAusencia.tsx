@@ -81,7 +81,7 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
             {tipos.isLoading && <Spinner label={ta('cargando')} />}
             {(tipos.data ?? []).map(t => (
               <label key={t.id} className="aus-tipo-opcion">
-                <input type="radio" name="tipo" value={t.id} checked={p.absence_type_id === t.id}
+                <input type="radio" name="tipo" aria-label={nombreDeTipo(t, lang)} value={t.id} checked={p.absence_type_id === t.id}
                   onChange={() => poner({ absence_type_id: t.id, hours: null })} />
                 <Muestra color={t.color} className="aus-tipo"><IconoDeAusencia icono={t.icono} size={14} />{nombreDeTipo(t, lang)}</Muestra>
               </label>
@@ -105,10 +105,10 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
             </label>
           ) : (
             <div className="aus-fila">
-              <label className="aus-casilla"><input type="checkbox" checked={Boolean(p.half_day_start)}
+              <label className="aus-casilla"><input type="checkbox" aria-label={ta('medio_dia_inicio')} checked={Boolean(p.half_day_start)}
                 onChange={e => poner({ half_day_start: e.target.checked })} />{ta('medio_dia_inicio')}</label>
               {p.end_date !== p.start_date && (
-                <label className="aus-casilla"><input type="checkbox" checked={Boolean(p.half_day_end)}
+                <label className="aus-casilla"><input type="checkbox" aria-label={ta('medio_dia_fin')} checked={Boolean(p.half_day_end)}
                   onChange={e => poner({ half_day_end: e.target.checked })} />{ta('medio_dia_fin')}</label>
               )}
             </div>

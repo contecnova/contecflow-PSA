@@ -106,7 +106,7 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
             onClick={this.handleRetry}
             className="routboun-box-3"
           >
-            Reintentar
+            {traducirSinHook('routeboundary.reintentar')}
           </button>
           <button
             onClick={this.handleReload}

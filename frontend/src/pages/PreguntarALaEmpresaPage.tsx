@@ -28,8 +28,6 @@ type Fila = Record<string, unknown>
 type Grafico = { type?: string; title?: string; data?: Fila[]; xAxis?: { key: string; label: string } | null
   series?: { key: string; label: string }[]; sql?: string; text?: string; citations?: unknown[] }
 
-const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
-const sub: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }
 
 const valorTexto = (v: unknown) => typeof v === 'number' ? v.toLocaleString(localeActivo()) : v == null ? '—' : String(v)
 
@@ -158,7 +156,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
       {(pensando || progreso.length > 0) && !respuesta && (
         <div className="pae-caja" aria-live="polite">
           <div className="u-row-center-8">{pensando && <Spinner size={16} />}<strong className="u-sm">{t('ci.calculando')}</strong></div>
-          <ol style={{ margin: '8px 0 0', paddingLeft: 18, ...sub }}>{progreso.slice(-8).map((p, i) => <li key={i}>{p}</li>)}</ol>
+          <ol className="pae-sub pae-progreso">{progreso.slice(-8).map((p, i) => <li key={i}>{p}</li>)}</ol>
           {texto && <div className="pae-text-sm">{texto}</div>}
         </div>
       )}
@@ -310,11 +308,11 @@ function DetalleMetrica({ m }: { m: Metrica }) {
         <div className="u-wrap-center-8">
           <input className="pae-campo" aria-label={t('ci.columna_fecha')} placeholder={t('ci.columna_fecha')} value={col} onChange={e => setCol(e.target.value)} />
           <span className="pae-sub">{t('ci.periodo_actual')}</span>
-          <DateInput aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} style={campo} />
-          <DateInput aria-label={t('ci.periodo_actual')} value={actual.end} onChange={e => setActual(v => ({ ...v, end: e.target.value }))} style={campo} />
+          <DateInput aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} className="pae-campo" />
+          <DateInput aria-label={t('ci.periodo_actual')} value={actual.end} onChange={e => setActual(v => ({ ...v, end: e.target.value }))} className="pae-campo" />
           <span className="pae-sub">{t('ci.periodo_anterior')}</span>
-          <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.start} onChange={e => setAnterior(v => ({ ...v, start: e.target.value }))} style={campo} />
-          <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.end} onChange={e => setAnterior(v => ({ ...v, end: e.target.value }))} style={campo} />
+          <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.start} onChange={e => setAnterior(v => ({ ...v, start: e.target.value }))} className="pae-campo" />
+          <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.end} onChange={e => setAnterior(v => ({ ...v, end: e.target.value }))} className="pae-campo" />
           <Button size="sm" variant="secondary" disabled={!col} loading={explicar.isPending} onClick={() => explicar.mutate()}>{t('ci.explicar')}</Button>
         </div>
         {explicar.isError && <div className="pae-text-danger-sm" role="alert">{mensajeDeConector(explicar.error, t('ci.error'))}</div>}

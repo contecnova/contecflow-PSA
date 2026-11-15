@@ -145,12 +145,12 @@ function MatrixTab({ roles }: { roles: Role[] }) {
         <div className="grc-row-2">
           <span className="grc-label">{t('grc.role')}:</span>
           <button onClick={() => setSelRole('all')}
-            className="grc-btn" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`, background: selRole === 'all' ? 'var(--accent-muted)' : 'transparent', color: selRole === 'all' ? 'var(--accent)' : 'var(--text-2)' }}>
+            className={`grc-btn grcpage-sx1 ${selRole === 'all' ? 'grcpage-sx2' : 'grcpage-sx3'}`} style={{ border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}` }}>
             {t('grc.all')}
           </button>
           {rolesDeLaMatriz.map(r => (
             <button key={r.id} onClick={() => setSelRole(r.id)}
-              className="grc-btn" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? alpha(r.color, '15') : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)' }}>
+              className="grc-btn grcpage-sx1" style={{ border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? alpha(r.color, '15') : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)' }}>
               {r.label}
             </button>
           ))}
@@ -190,8 +190,8 @@ function MatrixTab({ roles }: { roles: Role[] }) {
           </thead>
           <tbody>
             {modulos.map((mod, mIdx) => (
-              <tr key={mod.id} className="u-border-b" style={{ background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)' }}>
-                <td className="grc-td" style={{ background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)' }}>
+              <tr key={mod.id} className={`u-border-b ${mIdx % 2 === 0 ? 'grcpage-sx4' : 'grcpage-sx5'}`}>
+                <td className={`grc-td ${mIdx % 2 === 0 ? 'grcpage-sx4' : 'grcpage-sx5'}`}>
                   {mod.icon} {mod.label}
                 </td>
                 {displayRoles.map(role =>
@@ -209,7 +209,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
                         onClick={() => togglePerm(role.id, mod.id, action, allowed)}
                         title={`${role.label} · ${mod.label} · ${t(`grc.action_${action}`)}: ${allowed ? t('grc.allowed') : t('grc.denied')} — ${t('grc.click_to_change')}`}
                       >
-                        <span className="grc-label-2" style={{ opacity: isSaving ? 0.4 : 1 }}>
+                        <span className={`grc-label-2 ${isSaving ? 'grcpage-sx6' : 'grcpage-sx7'}`}>
                           {isSaving ? '⟳' : allowed ? '✅' : '❌'}
                         </span>
                       </td>
@@ -343,7 +343,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div className="grc-row-6">
             {roles.map(r => (
               <button key={r.id} onClick={() => toggleRole(r.id)}
-                className="grc-btn-4" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? alpha(r.color, '20') : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)' }}>
+                className="grc-btn-4 grcpage-sx1" style={{ border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? alpha(r.color, '20') : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)' }}>
                 {r.label}
               </button>
             ))}
@@ -437,7 +437,7 @@ function SodTab({ roles }: { roles: Role[] }) {
       ) : (
         <div className="u-stack-10">
           {rules.map((rule: SodRule) => {
-            const rc = RISK_COLOR[rule.risk || ''] || '#7a8aaa'
+            const rc = RISK_COLOR[rule.risk || ''] || 'var(--text-3)'
             const modA = moduleInfo(t)(rule.module_a)
             const modB = moduleInfo(t)(rule.module_b)
             return (
@@ -465,7 +465,7 @@ function SodTab({ roles }: { roles: Role[] }) {
                       className="grc-btn-6">🗑</button>
                   </div>
                 </div>
-                <div className="u-text2-sm" style={{ marginBottom: (rule.roles_conflict?.length ?? 0) > 0 ? 8 : 0 }}>{rule.description}</div>
+                <div className={`u-text2-sm ${(rule.roles_conflict?.length ?? 0) > 0 ? 'grcpage-sx8' : 'grcpage-sx9'}`}>{rule.description}</div>
                 {(rule.roles_conflict?.length ?? 0) > 0 && (
                   <div className="grc-row-10">
                     <span className="u-text3-xs">{traducir('grc.roles_con_conflicto')}</span>
@@ -519,7 +519,7 @@ function ViolationsTab() {
       <div className="grc-row-11">
         {([[false, t('pagina_grc.pendientes')], [null, t('pagina_grc.todas')], [true, t('pagina_grc.resueltas')]] as [boolean | null, string][]).map(([val, label]) => (
           <button key={String(val)} onClick={() => setFilter(val)}
-            className="grc-btn-7" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${filter === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: filter === val ? 'var(--accent-muted)' : 'transparent', color: filter === val ? 'var(--accent)' : 'var(--text-2)' }}>
+            className={`grc-btn-7 grcpage-sx1 ${filter === val ? 'grcpage-sx2' : 'grcpage-sx3'}`} style={{ border: `1px solid ${filter === val ? 'var(--accent)' : 'var(--surface-4)'}` }}>
             {label}
           </button>
         ))}
@@ -535,7 +535,7 @@ function ViolationsTab() {
               <div className="grc-row-12">
                 <div>
                   <div className="grc-row-13">
-                    <span className="u-sm-700" style={{ color: v.resolved ? 'var(--success)' : 'var(--danger)' }}>{v.resolved ? t('pagina_grc.resuelta') : t('pagina_grc.pendiente')}</span>
+                    <span className={`u-sm-700 ${v.resolved ? 'grcpage-sx10' : 'grcpage-sx11'}`}>{v.resolved ? t('pagina_grc.resuelta') : t('pagina_grc.pendiente')}</span>
                     {v.role && <span className="grc-card-8">{v.role}</span>}
                   </div>
                   <div className="grc-box-6">
@@ -592,7 +592,7 @@ function AuditLogTab() {
         <span className="u-text2-sm">{t('pagina_grc.severidad')}</span>
         {[['', t('pagina_grc.todas')], ['info', t('pagina_grc.info')], ['warning', t('pagina_grc.aviso')], ['critical', t('pagina_grc.critico')]].map(([val, label]) => (
           <button key={val} onClick={() => setSeverity(val)}
-            className="grc-btn-10" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${severity === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: severity === val ? 'var(--accent-muted)' : 'transparent', color: severity === val ? 'var(--accent)' : 'var(--text-2)' }}>
+            className={`grc-btn-10 grcpage-sx1 ${severity === val ? 'grcpage-sx2' : 'grcpage-sx3'}`} style={{ border: `1px solid ${severity === val ? 'var(--accent)' : 'var(--surface-4)'}` }}>
             {label}
           </button>
         ))}
@@ -662,7 +662,7 @@ function ApprovalsTab() {
                   </span>
                   <span className="grc-card-13">{wf.entity_type?.replace(/_/g,' ')}</span>
                 </div>
-                <span className="grc-label-12" style={{ color: wf.is_active ? 'var(--success)' : 'var(--text-4)' }}>
+                <span className={`grc-label-12 ${wf.is_active ? 'grcpage-sx10' : 'grcpage-sx12'}`}>
                   {wf.is_active ? t('pagina_grc.activo') : t('pagina_grc.inactivo')}
                 </span>
               </div>
@@ -752,7 +752,7 @@ function RetencionTab() {
                     {v ? t('grc.retencion_previa_resultado', { borraria: v.would_delete, retenidos: v.held, vencidos: v.expired })
                       : <button type="button" onClick={() => previa(p)} className="grc-btn-11">{t('grc.retencion_ver_previa')}</button>}
                   </td>
-                  <td className="grc-td-5" style={{ color: p.is_active ? 'var(--success)' : 'var(--text-3)' }}>
+                  <td className={`grc-td-5 ${p.is_active ? 'grcpage-sx10' : 'grcpage-sx13'}`}>
                     {p.is_active ? t('grc.retencion_activa') : t('grc.retencion_apagada')}
                     {p.last_run_at && <div className="u-text3-xs">{t('grc.retencion_ultima', { n: p.last_deleted ?? 0, fecha: new Date(p.last_run_at).toLocaleString() })}</div>}
                   </td>
@@ -786,11 +786,11 @@ function RetencionTab() {
           <table className="u-table-sm">
             <tbody>
               {bloqueos.map(b => (
-                <tr key={b.id} className="grc-row-19" style={{ opacity: b.is_active ? 1 : 0.6 }}>
+                <tr key={b.id} className={`grc-row-19 ${b.is_active ? 'grcpage-sx7' : 'grcpage-sx14'}`}>
                   <td className="grc-td-4">{b.case_reference}</td>
                   <td className="grc-td-5">{b.entity === '*' ? t('grc.bloqueo_todos') : t(`grc.retencion_tipo_${b.entity}`)}</td>
                   <td className="grc-td-8">{b.field} = {b.value}</td>
-                  <td className="grc-td-5" style={{ color: b.is_active ? 'var(--warning)' : 'var(--text-3)' }}>{b.is_active ? t('grc.bloqueo_activo') : t('grc.bloqueo_levantado')}</td>
+                  <td className={`grc-td-5 ${b.is_active ? 'grcpage-sx15' : 'grcpage-sx13'}`}>{b.is_active ? t('grc.bloqueo_activo') : t('grc.bloqueo_levantado')}</td>
                   <td className="grc-td-9">
                     {b.is_active && <Button size="sm" variant="secondary" onClick={async () => { try { await governanceApi.releaseLegalHold(b.id); refrescar() } catch (e) { error(e) } }}>{t('grc.bloqueo_levantar')}</Button>}
                   </td>
@@ -830,7 +830,7 @@ function InformeDeCumplimientoTab() {
         <>
           <div className="grc-row-22">
             {(['pass', 'attention', 'info', 'not_measurable'] as const).map(e => (
-              <div key={e} className="grc-box-9" style={{ border: `1px solid ${COLOR_CONTROL[e]}`, borderRadius: 8 }}>
+              <div key={e} className="grc-box-9 grcpage-sx16" style={{ border: `1px solid ${COLOR_CONTROL[e]}` }}>
                 <div className="grc-box-10" style={{ color: COLOR_CONTROL[e] }}>{t(`grc.informe_estado_${e}`)}</div>
                 <div className="grc-box-11">{data.summary[e] ?? 0}</div>
               </div>
@@ -918,7 +918,7 @@ function ExplicarAccesoTab() {
       <div className="grc-box-13">{t('grc.acceso_ayuda_ruta')}</div>
       {res && (
         <div className="grc-box-14">
-          <div role="status" className="grc-box-15" style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${COLOR_VEREDICTO[res.verdict]}`, background: alpha(COLOR_VEREDICTO[res.verdict], '12') }}>
+          <div role="status" className="grc-box-15 grcpage-sx17" style={{ border: `1px solid ${COLOR_VEREDICTO[res.verdict]}`, background: alpha(COLOR_VEREDICTO[res.verdict], '12') }}>
             <div className="grc-box-16" style={{ color: COLOR_VEREDICTO[res.verdict] }}>
               {t(`grc.acceso_veredicto_${res.verdict}`)}{res.decided_by ? ` — ${t(`grc.acceso_capa_${res.decided_by}`)}` : ''}
             </div>
@@ -928,7 +928,7 @@ function ExplicarAccesoTab() {
           </div>
           <ol className="grc-box-18">
             {res.layers.map(c => (
-              <li key={c.layer} className="grc-row-25" style={{ opacity: c.verdict === 'not_applicable' ? 0.7 : 1 }}>
+              <li key={c.layer} className={`grc-row-25 ${c.verdict === 'not_applicable' ? 'grcpage-sx18' : 'grcpage-sx7'}`}>
                 <span className="grc-label-14" style={{ color: COLOR_VEREDICTO[c.verdict] }}>
                   {t(`grc.acceso_estado_${c.verdict}`)}
                 </span>
@@ -977,7 +977,7 @@ export default function GrcPage(): JSX.Element {
 
       <div className="grc-row-26">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className="grc-btn-12" style={{ borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)' }}>{t.label}</button>
+          <button key={t.id} onClick={() => setTab(t.id)} className={`grc-btn-12 grcpage-sx16 ${tab === t.id ? 'grcpage-sx2' : 'grcpage-sx3'}`} style={{ border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}` }}>{t.label}</button>
         ))}
       </div>
 

@@ -227,12 +227,7 @@ export default function PageHeader({
   exportFilePrefix,
 }: PageHeaderProps) {
   return (
-    <div className={sticky ? 'sticky-top sticky-top--shadow' : undefined} style={{
-      marginBottom: 28,
-      paddingTop: sticky ? 16 : 0,
-      paddingBottom: 20,
-      borderBottom: '1px solid var(--surface-4)',
-    }}>
+    <div className={`${sticky ? 'sticky-top sticky-top--shadow' : undefined} pagehead-sx1`} style={{ paddingTop: sticky ? 16 : 0 }}>
       {/* Breadcrumb */}
       {breadcrumb && (
         <div className="pagehead-row-2">

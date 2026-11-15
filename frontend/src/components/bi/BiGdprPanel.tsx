@@ -132,11 +132,11 @@ function DsrTab() {
     <div>
       {/* Create form */}
       <div className="bigdpa-grid-1" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 160px 1fr auto' }}>
-        <input aria-label="subject-id o email" placeholder="subject-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
+        <input aria-label={t('bigdpr.subject_id_o_email')} placeholder={t('bigdpr.subject_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
         <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} style={S.select}>
           {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{rt}</option>)}
         </select>
-        <input aria-label="Notas (opcional)" placeholder="Notas (opcional)" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={S.input} />
+        <input aria-label={t('absences.notes_optional')} placeholder={t('absences.notes_optional')} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={S.input} />
         <button onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || '' })}
           disabled={createMut.isPending || !form.user_id}
           style={{ ...S.btn, opacity: (createMut.isPending || !form.user_id) ? 0.5 : 1 }}>
@@ -159,7 +159,7 @@ function DsrTab() {
       </div>
 
       {isLoading ? (
-        <div className="bigdpa-box-1">Cargando…</div>
+        <div className="bigdpa-box-1">{t('chat.loading')}</div>
       ) : (
         <div className="u-stack-6">
           {dsrs.map((dsr) => {
@@ -174,12 +174,12 @@ function DsrTab() {
                       <span className="u-text1-base-600">{dsr.subject_id}</span>
                       <span style={S.badge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{dsr.request_type}</span>
                       <span style={S.badge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
-                      {overdue && <span style={S.badge('var(--danger)')}><AlertTriangle size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />SLA vencido</span>}
+                      {overdue && <span style={S.badge('var(--danger)')}><AlertTriangle size={10} className="bigdprpa-sx1" />{t('governedconversations.sla_vencido')}</span>}
                     </div>
                     <div className="bigdpa-row-2">
-                      <span>Creado: {fmt(dsr.created_at)}</span>
+                      <span>{t('portalsupportdesk.creado')} {fmt(dsr.created_at)}</span>
                       {dsr.deadline && <span>{t('bigdpr.limite')} {fmt(dsr.deadline)}</span>}
-                      {dsr.resolved_at && <span>Resuelto: {fmt(dsr.resolved_at)}</span>}
+                      {dsr.resolved_at && <span>{t('bigdpr.resuelto')} {fmt(dsr.resolved_at)}</span>}
                     </div>
                     {dsr.notes && <div className="u-text3-xs-mt2">{dsr.notes}</div>}
                   </div>
@@ -198,18 +198,18 @@ function DsrTab() {
                               if (ok) erasureMut.mutate(dsr.id)
                             }}
                             disabled={erasureMut.isPending} style={{ ...S.btnRed, opacity: erasureMut.isPending ? 0.5 : 1 }}>
-                            <Trash2 size={11} style={{ verticalAlign: 'middle' }} /> Borrar PII
+                            <Trash2 size={11} className="bigdprpa-sx2" /> {t('bigdpr.borrar_pii')}
                           </button>
                         )}
                         {dsr.request_type === 'portability' && (
                           <button onClick={() => portMut.mutate(dsr.id)} disabled={portMut.isPending}
                             style={{ ...S.btn, opacity: portMut.isPending ? 0.5 : 1 }}>
-                            <Download size={11} style={{ verticalAlign: 'middle' }} /> Export
+                            <Download size={11} className="bigdprpa-sx2" /> Export
                           </button>
                         )}
                         <button onClick={() => resolveMut.mutate(dsr.id)} disabled={resolveMut.isPending}
                           style={{ ...S.btnGreen, opacity: resolveMut.isPending ? 0.5 : 1 }}>
-                          <CheckCircle size={11} style={{ verticalAlign: 'middle' }} /> Resolver
+                          <CheckCircle size={11} className="bigdprpa-sx2" /> {t('alerts.resolve')}
                         </button>
                       </>
                     )}
@@ -273,9 +273,9 @@ function ConsentTab() {
     <div>
       {/* Add form */}
       <div style={{ ...S.innerCard, marginBottom: 16 }}>
-        <div style={{ ...S.sectionTitle }}>Registrar consentimiento</div>
+        <div style={{ ...S.sectionTitle }}>{t('bigdpr.registrar_consentimiento')}</div>
         <div className="bigdpa-grid-2" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 130px 130px auto' }}>
-          <input aria-label="user-id o email" placeholder="user-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
+          <input aria-label={t('bigdpr.user_id_o_email')} placeholder={t('bigdpr.user_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
           <select value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} style={S.select}>
             {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
@@ -290,7 +290,7 @@ function ConsentTab() {
       </div>
 
       {isLoading ? (
-        <div className="bigdpa-box-1">Cargando…</div>
+        <div className="bigdpa-box-1">{t('chat.loading')}</div>
       ) : (
         <div className="u-stack-6">
           {consents.map((c) => (
@@ -300,7 +300,7 @@ function ConsentTab() {
                 <div className="u-text3-xs-mt2">
                   {c.purpose && <span className="bigdpa-sp-2">{c.purpose}</span>}
                   {c.channel && <span className="bigdpa-sp-2">{c.channel}</span>}
-                  {c.updated_at && <span>Actualizado: {fmt(c.updated_at)}</span>}
+                  {c.updated_at && <span>{t('bigdpr.actualizado')} {fmt(c.updated_at)}</span>}
                 </div>
               </div>
               <span style={S.badge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? 'concedido' : 'revocado'}</span>
@@ -309,8 +309,8 @@ function ConsentTab() {
                 style={{ color: c.consented ? 'var(--danger)' : 'var(--success)' }}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
               </button>
-              <button aria-label="Ver historial" onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
-                title="Ver historial"
+              <button aria-label={t('bigdpr.ver_historial')} onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
+                title={t('bigdpr.ver_historial')}
                 className="bigdpa-row-4">
                 <Clock size={14} />
               </button>
@@ -329,7 +329,7 @@ function ConsentTab() {
         <div style={{ ...S.innerCard, marginTop: 16 }}>
           <div className="bigdpa-row-5">
             <span className="bigdpa-txt-2">
-              Historial — {histUserId}
+              {t('bigdpr.historial')} {histUserId}
             </span>
             <button onClick={() => setHistUser(null)} style={{ ...S.btnGhost, padding: '3px 8px' }}>✕</button>
           </div>
@@ -375,8 +375,8 @@ function MasksTab() {
   return (
     <div>
       <div className="bigdpa-grid-1" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr 160px auto' }}>
-        <input aria-label="entidad (ej: user)" placeholder="entidad (ej: user)" value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={S.input} />
-        <input aria-label="campo (ej: email)" placeholder="campo (ej: email)" value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} style={S.input} />
+        <input aria-label={t('bigdpr.entidad_ej_user')} placeholder={t('bigdpr.entidad_ej_user')} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={S.input} />
+        <input aria-label={t('bigdpr.campo_ej_email')} placeholder={t('bigdpr.campo_ej_email')} value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} style={S.input} />
         <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} style={S.select}>
           {['hash', 'redact', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{mt}</option>)}
         </select>
@@ -422,11 +422,11 @@ function StatsTab() {
   return (
     <div>
       <div className="bigdpa-row-7">
-        <StatCard icon={<Clock size={18} />}         label="DSRs pendientes" value={data?.pending}   color="var(--warning)" />
-        <StatCard icon={<AlertTriangle size={18} />} label="SLA vencidos"    value={data?.overdue}   color="var(--danger)" />
-        <StatCard icon={<CheckCircle size={18} />}   label="Completadas"     value={data?.completed} color="var(--success)" />
-        <StatCard icon={<Users size={18} />}         label="Consentidos"     value={data?.consented} color="var(--accent)" />
-        <StatCard icon={<Shield size={18} />}        label="Revocados"       value={data?.revoked}   color="var(--purple)" />
+        <StatCard icon={<Clock size={18} />}         label={t('bigdpr.dsrs_pendientes')} value={data?.pending}   color="var(--warning)" />
+        <StatCard icon={<AlertTriangle size={18} />} label={t('bigdpr.sla_vencidos')}    value={data?.overdue}   color="var(--danger)" />
+        <StatCard icon={<CheckCircle size={18} />}   label={t('pagina_esign.completadas')}     value={data?.completed} color="var(--success)" />
+        <StatCard icon={<Users size={18} />}         label={t('bigdpr.consentidos')}     value={data?.consented} color="var(--accent)" />
+        <StatCard icon={<Shield size={18} />}        label={t('bigdpr.revocados')}       value={data?.revoked}   color="var(--purple)" />
       </div>
 
       {byType.length > 0 && (
@@ -449,8 +449,8 @@ function StatsTab() {
       {(data?.overdue ?? 0) > 0 && (
         <div style={{ ...S.innerCard, borderColor: 'var(--danger-border)' }}>
           <div className="bigdpa-box-8">
-            <AlertTriangle size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-            {data?.overdue} DSR{data?.overdue !== 1 ? 's' : ''} ha{data?.overdue !== 1 ? 'n' : ''} {t('bigdpr.superado_el_plazo_gdpr_30_dias')}
+            <AlertTriangle size={14} className="bigdprpa-sx3" />
+            {data?.overdue} DSR{data?.overdue !== 1 ? 's' : ''} {t('bigdpr.ha')}{data?.overdue !== 1 ? 'n' : ''} {t('bigdpr.superado_el_plazo_gdpr_30_dias')}
           </div>
           <div className="u-text3-mono-xs">
             {(data?.overdue_ids ?? []).join(', ')}

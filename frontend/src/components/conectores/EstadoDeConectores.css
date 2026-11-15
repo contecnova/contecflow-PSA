@@ -110,3 +110,11 @@
   color: var(--text-1);
   font-family: var(--font-mono);
 }
+
+/* ── Estilos estaticos extraidos de EstadoDeConectores.tsx (#17) ── */
+.estadode-sx1 {
+  margin-left: auto;
+}
+.estadode-sx2 {
+  margin-top: 2px;
+}

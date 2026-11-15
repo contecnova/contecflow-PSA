@@ -19,10 +19,16 @@ export default function DetalleDeAusencia({ id, onCerrar }: { id: string | null;
   const { ta } = useTa()
   const q = useQuery({ queryKey: ['ausencias', 'detalle', id], queryFn: () => ausenciasApi.detalle(id as string), enabled: Boolean(id) })
   return (
-    <Drawer open={Boolean(id)} onClose={onCerrar} title={ta('detalle')}>
+    <Drawer open={Boolean(id)} onClose={onCerrar} ariaLabel={ta('detalle')}>
+      <div className="aus-drawer">
+      <header className="aus-fila aus-drawer-cabecera">
+        <h2 className="aus-titulo">{ta('detalle')}</h2>
+        <Button size="xs" variant="ghost" onClick={onCerrar}>{ta('cerrar')}</Button>
+      </header>
       {q.isLoading && <Spinner label={ta('cargando')} />}
       {q.isError && <AvisoDeError error={q.error} defecto={ta('error_cargar')} />}
       {q.data && <Contenido d={q.data} />}
+      </div>
     </Drawer>
   )
 }
@@ -144,7 +150,7 @@ function Documentos({ d }: { d: Detalle }) {
           )}
           <label className="aus-boton-fichero">
             <FilePlus2 size={13} aria-hidden /> {ta('adjuntar')}
-            <input type="file" className="u-sr-only" disabled={!sustituye && !tipoId}
+            <input type="file" className="u-sr-only" aria-label={ta('adjuntar')} disabled={!sustituye && !tipoId}
               onChange={e => { const f = e.target.files?.[0]; if (f) subir.mutate(f); e.target.value = '' }} />
           </label>
           {sustituye && <Button size="xs" variant="ghost" onClick={() => setSustituye(null)}>{ta('cancelar')}</Button>}

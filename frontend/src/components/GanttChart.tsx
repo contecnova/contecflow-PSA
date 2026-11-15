@@ -363,8 +363,8 @@ export default function GanttChart({
       <div className="gantchar-row-1">
         <span className="gantchar-txt-1">{t('gantt.zoom')}</span>
         {ZOOM_PRESETS.map(z => (
-          <button className="gantchar-box-15" key={z} onClick={() => setZoom(z)}
-            style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${zoom === z ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, background: zoom === z ? 'var(--accent-muted)' : 'transparent', color: zoom === z ? 'var(--accent)' : 'var(--text-2)', fontWeight: zoom === z ? 600 : 400 }}>
+          <button className="gantchar-box-15 ganttcha-sx1" key={z} onClick={() => setZoom(z)}
+            style={{ border: `1px solid ${zoom === z ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, background: zoom === z ? 'var(--accent-muted)' : 'transparent', color: zoom === z ? 'var(--accent)' : 'var(--text-2)', fontWeight: zoom === z ? 600 : 400 }}>
             {LBL_ZOOM[z]}
           </button>
         ))}
@@ -377,11 +377,11 @@ export default function GanttChart({
           ))}
           {showBaseline && (
             <span className="gantchar-row-3">
-              <div style={{ width: 10, height: 3, background: 'rgba(255,255,255,0.25)', borderRadius: 2 }} />{t('gantt.baseline')}
+              <div className="ganttcha-sx2" />{t('gantt.baseline')}
             </span>
           )}
           <span className="gantchar-box-4">
-            +/− zoom · Esc cancelar{onDepCreate ? ' · Shift+▶ dep' : ''}
+            {traducir('ganttchart.zoom_esc_cancelar')}{onDepCreate ? ' · Shift+▶ dep' : ''}
           </span>
         </div>
       </div>
@@ -485,7 +485,7 @@ export default function GanttChart({
               <g>
                 <line x1={todayX} y1={HEADER_H} x2={todayX} y2={svgHeight} stroke="var(--danger)" strokeWidth={1.5} strokeDasharray="3 3" opacity={0.65} />
                 <rect x={todayX - 16} y={HEADER_H - 14} width={32} height={12} rx={3} fill="var(--danger)" />
-                <text x={todayX} y={HEADER_H - 5} textAnchor="middle" fontSize={8} fontWeight={700} fill="white" fontFamily="inherit">HOY</text>
+                <text x={todayX} y={HEADER_H - 5} textAnchor="middle" fontSize={8} fontWeight={700} fill="white" fontFamily="inherit">{traducir('capacity.hoy')}</text>
               </g>
             )}
 
@@ -591,7 +591,7 @@ export default function GanttChart({
                   {/* Resize handle */}
                   {onTaskUpdate && (
                     <rect x={x1 + bW - 8} y={bY + 2} width={8} height={bH - 4} rx={2}
-                      fill={alpha(barColor, '55')} style={{ cursor: 'ew-resize' }}
+                      fill={alpha(barColor, '55')} className="ganttcha-sx3"
                       {...{ title: onDepCreate ? 'Redimensionar · Shift+drag = crear dependencia' : 'Redimensionar' } as object}
                       onMouseDown={e => { e.stopPropagation(); startDrag(e, item, 'resize') }} />
                   )}

@@ -350,3 +350,21 @@
   padding: 16px 18px;
   min-height: 320px;
 }
+
+/* ── Estilos estaticos extraidos de GovernedConversations.tsx (#17) ── */
+.governed-sx1.governed-sx1 {
+  border-radius: 12px;
+}
+.governed-sx2.governed-sx2 {
+  border-radius: var(--radius-lg);
+}
+.governed-sx3 {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: 20px;
+}

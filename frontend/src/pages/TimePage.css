@@ -3,3 +3,8 @@
 .tmp-page { display: flex; flex-direction: column; min-height: 100vh; }
 .tmp-tabs { padding: var(--page-pad-y) var(--page-pad-x) 0; flex-shrink: 0; }
 .tmp-fallback { display: flex; justify-content: center; align-items: center; min-height: 280px; }
+
+/* ── Estilos estaticos extraidos de TimePage.tsx (#17) ── */
+.timepage-sx1 {
+  margin-bottom: 0;
+}

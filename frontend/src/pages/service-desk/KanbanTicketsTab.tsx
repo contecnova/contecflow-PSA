@@ -117,7 +117,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
             onDrop={e => onDrop(e, col.id)}
             style={{ outline: dragOverCol === col.id ? `2px solid ${col.color}` : '2px solid transparent' }}
           >
-            <div className="katita-row-3" style={{ background: alpha(col.color, '18'), borderRadius: 8, border: `1px solid ${alpha(col.color, '35')}` }}>
+            <div className="katita-row-3 kanbanti-sx1" style={{ background: alpha(col.color, '18'), border: `1px solid ${alpha(col.color, '35')}` }}>
               <div className="katita-box-8" style={{ background: col.color }} />
               <div className="katita-box-3">{col.label}</div>
               <div className="katita-txt-3" style={{ color: col.color }}>{tickets.length}</div>
@@ -158,7 +158,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
                       {ticket.requester_name || ticket.assigned_name || '—'}
                     </span>
                     {ticket.sla_resolution_status === 'breached' && (
-                      <span className="katita-txt-2">SLA ✗</span>
+                      <span className="katita-txt-2">{t('kanbantickets.sla')}</span>
                     )}
                   </div>
                 </div>

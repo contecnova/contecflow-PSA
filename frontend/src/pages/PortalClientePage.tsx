@@ -388,7 +388,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       />
 
       {/* Identity card */}
-      <PortalCard style={{ marginBottom: 18 }}>
+      <PortalCard className="portalcl-sx4">
         <div className="pcl-row">
           <div className="pcl-row-2">{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
           <div className="u-flex1-min0">

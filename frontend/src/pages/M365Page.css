@@ -252,3 +252,36 @@
   font-size: var(--text-base);
   font-family: inherit;
 }
+
+.m365-box-21 {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ── Estilos en linea extraidos de M365Page.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.m365page-sx1.m365page-sx1 {
+  cursor: pointer;
+}
+.m365page-sx2.m365page-sx2 {
+  cursor: not-allowed;
+}
+.m365page-sx3.m365page-sx3 {
+  border-radius: 4px;
+}
+.m365page-sx4.m365page-sx4 {
+  border: 2px solid var(--text-1);
+}
+.m365page-sx5.m365page-sx5 {
+  border: 2px solid transparent;
+}
+.m365page-sx6.m365page-sx6 {
+  border-radius: 8px;
+}
+.m365page-sx7.m365page-sx7 {
+  background: var(--accent-glow);
+  color: var(--info);
+}
+.m365page-sx8.m365page-sx8 {
+  background: none;
+  color: var(--text-2);
+}

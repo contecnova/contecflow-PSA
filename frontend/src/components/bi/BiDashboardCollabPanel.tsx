@@ -112,7 +112,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
   const resolveCommentMutation = useMutation<unknown, ApiError, string>({
     mutationFn: (id) => biCollaborationApi.resolveComment(id).then(r => r.data),
     onSuccess: () => {
-      toast.success('Comentario resuelto')
+      toast.success(t('bidashboardcollab.comentario_resuelto'))
       qc.invalidateQueries({ queryKey: ['bi-collab-comments', dashboardKey] })
     },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al resolver'),
@@ -122,7 +122,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     mutationFn: (data) => biCollaborationApi.createSharedView(data).then(r => r.data),
     onSuccess: () => {
       setViewName('')
-      toast.success('Vista compartida guardada')
+      toast.success(t('bidashboardcollab.vista_compartida_guardada'))
       qc.invalidateQueries({ queryKey: ['bi-collab-views', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
@@ -140,7 +140,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     onSuccess: () => {
       setShareUserId('')
       setShareUserName('')
-      toast.success('Acceso compartido')
+      toast.success(t('bidashboardcollab.acceso_compartido'))
       qc.invalidateQueries({ queryKey: ['bi-collab-shares', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
@@ -151,7 +151,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     mutationFn: (shareId) =>
       biCollaborationApi.revokeShare(dashboardKey, shareId).then(r => r.data),
     onSuccess: () => {
-      toast.success('Acceso revocado')
+      toast.success(t('bidashboardcollab.acceso_revocado'))
       qc.invalidateQueries({ queryKey: ['bi-collab-shares', dashboardKey] })
     },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al revocar'),
@@ -161,7 +161,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
     mutationFn: (versionId) =>
       biCollaborationApi.restoreDashboardVersion(dashboardKey, versionId).then(r => r.data),
     onSuccess: () => {
-      toast.success('Versión restaurada')
+      toast.success(t('bidashboardcollab.version_restaurada'))
       qc.invalidateQueries({ queryKey: ['bi-collab-versions', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
@@ -189,10 +189,10 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
   }
 
   return (
-    <Card style={{ padding: '20px 22px' }}>
+    <Card className="bidashbo-sx1">
       <div className="bidacopa-row-1">
         <div className="u-row-center-8">
-          <MessageCircle size={18} style={{ color: 'var(--purple)' }} />
+          <MessageCircle size={18} className="bidashbo-sx2" />
           <h2 className="bidacopa-box-1">
             {t('bi.collab.title', 'Colaboración en dashboards BI')}
           </h2>
@@ -233,7 +233,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
               disabled={!newComment.trim() || addCommentMutation.isPending}
               loading={addCommentMutation.isPending}
               icon={<Plus size={13} />}
-            >Comentar</Button>
+            >{t('bidashboardcollab.comentar')}</Button>
           </div>
 
           {commentsLoading ? (
@@ -251,9 +251,9 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                       </div>
                       <div className="bidacopa-row-5">
                         <span>{c.author_name ?? 'Usuario'}</span>
-                        {c.widget_id && <span>· widget {c.widget_id}</span>}
+                        {c.widget_id && <span>{t('bidashboardcollab.widget')} {c.widget_id}</span>}
                         {c.created_at && <span>· {new Date(c.created_at).toLocaleString(localeActivo())}</span>}
-                        {c.resolved && <span style={chip('var(--success)')}>resuelto</span>}
+                        {c.resolved && <span style={chip('var(--success)')}>{t('bidashboardcollab.resuelto')}</span>}
                       </div>
                     </div>
                     {!c.resolved && (
@@ -263,7 +263,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                         onClick={() => resolveCommentMutation.mutate(c.id)}
                         loading={resolveCommentMutation.isPending && resolveCommentMutation.variables === c.id}
                         icon={<CheckCircle size={12} />}
-                      >Resolver</Button>
+                      >{t('alerts.resolve')}</Button>
                     )}
                   </div>
                 </div>
@@ -291,7 +291,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
               disabled={!viewName.trim() || saveViewMutation.isPending}
               loading={saveViewMutation.isPending}
               icon={<Eye size={13} />}
-            >Guardar vista</Button>
+            >{t('datagovernance.guardar_vista')}</Button>
           </div>
 
           {viewsLoading ? (
@@ -338,9 +338,9 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
               onChange={e => setShareUserId(e.target.value)}
               className="bidacopa-inputbase2"
             />
-            <input aria-label="Nombre visible"
+            <input aria-label={t('portal_perfil.nombre_visible')}
               type="text"
-              placeholder="Nombre visible"
+              placeholder={t('portal_perfil.nombre_visible')}
               value={shareUserName}
               onChange={e => setShareUserName(e.target.value)}
               className="bidacopa-inputbase3"
@@ -361,7 +361,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
               disabled={!shareUserId.trim() || !shareUserName.trim() || shareDashboardMutation.isPending}
               loading={shareDashboardMutation.isPending}
               icon={<Share2 size={13} />}
-            >Compartir</Button>
+            >{t('pagina_docs.compartir')}</Button>
           </div>
 
           {sharesLoading ? (
@@ -381,18 +381,18 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     </div>
                   </div>
                   <div className="u-row-center-8">
-                    {s.permission === 'view' && <Lock size={12} style={{ color: 'var(--text-3)' }} />}
+                    {s.permission === 'view' && <Lock size={12} className="bidashbo-sx3" />}
                     <span style={chip(PERMISSION_COLOR[s.permission] || 'var(--text-3)')}>
                       {PERMISSION_LABEL[s.permission] || s.permission}
                     </span>
-                    <button aria-label="Revocar acceso"
+                    <button aria-label={t('bidashboardcollab.revocar_acceso')}
                       type="button"
                       onClick={async () => {
                         if (await confirmar({ message: `¿Revocar acceso de ${s.user_name || s.user_id}?`, danger: true, confirmLabel: 'Revocar' })) {
                           revokeShareMutation.mutate(s.id)
                         }
                       }}
-                      title="Revocar acceso"
+                      title={t('bidashboardcollab.revocar_acceso')}
                       className="bidacopa-row-8"
                       onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
                       onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
@@ -414,14 +414,14 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           {versionsLoading ? (
             <div className="bidacopa-row-3"><Spinner /></div>
           ) : versions.length === 0 ? (
-            <EmptyState icon="📜" title={t('bidashboardcollab.sin_versiones_guardadas')} description="Las ediciones del dashboard se guardan automáticamente como versiones." />
+            <EmptyState icon="📜" title={t('bidashboardcollab.sin_versiones_guardadas')} description={t('bidashboardcollab.las_ediciones_del_dashboard_se_guardan_automaticamente')} />
           ) : (
             <div className="bidacopa-stack-1">
               {versions.map(v => (
                 <div key={v.id} className="bidacopa-row-9">
                   <div className="u-flex1-min0">
                     <div className="bidacopa-txt-2">
-                      <History size={12} style={{ display: 'inline', marginRight: 6, color: 'var(--text-3)' }} />
+                      <History size={12} className="bidashbo-sx4" />
                       {t('bidashboardcollab.version')} {v.version}
                     </div>
                     {v.change_log && (
@@ -444,7 +444,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                       }
                     }}
                     loading={restoreVersionMutation.isPending && restoreVersionMutation.variables === v.id}
-                  >Restaurar</Button>
+                  >{t('wiki.restaurar')}</Button>
                 </div>
               ))}
             </div>
@@ -469,7 +469,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                 <div key={n.id} className="bidacopa-row-12">
                   <div className="u-flex1-min0">
                     <div className="u-row-center-6">
-                      <Bell size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                      <Bell size={12} className="bidashbo-sx5" />
                       <span className="u-text1-sm-600">
                         {n.event_type}
                       </span>

@@ -498,3 +498,52 @@
   font-weight: 700;
   color: var(--text-1);
 }
+
+.perf-box-38 {
+  vertical-align: middle;
+}
+
+.perf-box-39 {
+  width: 150px;
+}
+
+/* ── Estilos en linea extraidos de PerformanceReviewsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.performa-sx1.performa-sx1 {
+  border-radius: var(--radius-sm);
+}
+.performa-sx2.performa-sx2 {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.performa-sx3.performa-sx3 {
+  background: var(--surface-4);
+  color: var(--text-3);
+}
+.performa-sx4.performa-sx4 {
+  border-radius: var(--radius-md);
+}
+.performa-sx5.performa-sx5 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.performa-sx6.performa-sx6 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.performa-sx7.performa-sx7 {
+  color: var(--success);
+}
+.performa-sx8.performa-sx8 {
+  color: var(--warning);
+}
+.performa-sx9.performa-sx9 {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.performa-sx10.performa-sx10 {
+  cursor: pointer;
+  opacity: 1;
+}
+.performa-sx11.performa-sx11 {
+  color: var(--text-2);
+}

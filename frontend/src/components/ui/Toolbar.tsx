@@ -17,20 +17,13 @@ export default function Toolbar({ left, right, children, dense = false, style, c
   return (
     <div
       role="toolbar"
-      className={className}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: dense ? 8 : 12,
-        flexWrap: 'wrap',
-        marginBottom: dense ? 12 : 16,
-        ...(style || {}),
-      }}
+      className={`uitool${dense ? ' uitool--dense' : ''}${className ? ` ${className}` : ''}`}
+      style={style}
     >
       {children ?? (
         <>
           {left && (
-            <div className="uitool-row-2" style={{ gap: dense ? 6 : 8 }}>
+            <div className="uitool-row-2">
               {left}
             </div>
           )}

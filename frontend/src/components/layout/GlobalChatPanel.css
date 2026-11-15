@@ -321,3 +321,15 @@
   min-height: 40px;
   flex: 1;
 }
+
+/* ── Estilos estaticos extraidos de GlobalChatPanel.tsx (#17) ── */
+.globalch-sx1.globalch-sx1 {
+  box-shadow: var(--shadow-fab);
+}
+.globalch-sx2 {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+}

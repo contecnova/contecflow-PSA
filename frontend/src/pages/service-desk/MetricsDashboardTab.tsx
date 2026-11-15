@@ -55,9 +55,9 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
 /* ── Sub-components ───────────────────────────────────────────────────────── */
 function PeriodButton({ active, label, onClick }: { active: boolean; label: ReactNode; onClick: () => void }) {
   return (
-    <button className="medata-box-17"
+    <button className="medata-box-17 metricsd-sx1"
       onClick={onClick}
-      style={{ borderRadius: 8, border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, background: active ? COLOR.accentMuted : 'transparent', color: active ? COLOR.accent : 'var(--text-2)' }}
+      style={{ border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, background: active ? COLOR.accentMuted : 'transparent', color: active ? COLOR.accent : 'var(--text-2)' }}
     >
       {label}
     </button>
@@ -138,7 +138,7 @@ function AgentAvatar({ name }: { name?: string }) {
   const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, 'var(--chart-teal)', 'var(--orange)']
   const idx = (name || '').charCodeAt(0) % colors.length
   return (
-    <div className="medata-row-10" style={{ borderRadius: '50%', background: alpha(colors[idx], '22'), border: `1.5px solid ${alpha(colors[idx], '44')}`, color: colors[idx] }}>
+    <div className="medata-row-10 metricsd-sx2" style={{ background: alpha(colors[idx], '22'), border: `1.5px solid ${alpha(colors[idx], '44')}`, color: colors[idx] }}>
       {initials}
     </div>
   )
@@ -262,21 +262,21 @@ export default function MetricsDashboardTab() {
       <div className="medata-grid-1">
         <KpiCard
           icon="🎫"
-          label="Tickets totales"
+          label={t('metricsdashboard.tickets_totales')}
           value={metrics.volume?.total ?? 0}
           color="var(--text-1)"
           accentBar={COLOR.accent}
         />
         <KpiCard
           icon="🔓"
-          label="Abiertos"
+          label={t('risks.summary.open')}
           value={metrics.volume?.open ?? 0}
           color={(metrics.volume?.open ?? 0) > 20 ? COLOR.warning : 'var(--text-1)'}
           accentBar={(metrics.volume?.open ?? 0) > 20 ? COLOR.warning : COLOR.accent}
         />
         <KpiCard
           icon="✅"
-          label="Resueltos"
+          label={t('metricsdashboard.resueltos')}
           value={metrics.volume?.resolved ?? 0}
           color={COLOR.success}
           accentBar={COLOR.success}
@@ -291,14 +291,14 @@ export default function MetricsDashboardTab() {
         />
         <KpiCard
           icon="⭐"
-          label="CSAT medio"
+          label={t('metricsdashboard.csat_medio')}
           value={metrics.avg_csat ? `${Number(metrics.avg_csat).toFixed(1)}/5` : '—'}
           color={(metrics.avg_csat ?? 0) >= 4 ? COLOR.success : (metrics.avg_csat ?? 0) >= 3 ? COLOR.warning : COLOR.danger}
           accentBar={COLOR.warning}
         />
         <KpiCard
           icon="🚨"
-          label="Brechas SLA"
+          label={t('metricsdashboard.brechas_sla')}
           value={metrics.volume?.breached_sla ?? 0}
           color={(metrics.volume?.breached_sla ?? 0) > 0 ? COLOR.danger : COLOR.success}
           accentBar={(metrics.volume?.breached_sla ?? 0) > 0 ? COLOR.danger : COLOR.success}
@@ -308,13 +308,13 @@ export default function MetricsDashboardTab() {
       {/* ── SLA + FCR gauges ── */}
       <div className="medata-grid-2">
         <GaugeCard
-          label="Cumplimiento SLA"
+          label={t('reportes_presets.p14')}
           value={metrics.sla_compliance_pct}
           color={slaColor}
           sub={(metrics.sla_compliance_pct ?? 0) >= 95 ? 'Excelente' : (metrics.sla_compliance_pct ?? 0) >= 80 ? 'Aceptable' : 'Por debajo del objetivo'}
         />
         <GaugeCard
-          label="FCR — 1er contacto"
+          label={t('metricsdashboard.fcr_1er_contacto')}
           value={metrics.fcr_percent}
           color={fcrColor}
           sub="Resolución en primer contacto"
@@ -450,11 +450,11 @@ export default function MetricsDashboardTab() {
                     </td>
                     <td className="medata-box-14">
                       {a.sla_breaches > 0 ? (
-                        <span className="medata-row-11" style={{ color: COLOR.danger, background: COLOR.dangerBg, border: `1px solid ${COLOR.dangerBorder}`, borderRadius: 'var(--radius-sm)' }}>
+                        <span className="medata-row-11 metricsd-sx3" style={{ color: COLOR.danger, background: COLOR.dangerBg, border: `1px solid ${COLOR.dangerBorder}` }}>
                           ⚠ {a.sla_breaches}
                         </span>
                       ) : (
-                        <span className="medata-row-11" style={{ color: COLOR.success, background: COLOR.successBg, border: `1px solid ${COLOR.successBorder}`, borderRadius: 'var(--radius-sm)' }}>
+                        <span className="medata-row-11 metricsd-sx3" style={{ color: COLOR.success, background: COLOR.successBg, border: `1px solid ${COLOR.successBorder}` }}>
                           ✓ 0
                         </span>
                       )}

@@ -99,7 +99,7 @@ function StatusPill({ status }: { status: string }) {
   const t = useAppT()
   const s = isEnvelopeStatus(status) ? STATUS_COLORS[status] : STATUS_COLORS.draft
   return (
-    <span className="esign-label" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}`, borderRadius: 'var(--radius-md)' }}>{t(s.key)}</span>
+    <span className="esign-label esignpag-sx1" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}` }}>{t(s.key)}</span>
   )
 }
 
@@ -274,7 +274,7 @@ export default function ESignPage(): JSX.Element {
   const adobeOk    = stats?.providers?.adobe_configured
 
   return (
-    <PageShell style={{ maxWidth: 1080, margin: '0 auto' }}>
+    <PageShell className="esign-box-7">
       <PageHeader
         icon={<PenLine size={18} />}
         title={t('esign.title')}
@@ -345,7 +345,7 @@ export default function ESignPage(): JSX.Element {
                   </td>
                   <td style={cell}>
                     <span className="u-sm">
-                      {env.signers?.filter((s: Signer) => s.signed).length || 0}/{env.signers?.length || 0} firmados
+                      {t('pagina_esign.firmados_de', { firmados: env.signers?.filter((s: Signer) => s.signed).length || 0, total: env.signers?.length || 0 })}
                     </span>
                   </td>
                   <td style={cell}><StatusPill status={env.status} /></td>
@@ -396,7 +396,7 @@ export default function ESignPage(): JSX.Element {
               <div className="esign-box-5">{t('pagina_esign.firmantes_2')}</div>
               {(detail.signers || []).map(s => (
                 <div key={s.id} className="esign-row-4">
-                  <span className="esign-label-2" style={{ background: s.signed ? 'var(--success)' : 'var(--surface-5)' }} />
+                  <span className={`esign-label-2 ${s.signed ? 'esignpag-sx2' : 'esignpag-sx3'}`} />
                   <div className="u-flex1">
                     <div className="esign-box-6">{s.name}</div>
                     <div className="u-text2-xs">{s.email}{' '}{t('pagina_esign.orden')}{' '}{s.routing_order}</div>

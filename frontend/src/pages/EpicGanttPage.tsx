@@ -114,7 +114,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
                   if (dy === 0) return null
                   return (
                     <svg key={dep.id}
-                      className="egantt-svg" style={{ left:`${Math.min(fromX,toX)}%`, top:dy > 0 ? '50%' : 'auto', bottom:dy < 0 ? '50%' : 'auto', width:`${Math.abs(toX-fromX) || 2}%`, height:Math.abs(dy) }}
+                      className={`egantt-svg ${dy > 0 ? 'epicgant-sx1' : 'epicgant-sx2'} ${dy < 0 ? 'epicgant-sx3' : 'epicgant-sx4'}`} style={{ left:`${Math.min(fromX,toX)}%`, width:`${Math.abs(toX-fromX) || 2}%`, height:Math.abs(dy) }}
                       overflow="visible">
                       <defs>
                         <marker id={`arr-${dep.id}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -181,10 +181,10 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
-                className="egantt-btn" style={{ borderRadius:8, border:`1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, background:form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent' }}>
+                className="egantt-btn epicgant-sx5" style={{ border:`1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, background:form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent' }}>
                 <span className="egantt-label-2" style={{ background:alpha(dt.color, '30'), color:dt.color }}>{dt.symbol}</span>
                 <div className="u-flex1">
-                  <div className="egantt-box-6" style={{ fontWeight:form.dep_type===dt.value?600:400, color:form.dep_type===dt.value ? dt.color : 'var(--text-1)' }}>{t(dt.label)}</div>
+                  <div className={`egantt-box-6 ${form.dep_type===dt.value ? 'epicgant-sx6' : 'epicgant-sx7'}`} style={{ color:form.dep_type===dt.value ? dt.color : 'var(--text-1)' }}>{t(dt.label)}</div>
                   <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
               </button>

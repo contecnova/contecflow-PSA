@@ -23,7 +23,7 @@ import useMediaQuery from '../hooks/useMediaQuery'
 import { alpha } from '../constants/theme'
 import { STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { FULL_LIST_SIZE } from '../constants/pagination'
-import { extractErr } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import './ResourceSchedulerPage.css'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -69,18 +69,22 @@ const ROW_H   = 44   // px per user row
 const LABEL_W = 200  // px for the name column
 const HDR_H   = 60   // header height
 
+// Escala de ocupación sobre el acento del tema (antes hex fijos, que no seguían el tema claro).
+const UTIL_BAJO  = 'color-mix(in srgb, var(--accent) 25%, var(--surface-2))'
+const UTIL_MEDIO = 'color-mix(in srgb, var(--accent) 45%, var(--surface-2))'
+const UTIL_ALTO  = 'color-mix(in srgb, var(--accent) 70%, var(--surface-2))'
 const UTIL_COLORS = [
   [0,   10,  'var(--surface-4)'],  // available
-  [10,  50,  '#1a3a5c'],
-  [50,  80,  '#1e4a7a'],
-  [80,  100, '#2d6099'],
+  [10,  50,  UTIL_BAJO],
+  [50,  80,  UTIL_MEDIO],
+  [80,  100, UTIL_ALTO],
   [100, 120, 'var(--orange)'],  // overloaded
-  [120, 999, '#991b1b'],
+  [120, 999, 'var(--danger)'],
 ]
 
 const PROJECT_PALETTE = [
   'var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)',
-  'var(--sky-blue)','var(--orange)','var(--success)','#c084fc','var(--coral)',
+  'var(--sky-blue)','var(--orange)','var(--success)','var(--chart-pink)','var(--coral)',
 ]
 
 function utilColor(pct: number) {
@@ -145,8 +149,8 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onClick() } }}
-      title={`${booking.project_name || booking.project_id || t('resource_scheduler.no_project_short')} · ${booking.hours_per_day || 8}h/día · ${booking.booking_type || 'soft'}`}
-      style={{ '--rsch-row-border': isSelected ? '2px solid #fff' : `1px solid ${color}`, '--rsch-row-box-shadow': isSelected ? `0 0 0 2px ${color}` : 'none', '--rsch-row-z-index': isSelected ? '10' : '5', left: x, height: ROW_H - 12, width: w, '--rsch-row-background': alpha(color, isSelected ? 'ff' : 'cc') } as CSSProperties}
+      title={t('agenda_recursos_ui.titulo_reserva', { proyecto: booking.project_name || booking.project_id || t('resource_scheduler.no_project_short'), horas: booking.hours_per_day || 8, tipo: booking.booking_type || 'soft' })}
+      style={{ '--rsch-row-border': isSelected ? '2px solid var(--text-1)' : `1px solid ${color}`, '--rsch-row-box-shadow': isSelected ? `0 0 0 2px ${color}` : 'none', '--rsch-row-z-index': isSelected ? '10' : '5', left: x, height: ROW_H - 12, width: w, '--rsch-row-background': alpha(color, isSelected ? 'ff' : 'cc') } as CSSProperties}
     >
       <span className="rsch-box">
         {booking.project_name || booking.project_id || '—'} · {booking.hours_per_day || 8}h
@@ -313,7 +317,7 @@ export default function ResourceSchedulerPage() {
         setPanel(null)
         const bookingId = selectedBooking.id
         openConfirmGlobal({
-          message: '¿Eliminar esta reserva? Esta acción no se puede deshacer.',
+          message: t('agenda_recursos_ui.eliminar_reserva_confirm'),
           danger: true,
           onConfirm: () => { deleteBooking(bookingId); setSelected(null) },
         })
@@ -321,7 +325,7 @@ export default function ResourceSchedulerPage() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [selectedBooking, deleteBooking])
+  }, [selectedBooking, deleteBooking, t])
 
   // ── Drag to create booking ────────────────────────────────────────────────
   const handleCellMouseDown = useCallback((e: { preventDefault: () => void }, userId: string, colIndex: number) => {
@@ -375,7 +379,7 @@ export default function ResourceSchedulerPage() {
 
       if (!ghost && Math.abs(dx) > 8) {
         ghost = document.createElement('div')
-        ghost.style.cssText = `position:fixed;z-index:var(--z-drag);pointer-events:none;background:var(--surface-2);border:1.5px solid var(--accent);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--accent);box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;`
+        ghost.style.cssText = `position:fixed;z-index:var(--z-drag);pointer-events:none;background:var(--surface-2);border:1.5px solid var(--accent);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--accent);box-shadow:var(--shadow-lg);white-space:nowrap;`
         document.body.appendChild(ghost)
       }
       if (ghost) {
@@ -429,7 +433,7 @@ export default function ResourceSchedulerPage() {
           background: 'var(--accent-glow)', border: '1px solid var(--accent)',
           borderRadius: '16px', padding: '4px 12px',
           color: 'var(--accent)', fontSize: '11px', fontWeight: 700,
-          fontFamily: 'var(--font-sans)', boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          fontFamily: 'var(--font-sans)', boxShadow: 'var(--shadow-md)',
           left: ev.clientX + 12 + 'px', top: ev.clientY + 8 + 'px',
         })
         document.body.appendChild(ghost)
@@ -504,7 +508,7 @@ export default function ResourceSchedulerPage() {
 
       {/* Legend */}
       <div className="rsch-row-3">
-        {[[t('resource_scheduler.legend_available'),'var(--surface-4)'],[t('resource_scheduler.legend_lt_50'),'#1e4a7a'],[t('resource_scheduler.legend_50_80'),'#2d6099'],[t('resource_scheduler.legend_80_100'),'var(--accent)'],[t('resource_scheduler.legend_overloaded'),'var(--orange)']].map(([l,c]) => (
+        {[[t('resource_scheduler.legend_available'),'var(--surface-4)'],[t('resource_scheduler.legend_lt_50'),UTIL_BAJO],[t('resource_scheduler.legend_50_80'),UTIL_MEDIO],[t('resource_scheduler.legend_80_100'),UTIL_ALTO],[t('resource_scheduler.legend_overloaded'),'var(--orange)']].map(([l,c]) => (
           <span className="rsch-row-muted" key={l}>
             <div className="rsch-box-3 rsch-box-15" style={{ '--rsch-box-15-background': c } as CSSProperties} />{l}
           </span>
@@ -530,7 +534,7 @@ export default function ResourceSchedulerPage() {
         /* ── Assign view: drag person chip → project row ───────────────────── */
         <div className="rsch-row-5" style={{ '--rsch-row-5-flex-direction': narrow ? 'column' : 'row' } as CSSProperties}>
           {/* People panel */}
-          <div style={{ ...(narrow ? { maxHeight: 180 } : { width: 160 }), flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }}>
+          <div className={narrow ? 'rsch-personas rsch-personas--estrecho' : 'rsch-personas'}>
             <div className="rsch-text-muted-2xs-strong">
               {t('resource_scheduler.people')}
             </div>
@@ -572,7 +576,7 @@ export default function ResourceSchedulerPage() {
                     <div className="rsch-stack-2" key={i} style={{ '--rsch-stack-2-background': isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent', width: CELL_W } as CSSProperties}>
                       {i === 0 || w.getDate() <= 7 ? (
                         <div className="rsch-text-3xs-2">
-                          {w.toLocaleString(undefined, { month: 'short' }).toUpperCase()}
+                          {w.toLocaleString(localeActivo(), { month: 'short' }).toUpperCase()}
                         </div>
                       ) : null}
                       <div className="rsch-text-2xs-2" style={{ '--rsch-text-2xs-2-font-weight': isToday ? '700' : '400', '--rsch-text-2xs-2-color': isToday ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>
@@ -644,7 +648,7 @@ export default function ResourceSchedulerPage() {
                   <div className="rsch-stack-3" key={i} style={{ '--rsch-stack-3-background': isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent', width: CELL_W } as CSSProperties}>
                     {i === 0 || w.getDate() <= 7 ? (
                       <div className="rsch-text-3xs-2">
-                        {w.toLocaleString(undefined, { month: 'short' }).toUpperCase()}
+                        {w.toLocaleString(localeActivo(), { month: 'short' }).toUpperCase()}
                       </div>
                     ) : null}
                     <div className="rsch-text-2xs-3" style={{ '--rsch-text-2xs-3-font-weight': isToday ? '700' : '400', '--rsch-text-2xs-3-color': isToday ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>
@@ -668,7 +672,7 @@ export default function ResourceSchedulerPage() {
                     </div>
                     <div className="rsch-box-5">
                       <div className="rsch-box-12">{user.user_name}</div>
-                      <div className="rsch-text-3xs-3">{user.capacity_hours}h/sem · {user.avg_load_pct}% avg</div>
+                      <div className="rsch-text-3xs-3">{t('agenda_recursos_ui.capacidad', { horas: user.capacity_hours, pct: user.avg_load_pct })}</div>
                     </div>
                   </div>
 
@@ -742,7 +746,7 @@ export default function ResourceSchedulerPage() {
             const bookingId = panel.booking.id
             if (!bookingId) { setPanel(null); setSelected(null); return }
             openConfirmGlobal({
-              message: '¿Eliminar esta reserva? Esta acción no se puede deshacer.',
+              message: t('agenda_recursos_ui.eliminar_reserva_confirm'),
               danger: true,
               onConfirm: () => {
                 deleteBooking(bookingId)

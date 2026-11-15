@@ -140,3 +140,22 @@
   color: var(--text-2);
   margin-bottom: 16px;
 }
+
+.mfa-box-11 {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* ── Estilos en linea extraidos de MFAPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.mfapage-sx1.mfapage-sx1 {
+  border-bottom: .5px solid var(--surface-4);
+}
+.mfapage-sx2.mfapage-sx2 {
+  border-bottom: none;
+}
+.mfapage-sx3.mfapage-sx3 {
+  opacity: 0.6;
+}
+.mfapage-sx4.mfapage-sx4 {
+  opacity: 1;
+}

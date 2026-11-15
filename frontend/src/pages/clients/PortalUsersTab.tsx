@@ -99,7 +99,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
 
   const { data: users = [] } = useQuery<PortalUser[]>({
     queryKey: ['portal-clients-org', cid],
-    queryFn: () => portalClientsApi.list({ client_org_id: cid }).then(r => r.data),
+    queryFn: () => portalClientsApi.list({ client_org_id: String(cid) }).then(r => r.data),
   })
   const { data: clientDetail } = useQuery({
     queryKey: ['client-detail-projects', cid],
@@ -330,7 +330,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   que el elemento del array — lo que `strictFunctionTypes`
                   rechaza, con razón. */}
               {PORTAL_PERMISSIONS.map((p) => (
-                <label className="pousta-row-6" key={p.key} style={{ background: editForm[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${editForm[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
+                <label className="pousta-row-6 portalus-sx1" key={p.key} style={{ background: editForm[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${editForm[p.key] ? 'var(--accent)' : 'var(--surface-4)'}` }}>
                   <input type="checkbox" checked={!!editForm[p.key]}
                     onChange={e => setEditForm(f => f && ({ ...f, [p.key]: e.target.checked }))}
                     className="pousta-box-17" />
@@ -396,7 +396,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div className="pousta-box-16">{t('portalusers.permisos_en_el_portal')}</div>
             <div className="pousta-grid-2">
               {PORTAL_PERMISSIONS.map(p => (
-                <label className="pousta-row-6" key={p.key} style={{ background: form[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
+                <label className="pousta-row-6 portalus-sx1" key={p.key} style={{ background: form[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}` }}>
                   <input type="checkbox" checked={form[p.key]} onChange={e => setForm(f => ({ ...f, [p.key]: e.target.checked }))}
                     className="pousta-box-17" />
                   <div>

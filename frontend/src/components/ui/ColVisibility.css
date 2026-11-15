@@ -52,3 +52,8 @@
 .uicolvisi-box-5 {
   accent-color: var(--accent);
 }
+
+/* ── Estilos estaticos extraidos de ColVisibility.tsx (#17) ── */
+.colvisib-sx1.colvisib-sx1 {
+  border-radius: var(--radius-sm);
+}

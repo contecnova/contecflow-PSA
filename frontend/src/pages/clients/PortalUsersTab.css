@@ -287,3 +287,8 @@
   padding: 12px 16px;
   margin-bottom: 14px;
 }
+
+/* ── Estilos estaticos extraidos de PortalUsersTab.tsx (#17) ── */
+.portalus-sx1.portalus-sx1 {
+  border-radius: 8px;
+}

@@ -38,3 +38,8 @@
 .ledeor-txt-2 {
   font-size: var(--text-xs);
 }
+
+/* ── Estilos estaticos extraidos de LeccionesDeOrigen.tsx (#17) ── */
+.leccione-sx1 {
+  margin-left: auto;
+}

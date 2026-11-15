@@ -10,8 +10,10 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, esFichaCompleta, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi, apiUrl } from '../services/api'
-import type { ClaveDeApi, ClaveDeApiCreada, ConfigSso, EventoDeAuditoria, IntegracionOAuth, VerificacionDeCadena } from '../services/api/tipos'
+import type { ClaveDeApi, ClaveDeApiCreada, ConfigSso, EventoDeAuditoria, IntegracionOAuth, SolicitudRgpd, VerificacionDeCadena } from '../services/api/tipos'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import Pagination from '../components/ui/Pagination'
+import type { AxiosResponse } from 'axios'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 
@@ -19,8 +21,10 @@ import { useAppT } from '../i18n/AppLangContext'
 import { INTEGRATION_CATALOG } from '../constants/api'
 import { Building2 } from 'lucide-react'
 import useMediaQuery from '../hooks/useMediaQuery'
-import { AUDIT_LOG_PAGE_SIZE, AUDIT_LOG_SMALL_PAGE_SIZE } from '../constants/pagination'
+import { AUDIT_LOG_PAGE_SIZE, AUDIT_LOG_SMALL_PAGE_SIZE, SMALL_PAGE_SIZE } from '../constants/pagination'
 import './EnterprisePage.css'
+
+const GDPR_POR_PAGINA = SMALL_PAGE_SIZE
 
 const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -101,7 +105,7 @@ function WebhooksTab() {
               {logs.length === 0 ? <div className="u-text3-sm">{traducir('enterprise.sin_llamadas_aun')}</div> :
                 logs.slice(0,5).map(l => (
                   <div key={l.id} className="ent-row-3">
-                    <span style={{ color: l.status === 'ok' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
+                    <span className={`${l.status === 'ok' ? 'enterpri-sx1' : 'enterpri-sx2'}`}>{l.status}</span>
                     <span className="u-text2">{l.received_at}</span>
                     <span className="ent-label-2">{l.payload_preview}</span>
                   </div>
@@ -145,7 +149,15 @@ function GDPRTab() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState<GdprForm>({ request_type:'erasure', subject_user_id:'', subject_email:'', notes:'' })
 
-  const { data: requests = [], isLoading } = useQuery({ queryKey:['gdpr'], queryFn:() => gdprApi.list().then(r => r.data) })
+  const [page, setPage] = useState(1)
+  // Paginado en el servidor: el interceptor deja la lista en `data` y el total en `meta.total`.
+  const { data: pagina, isLoading } = useQuery<{ items: SolicitudRgpd[]; total: number }>({
+    queryKey: ['gdpr', page],
+    queryFn: () => gdprApi.list({ page, page_size: GDPR_POR_PAGINA }).then((r: AxiosResponse<SolicitudRgpd[]> & { meta?: { total?: number } }) =>
+      ({ items: r.data, total: Number(r.meta?.total ?? r.data.length) })),
+  })
+  const requests = pagina?.items ?? []
+  const paginas = Math.max(1, Math.ceil((pagina?.total ?? 0) / GDPR_POR_PAGINA))
   const { data: usersRaw = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list().then(r => r.data) })
   const users = Array.isArray(usersRaw) ? usersRaw : []
 
@@ -190,6 +202,7 @@ function GDPRTab() {
           ))}
         </div>
       )}
+      {paginas > 1 && <Pagination page={page} totalPages={paginas} onChange={setPage} />}
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_solicitud_rgpd')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
@@ -262,14 +275,14 @@ function EmailTab() {
       <div className="ent-grid-2">
         <div className="u-min0">
           <div className="ent-box-4">{t('pagina_ent.plantillas')}{allTpl.length})</div>
-          {allTpl.map(t => (
-            <div key={t.id} style={{ ...card, padding:'12px 14px', marginBottom:8 }}>
+          {allTpl.map(tpl => (
+            <div key={tpl.id} style={{ ...card, padding:'12px 14px', marginBottom:8 }}>
               <div className="ent-row-5">
-                <span className="ent-card-5">{t.category}</span>
-                {t.is_system && <span className="ent-card-6">sistema</span>}
+                <span className="ent-card-5">{tpl.category}</span>
+                {tpl.is_system && <span className="ent-card-6">{t('pagina_ent.sistema')}</span>}
               </div>
-              <div className="ent-box-3">{t.name}</div>
-              <div className="ent-box-5">{t.subject}</div>
+              <div className="ent-box-3">{tpl.name}</div>
+              <div className="ent-box-5">{tpl.subject}</div>
             </div>
           ))}
         </div>
@@ -279,7 +292,7 @@ function EmailTab() {
             <div style={{ ...card, overflow:'hidden' }}>
               {logs.slice(0,15).map(l => (
                 <div key={l.id} className="ent-grid-3">
-                  <span className="ent-label-4" style={{ color: l.status === 'sent' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
+                  <span className={`ent-label-4 ${l.status === 'sent' ? 'enterpri-sx3' : 'enterpri-sx4'}`}>{l.status}</span>
                   <div>
                     <div className="ent-label-4">{l.to}</div>
                     <div className="u-text2-xs">{l.subject}</div>
@@ -392,7 +405,7 @@ function IntegrationsTab() {
 
   const { mutate: sync } = useMutation({
     mutationFn: (id: string) => id === JIRA_ID ? integrationsHubApi.syncJira() : oauthIntegrationsApi.sync(id, {}),
-    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? t('pagina_ent.con_error', { length: r.data.errors.length }) : ''}`) },
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`${t('pagina_ent.sincronizados_elementos', { synced: r?.data?.synced ?? 0 })}${r?.data?.errors?.length ? t('pagina_ent.con_error', { length: r.data.errors.length }) : ''}`) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -447,7 +460,7 @@ function IntegrationsTab() {
                   <span className="ent-label-6">{cat.icon}</span>
                   <div>
                     <div className="u-base-700">{integ.name || cat.label}</div>
-                    <div className="u-xs" style={{ color: integ.is_active ? 'var(--success)' : 'var(--danger)' }}>
+                    <div className={`u-xs ${integ.is_active ? 'enterpri-sx3' : 'enterpri-sx4'}`}>
                       {integ.is_active ? t('pagina_ent.activa') : t('pagina_ent.inactiva')}
                       {integ.last_sync_at && t('pagina_ent.ultimo_sync', { v1: integ.last_sync_at.slice(0,10) })}
                     </div>
@@ -471,7 +484,7 @@ function IntegrationsTab() {
 
           {/* Test result */}
           {testResult && (
-            <div className="ent-row-8" style={{ background: testResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${testResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, borderRadius: 8, color: testResult.ok ? 'var(--success)' : 'var(--danger)' }}>
+            <div className={`ent-row-8 enterpri-sx5 ${testResult.ok ? 'enterpri-sx6' : 'enterpri-sx7'}`} style={{ border: `1px solid ${testResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
               {testResult.ok ? '✅' : '✗'} {testResult.message}
               <button onClick={() => setTestResult(null)} className="ent-btn-7">✕</button>
             </div>
@@ -493,7 +506,7 @@ function IntegrationsTab() {
             setForm({ name: (cat.type === 'jira' && jira?.configured && jira.name) || cat.label, integration_type: cat.type, config: previa })
           }}
             type="button"
-            className="ent-btn-8" style={{ border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)' }}
+            className="ent-btn-8 enterpri-sx8" style={{ border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}` }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
             onMouseLeave={e => e.currentTarget.style.borderColor = configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}
           >
@@ -589,7 +602,7 @@ function CadenaDeAuditoria() {
         </label>
       </div>
       {resultado && (
-        <div role="status" className="ent-box-13" style={{ borderRadius: 8, border: `1px solid ${color}` }}>
+        <div role="status" className="ent-box-13 enterpri-sx5" style={{ border: `1px solid ${color}` }}>
           <div className="ent-box-14" style={{ color }}>
             {resultado.ok ? t('enterprise.cadena_ok') : resultado.breaks_total > 0 ? t('enterprise.cadena_rota', { n: resultado.breaks_total }) : t('enterprise.cadena_no_casa')}
           </div>
@@ -598,7 +611,7 @@ function CadenaDeAuditoria() {
             {resultado.head.entry_hash && <> · {t('enterprise.cadena_cabeza')} #{resultado.head.seq} <code className="u-mono">{resultado.head.entry_hash.slice(0, 16)}…</code></>}
           </div>
           {resultado.expected_head && (
-            <div className="ent-box-16" style={{ color: resultado.expected_head.found ? 'var(--success)' : 'var(--danger)' }}>
+            <div className={`ent-box-16 ${resultado.expected_head.found ? 'enterpri-sx3' : 'enterpri-sx4'}`}>
               {t(resultado.expected_head.found ? 'enterprise.cadena_cabeza_sigue' : 'enterprise.cadena_cabeza_falta', { seq: resultado.expected_head.seq })}
             </div>
           )}
@@ -663,7 +676,7 @@ function AuditTab() {
           passwordResetLogs.map((l, i) => (
             <div key={l.id||i} className="ent-grid-8">
               <span className="ent-label-8">{(l.created_at||'').slice(0,16)}</span>
-              <span className="u-600" style={{ color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--success)' : 'var(--accent)' }}>{l.action}</span>
+              <span className={`u-600 ${l.action === 'PASSWORD_RESET_COMPLETE' ? 'enterpri-sx3' : 'enterpri-sx9'}`}>{l.action}</span>
               <span className="u-text2">{l.resource_name || l.resource || '-'}</span>
               <span className="u-text3">{l.user_name||''}</span>
             </div>
@@ -733,7 +746,7 @@ function APIKeysTab() {
                 <code className="u-text2-xs">{k.key_prefix}...</code>
               </div>
               <span className="u-text2">{(k.scopes||[]).join(', ')}</span>
-              <span className="u-text2">{k.requests_today||0}/{k.rate_limit_per_day} hoy</span>
+              <span className="u-text2">{t('pagina_ent.peticiones_hoy', { usadas: k.requests_today || 0, limite: k.rate_limit_per_day })}</span>
               <span className="u-text3">{k.last_used_at || t('pagina_ent.nunca_usado')}</span>
               <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.revocar_clave'), onConfirm: () => revoke(k.id), danger: true }) }} className="ent-btn-12">{t('pagina_ent.revocar')}</button>
             </div>
@@ -873,7 +886,7 @@ function SSOTab() {
       {showCreate && (
         <div style={{ ...cardStyle, borderColor: 'var(--accent-glow)' }}>
           <div className="ent-box-25">{editId ? traducir('enterprise.sso_editar') : traducir('enterprise.nuevo_proveedor_sso')}</div>
-          <div className="ent-grid-10" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr' }}>
+          <div className={`ent-grid-10 ${isNarrow ? 'enterpri-sx10' : 'enterpri-sx11'}`}>
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{t('pagina_ent.proveedor')}</label>
               <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.provider} disabled={!!editId} onChange={e => {
@@ -968,7 +981,7 @@ function SSOTab() {
                   </div>
                 </div>
                 <div className="u-wrap-6">
-                  <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} className="ent-btn-16" style={{ color: c.is_active ? 'var(--warning)' : 'var(--success)' }}>
+                  <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} className={`ent-btn-16 ${c.is_active ? 'enterpri-sx12' : 'enterpri-sx3'}`}>
                     {c.is_active ? traducir('enterprise.sso_desactivar') : traducir('enterprise.sso_activar')}
                   </button>
                   <button onClick={() => editar(c)} aria-label={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`} className="ent-btn-17">✏</button>
@@ -986,7 +999,7 @@ function SSOTab() {
       {/* Resultado del test */}
       {testResult && (
         <div style={{ ...cardStyle, borderColor: testResult.valid ? 'var(--success-border)' : 'var(--danger-border)', background: testResult.valid ? 'var(--success-bg)' : 'var(--danger-bg)' }}>
-          <div className="ent-box-31" style={{ color: testResult.valid ? 'var(--success)' : 'var(--danger)' }}>
+          <div className={`ent-box-31 ${testResult.valid ? 'enterpri-sx3' : 'enterpri-sx4'}`}>
             {testResult.valid ? t('pagina_ent.configuracion_valida') : t('pagina_ent.configuracion_incompleta')}
           </div>
           {(testResult.issues?.length ?? 0) > 0 && (
@@ -1031,7 +1044,7 @@ export default function EnterprisePage(): JSX.Element {
       {/* Tabs */}
       <div className="ent-row-12">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className="ent-btn-19" style={{ border: 'none', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent' }}>
+          <button key={t.id} onClick={() => setTab(t.id)} className={`ent-btn-19 enterpri-sx13 ${tab === t.id ? 'enterpri-sx14' : 'enterpri-sx15'}`}>
             {t.label}
           </button>
         ))}

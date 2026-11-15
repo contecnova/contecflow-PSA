@@ -462,3 +462,25 @@
   border-radius: 12px;
   padding: 18px 20px;
 }
+
+/* ── Estilos estaticos extraidos de ClientsPageTabs.tsx (#17) ── */
+.clientsp-sx1.clientsp-sx1 {
+  border-radius: 8px;
+}
+.clientsp-sx2 {
+  width: 100%;
+}
+
+/* ── Facturas del cliente (InvoicesTab) ── */
+.clifac-scroll { overflow-x: auto; }
+.clifac-tabla { width: 100%; border-collapse: collapse; font-size: var(--text-sm); color: var(--text-1); }
+.clifac-tabla th { text-align: left; font-size: var(--text-xs); font-weight: 600; color: var(--text-3); padding: 8px 12px; border-bottom: 1px solid var(--surface-4); white-space: nowrap; }
+.clifac-tabla td { padding: 10px 12px; border-bottom: 1px solid var(--surface-3); }
+.clifac-tabla tbody tr:hover { background: var(--surface-2); }
+.clifac-tabla .clifac-num { text-align: right; font-variant-numeric: tabular-nums; }
+.clifac-numero { font-weight: 600; }
+.clifac-estado { font-size: var(--text-2xs); padding: 2px 8px; border-radius: var(--radius-full); background: var(--surface-4); color: var(--text-2); white-space: nowrap; }
+.clifac-estado--sent { background: var(--accent-muted); color: var(--accent); }
+.clifac-estado--paid { background: var(--success-bg); color: var(--success); }
+.clifac-estado--overdue { background: var(--danger-bg); color: var(--danger); }
+.clifac-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--radius-md); background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger); font-size: var(--text-sm); }

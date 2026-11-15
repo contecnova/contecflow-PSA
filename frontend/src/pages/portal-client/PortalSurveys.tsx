@@ -89,7 +89,7 @@ export function PortalSurveys() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-surveys'] })
       qc.invalidateQueries({ queryKey: ['portal-dashboard'] })
-      toast.success('Gracias por tu feedback')
+      toast.success(t('portalsurveys.gracias_por_tu_feedback'))
       setActive(null); resetForm()
     },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al enviar respuesta')),
@@ -122,7 +122,7 @@ export function PortalSurveys() {
       <div>
         <PortalPageHeader
           title={active.title || 'Encuesta de satisfacción'}
-          subtitle="Tu feedback nos ayuda a mejorar el servicio. Solo lleva 1 minuto."
+          subtitle={t('portalsurveys.tu_feedback_nos_ayuda_a_mejorar_el')}
           icon={Sparkles}
           breadcrumb={[
             { label: 'Encuestas', onClick: () => { setActive(null); resetForm() } },
@@ -132,12 +132,12 @@ export function PortalSurveys() {
             <PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />}
               disabled={false}
               loading={false}
-              onClick={() => { setActive(null); resetForm() }}>Volver</PortalButton>
+              onClick={() => { setActive(null); resetForm() }}>{t('chat.back')}</PortalButton>
           }
           meta={(active.sent_at ? [{ icon: <Clock size={12} />, value: `Enviada el ${active.sent_at}` }] : []) as SurveyMetaItem[]}
         />
 
-        <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
+        <PortalCard className="portalsu-sx7" accent={false} onClick={undefined}>
           <PortalSection title={t('portalsurveys.puntua_cada_aspecto')} hint="De 1 (muy mala) a 5 (excelente)" action={undefined}>
             <div className="u-stack-16">
               {SCORES.map(s => (
@@ -151,13 +151,13 @@ export function PortalSurveys() {
           </PortalSection>
         </PortalCard>
 
-        <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
+        <PortalCard className="portalsu-sx7" accent={false} onClick={undefined}>
           <PortalSection title={t('portalsurveys.recomendarias_el_servicio')} hint="NPS — del 0 (nunca) al 10 (totalmente)" action={undefined}>
             <NpsScale value={form.nps_score} onChange={(v: number) => setForm(f => ({ ...f, nps_score: v }))} />
           </PortalSection>
         </PortalCard>
 
-        <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
+        <PortalCard className="portalsu-sx7" accent={false} onClick={undefined}>
           <PortalSection title={t('portalsurveys.recomendarias_el_equipo_a_otra_empresa')} hint={undefined} action={undefined}>
             <div className="u-row-10">
               {[
@@ -166,8 +166,8 @@ export function PortalSurveys() {
               ].map(opt => {
                 const isActive = form.would_recommend === opt.v
                 return (
-                  <button className="portsurv-row-8" key={String(opt.v)} onClick={() => setForm(f => ({ ...f, would_recommend: opt.v }))}
-                    style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`, background: isActive ? alpha(opt.color, '1a') : 'var(--surface-3)', color: isActive ? opt.color : 'var(--text-2)' }}>
+                  <button className="portsurv-row-8 portalsu-sx8" key={String(opt.v)} onClick={() => setForm(f => ({ ...f, would_recommend: opt.v }))}
+                    style={{ border: `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`, background: isActive ? alpha(opt.color, '1a') : 'var(--surface-3)', color: isActive ? opt.color : 'var(--text-2)' }}>
                     <opt.Icon size={15} /> {opt.label}
                   </button>
                 )
@@ -176,8 +176,8 @@ export function PortalSurveys() {
           </PortalSection>
         </PortalCard>
 
-        <PortalCard style={{ marginBottom: 16 }} accent={false} onClick={undefined}>
-          <PortalSection title="Comentarios" hint="Lo que más te gusta, lo que mejorarías... (opcional)" action={undefined}>
+        <PortalCard className="portalsu-sx7" accent={false} onClick={undefined}>
+          <PortalSection title={t('tasks.tab_comments')} hint="Lo que más te gusta, lo que mejorarías... (opcional)" action={undefined}>
             <PortalField label="" hint={undefined} required={false}>
               <PortalTextarea rows={4} value={form.comments}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setForm(f => ({ ...f, comments: e.target.value }))}
@@ -194,9 +194,9 @@ export function PortalSurveys() {
         )}
 
         <div className="u-actions-10">
-          <PortalButton variant="secondary" disabled={false} loading={false} icon={undefined} onClick={() => { setActive(null); resetForm() }}>Cancelar</PortalButton>
+          <PortalButton variant="secondary" disabled={false} loading={false} icon={undefined} onClick={() => { setActive(null); resetForm() }}>{t('common.cancel')}</PortalButton>
           <PortalButton icon={<Send size={13} />} disabled={false} loading={isPending} onClick={submit}>
-            Enviar respuesta
+            {t('clientstabs.enviar_respuesta')}
           </PortalButton>
         </div>
       </div>
@@ -208,7 +208,7 @@ export function PortalSurveys() {
     <div>
       <PortalPageHeader
         title={t('portalsurveys.encuestas_de_satisfaccion')}
-        subtitle="Comparte tu experiencia con el equipo. Tu feedback es anónimo dentro del proyecto."
+        subtitle={t('portalsurveys.comparte_tu_experiencia_con_el_equipo_tu')}
         icon={Sparkles}
         actions={undefined}
         meta={[
@@ -227,18 +227,18 @@ export function PortalSurveys() {
       )}
 
       {isLoading ? (
-        <div className="portsurv-box-2">Cargando...</div>
+        <div className="portsurv-box-2">{t('common.loading')}</div>
       ) : surveys.length === 0 ? (
         <PortalEmpty icon={Sparkles}
           title={t('portalsurveys.no_tienes_encuestas')}
-          description="Cuando el equipo te envíe una encuesta de satisfacción, la verás aquí."
+          description={t('portalsurveys.cuando_el_equipo_te_envie_una_encuesta')}
           action={undefined} />
       ) : (
         <>
           {pending.length > 0 && (
             <div className="portsurv-sp-1">
               <div className="portsurv-box-3">
-                Pendientes
+                {t('approvals.pending')}
               </div>
               <div className="u-stack-10">
                 {pending.map(s => (
@@ -251,7 +251,7 @@ export function PortalSurveys() {
                           {t('portalsurveys.enviada_el')} {s.sent_at}
                         </div>
                       </div>
-                      <PortalBadge tone="warning" icon={undefined}>Pendiente</PortalBadge>
+                      <PortalBadge tone="warning" icon={undefined}>{t('uat.pending')}</PortalBadge>
                     </div>
                   </PortalCard>
                 ))}
@@ -262,7 +262,7 @@ export function PortalSurveys() {
           {completed.length > 0 && (
             <div>
               <div className="portsurv-box-3">
-                Respondidas
+                {t('portalsurveys.respondidas')}
               </div>
               <div className="u-stack-10">
                 {completed.map(s => (
@@ -294,7 +294,7 @@ export function PortalSurveys() {
                           <div className="portsurv-box-4">“{s.comments}”</div>
                         )}
                       </div>
-                      <PortalBadge tone="success" icon={undefined}>Respondida</PortalBadge>
+                      <PortalBadge tone="success" icon={undefined}>{t('portalsurveys.respondida')}</PortalBadge>
                     </div>
                   </PortalCard>
                 ))}
@@ -324,8 +324,8 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
         {[1, 2, 3, 4, 5].map(n => {
           const filled = value >= n
           return (
-            <button className="portsurv-row-9" key={n} onClick={() => onChange(n)} aria-label={`${n} de 5 estrellas`}
-              style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${filled ? 'var(--warning, #f59e0b)' : 'var(--surface-4)'}`, background: filled ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--surface-3)', color: filled ? 'var(--warning, #f59e0b)' : 'var(--text-3)' }}>
+            <button className="portsurv-row-9 portalsu-sx8" key={n} onClick={() => onChange(n)} aria-label={`${n} de 5 estrellas`}
+              style={{ border: `1px solid ${filled ? 'var(--warning, #f59e0b)' : 'var(--surface-4)'}`, background: filled ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--surface-3)', color: filled ? 'var(--warning, #f59e0b)' : 'var(--text-3)' }}>
               <Star size={18} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.5} />
             </button>
           )
@@ -345,8 +345,8 @@ function NpsScale({ value, onChange }: { value: number; onChange: (value: number
           const tone = n <= 6 ? 'danger' : n <= 8 ? 'warning' : 'success'
           const color = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--success)'
           return (
-            <button className="portsurv-box-5" key={n} onClick={() => onChange(n)} aria-label={`NPS ${n}`}
-              style={{ borderRadius: 8, border: `1px solid ${active ? color : 'var(--surface-4)'}`, background: active ? alpha(color, '1a') : 'var(--surface-3)', color: active ? color : 'var(--text-2)' }}>{n}</button>
+            <button className="portsurv-box-5 portalsu-sx9" key={n} onClick={() => onChange(n)} aria-label={`NPS ${n}`}
+              style={{ border: `1px solid ${active ? color : 'var(--surface-4)'}`, background: active ? alpha(color, '1a') : 'var(--surface-3)', color: active ? color : 'var(--text-2)' }}>{n}</button>
           )
         })}
       </div>

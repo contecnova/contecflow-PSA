@@ -63,7 +63,7 @@
 
 /* Bandas de exceso: barra de 0 a 100 % (o al último límite) */
 .pol-bandas-barra { position: relative; height: 28px; border-radius: 6px; background: var(--surface-3); overflow: hidden; margin: 8px 0 4px; }
-.pol-banda-segmento { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+.pol-banda-segmento { position: absolute; top: 0; bottom: 0; left: var(--pol-izq, 0); width: var(--pol-ancho, 0); display: flex; align-items: center; justify-content: center;
   font-size: var(--text-xs); color: var(--text-1); border-right: 2px solid var(--surface-1); }
 .pol-banda-segmento--0 { background: color-mix(in srgb, var(--warning) 35%, transparent); }
 .pol-banda-segmento--1 { background: color-mix(in srgb, var(--danger) 35%, transparent); }

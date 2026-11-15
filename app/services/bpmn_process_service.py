@@ -12,10 +12,12 @@ from datetime import datetime, timezone
 from typing import Optional
 from xml.sax.saxutils import escape
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.bpmn_process import BPMNProcess, BPMNProcessVersion, BPMNProcessStatus
 from app.core.asignacion import es_asignable
+from app.core.errores import ErrorDeDominio
 
 
 # ── Seed catalogue ────────────────────────────────────────────────────────────
@@ -544,7 +546,17 @@ def create_process(db: Session, *, name: str, category: str, key: str,
         status=BPMNProcessStatus.draft,
     )
     db.add(proc)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        # Carrera perdida: `clave_unica` miro antes y otra alta ocupo la clave
+        # entre medias; la rechazan los indices unicos (#33). Es un conflicto
+        # (409), no un fallo del servidor.
+        db.rollback()
+        raise ErrorDeDominio(
+            status_code=409,
+            detail=f"Ya existe un proceso con la clave '{key}'. Reintenta la operación.",
+        ) from exc
     xml = bpmn_xml or empty_bpmn_xml(name)
     v = BPMNProcessVersion(
         process_id=proc.id, version=1, bpmn_xml=xml,

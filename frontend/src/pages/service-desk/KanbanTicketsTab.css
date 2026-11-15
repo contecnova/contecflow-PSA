@@ -110,3 +110,8 @@
   padding: 1px 6px;
   border-radius: 4px;
 }
+
+/* ── Estilos estaticos extraidos de KanbanTicketsTab.tsx (#17) ── */
+.kanbanti-sx1.kanbanti-sx1 {
+  border-radius: 8px;
+}

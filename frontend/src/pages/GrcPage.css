@@ -805,3 +805,61 @@
   border-radius: 12px;
   padding: 20px 22px;
 }
+
+/* ── Estilos en linea extraidos de GrcPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.grcpage-sx1.grcpage-sx1 {
+  border-radius: var(--radius-sm);
+}
+.grcpage-sx2.grcpage-sx2 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.grcpage-sx3.grcpage-sx3 {
+  background: transparent;
+  color: var(--text-2);
+}
+.grcpage-sx4.grcpage-sx4 {
+  background: var(--surface-2);
+}
+.grcpage-sx5.grcpage-sx5 {
+  background: var(--surface-1);
+}
+.grcpage-sx6.grcpage-sx6 {
+  opacity: 0.4;
+}
+.grcpage-sx7.grcpage-sx7 {
+  opacity: 1;
+}
+.grcpage-sx8.grcpage-sx8 {
+  margin-bottom: 8px;
+}
+.grcpage-sx9.grcpage-sx9 {
+  margin-bottom: 0;
+}
+.grcpage-sx10.grcpage-sx10 {
+  color: var(--success);
+}
+.grcpage-sx11.grcpage-sx11 {
+  color: var(--danger);
+}
+.grcpage-sx12.grcpage-sx12 {
+  color: var(--text-4);
+}
+.grcpage-sx13.grcpage-sx13 {
+  color: var(--text-3);
+}
+.grcpage-sx14.grcpage-sx14 {
+  opacity: 0.6;
+}
+.grcpage-sx15.grcpage-sx15 {
+  color: var(--warning);
+}
+.grcpage-sx16.grcpage-sx16 {
+  border-radius: 8px;
+}
+.grcpage-sx17.grcpage-sx17 {
+  border-radius: var(--radius-md);
+}
+.grcpage-sx18.grcpage-sx18 {
+  opacity: 0.7;
+}

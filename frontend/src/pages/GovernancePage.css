@@ -165,3 +165,33 @@
   white-space: nowrap;
   color: var(--text-2);
 }
+
+/* ── Estilos en linea extraidos de GovernancePage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.governan-sx1.governan-sx1 {
+  border-radius: var(--radius-sm);
+}
+.governan-sx2.governan-sx2 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.governan-sx3.governan-sx3 {
+  background: transparent;
+  color: var(--text-2);
+}
+.governan-sx4.governan-sx4 {
+  border-radius: 12px;
+}
+.governan-sx5.governan-sx5 {
+  background: var(--success-border);
+}
+.governan-sx6.governan-sx6 {
+  background: var(--surface-4);
+}
+.governan-sx7.governan-sx7 {
+  background: var(--success);
+  left: 22px;
+}
+.governan-sx8.governan-sx8 {
+  background: var(--text-2);
+  left: 2px;
+}

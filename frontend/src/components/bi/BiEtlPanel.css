@@ -134,3 +134,11 @@
   width: 100%;
   box-sizing: border-box;
 }
+
+/* ── Estilos estaticos extraidos de BiEtlPanel.tsx (#17) ── */
+.bietlpan-sx1 {
+  padding: 20px 22px;
+}
+.bietlpan-sx2 {
+  color: var(--accent);
+}

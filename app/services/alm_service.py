@@ -16,6 +16,7 @@ from app.models.alm import (
     ALMAsset, ALMCostCenter, ALMSoftwareInstall,
 )
 from app.core import timeutil
+from app.core.serializers import DIAS_RENOVACION_URGENTE
 from app.core.errores import ErrorDeDominio
 from app.core.paginacion import Pagina, Paginacion, paginar
 
@@ -325,12 +326,20 @@ def delete_vendor_record(vid: str, db: Session) -> dict:
 
 # ── Contract record operations ────────────────────────────────────────────────
 
+def _contiene(columna, texto: str):
+    """``columna`` contiene ``texto`` sin distinguir mayúsculas; % y _ cuentan como texto."""
+    escapado = texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return columna.ilike(f"%{escapado}%", escape="\\")
+
+
 def list_contracts_records(
     vendor_id: Optional[str],
     status: Optional[str],
     expiring_days: Optional[int],
     db: Session,
     pagina: Optional[Paginacion] = None,
+    q: Optional[str] = None,
+    renewal_urgent: bool = False,
 ) -> Pagina:
 
     query = db.query(ALMContract).options(*_CARGA_CONTRATO).filter(ALMContract.is_active == True)
@@ -338,6 +347,21 @@ def list_contracts_records(
         query = query.filter(ALMContract.vendor_id == vendor_id)
     if status:
         query = query.filter(ALMContract.status == status)
+    texto = (q or "").strip()
+    if texto:
+        query = query.filter(or_(
+            _contiene(ALMContract.title, texto),
+            _contiene(ALMContract.reference, texto),
+            ALMContract.vendor.has(_contiene(ALMVendor.name, texto)),
+        ))
+    if renewal_urgent:
+        # Misma definición que `renewal_urgent` del serializador: renueva de hoy a +N días.
+        hoy = timeutil.today()
+        query = query.filter(
+            ALMContract.renewal_date.isnot(None),
+            ALMContract.renewal_date >= hoy,
+            ALMContract.renewal_date <= hoy + timedelta(days=DIAS_RENOVACION_URGENTE),
+        )
     if expiring_days:
         cutoff = timeutil.today() + timedelta(days=expiring_days)
         query = query.filter(
@@ -426,6 +450,8 @@ def list_licenses_records(
     compliance_only: bool,
     db: Session,
     pagina: Optional[Paginacion] = None,
+    q: Optional[str] = None,
+    type: Optional[str] = None,
 ) -> Pagina:
 
     query = db.query(ALMLicense).options(*_CARGA_LICENCIA).filter(ALMLicense.is_active == True)
@@ -433,6 +459,14 @@ def list_licenses_records(
         query = query.filter(ALMLicense.vendor_id == vendor_id)
     if status:
         query = query.filter(ALMLicense.status == status)
+    if type:
+        query = query.filter(ALMLicense.type == type)
+    texto = (q or "").strip()
+    if texto:
+        query = query.filter(or_(
+            _contiene(ALMLicense.name, texto),
+            ALMLicense.vendor.has(_contiene(ALMVendor.name, texto)),
+        ))
     if expiring_days:
         cutoff = timeutil.today() + timedelta(days=expiring_days)
         query = query.filter(

@@ -196,3 +196,18 @@
   letter-spacing: 0.06em;
   margin-bottom: 0;
 }
+
+/* ── Estilos estaticos extraidos de ChangeRolloutPanel.tsx (#17) ── */
+.changero-sx1 {
+  padding: 20px 22px;
+}
+.changero-sx2 {
+  color: var(--purple);
+}
+.changero-sx3.changero-sx3 {
+  border-radius: var(--radius-md);
+}
+.changero-sx4 {
+  color: var(--warning);
+  flex-shrink: 0;
+}

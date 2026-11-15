@@ -55,7 +55,7 @@ export const S: Record<string, React.CSSProperties> = {
 /* ── Period selector ───────────────────────────────────────────────────────── */
 export function PeriodButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <button className="dashkit-box-13" onClick={onClick} style={{ borderRadius: 8, border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, background: active ? COLOR.accentMuted : 'transparent', color: active ? COLOR.accent : 'var(--text-2)' }}>{label}</button>
+    <button className="dashkit-box-13 dashkit-sx1" onClick={onClick} style={{ border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, background: active ? COLOR.accentMuted : 'transparent', color: active ? COLOR.accent : 'var(--text-2)' }}>{label}</button>
   )
 }
 
@@ -87,12 +87,7 @@ export function KpiCard({ label, value, sub, color, icon, accentBar, action }: K
           <div className="dashkit-txt-2">{sub}</div>
         )}
         {action?.to && (
-          <Link to={action.to} style={{
-            marginTop: 4, fontSize: "var(--text-xs)", fontWeight: 600,
-            color: COLOR.accent, textDecoration: 'none',
-            display: 'inline-flex', alignItems: 'center', gap: 3,
-            opacity: 0.85,
-          }}
+          <Link to={action.to} className="dashkit-sx2" style={{ color: COLOR.accent }}
             onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '0.85' }}
           >

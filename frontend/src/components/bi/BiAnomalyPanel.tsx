@@ -87,7 +87,7 @@ export default function BiAnomalyPanel() {
       {/* Anomaly Detection */}
       <div style={S.card}>
         <div className="bianpa-row-1">
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(234,88,12,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--orange)' }}>
+          <div className="bianomal-sx1">
             <AlertTriangle size={16} />
           </div>
           <h3 className="bianpa-box-2">
@@ -131,7 +131,7 @@ export default function BiAnomalyPanel() {
       {/* Churn Prediction */}
       <div style={S.card}>
         <div className="bianpa-row-1">
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}>
+          <div className="bianomal-sx2">
             <TrendingDown size={16} />
           </div>
           <h3 className="bianpa-box-2">

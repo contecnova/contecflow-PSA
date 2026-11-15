@@ -67,3 +67,17 @@
   font-family: inherit;
   transition: background 0.2s;
 }
+
+/* ── Estilos en linea extraidos de IntakeFormPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.intakefo-sx1.intakefo-sx1 {
+  background: var(--text-3);
+}
+.intakefo-sx2.intakefo-sx2 {
+  background: var(--accent);
+}
+.intakefo-sx3.intakefo-sx3 {
+  cursor: not-allowed;
+}
+.intakefo-sx4.intakefo-sx4 {
+  cursor: pointer;
+}

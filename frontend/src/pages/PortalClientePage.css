@@ -22,7 +22,7 @@
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--accent), var(--purple, #7c3aed));
+  background: linear-gradient(135deg, var(--accent), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -132,4 +132,9 @@
   font-size: var(--text-xs);
   color: var(--text-3);
   line-height: 1.6;
+}
+
+/* ── Estilos estaticos extraidos de PortalClientePage.tsx (#17) ── */
+.portalcl-sx4 {
+  margin-bottom: 18px;
 }

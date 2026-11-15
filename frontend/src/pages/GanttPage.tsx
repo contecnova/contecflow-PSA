@@ -186,7 +186,7 @@ export default function GanttPage(): JSX.Element {
                 onClick={() => setSmartScheduleOpen(true)}
                 title={traducir('gantt.sugerir_fechas_para_tareas_sin_planificar_usando')}
               >
-                <Sparkles size={13} style={{ marginRight: 4 }} />{' '}{t('pagina_gantt.auto_planificar')}
+                <Sparkles size={13} className="gantt-box-3" />{' '}{t('pagina_gantt.auto_planificar')}
               </Button>}
             </div>
           }

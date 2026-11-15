@@ -407,3 +407,20 @@
   text-align: right;
   font-family: var(--font-mono);
 }
+
+/* Añadidos a mano: anchos que antes iban en línea. */
+.rfc-ancho-contenido {
+  min-width: max-content;
+}
+
+.rfc-btn-sm,
+.rfc-nombre {
+  width: var(--rfc-nombre-ancho);
+}
+
+/* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
+.rfc-input:focus-visible,
+.rfc-input-2:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

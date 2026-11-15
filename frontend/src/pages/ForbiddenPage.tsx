@@ -26,29 +26,13 @@ export default function ForbiddenPage(): JSX.Element {
         <div className="u-wrap-10">
           <Link
             to="/"
-            style={{
-              padding: '10px 14px',
-              borderRadius: 8,
-              border: 'none',
-              textDecoration: 'none',
-              background: 'var(--accent)',
-              color: 'white',
-              fontWeight: 600,
-            }}
+            className="forb-card"
           >
             {t('forbidden.go_home')}
           </Link>
           <Link
             to="/imputar"
-            style={{
-              padding: '10px 14px',
-              borderRadius: 8,
-              border: '1px solid var(--surface-4)',
-              textDecoration: 'none',
-              background: 'transparent',
-              color: 'var(--text-1)',
-              fontWeight: 600,
-            }}
+            className="forb-card-2"
           >
             {t('forbidden.go_timesheets')}
           </Link>

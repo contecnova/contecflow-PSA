@@ -142,20 +142,8 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
     <div className="portui-row-1">
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside
-        className={mobileOpen ? 'portal-sidebar portal-sidebar--open' : 'portal-sidebar'}
-        style={{
-          width: collapsed ? 68 : 240,
-          background: 'var(--surface-1)',
-          borderRight: '1px solid var(--surface-4)',
-          display: 'flex',
-          flexDirection: 'column',
-          flexShrink: 0,
-          transition: 'width 0.18s ease',
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          zIndex: 5,
-        }}
+        className={`${mobileOpen ? 'portal-sidebar portal-sidebar--open' : 'portal-sidebar'} portalui-sx1`}
+        style={{ width: collapsed ? 68 : 240 }}
       >
         {/* Brand */}
         <div className="portui-row-22" style={{ padding: collapsed ? '16px 12px' : '16px 18px' }}>
@@ -185,11 +173,11 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
         {!collapsed && (
           <div className="portui-sp-1">
             <div className="portui-box-4">
-              <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+              <Search size={13} className="portalui-sx2" />
               <input
                 value={filter}
                 onChange={e => setFilter(e.target.value)}
-                placeholder="Buscar..."
+                placeholder={traducir('portalui.buscar')}
                 aria-label={traducir('portalui.filtrar_menu')}
                 className="portui-box-5"
               />
@@ -250,7 +238,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                 <div className="portui-row-30">{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
                 <div className="portui-box-10">
                   <div className="portui-box-11">{client?.full_name || client?.email}</div>
-                  <div className="portui-box-12">{projectsCount} proyecto{projectsCount === 1 ? '' : 's'}</div>
+                  <div className="portui-box-12">{projectsCount} {traducir('portalui.proyecto')}{projectsCount === 1 ? '' : 's'}</div>
                 </div>
               </div>
               <button
@@ -297,8 +285,8 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
             </button>
             <button
               onClick={() => onSection('support')}
-              title="Notificaciones / pendientes"
-              aria-label="Notificaciones"
+              title={traducir('portalui.notificaciones_pendientes')}
+              aria-label={traducir('nav.notifications')}
               className="portui-row-7"
             >
               <Bell size={15} />
@@ -318,9 +306,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
 
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div role="presentation" onClick={() => setMobileOpen(false)} style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 4,
-        }} />
+        <div role="presentation" onClick={() => setMobileOpen(false)} className="portalui-sx3" />
       )}
 
       {/* Quick create floating panel (réplica del backoffice) */}
@@ -432,35 +418,28 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
 // ── Card ─────────────────────────────────────────────────────────────────────
 interface PortalCardProps {
   children?: ReactNode
+  className?: string
   style?: CSSProperties
   accent?: boolean
   padding?: CSSProperties['padding']
   onClick?: (e: ReactMouseEvent<HTMLDivElement> | ReactKeyboardEvent<HTMLDivElement>) => void
 }
 
-export function PortalCard({ children, style = {}, accent, padding = 20, onClick }: PortalCardProps) {
-  const base: CSSProperties = {
-    background: 'var(--surface-2)',
-    border: `1px solid ${accent ? 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))' : 'var(--surface-4)'}`,
-    borderRadius: 'var(--radius-lg, 12px)',
-    padding,
-    boxShadow: accent ? '0 0 0 3px color-mix(in srgb, var(--accent) 6%, transparent)' : 'none',
-    transition: 'border-color 0.15s, box-shadow 0.15s',
-    ...style,
-  }
+export function PortalCard({ children, className, style, accent, padding, onClick }: PortalCardProps) {
+  const cls = `portal-card${accent ? ' portal-card--accent' : ''}${onClick ? ' portal-card--click' : ''}${className ? ` ${className}` : ''}`
+  const st = padding === undefined ? style : ({ '--portal-card-pad': typeof padding === 'number' ? `${padding}px` : padding, ...style } as CSSProperties)
   if (onClick) {
     return (
       <div
         role="button" tabIndex={0}
         onClick={onClick}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e) } }}
-        style={{ ...base, cursor: 'pointer' }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-border-strong, var(--accent-border-strong))' }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = accent ? 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))' : 'var(--surface-4)' }}
+        className={cls}
+        style={st}
       >{children}</div>
     )
   }
-  return <div style={base}>{children}</div>
+  return <div className={cls} style={st}>{children}</div>
 }
 
 // ── KPI ──────────────────────────────────────────────────────────────────────
@@ -486,7 +465,7 @@ export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', tre
   } as Record<string, string>)[tone] || 'var(--text-1)'
   const trendColor = trend > 0 ? 'var(--success)' : trend < 0 ? 'var(--danger)' : 'var(--text-3)'
   return (
-    <PortalCard padding={big ? 22 : 18} style={{ minHeight: big ? 132 : 116, display: 'flex', flexDirection: 'column' }}>
+    <PortalCard padding={big ? 22 : 18} className="portalui-sx4" style={{ minHeight: big ? 132 : 116 }}>
       <div className="portui-row-14">
         {Icon && (
           <div className="portui-row-26" style={{ background: `${toneColor === 'var(--text-1)' ? 'var(--accent-muted)' : alpha(toneColor, '18')}`, color: toneColor === 'var(--text-1)' ? 'var(--accent)' : toneColor }}><Icon size={15} /></div>
@@ -757,20 +736,17 @@ interface PortalModalProps {
 }
 
 export function PortalModal({ open, onClose, title, subtitle, width = 560, children, footer }: PortalModalProps) {
+  const { t: traducir } = useAppLang()
   if (!open) return null
   return (
-    <div role="presentation" onMouseDown={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      padding: '40px 24px', zIndex: 'var(--z-modal)', overflowY: 'auto',
-    }}>
-      <div className="portui-box-32" role="dialog" aria-modal="true" onMouseDown={e => e.stopPropagation()} style={{ maxWidth: width, boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}>
+    <div role="presentation" onMouseDown={onClose} className="portalui-sx5">
+      <div className="portui-box-32 portalui-sx6" role="dialog" aria-modal="true" onMouseDown={e => e.stopPropagation()} style={{ maxWidth: width }}>
         <div className="portui-row-18">
           <div>
             <h2 className="portui-box-22">{title}</h2>
             {subtitle && <p className="portui-box-23">{subtitle}</p>}
           </div>
-          <button onClick={onClose} aria-label="Cerrar" className="portui-row-19"><X size={14} /></button>
+          <button onClick={onClose} aria-label={traducir('common.close')} className="portui-row-19"><X size={14} /></button>
         </div>
         {children}
         {footer && (
@@ -801,7 +777,7 @@ export function PortalBanner({ tone = 'info', icon, title, body, action }: Porta
   }
   const c = tones[tone] || tones.info
   return (
-    <div className="portui-row-28" style={{ background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 'var(--radius-lg, 12px)' }}>
+    <div className="portui-row-28 portalui-sx7" style={{ background: c.bg, border: `1px solid ${c.bd}` }}>
       {icon && <div className="portui-row-29" style={{ color: c.fg }}>{icon}</div>}
       <div className="u-flex1-min0">
         <div className="portui-txt-10" style={{ color: c.fg }}>{title}</div>
@@ -867,6 +843,7 @@ interface PortalSparkProps {
 }
 
 export function PortalSpark({ values = [], width = 110, height = 32, color = 'var(--accent)' }: PortalSparkProps) {
+  const { t: traducir } = useAppLang()
   if (!values.length) return null
   const min = Math.min(...values, 0)
   const max = Math.max(...values, 1)
@@ -881,7 +858,7 @@ export function PortalSpark({ values = [], width = 110, height = 32, color = 'va
     .join(' ')
   const areaPath = `${path} L ${(stepX * (values.length - 1)).toFixed(1)} ${height} L 0 ${height} Z`
   return (
-    <svg width={width} height={height} role="img" aria-label="tendencia">
+    <svg width={width} height={height} role="img" aria-label={traducir('portalui.tendencia')}>
       <path d={areaPath} fill={color} opacity="0.15" />
       <path d={path} stroke={color} strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>

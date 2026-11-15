@@ -106,3 +106,14 @@
   font-weight: 800;
   line-height: 1.1;
 }
+
+/* ── Estilos estaticos extraidos de AlertCorrelationPanel.tsx (#17) ── */
+.alertcor-sx1.alertcor-sx1 {
+  border-radius: var(--radius-md);
+}
+.alertcor-sx2 {
+  flex-shrink: 0;
+}
+.alertcor-sx3 {
+  padding: 20px 22px;
+}

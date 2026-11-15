@@ -261,3 +261,12 @@
   font-size: var(--text-lg-em);
   font-weight: 800;
 }
+
+/* ── Estilos estaticos extraidos de PortalDashboard.tsx (#17) ── */
+.portalda-sx1 {
+  height: 116px;
+  opacity: 0.5;
+}
+.portalda-sx2 {
+  color: var(--text-3);
+}

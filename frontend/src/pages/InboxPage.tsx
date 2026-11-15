@@ -70,8 +70,7 @@ export default function InboxPage(): JSX.Element {
         items={items}
         active={tab}
         onChange={(value) => setTab(value as InboxTab)}
-        ariaLabel={t('inbox.title')}
-        style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
+        ariaLabel={t('inbox.title')} className="inboxpag-sx1"
       />
       <Suspense fallback={<Loading />}>
         {tab === 'notifications' && <NotificationsEmbedded embedded />}

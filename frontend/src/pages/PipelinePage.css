@@ -274,3 +274,27 @@
   display: grid;
   gap: 16px;
 }
+
+.pipe-grid-11 {
+  display: grid;
+  gap: 18px;
+}
+
+/* ── Estilos estaticos extraidos de PipelinePage.tsx (#17) ── */
+.pipeline-sx1 {
+  min-width: 180px;
+  padding: 18px;
+}
+.pipeline-sx2 {
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+/* ── Estilos en linea extraidos de PipelinePage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.pipeline-sx3.pipeline-sx3 {
+  margin-bottom: 6px;
+}
+.pipeline-sx4.pipeline-sx4 {
+  margin-bottom: 0;
+}

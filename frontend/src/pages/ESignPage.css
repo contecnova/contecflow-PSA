@@ -168,3 +168,19 @@
   text-align: center;
   text-decoration: none;
 }
+
+.esign-box-7 {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* ── Estilos en linea extraidos de ESignPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.esignpag-sx1.esignpag-sx1 {
+  border-radius: var(--radius-md);
+}
+.esignpag-sx2.esignpag-sx2 {
+  background: var(--success);
+}
+.esignpag-sx3.esignpag-sx3 {
+  background: var(--surface-5);
+}

@@ -13,7 +13,9 @@ vi.mock('../services/api', () => ({
   sdRoutingApi: {}, sdGroupsApi: {}, sdSlaPoliciesApi: {}, usersApi: {},
 }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
-vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string) => k, useAppLang: () => ({ lang: 'en', t: (k: string) => k }) }))
+// t de prueba: la clave y, si las hay, las variables (así se comprueba el total que se pinta).
+const { tPrueba } = vi.hoisted(() => ({ tPrueba: (k: string, p?: Record<string, unknown>) => (p ? `${k}:${Object.values(p).join(',')}` : k) }))
+vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => tPrueba, useAppLang: () => ({ lang: 'en', t: tPrueba }) }))
 
 import { TicketList } from '../pages/service-desk/QueueAndRoutingSections'
 
@@ -37,21 +39,21 @@ describe('TicketList', () => {
 
   it('«Todos» enseña el total y pide la página siguiente', async () => {
     pintar()
-    expect(await screen.findByText('130 tickets')).toBeTruthy()
+    expect(await screen.findByText('queueandrouting.n_tickets:130')).toBeTruthy()
     fireEvent.click(screen.getByText('2'))
     await waitFor(() => expect(tickets).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, page_size: 50 })))
   })
 
   it('«Todos» manda la búsqueda al servidor', async () => {
     pintar()
-    await screen.findByText('130 tickets')
+    await screen.findByText('queueandrouting.n_tickets:130')
     fireEvent.change(screen.getByLabelText('service_desk.search_tickets'), { target: { value: 'impresora' } })
     await waitFor(() => expect(tickets).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'impresora', page: 1 })))
   })
 
   it('«Mi cola» pasa de 25 y pagina', async () => {
     pintar(true)
-    expect(await screen.findByText('60 tickets')).toBeTruthy()
+    expect(await screen.findByText('queueandrouting.n_tickets:60')).toBeTruthy()
     expect(queue).toHaveBeenCalledWith(expect.objectContaining({ page: 1, page_size: 50 }))
   })
 })

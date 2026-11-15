@@ -38,7 +38,7 @@ interface StatCardProps {
 
 function StatCard({ label, value, accent, sub }: StatCardProps) {
   return (
-    <div className="aurepa-box-21" style={{ background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`, borderRadius: 'var(--radius-md)' }}>
+    <div className="aurepa-box-21 autoreso-sx1" style={{ background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))` }}>
       <div className="aurepa-txt-3" style={{ color: accent }}>
         {value ?? '—'}
       </div>
@@ -61,7 +61,7 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
   const { mutate, isPending } = useMutation({
     mutationFn: () => ticketsApi.autoResolutionFeedback(ticketId, { success }),
     onSuccess: () => {
-      toast.success('Feedback registrado en el bucket de la ticket.')
+      toast.success(t('autoresolution.feedback_registrado_en_el_bucket_de_la'))
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
       onClose()
     },
@@ -74,15 +74,15 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
         <div>
           <div className="aurepa-fieldlabel">{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
           <div className="u-row-10">
-            <button className="aurepa-box-22"
+            <button className="aurepa-box-22 autoreso-sx2"
               type="button"
               onClick={() => setSuccess(true)}
-              style={{ borderRadius: 8, border: `1px solid ${success ? 'var(--success)' : 'var(--surface-4)'}`, background: success ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'var(--surface-3)', color: success ? 'var(--success)' : 'var(--text-2)' }}
-            >👍 Correcta</button>
-            <button className="aurepa-box-22"
+              style={{ border: `1px solid ${success ? 'var(--success)' : 'var(--surface-4)'}`, background: success ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'var(--surface-3)', color: success ? 'var(--success)' : 'var(--text-2)' }}
+            >{t('autoresolution.correcta')}</button>
+            <button className="aurepa-box-22 autoreso-sx2"
               type="button"
               onClick={() => setSuccess(false)}
-              style={{ borderRadius: 8, border: `1px solid ${!success ? 'var(--danger)' : 'var(--surface-4)'}`, background: !success ? 'color-mix(in srgb, var(--danger) 12%, transparent)' : 'var(--surface-3)', color: !success ? 'var(--danger)' : 'var(--text-2)' }}
+              style={{ border: `1px solid ${!success ? 'var(--danger)' : 'var(--surface-4)'}`, background: !success ? 'color-mix(in srgb, var(--danger) 12%, transparent)' : 'var(--surface-3)', color: !success ? 'var(--danger)' : 'var(--text-2)' }}
             >{t('autoresolution.fallo')}</button>
           </div>
         </div>
@@ -90,8 +90,8 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
           {t('autoresolution.tu_feedback_alimenta_el_bucket_category_priority')}
         </div>
         <div className="u-actions-10">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate()} loading={isPending}>Enviar feedback</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button onClick={() => mutate()} loading={isPending}>{t('autoresolution.enviar_feedback')}</Button>
         </div>
       </div>
     </Modal>
@@ -110,7 +110,7 @@ function FeedbackLookup({ onOpen }: { onOpen: (id: string) => void }) {
         className="aurepa-box-4"
       />
       <Button onClick={() => id && onOpen(id.trim())} disabled={!id.trim()}>
-        Dar feedback
+        {t('autoresolution.dar_feedback')}
       </Button>
     </div>
   )
@@ -162,12 +162,12 @@ export default function AutoResolutionPanel() {
     onSuccess: (res) => {
       const r = res.data
       if (r.status === 'queued') {
-        toast.success(`Job encolado (lote ${r.limit}). Puedes seguir trabajando mientras procesa.`)
+        toast.success(t('autoresolution.job_encolado_lote_limit_puedes_seguir_trabajando', { limit: r.limit }))
       } else if (r.status === 'already_running') {
-        toast.warning('Ya hay un job de auto-resolución en ejecución.')
+        toast.warning(t('autoresolution.ya_hay_un_job_de_auto_resolucion'))
       } else {
         toast.success(
-          `Job: ${r.processed ?? 0} procesados · ${r.auto_resolved ?? 0} auto-resueltos · ${r.suggested ?? 0} sugeridos · ${r.failed ?? 0} fallidos`
+          t('autoresolution.job_processed_procesados_auto_resolved_auto_resueltos', { processed: r.processed ?? 0, auto_resolved: r.auto_resolved ?? 0, suggested: r.suggested ?? 0, failed: r.failed ?? 0 })
         )
       }
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
@@ -180,7 +180,7 @@ export default function AutoResolutionPanel() {
     onSuccess: (res) => {
       const r = res.data
       toast.success(
-        `Auto-cierre: ${r.auto_closed ?? 0} cerrados · ${r.validated ?? 0} validados · ${r.failed ?? 0} fallidos`
+        t('autoresolution.auto_cierre_auto_closed_cerrados_validated_validados', { auto_closed: r.auto_closed ?? 0, validated: r.validated ?? 0, failed: r.failed ?? 0 })
       )
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
     },
@@ -196,7 +196,7 @@ export default function AutoResolutionPanel() {
       default_job_limit: Number(cfgDraft?.default_job_limit ?? 25),
     }),
     onSuccess: () => {
-      toast.success('Configuración de auto-resolución guardada')
+      toast.success(t('autoresolution.configuracion_de_auto_resolucion_guardada'))
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-config'] })
     },
     onError: (e) => toast.error(errMsg(e, 'Error al guardar configuración')),
@@ -240,9 +240,9 @@ export default function AutoResolutionPanel() {
           <>
             <div className="aurepa-grid-1">
               <div>
-                <div className="aurepa-fieldlabel">Umbral auto-resolver</div>
+                <div className="aurepa-fieldlabel">{t('autoresolution.umbral_auto_resolver')}</div>
                 <input
-                  aria-label="Umbral auto-resolver"
+                  aria-label={t('autoresolution.umbral_auto_resolver')}
                   type="range"
                   min="0"
                   max="1"
@@ -255,9 +255,9 @@ export default function AutoResolutionPanel() {
               </div>
 
               <div>
-                <div className="aurepa-fieldlabel">Umbral sugerencia</div>
+                <div className="aurepa-fieldlabel">{t('autoresolution.umbral_sugerencia')}</div>
                 <input
-                  aria-label="Umbral sugerencia"
+                  aria-label={t('autoresolution.umbral_sugerencia')}
                   type="range"
                   min="0"
                   max="1"
@@ -325,13 +325,13 @@ export default function AutoResolutionPanel() {
           <>
             <div className="u-wrap-10">
               <StatCard
-                label="Auto-resueltos (total)"
+                label={t('autoresolution.auto_resueltos_total')}
                 value={stats?.total_auto_resolved}
                 accent="var(--success)"
                 sub={stats?.pct_of_all_tickets != null ? `${stats.pct_of_all_tickets}% de todos los tickets` : undefined}
               />
               <StatCard
-                label="Feedback validado"
+                label={t('autoresolution.feedback_validado')}
                 value={stats?.feedback_total_validated}
                 accent="var(--accent)"
                 sub="Tickets con feedback registrado"
@@ -388,7 +388,7 @@ export default function AutoResolutionPanel() {
       {/* Runtime health */}
       <Card style={card}>
         <div className="aurepa-box-11">
-          🩺 Salud operativa
+          {t('autoresolution.salud_operativa')}
         </div>
         <div className="aurepa-row-4">
           <span className="aurepa-box-25" style={{ background: runtimeColor }} />
@@ -396,11 +396,11 @@ export default function AutoResolutionPanel() {
         </div>
         <div className="aurepa-grid-2">
           <div className="aurepa-box-12">
-            <div className="aurepa-fieldlabel">Inicio</div>
+            <div className="aurepa-fieldlabel">{t('bpm.inicio')}</div>
             <div className="aurepa-txt-2">{formatDateTime(runtime?.started_at)}</div>
           </div>
           <div className="aurepa-box-12">
-            <div className="aurepa-fieldlabel">Fin</div>
+            <div className="aurepa-fieldlabel">{t('absences.end')}</div>
             <div className="aurepa-txt-2">{formatDateTime(runtime?.completed_at)}</div>
           </div>
           <div className="aurepa-box-12">
@@ -408,7 +408,7 @@ export default function AutoResolutionPanel() {
             <div className="aurepa-txt-2">{formatDurationMs(runtime?.duration_ms)}</div>
           </div>
           <div className="aurepa-box-12">
-            <div className="aurepa-fieldlabel">Resultado</div>
+            <div className="aurepa-fieldlabel">{t('nexusagent.resultado')}</div>
             <div className="aurepa-txt-2">
               {runtime?.stats
                 ? `${runtime.stats.processed ?? 0} procesados · ${runtime.stats.auto_resolved ?? 0} auto-resueltos · ${runtime.stats.failed ?? 0} fallidos`
@@ -418,7 +418,7 @@ export default function AutoResolutionPanel() {
         </div>
         {runtime?.error && (
           <div className="aurepa-box-13">
-            Error: {runtime.error}
+            {t('autoresolution.error')} {runtime.error}
           </div>
         )}
       </Card>
@@ -448,7 +448,7 @@ export default function AutoResolutionPanel() {
                   <span className="aurepa-box-15">{formatDateTime(run.started_at)}</span>
                   <span className="aurepa-box-16">{formatDurationMs(run.duration_ms)}</span>
                   {run.stats
-                    ? <span className="aurepa-box-17">{processed} procesados · {autoResolved} auto-resueltos · {failed} fallidos</span>
+                    ? <span className="aurepa-box-17">{processed} {t('autoresolution.procesados')} {autoResolved} {t('autoresolution.auto_resueltos')} {failed} {t('autoresolution.fallidos')}</span>
                     : run.error
                       ? <span className="aurepa-box-18">{run.error}</span>
                       : <span className="aurepa-box-19">—</span>
@@ -463,7 +463,7 @@ export default function AutoResolutionPanel() {
       {/* Manual job triggers */}
       <Card style={card}>
         <div className="aurepa-box-11">
-          ⚡ Acciones manuales
+          {t('autoresolution.acciones_manuales')}
         </div>
         <div className="aurepa-box-20">
           {t('autoresolution.los_jobs_tambien_se_ejecutan_de_forma')}
@@ -473,7 +473,7 @@ export default function AutoResolutionPanel() {
             {t('autoresolution.ejecutar_auto_resolucion')}
           </Button>
           <Button onClick={() => runCloseJob()} loading={runningClose} variant="secondary">
-            🔒 Ejecutar auto-cierre
+            {t('autoresolution.ejecutar_auto_cierre')}
           </Button>
         </div>
       </Card>

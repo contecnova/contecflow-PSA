@@ -209,7 +209,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
       <div className="prof-grid-4">
         {/* Hours */}
-        <Card style={{ padding: 16 }}>
+        <Card className="profitab-sx1">
           <h4 className="prof-title-muted-base-strong">{t('rentabilidad_ui.horas')}</h4>
           {[
             { label: t('rentabilidad_ui.totales'), value: fmtHours(data.total_hours) },
@@ -226,7 +226,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
         </Card>
 
         {/* By person */}
-        <Card style={{ padding: 16 }}>
+        <Card className="profitab-sx1">
           <h4 className="prof-title-muted-base-strong">{t('profitability.por_persona')}</h4>
           {data.by_person?.length === 0 ? <EmptyState icon="👤" title={t('profitability.sin_detalle_por_persona')} /> : (
             data.by_person?.slice(0, 6).map(p => (
@@ -244,7 +244,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
       {/* Weekly evolution */}
       {(data.by_week?.length ?? 0) > 0 && (
-        <Card style={{ padding: 16, marginBottom: 20 }}>
+        <Card className="profitab-sx2">
           <h4 className="prof-title-muted-base-strong">{t('profitability.evolucion_semanal')}</h4>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={data.by_week} margin={{ top: 0, right: 0, left: -20, bottom: 20 }}>
@@ -259,7 +259,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
       )}
 
       {/* Milestones */}
-      <Card style={{ padding: 16 }}>
+      <Card className="profitab-sx1">
         <div className="prof-row-6">
           <h4 className="prof-title-muted-base-strong-2">{t('profitability.hitos_de_facturacion')}</h4>
           <Button size="sm" onClick={() => setShowAddMilestone(true)} icon="＋">{t('profitability.anadir_hito')}</Button>
@@ -352,7 +352,7 @@ export default function ProfitabilityPage() {
       ) : (
         <>
           {/* Chart */}
-          <Card style={{ marginBottom: 24, padding: 20 }}>
+          <Card className="profitab-sx3">
             <h3 className="prof-title-muted-md-strong">{t('profitability.margen_por_proyecto')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={projects.slice().reverse()} margin={{ top: 0, right: 0, left: 0, bottom: 60 }}>

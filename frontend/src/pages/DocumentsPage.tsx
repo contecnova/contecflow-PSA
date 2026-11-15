@@ -63,11 +63,11 @@ const FILE_COLORS: Record<string, { c: string; bg: string; label: string }> = {
   pdf:          { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 9%, transparent)', label: 'PDF' },
   image:        { c: 'var(--accent)', bg: 'color-mix(in srgb, var(--accent) 9%, transparent)', label: 'IMG' },
   spreadsheet:  { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 9%, transparent)', label: 'XLS' },
-  word:         { c: 'var(--accent)', bg: '#6366f118', label: 'DOC' },
+  word:         { c: 'var(--accent)', bg: 'color-mix(in srgb, var(--accent) 9%, transparent)', label: 'DOC' },
   presentation: { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 9%, transparent)', label: 'PPT' },
-  archive:      { c: 'var(--purple)', bg: '#8b5cf618', label: 'ZIP' },
-  text:         { c: '#64748b', bg: '#64748b18', label: 'TXT' },
-  other:        { c: 'var(--text-3)', bg: '#6b728018', label: 'FILE' },
+  archive:      { c: 'var(--purple)', bg: 'color-mix(in srgb, var(--purple) 9%, transparent)', label: 'ZIP' },
+  text:         { c: 'var(--text-3)', bg: 'color-mix(in srgb, var(--text-3) 9%, transparent)', label: 'TXT' },
+  other:        { c: 'var(--text-3)', bg: 'color-mix(in srgb, var(--text-3) 9%, transparent)', label: 'FILE' },
 };
 
 function detectFileType(mime: string | null | undefined, name: string | null | undefined) {
@@ -95,14 +95,14 @@ function FileIcon({ mime, name, size = 36 }: { mime?: string | null; name?: stri
 const CAT_STYLE: Record<string, { c: string; bg: string }> = {
   contract:     { c: 'var(--accent)', bg: 'color-mix(in srgb, var(--accent) 8%, transparent)' },
   deliverable:  { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)' },
-  proposal:     { c: 'var(--purple)', bg: '#8b5cf615' },
+  proposal:     { c: 'var(--purple)', bg: 'color-mix(in srgb, var(--purple) 8%, transparent)' },
   sop:          { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)' },
   legal:        { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)' },
-  requirements: { c: 'var(--chart-teal)', bg: '#06b6d415' },
-  report:       { c: 'var(--orange)', bg: '#f9731615' },
+  requirements: { c: 'var(--chart-teal)', bg: 'color-mix(in srgb, var(--chart-teal) 8%, transparent)' },
+  report:       { c: 'var(--orange)', bg: 'color-mix(in srgb, var(--orange) 8%, transparent)' },
   presentation: { c: 'var(--chart-pink)', bg: 'color-mix(in srgb, var(--chart-pink) 8%, transparent)' },
-  meeting_notes:{ c: 'var(--sky-blue)', bg: '#0ea5e915' },
-  other:        { c: 'var(--text-3)', bg: '#6b728015' },
+  meeting_notes:{ c: 'var(--sky-blue)', bg: 'color-mix(in srgb, var(--sky-blue) 8%, transparent)' },
+  other:        { c: 'var(--text-3)', bg: 'color-mix(in srgb, var(--text-3) 8%, transparent)' },
 };
 
 const APPROVAL_STYLE: Record<string, { c: string; bg: string; icon: string; label: string }> = {
@@ -185,7 +185,7 @@ function ReservaChip({ reserva }: { reserva: Reserva }) {
   const mia = reserva.mine ?? reserva.user_id === user?.id
   return (
     <div title={reserva.expires_at ? t('documents.reserva_hasta', { fecha: new Date(reserva.expires_at).toLocaleString() }) : undefined}
-      className="docs-row-5" style={{ color: mia ? 'var(--accent)' : 'var(--warning)' }}>
+      className={`docs-row-5 ${mia ? 'document-sx6' : 'document-sx7'}`}>
       <Lock size={10} /> {mia ? t('documents.reserva_tuya') : t('documents.reserva_de', { nombre: reserva.user_name || '—' })}
     </div>
   )
@@ -212,7 +212,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
           onView(doc.id);
         }
       }}
-      className="docs-stack" style={{ border: `1px solid ${selected ? 'var(--accent)' : hover ? 'var(--surface-5)' : 'var(--surface-4)'}`, borderRadius: 12, boxShadow: hover ? '0 6px 24px rgba(0,0,0,0.18)' : 'none' }}>
+      className={`docs-stack document-sx8 ${hover ? 'document-sx9' : 'document-sx10'}`} style={{ border: `1px solid ${selected ? 'var(--accent)' : hover ? 'var(--surface-5)' : 'var(--surface-4)'}` }}>
 
       {/* Top color strip */}
       <div className="docs-box-4" style={{ backgroundColor: ft.c }} />
@@ -221,7 +221,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }}
-        className="docs-btn" style={{ borderRadius: 5, border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}`, backgroundColor: selected ? 'var(--accent)' : 'var(--surface-1)', opacity: selected || hover ? 1 : 0 }}>
+        className={`docs-btn document-sx11 ${selected ? 'document-sx12' : 'document-sx13'} ${selected || hover ? 'document-sx14' : 'document-sx15'}`} style={{ border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` }}>
         {selected && <Check size={9} color="white" strokeWidth={3} />}
       </button>
 
@@ -273,7 +273,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
           <div className="u-text3-2xs">{relTime(doc.created_at)}</div>
           {lv && <div className="docs-box-7">{fmtBytes(lv.file_size)}</div>}
         </div>
-        <div className="docs-row-11" style={{ opacity: hover ? 1 : 0 }}>
+        <div className={`docs-row-11 ${hover ? 'document-sx14' : 'document-sx15'}`}>
           {lv?.download_url && (
             <a href={lv.download_url} target="_blank" rel="noreferrer" title={t('pagina_docs.descargar_documento')}
               onClick={e => e.stopPropagation()}
@@ -298,6 +298,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
 // ── Doc Row (Table) ─────────────────────────────────────────
 
 function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: DocItemProps) {
+  const t = useAppT();
   const [hover, setHover] = useState(false);
   const lv = doc.latest_version;
   const catS = CAT_STYLE[doc.category] || CAT_STYLE.other;
@@ -317,7 +318,7 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
       }}
       className="docs-row-12" style={{ backgroundColor: selected ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : hover ? 'var(--surface-2)' : 'transparent' }}>
       <td className="docs-td">
-        <button type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className="docs-btn-4" style={{ borderRadius: 4, border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}`, backgroundColor: selected ? 'var(--accent)' : 'transparent' }}>
+        <button type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className={`docs-btn-4 document-sx16 ${selected ? 'document-sx12' : 'document-sx17'}`} style={{ border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` }}>
           {selected && <Check size={9} color="white" strokeWidth={3} />}
         </button>
       </td>
@@ -344,7 +345,7 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
       <td className="docs-td-5">{fmtDate(doc.created_at)}</td>
       <td className="docs-td-6">{doc.created_by_name || '—'}</td>
       <td className="docs-td-7" onClick={e => e.stopPropagation()}>
-        <div className="docs-row-13" style={{ opacity: hover ? 1 : 0 }}>
+        <div className={`docs-row-13 ${hover ? 'document-sx14' : 'document-sx15'}`}>
           {lv?.download_url && (
             <a href={lv.download_url} target="_blank" rel="noreferrer"
               className="docs-link-2">
@@ -448,7 +449,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                   fileRef.current?.click();
                 }
               }}
-              className="docs-stack-3" style={{ border: `2px dashed ${dragOver ? 'var(--accent)' : file ? (fileFt?.c || 'var(--success)') : 'var(--surface-5)'}`, borderRadius: 12, backgroundColor: dragOver ? 'var(--surface-2)' : 'transparent' }}>
+              className={`docs-stack-3 document-sx8 ${dragOver ? 'document-sx18' : 'document-sx17'}`} style={{ border: `2px dashed ${dragOver ? 'var(--accent)' : file ? (fileFt?.c || 'var(--success)') : 'var(--surface-5)'}` }}>
               <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} className="docs-input" onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
               {file ? (
                 <>
@@ -463,7 +464,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
               ) : (
                 <>
                   <div className="docs-row-16">
-                    <Upload size={22} style={{ color: 'var(--text-3)' }} />
+                    <Upload size={22} className="u-text3" />
                   </div>
                   <div className="docs-box-14">{t('pagina_docs.arrastra_aqui_tu_archivo')}</div>
                   <div className="u-text3-xs">{t('documents.o_haz_clic_para_seleccionar')}</div>
@@ -516,8 +517,8 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
             {t('pagina_docs.cancelar')}
           </button>
           <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
-            className="docs-btn-10" style={{ backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', cursor: !file ? 'not-allowed' : 'pointer' }}>
-            {uploadMutation.isPending ? <><Loader size={14} style={{ animation: 'spin 0.8s linear infinite' }} />{' '}{t('pagina_docs.subiendo')}</> : <><Upload size={14} />{' '}{t('pagina_docs.subir_documento')}</>}
+            className={`docs-btn-10 ${!file ? 'document-sx19' : 'document-sx20'}`}>
+            {uploadMutation.isPending ? <><Loader size={14} className="docs-box-40" />{' '}{t('pagina_docs.subiendo')}</> : <><Upload size={14} />{' '}{t('pagina_docs.subir_documento')}</>}
           </button>
         </div>
       </div>
@@ -630,7 +631,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
             { v: 'department', l: t('pagina_docs.departamento_2') },
           ].map(opt => (
             <button key={opt.v} onClick={() => setSubjectType(opt.v)}
-              className="docs-btn-11" style={{ borderRadius: 8, border: `1px solid ${subjectType === opt.v ? 'var(--accent)' : 'var(--surface-4)'}`, background: subjectType === opt.v ? 'var(--accent-muted)' : 'transparent', color: subjectType === opt.v ? 'var(--accent)' : 'var(--text-2)' }}>
+              className={`docs-btn-11 document-sx21 ${subjectType === opt.v ? 'document-sx22' : 'document-sx23'}`} style={{ border: `1px solid ${subjectType === opt.v ? 'var(--accent)' : 'var(--surface-4)'}` }}>
               {opt.l}
             </button>
           ))}
@@ -843,7 +844,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
     <Drawer onClose={onClose} ariaLabel={doc?.title || t('pagina_docs.documento')} width={600} zIndex={900}>
         {isLoading ? (
           <div className="docs-row-20">
-            <Loader size={18} style={{ animation: 'spin 0.8s linear infinite', marginRight: 8 }} />{' '}{t('pagina_docs.cargando')}
+            <Loader size={18} className="docs-box-41" />{' '}{t('pagina_docs.cargando')}
           </div>
         ) : !doc ? (
           <div className="docs-row-21">{t('documents.documento_no_encontrado')}</div>
@@ -949,17 +950,17 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
             {/* Tabs */}
             <div className="docs-row-26">
               <button style={tabBtnStyle('preview')} onClick={() => setTab('preview')}>
-                <Eye size={12} style={{ display: 'inline', marginRight: 4 }} />{' '}{t('pagina_docs.vista_previa')}
+                <Eye size={12} className="docs-box-42" />{' '}{t('pagina_docs.vista_previa')}
               </button>
               <button style={tabBtnStyle('versions')} onClick={() => setTab('versions')}>
-                <History size={12} style={{ display: 'inline', marginRight: 4 }} />
+                <History size={12} className="docs-box-42" />
                 {t('pagina_docs.versiones')}{' '}{(doc.versions?.length ?? 0) > 0 && `(${doc.versions.length})`}
               </button>
               <button style={tabBtnStyle('meta')} onClick={() => setTab('meta')}>
-                <Info size={12} style={{ display: 'inline', marginRight: 4 }} />{' '}{t('pagina_docs.metadatos')}
+                <Info size={12} className="docs-box-42" />{' '}{t('pagina_docs.metadatos')}
               </button>
               <button style={tabBtnStyle('share')} onClick={() => setTab('share')}>
-                <Share2 size={12} style={{ display: 'inline', marginRight: 4 }} />{' '}{t('pagina_docs.compartir')}
+                <Share2 size={12} className="docs-box-42" />{' '}{t('pagina_docs.compartir')}
               </button>
             </div>
 
@@ -1006,7 +1007,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
               )}
               {tab === 'preview' && !activeVer?.download_url && (
                 <div className="docs-box-23">
-                  <FolderOpen size={36} style={{ display: 'block', margin: '0 auto 12px', opacity: 0.4 }} />
+                  <FolderOpen size={36} className="docs-box-43" />
                   {t('documents.este_documento_no_tiene_archivo_adjunto_todavia')}
                 </div>
               )}
@@ -1027,8 +1028,8 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             setTab('preview');
                           }
                         }}
-                        className="docs-row-28" style={{ borderRadius: 'var(--radius-md)', backgroundColor: activeVer?.id === v.id ? 'var(--surface-3)' : 'var(--surface-2)', border: `1px solid ${activeVer?.id === v.id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` }}>
-                        <div className="docs-row-29" style={{ backgroundColor: activeVer?.id === v.id ? 'var(--accent)' : 'var(--surface-3)', color: activeVer?.id === v.id ? 'white' : 'var(--text-2)' }}>
+                        className={`docs-row-28 document-sx24 ${activeVer?.id === v.id ? 'document-sx25' : 'document-sx18'}`} style={{ border: `1px solid ${activeVer?.id === v.id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` }}>
+                        <div className={`docs-row-29 ${activeVer?.id === v.id ? 'document-sx26' : 'document-sx27'}`}>
                           v{v.version_num}
                         </div>
                         <div className="u-flex1-min0">
@@ -1051,20 +1052,20 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                   {!showUploadVersion ? (
                     <button onClick={() => setShowUploadVersion(true)} disabled={deOtro}
                       title={deOtro ? t('documents.reserva_de', { nombre: reserva?.user_name || '—' }) : undefined}
-                      className="docs-btn-22" style={{ color: deOtro ? 'var(--text-3)' : 'var(--accent)', cursor: deOtro ? 'not-allowed' : 'pointer' }}>
+                      className={`docs-btn-22 ${deOtro ? 'document-sx28' : 'document-sx29'}`}>
                       <Upload size={14} /> {t('documents.subir_nueva_version')}
                     </button>
                   ) : (
                     <div className="docs-stack-7">
-                      <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} className="docs-box-25" style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8 }}>
+                      <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} className="docs-box-25 document-sx21" style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}` }}>
                         {file ? <span className="u-text1-base-600">{file.name}</span>
-                          : <span className="u-text3-sm"><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />{t('documents.clic_para_seleccionar_archivo')}</span>}
+                          : <span className="u-text3-sm"><Upload size={13} className="docs-box-42" />{t('documents.clic_para_seleccionar_archivo')}</span>}
                         <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} className="docs-input" onChange={e => setFile(e.target.files?.[0] ?? null)} />
                       </div>
                       <input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} aria-label={t('documents.nota_del_cambio')} />
                       <div className="u-row-8">
                         <button onClick={() => versionMutation.mutate()} disabled={!file || versionMutation.isPending}
-                          className="docs-btn-23" style={{ backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', cursor: !file ? 'not-allowed' : 'pointer' }}>
+                          className={`docs-btn-23 ${!file ? 'document-sx19' : 'document-sx20'}`}>
                           {versionMutation.isPending ? t('pagina_docs.subiendo') : t('pagina_docs.subir')}
                         </button>
                         <button onClick={() => { setShowUploadVersion(false); setFile(null); setChangeNote(''); }}
@@ -1134,7 +1135,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                     {doc.approval_request && (
                       <div className="docs-card-9">
                         <div className="docs-row-31">
-                          <FileClock size={14} style={{ color: 'var(--warning)' }} />
+                          <FileClock size={14} className="u-warning" />
                           {t('documents.flujo_de_aprobacion')} {doc.approval_request.workflow_name}
                         </div>
                         {/* Step indicator */}
@@ -1144,14 +1145,14 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             const isDone = stepNum < (doc.approval_request.current_step || 1);
                             const isCurrent = stepNum === (doc.approval_request.current_step || 1) && doc.approval_request.status === 'pending';
                             const isRejected = doc.approval_request.status === 'rejected';
-                            const color = isDone ? 'var(--success)' : isCurrent ? '#f59e0b' : isRejected && stepNum === doc.approval_request.current_step ? 'var(--danger)' : 'var(--surface-4)';
+                            const color = isDone ? 'var(--success)' : isCurrent ? 'var(--warning)' : isRejected && stepNum === doc.approval_request.current_step ? 'var(--danger)' : 'var(--surface-4)';
                             return (
                               <div key={stepNum} className="docs-row-33">
-                                <div className="docs-row-34" style={{ backgroundColor: color, color: (isDone || isCurrent) ? 'white' : 'var(--text-3)' }}>
+                                <div className={`docs-row-34 ${(isDone || isCurrent) ? 'document-sx30' : 'document-sx31'}`} style={{ backgroundColor: color }}>
                                   {isDone ? '✓' : stepNum}
                                 </div>
                                 {stepNum < (doc.approval_request.total_steps || 1) && (
-                                  <div className="docs-box-30" style={{ backgroundColor: isDone ? 'var(--success)' : 'var(--surface-4)' }} />
+                                  <div className={`docs-box-30 ${isDone ? 'document-sx32' : 'document-sx33'}`} />
                                 )}
                               </div>
                             );
@@ -1184,8 +1185,8 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             <div className="docs-box-29">{t('documents.historial_de_decisiones')}</div>
                             {doc.approval_request.decisions.map((d, idx) => (
                               <div key={idx} className="docs-row-35">
-                                <div className="docs-row-36" style={{ backgroundColor: d.decision === 'approved' ? 'color-mix(in srgb, var(--success) 13%, transparent)' : 'color-mix(in srgb, var(--danger) 13%, transparent)' }}>
-                                  <span className="docs-label-9" style={{ color: d.decision === 'approved' ? 'var(--success)' : 'var(--danger)' }}>{d.decision === 'approved' ? '✓' : '✗'}</span>
+                                <div className={`docs-row-36 ${d.decision === 'approved' ? 'document-sx34' : 'document-sx35'}`}>
+                                  <span className={`docs-label-9 ${d.decision === 'approved' ? 'document-sx36' : 'document-sx37'}`}>{d.decision === 'approved' ? '✓' : '✗'}</span>
                                 </div>
                                 <div>
                                   <span className="docs-label-10">{d.approver_name || t('pagina_docs.desconocido')}</span>
@@ -1357,10 +1358,7 @@ export default function DocumentsPage(): JSX.Element {
           TasksPage / ProjectsPage / TicketListTab) */}
       <div className="ds-toolbar">
         <div className="docs-box-36">
-          <Search size={14} aria-hidden style={{
-            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-            color: 'var(--text-3)', pointerEvents: 'none',
-          }} />
+          <Search size={14} aria-hidden className="docs-box-44" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('documents.buscar_por_titulo_archivo_o_etiqueta')}
             aria-label={t('pagina_docs.buscar_documentos')}
@@ -1485,7 +1483,7 @@ export default function DocumentsPage(): JSX.Element {
               <tr className="docs-row-39">
                 <th className="docs-td">
                   <button type="button" onClick={selectAll}
-                    className="docs-btn-29" style={{ borderRadius: 4, border: `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}`, backgroundColor: selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'transparent' }}>
+                    className={`docs-btn-29 document-sx16 ${selectedIds.size === docs.length && docs.length > 0 ? 'document-sx12' : 'document-sx17'}`} style={{ border: `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}` }}>
                     {selectedIds.size === docs.length && docs.length > 0 && <Check size={9} color="white" strokeWidth={3} />}
                   </button>
                 </th>

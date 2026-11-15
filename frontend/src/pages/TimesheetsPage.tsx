@@ -1,8 +1,9 @@
 import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { timesheetsApi, imputationsApi } from '../services/api'
+import type { FiltroDeTimesheets, FiltroDeTimesheetsDelEquipo } from '../services/api'
 import type { EstadoDeTimesheet, LineaDeTimesheet, Timesheet } from '../services/api/tipos-personas'
 import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -14,6 +15,9 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
+import Pagination from '../components/ui/Pagination'
+import { DEFAULT_PAGE_SIZE } from '../constants/pagination'
+import { useValorConRetardo } from '../hooks/useValorConRetardo'
 import './TimesheetsPage.css'
 
 type TimesheetStatus = EstadoDeTimesheet
@@ -235,10 +239,16 @@ export default function TimesheetsPage() {
   const [teamStatusFilter, setTeamStatusFilter] = useState('')
   const [teamFrom, setTeamFrom] = useState('')
   const [teamTo, setTeamTo] = useState('')
+  const [pendingPage, setPendingPage] = useState(1)
+  const [teamPage, setTeamPage] = useState(1)
+  // El texto va al servidor: se espera a que se deje de escribir.
+  const pendingQ = useValorConRetardo(pendingSearch.trim())
+  const teamQ = useValorConRetardo(teamSearch.trim())
 
   const toggleTeamSort = (key: TeamSortKey) => {
     if (teamSortKey === key) setTeamSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setTeamSortKey(key); setTeamSortDir('asc') }
+    setTeamPage(1)
   }
   const teamSortIcon = (key: TeamSortKey) => teamSortKey === key ? (teamSortDir === 'asc' ? ' ↑' : ' ↓') : ''
 
@@ -247,17 +257,38 @@ export default function TimesheetsPage() {
     queryFn: () => timesheetsApi.my().then(r => r.data),
   })
 
-  const { data: pending = [], isLoading: loadingPending } = useQuery<TimesheetItem[]>({
-    queryKey: ['timesheets-pending'],
-    queryFn: () => timesheetsApi.pending().then(r => r.data),
+  // Pendientes y equipo se filtran, ordenan y paginan en el servidor: el total es el de todo
+  // lo filtrado, no el de la pagina.
+  const pendingParams: FiltroDeTimesheets = {
+    q: pendingQ || undefined, date_from: pendingFrom || undefined, date_to: pendingTo || undefined,
+    page: pendingPage, page_size: DEFAULT_PAGE_SIZE,
+  }
+  const { data: pendingData, isLoading: loadingPending } = useQuery({
+    queryKey: ['timesheets-pending', pendingParams],
+    queryFn: () => timesheetsApi.pending(pendingParams).then(r => ({ items: r.data ?? [], total: r.meta?.total ?? r.data?.length ?? 0 })),
     enabled: hasRole('admin', 'pm', 'hr'),
+    placeholderData: keepPreviousData,
   })
+  const pending: TimesheetItem[] = pendingData?.items ?? []
+  const pendingTotal = pendingData?.total ?? 0
+  const pendingFiltered = !!(pendingQ || pendingFrom || pendingTo)
 
-  const { data: teamSheets = [], isLoading: loadingTeam } = useQuery<TimesheetItem[]>({
-    queryKey: ['timesheets-team'],
-    queryFn: () => timesheetsApi.team().then(r => r.data),
+  const teamParams: FiltroDeTimesheetsDelEquipo = {
+    q: teamQ || undefined, status: teamStatusFilter || undefined,
+    date_from: teamFrom || undefined, date_to: teamTo || undefined,
+    sort: teamSortKey, direction: teamSortDir,
+    page: teamPage, page_size: DEFAULT_PAGE_SIZE,
+  }
+  const { data: teamData, isLoading: loadingTeam } = useQuery({
+    queryKey: ['timesheets-team', teamParams],
+    queryFn: () => timesheetsApi.team(teamParams).then(r => ({ items: r.data ?? [], total: r.meta?.total ?? r.data?.length ?? 0 })),
     enabled: hasRole('admin', 'pm', 'hr'),
+    placeholderData: keepPreviousData,
   })
+  const teamSheets: TimesheetItem[] = teamData?.items ?? []
+  const teamTotal = teamData?.total ?? 0
+  const teamFiltered = !!(teamQ || teamStatusFilter || teamFrom || teamTo)
+  const totalPaginas = (total: number) => Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE))
 
   const { mutate: submit, isPending: submitting } = useMutation({
     mutationFn: (weekStart: string) => timesheetsApi.submit(weekStart),
@@ -278,31 +309,10 @@ export default function TimesheetsPage() {
     return true
   })
 
-  const filteredPending = pending.filter((ts) => {
-    if (pendingSearch) {
-      const q = pendingSearch.toLowerCase()
-      const haystack = `${ts.user_name || ''} ${ts.week_start || ''}`.toLowerCase()
-      if (!haystack.includes(q)) return false
-    }
-    if (!dateInRange(ts.week_start, pendingFrom, pendingTo)) return false
-    return true
-  })
-
-  const filteredTeam = teamSheets.filter((ts) => {
-    if (teamSearch) {
-      const q = teamSearch.toLowerCase()
-      const haystack = `${ts.user_name || ''} ${ts.week_start || ''}`.toLowerCase()
-      if (!haystack.includes(q)) return false
-    }
-    if (teamStatusFilter && ts.status !== teamStatusFilter) return false
-    if (!dateInRange(ts.week_start, teamFrom, teamTo)) return false
-    return true
-  })
-
   const tabs = [
     { id: 'mine', label: t('timesheets.tab_mios') },
     ...(hasRole('admin', 'pm', 'hr') ? [
-      { id: 'pending', label: `⏳ ${t('timesheets.tab_pendientes', { n: pending.length })}` },
+      { id: 'pending', label: `⏳ ${t('timesheets.tab_pendientes', { n: pendingTotal })}` },
       { id: 'team', label: t('timesheets.tab_equipo') },
     ] : []),
   ]
@@ -385,25 +395,25 @@ export default function TimesheetsPage() {
 
       {tab === 'pending' && (
         <div>
-          {loadingPending ? <Spinner /> : pending.length === 0 ? (
+          {loadingPending ? <Spinner /> : pendingTotal === 0 && !pendingFiltered ? (
             <EmptyState icon="✅" title={t('timesheets.sin_pendientes')} description={t('timesheets.vacio_pendientes')} />
           ) : (
             <div className="u-stack-10">
               <div className="u-wrap-center-8">
-                <input value={pendingSearch} onChange={e => setPendingSearch(e.target.value)} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_pendientes')} className="ts-control ts-search" />
-                <DateInput value={pendingFrom} onChange={e => setPendingFrom(e.target.value)} aria-label={t('timesheets.pendientes_desde')} className="ts-control" />
+                <input value={pendingSearch} onChange={e => { setPendingSearch(e.target.value); setPendingPage(1) }} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_pendientes')} className="ts-control ts-search" />
+                <DateInput value={pendingFrom} onChange={e => { setPendingFrom(e.target.value); setPendingPage(1) }} aria-label={t('timesheets.pendientes_desde')} className="ts-control" />
                 <span className="u-text3" aria-hidden="true">—</span>
-                <DateInput value={pendingTo} onChange={e => setPendingTo(e.target.value)} aria-label={t('timesheets.pendientes_hasta')} className="ts-control" />
+                <DateInput value={pendingTo} onChange={e => { setPendingTo(e.target.value); setPendingPage(1) }} aria-label={t('timesheets.pendientes_hasta')} className="ts-control" />
                 {(pendingSearch || pendingFrom || pendingTo) && (
-                  <button type="button" onClick={() => { setPendingSearch(''); setPendingFrom(''); setPendingTo('') }} className="ts-clear">
+                  <button type="button" onClick={() => { setPendingSearch(''); setPendingFrom(''); setPendingTo(''); setPendingPage(1) }} className="ts-clear">
                     {t('timesheets.limpiar')}
                   </button>
                 )}
-                <span className="ts-count">{filteredPending.length} / {pending.length}</span>
+                <span className="ts-count" role="status">{t('timesheets.n_registros', { n: pendingTotal })}</span>
               </div>
-              {filteredPending.length === 0 ? (
+              {pending.length === 0 ? (
                 <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description={t('timesheets.sin_coincidencias_pendientes')} />
-              ) : filteredPending.map(ts => (
+              ) : pending.map(ts => (
                 <div key={ts.id} className="ts-sheet ts-sheet--pending-review">
                   <div className="u-flex1">
                     <div className="u-md-700">{ts.user_name}</div>
@@ -415,6 +425,8 @@ export default function TimesheetsPage() {
                   <Button size="sm" onClick={() => setReviewing(ts)}>{t('timesheets.revisar')}</Button>
                 </div>
               ))}
+              <Pagination page={pendingPage} totalPages={totalPaginas(pendingTotal)} onChange={setPendingPage}
+                total={pendingTotal} pageSize={DEFAULT_PAGE_SIZE} />
             </div>
           )}
         </div>
@@ -422,27 +434,27 @@ export default function TimesheetsPage() {
 
       {tab === 'team' && (
         <div>
-          {loadingTeam ? <Spinner /> : teamSheets.length === 0 ? (
+          {loadingTeam ? <Spinner /> : teamTotal === 0 && !teamFiltered ? (
             <EmptyState icon="👥" title={t('timesheets.sin_timesheets_de_equipo')} description={t('timesheets.vacio_equipo')} />
           ) : (
             <div className="u-stack-10">
               <div className="u-wrap-center-8">
-                <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_equipo')} className="ts-control ts-search" />
-                <select value={teamStatusFilter} onChange={e => setTeamStatusFilter(e.target.value)} aria-label={t('timesheets.status')} className="ts-control">
+                <input value={teamSearch} onChange={e => { setTeamSearch(e.target.value); setTeamPage(1) }} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_equipo')} className="ts-control ts-search" />
+                <select value={teamStatusFilter} onChange={e => { setTeamStatusFilter(e.target.value); setTeamPage(1) }} aria-label={t('timesheets.status')} className="ts-control">
                   <option value="">{t('timesheets.estado_todos')}</option>
                   {statusOptions}
                 </select>
-                <DateInput value={teamFrom} onChange={e => setTeamFrom(e.target.value)} aria-label={t('timesheets.equipo_desde')} className="ts-control" />
+                <DateInput value={teamFrom} onChange={e => { setTeamFrom(e.target.value); setTeamPage(1) }} aria-label={t('timesheets.equipo_desde')} className="ts-control" />
                 <span className="u-text3" aria-hidden="true">—</span>
-                <DateInput value={teamTo} onChange={e => setTeamTo(e.target.value)} aria-label={t('timesheets.equipo_hasta')} className="ts-control" />
+                <DateInput value={teamTo} onChange={e => { setTeamTo(e.target.value); setTeamPage(1) }} aria-label={t('timesheets.equipo_hasta')} className="ts-control" />
                 {(teamSearch || teamStatusFilter || teamFrom || teamTo) && (
-                  <button type="button" onClick={() => { setTeamSearch(''); setTeamStatusFilter(''); setTeamFrom(''); setTeamTo('') }} className="ts-clear">
+                  <button type="button" onClick={() => { setTeamSearch(''); setTeamStatusFilter(''); setTeamFrom(''); setTeamTo(''); setTeamPage(1) }} className="ts-clear">
                     {t('timesheets.limpiar')}
                   </button>
                 )}
-                <span className="ts-count">{filteredTeam.length} / {teamSheets.length}</span>
+                <span className="ts-count" role="status">{t('timesheets.n_registros', { n: teamTotal })}</span>
               </div>
-              {filteredTeam.length === 0 ? (
+              {teamSheets.length === 0 ? (
                 <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description={t('timesheets.sin_coincidencias_equipo')} />
               ) : (
             <div className="ds-card ds-card--plano">
@@ -457,12 +469,7 @@ export default function TimesheetsPage() {
                 ))}
                 <span></span>
               </div>
-              {[...filteredTeam].sort((a, b) => {
-                const va = a[teamSortKey] ?? ''
-                const vb = b[teamSortKey] ?? ''
-                const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
-                return teamSortDir === 'asc' ? cmp : -cmp
-              }).map(ts => (
+              {teamSheets.map(ts => (
                 <div key={ts.id} className="ts-team-grid">
                   <span className="u-base-600">{ts.user_name}</span>
                   <span className="u-text2-sm">{fmtDate(ts.week_start)}</span>
@@ -475,6 +482,8 @@ export default function TimesheetsPage() {
               ))}
             </div>
               )}
+              <Pagination page={teamPage} totalPages={totalPaginas(teamTotal)} onChange={setTeamPage}
+                total={teamTotal} pageSize={DEFAULT_PAGE_SIZE} />
             </div>
           )}
         </div>

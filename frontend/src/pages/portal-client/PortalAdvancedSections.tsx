@@ -252,7 +252,7 @@ export function PortalUAT() {
       })) || []
       await CLIENT_API.post(`/portal/uat/${sessionId}/submit-result`, { result, notes: globalNotes, test_cases: testCases })
       qc.invalidateQueries({ queryKey: ['portal-uat'] })
-      toast.success('Resultado enviado')
+      toast.success(traducir('portaladvanced.resultado_enviado'))
       setSelected(null)
     } catch (e) {
       toast.error(extractErr(e, 'Error al enviar resultado'))
@@ -263,7 +263,7 @@ export function PortalUAT() {
     try {
       await CLIENT_API.post(`/portal/uat/${selected?.id}/issues`, issueForm)
       qc.invalidateQueries({ queryKey: ['portal-uat'] })
-      toast.success('Incidencia reportada')
+      toast.success(traducir('portaladvanced.incidencia_reportada'))
       setReportingIssue(false)
       setIssueForm({ title: '', description: '', severity: 'medium', steps_to_reproduce: '' })
     } catch (e) {
@@ -286,17 +286,17 @@ export function PortalUAT() {
           ]}
           actions={
             <PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />}
-              onClick={() => setSelected(null)}>Volver</PortalButton>
+              onClick={() => setSelected(null)}>{traducir('chat.back')}</PortalButton>
           }
         />
 
         {(selected.test_environment || selected.test_credentials) && (
-          <PortalCard style={{ marginBottom: 16 }}>
+          <PortalCard className="portalad-sx1">
             <PortalSection title={traducir('portaladvanced.entorno_de_pruebas')}>
               <div className="poadse-row-1">
                 {selected.test_environment && (
                   <a href={selected.test_environment} target="_blank" rel="noopener noreferrer" className="poadse-row-2">
-                    <ExternalLink size={13} /> Abrir entorno
+                    <ExternalLink size={13} /> {traducir('portaladvanced.abrir_entorno')}
                   </a>
                 )}
                 {selected.test_credentials && (
@@ -325,7 +325,7 @@ export function PortalUAT() {
                       { val: 'passed', label: 'Pasado', color: 'var(--success)', icon: <CheckCircle2 size={14} /> },
                       { val: 'failed', label: 'Fallado', color: 'var(--danger)',  icon: <XCircle size={14} /> },
                     ].map(opt => (
-                      <button className="poadse-row-29" key={opt.val} onClick={() => setTestResults(r => ({ ...r, [tc.id]: opt.val }))} style={{ borderRadius: 8, border: `1px solid ${testResults[tc.id] === opt.val ? opt.color : 'var(--surface-4)'}`, background: testResults[tc.id] === opt.val ? alpha(opt.color, '1a') : 'var(--surface-3)', color: testResults[tc.id] === opt.val ? opt.color : 'var(--text-2)' }}>{opt.icon} {opt.label}</button>
+                      <button className="poadse-row-29 portalad-sx2" key={opt.val} onClick={() => setTestResults(r => ({ ...r, [tc.id]: opt.val }))} style={{ border: `1px solid ${testResults[tc.id] === opt.val ? opt.color : 'var(--surface-4)'}`, background: testResults[tc.id] === opt.val ? alpha(opt.color, '1a') : 'var(--surface-3)', color: testResults[tc.id] === opt.val ? opt.color : 'var(--text-2)' }}>{opt.icon} {opt.label}</button>
                     ))}
                   </div>
                 </PortalCard>
@@ -336,7 +336,7 @@ export function PortalUAT() {
 
         {selected.issues?.length > 0 && (
           <div className="u-mb-16">
-            <div className="poadse-box-1">Incidencias</div>
+            <div className="poadse-box-1">{traducir('client_portal.uat_issues_title')}</div>
             <div className="u-stack-8">
               {selected.issues.map(issue => (
                 <PortalCard key={issue.id} padding={14}>
@@ -353,7 +353,7 @@ export function PortalUAT() {
           </div>
         )}
 
-        <PortalCard style={{ marginBottom: 16 }}>
+        <PortalCard className="portalad-sx1">
           <PortalField label={traducir('portaladvanced.notas_para_el_equipo')}>
             <PortalTextarea rows={3} value={globalNotes} onChange={e => setGlobalNotes(e.target.value)} placeholder={traducir('portaladvanced.comentarios_generales_de_la_sesion')} />
           </PortalField>
@@ -361,13 +361,13 @@ export function PortalUAT() {
 
         <div className="u-wrap-10">
           <PortalButton variant="secondary" icon={<Bug size={14} />} onClick={() => setReportingIssue(true)}>
-            Reportar incidencia
+            {traducir('portaladvanced.reportar_incidencia')}
           </PortalButton>
           {selected.status !== 'passed' && selected.status !== 'failed' && (
             <>
               <PortalButton variant="danger" icon={<XCircle size={14} />}
                 onClick={() => submitResult(selected.id, 'failed')} loading={submitting}>
-                Rechazar
+                {traducir('aus.rechazar')}
               </PortalButton>
               <PortalButton variant="primary" icon={<CheckCircle2 size={14} />}
                 onClick={() => submitResult(selected.id, hasFailure ? 'conditional' : 'passed')}
@@ -381,12 +381,12 @@ export function PortalUAT() {
         <PortalModal
           open={reportingIssue}
           onClose={() => setReportingIssue(false)}
-          title="Reportar incidencia"
-          subtitle="Describe el problema encontrado durante la prueba"
+          title={traducir('portaladvanced.reportar_incidencia')}
+          subtitle={traducir('portaladvanced.describe_el_problema_encontrado_durante_la_prueba')}
           footer={
             <>
-              <PortalButton variant="secondary" onClick={() => setReportingIssue(false)}>Cancelar</PortalButton>
-              <PortalButton onClick={submitIssue} disabled={!issueForm.title || !issueForm.description}>Enviar</PortalButton>
+              <PortalButton variant="secondary" onClick={() => setReportingIssue(false)}>{traducir('common.cancel')}</PortalButton>
+              <PortalButton onClick={submitIssue} disabled={!issueForm.title || !issueForm.description}>{traducir('chat.send')}</PortalButton>
             </>
           }
         >
@@ -397,12 +397,12 @@ export function PortalUAT() {
             <PortalField label={traducir('portaladvanced.descripcion')} required>
               <PortalTextarea rows={3} value={issueForm.description} onChange={e => setIssueForm(f => ({ ...f, description: e.target.value }))} />
             </PortalField>
-            <PortalField label="Severidad">
+            <PortalField label={traducir('lec.severidad')}>
               <PortalSelect value={issueForm.severity} onChange={e => setIssueForm(f => ({ ...f, severity: e.target.value }))}>
-                <option value="low">Baja</option>
-                <option value="medium">Media</option>
-                <option value="high">Alta</option>
-                <option value="blocker">Bloqueante</option>
+                <option value="low">{traducir('lec.sev_baja')}</option>
+                <option value="medium">{traducir('lec.sev_media')}</option>
+                <option value="high">{traducir('lec.sev_alta')}</option>
+                <option value="blocker">{traducir('clientportalpage.sev_blocker')}</option>
               </PortalSelect>
             </PortalField>
             <PortalField label={traducir('portaladvanced.pasos_para_reproducir')}>
@@ -419,7 +419,7 @@ export function PortalUAT() {
     <div>
       <PortalPageHeader
         title="UAT"
-        subtitle="Sesiones de aceptación de usuario donde validas que las entregas funcionan."
+        subtitle={traducir('portaladvanced.sesiones_de_aceptacion_de_usuario_donde_validas')}
         icon={FlaskConical}
         meta={[
           { value: sessions.length, label: 'sesiones' },
@@ -429,11 +429,11 @@ export function PortalUAT() {
       />
 
       {isLoading ? (
-        <div className="poadse-box-5">Cargando...</div>
+        <div className="poadse-box-5">{traducir('common.loading')}</div>
       ) : sessions.length === 0 ? (
         <PortalEmpty icon={FlaskConical}
           title={traducir('portaladvanced.no_hay_sesiones_uat')}
-          description="Cuando el equipo prepare una entrega para que la valides, aparecerá aquí."
+          description={traducir('portaladvanced.cuando_el_equipo_prepare_una_entrega_para')}
         />
       ) : (
         <div className="u-stack-12">
@@ -442,7 +442,7 @@ export function PortalUAT() {
               <div className="poadse-row-5">
                 <div className="u-flex1-min0">
                   <div className="poadse-row-6">
-                    <FlaskConical size={16} style={{ color: 'var(--accent)' }} />
+                    <FlaskConical size={16} className="portalad-sx3" />
                     <div className="poadse-txt-2">{s.title}</div>
                   </div>
                   <div className="poadse-box-6">
@@ -454,7 +454,7 @@ export function PortalUAT() {
                   </div>
                   {s.stats?.total > 0 && (
                     <div className="poadse-row-7">
-                      <span>{s.stats.total} casos</span>
+                      <span>{s.stats.total} {traducir('client_portal.uat_cases')}</span>
                       <span className="u-success">✓ {s.stats.passed}</span>
                       <span className="u-danger">✗ {s.stats.failed}</span>
                     </div>
@@ -495,22 +495,22 @@ export function PortalFeatureRequests() {
 
   const { mutate: createFR } = useMutation({
     mutationFn: (d: FeatureRequestForm) => CLIENT_API.post('/portal/feature-requests', d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setShowNew(false); resetForm(); toast.success('Solicitud enviada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setShowNew(false); resetForm(); toast.success(traducir('intake_form.success_title')) },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al enviar')),
   })
   const { mutate: updateFR, isPending: updatingFr } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: FeatureRequestForm }) => CLIENT_API.patch(`/portal/feature-requests/${id}`, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setEditingFr(null); setShowNew(false); resetForm(); toast.success('Actualizada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setEditingFr(null); setShowNew(false); resetForm(); toast.success(traducir('portaladvanced.actualizada')) },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar')),
   })
   const { mutate: withdrawFR, isPending: withdrawingFr } = useMutation({
     mutationFn: ({ id }: { id: string }) => CLIENT_API.post(`/portal/feature-requests/${id}/withdraw`, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); toast.success('Solicitud retirada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); toast.success(traducir('portaladvanced.solicitud_retirada')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: decide } = useMutation({
     mutationFn: ({ id, approved, reason }: { id: string; approved: boolean; reason?: string }) => CLIENT_API.post(`/portal/feature-requests/${id}/decide`, { approved, reason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); toast.success('Decisión registrada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); toast.success(traducir('chat.decision_registrada')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -530,8 +530,8 @@ export function PortalFeatureRequests() {
   return (
     <div>
       <PortalPageHeader
-        title="Solicitudes y cambios"
-        subtitle="Tus peticiones de nuevas funcionalidades y cambios en el alcance."
+        title={traducir('portaladvanced.solicitudes_y_cambios')}
+        subtitle={traducir('portaladvanced.tus_peticiones_de_nuevas_funcionalidades_y_cambios')}
         icon={Lightbulb}
         meta={[
           { value: frs.length, label: 'totales' },
@@ -567,7 +567,7 @@ export function PortalFeatureRequests() {
                   </div>
                   <div className="poadse-row-10">
                     {fr.project_name && <span>📁 {fr.project_name}</span>}
-                    {fr.submitted_at && <span>Creada: {fr.submitted_at}</span>}
+                    {fr.submitted_at && <span>{traducir('portaladvanced.creada')} {fr.submitted_at}</span>}
                     {fr.affected_area && <span>{traducir('portaladvanced.area')} {fr.affected_area}</span>}
                   </div>
                   <p className="poadse-box-7">{fr.description}</p>
@@ -580,16 +580,16 @@ export function PortalFeatureRequests() {
                       <div className="poadse-row-11">
                         {fr.estimated_cost && <span className="poadse-txt-3">💶 {formatMoney(fr.estimated_cost)}</span>}
                         {fr.estimated_hours && <span className="u-accent">⏱ {fr.estimated_hours}h</span>}
-                        {fr.estimated_delivery_weeks && <span className="u-text2">📅 ~{fr.estimated_delivery_weeks} semanas</span>}
+                        {fr.estimated_delivery_weeks && <span className="u-text2">📅 ~{fr.estimated_delivery_weeks} {traducir('bi.weeks')}</span>}
                       </div>
                     </div>
                   )}
                   {fr.status === 'estimated' && fr.client_approved == null && (
                     <div className="poadse-row-12">
                       <PortalButton variant="danger" size="sm" icon={<XCircle size={13} />}
-                        onClick={() => decide({ id: fr.id, approved: false })}>Rechazar</PortalButton>
+                        onClick={() => decide({ id: fr.id, approved: false })}>{traducir('aus.rechazar')}</PortalButton>
                       <PortalButton size="sm" icon={<CheckCircle2 size={13} />}
-                        onClick={() => decide({ id: fr.id, approved: true })}>Aprobar presupuesto</PortalButton>
+                        onClick={() => decide({ id: fr.id, approved: true })}>{traducir('portaladvanced.aprobar_presupuesto')}</PortalButton>
                     </div>
                   )}
                   {fr.client_approved === true && (
@@ -602,9 +602,9 @@ export function PortalFeatureRequests() {
                   )}
                   {fr.can_edit_by_client && (
                     <div className="poadse-row-13">
-                      <PortalButton variant="secondary" size="sm" onClick={() => openEdit(fr)}>Editar</PortalButton>
+                      <PortalButton variant="secondary" size="sm" onClick={() => openEdit(fr)}>{traducir('common.edit')}</PortalButton>
                       <PortalButton variant="danger" size="sm" loading={withdrawingFr}
-                        onClick={() => withdrawFR({ id: fr.id })}>Retirar</PortalButton>
+                        onClick={() => withdrawFR({ id: fr.id })}>{traducir('pol.retirar')}</PortalButton>
                     </div>
                   )}
                 </div>
@@ -614,14 +614,14 @@ export function PortalFeatureRequests() {
                     <BadgeWithTooltip
                       label={`CR: ${fr.cr_status_label || fr.cr_status}`}
                       color={fr.cr_status_color || 'var(--text-3)'}
-                      tooltip="Estado de la Change Request vinculada."
+                      tooltip={traducir('portaladvanced.estado_de_la_change_request_vinculada')}
                       icon={<IconCR />}
                     />
                   ) : (
                     <BadgeWithTooltip
                       label={traducir('portaladvanced.sin_cr')}
                       color="var(--text-3)"
-                      tooltip="Se generará Change Request al aprobar la FR."
+                      tooltip={traducir('portaladvanced.se_generara_change_request_al_aprobar_la')}
                       icon={<IconCR />}
                     />
                   )}
@@ -636,11 +636,11 @@ export function PortalFeatureRequests() {
         open={showNew}
         onClose={() => { setShowNew(false); setEditingFr(null); resetForm() }}
         title={editingFr ? 'Editar solicitud' : 'Nueva solicitud'}
-        subtitle="Describe lo que necesitas con el mayor detalle posible"
+        subtitle={traducir('portaladvanced.describe_lo_que_necesitas_con_el_mayor')}
         width={620}
         footer={
           <>
-            <PortalButton variant="secondary" onClick={() => { setShowNew(false); setEditingFr(null); resetForm() }}>Cancelar</PortalButton>
+            <PortalButton variant="secondary" onClick={() => { setShowNew(false); setEditingFr(null); resetForm() }}>{traducir('common.cancel')}</PortalButton>
             <PortalButton
               loading={updatingFr}
               disabled={!form.title || !form.description || (requiresProject && !form.project_id)}
@@ -651,16 +651,16 @@ export function PortalFeatureRequests() {
       >
         <div className="u-stack-14">
           {requiresProject && (
-            <PortalField label="Proyecto" required>
+            <PortalField label={traducir('gas.proyecto')} required>
               <PortalSelect id={`${formIdPrefix}-project`} value={form.project_id}
                 onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}>
-                <option value="">Seleccionar...</option>
+                <option value="">{traducir('invoices.select')}</option>
                 {clientProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </PortalSelect>
             </PortalField>
           )}
           <PortalField label={traducir('portaladvanced.titulo')} required>
-            <PortalInput value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Resumen breve" />
+            <PortalInput value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={traducir('portaladvanced.resumen_breve')} />
           </PortalField>
           <PortalField label={traducir('portaladvanced.descripcion')} required>
             <PortalTextarea rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portaladvanced.que_necesitas')} />
@@ -670,13 +670,13 @@ export function PortalFeatureRequests() {
           </PortalField>
           <div className="u-grid2-12">
             <PortalField label={traducir('portaladvanced.area_afectada')}>
-              <PortalInput value={form.affected_area} onChange={e => setForm(f => ({ ...f, affected_area: e.target.value }))} placeholder="Ej. Reporting, Login..." />
+              <PortalInput value={form.affected_area} onChange={e => setForm(f => ({ ...f, affected_area: e.target.value }))} placeholder={traducir('portaladvanced.ej_reporting_login')} />
             </PortalField>
-            <PortalField label="Prioridad">
+            <PortalField label={traducir('common.priority')}>
               <PortalSelect value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
-                <option value="low">Baja</option>
-                <option value="medium">Media</option>
-                <option value="high">Alta</option>
+                <option value="low">{traducir('lec.sev_baja')}</option>
+                <option value="medium">{traducir('lec.sev_media')}</option>
+                <option value="high">{traducir('lec.sev_alta')}</option>
                 <option value="critical">{traducir('portaladvanced.critica')}</option>
               </PortalSelect>
             </PortalField>
@@ -743,8 +743,8 @@ export function PortalMessages() {
   return (
     <div>
       <PortalPageHeader
-        title="Mensajes"
-        subtitle="Chat unificado con el equipo del proyecto. Mismo motor que el chat interno."
+        title={traducir('chat.messages')}
+        subtitle={traducir('portaladvanced.chat_unificado_con_el_equipo_del_proyecto')}
         icon={MessageSquare}
       />
 
@@ -758,19 +758,19 @@ export function PortalMessages() {
       </div>
 
       {tab === 'chat' && (
-        isLoading ? <div className="poadse-box-13">Cargando...</div> :
+        isLoading ? <div className="poadse-box-13">{traducir('common.loading')}</div> :
         conversations.length === 0 ? (
           <PortalEmpty icon={MessageSquare} title={traducir('portaladvanced.aun_no_tienes_conversaciones')}
-            description="Cuando el equipo te invite a un canal o te envíe un mensaje directo, aparecerá aquí." />
+            description={traducir('portaladvanced.cuando_el_equipo_te_invite_a_un')} />
         ) : (
           <div className="poadse-grid-1">
-            <PortalCard padding={10} style={{ overflowY: 'auto' }}>
+            <PortalCard padding={10} className="portalad-sx4">
               {conversations.map(c => (
                 <button className="poadse-box-29" key={c.id} onClick={() => setActiveConvId(c.id)}
                   style={{ background: activeConvId === c.id ? 'var(--accent-muted)' : 'transparent', color: activeConvId === c.id ? 'var(--accent)' : 'var(--text-1)' }}>{c.title}</button>
               ))}
             </PortalCard>
-            <PortalCard padding={0} style={{ display: 'flex', flexDirection: 'column' }}>
+            <PortalCard padding={0} className="portalad-sx5">
               <div className="poadse-box-14">
                 {messages.map(m => (
                   <div key={m.id} className="u-mb-10">
@@ -786,7 +786,7 @@ export function PortalMessages() {
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (draft.trim()) send.mutate() } }}
                   placeholder={traducir('portaladvanced.escribe_un_mensaje')} rows={1}
                   className="poadse-box-15" />
-                <PortalButton size="sm" onClick={() => draft.trim() && send.mutate()} disabled={!draft.trim()}>Enviar</PortalButton>
+                <PortalButton size="sm" onClick={() => draft.trim() && send.mutate()} disabled={!draft.trim()}>{traducir('chat.send')}</PortalButton>
               </div>
             </PortalCard>
           </div>
@@ -827,7 +827,7 @@ export function PortalInvoices() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-invoices'] })
       qc.invalidateQueries({ queryKey: ['portal-dashboard'] })
-      toast.success('Decisión registrada')
+      toast.success(traducir('chat.decision_registrada'))
     },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar la factura')),
   })
@@ -845,8 +845,8 @@ export function PortalInvoices() {
   return (
     <div>
       <PortalPageHeader
-        title="Facturas"
-        subtitle="Aprueba o rechaza las facturas pendientes y revisa el histórico."
+        title={traducir('nav.invoices')}
+        subtitle={traducir('portaladvanced.aprueba_o_rechaza_las_facturas_pendientes_y')}
         icon={Receipt}
         meta={metaItems([
           { value: invoices.length, label: 'facturas' },
@@ -857,9 +857,9 @@ export function PortalInvoices() {
       />
 
       {isLoading ? (
-        <div className="poadse-box-5">Cargando...</div>
+        <div className="poadse-box-5">{traducir('common.loading')}</div>
       ) : invoices.length === 0 ? (
-        <PortalEmpty icon={Receipt} title={traducir('portaladvanced.sin_facturas')} description="Cuando se emitan facturas en este proyecto, las verás aquí." />
+        <PortalEmpty icon={Receipt} title={traducir('portaladvanced.sin_facturas')} description={traducir('portaladvanced.cuando_se_emitan_facturas_en_este_proyecto')} />
       ) : (
         <div className="u-stack-12">
           {invoices.map(inv => {
@@ -872,8 +872,8 @@ export function PortalInvoices() {
                     <div className="u-text3-mono-xs">#{inv.number || inv.id}</div>
                     <div className="poadse-txt-2">{inv.client_name || 'Factura'}</div>
                     <div className="poadse-row-17">
-                      <span>Emitida: {inv.issue_date || '—'}</span>
-                      <span>Vence: {inv.due_date || '—'}</span>
+                      <span>{traducir('portaladvanced.emitida')} {inv.issue_date || '—'}</span>
+                      <span>{traducir('portaladvanced.vence')} {inv.due_date || '—'}</span>
                     </div>
                   </div>
                   <div className="poadse-txt-5">
@@ -882,22 +882,22 @@ export function PortalInvoices() {
                   </div>
                 </div>
                 <div className="poadse-box-16">
-                  Base: {formatMoney(inv.subtotal, cur)} · IVA: {formatMoney(inv.tax_amount, cur)}
+                  {traducir('portaladvanced.base')} {formatMoney(inv.subtotal, cur)} {traducir('portaladvanced.iva')} {formatMoney(inv.tax_amount, cur)}
                 </div>
                 {inv.client_approval_status === 'pending' && (
                   <>
-                    <PortalField label="Comentario opcional">
+                    <PortalField label={traducir('portaladvanced.comentario_opcional')}>
                       <PortalTextarea rows={2}
                         value={reason}
                         onChange={e => setReasonByInvoice(prev => ({ ...prev, [inv.id]: e.target.value }))}
-                        placeholder="Motivo si rechazas, observaciones..."
+                        placeholder={traducir('portaladvanced.motivo_si_rechazas_observaciones')}
                       />
                     </PortalField>
                     <div className="poadse-row-18">
                       <PortalButton variant="danger" size="sm" loading={isPending}
-                        onClick={() => approveInvoice({ invoiceId: inv.id, approved: false, reason })}>Rechazar</PortalButton>
+                        onClick={() => approveInvoice({ invoiceId: inv.id, approved: false, reason })}>{traducir('aus.rechazar')}</PortalButton>
                       <PortalButton size="sm" icon={<CheckCircle2 size={13} />} loading={isPending}
-                        onClick={() => approveInvoice({ invoiceId: inv.id, approved: true, reason })}>Aprobar</PortalButton>
+                        onClick={() => approveInvoice({ invoiceId: inv.id, approved: true, reason })}>{traducir('aus.aprobar')}</PortalButton>
                     </div>
                   </>
                 )}
@@ -932,13 +932,13 @@ export function PortalRoadmap() {
   if (isLoading) return (
     <div>
       <PortalPageHeader title="Roadmap" icon={Map} />
-      <div className="poadse-box-5">Cargando...</div>
+      <div className="poadse-box-5">{traducir('common.loading')}</div>
     </div>
   )
   if (!data || error) return (
     <div>
       <PortalPageHeader title="Roadmap" icon={Map} />
-      <PortalEmpty icon={Map} title={traducir('portaladvanced.sin_proyecto_asignado')} description="Cuando tengas un proyecto activo verás aquí su plan." />
+      <PortalEmpty icon={Map} title={traducir('portaladvanced.sin_proyecto_asignado')} description={traducir('portaladvanced.cuando_tengas_un_proyecto_activo_veras_aqui')} />
     </div>
   )
 
@@ -946,7 +946,7 @@ export function PortalRoadmap() {
     <div>
       <PortalPageHeader
         title={traducir('portaladvanced.roadmap_del_proyecto')}
-        subtitle="Hitos planificados y entregables del proyecto."
+        subtitle={traducir('portaladvanced.hitos_planificados_y_entregables_del_proyecto')}
         icon={Map}
         meta={[
           { value: `${completedMs}/${milestones.length}`, label: 'hitos completados', color: 'var(--accent)' },
@@ -956,11 +956,11 @@ export function PortalRoadmap() {
 
       {milestones.length === 0 && deliverables.length === 0 ? (
         <PortalEmpty icon={Map} title={traducir('portaladvanced.aun_sin_plan_publicado')}
-          description="El equipo todavía no ha publicado hitos ni entregables." />
+          description={traducir('portaladvanced.el_equipo_todavia_no_ha_publicado_hitos')} />
       ) : (
         <div className="poadse-grid-2">
           <PortalCard>
-            <PortalSection title="Hitos" hint={`${completedMs} de ${milestones.length} completados`}>
+            <PortalSection title={traducir('pres.tipo_hitos')} hint={`${completedMs} de ${milestones.length} completados`}>
               {milestones.length === 0 ? (
                 <div className="u-text3-sm">{traducir('portaladvanced.sin_hitos_planificados')}</div>
               ) : (
@@ -969,7 +969,7 @@ export function PortalRoadmap() {
                   {milestones.map((m, i) => (
                     <div key={m.id} className="poadse-row-19">
                       <div className="poadse-stack-2">
-                        <div className="poadse-row-31" style={{ borderRadius: '50%', background: m.is_completed ? 'var(--success)' : 'var(--surface-3)', border: `2px solid ${m.is_completed ? 'var(--success)' : 'var(--surface-4)'}`, color: m.is_completed ? '#fff' : 'var(--text-2)' }}>
+                        <div className="poadse-row-31 portalad-sx6" style={{ background: m.is_completed ? 'var(--success)' : 'var(--surface-3)', border: `2px solid ${m.is_completed ? 'var(--success)' : 'var(--surface-4)'}`, color: m.is_completed ? '#fff' : 'var(--text-2)' }}>
                           {m.is_completed ? <CheckCircle2 size={14} /> : i + 1}
                         </div>
                         {i < milestones.length - 1 && (
@@ -991,14 +991,14 @@ export function PortalRoadmap() {
           </PortalCard>
 
           <PortalCard>
-            <PortalSection title="Entregables" hint={`${completedDel} de ${deliverables.length} aceptados`}>
+            <PortalSection title={traducir('nav.deliverables')} hint={`${completedDel} de ${deliverables.length} aceptados`}>
               {deliverables.length === 0 ? (
                 <div className="u-text3-sm">{traducir('portaladvanced.sin_entregables_planificados')}</div>
               ) : (
                 <div className="u-stack-8">
                   {deliverables.map(d => (
                     <div key={d.id} className="poadse-row-21">
-                      <Package size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                      <Package size={15} className="portalad-sx7" />
                       <div className="u-flex1-min0">
                         <div className="poadse-box-18">{d.name}</div>
                         <div className="u-text3-xs">
@@ -1043,7 +1043,7 @@ export function PortalDocuments() {
       setSignJobTitle('')
       if (data?.pdf_b64) {
         setSignedPdfB64({ b64: data.pdf_b64, title: signModal?.title || 'documento' })
-      } else toast.success('Documento firmado correctamente')
+      } else toast.success(traducir('portaladvanced.documento_firmado_correctamente'))
     },
     onError: (e: unknown) => toast.error(extractErr(e, 'Error al firmar')),
   })
@@ -1061,16 +1061,16 @@ export function PortalDocuments() {
     a.click()
     URL.revokeObjectURL(url)
     setSignedPdfB64(null)
-    toast.success('Certificado de firma descargado')
-  }, [signedPdfB64, toast])
+    toast.success(traducir('portaladvanced.certificado_de_firma_descargado'))
+  }, [signedPdfB64, toast, traducir])
 
   const pendingSign = docs.filter(d => d.requires_signature && !d.signed_by_client).length
 
   return (
     <div>
       <PortalPageHeader
-        title="Documentos"
-        subtitle="Documentación compartida del proyecto: contratos, actas, informes."
+        title={traducir('docs.titulo')}
+        subtitle={traducir('portaladvanced.documentacion_compartida_del_proyecto_contratos_actas_informes')}
         icon={FileText}
         meta={[
           { value: docs.length, label: 'documentos' },
@@ -1079,7 +1079,7 @@ export function PortalDocuments() {
       />
 
       {docs.length === 0 ? (
-        <PortalEmpty icon={FileText} title={traducir('portaladvanced.sin_documentos')} description="Aquí aparecerán contratos, informes y entregables compartidos por el equipo." />
+        <PortalEmpty icon={FileText} title={traducir('portaladvanced.sin_documentos')} description={traducir('portaladvanced.aqui_apareceran_contratos_informes_y_entregables_compartidos')} />
       ) : (
         <div className="u-stack-10">
           {docs.map(doc => (
@@ -1097,17 +1097,17 @@ export function PortalDocuments() {
                   {doc.requires_signature && !doc.signed_by_client && (
                     <PortalButton size="sm" icon={<FileSignature size={13} />}
                       onClick={() => { setSignModal({ id: doc.id, title: doc.title }); setSignJobTitle('') }}>
-                      Firmar
+                      {traducir('portaladvanced.firmar')}
                     </PortalButton>
                   )}
                   {doc.signed_by_client && (
                     <PortalBadge tone="success" icon={<CheckCircle2 size={11} />}>
-                      Firmado {doc.signed_at?.slice(0, 10) || ''}
+                      {traducir('client_portal.docs_signed')} {doc.signed_at?.slice(0, 10) || ''}
                     </PortalBadge>
                   )}
                   {doc.file_url && (
                     <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                      className="poadse-row-25"><Download size={13} /> Descargar</a>
+                      className="poadse-row-25"><Download size={13} /> {traducir('aus.descargar')}</a>
                   )}
                 </div>
               </div>
@@ -1119,14 +1119,14 @@ export function PortalDocuments() {
       <PortalModal
         open={!!signModal}
         onClose={() => setSignModal(null)}
-        title="Firmar documento"
+        title={traducir('portaladvanced.firmar_documento')}
         subtitle={signModal?.title || ''}
         footer={
           <>
-            <PortalButton variant="secondary" onClick={() => setSignModal(null)}>Cancelar</PortalButton>
+            <PortalButton variant="secondary" onClick={() => setSignModal(null)}>{traducir('common.cancel')}</PortalButton>
             <PortalButton loading={signing} icon={<FileSignature size={13} />}
               onClick={() => { if (signModal) sign({ id: signModal.id, job_title: signJobTitle }) }}>
-              Firmar
+              {traducir('portaladvanced.firmar')}
             </PortalButton>
           </>
         }
@@ -1186,7 +1186,7 @@ export function PortalWiki() {
           title={pageDetail.title}
           icon={BookOpen}
           breadcrumb={[{ label: 'Wiki', onClick: () => setSelected(null) }, { label: pageDetail.title }]}
-          actions={<PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={() => setSelected(null)}>Volver</PortalButton>}
+          actions={<PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={() => setSelected(null)}>{traducir('chat.back')}</PortalButton>}
         />
         <PortalCard>
           <div className="poadse-txt-7">
@@ -1212,8 +1212,8 @@ export function PortalWiki() {
   return (
     <div>
       <PortalPageHeader
-        title="Wiki y conocimiento"
-        subtitle="Documentación interna del proyecto y base de conocimiento del soporte."
+        title={traducir('portaladvanced.wiki_y_conocimiento')}
+        subtitle={traducir('portaladvanced.documentacion_interna_del_proyecto_y_base_de')}
         icon={BookOpen}
         meta={[
           { value: pages.length, label: 'documentos' },
@@ -1233,9 +1233,9 @@ export function PortalWiki() {
       {tab === 'docs' && (
         <>
           {isLoading ? (
-            <div className="poadse-box-5">Cargando...</div>
+            <div className="poadse-box-5">{traducir('common.loading')}</div>
           ) : pages.length === 0 ? (
-            <PortalEmpty icon={BookOpen} title={traducir('portaladvanced.sin_paginas')} description="Cuando el equipo publique documentación interna, la verás aquí." />
+            <PortalEmpty icon={BookOpen} title={traducir('portaladvanced.sin_paginas')} description={traducir('portaladvanced.cuando_el_equipo_publique_documentacion_interna_la')} />
           ) : (
             <div className="poadse-grid-3">
               {pages.map(p => (
@@ -1261,13 +1261,13 @@ export function PortalWiki() {
       {tab === 'kb' && (
         <>
           <div className="poadse-box-26">
-            <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
+            <Search size={14} className="portalad-sx8" />
             <PortalInput value={searchKB} onChange={e => setSearchKB(e.target.value)}
               placeholder={traducir('portaladvanced.buscar_en_la_base_de_conocimiento')}
               style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
           </div>
           {loadingKB ? (
-            <div className="poadse-box-5">Cargando...</div>
+            <div className="poadse-box-5">{traducir('common.loading')}</div>
           ) : kbArticles.length === 0 ? (
             <PortalEmpty icon={Search} title={searchKB ? `Sin resultados para "${searchKB}"` : 'Base de conocimiento vacía'} />
           ) : (

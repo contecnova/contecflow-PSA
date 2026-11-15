@@ -141,3 +141,14 @@
   color: var(--text-2);
   margin-bottom: 16px;
 }
+
+/* ── Estilos en linea extraidos de MilestoneBillingPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.mileston-sx1.mileston-sx1 {
+  border-radius: 12px;
+}
+.mileston-sx2.mileston-sx2 {
+  opacity: 1;
+}
+.mileston-sx3.mileston-sx3 {
+  opacity: 0.3;
+}

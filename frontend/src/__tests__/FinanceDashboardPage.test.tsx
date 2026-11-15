@@ -54,6 +54,6 @@ describe('FinanceDashboardPage', () => {
     expect(screen.queryByText('999,999')).toBeNull()
     // Pipeline: solo las abiertas (ni ganadas ni perdidas), con `expected_revenue`.
     expect(screen.getAllByText('70,000').length).toBeGreaterThan(0)
-    expect(screen.getByText('1 oportunidades abiertas · hoy')).toBeTruthy()
+    expect(screen.getByText('pagina_findash.oportunidades_abiertas_hoy')).toBeTruthy()
   })
 })

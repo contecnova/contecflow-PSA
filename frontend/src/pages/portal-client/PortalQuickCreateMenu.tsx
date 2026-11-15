@@ -93,21 +93,11 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
       <div role="presentation" onMouseDown={onClose}
         className="poqucrme-box-1" />
       <div ref={panelRef}
-        role="dialog" aria-label={t('portalquickcreatemenu.crear_nuevo')}
-        style={{
-          position: 'fixed', top: 52, right: 16, zIndex: 501,
-          width: 300,
-          background: 'var(--surface-1)',
-          border: '1px solid var(--surface-4)',
-          borderRadius: 12,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
-          overflow: 'hidden',
-          fontFamily: 'inherit',
-        }}
+        role="dialog" aria-label={t('portalquickcreatemenu.crear_nuevo')} className="portalqu-sx1"
       >
         <div className="poqucrme-row-1">
           <span>{t('portalquickcreatemenu.crear_nuevo')}</span>
-          <button onClick={onClose} aria-label="Cerrar"
+          <button onClick={onClose} aria-label={t('common.close')}
             className="poqucrme-row-2">
             <X size={13} />
           </button>
@@ -119,7 +109,7 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div className="poqucrme-row-4" style={{ borderRadius: 8, background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}` }}>
+              <div className="poqucrme-row-4 portalqu-sx2" style={{ background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}` }}>
                 <Icon size={15} color={color} />
               </div>
               <div className="u-flex1-min0">

@@ -43,7 +43,7 @@ function PistasSinFilas({ pistas }: { pistas: AskResult['zero_result_hints'] }) 
   const faltan = (pistas || []).filter(p => !p.exists)
   if (!faltan.length) return null
   return (
-    <div className="asdawi-box-8" role="status" style={{ background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}`, borderRadius: 7 }}>
+    <div className="asdawi-box-8 askdataw-sx1" role="status" style={{ background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}` }}>
       {faltan.map((p, i) => (
         <div key={i} style={{ marginTop: i ? 6 : 0 }}>
           {t('askdatawidget.pista_no_existe', { columna: `${p.table}.${p.column}`, valor: p.searched })}{' '}
@@ -180,17 +180,17 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
         {mutation.data && (
           <div className="u-stack-10">
             {mutation.data.error ? (
-              <div className="asdawi-row-8" style={{ color: COLOR.warning, background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}`, borderRadius: 8 }}>
-                <AlertTriangle size={13} style={{ marginTop: 1, flexShrink: 0 }} />
+              <div className="asdawi-row-8 askdataw-sx2" style={{ color: COLOR.warning, background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}` }}>
+                <AlertTriangle size={13} className="askdataw-sx3" />
                 <div>
-                  <strong>Consulta bloqueada:</strong> {mutation.data.error}
+                  <strong>{t('askdatawidget.consulta_bloqueada')}</strong> {mutation.data.error}
                 </div>
               </div>
             ) : (
               <>
                 <div className="u-row-between">
                   <span className="u-text3-xs">
-                    {mutation.data.row_count} resultado{mutation.data.row_count !== 1 ? 's' : ''}
+                    {mutation.data.row_count} {t('askdatawidget.resultado')}{mutation.data.row_count !== 1 ? 's' : ''}
                     {mutation.data.truncated ? ' (truncado a 200)' : ''}
                   </span>
                   <button
@@ -219,9 +219,9 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                 <ResultTable columns={mutation.data.columns} rows={mutation.data.rows} />
                 {puedeValidar && mutation.data.model_sql && !mutation.data.from_validated_example && (
                   <div>
-                    <button className="asdawi-box-10" type="button" onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
+                    <button className="asdawi-box-10 askdataw-sx1" type="button" onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
                       title={t('askdatawidget.validar_ayuda')}
-                      style={{ border: `1px solid ${guardada ? COLOR.success : 'var(--surface-4)'}`, color: guardada ? COLOR.success : 'var(--text-2)', borderRadius: 7, cursor: guardada ? 'default' : 'pointer' }}>
+                      style={{ border: `1px solid ${guardada ? COLOR.success : 'var(--surface-4)'}`, color: guardada ? COLOR.success : 'var(--text-2)', cursor: guardada ? 'default' : 'pointer' }}>
                       {guardada ? `✓ ${t('askdatawidget.validada')}` : t('askdatawidget.validar')}
                     </button>
                   </div>

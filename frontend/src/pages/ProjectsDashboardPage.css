@@ -50,3 +50,8 @@
   border-radius: var(--radius-sm);
   padding: 3px 9px;
 }
+
+/* Añadido a mano. */
+.pdash-icono {
+  flex-shrink: 0;
+}

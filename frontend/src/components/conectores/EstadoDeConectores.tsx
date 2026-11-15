@@ -51,7 +51,7 @@ function Producto({ p }: { p: EstadoProducto }) {
         <span className="esdeco-box-5" aria-hidden style={{ background: color }} />
         <strong className="u-text1">{p.producto}</strong>
         <span className="esdeco-sub">{p.configurado ? t('conectores.estado_configurado') : t('conectores.sin_configurar')}</span>
-        <Button size="xs" variant="secondary" style={{ marginLeft: 'auto' }} loading={probar.isPending} disabled={!p.configurado}
+        <Button size="xs" variant="secondary" className="estadode-sx1" loading={probar.isPending} disabled={!p.configurado}
           onClick={() => probar.mutate()}>{t('conectores.probar')}</Button>
       </div>
       <div className="esdeco-grid-2">
@@ -64,7 +64,7 @@ function Producto({ p }: { p: EstadoProducto }) {
         <div className="esdeco-stack-1">
           {[{ k: 'aplicacion', r: probar.data.aplicacion }, { k: 'empresa', r: probar.data.empresa }].filter(x => x.r).map(({ k, r }) => (
             <div className="esdeco-row-3" key={k} style={{ color: r!.ok ? 'var(--success)' : 'var(--danger)' }}>
-              {r!.ok ? <CheckCircle2 size={14} style={{ marginTop: 2 }} /> : <XCircle size={14} style={{ marginTop: 2 }} />}
+              {r!.ok ? <CheckCircle2 size={14} className="estadode-sx2" /> : <XCircle size={14} className="estadode-sx2" />}
               <span className="u-text2"><strong>{t(`conectores.prueba_${k}`)}:</strong> {r!.detail}</span>
             </div>
           ))}

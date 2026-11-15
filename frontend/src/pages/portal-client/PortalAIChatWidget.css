@@ -129,3 +129,63 @@
   align-items: center;
   justify-content: space-between;
 }
+
+/* ── Estilos estaticos extraidos de PortalAIChatWidget.tsx (#17) ── */
+.portalai-sx1 {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: var(--z-modal);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple, #7c3aed));
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-fab-strong);
+  color: var(--on-accent-light);
+}
+.portalai-sx2 {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: var(--z-modal);
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  height: 560px;
+  max-height: calc(100vh - 48px);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 50px var(--overlay-soft);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.portalai-sx3 {
+  background: var(--on-dark-faint-sm);
+  color: var(--on-accent-light);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+.portalai-sx4.portalai-sx4 {
+  border-radius: var(--radius-md);
+}
+.portalai-sx5 {
+  background: var(--danger-bg-strong);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.portalai-sx6.portalai-sx6 {
+  border-radius: 8px;
+}

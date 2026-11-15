@@ -8,7 +8,6 @@
  * categoría y, en gastos, «excede una política».
  */
 import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { approvalsApi } from '../../services/api'
 import { settingsApi } from '../../services/settingsApi'
@@ -17,9 +16,8 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
+import './aprobaciones.css'
 
-const campo: CSSProperties = { width: '100%', boxSizing: 'border-box', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
-const etiqueta: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 3 }
 
 type Cond = { amount_gt?: number; amount_lte?: number; department?: string; category?: string; policy_exceeded?: boolean; [k: string]: unknown }
 
@@ -55,21 +53,21 @@ export default function CondicionesDelFlujo({ workflowId, entityType, actuales, 
   }
   const set = (k: keyof typeof c) => (e: { target: { value: string } }) => setC(v => ({ ...v, [k]: e.target.value }))
   return (
-    <section aria-label={t('aprob.condiciones')} style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14, marginBottom: 18 }}>
-      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{t('aprob.condiciones')}</div>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 10 }}>{t('aprob.condiciones_ayuda')}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, alignItems: 'end' }}>
-        <label><span style={etiqueta}>{t('aprob.importe_mayor_que')}</span><input aria-label={t('aprob.importe_mayor_que')} type="number" min={0} step="0.01" value={c.amount_gt} onChange={set('amount_gt')} style={campo} /></label>
-        <label><span style={etiqueta}>{t('aprob.importe_hasta')}</span><input aria-label={t('aprob.importe_hasta')} type="number" min={0} step="0.01" value={c.amount_lte} onChange={set('amount_lte')} style={campo} /></label>
-        <label><span style={etiqueta}>{t('aprob.departamento')}</span>
-          <select aria-label={t('aprob.departamento')} value={c.department} onChange={set('department')} style={campo}>
+    <section aria-label={t('aprob.condiciones')} className="apr-condiciones">
+      <div className="apr-condiciones__titulo">{t('aprob.condiciones')}</div>
+      <div className="apr-condiciones__ayuda">{t('aprob.condiciones_ayuda')}</div>
+      <div className="apr-condiciones__rejilla">
+        <label><span className="apr-etiqueta">{t('aprob.importe_mayor_que')}</span><input aria-label={t('aprob.importe_mayor_que')} type="number" min={0} step="0.01" value={c.amount_gt} onChange={set('amount_gt')} className="apr-campo" /></label>
+        <label><span className="apr-etiqueta">{t('aprob.importe_hasta')}</span><input aria-label={t('aprob.importe_hasta')} type="number" min={0} step="0.01" value={c.amount_lte} onChange={set('amount_lte')} className="apr-campo" /></label>
+        <label><span className="apr-etiqueta">{t('aprob.departamento')}</span>
+          <select aria-label={t('aprob.departamento')} value={c.department} onChange={set('department')} className="apr-campo">
             <option value="">{t('aprob.cualquiera')}</option>
             {(depts.data ?? []).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
           </select></label>
-        <label><span style={etiqueta}>{t('aprob.categoria')}</span><input aria-label={t('aprob.categoria')} value={c.category} onChange={set('category')} style={campo} placeholder={t('aprob.cualquiera')} /></label>
+        <label><span className="apr-etiqueta">{t('aprob.categoria')}</span><input aria-label={t('aprob.categoria')} value={c.category} onChange={set('category')} className="apr-campo" placeholder={t('aprob.cualquiera')} /></label>
         {entityType === 'expense' && (
-          <label><span style={etiqueta}>{t('aprob.excede_politica')}</span>
-            <select aria-label={t('aprob.excede_politica')} value={c.policy_exceeded} onChange={set('policy_exceeded')} style={campo}>
+          <label><span className="apr-etiqueta">{t('aprob.excede_politica')}</span>
+            <select aria-label={t('aprob.excede_politica')} value={c.policy_exceeded} onChange={set('policy_exceeded')} className="apr-campo">
               <option value="">{t('aprob.da_igual')}</option><option value="si">{t('aprob.si')}</option><option value="no">{t('aprob.no')}</option>
             </select></label>
         )}

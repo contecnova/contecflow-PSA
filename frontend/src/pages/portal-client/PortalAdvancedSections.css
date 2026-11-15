@@ -481,3 +481,36 @@
   font-size: var(--text-sm);
   font-weight: 700;
 }
+
+/* ── Estilos estaticos extraidos de PortalAdvancedSections.tsx (#17) ── */
+.portalad-sx1 {
+  margin-bottom: 16px;
+}
+.portalad-sx2.portalad-sx2 {
+  border-radius: 8px;
+}
+.portalad-sx3 {
+  color: var(--accent);
+}
+.portalad-sx4 {
+  overflow-y: auto;
+}
+.portalad-sx5 {
+  display: flex;
+  flex-direction: column;
+}
+.portalad-sx6.portalad-sx6 {
+  border-radius: 50%;
+}
+.portalad-sx7 {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.portalad-sx8 {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  pointer-events: none;
+}

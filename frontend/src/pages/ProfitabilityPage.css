@@ -442,3 +442,23 @@
 .prof-grid-6:focus-visible {
   background: var(--surface-3);
 }
+
+/* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
+.prof-fs:focus-visible,
+.prof-input-2:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Estilos estaticos extraidos de ProfitabilityPage.tsx (#17) ── */
+.profitab-sx1 {
+  padding: 16px;
+}
+.profitab-sx2 {
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.profitab-sx3 {
+  margin-bottom: 24px;
+  padding: 20px;
+}

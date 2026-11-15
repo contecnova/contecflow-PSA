@@ -277,3 +277,24 @@
   color: var(--on-accent);
   border-color: var(--accent);
 }
+
+/* ── Estilos estaticos extraidos de NexusAssistPanel.tsx (#17) ── */
+.nexusass-sx1 {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 420px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  z-index: var(--z-modal);
+  background: var(--surface-1);
+  border: .5px solid var(--surface-4);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-drawer);
+}
+.nexusass-sx2.nexusass-sx2 {
+  color: var(--on-accent-light);
+}

@@ -210,3 +210,26 @@
   box-sizing: border-box;
   flex: 0 0 180px;
 }
+
+/* ── Estilos estaticos extraidos de IncidentAssignmentPanel.tsx (#17) ── */
+.incident-sx1 {
+  padding: 20px 22px;
+}
+.incident-sx2 {
+  color: var(--accent);
+}
+.incident-sx3.incident-sx3 {
+  border-radius: var(--radius-full, 999px);
+}
+.incident-sx4 {
+  flex: 1;
+}
+.incident-sx5 {
+  font-size: var(--text-sm);
+}
+.incident-sx6.incident-sx6 {
+  border-radius: var(--radius-sm);
+}
+.incident-sx7 {
+  color: var(--purple);
+}

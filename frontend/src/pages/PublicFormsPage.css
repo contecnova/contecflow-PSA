@@ -128,3 +128,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Añadido a mano. */
+.pubf-shell {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
+.pubf-f-s:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Estilos estaticos extraidos de PublicFormsPage.tsx (#17) ── */
+.publicfo-sx1 {
+  font-size: var(--text-sm);
+}

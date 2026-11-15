@@ -24,7 +24,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from app.services.politicas.catalogo import Campo, Dominio, Opcion, registrar
+from app.services.politicas.registro import Campo, Dominio, Opcion, registrar
 
 _CATEGORIAS = (("travel", "Viajes"), ("accommodation", "Alojamiento"), ("meals", "Comidas"),
                ("software", "Software"), ("hardware", "Hardware"), ("training", "Formación"),

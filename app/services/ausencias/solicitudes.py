@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -326,6 +326,9 @@ def aplicar_decision(db: Session, a: Absence, aprobado: bool, actor, nota: Optio
     if a.status not in (AbsenceStatus.pending, AbsenceStatus.waitlisted):
         return a
     actor_id = getattr(actor, "id", None)
+    ampliacion = _ampliacion_pendiente(db, a)
+    if not aprobado and ampliacion is not None:
+        return _rechazar_ampliacion(db, a, actor_id, nota, ampliacion)
     if aprobado:
         ev = evaluar(db, a)
         peticiones = _peticiones(ev, "aprobacion")
@@ -435,24 +438,125 @@ def editar(db: Session, usuario, a: Absence, datos: dict) -> Absence:
     return a
 
 
+def _ampliacion_pendiente(db: Session, a: Absence) -> Optional[dict]:
+    """Los datos de una ampliación aún sin decidir (la última `ampliada` pendiente
+    sin una `aprobada`, `ampliacion_rechazada` o `cancelada` después), o None."""
+    eventos = db.query(EventoDeAusencia).filter(EventoDeAusencia.absence_id == a.id) \
+        .order_by(EventoDeAusencia.created_at.desc(), EventoDeAusencia.id.desc()).all()
+    for e in eventos:
+        if e.tipo in ("aprobada", "ampliacion_rechazada", "cancelada"):
+            return None
+        if e.tipo == "ampliada":
+            d = json.loads(e.datos or "{}")
+            return d if d.get("pendiente") else None
+    return None
+
+
+def _requiere_aprobacion(db: Session, tipo, ev: dict) -> bool:
+    """La ampliación vuelve a aprobación si las políticas lo piden (revisión,
+    lista de espera) o si el tipo pide aprobación y hay flujo para él."""
+    from app.services.approval_engine._base import elegir_flujo
+    if ev["decision"] in ("review", "waitlist"):
+        return True
+    if not tipo.requiere_aprobacion or ev["decision"] == "auto_approve":
+        return False
+    return bool(tipo.workflow_id) or elegir_flujo(db, "leave", {"type": tipo.clave}) is not None
+
+
 def ampliar(db: Session, usuario, a: Absence, nuevo_fin: date, nota: Optional[str] = None) -> Absence:
     """Alargar una ausencia aprobada (una baja que se prolonga). RRHH, admin o el
-    responsable; se recalculan los días, se piden los partes que toquen y queda
-    en la línea de tiempo."""
+    responsable. El tramo nuevo pasa por las políticas como una petición: si una
+    lo bloquea, no se amplía; toma (o espera) sus plazas de cupo; y vuelve a
+    aprobación si las políticas o el flujo del tipo lo piden. Si se rechaza, la
+    ausencia vuelve a su fin anterior (sigue aprobada). Todo queda en la línea de tiempo."""
+    from app.services import politicas
+    from app.services.approval_engine import fuentes
     from app.services.ausencias import documentos
     if a.status != AbsenceStatus.approved:
         raise ErrorDeDominio(400, "Solo se amplía una ausencia aprobada")
     if nuevo_fin <= a.end_date:
         raise ErrorDeDominio(422, "La nueva fecha de fin tiene que ser posterior a la actual")
     anterior = a.end_date
+    tramo = Absence(id=a.id, user_id=a.user_id, organization_id=a.organization_id, type=a.type,
+                    absence_type_id=a.absence_type_id, start_date=anterior + timedelta(days=1), end_date=nuevo_fin,
+                    shift_id=a.shift_id, substitute_id=a.substitute_id, reason=a.reason, unit=a.unit,
+                    half_day_start=False, half_day_end=False, requested_at=_ahora(), status=AbsenceStatus.pending)
+    tramo.absence_type = a.absence_type
+    ev = evaluar(db, tramo)
+    if tramo in db:
+        db.expunge(tramo)
+    if ev["decision"] == "block":
+        raise ErrorDeDominio(422, "; ".join(b.get("mensaje") or "" for b in ev["resultado"]["bloqueos"])
+                             or "Lo impide una política")
+    otra = db.query(Absence).filter(Absence.user_id == a.user_id, Absence.id != a.id, Absence.is_active.is_(True),
+                                    Absence.status.in_([AbsenceStatus.pending, AbsenceStatus.approved,
+                                                        AbsenceStatus.waitlisted]),
+                                    Absence.start_date <= nuevo_fin, Absence.end_date > anterior).first()
+    if otra is not None:
+        raise ErrorDeDominio(400, f"Se solapa con otra ausencia del {otra.start_date} al {otra.end_date}")
+    # Plazas del tramo nuevo (cualquier momento: la parte ya aprobada conserva las suyas).
+    aus = (ev.get("contexto") or {}).get("_ausencia") or {}
+    peticiones = [{"cupo": c, "huecos": cupos.huecos_de(c, aus)} for c in (ev["resultado"].get("propios") or [])
+                  if c.get("tipo") == cupos.TIPO and c.get("clave")]
+    r = cupos.reservar(db, a.id, _ahora(), peticiones, a.organization_id) if peticiones else {"resultado": "sin_cupo"}
+    if r["resultado"] == "lleno":
+        raise ErrorDeDominio(409, _mensaje_de_bloqueo(r.get("cupo")))
     a.end_date = nuevo_fin
-    _solapada(db, a)
     ctx = reglas.contexto(db, a)
     a.working_days, a.amount = ctx["dias_laborables"], ctx["cantidad"]
-    evento(db, a, "ampliada", usuario.id, desde=anterior, hasta=nuevo_fin, nota=nota)
-    documentos.crear_requisitos(db, a, a.absence_type, None)
-    avisar(db, [a.user_id], "Ausencia ampliada", f"{_resumen(a, a.absence_type)}", a)
+    espera = r["resultado"] == "espera" or (r["resultado"] == "sin_cupo" and ev["decision"] == "waitlist")
+    pendiente = espera or _requiere_aprobacion(db, a.absence_type, ev)
+    evento(db, a, "ampliada", usuario.id, desde=anterior, hasta=nuevo_fin, nota=nota, pendiente=pendiente,
+           decision=ev["decision"])
+    politicas.registrar_evaluacion(db, DOMINIO, a.id, ev, momento="ampliacion", usuario_id=usuario.id,
+                                   organization_id=a.organization_id)
+    documentos.crear_requisitos(db, a, a.absence_type, ev)
+    avisar(db, [a.user_id], "Ausencia ampliada", _resumen(a, a.absence_type), a)
+    if espera:
+        a.status = AbsenceStatus.waitlisted
+        evento(db, a, "en_espera", None, momento="solicitud", posicion=cupos.posicion(db, a.id), ampliacion=True)
+        db.commit()
+        return a
+    if not pendiente:
+        db.commit()
+        return a
+    a.status = AbsenceStatus.pending
     db.commit()
+    fuentes.abrir(db, "leave", a.id, f"Ampliación: {_resumen(a, a.absence_type)}", a.user_id,
+                  {"days": a.working_days, "type": a.type, "ampliacion": True}, evaluacion=ev,
+                  workflow_id=a.absence_type.workflow_id)
+    db.refresh(a)
+    if a.status == AbsenceStatus.pending:
+        evento(db, a, "en_aprobacion" if fuentes.estado(db, "leave", a.id) == "pending" else "en_revision", None,
+               ampliacion=True)
+        db.commit()
+    return a
+
+
+def _rechazar_ampliacion(db: Session, a: Absence, actor_id: Optional[str], nota: Optional[str], d: dict) -> Absence:
+    """Rechazada una ampliación: vuelve al fin anterior, sigue aprobada y suelta las plazas del tramo."""
+    from app.models.ausencias import HuecoDeCupo, ReservaDeCupo
+    from app.services.approval_engine import fuentes
+    anterior = date.fromisoformat(str(d["desde"])[:10])
+    a.end_date, a.status = anterior, AbsenceStatus.approved
+    ctx = reglas.contexto(db, a)
+    a.working_days, a.amount = ctx["dias_laborables"], ctx["cantidad"]
+    fuentes.cerrar(db, "leave", a.id, "rejected", nota or "Ampliación rechazada")
+    evento(db, a, "ampliacion_rechazada", actor_id, motivo=nota, vuelve_a=anterior)
+    texto = _resumen(a, a.absence_type) + (f" — {nota}" if nota else "")
+    avisar(db, [a.user_id], "Ampliación rechazada", texto, a)
+    libres = set()
+    with cupos.seccion(db):
+        filas = db.query(ReservaDeCupo, HuecoDeCupo).join(HuecoDeCupo, HuecoDeCupo.id == ReservaDeCupo.hueco_id) \
+            .filter(ReservaDeCupo.absence_id == a.id, ReservaDeCupo.estado.in_(("ocupa", "espera")),
+                    HuecoDeCupo.fecha > anterior).all()
+        for res, h in filas:
+            if res.estado == "ocupa":
+                libres.add(h.id)
+                h.ocupadas = max(0, (h.ocupadas or 0) - 1)
+            res.estado = "liberada"
+        db.commit()
+    promover(db, libres)
     return a
 
 

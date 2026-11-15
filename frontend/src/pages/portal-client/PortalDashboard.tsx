@@ -246,10 +246,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   if (isLoading) {
     return (
       <div>
-        <PortalPageHeader title="Cargando…" icon={LayoutDashboard} />
+        <PortalPageHeader title={traducir('chat.loading')} icon={LayoutDashboard} />
         <div className="portdash-grid-1">
           {Array.from({ length: 8 }).map((_, i) => (
-            <PortalCard key={i} style={{ height: 116, opacity: 0.5 }}>{null}</PortalCard>
+            <PortalCard key={i} className="portalda-sx1">{null}</PortalCard>
           ))}
         </div>
       </div>
@@ -437,7 +437,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
           showProjectSwitcher ? (
             <PortalButton variant="secondary" size="sm" icon={<FolderOpen size={13} />}
               onClick={() => { setSelectedProjectId(null); localStorage.removeItem('portal_selected_project') }}>
-              Cambiar proyecto
+              {traducir('portaldashboard.cambiar_proyecto')}
             </PortalButton>
           ) : null
         }
@@ -457,7 +457,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               <div className="portdash-row-2"><Zap size={18} /></div>
               <div>
                 <div className="portdash-txt-1">
-                  Tienes {totalActions} {traducir('portaldashboard.accion_es_pendiente_s')}
+                  {traducir('portaldashboard.tienes')} {totalActions} {traducir('portaldashboard.accion_es_pendiente_s')}
                 </div>
                 <div className="u-text2-sm">
                   {traducir('portaldashboard.estos_son_los_puntos_donde_el_proyecto')}
@@ -478,7 +478,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                       <span className="portdash-txt-3" style={{ color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}>{it.count}</span> {it.label}
                     </div>
                   </div>
-                  <ArrowRight size={14} aria-hidden="true" style={{ color: 'var(--text-3)' }} />
+                  <ArrowRight size={14} aria-hidden="true" className="portalda-sx2" />
                 </button>
               )
             })}
@@ -490,7 +490,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       <div className="portdash-grid-7" style={{ marginBottom: SECTION_GAP }}>
         <PortalKpi
           icon={Activity} tone="accent"
-          label="Avance temporal"
+          label={traducir('portaldashboard.avance_temporal')}
           value={`${timePct}%`}
           sub={remainingDays != null ? (remainingDays >= 0 ? `${remainingDays} días para entrega` : `${Math.abs(remainingDays)} días pasada la fecha`) : 'Sin fechas'}
           footer={<PortalProgress value={timePct} color="var(--accent)" />}
@@ -498,14 +498,14 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         <PortalKpi
           icon={Wallet}
           tone={budgetPct > 90 ? 'danger' : budgetPct > 75 ? 'warning' : 'success'}
-          label="Presupuesto"
+          label={traducir('uikit.presupuesto')}
           value={`${budgetPct}%`}
           sub={kpis.budget_total ? `${(kpis.budget_spent || 0).toLocaleString(localeActivo())}h / ${kpis.budget_total.toLocaleString(localeActivo())}h` : 'Sin presupuesto'}
           footer={<PortalProgress value={budgetPct} />}
         />
         <PortalKpi
           icon={Target} tone="purple"
-          label="Hitos completados"
+          label={traducir('portaldashboard.hitos_completados')}
           value={`${milestonesDone}/${milestonesTotal}`}
           sub={`${milestonesPct}% del plan`}
           footer={<PortalProgress value={milestonesPct} color="var(--purple, #7c3aed)" />}
@@ -513,28 +513,28 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         <PortalKpi
           icon={CheckCircle2}
           tone={delAccepted === delTotal && delTotal > 0 ? 'success' : 'default'}
-          label="Entregables aceptados"
+          label={traducir('portaldashboard.entregables_aceptados')}
           value={`${delAccepted}/${delTotal}`}
           sub={`${delDelivered} pendientes UAT · ${delRejected} rechazados`}
         />
         <PortalKpi
           icon={FlaskConical}
           tone={uatPassPct >= 80 ? 'success' : uatPassPct >= 50 ? 'warning' : 'danger'}
-          label="UAT pasados"
+          label={traducir('portaldashboard.uat_pasados')}
           value={`${uatPassPct}%`}
           sub={`${uatPassed} ok · ${uatFailed} ko · ${uatPending} pendientes`}
         />
         <PortalKpi
           icon={Headphones}
           tone={ticketsOpen > 5 ? 'warning' : 'default'}
-          label="Tickets abiertos"
+          label={traducir('bi.open_tickets')}
           value={ticketsOpen}
           sub={`${ticketsResolved} cerrados · ${ticketsPendingClient} esperan a ti`}
         />
         <PortalKpi
           icon={ShieldCheck}
           tone={slaCompliance == null ? 'default' : slaCompliance >= 90 ? 'success' : slaCompliance >= 75 ? 'warning' : 'danger'}
-          label="Cumplimiento SLA"
+          label={traducir('reportes_presets.p14')}
           value={slaCompliance != null ? `${slaCompliance}%` : '—'}
           sub={`Riesgo: ${sd.response_breached_open || 0} resp · ${sd.resolution_breached_open || 0} resol`}
         />
@@ -562,13 +562,13 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 centerBottom="tiempo"
               />
               <div className="portdash-box-3">
-                <DataRow label="Inicio" value={project.start_date || '—'} />
-                <DataRow label="Fin previsto" value={project.end_date_planned || '—'} />
+                <DataRow label={traducir('bpm.inicio')} value={project.start_date || '—'} />
+                <DataRow label={traducir('project_detail.meta_end_planned')} value={project.end_date_planned || '—'} />
                 <DataRow label={traducir('portaldashboard.dias_transcurridos')} value={`${elapsedDays}${totalDays ? ` / ${totalDays}` : ''}`} />
-                <DataRow label="SPI (eficiencia)" value={spi != null ? spi : '—'}
+                <DataRow label={traducir('portaldashboard.spi_eficiencia')} value={spi != null ? spi : '—'}
                   tone={spi == null ? 'default' : spi >= 1 ? 'success' : spi >= 0.85 ? 'warning' : 'danger'}
                   hint={spi == null ? null : spi >= 1 ? 'En plazo' : spi >= 0.85 ? 'Ligero retraso' : 'Riesgo de retraso'} />
-                <DataRow label="Burn rate" value={burnRate ? `${burnRate.toFixed(1)} h/día` : '—'} />
+                <DataRow label={traducir('portaldashboard.burn_rate')} value={burnRate ? `${burnRate.toFixed(1)} h/día` : '—'} />
                 {burnRisk != null && (
                   <DataRow label={traducir('portaldashboard.desviacion_proyectada')} value={`${burnRisk > 0 ? '+' : ''}${burnRisk}%`}
                     tone={burnRisk > 10 ? 'danger' : burnRisk > 0 ? 'warning' : 'success'}
@@ -628,11 +628,11 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 centerBottom="UAT ok"
               />
               <div className="portdash-box-6">
-                <DataRow label="Sesiones aprobadas" value={uatPassed} tone="success" />
-                <DataRow label="En curso / pendientes" value={uatPending} tone="accent" />
-                <DataRow label="Sesiones rechazadas" value={uatFailed} tone={uatFailed ? 'danger' : 'default'} />
-                <DataRow label="Vencidas" value={uatOverdue} tone={uatOverdue ? 'warning' : 'default'} />
-                <DataRow label="Defectos abiertos" value={uatIssues} tone={uatIssues ? 'warning' : 'default'} />
+                <DataRow label={traducir('portaldashboard.sesiones_aprobadas')} value={uatPassed} tone="success" />
+                <DataRow label={traducir('portaldashboard.en_curso_pendientes')} value={uatPending} tone="accent" />
+                <DataRow label={traducir('portaldashboard.sesiones_rechazadas')} value={uatFailed} tone={uatFailed ? 'danger' : 'default'} />
+                <DataRow label={traducir('portaldashboard.vencidas')} value={uatOverdue} tone={uatOverdue ? 'warning' : 'default'} />
+                <DataRow label={traducir('portaldashboard.defectos_abiertos')} value={uatIssues} tone={uatIssues ? 'warning' : 'default'} />
               </div>
             </div>
           </PortalSection>
@@ -640,7 +640,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.estado_de_entregables')} hint={`${delTotal} entregables totales`}
-            action={<PortalButton variant="ghost" size="sm" onClick={() => go('roadmap')} icon={<ArrowRight size={13} />}>Ver roadmap</PortalButton>}>
+            action={<PortalButton variant="ghost" size="sm" onClick={() => go('roadmap')} icon={<ArrowRight size={13} />}>{traducir('portaldashboard.ver_roadmap')}</PortalButton>}>
             <PortalBars items={[
               { label: 'Aceptados',    value: delAccepted,  color: 'var(--success)' },
               { label: 'Entregados (pendiente revisión)', value: delDelivered, color: 'var(--accent)' },
@@ -657,8 +657,8 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       {/* ── Service desk ───────────────────────────────────────────────── */}
       <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
         <PortalCard>
-          <PortalSection title="Service Desk · SLA" hint="Distribución por prioridad e impacto"
-            action={<PortalButton variant="ghost" size="sm" onClick={() => go('support')} icon={<ArrowRight size={13} />}>Tickets</PortalButton>}>
+          <PortalSection title={traducir('portaldashboard.service_desk_sla')} hint="Distribución por prioridad e impacto"
+            action={<PortalButton variant="ghost" size="sm" onClick={() => go('support')} icon={<ArrowRight size={13} />}>{traducir('search_page.tickets')}</PortalButton>}>
             <div className="portdash-grid-4">
               <PortalBars items={[
                 { label: 'P1 Crítico', value: ticketsByPriority.p1_critical, color: 'var(--danger)' },
@@ -679,13 +679,13 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.tiempos_de_respuesta_y_resolucion')} hint="Promedios sobre tus tickets">
             <div className="portdash-grid-5">
-              <MetricBlock icon={TimerReset} label="1ª respuesta media" value={formatDuration(sd.avg_first_response_minutes)} tone="accent" />
+              <MetricBlock icon={TimerReset} label={traducir('portaldashboard.1_respuesta_media')} value={formatDuration(sd.avg_first_response_minutes)} tone="accent" />
               <MetricBlock icon={Clock}       label={traducir('portaldashboard.resolucion_media')}   value={formatDuration(sd.avg_resolution_minutes)}     tone="success" />
             </div>
-            <DataRow label="Cumplimiento SLA" value={slaCompliance != null ? `${slaCompliance}%` : '—'} tone={slaCompliance == null ? 'default' : slaCompliance >= 90 ? 'success' : 'warning'} />
-            <DataRow label="Riesgo SLA respuesta" value={sd.response_breached_open || 0} tone={sd.response_breached_open ? 'danger' : 'default'} />
+            <DataRow label={traducir('reportes_presets.p14')} value={slaCompliance != null ? `${slaCompliance}%` : '—'} tone={slaCompliance == null ? 'default' : slaCompliance >= 90 ? 'success' : 'warning'} />
+            <DataRow label={traducir('portaldashboard.riesgo_sla_respuesta')} value={sd.response_breached_open || 0} tone={sd.response_breached_open ? 'danger' : 'default'} />
             <DataRow label={traducir('portaldashboard.riesgo_sla_resolucion')} value={sd.resolution_breached_open || 0} tone={sd.resolution_breached_open ? 'danger' : 'default'} />
-            <DataRow label="Tickets cerrados" value={ticketsResolved} tone="default" />
+            <DataRow label={traducir('grc.retencion_tipo_tickets')} value={ticketsResolved} tone="default" />
           </PortalSection>
         </PortalCard>
       </div>
@@ -698,14 +698,14 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               <div className="u-flex1">
                 <PortalSpark values={ticketTrend} width={280} height={56} color="var(--accent)" />
                 <div className="portdash-row-7">
-                  <span>hace 12 sem</span>
+                  <span>{traducir('portaldashboard.hace_12_sem')}</span>
                   <span>{traducir('portaldashboard.esta_semana')}</span>
                 </div>
               </div>
               <div className="portdash-box-8">
-                <DataRow label="Total 12 sem" value={ticketTrend.reduce((s, n) => s + n, 0)} />
+                <DataRow label={traducir('portaldashboard.total_12_sem')} value={ticketTrend.reduce((s, n) => s + n, 0)} />
                 <DataRow label={traducir('portaldashboard.ultima_sem')} value={ticketTrend[ticketTrend.length - 1] || 0} />
-                <DataRow label="Pico" value={Math.max(...ticketTrend, 0)} />
+                <DataRow label={traducir('portaldashboard.pico')} value={Math.max(...ticketTrend, 0)} />
               </div>
             </div>
           </PortalSection>
@@ -730,8 +730,8 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               <div className="portdash-box-6">
                 <DataRow label={traducir('portaldashboard.nuevas_en_revision')} value={frs.filter(f => ['new', 'reviewing'].includes(f.status)).length} />
                 <DataRow label={traducir('portaldashboard.con_presupuesto')} value={frs.filter(f => f.status === 'estimated').length} tone="warning" />
-                <DataRow label="Aprobadas" value={frs.filter(f => f.status === 'approved').length} tone="success" />
-                <DataRow label="Rechazadas" value={frs.filter(f => f.status === 'rejected').length} tone="default" />
+                <DataRow label={traducir('approvals.approved')} value={frs.filter(f => f.status === 'approved').length} tone="success" />
+                <DataRow label={traducir('approvals.rejected')} value={frs.filter(f => f.status === 'rejected').length} tone="default" />
                 <DataRow label={traducir('portaldashboard.esperan_tu_decision')} value={frsAwaitDecision.length} tone={frsAwaitDecision.length ? 'warning' : 'default'} />
               </div>
             </div>
@@ -743,7 +743,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.facturacion')} hint={`${invoices.length} facturas (${currency})`}
-            action={<PortalButton variant="ghost" size="sm" onClick={() => go('invoices')} icon={<ArrowRight size={13} />}>Ver facturas</PortalButton>}>
+            action={<PortalButton variant="ghost" size="sm" onClick={() => go('invoices')} icon={<ArrowRight size={13} />}>{traducir('portaldashboard.ver_facturas')}</PortalButton>}>
             <div className="portdash-row-4">
               <PortalDonut
                 size={120} stroke={14}
@@ -756,10 +756,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 centerBottom="cobrado"
               />
               <div className="portdash-box-3">
-                <DataRow label="Facturado total" value={formatMoney(totalBilled, currency)} />
-                <DataRow label="Pagado" value={formatMoney(totalPaid, currency)} tone="success" />
-                <DataRow label="Pendiente" value={formatMoney(invoicesPending.reduce((s, i) => s + Number(i.total || 0), 0), currency)} tone="warning" />
-                <DataRow label="Vencido" value={formatMoney(totalOverdue, currency)} tone={totalOverdue ? 'danger' : 'default'} />
+                <DataRow label={traducir('portaldashboard.facturado_total')} value={formatMoney(totalBilled, currency)} />
+                <DataRow label={traducir('invoices.total_paid')} value={formatMoney(totalPaid, currency)} tone="success" />
+                <DataRow label={traducir('uat.pending')} value={formatMoney(invoicesPending.reduce((s, i) => s + Number(i.total || 0), 0), currency)} tone="warning" />
+                <DataRow label={traducir('alm.status_expired')} value={formatMoney(totalOverdue, currency)} tone={totalOverdue ? 'danger' : 'default'} />
                 <DataRow label={traducir('portaldashboard.por_aprobar')} value={`${invoicesAwaiting.length} factura(s)`} tone={invoicesAwaiting.length ? 'warning' : 'default'} />
               </div>
             </div>
@@ -780,7 +780,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                       <div className="u-sm-700">{m.name}</div>
                       <div className="u-text3-xs">{m.due_date || '—'}</div>
                     </div>
-                    <PortalBadge tone={m.is_completed ? 'success' : 'warning'}>{m.billing_pct}% factura</PortalBadge>
+                    <PortalBadge tone={m.is_completed ? 'success' : 'warning'}>{m.billing_pct}{traducir('portaldashboard.factura')}</PortalBadge>
                   </div>
                 ))}
               </div>
@@ -792,7 +792,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       {/* ── Recent activity + quick links ──────────────────────────────── */}
       <div className="portdash-grid-6">
         <PortalCard>
-          <PortalSection title="Actividad reciente" hint="Últimos eventos del proyecto">
+          <PortalSection title={traducir('portaldashboard.actividad_reciente')} hint="Últimos eventos del proyecto">
             {activity.length === 0 ? (
               <div className="portdash-box-4">{traducir('portaldashboard.sin_actividad_reciente')}</div>
             ) : (
@@ -818,11 +818,11 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.atajos_rapidos')}>
             <div className="u-grid2-10">
-              <QuickLink onClick={() => go('support')} icon={Headphones} label="Abrir ticket" hint="Service desk" />
-              <QuickLink onClick={() => go('requests')} icon={Lightbulb} label="Pedir cambio" hint="Feature request" />
-              <QuickLink onClick={() => go('uat')} icon={FlaskConical} label="UAT pendientes" hint={`${uatToRun} sesion(es)`} />
-              <QuickLink onClick={() => go('documents')} icon={FileSignature} label="Documentos" hint={`${docsToSign.length} por firmar`} />
-              <QuickLink onClick={() => go('invoices')} icon={Receipt} label="Facturas" hint={`${invoicesAwaiting.length} por aprobar`} />
+              <QuickLink onClick={() => go('support')} icon={Headphones} label={traducir('portaldashboard.abrir_ticket')} hint="Service desk" />
+              <QuickLink onClick={() => go('requests')} icon={Lightbulb} label={traducir('portaldashboard.pedir_cambio')} hint="Feature request" />
+              <QuickLink onClick={() => go('uat')} icon={FlaskConical} label={traducir('client_portal.stat_pending_uat')} hint={`${uatToRun} sesion(es)`} />
+              <QuickLink onClick={() => go('documents')} icon={FileSignature} label={traducir('docs.titulo')} hint={`${docsToSign.length} por firmar`} />
+              <QuickLink onClick={() => go('invoices')} icon={Receipt} label={traducir('nav.invoices')} hint={`${invoicesAwaiting.length} por aprobar`} />
               <QuickLink onClick={() => go('roadmap')} icon={TrendingUp} label="Roadmap" hint="Hitos & entregables" />
             </div>
           </PortalSection>
@@ -872,7 +872,7 @@ function QuickLink({ icon: Icon, label, hint, onClick }: { icon: PortalIcon; lab
         <div className="u-sm-700">{label}</div>
         <div className="u-text3-xs">{hint}</div>
       </div>
-      <ArrowRight size={14} style={{ color: 'var(--text-3)' }} aria-hidden="true" />
+      <ArrowRight size={14} className="portalda-sx2" aria-hidden="true" />
     </button>
   )
 }

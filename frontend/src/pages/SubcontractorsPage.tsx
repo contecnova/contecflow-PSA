@@ -129,7 +129,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
           <div className="sub-creds-warning">
             {t('subcontractors.creds_warning')}
           </div>
-          <Button onClick={onClose} className="sub-full">{t('subcontractors.understood')}</Button>
+          <div className="sub-full"><Button onClick={onClose}>{t('subcontractors.understood')}</Button></div>
         </div>
       </Modal>
     )

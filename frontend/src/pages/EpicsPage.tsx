@@ -71,7 +71,7 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
   const set = <K extends keyof EpicFormState>(k: K) => (v: EpicFormState[K]) => setForm((f) => ({ ...f, [k]: v }))
 
   const STATUS_CFG = {
-    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'rgba(120,138,170,0.09)' },
+    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'color-mix(in srgb, var(--text-2) 9%, transparent)' },
     in_progress: { label: t('epics.status_in_progress'), color:'var(--accent)', bg:'var(--accent-muted)' },
     done:        { label: t('epics.status_done'),        color:'var(--success)', bg:'var(--success-bg)' },
     cancelled:   { label: t('epics.status_cancelled'),   color:'var(--danger)', bg:'var(--danger-bg)' },
@@ -116,7 +116,7 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
           <div className="u-wrap-8">
             {COLORS.map(c=>(
               <button key={c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
-                className="epics-btn" style={{ borderRadius:'50%', background:c, border:form.color===c?'3px solid #fff':'2px solid transparent' }}/>
+                className={`epics-btn epicspag-sx1 ${form.color===c ? 'epicspag-sx2' : 'epicspag-sx3'}`} style={{ background:c }}/>
             ))}
             <input type="color" aria-label={t('epics.color_label')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR.purple} onChange={e=>set('color')(e.target.value)}
               className="epics-input"/>
@@ -159,7 +159,7 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
           : enlazadas.map(x => (
             <div key={x.id} className="epics-row-2">
               <span className="epics-label">{x.title}</span>
-              <span className="u-xs" style={{ color: x.status === 'done' ? 'var(--success)' : 'var(--text-3)' }}>{x.status}</span>
+              <span className={`u-xs ${x.status === 'done' ? 'epicspag-sx4' : 'epicspag-sx5'}`}>{x.status}</span>
               {canEdit && <Button size="xs" variant="ghost" onClick={() => enlazar(x.id, true)}>{t('epics.quitar')}</Button>}
             </div>))}
         {canEdit && (
@@ -255,7 +255,7 @@ export default function EpicsPage(): JSX.Element {
   const canEdit = ['admin', 'pm'].includes(user?.role ?? '')
 
   const STATUS_CFG = {
-    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'rgba(120,138,170,0.09)' },
+    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'color-mix(in srgb, var(--text-2) 9%, transparent)' },
     in_progress: { label: t('epics.status_in_progress'), color:'var(--accent)', bg:'var(--accent-muted)' },
     done:        { label: t('epics.status_done'),        color:'var(--success)', bg:'var(--success-bg)' },
     cancelled:   { label: t('epics.status_cancelled'),   color:'var(--danger)', bg:'var(--danger-bg)' },
@@ -295,8 +295,8 @@ export default function EpicsPage(): JSX.Element {
       <PageHeader icon={<Layers size={18} />} title={t('epics.title')} subtitle={t('epics.subtitle')}
         actions={project&&(
           <div className="u-row-8">
-            <button onClick={()=>setView('list')} className="epics-btn-2" style={{ background:view==='list'?'var(--accent-muted)':'transparent', color:view==='list'?'var(--accent)':'var(--text-2)' }}>{t('epics.list_view')}</button>
-            <button onClick={()=>setView('roadmap')} className="epics-btn-2" style={{ background:view==='roadmap'?'var(--accent-muted)':'transparent', color:view==='roadmap'?'var(--accent)':'var(--text-2)' }}>🗺 {t('epics.roadmap')}</button>
+            <button onClick={()=>setView('list')} className={`epics-btn-2 ${view==='list' ? 'epicspag-sx6' : 'epicspag-sx7'}`}>{t('epics.list_view')}</button>
+            <button onClick={()=>setView('roadmap')} className={`epics-btn-2 ${view==='roadmap' ? 'epicspag-sx6' : 'epicspag-sx7'}`}>🗺 {t('epics.roadmap')}</button>
             {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>}
           </div>
         )}

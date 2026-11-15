@@ -176,3 +176,30 @@
   color: var(--text-2);
   line-height: 2;
 }
+
+.gitp-box-7 {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Estilos en linea extraidos de GitPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.gitpage-sx1.gitpage-sx1 {
+  border-radius: 12px;
+}
+.gitpage-sx2.gitpage-sx2 {
+  border-radius: var(--radius-sm);
+}
+.gitpage-sx3.gitpage-sx3 {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.gitpage-sx4.gitpage-sx4 {
+  background: var(--surface-4);
+  color: var(--text-2);
+}
+.gitpage-sx5.gitpage-sx5 {
+  color: var(--success);
+}
+.gitpage-sx6.gitpage-sx6 {
+  color: var(--warning);
+}

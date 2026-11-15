@@ -21,6 +21,7 @@ import SeccionDeAjustes from './settings-sections/SeccionDeAjustes'
 import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection, RuntimeFlagsSection, IntegrationCredentialsSection } from './settings-sections/SettingsAdvancedSections'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { timezoneOptions } from '../constants/timezones'
 import { COLOR_DATO_POR_DEFECTO } from '../constants/theme'
@@ -317,7 +318,7 @@ function UsersSection() {
         <div className="u-stack-8">
           {filtered.map(u => {
             const roleColor = roleMap[u.role]?.color || ROLE_COLORS[u.role] || 'var(--text-2)'
-            const roleLabel = roleMap[u.role]?.description || ROLE_LABELS[u.role] || u.role
+            const roleLabel = roleMap[u.role]?.description || etiquetaCodigo(t, 'rol_usuario', u.role, ROLE_LABELS[u.role])
             const orgs = Array.isArray(u.organizations) ? u.organizations : []
             const primaryOrgId = u.organization_id || ''
             const principal = ` (${t('settings_sections.principal')})`
@@ -465,7 +466,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.usuario')} *</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.username} onChange={set('username')} className="set-input" aria-invalid={!!validation.errors.username} />{errField('username')}</div>
         <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.email')} *</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} className="set-input" aria-invalid={!!validation.errors.email} />{errField('email')}</div>
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.rol')}</label><select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.role} onChange={set('role')} className="set-input" aria-invalid={!!validation.errors.role}>
-          {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{etiquetaCodigo(t, 'rol_usuario', v, l)}</option>)}
         </select>{errField('role')}</div>
         <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.rol_personalizado')}</label><select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.custom_role_id} onChange={set('custom_role_id')} className="set-input">
           <option value="">{t('settings_sections.ninguno_rol_base')}</option>

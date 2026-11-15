@@ -19,7 +19,7 @@ function strengthScore(password: string): number {
   return Math.min(score, 5)
 }
 
-const STRENGTH_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#16a34a', '#15803d']
+const STRENGTH_COLORS = ['var(--danger)', 'var(--orange)', 'var(--warning)', 'var(--success)', 'color-mix(in srgb, var(--success) 85%, var(--surface-0))', 'color-mix(in srgb, var(--success) 70%, var(--surface-0))']
 
 export default function ResetPasswordPage() {
   const idCampo = useId()
@@ -73,7 +73,7 @@ export default function ResetPasswordPage() {
         <div className="rpw-row">
           <div className="rpw-row-2">
             <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
-              <circle cx="16" cy="16" r="14" fill="rgba(255,255,255,0.12)" />
+              <circle cx="16" cy="16" r="14" fill="color-mix(in srgb, var(--text-1) 12%, transparent)" />
               <path d="M8 16C8 11.58 11.58 8 16 8C20.42 8 24 11.58 24 16C24 20.42 20.42 24 16 24C11.58 24 8 20.42 8 16Z" fill="white" />
               <path d="M16 12V20M12 16H20" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
@@ -173,7 +173,7 @@ export default function ResetPasswordPage() {
 
           <Link
             to="/login"
-            style={{ textAlign: 'center', fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}
+            className="rpw-enlace-login"
           >
             {t('reset_password.back_to_login')}
           </Link>

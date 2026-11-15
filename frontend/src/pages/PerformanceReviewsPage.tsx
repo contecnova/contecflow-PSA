@@ -251,7 +251,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                           <button key={n} type="button"
                             onClick={() => setAnswers(s => ({ ...s, [q.key]: n }))}
                             aria-label={t('pagina_perf.de', { label: q.label, n, max })}
-                            className="perf-btn" style={{ borderRadius: 'var(--radius-sm)', background: active ? 'var(--accent)' : 'var(--surface-4)', border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`, color: active ? '#fff' : 'var(--text-3)' }}>
+                            className={`perf-btn performa-sx1 ${active ? 'performa-sx2' : 'performa-sx3'}`} style={{ border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` }}>
                             {n}
                           </button>
                         )
@@ -277,7 +277,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                     {[{ k: 'yes', l: t('pagina_perf.si') }, { k: 'no', l: t('pagina_perf.no') }].map(({ k, l }) => (
                       <button key={k} type="button"
                         onClick={() => setAnswers(s => ({ ...s, [q.key]: k }))}
-                        className="perf-btn-2" style={{ borderRadius: 'var(--radius-md)', background: v === k ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${v === k ? 'var(--accent)' : 'var(--surface-4)'}`, color: v === k ? 'var(--accent)' : 'var(--text-2)' }}>
+                        className={`perf-btn-2 performa-sx4 ${v === k ? 'performa-sx5' : 'performa-sx6'}`} style={{ border: `1px solid ${v === k ? 'var(--accent)' : 'var(--surface-4)'}` }}>
                         {l}
                       </button>
                     ))}
@@ -794,7 +794,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                 checked={selfReview} onChange={e => setSelfReview(e.target.checked)} />
               <label id="self-review-cb-et" htmlFor="self-review-cb" className="perf-label-3">
                 <div className="perf-box-7">
-                  <User size={12} style={{ verticalAlign: 'middle' }} /> {traducir('performancereviews.autoevaluacion')}
+                  <User size={12} className="perf-box-38" /> {traducir('performancereviews.autoevaluacion')}
                 </div>
                 <div className="ds-muted u-xs">
                   {traducir('performancereviews.la_propia_persona_se_evalua_recomendado_en')}
@@ -805,7 +805,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
             {/* Manager */}
             <div className="ds-field">
               <label id={`${idCampo}-manager-et`} htmlFor={`${idCampo}-manager`} className="ds-field__label">
-                <Crown size={11} style={{ verticalAlign: 'middle' }} />{' '}{t('pagina_perf.manager')}
+                <Crown size={11} className="perf-box-38" />{' '}{t('pagina_perf.manager')}
               </label>
               {managerData?.reason_blocked ? (
                 <div style={styles.warningInlineXs}>
@@ -825,7 +825,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
             {/* Peers */}
             <div className="ds-field">
               <label className="ds-field__label">
-                <UsersIcon size={11} style={{ verticalAlign: 'middle' }} />{' '}{t('pagina_perf.pares')}
+                <UsersIcon size={11} className="perf-box-38" />{' '}{t('pagina_perf.pares')}
                 <span className="ds-muted perf-label-4">
                   ({peerIds.length} {traducir('performancereviews.seleccionados_de')} {peerOptions.length}{' '}{t('pagina_perf.elegibles')}
                 </span>
@@ -844,7 +844,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                     const sel = peerIds.includes(u.id)
                     return (
                       <button key={u.id} type="button" onClick={() => togglePeer(u.id)}
-                        className="perf-btn-3" style={{ borderRadius: 'var(--radius-md)', background: sel ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`, color: sel ? 'var(--accent)' : 'var(--text-2)' }}>
+                        className={`perf-btn-3 performa-sx4 ${sel ? 'performa-sx5' : 'performa-sx6'}`} style={{ border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}` }}>
                         {u.full_name}
                         {u.team && <span className="perf-label-5">· {u.team}</span>}
                       </button>
@@ -857,7 +857,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
             {/* Upward */}
             <div className="ds-field">
               <label className="ds-field__label">
-                <ArrowUp size={11} style={{ verticalAlign: 'middle' }} />{' '}{t('pagina_perf.reportes_directos_upward')}
+                <ArrowUp size={11} className="perf-box-38" />{' '}{t('pagina_perf.reportes_directos_upward')}
                 <span className="ds-muted perf-label-4">
                   ({upwardIds.length}/{upwardOptions.length})
                 </span>
@@ -876,7 +876,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                     const sel = upwardIds.includes(u.id)
                     return (
                       <button key={u.id} type="button" onClick={() => toggleUpward(u.id)}
-                        className="perf-btn-3" style={{ borderRadius: 'var(--radius-md)', background: sel ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`, color: sel ? 'var(--accent)' : 'var(--text-2)' }}>
+                        className={`perf-btn-3 performa-sx4 ${sel ? 'performa-sx5' : 'performa-sx6'}`} style={{ border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}` }}>
                         {u.full_name}
                       </button>
                     )
@@ -888,7 +888,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
             {/* Anonimización */}
             <div className="ds-field">
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">
-                <Lock size={11} style={{ verticalAlign: 'middle' }} /> {traducir('performancereviews.umbral_de_anonimizacion')}
+                <Lock size={11} className="perf-box-38" /> {traducir('performancereviews.umbral_de_anonimizacion')}
               </label>
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={20} value={threshold}
                 onChange={e => setThreshold(e.target.value)}
@@ -1191,7 +1191,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
                   <div key={s.campaign_id} className="perf-stack-3">
                     {others != null && (
                       <div className="perf-row-10">
-                        <span className="perf-label-8">others</span>
+                        <span className="perf-label-8">{t('pagina_perf.otros')}</span>
                         <div className="u-flex1">
                           <ScoreBar value={others} max={q.max} />
                         </div>
@@ -1199,7 +1199,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
                     )}
                     {self != null && (
                       <div className="perf-row-10">
-                        <span className="perf-label-8">self</span>
+                        <span className="perf-label-8">{t('pagina_perf.autoevaluacion')}</span>
                         <div className="u-flex1">
                           <ScoreBar value={self} max={q.max} />
                         </div>
@@ -1335,7 +1335,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
               </span>
             )}
             <span className="ds-muted u-xs">
-              {cycle.total_reviews || 0}{' '}{t('pagina_perf.evaluaciones')}{' '}{cycle.pending}{' '}{t('pagina_perf.pendientes')}{' '}{cycle.submitted} enviadas
+              {cycle.total_reviews || 0}{' '}{t('pagina_perf.evaluaciones')}{' '}{cycle.pending}{' '}{t('pagina_perf.pendientes')}{' '}{t('pagina_perf.n_enviadas', { n: cycle.submitted })}
             </span>
             {avgScore && (
               <span className="perf-label-10">
@@ -1407,7 +1407,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
                             <TypeIcon size={11} /> {t(tipo.label)}
                           </div>
                         </div>
-                        <span className="perf-row-14" style={{ color: submitted ? 'var(--success)' : 'var(--warning)' }}>
+                        <span className={`perf-row-14 ${submitted ? 'performa-sx7' : 'performa-sx8'}`}>
                           {submitted
                             ? <><CheckCircle2 size={10} /> {t('pagina_perf.enviado')}</>
                             : <><Clock size={10} /> {t('pagina_perf.pendiente')}</>}
@@ -1504,7 +1504,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
                 <button key={opt.id} type="button"
                   disabled={opt.disabled}
                   onClick={() => setForm(f => ({ ...f, template_mode: opt.id }))}
-                  className="perf-btn-5" style={{ borderRadius: 'var(--radius-md)', background: active ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`, color: active ? 'var(--accent)' : 'var(--text-2)', cursor: opt.disabled ? 'not-allowed' : 'pointer', opacity: opt.disabled ? 0.55 : 1 }}>
+                  className={`perf-btn-5 performa-sx4 ${active ? 'performa-sx5' : 'performa-sx6'} ${opt.disabled ? 'performa-sx9' : 'performa-sx10'}`} style={{ border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` }}>
                   {opt.label}
                 </button>
               )
@@ -1654,7 +1654,7 @@ function CycleKpiRow({ cycle }: { cycle: Cycle }) {
           {k.cycle_name}
         </div>
         <div className="ds-muted u-xs">
-          {k.submitted}/{k.total_reviews} enviadas
+          {t('pagina_perf.enviadas_de', { enviadas: k.submitted, total: k.total_reviews })}
           {k.days_to_close != null && t('pagina_perf.cierra_en_dias', { days_to_close: k.days_to_close })}
           {k.avg_days_to_submit != null && t('pagina_perf.media_d', { avg_days_to_submit: k.avg_days_to_submit })}
         </div>
@@ -1744,7 +1744,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
                         {t(cfg.label)}
                       </span>
                       <span className="ds-muted u-xs">
-                        {(p.goals || []).length} objetivos
+                        {t('pagina_perf.n_objetivos', { n: (p.goals || []).length })}
                       </span>
                       {p.target_date && (
                         <span className="ds-muted u-xs">
@@ -1760,7 +1760,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
                   </div>
                   <div className="perf-input-2">
                     <ScoreBar value={p.progress_pct / 20} max={5} />
-                    <div className="perf-box-33" style={{ color: p.progress_pct >= 70 ? 'var(--success)' : 'var(--text-2)' }}>
+                    <div className={`perf-box-33 ${p.progress_pct >= 70 ? 'performa-sx7' : 'performa-sx11'}`}>
                       {p.progress_pct}%
                     </div>
                   </div>
@@ -1856,7 +1856,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
         </div>
         <div className="ds-field" role="group" aria-labelledby={`${idCampo}-objetivos-et`}>
           <div id={`${idCampo}-objetivos-et`} className="ds-field__label">
-            <Flag size={11} style={{ verticalAlign: 'middle' }} />{' '}{t('pagina_perf.objetivos_iniciales')}
+            <Flag size={11} className="perf-box-38" />{' '}{t('pagina_perf.objetivos_iniciales')}
           </div>
           {form.goals.map((g, idx) => (
             <div key={idx} className="perf-row-15">
@@ -1866,7 +1866,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
                  />
               <DateInput value={g.due_date}
                 onChange={e => setGoal(idx, 'due_date', e.target.value)}
-                className="ds-input" style={{ width: 150 }} />
+                className="ds-input perf-box-39" />
               {form.goals.length > 1 && (
                 <Button size="sm" variant="ghost" onClick={() => removeRow(idx)}
                   aria-label={t('pagina_perf.quitar')}>
@@ -1945,7 +1945,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
         <div className="ds-row-wrap">
           {Object.entries(PLAN_STATUS_CFG).map(([k, v]) => (
             <button key={k} type="button" onClick={() => setStatus(k)}
-              className="perf-btn-3" style={{ borderRadius: 'var(--radius-md)', background: plan.status === k ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${plan.status === k ? 'var(--accent)' : 'var(--surface-4)'}`, color: plan.status === k ? 'var(--accent)' : 'var(--text-2)' }}>
+              className={`perf-btn-3 performa-sx4 ${plan.status === k ? 'performa-sx5' : 'performa-sx6'}`} style={{ border: `1px solid ${plan.status === k ? 'var(--accent)' : 'var(--surface-4)'}` }}>
               {t(v.label)}
             </button>
           ))}

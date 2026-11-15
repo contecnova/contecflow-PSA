@@ -215,3 +215,17 @@
   padding: 12px 14px;
   text-align: center;
 }
+
+/* ── Estilos en linea extraidos de EVMPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.evmpage-sx1.evmpage-sx1 {
+  text-align: center;
+}
+.evmpage-sx2.evmpage-sx2 {
+  text-align: left;
+}
+.evmpage-sx3.evmpage-sx3 {
+  border-top: 1px solid var(--surface-3);
+}
+.evmpage-sx4.evmpage-sx4 {
+  border-top: none;
+}

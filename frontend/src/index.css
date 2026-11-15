@@ -169,6 +169,27 @@
   --shadow-md:  0 4px 16px rgba(0,0,0,0.5);
   --shadow-lg:  0 8px 32px rgba(0,0,0,0.6);
   --shadow-accent: 0 0 20px color-mix(in srgb, var(--accent) 12%, transparent);
+  /* Sombras y velos de superposicion (extraidos de estilos en linea, #17) */
+  --shadow-fab:        0 10px 28px rgba(0,0,0,0.28);
+  --shadow-fab-strong: 0 10px 28px rgba(0,0,0,0.35);
+  --shadow-modal-soft: 0 20px 60px rgba(0,0,0,0.3);
+  --shadow-modal:      0 20px 60px rgba(0,0,0,0.4);
+  --shadow-drawer:     -4px 0 24px rgba(0,0,0,0.18);
+  --shadow-pop:        0 12px 40px rgba(0,0,0,0.4);
+  --shadow-sheet:      0 8px 40px rgba(0,0,0,0.4);
+  --shadow-toast:      0 4px 12px rgba(0,0,0,0.4);
+  --shadow-tip:        0 8px 24px rgba(0,0,0,0.3);
+  --shadow-widget:     0 18px 50px rgba(0,0,0,0.45);
+  --shadow-dialog:     0 24px 64px rgba(0,0,0,0.7);
+  --overlay:           rgba(0,0,0,0.55);
+  --overlay-light:     rgba(0,0,0,0.5);
+  --overlay-soft:      rgba(0,0,0,0.45);
+  --overlay-blur:      rgba(8,12,20,0.85);
+  --overlay-blur-soft: rgba(8,12,20,0.78);
+  --danger-bg-strong:  rgba(239,68,68,0.12);
+  --orange-bg:         rgba(234,88,12,0.12);
+  --on-dark-faint:     rgba(255,255,255,0.25);
+  --on-dark-faint-sm:  rgba(255,255,255,0.15);
 
   /* Page layout — padding raíz por página */
   --page-pad-x:    var(--space-8);   /* 32px */

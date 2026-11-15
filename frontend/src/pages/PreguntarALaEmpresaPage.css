@@ -187,3 +187,9 @@
 .pae-text-warning {
   color: var(--warning);
 }
+
+/* Añadido a mano: lista de progreso (antes estilo en línea). */
+.pae-progreso {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}

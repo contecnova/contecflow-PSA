@@ -73,7 +73,7 @@ export default function SmartAlertsPanel() {
       <div style={S.card}>
         <div className="smalpa-cardpad">
           <span className="smalpa-txt-1">{t('smartalerts.reglas_de_alerta')}</span>
-          <button onClick={evaluateNow} style={{ ...S.btnPrimary, padding: '5px 14px', fontSize: 'var(--text-xs)' }}>Evaluar ahora</button>
+          <button onClick={evaluateNow} style={{ ...S.btnPrimary, padding: '5px 14px', fontSize: 'var(--text-xs)' }}>{t('biconditionaldelivery.evaluar_ahora')}</button>
         </div>
         <div style={S.cardPad}>
           <div className="smalpa-row-1">
@@ -89,7 +89,7 @@ export default function SmartAlertsPanel() {
             <select value={severity} onChange={e => setSeverity(e.target.value)} className="smalpa-input2">
               {['info', 'warning', 'critical'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <button onClick={createRule} style={S.btnPrimary}>+ Crear</button>
+            <button onClick={createRule} style={S.btnPrimary}>{t('smartalerts.crear')}</button>
           </div>
           {(rules?.items || []).map(rule => (
             <div key={rule.id} className="smalpa-row-2">
@@ -139,8 +139,8 @@ export default function SmartAlertsPanel() {
                 )}
               </div>
               {!entry.acknowledged
-                ? <button className="smalpa-box-7" onClick={() => ack(entry.id)}
-                    style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${COLOR.accent}`, color: COLOR.accent }}>ACK</button>
+                ? <button className="smalpa-box-7 smartale-sx1" onClick={() => ack(entry.id)}
+                    style={{ border: `1px solid ${COLOR.accent}`, color: COLOR.accent }}>ACK</button>
                 : <span className="smalpa-box-8" style={{ color: COLOR.success }}>✓</span>
               }
             </div>

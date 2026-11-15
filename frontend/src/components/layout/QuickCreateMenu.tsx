@@ -127,14 +127,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
         className="qucrme-box-4" />
       <div ref={panelRef}
         role="region"
-        aria-label={t('quickcreatemenu.crear_nuevo')}
-        style={{
-          position: 'fixed', top: 52, right: 16, zIndex: 501,
-          width: 280, background: 'var(--surface-1)',
-          border: '1px solid var(--surface-4)', borderRadius: 12,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
-          overflow: 'hidden',
-        }}
+        aria-label={t('quickcreatemenu.crear_nuevo')} className="quickcre-sx1"
       >
         {activeAction === 'task' ? (
           <CreateTaskForm onClose={onClose} />
@@ -161,7 +154,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div className="qucrme-row-4" style={{ borderRadius: 8, background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}` }}>
+                  <div className="qucrme-row-4 quickcre-sx2" style={{ background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}` }}>
                     <Icon size={15} color={color} />
                   </div>
                   <span className="u-text1-base-600">{label}</span>

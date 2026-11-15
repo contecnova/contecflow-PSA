@@ -176,7 +176,7 @@ function ImportTab() {
           {/* Validation results */}
           {validation && step === 'validate' && (
             <div style={{...card,padding:'16px 20px'}}>
-              <div className="impt-box-4" style={{ color:validation.valid?'var(--success)':'var(--danger)' }}>
+              <div className={`impt-box-4 ${validation.valid ? 'importpa-sx1' : 'importpa-sx2'}`}>
                 {validation.valid ? t('import_data.file_valid') : t('import_data.validation_errors')}
               </div>
               <div className="impt-box-5">{validation.total_rows} {t('import_data.rows_detected')}</div>
@@ -200,8 +200,8 @@ function ImportTab() {
 
           {/* Import result */}
           {result && step === 'result' && (
-            <div style={{...card,padding:'16px 20px',border:`1px solid ${(result.succeeded ?? 0)>0?'rgba(52,211,153,0.25)':'rgba(248,113,113,0.25)'}`}}>
-              <div className="impt-box-8" style={{ color:(result.succeeded ?? 0)>0?'var(--success)':'var(--danger)' }}>
+            <div style={{...card,padding:'16px 20px',border:`1px solid ${(result.succeeded ?? 0)>0?'var(--success-border)':'var(--danger-border)'}`}}>
+              <div className={`impt-box-8 ${(result.succeeded ?? 0)>0 ? 'importpa-sx1' : 'importpa-sx2'}`}>
                 {(result.succeeded ?? 0) > 0 ? t('import_data.import_completed') : t('import_data.import_failed')}
               </div>
               <div className="impt-grid-2">

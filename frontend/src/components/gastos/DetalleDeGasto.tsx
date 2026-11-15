@@ -7,7 +7,6 @@
  * mientras está en borrador; quien gestiona gastos (`EXPENSE_MANAGER_ROLES`), siempre.
  */
 import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Plus, ShieldAlert, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import { gastosApi, politicasApi, projectsApi } from '../../services/api'
@@ -24,8 +23,6 @@ import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 /** Lo que la ficha lee del gasto (serialize_expense). */
 type GastoMin = Pick<Gasto, 'id' | 'code' | 'description' | 'amount' | 'currency' | 'status' | 'km'>
 
-const titulo: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-2)', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }
-const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 
 export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: GastoMin; editable: boolean; onClose: () => void }) {
   const fmtMoneda = useFormatoMoneda()
@@ -101,7 +98,7 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
         </section>
 
         <section aria-label={t('gas.justificantes')}>
-          <h4 style={titulo}><FileText size={14} />{t('gas.justificantes')}
+          <h4 className="gp-titulo"><FileText size={14} aria-hidden />{t('gas.justificantes')}
             {editable && (
               <>
                 <select className="gp-campo gp-campo--auto" aria-label={t('gas.tipo_de_documento_nuevo')} value={tipoNuevo}
@@ -111,7 +108,7 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
                 </select>
                 <input ref={fichero} type="file" hidden aria-label={t('gas.adjuntar')} accept="image/*,application/pdf"
                   onChange={e => { const f = e.target.files?.[0]; if (f) subir(f); e.target.value = '' }} />
-                <Button size="xs" variant="secondary" icon={<Upload size={12} />} loading={subiendo} style={{ marginLeft: 'auto' }} onClick={() => fichero.current?.click()}>{t('gas.adjuntar')}</Button>
+                <span className="gp-empuja"><Button size="xs" variant="secondary" icon={<Upload size={12} />} loading={subiendo} onClick={() => fichero.current?.click()}>{t('gas.adjuntar')}</Button></span>
               </>
             )}
           </h4>
@@ -134,27 +131,27 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
         </section>
 
         <section aria-label={t('gas.reparto')}>
-          <h4 style={titulo}>{t('gas.reparto')}</h4>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>{t('gas.reparto_ayuda')}</div>
+          <h4 className="gp-titulo">{t('gas.reparto')}</h4>
+          <p className="gp-ayuda gp-mb">{t('gas.reparto_ayuda')}</p>
           {partes.map((p, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 90px 110px 32px', gap: 6, alignItems: 'center', marginBottom: 6 }}>
-              <select aria-label={t('gas.proyecto')} disabled={!editable} value={p.project_id} onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, project_id: e.target.value } : x))} style={campo}>
+            <div key={i} className="gp-parte">
+              <select aria-label={t('gas.proyecto')} disabled={!editable} value={p.project_id} onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, project_id: e.target.value } : x))} className="gp-campo">
                 <option value="">{t('gas.elige_proyecto')}</option>
                 {(proyectos.data ?? []).map(pr => <option key={pr.id} value={pr.id}>{pr.code ? `${pr.code} — ` : ''}{pr.name}</option>)}
               </select>
               <input aria-label={t('gas.porcentaje')} type="number" min={0} max={100} step="0.01" disabled={!editable} value={p.percentage}
-                onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, percentage: e.target.value } : x))} style={campo} />
-              <span style={{ fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{dinero(importe * (Number(p.percentage) || 0) / 100)}</span>
+                onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, percentage: e.target.value } : x))} className="gp-campo" />
+              <span className="gp-cifra">{dinero(importe * (Number(p.percentage) || 0) / 100)}</span>
               {editable && <Button size="xs" variant="ghost" title={t('gas.quitar')} icon={<Trash2 size={12} />} onClick={() => setPartes(v => v.filter((_, j) => j !== i))}>{''}</Button>}
             </div>
           ))}
           {editable && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
+            <div className="gp-fila gp-mt">
               <Button size="xs" variant="secondary" icon={<Plus size={12} />} onClick={() => setPartes(v => [...v, { project_id: '', percentage: String(Math.max(0, 100 - suma)) }])}>{t('gas.anadir_proyecto')}</Button>
-              <span style={{ fontSize: 'var(--text-xs)', color: partes.length && Math.abs(suma - 100) > 0.01 ? 'var(--danger)' : 'var(--text-3)' }}>
+              <span className={partes.length && Math.abs(suma - 100) > 0.01 ? 'gp-error gp-xs' : 'gp-ayuda'} aria-live="polite">
                 {partes.length ? t('gas.suma', { n: suma.toLocaleString(localeActivo(), { maximumFractionDigits: 2 }) }) : t('gas.sin_reparto')}
               </span>
-              <Button size="xs" style={{ marginLeft: 'auto' }} loading={guardando} disabled={partes.length > 0 && Math.abs(suma - 100) > 0.01} onClick={guardarReparto}>{t('gas.guardar_reparto')}</Button>
+              <span className="gp-empuja"><Button size="xs" loading={guardando} disabled={partes.length > 0 && Math.abs(suma - 100) > 0.01} onClick={guardarReparto}>{t('gas.guardar_reparto')}</Button></span>
             </div>
           )}
         </section>

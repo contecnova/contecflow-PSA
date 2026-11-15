@@ -125,3 +125,38 @@
   margin-bottom: 10px;
   font-weight: 600;
 }
+
+.devp-box-4 {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* ── Estilos estaticos extraidos de DeveloperPortalPage.tsx (#17) ── */
+.develope-sx1 {
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+.develope-sx2 {
+  font-size: var(--text-sm);
+}
+
+/* ── Estilos en linea extraidos de DeveloperPortalPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.develope-sx3.develope-sx3 {
+  border-radius: 20px;
+}
+.develope-sx4.develope-sx4 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.develope-sx5.develope-sx5 {
+  background: transparent;
+  color: var(--text-2);
+}
+.develope-sx6.develope-sx6 {
+  background: var(--success-border);
+  color: var(--success);
+}
+.develope-sx7.develope-sx7 {
+  background: var(--surface-4);
+  color: var(--text-3);
+}

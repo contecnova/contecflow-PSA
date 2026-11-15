@@ -13,6 +13,7 @@ import { useAppT } from '../hooks/useAppT';
 
 import type { DragEvent } from 'react';
 import './DocumentsPanel.css'
+import { useAppLang } from '../i18n/AppLangContext'
 
 function fmtBytes(b: number | null | undefined) {
   if (!b) return '';
@@ -79,6 +80,7 @@ interface DocumentsPanelProps {
 }
 
 export default function DocumentsPanel({ projectId, taskId, ticketId, _compact = false }: DocumentsPanelProps) {
+  const { t: traducir } = useAppLang()
   const { t } = useAppT();
   const toast = useToast();
   const qc = useQueryClient();
@@ -149,7 +151,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             </svg>
           </div>
           <span className="docupane-txt-1">
-            Documentos
+            {traducir('docs.titulo')}
             {!isLoading && <span className="docupane-box-2">({docs.length})</span>}
           </span>
         </div>
@@ -166,14 +168,14 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           className="docupane-stack-1">
-          <button className="docupane-box-8" type="button" onClick={() => fileRef.current?.click()}
-            style={{ border: `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}`, borderRadius: 8 }}>
+          <button className="docupane-box-8 document-sx2" type="button" onClick={() => fileRef.current?.click()}
+            style={{ border: `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}` }}>
             <input ref={fileRef} type="file" aria-label={t('documents_panel.click_or_drag')} className="docupane-box-3"
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
             {file
               ? <span className="u-text1-sm-600">{file.name}</span>
               : <span className="u-text3-xs">
-                  <Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('documents_panel.click_or_drag')}
+                  <Upload size={12} className="document-sx3" />{t('documents_panel.click_or_drag')}
                 </span>}
           </button>
           <input aria-label={t('documents_panel.title_placeholder')}
@@ -188,7 +190,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           <div className="u-row-6">
             <button className="docupane-row-10" onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
               style={{ backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', cursor: !file ? 'not-allowed' : 'pointer' }}>
-              {uploadMutation.isPending ? <Loader size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Upload size={12} />}
+              {uploadMutation.isPending ? <Loader size={12} className="document-sx4" /> : <Upload size={12} />}
               {uploadMutation.isPending ? t('documents_panel.uploading') : t('documents_panel.upload')}
             </button>
             <button onClick={() => { setShowForm(false); setFile(null); setTitle(''); }}
@@ -203,7 +205,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
       <div>
         {isLoading ? (
           <div className="docupane-box-5">
-            <Loader size={16} style={{ animation: 'spin 0.8s linear infinite', color: 'var(--text-3)' }} />
+            <Loader size={16} className="document-sx5" />
           </div>
         ) : docs.length === 0 ? (
           <div className="docupane-box-6">

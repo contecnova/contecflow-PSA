@@ -229,3 +229,11 @@
   letter-spacing: 0.06em;
   margin-bottom: 6px;
 }
+
+/* ── Estilos estaticos extraidos de AutoResolutionPanel.tsx (#17) ── */
+.autoreso-sx1.autoreso-sx1 {
+  border-radius: var(--radius-md);
+}
+.autoreso-sx2.autoreso-sx2 {
+  border-radius: 8px;
+}

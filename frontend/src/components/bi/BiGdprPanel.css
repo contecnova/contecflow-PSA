@@ -202,3 +202,16 @@
   font-family: inherit;
   margin-bottom: -1px;
 }
+
+/* ── Estilos estaticos extraidos de BiGdprPanel.tsx (#17) ── */
+.bigdprpa-sx1 {
+  vertical-align: middle;
+  margin-right: 2px;
+}
+.bigdprpa-sx2 {
+  vertical-align: middle;
+}
+.bigdprpa-sx3 {
+  margin-right: 6px;
+  vertical-align: middle;
+}

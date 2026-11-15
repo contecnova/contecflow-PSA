@@ -12,7 +12,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { fmtDate, fmtNumber, extractErr} from '../utils/helpers'
+import { fmtDate, fmtNumber, extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, UI_FEEDBACK_SAVED_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
@@ -52,7 +52,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
   const byDay = weekData.by_day || []
 
   return (
-    <Card style={{ marginTop: 20 }}>
+    <Card className="imputarp-sx1">
       <div className="u-row-between-mb16">
         <h3 className="imput-title">{t('imputa_page.week_title')}</h3>
         {/* Item #48: badge global de anomalías detectadas en los últimos 30 días.
@@ -102,7 +102,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
                 {...interactiveProps}
                 style={{
                   background: dayAnomaly
-                    ? 'var(--warning-glow, rgba(251,146,60,0.18))'
+                    ? 'color-mix(in srgb, var(--warning) 18%, transparent)'
                     : hasHours ? 'var(--accent-glow)' : 'var(--surface-3)',
                   border: `1px solid ${dayAnomaly ? 'var(--warning)' : hasHours ? 'var(--accent)' : 'var(--surface-4)'}`,
                   borderRadius: 8, padding: '12px 4px',
@@ -173,7 +173,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
         </div>
         <div className="u-text3-sm">
           {t('pagina_imput.periodo_analizado')}{' '}{anomaliesData?.period?.from} → {anomaliesData?.period?.to}
-          {' · '}{anomaliesData?.total_entries} imputaciones
+          {' · '}{t('pagina_imput.n_imputaciones', { n: anomaliesData?.total_entries ?? 0 })}
         </div>
         {items.length === 0 ? (
           <div className="imput-box-3">
@@ -365,7 +365,7 @@ export default function ImputarPage(): JSX.Element {
   const canSubmit = form.project_id && form.hours > 0 && form.date
 
   return (
-    <PageShell style={{ maxWidth: 680, margin: '0 auto' }}>
+    <PageShell className="imput-box-13">
       <PageHeader
         icon={<Clock size={18} />}
         title={t('imputa_page.title')}
@@ -397,7 +397,7 @@ export default function ImputarPage(): JSX.Element {
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
             value={form.project_id}
             onChange={e => set('project_id')(e.target.value)}
-            className="imput-input" style={{ color: form.project_id ? 'var(--text-1)' : 'var(--text-2)' }}
+            className={`imput-input ${form.project_id ? 'imputarp-sx2' : 'imputarp-sx3'}`}
           >
             <option value="">{t('imputa_page.project_placeholder')}</option>
             {projects.map(p => (
@@ -415,7 +415,7 @@ export default function ImputarPage(): JSX.Element {
             value={form.task_id}
             onChange={e => set('task_id')(e.target.value)}
             disabled={!form.project_id}
-            className="imput-input-2" style={{ cursor: form.project_id ? 'pointer' : 'not-allowed', opacity: form.project_id ? 1 : 0.5 }}
+            className={`imput-input-2 ${form.project_id ? 'imputarp-sx4' : 'imputarp-sx5'}`}
           >
             <option value="">{t('imputa_page.task_none')}</option>
             {tasks.map(t => (
@@ -433,7 +433,7 @@ export default function ImputarPage(): JSX.Element {
             value={form.date}
             onChange={e => set('date')(e.target.value)}
             max={today}
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: 'var(--text-1)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', width: '100%', boxSizing: 'border-box' }}
+            className="imput-card-7"
           />
         </div>
 
@@ -447,7 +447,7 @@ export default function ImputarPage(): JSX.Element {
               <button
                 key={h}
                 onClick={() => set('hours')(h)}
-                className="imput-btn-3" style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${form.hours === h ? 'var(--accent)' : 'var(--surface-4)'}`, background: form.hours === h ? 'var(--accent-glow)' : 'var(--surface-3)', color: form.hours === h ? 'var(--accent)' : 'var(--text-2)' }}
+                className={`imput-btn-3 imputarp-sx6 ${form.hours === h ? 'imputarp-sx7' : 'imputarp-sx8'}`} style={{ border: `1px solid ${form.hours === h ? 'var(--accent)' : 'var(--surface-4)'}` }}
               >
                 {h}h
               </button>
@@ -455,7 +455,7 @@ export default function ImputarPage(): JSX.Element {
           </div>
           {form.hours > 0 && (
             <div className="imput-box-6">
-              {t('imputa_page.total_today')}: <span className="imput-label-2" style={{ color: todayHours + form.hours > 8 ? 'var(--warning)' : 'var(--text-1)' }}>
+              {t('imputa_page.total_today')}: <span className={`imput-label-2 ${todayHours + form.hours > 8 ? 'imputarp-sx9' : 'imputarp-sx2'}`}>
                 {(todayHours + form.hours).toFixed(1)}h
               </span> / 8h
             </div>
@@ -486,10 +486,10 @@ export default function ImputarPage(): JSX.Element {
               onChange={e => set('is_billable')(e.target.checked)}
               className="imput-input-4"
             />
-            <div aria-hidden="true" className="imput-box-8" style={{ background: form.is_billable ? 'var(--accent)' : 'var(--surface-4)' }}>
-              <div className="imput-card-2" style={{ left: form.is_billable ? 21 : 3 }} />
+            <div aria-hidden="true" className={`imput-box-8 ${form.is_billable ? 'imputarp-sx10' : 'imputarp-sx11'}`}>
+              <div className={`imput-card-2 ${form.is_billable ? 'imputarp-sx12' : 'imputarp-sx13'}`} />
             </div>
-            <span className="imput-label-8" style={{ color: form.is_billable ? 'var(--accent)' : 'var(--text-2)' }}>
+            <span className={`imput-label-8 ${form.is_billable ? 'imputarp-sx14' : 'imputarp-sx3'}`}>
               {t('imputa_page.billable_label')}
             </span>
             {form.is_billable && (
@@ -522,7 +522,7 @@ export default function ImputarPage(): JSX.Element {
         <button
           onClick={handleSubmit}
           disabled={!canSubmit || isPending || (!!duplicateError && !forceDuplicate)}
-          className="imput-btn-4" style={{ background: saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)', color: (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--surface-0)' : 'var(--text-2)', cursor: (canSubmit && (!duplicateError || forceDuplicate)) ? 'pointer' : 'not-allowed' }}
+          className={`imput-btn-4 ${(canSubmit && (!duplicateError || forceDuplicate)) ? 'imputarp-sx15' : 'imputarp-sx16'}`} style={{ background: saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)' }}
         >
           {saved ? t('imputa_page.saved') : isPending ? t('imputa_page.saving') : navigator.onLine ? t('imputa_page.submit') : t('imputa_page.submit_offline')}
         </button>
@@ -530,7 +530,7 @@ export default function ImputarPage(): JSX.Element {
 
       {/* Today's imputations */}
       {todayImputations.length > 0 && (
-        <Card style={{ marginTop: 20 }}>
+        <Card className="imputarp-sx1">
           <h3 className="imput-title-3">{t('imputa_page.today_entries')}</h3>
           {todayImputations.map(imp => (
             <div key={imp.id} className="imput-card-5">
@@ -557,7 +557,7 @@ export default function ImputarPage(): JSX.Element {
                     />
                   </div>
                   <div className="imput-box-12">
-                    <label className="imput-label-11" style={{ color: editForm.is_billable ? 'var(--accent)' : 'var(--text-3)' }}>
+                    <label className={`imput-label-11 ${editForm.is_billable ? 'imputarp-sx14' : 'imputarp-sx17'}`}>
                       <input
                         type="checkbox"
                         checked={editForm.is_billable}

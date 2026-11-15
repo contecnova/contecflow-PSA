@@ -28,13 +28,12 @@ export default function Breadcrumbs({ items = [] }: Props) {
               </span>
             ) : (
               <NavLink
-                to={item.to}
-                style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)", textDecoration: 'none' }}
+                to={item.to} className="breadcru-sx1"
               >
                 {item.label}
               </NavLink>
             )}
-            {!isLast && <ChevronRight size={12} style={{ color: 'var(--text-4)', flexShrink: 0 }} />}
+            {!isLast && <ChevronRight size={12} className="breadcru-sx2" />}
           </span>
         )
       })}

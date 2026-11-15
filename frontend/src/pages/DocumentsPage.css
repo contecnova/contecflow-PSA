@@ -1390,3 +1390,140 @@
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
+
+.docs-box-40 {
+  animation: spin 0.8s linear infinite;
+}
+
+.docs-box-41 {
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+}
+
+.docs-box-42 {
+  display: inline;
+  margin-right: 4px;
+}
+
+.docs-box-43 {
+  display: block;
+  margin: 0 auto 12px;
+  opacity: 0.4;
+}
+
+.docs-box-44 {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+/* ── Estilos en linea extraidos de DocumentsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.document-sx6.document-sx6 {
+  color: var(--accent);
+}
+.document-sx7.document-sx7 {
+  color: var(--warning);
+}
+.document-sx8.document-sx8 {
+  border-radius: 12px;
+}
+.document-sx9.document-sx9 {
+  box-shadow: var(--shadow-md);
+}
+.document-sx10.document-sx10 {
+  box-shadow: none;
+}
+.document-sx11.document-sx11 {
+  border-radius: 5px;
+}
+.document-sx12.document-sx12 {
+  background-color: var(--accent);
+}
+.document-sx13.document-sx13 {
+  background-color: var(--surface-1);
+}
+.document-sx14.document-sx14 {
+  opacity: 1;
+}
+.document-sx15.document-sx15 {
+  opacity: 0;
+}
+.document-sx16.document-sx16 {
+  border-radius: 4px;
+}
+.document-sx17.document-sx17 {
+  background-color: transparent;
+}
+.document-sx18.document-sx18 {
+  background-color: var(--surface-2);
+}
+.document-sx19.document-sx19 {
+  background-color: var(--surface-4);
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+.document-sx20.document-sx20 {
+  background-color: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+.document-sx21.document-sx21 {
+  border-radius: 8px;
+}
+.document-sx22.document-sx22 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.document-sx23.document-sx23 {
+  background: transparent;
+  color: var(--text-2);
+}
+.document-sx24.document-sx24 {
+  border-radius: var(--radius-md);
+}
+.document-sx25.document-sx25 {
+  background-color: var(--surface-3);
+}
+.document-sx26.document-sx26 {
+  background-color: var(--accent);
+  color: white;
+}
+.document-sx27.document-sx27 {
+  background-color: var(--surface-3);
+  color: var(--text-2);
+}
+.document-sx28.document-sx28 {
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+.document-sx29.document-sx29 {
+  color: var(--accent);
+  cursor: pointer;
+}
+.document-sx30.document-sx30 {
+  color: white;
+}
+.document-sx31.document-sx31 {
+  color: var(--text-3);
+}
+.document-sx32.document-sx32 {
+  background-color: var(--success);
+}
+.document-sx33.document-sx33 {
+  background-color: var(--surface-4);
+}
+.document-sx34.document-sx34 {
+  background-color: color-mix(in srgb, var(--success) 13%, transparent);
+}
+.document-sx35.document-sx35 {
+  background-color: color-mix(in srgb, var(--danger) 13%, transparent);
+}
+.document-sx36.document-sx36 {
+  color: var(--success);
+}
+.document-sx37.document-sx37 {
+  color: var(--danger);
+}

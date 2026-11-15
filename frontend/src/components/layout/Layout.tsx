@@ -491,7 +491,7 @@ function ShortcutsModal({ onClose, text }: { onClose: () => void; text: Record<s
       >
         <div className="modal-header">
           <span className="modal-title">
-            <Keyboard size={15} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
+            <Keyboard size={15} className="layout-sx1" />
             {text.keyboard_shortcuts}
           </span>
           <IconButton className="modal-close" onClick={onClose} ariaLabel={text.close}><X size={14} /></IconButton>
@@ -703,7 +703,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
         {!open && realVisible.length > 0 && (
           <span className="layo-box-6">{realVisible.length}</span>
         )}
-        <ChevronRight size={10} style={{ opacity: 0.45, transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none', flexShrink: 0 }} />
+        <ChevronRight size={10} className="layout-sx2" style={{ transform: open ? 'rotate(90deg)' : 'none' }} />
       </button>
       <div className="layo-grid-1" id={`nav-group-${group.id}`} style={{ gridTemplateRows: open ? '1fr' : '0fr' }}>
         <div className="layo-box-7">
@@ -932,9 +932,9 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         >
           <Plus size={16} />
         </button>
-        <button className="layo-row-18" onClick={onAiToggle} title={text.ai_title}
+        <button className="layo-row-18 layout-sx3" onClick={onAiToggle} title={text.ai_title}
           aria-label={text.open_ai} aria-pressed={aiOpen}
-          style={{ background: aiOpen ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${aiOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}`, borderRadius: 8, color: aiOpen ? 'var(--accent)' : 'var(--text-2)' }}
+          style={{ background: aiOpen ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${aiOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}`, color: aiOpen ? 'var(--accent)' : 'var(--text-2)' }}
         >
           <Brain size={13} />
           <span className="app-topbar-texto">{text.ai_short}</span>
@@ -950,13 +950,13 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         >
           <Mic size={14} />
         </button>
-        <button className="layo-row-19"
+        <button className="layo-row-19 layout-sx3"
           onClick={onChatToggle}
           type="button"
           title={traducir('layoutshell.abrir_chat')}
           aria-label={traducir('layoutshell.abrir_chat')}
           aria-pressed={chatOpen}
-          style={{ background: chatOpen ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}`, borderRadius: 8, color: chatOpen ? 'var(--accent)' : 'var(--text-2)' }}
+          style={{ background: chatOpen ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}`, color: chatOpen ? 'var(--accent)' : 'var(--text-2)' }}
         >
           <MessageSquare size={13} />
           <span className="app-topbar-texto">{traducir('layoutshell.chat')}</span>
@@ -968,13 +968,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         </button>
         {activeTimer && !activeTimer.paused_at && (
           <NavLink to="/timer"
-            title={topbarTimerSubtitle ? `Cronómetro activo: ${topbarTimerSubtitle}` : 'Cronómetro activo — click para gestionar'}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px',
-              background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-              borderRadius: 8, color: 'var(--success)', textDecoration: 'none',
-              fontSize: "var(--text-sm)", fontWeight: 700,
-            }}
+            title={topbarTimerSubtitle ? `Cronómetro activo: ${topbarTimerSubtitle}` : 'Cronómetro activo — click para gestionar'} className="layout-sx4"
           >
             <span className="layo-box-10" />
             <Timer size={12} />
@@ -1049,7 +1043,7 @@ function NavSearch({ value, onChange, text }: { value: string; onChange: (v: str
   }, [])
   return (
     <div className="layo-box-13">
-      <Search size={11} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-4)', pointerEvents: 'none' }} />
+      <Search size={11} className="layout-sx5" />
       <input
         ref={ref}
         type="search"
@@ -1306,21 +1300,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       <aside aria-label={text.main_navigation} role="navigation"
         id="mobile-primary-nav"
-        className={mobileOpen ? 'mobile-open' : ''}
-        style={{
-          width: collapsed && !isOverlayNav ? 46 : 222, flexShrink: 0,
-          background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)',
-          display: 'flex', flexDirection: 'column',
-          transition: 'width 0.2s cubic-bezier(0.4,0,0.2,1), transform 0.25s cubic-bezier(0.4,0,0.2,1)',
-          position: isOverlayNav ? 'fixed' : 'sticky',
-          left: isOverlayNav ? 0 : undefined,
-          top: 0,
-          height: '100vh',
-          overflow: 'hidden',
-          zIndex: isOverlayNav ? 120 : undefined,
-          transform: isOverlayNav ? (mobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
-          boxShadow: isOverlayNav ? '4px 0 24px rgba(0,0,0,0.4)' : 'none',
-        }}
+        className={`${mobileOpen ? 'mobile-open' : ''} layout-sx6`}
+        style={{ width: collapsed && !isOverlayNav ? 46 : 222, position: isOverlayNav ? 'fixed' : 'sticky', left: isOverlayNav ? 0 : undefined, zIndex: isOverlayNav ? 120 : undefined, transform: isOverlayNav ? (mobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none', boxShadow: isOverlayNav ? '4px 0 24px rgba(0,0,0,0.4)' : 'none' }}
       >
         {/* Logo row */}
         <div className="layo-row-21" style={{ padding: collapsed ? '11px 8px' : '11px 13px' }}>
@@ -1462,13 +1443,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       </aside>
 
       {isOverlayNav && mobileOpen && (
-        <div role="presentation" onMouseDown={() => setMobileOpen(false)} className="mobile-overlay"
-          style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.55)', display: 'block' }} />
+        <div role="presentation" onMouseDown={() => setMobileOpen(false)} className="mobile-overlay layout-sx7" />
       )}
 
       <main id="main-content" aria-label={text.main_content} role="main"
-        className="app-main-shell"
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: '100vh', overflow: 'auto' }}
+        className="app-main-shell layout-sx8"
         {...swipeHandlers}>
         {!mobileOpen && (
           <IconButton className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}

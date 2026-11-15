@@ -200,7 +200,7 @@ export default function MeetingsAIPage() {
         </div>
       )}
 
-      <div className="meet-grid-3" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)' }}>
+      <div className={`meet-grid-3 ${isNarrow ? 'meetings-sx1' : 'meetings-sx2'}`}>
         {/* List */}
         <div className="u-min0">
           {isLoading ? <Spinner /> : meetings.length === 0 ? (
@@ -223,7 +223,7 @@ export default function MeetingsAIPage() {
                   </div>
                 </div>
                 <div className="u-wrap-8">
-                  <span className="meet-label-3" style={{ background: m.status === 'done' ? 'var(--success-bg)' : 'var(--warning-bg)', color: m.status === 'done' ? 'var(--success)' : 'var(--warning)' }}>
+                  <span className={`meet-label-3 ${m.status === 'done' ? 'meetings-sx3' : 'meetings-sx4'}`}>
                     {m.status === 'done' ? _t('meetings_ai.status_done') : _t('meetings_ai.status_processing')}
                   </span>
                   <span className="u-text2-xs">{(m.actions_count || 0)} {_t('meetings_ai.actions_label')}</span>
@@ -251,7 +251,7 @@ export default function MeetingsAIPage() {
                 <div className="meet-box-7">{detail.title}</div>
                 <div className="meet-row-4">
                   {detail.platform && <span>{platCfg(detail.platform).icon} {nombreDePlataforma(platCfg(detail.platform).label, t)}</span>}
-                  {detail.duration_min != null && <span>⏱ {detail.duration_min} min</span>}
+                  {detail.duration_min != null && <span>⏱ {t('pagina_meet.minutos', { n: detail.duration_min })}</span>}
                   {resumen && <span>📅 {(resumen.meeting_date || resumen.created_at).slice(0, 10)}</span>}
                 </div>
               </div>
@@ -271,7 +271,7 @@ export default function MeetingsAIPage() {
                     ✅ {_t('meetings_ai.decisions_label', { count: (detail.decisions ?? []).length })}
                   </div>
                   {(detail.decisions ?? []).map((d, i) => (
-                    <div key={i} className="meet-row-5" style={{ borderBottom: i < (detail.decisions ?? []).length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
+                    <div key={i} className={`meet-row-5 ${i < (detail.decisions ?? []).length - 1 ? 'meetings-sx5' : 'meetings-sx6'}`}>
                       <span className="meet-label-5">◆</span>
                       <span className="meet-label-6">{d}</span>
                     </div>
@@ -301,7 +301,7 @@ export default function MeetingsAIPage() {
                           {a.due_date_text && ` · 📅 ${a.due_date_text}`}
                         </div>
                       </div>
-                      <span className="meet-label-7" style={{ background: a.is_created ? 'var(--success-bg)' : 'var(--surface-3)', color: a.is_created ? 'var(--success)' : 'var(--text-2)' }}>
+                      <span className={`meet-label-7 ${a.is_created ? 'meetings-sx3' : 'meetings-sx7'}`}>
                         {a.is_created ? _t('meetings_ai.action_created') : _t('meetings_ai.action_pending')}
                       </span>
                     </div>

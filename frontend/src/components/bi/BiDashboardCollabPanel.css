@@ -188,3 +188,23 @@
   box-sizing: border-box;
   width: 130px;
 }
+
+/* ── Estilos estaticos extraidos de BiDashboardCollabPanel.tsx (#17) ── */
+.bidashbo-sx1 {
+  padding: 20px 22px;
+}
+.bidashbo-sx2 {
+  color: var(--purple);
+}
+.bidashbo-sx3 {
+  color: var(--text-3);
+}
+.bidashbo-sx4 {
+  display: inline;
+  margin-right: 6px;
+  color: var(--text-3);
+}
+.bidashbo-sx5 {
+  color: var(--accent);
+  flex-shrink: 0;
+}

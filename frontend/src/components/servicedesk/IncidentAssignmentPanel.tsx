@@ -87,23 +87,23 @@ export default function IncidentAssignmentPanel() {
   const lgbmAvailable = stats?.lgbm_available ?? recommendation?.lgbm_available ?? false
 
   return (
-    <Card style={{ padding: '20px 22px' }}>
+    <Card className="incident-sx1">
       <div className="inaspa-row-1">
         <div className="u-row-center-8">
-          <UserCheck size={18} style={{ color: 'var(--accent)' }} />
+          <UserCheck size={18} className="incident-sx2" />
           <h2 className="inaspa-box-1">
             {t('sd.assign.title', 'Asignación inteligente de incidencias')}
           </h2>
         </div>
         <div className="u-row-center-8">
-          <span className="inaspa-box-12" style={{ color: lgbmAvailable ? 'var(--success)' : 'var(--text-3)', background: lgbmAvailable
+          <span className="inaspa-box-12 incident-sx3" style={{ color: lgbmAvailable ? 'var(--success)' : 'var(--text-3)', background: lgbmAvailable
               ? 'color-mix(in srgb, var(--success) 12%, transparent)'
-              : 'var(--surface-3)', border: `1px solid ${lgbmAvailable ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-full, 999px)' }}>
+              : 'var(--surface-3)', border: `1px solid ${lgbmAvailable ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'var(--surface-4)'}` }}>
             {t('sd_cfg.assign_rules')}
           </span>
           {stats?.total_recommendations != null && (
             <span className="u-text3-xs">
-              {stats.total_recommendations} recomendaciones · {stats.total_unassigned ?? 0} {t('incidentassignment.sin_asignar')}
+              {stats.total_recommendations} {t('incidentassignment.recomendaciones')} {stats.total_unassigned ?? 0} {t('incidentassignment.sin_asignar')}
             </span>
           )}
         </div>
@@ -139,15 +139,14 @@ export default function IncidentAssignmentPanel() {
             <div className="u-row-8">
               <select value={priority} onChange={e => setPriority(e.target.value)} className="inaspa-inputbase3">
                 <option value="p1_critical">{t('incidentassignment.p1_critico')}</option>
-                <option value="p2_high">P2 Alto</option>
-                <option value="p3_medium">P3 Medio</option>
-                <option value="p4_low">P4 Bajo</option>
+                <option value="p2_high">{t('service_desk.priority_p2')}</option>
+                <option value="p3_medium">{t('service_desk.priority_p3')}</option>
+                <option value="p4_low">{t('service_desk.priority_p4')}</option>
               </select>
               <Button
                 onClick={() => ticketId && recommendMutation.mutate(ticketId.trim())}
                 disabled={!ticketId.trim() || recommendMutation.isPending || !candidates.length}
-                loading={recommendMutation.isPending}
-                style={{ flex: 1 }}
+                loading={recommendMutation.isPending} className="incident-sx4"
               >
                 {t('sd.assign.recommend', 'Recomendar agente')}
               </Button>
@@ -165,7 +164,7 @@ export default function IncidentAssignmentPanel() {
               {recommendation.recommended_user_id ? (
                 <div className="inaspa-box-3">
                   <div className="inaspa-box-4">
-                    Recomendado
+                    {t('sprint_planning.recommended_label')}
                   </div>
                   <div className="inaspa-txt-1">
                     {recommendation.recommended_name}
@@ -184,14 +183,13 @@ export default function IncidentAssignmentPanel() {
                   <div className="inaspa-sp-1">
                     {applySuccess ? (
                       <div className="inaspa-txt-2">
-                        ✓ Ticket asignado correctamente
+                        {t('incidentassignment.ticket_asignado_correctamente')}
                       </div>
                     ) : (
                       <Button
                         onClick={() => applyMutation.mutate({ ticketId: ticketId.trim(), userId: recommendation.recommended_user_id })}
                         disabled={applyMutation.isPending || !ticketId.trim()}
-                        loading={applyMutation.isPending}
-                        style={{ fontSize: 'var(--text-sm)' }}
+                        loading={applyMutation.isPending} className="incident-sx5"
                       >
                         {t('incidentassignment.aplicar_asignacion')}
                       </Button>
@@ -240,10 +238,10 @@ export default function IncidentAssignmentPanel() {
                           <div className="inaspa-row-3">
                             {carga && (
                               <span className="u-text3-xs">
-                                {carga.open_tickets} tickets
+                                {carga.open_tickets} {t('incidentassignment.tickets')}
                               </span>
                             )}
-                            <span className="inaspa-box-13" style={{ color: scoreColor, background: `color-mix(in srgb, ${scoreColor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${scoreColor} 30%, transparent)`, borderRadius: 'var(--radius-sm)' }}>{score}%</span>
+                            <span className="inaspa-box-13 incident-sx6" style={{ color: scoreColor, background: `color-mix(in srgb, ${scoreColor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${scoreColor} 30%, transparent)` }}>{score}%</span>
                           </div>
                         </div>
                       )
@@ -264,7 +262,7 @@ export default function IncidentAssignmentPanel() {
         {/* Stats column */}
         <div>
           <div className="inaspa-row-4">
-            <BarChart2 size={14} style={{ color: 'var(--purple)' }} />
+            <BarChart2 size={14} className="incident-sx7" />
             <span className="inaspa-txt-3">
               {t('sd.assign.load_by_agent', 'Carga por agente (tickets abiertos)')}
             </span>

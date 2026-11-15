@@ -223,3 +223,37 @@
   cursor: pointer;
   font-size: var(--text-xs);
 }
+
+/* ── Estilos en linea extraidos de DependenciesPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.dependen-sx1.dependen-sx1 {
+  border-radius: 8px;
+}
+.dependen-sx2.dependen-sx2 {
+  font-weight: 600;
+}
+.dependen-sx3.dependen-sx3 {
+  font-weight: 400;
+}
+.dependen-sx5 {
+  color: var(--dependen-v4);
+}
+.dependen-sx6.dependen-sx6 {
+  background: var(--danger-bg);
+}
+.dependen-sx7.dependen-sx7 {
+  background: transparent;
+}
+.dependen-sx9 {
+  color: var(--dependen-v8);
+}
+.dependen-sx10.dependen-sx10 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.dependen-sx11.dependen-sx11 {
+  background: transparent;
+  color: var(--text-2);
+}
+.dependen-sx12.dependen-sx12 {
+  background: color-mix(in srgb, var(--text-1) 2%, transparent);
+}

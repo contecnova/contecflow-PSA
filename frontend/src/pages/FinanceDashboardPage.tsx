@@ -278,7 +278,7 @@ export default function FinanceDashboardPage(): JSX.Element {
               <thead>
                 <tr className="findash-row">
                   {[t('pagina_findash.proyecto'), t('pagina_findash.ingresos'), t('pagina_findash.costes'), t('pagina_findash.margen'), '%'].map((col, i) => (
-                    <th key={col} className="findash-th" style={{ textAlign: i === 0 ? 'left' : 'center' }}>{col}</th>
+                    <th key={col} className={`findash-th ${i === 0 ? 'financed-sx1' : 'financed-sx2'}`}>{col}</th>
                   ))}
                 </tr>
               </thead>
@@ -290,7 +290,7 @@ export default function FinanceDashboardPage(): JSX.Element {
                   const pct  = rev > 0 ? Math.round((mgn / rev) * 100) : 0
                   const mColor = pct >= 30 ? COLOR.success : pct >= 15 ? COLOR.warning : COLOR.danger
                   return (
-                    <tr key={p.project_id} className="u-border-b" style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    <tr key={p.project_id} className={`u-border-b ${idx % 2 === 0 ? 'financed-sx3' : 'financed-sx4'}`}>
                       <td className="findash-td">
                         <div className="findash-box">
                           {p.project_name}
@@ -311,7 +311,7 @@ export default function FinanceDashboardPage(): JSX.Element {
                         {fmtCur(mgn, lang)}
                       </td>
                       <td className="findash-td-3">
-                        <span className="findash-label" style={{ color: mColor, background: alpha(mColor, '18'), border: `1px solid ${alpha(mColor, '30')}`, borderRadius: 'var(--radius-sm)' }}>{pct}%</span>
+                        <span className="findash-label financed-sx5" style={{ color: mColor, background: alpha(mColor, '18'), border: `1px solid ${alpha(mColor, '30')}` }}>{pct}%</span>
                       </td>
                     </tr>
                   )

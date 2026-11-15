@@ -26,19 +26,6 @@ import {
 import { useTextoUi } from './useTextoUi'
 import { STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS } from '../../constants/timings'
 
-const SELECT_STYLE: CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '8px 12px',
-  color: 'var(--text-1)',
-  fontSize: 'var(--text-base)',
-  outline: 'none',
-  fontFamily: 'inherit',
-  boxSizing: 'border-box',
-}
-
 // ── Shared entity shapes ─────────────────────────────────────────────────────
 // TODO type: real domain models live in services/api (still JS). Until that
 // migrates, mirror only the fields these selects actually read.
@@ -120,7 +107,7 @@ export interface ClientSelectProps {
   'aria-labelledby'?: string
 }
 
-export function ClientSelect({ value = '', onChange, placeholder, required = false, style, id, 'aria-labelledby': ariaLabelledby }: ClientSelectProps) {
+export function ClientSelect({ value = '', onChange, placeholder, required = false, className, style, id, 'aria-labelledby': ariaLabelledby }: ClientSelectProps) {
   const t = useTextoUi()
   const textoVacio = placeholder ?? t('uikit.sel_client')
   const { data: clients = [], isLoading } = useQuery<ClientEntity[]>({
@@ -147,7 +134,8 @@ export function ClientSelect({ value = '', onChange, placeholder, required = fal
       onChange={handleChange}
       required={required}
       disabled={isLoading}
-      style={{ ...SELECT_STYLE, ...style }}
+      className={`ui-entity-select${className ? ` ${className}` : ''}`}
+      style={style}
     >
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {clients.map((c) => (
@@ -194,7 +182,7 @@ export function UserSelect({ value = '', onChange, placeholder, filterRole, requ
       onChange={handleChange}
       required={required}
       disabled={isLoading}
-      style={{ ...SELECT_STYLE, ...style }}
+      className="ui-entity-select" style={style}
     >
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {users.map((u) => (
@@ -243,7 +231,7 @@ export function ProjectSelect({ value = '', onChange, placeholder, filterStatus,
       onChange={handleChange}
       required={required}
       disabled={isLoading}
-      style={{ ...SELECT_STYLE, ...style }}
+      className="ui-entity-select" style={style}
     >
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {projects.map((p) => (
@@ -281,7 +269,7 @@ export function SprintSelect({ value = '', onChange, projectId, placeholder, req
     onChange(id, sprints.find((s) => s.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
     </select>
@@ -312,7 +300,7 @@ export function EpicSelect({ value = '', onChange, projectId, placeholder, requi
     onChange(id, epics.find((ep) => ep.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {epics.map((ep) => <option key={ep.id} value={ep.id}>{ep.title || String(ep.name ?? '')}</option>)}
     </select>
@@ -341,7 +329,7 @@ export function ContractSelect({ value = '', onChange, placeholder, required = f
     onChange(id, contracts.find((c) => c.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {contracts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
     </select>
@@ -372,7 +360,7 @@ export function MilestoneSelect({ value = '', onChange, projectId, placeholder, 
     onChange(id, milestones.find((m) => m.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {milestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
     </select>
@@ -407,7 +395,7 @@ export function TaskSelect({ value = '', onChange, projectId, placeholder, requi
     onChange(id, tasks.find((t) => t.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {tasks.map((t) => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
     </select>
@@ -436,7 +424,7 @@ export function AssetSelect({ value = '', onChange, placeholder, required = fals
     onChange(id, assets.find((a) => a.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {assets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
     </select>
@@ -465,7 +453,7 @@ export function LicenseSelect({ value = '', onChange, placeholder, required = fa
     onChange(id, licenses.find((l) => l.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {licenses.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.product_name || l.vendor_name || ''})</option>)}
     </select>
@@ -494,7 +482,7 @@ export function VendorSelect({ value = '', onChange, placeholder, required = fal
     onChange(id, vendors.find((v) => v.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
     </select>
@@ -523,7 +511,7 @@ export function TicketSelect({ value = '', onChange, placeholder, required = fal
     onChange(id, tickets.find((t) => t.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {tickets.map((t) => <option key={t.id} value={t.id}>{t.number ? `#${t.number} ` : ''}{t.title || t.subject}</option>)}
     </select>
@@ -552,7 +540,7 @@ export function ProblemSelect({ value = '', onChange, placeholder, required = fa
     onChange(id, problems.find((p) => p.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {problems.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
     </select>
@@ -581,7 +569,7 @@ export function SubcontractorSelect({ value = '', onChange, placeholder, require
     onChange(id, subs.find((s) => s.id === id) || null)
   }
   return (
-    <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
+    <select value={value} onChange={handleChange} required={required} disabled={isLoading} className="ui-entity-select" style={style}>
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {subs.map((s) => <option key={s.id} value={s.id}>{s.name || s.company}</option>)}
     </select>

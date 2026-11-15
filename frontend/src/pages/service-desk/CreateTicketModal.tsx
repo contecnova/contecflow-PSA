@@ -236,7 +236,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-dynamic-forms'] })
       qc.invalidateQueries({ queryKey: ['sd-dynamic-forms-history'] })
-      toast.success('Campos dinámicos importados')
+      toast.success(traducir('createticket.campos_dinamicos_importados'))
       setWizardOpen(false)
       setWizardStep(1)
       setCsvText('')
@@ -250,7 +250,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-dynamic-forms'] })
       qc.invalidateQueries({ queryKey: ['sd-dynamic-forms-history'] })
-      toast.success('Configuración restaurada')
+      toast.success(traducir('createticket.configuracion_restaurada'))
     },
     onError: (e) => toast.error(extractErr(e, 'No se pudo restaurar configuración')),
   })
@@ -367,7 +367,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 style={IS}
               >
-                <option value="">Seleccionar</option>
+                <option value="">{traducir('createticket.seleccionar')}</option>
                 {(f.options || []).map((op) => <option key={op} value={op}>{op}</option>)}
               </select>
             ) : f.type === 'textarea' ? (
@@ -444,7 +444,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         )}
 
         <div className="crtimo-row-2">
-          <Button variant="secondary" onClick={() => setWizardOpen(true)}>Wizard campos</Button>
+          <Button variant="secondary" onClick={() => setWizardOpen(true)}>{t('createticket.wizard_campos')}</Button>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending} loading={isPending}>
             {t('service_desk.ticket_create_btn')}
@@ -466,7 +466,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             />
             <div className="crtimo-row-3">
               <div className="u-text3-xs">{traducir('createticketmodal.tambien_puedes_restaurar_snapshots_previos')}</div>
-              <Button onClick={() => previewImport.mutate()} disabled={!csvText.trim()} loading={previewImport.isPending}>Previsualizar</Button>
+              <Button onClick={() => previewImport.mutate()} disabled={!csvText.trim()} loading={previewImport.isPending}>{traducir('dataplatform.previsualizar')}</Button>
             </div>
             <div className="crtimo-grid-3">
               {dynamicHistory.slice(0, 5).map((h) => (
@@ -474,7 +474,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                   <div className="u-text2-xs">
                     {h.created_at} · {h.reason || 'update'}
                   </div>
-                  <Button variant="secondary" onClick={() => rollbackConfig.mutate(h.snapshot_id)} loading={rollbackConfig.isPending}>Restaurar</Button>
+                  <Button variant="secondary" onClick={() => rollbackConfig.mutate(h.snapshot_id)} loading={rollbackConfig.isPending}>{traducir('wiki.restaurar')}</Button>
                 </div>
               ))}
             </div>

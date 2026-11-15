@@ -184,3 +184,27 @@
   border-radius: 8px;
   padding: 10px 12px;
 }
+
+/* ── Estilos estaticos extraidos de portalClientContext.tsx (#17) ── */
+.portalcl-sx1 {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drag);
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.portalcl-sx2 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 16px;
+  padding: 28px 30px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: var(--shadow-sheet);
+  text-align: center;
+}
+.portalcl-sx3.portalcl-sx3 {
+  border-radius: 8px;
+}

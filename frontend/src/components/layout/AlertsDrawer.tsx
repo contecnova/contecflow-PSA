@@ -115,9 +115,9 @@ export default function AlertsDrawer({ onClose }: Props) {
             alerts.slice(0, 20).map(alert => {
               const cfg = SEVERITY_CFG[alert.severity] || SEVERITY_CFG.info
               return (
-                <div className="alerdraw-sp-1"
+                <div className="alerdraw-sp-1 alertsdr-sx1"
                   key={alert.id}
-                  style={{ background: alert.is_read ? 'var(--surface-2)' : cfg.bg, border: `1px solid ${alert.is_read ? 'var(--surface-4)' : cfg.border}`, borderRadius: 'var(--radius-md)' }}
+                  style={{ background: alert.is_read ? 'var(--surface-2)' : cfg.bg, border: `1px solid ${alert.is_read ? 'var(--surface-4)' : cfg.border}` }}
                 >
                   <div className="alerdraw-row-5">
                     <div className="alerdraw-box-12" style={{ background: cfg.dot }} />
@@ -160,14 +160,7 @@ export default function AlertsDrawer({ onClose }: Props) {
         <div className="alerdraw-box-11">
           <NavLink
             to="/alerts"
-            onClick={onClose}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-              padding: '9px', borderRadius: 8,
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              color: 'var(--text-2)', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 600,
-              transition: 'all 0.1s',
-            }}
+            onClick={onClose} className="alertsdr-sx2"
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)' }}
           >

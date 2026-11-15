@@ -226,6 +226,7 @@ interface Graph2DProps extends GraphViewProps {
 }
 
 function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange, hovered, setHovered }: Graph2DProps) {
+  const { t: traducir } = useAppLang()
   const W = 700
   const H = 500
 
@@ -343,13 +344,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
             {isHov && (
               <foreignObject x={r + 6} y={-r} width="170" height="92">
                 <div
-                  {...{ xmlns: 'http://www.w3.org/1999/xhtml' }}
-                  style={{
-                    background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-                    borderRadius: 8, padding: '6px 10px', fontSize: "var(--text-xs)",
-                    color: 'var(--text-1)', boxShadow: '0 4px 16px rgba(0,0,0,.5)',
-                    pointerEvents: 'none',
-                  }}
+                  {...{ xmlns: 'http://www.w3.org/1999/xhtml' }} className="cmdbtopo-sx1"
                 >
                   <div className="cmdbgrap-box-4">{n.name}</div>
                   <div className="u-text2">{n.ci_type} · {n.status}</div>
@@ -360,7 +355,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
                     </div>
                   )}
                   <div className="cmdbgrap-box-6">
-                    Click → drill-down &amp; fijar impacto
+                    {traducir('cmdbtopologygraph.click_drill_down_fijar_impacto')}
                   </div>
                 </div>
               </foreignObject>
@@ -562,7 +557,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
         {/* Impact radius buttons */}
         <div className="cmdbgrap-row-5">
           <span className="cmdbgrap-txt-1">
-            Radio impacto:
+            {t('cmdbtopologygraph.radio_impacto')}
           </span>
           {[1, 2, 3].map(r => (
             <button key={r} onClick={() => setImpactRadius(r)} style={tbBtn(impactRadius === r)}>{r}</button>
@@ -575,14 +570,14 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
             onClick={() => setImpactSource(null)}
             className="cmdbgrap-box-11"
           >
-            ✕ Limpiar impacto
+            {t('cmdbtopologygraph.limpiar_impacto')}
           </button>
         )}
 
         {centerName && (
           <span className="cmdbgrap-box-12">
-            Centro: <strong className="u-accent">{centerName}</strong>
-            {' · '}{nodes.length} nodos · {edges.length} aristas
+            {t('cmdbtopologygraph.centro')} <strong className="u-accent">{centerName}</strong>
+            {' · '}{nodes.length} {t('cmdbtopologygraph.nodos')} {edges.length} {t('cmdbtopologygraph.aristas')}
           </span>
         )}
       </div>

@@ -42,7 +42,7 @@
 .sub-creds-value { font-family: var(--font-mono); font-size: var(--text-md); color: var(--accent); user-select: all; }
 .sub-creds-value--warning { color: var(--warning); }
 .sub-creds-warning { font-size: var(--text-xs); color: var(--text-3); margin-bottom: 20px; }
-.sub-full { width: 100%; }
+.sub-full, .sub-full > button { width: 100%; }
 
 /* Skills */
 .sub-skills-block { border-top: 1px solid var(--surface-4); padding-top: 14px; margin-bottom: 14px; }

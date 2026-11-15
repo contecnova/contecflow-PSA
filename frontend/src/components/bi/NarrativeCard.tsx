@@ -58,7 +58,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
           </span>
           <div>
             <div className="narrcard-txt-1">
-              Resumen ejecutivo IA
+              {t('narrativecard.resumen_ejecutivo_ia')}
             </div>
             {data?.cached && (
               <div className="u-text3-2xs">{t('narrativecard.desde_cache_1h_ttl')}</div>
@@ -66,10 +66,10 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
           </div>
         </div>
         <div className="u-row-center-8">
-          <button className="narrcard-row-4" aria-label="Regenerar narrativa"
+          <button className="narrcard-row-4" aria-label={t('narrativecard.regenerar_narrativa')}
             onClick={e => { e.stopPropagation(); handleRefresh() }}
             disabled={isFetching}
-            title="Regenerar narrativa"
+            title={t('narrativecard.regenerar_narrativa')}
             style={{ cursor: isFetching ? 'not-allowed' : 'pointer' }}
           >
             <RefreshCw size={13} style={{ animation: isFetching ? 'spin 1s linear infinite' : 'none' }} />
@@ -101,7 +101,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
               <div className="narrcard-row-1">
                 {data.source && (
                   <span className="narrcard-box-1">
-                    fuente: {data.source}
+                    {t('narrativecard.fuente')} {data.source}
                   </span>
                 )}
                 {data.kpis?.hours_mtd != null && (

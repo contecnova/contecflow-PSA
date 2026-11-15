@@ -580,3 +580,71 @@
   text-align: center;
   padding: 60px;
 }
+
+/* ── Estilos en linea extraidos de OrgChartPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.orgchart-sx2 {
+  color: var(--orgchart-v1);
+}
+.orgchart-sx3.orgchart-sx3 {
+  border-left: 2px solid var(--surface-4);
+}
+.orgchart-sx4.orgchart-sx4 {
+  border-left: none;
+}
+.orgchart-sx5.orgchart-sx5 {
+  background: transparent;
+}
+.orgchart-sx6.orgchart-sx6 {
+  background: color-mix(in srgb, var(--text-1) 1%, transparent);
+}
+.orgchart-sx7.orgchart-sx7 {
+  color: var(--text-1);
+  font-style: normal;
+}
+.orgchart-sx8.orgchart-sx8 {
+  color: var(--text-4);
+  font-style: italic;
+}
+.orgchart-sx9.orgchart-sx9 {
+  border-radius: 7px;
+}
+.orgchart-sx10.orgchart-sx10 {
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-glow);
+  font-weight: 600;
+  color: var(--accent);
+}
+.orgchart-sx11.orgchart-sx11 {
+  background: transparent;
+  border: 1px solid transparent;
+  font-weight: 400;
+  color: var(--text-2);
+}
+.orgchart-sx12.orgchart-sx12 {
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-glow);
+}
+.orgchart-sx13.orgchart-sx13 {
+  background: transparent;
+  border: 1px solid transparent;
+}
+.orgchart-sx14.orgchart-sx14 {
+  border-radius: var(--radius-md);
+}
+.orgchart-sx15.orgchart-sx15 {
+  background: var(--success-bg);
+}
+.orgchart-sx16.orgchart-sx16 {
+  background: var(--surface-1);
+}
+.orgchart-sx17.orgchart-sx17 {
+  border-radius: 8px;
+}
+.orgchart-sx18.orgchart-sx18 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.orgchart-sx19.orgchart-sx19 {
+  background: transparent;
+  color: var(--text-2);
+}

@@ -188,3 +188,29 @@
   font-weight: 600;
   flex-shrink: 0;
 }
+
+/* ── Estilos en linea extraidos de MeetingsAIPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.meetings-sx1.meetings-sx1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.meetings-sx2.meetings-sx2 {
+  grid-template-columns: 300px minmax(0, 1fr);
+}
+.meetings-sx3.meetings-sx3 {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.meetings-sx4.meetings-sx4 {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.meetings-sx5.meetings-sx5 {
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+}
+.meetings-sx6.meetings-sx6 {
+  border-bottom: none;
+}
+.meetings-sx7.meetings-sx7 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}

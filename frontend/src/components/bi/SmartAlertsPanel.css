@@ -130,3 +130,8 @@
   max-height: 320px;
   overflow-y: auto;
 }
+
+/* ── Estilos estaticos extraidos de SmartAlertsPanel.tsx (#17) ── */
+.smartale-sx1.smartale-sx1 {
+  border-radius: var(--radius-sm);
+}

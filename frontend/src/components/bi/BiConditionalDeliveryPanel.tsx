@@ -110,7 +110,7 @@ export default function BiConditionalDeliveryPanel() {
 
       {/* Rules list */}
       {isLoading ? (
-        <div className="bicodepa-box-3">Cargando…</div>
+        <div className="bicodepa-box-3">{t('chat.loading')}</div>
       ) : (
         <div className="u-stack-8">
           {(data?.items ?? []).map(rule => (
@@ -130,9 +130,9 @@ export default function BiConditionalDeliveryPanel() {
                     {evaluateResult[rule.id].should_deliver ? '→ Enviar' : '— Sin cambio'}
                   </span>
                 )}
-                <button aria-label="Evaluar ahora"
+                <button aria-label={t('biconditionaldelivery.evaluar_ahora')}
                   onClick={() => evaluateMutation.mutate(rule.id)}
-                  title="Evaluar ahora"
+                  title={t('biconditionaldelivery.evaluar_ahora')}
                   className="bicodepa-row-3"
                 >
                   <Play size={16} />

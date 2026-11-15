@@ -157,7 +157,7 @@
 
 .rep-card-3 {
   background: var(--surface-1);
-  border: 1px solid #1e2d45;
+  border: 1px solid var(--surface-4);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 20px;
@@ -457,7 +457,7 @@
 
 .rep-row-warning {
   background: var(--warning-bg);
-  border: 1px solid #ffb80025;
+  border: 1px solid var(--warning-border);
   border-radius: 8px;
   padding: 10px 14px;
   margin-bottom: 16px;
@@ -810,4 +810,49 @@
 
 .rep-text-8 {
   color: var(--rep-text-8-color);
+}
+
+/* Añadidos a mano: sustituyen estilos en línea y los hover/focus que iban por JS. */
+.rep-fecha {
+  width: 140px;
+  max-width: 100%;
+}
+
+.rep-btn-2:hover,
+.rep-btn-2:focus-visible {
+  border-color: var(--accent-glow);
+  background: var(--accent-muted);
+}
+
+.rep-input-4:focus {
+  border-color: var(--accent);
+}
+
+.rep-btn-3:hover,
+.rep-btn-3:focus-visible {
+  border-color: color-mix(in srgb, var(--rep-btn-3-tono) 44%, transparent);
+  background: color-mix(in srgb, var(--rep-btn-3-tono) 3%, transparent);
+}
+
+.rep-btn-sm-3:hover,
+.rep-btn-sm-3:focus-visible {
+  border-color: var(--accent-glow);
+  color: var(--accent);
+  background: var(--accent-muted);
+}
+
+/* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
+.rep-fs:focus-visible,
+.rep-is:focus-visible,
+.rep-input-4:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Estilos estaticos extraidos de ReportsPage.tsx (#17) ── */
+.reportsp-sx1 {
+  padding: 18px;
+}
+.reportsp-sx2 {
+  padding: 24px;
 }

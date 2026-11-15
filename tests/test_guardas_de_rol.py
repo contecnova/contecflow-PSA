@@ -93,10 +93,6 @@ EXENTAS_REVISADAS = {
     # campo para pedirla por otro). Antes el endpoint comparaba `current_user.id`
     # en su cuerpo y el detector lo veía; ahora lo hace el servicio.
     "POST /api/v1/absences/my": "pedir la ausencia propia (el servicio la crea para current_user)",
-    "POST /api/v1/absences/preview": "vista previa de la ausencia propia, sin escribir nada",
-    "POST /api/v1/absences/{absence_id}/documents": (
-        "adjuntar a una ausencia: el servicio exige ser la persona, su responsable, RRHH o admin "
-        "(`documentos.puede_subir`); un empleado o subcontratista sube su propio parte"),
     # Evaluación y desarrollo propios.
     "PATCH /api/v1/performance/reviews/{review_id}": "rellenar la evaluación propia",
     "POST /api/v1/performance/reviews/{review_id}/submit": "enviar la evaluación propia",
@@ -120,7 +116,7 @@ EXENCIONES_ESPERADAS = {
     # 93 desde 2026-11-09: fuera PATCH/DELETE /sd/tickets/{id}/internal-comments (las
     # notas internas viven en los comentarios del ticket) y POST /capacity/plans
     # pasa a exigir gestor.
-    "acotada al propio usuario": 92,  # 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
+    "acotada al propio usuario": 93,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
     "superficie: API key": 6,  # 2026-11: fuera POST /bookings/api-keys/verify (oraculo)
     # 20 desde 2026-11-09: fuera la copia de /clients/{cid}/portal-users (POST y
     # PATCH) que no exigía el máximo de usuarios del portal.

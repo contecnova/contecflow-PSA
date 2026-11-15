@@ -457,3 +457,17 @@
   font-family: inherit;
   width: 260px;
 }
+
+/* ── Estilos estaticos extraidos de SettingsAdvancedSections.tsx (#17) ── */
+.settings-sx1.settings-sx1 {
+  border-radius: var(--radius-sm);
+}
+.settings-sx2.settings-sx2 {
+  border-radius: var(--radius-md);
+}
+.settings-sx3.settings-sx3 {
+  border-radius: 8px;
+}
+.settings-sx4.settings-sx4 {
+  border-radius: var(--radius-full);
+}

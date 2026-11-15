@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { DATA_TABLE_PAGE_SIZE } from '../../constants/pagination'
 import './index.css'
 import { useTextoUi } from './useTextoUi'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 
 export { default as Confirm } from './Confirm'
 export { default as IconButton } from './IconButton'
@@ -27,56 +28,6 @@ export {
 export { useSort, SortableTH, ariaSort, ViewToggle, FilterSelect, SearchInput, ActiveFilters } from './TableControls'
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
-/** Human-readable labels for common status/priority enum values. */
-const BADGE_DISPLAY: Record<string, string> = {
-  // Task / project statuses
-  in_progress:  'In Progress',
-  todo:         'To Do',
-  backlog:      'Backlog',
-  done:         'Done',
-  blocked:      'Blocked',
-  review:       'In Review',
-  in_review:    'In Review',
-  planning:     'Planning',
-  active:       'Active',
-  paused:       'Paused',
-  closed:       'Closed',
-  cancelled:    'Cancelled',
-  on_hold:      'On Hold',
-  // Priority
-  low:          'Low',
-  medium:       'Medium',
-  high:         'High',
-  critical:     'Critical',
-  p1_critical:  'P1 Critical',
-  p2_high:      'P2 High',
-  p3_medium:    'P3 Medium',
-  p4_low:       'P4 Low',
-  // Deliverables
-  planned:      'Planned',
-  delivered:    'Delivered',
-  accepted:     'Accepted',
-  rejected:     'Rejected',
-  // Approvals / expenses
-  draft:        'Draft',
-  submitted:    'Submitted',
-  approved:     'Approved',
-  pending:      'Pending',
-  // Risk
-  identified:   'Identified',
-  analyzing:    'Analyzing',
-  mitigating:   'Mitigating',
-  monitoring:   'Monitoring',
-  materialized: 'Materialized',
-  // Service desk
-  open:         'Open',
-  new:          'New',
-  resolved:     'Resolved',
-  // Tickets support level
-  l1: 'L1', l2: 'L2', l3: 'L3',
-  // Boolean-like
-  normal:       'Normal',
-}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -142,6 +93,7 @@ interface BadgeProps {
 }
 
 export function Badge({ label, display, _color }: BadgeProps) {
+  const t = useTextoUi()
   const presets: Record<string, { bg: string; text: string; border: string }> = {
     low:         { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
     medium:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
@@ -174,11 +126,11 @@ export function Badge({ label, display, _color }: BadgeProps) {
     normal:      { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
   }
   const c = (label && presets[label]) || presets.normal
-  const texto = (label && BADGE_DISPLAY[label]) || humanize(label)
+  const texto = etiquetaCodigo(t, 'estado', label, humanize(label))
   const shown: React.ReactNode = display || texto
   return (
-    <span className="uiinde-box-13"
-      style={{ borderRadius: 'var(--radius-full)', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}
+    <span className="uiinde-box-13 index-sx1"
+      style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}` }}
       aria-label={texto}
     >
       {shown}
@@ -247,7 +199,8 @@ interface CardProps {
   onClick?: (e: React.MouseEvent | React.KeyboardEvent) => void
 }
 
-export function Card({ children, className, style = {}, accent = false, onClick = undefined }: CardProps) {
+export function Card({ children, className, style, accent = false, onClick = undefined }: CardProps) {
+  const cls = `ui-card${accent ? ' ui-card--accent' : ''}${onClick ? ' ui-card--click' : ''}${className ? ` ${className}` : ''}`
   if (onClick) {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -255,55 +208,13 @@ export function Card({ children, className, style = {}, accent = false, onClick 
         onClick(e)
       }
     }
-
     return (
-      <div
-        className={className}
-        onClick={onClick}
-        onKeyDown={handleKeyDown}
-        role="button"
-        tabIndex={0}
-        style={{
-          background: 'var(--surface-2)',
-          border: `1px solid ${accent ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
-          borderRadius: 'var(--radius-lg)',
-          padding: 'var(--space-6)',
-          boxShadow: accent ? 'var(--shadow-accent)' : 'none',
-          cursor: 'pointer',
-          transition: 'border-color 0.15s, box-shadow 0.15s',
-          ...style,
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.borderColor = accent ? 'var(--accent-border-strong)' : 'var(--surface-5)'
-          e.currentTarget.style.boxShadow = 'var(--shadow-md)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.borderColor = accent ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'
-          e.currentTarget.style.boxShadow = accent ? 'var(--shadow-accent)' : 'none'
-        }}
-      >
+      <div className={cls} onClick={onClick} onKeyDown={handleKeyDown} role="button" tabIndex={0} style={style}>
         {children}
       </div>
     )
   }
-
-  return (
-    <div
-      className={className}
-      style={{
-        background: 'var(--surface-2)',
-        border: `1px solid ${accent ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-6)',
-        boxShadow: accent ? 'var(--shadow-accent)' : 'none',
-        cursor: 'default',
-        transition: 'border-color 0.15s, box-shadow 0.15s',
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  )
+  return <div className={cls} style={style}>{children}</div>
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -324,7 +235,7 @@ export function KpiCard({ icon, label, value, sub, accent, danger, warning, tren
   const valueColor = danger ? 'var(--danger)' : warning ? 'var(--warning)' : accent ? 'var(--accent)' : 'var(--text-1)'
   const trendColor = (trend ?? 0) > 0 ? 'var(--success)' : (trend ?? 0) < 0 ? 'var(--danger)' : 'var(--text-3)'
   return (
-    <Card accent={accent} style={{ flex: 1, minWidth: 140 }}>
+    <Card accent={accent} className="index-sx2">
       <div className="uiinde-row-1">
         <div className="uiinde-txt-1">{icon}</div>
         {trend !== undefined && (
@@ -352,48 +263,15 @@ interface ButtonProps {
   /** Deshabilita ademas de mostrar el spinner: un boton cargando no se pulsa. */
   loading?: boolean
   icon?: React.ReactNode
+  className?: string
   style?: React.CSSProperties
   type?: 'button' | 'submit' | 'reset'
   title?: string
 }
 
-export function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, loading = false, icon = null, style = {}, type = 'button', title = undefined }: ButtonProps) {
-  const variants: Record<string, React.CSSProperties> = {
-    primary:   {
-      background: 'var(--accent)',
-      color: 'var(--on-accent)',   // blanco fijo no llegaba a AA (2,37:1 en freight)
-      border: 'none',
-      boxShadow: '0 1px 3px var(--accent-border)',
-    },
-    secondary: {
-      background: 'var(--surface-3)',
-      color: 'var(--text-1)',
-      border: '1px solid var(--surface-4)',
-    },
-    danger:    {
-      background: 'var(--danger-bg)',
-      color: 'var(--danger)',
-      border: '1px solid var(--danger-border)',
-    },
-    ghost:     {
-      background: 'transparent',
-      color: 'var(--accent)',
-      border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)',
-    },
-    subtle:    {
-      background: 'var(--accent-muted)',
-      color: 'var(--accent)',
-      border: '1px solid color-mix(in srgb, var(--accent) 15%, transparent)',
-    },
-  }
-  const sizes: Record<string, { fontSize: string; padding: string; borderRadius: string; gap: number }> = {
-    xs: { fontSize: "var(--text-xs)", padding: '4px 10px',  borderRadius: 'var(--radius-sm)', gap: 4 },
-    sm: { fontSize: "var(--text-sm)", padding: '6px 14px',  borderRadius: 'var(--radius-md)', gap: 5 },
-    md: { fontSize: "var(--text-base)", padding: '8px 18px',  borderRadius: 'var(--radius-md)', gap: 6 },
-    lg: { fontSize: "var(--text-md)", padding: '11px 24px', borderRadius: 'var(--radius-lg)', gap: 7 },
-  }
-  const v = variants[variant] || variants.primary
-  const s = sizes[size] || sizes.md
+export function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, loading = false, icon = null, className, style, type = 'button', title = undefined }: ButtonProps) {
+  const v = ['primary', 'secondary', 'danger', 'ghost', 'subtle'].includes(variant) ? variant : 'primary'
+  const sz = ['xs', 'sm', 'md', 'lg'].includes(size) ? size : 'md'
   const isDisabled = disabled || loading
 
   return (
@@ -404,19 +282,8 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
       aria-disabled={isDisabled || undefined}
       aria-busy={loading || undefined}
       disabled={isDisabled}
-      style={{
-        display: 'inline-flex', alignItems: 'center',
-        fontFamily: 'var(--font-sans)', fontWeight: 600,
-        cursor: isDisabled ? 'not-allowed' : 'pointer',
-        opacity: isDisabled ? 0.5 : 1,
-        transition: 'opacity 0.15s, transform 0.1s, background 0.15s',
-        whiteSpace: 'nowrap',
-        ...v, ...s, ...style,
-      }}
-      onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.opacity = '0.85' }}
-      onMouseLeave={e => { if (!isDisabled) e.currentTarget.style.opacity = '1' }}
-      onMouseDown={e => { if (!isDisabled) e.currentTarget.style.transform = 'scale(0.97)' }}
-      onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+      className={`ui-btn ui-btn--${v} ui-btn--${sz}${className ? ` ${className}` : ''}`}
+      style={style}
     >
       {loading ? (
         <span className="uiinde-box-2" />
@@ -469,7 +336,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
           {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
         </label>
       )}
-      <input className="uiinde-box-18"
+      <input className="uiinde-box-18 index-sx3"
         id={base}
         aria-labelledby={label ? `${base}-etiqueta` : undefined}
         aria-label={label ? undefined : ariaLabel}
@@ -477,7 +344,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
         required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        style={{ border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)' }}
+        style={{ border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` }}
         onFocus={e => {
           e.target.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'
           e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)'
@@ -506,6 +373,7 @@ interface SelectProps {
 }
 
 export function Select({ label, value, onChange, options = [], style = {}, hint, error, id }: SelectProps) {
+  const t = useTextoUi()
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
@@ -514,14 +382,14 @@ export function Select({ label, value, onChange, options = [], style = {}, hint,
           {label}
         </label>
       )}
-      <select className="uiinde-box-19"
+      <select className="uiinde-box-19 index-sx3"
         id={base}
         value={value} onChange={onChange}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        style={{ border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', color: value ? 'var(--text-1)' : 'var(--text-3)' }}
+        style={{ border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`, color: value ? 'var(--text-1)' : 'var(--text-3)' }}
       >
-        <option value="">Seleccionar...</option>
+        <option value="">{t('invoices.select')}</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
@@ -672,23 +540,15 @@ export function Modal({ open, onClose, title, children, width, size, subtitle }:
   return (
     <div
       onMouseDown={onClose}
-      role="presentation"
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(8,12,20,0.85)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        zIndex: 'var(--z-modal)', padding: '40px 24px',
-        overflowY: 'auto',
-      }}
+      role="presentation" className="index-sx4"
     >
-      <div className="uiinde-box-21"
+      <div className="uiinde-box-21 index-sx5"
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : undefined}
         onMouseDown={e => e.stopPropagation()}
-        style={{ maxWidth: anchoFinal, boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}
+        style={{ maxWidth: anchoFinal }}
       >
         <div className="uiinde-row-3">
           <div>

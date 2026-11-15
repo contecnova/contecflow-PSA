@@ -105,7 +105,7 @@ export default function GovernancePage(): JSX.Element {
           ['audit', `📋 ${t('governance.tab_audit')}`],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            className="gov-btn" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)' }}>
+            className={`gov-btn governan-sx1 ${tab === id ? 'governan-sx2' : 'governan-sx3'}`} style={{ border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}` }}>
             {label}
           </button>
         ))}
@@ -129,10 +129,10 @@ export default function GovernancePage(): JSX.Element {
                     </div>
                   </div>
                   <div className="gov-row-4">
-                    {usage && <span className="u-text2-xs">{usage.calls || 0} calls</span>}
+                    {usage && <span className="u-text2-xs">{t('pagina_gov.llamadas', { n: usage.calls || 0 })}</span>}
                     <button aria-label={t(meta.labelKey)} aria-pressed={isEnabled} onClick={() => toggle({ module: key, is_enabled: !isEnabled })}
-                      className="gov-btn-2" style={{ borderRadius: 12, background: isEnabled ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${isEnabled ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}` }}>
-                      <div className="gov-box-4" style={{ background: isEnabled ? 'var(--success)' : 'var(--text-2)', left: isEnabled ? 22 : 2 }} />
+                      className={`gov-btn-2 governan-sx4 ${isEnabled ? 'governan-sx5' : 'governan-sx6'}`} style={{ border: `1px solid ${isEnabled ? 'color-mix(in srgb, var(--success) 38%, transparent)' : 'var(--surface-4)'}` }}>
+                      <div className={`gov-box-4 ${isEnabled ? 'governan-sx7' : 'governan-sx8'}`} />
                     </button>
                   </div>
                 </div>

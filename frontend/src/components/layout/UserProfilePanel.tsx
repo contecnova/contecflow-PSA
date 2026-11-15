@@ -193,8 +193,8 @@ export default function UserProfilePanel({ onClose }: Props) {
         {/* Tabs */}
         <div className="usprpa-grid-4" role="tablist" ref={teclasTabs.listRef} onKeyDown={teclasTabs.onKeyDown} aria-label={traducir('perfilpanel.tab_perfil')} style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
           {TABS.map(({ id, label, Icono }) => (
-            <button className="usprpa-stack-1" key={id} type="button" role="tab" data-tab-id={id} aria-selected={tab === id} tabIndex={teclasTabs.focusId === id ? 0 : -1} onClick={() => setTab(id)} title={label}
-              style={{ borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent)' : 'transparent'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)' }}>
+            <button className="usprpa-stack-1 userprof-sx1" key={id} type="button" role="tab" data-tab-id={id} aria-selected={tab === id} tabIndex={teclasTabs.focusId === id ? 0 : -1} onClick={() => setTab(id)} title={label}
+              style={{ border: `1px solid ${tab === id ? 'var(--accent)' : 'transparent'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)' }}>
               <Icono size={16} aria-hidden />
               <span className="usprpa-box-4">{label}</span>
             </button>
@@ -286,8 +286,8 @@ export default function UserProfilePanel({ onClose }: Props) {
                 </div>
                 <div className="u-stack-6">
                   {THEMES.map(t => (
-                    <button type="button" aria-pressed={localTheme === t.id} className="usprpa-row-4" key={t.id} onClick={() => applyTheme(t.id)}
-                      style={{ borderRadius: 9, background: localTheme === t.id ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${localTheme === t.id ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` }}>
+                    <button type="button" aria-pressed={localTheme === t.id} className="usprpa-row-4 userprof-sx2" key={t.id} onClick={() => applyTheme(t.id)}
+                      style={{ background: localTheme === t.id ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${localTheme === t.id ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` }}>
                       <span className="usprpa-box-10">{t.icon}</span>
                       <div className="u-flex1-min0">
                         <div className="usprpa-txt-9" style={{ color: localTheme === t.id ? 'var(--accent)' : 'var(--text-1)' }}>
@@ -350,8 +350,8 @@ export default function UserProfilePanel({ onClose }: Props) {
                     ['normal',      '▥ Normal'],
                     ['comfortable', '▦ Confortable'],
                   ] as Array<[string, string]>).map(([val, label]) => (
-                    <button className="usprpa-box-28" key={val} onClick={() => setLocalDensity(val)}
-                      style={{ borderRadius: 8, border: `1px solid ${localDensity === val ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}`, background: localDensity === val ? 'var(--accent-muted)' : 'var(--surface-3)', color: localDensity === val ? 'var(--accent)' : 'var(--text-2)' }}>
+                    <button className="usprpa-box-28 userprof-sx1" key={val} onClick={() => setLocalDensity(val)}
+                      style={{ border: `1px solid ${localDensity === val ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}`, background: localDensity === val ? 'var(--accent-muted)' : 'var(--surface-3)', color: localDensity === val ? 'var(--accent)' : 'var(--text-2)' }}>
                       {label}
                     </button>
                   ))}
@@ -378,9 +378,9 @@ export default function UserProfilePanel({ onClose }: Props) {
               {LANGUAGES.map(lang => {
                 const isPending = pendingLang === lang.code
                 return (
-                  <button type="button" aria-pressed={isPending} className="usprpa-row-5" key={lang.code}
+                  <button type="button" aria-pressed={isPending} className="usprpa-row-5 userprof-sx3" key={lang.code}
                     onClick={() => setPendingLang(lang.code)}
-                    style={{ borderRadius: 'var(--radius-md)', background: isPending ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${isPending ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` }}>
+                    style={{ background: isPending ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${isPending ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` }}>
                     <span className="usprpa-txt-4">{lang.flag}</span>
                     <span className="usprpa-box-29" style={{ color: isPending ? 'var(--accent)' : 'var(--text-1)' }}>
                       {lang.label}

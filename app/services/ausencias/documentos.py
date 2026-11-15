@@ -388,7 +388,7 @@ def pasada(db: Session, hoy: Optional[date] = None) -> dict:
                                              "politica": "Documentos de ausencias"}]},
                             a.user_id, "absence", a.id, f"{a.type} {a.start_date} → {a.end_date}", a.organization_id)
             req.escalado_en = _ahora()
-            _evento(db, a, "escalado", None, documento=nombre, a=destinatarios)
+            _evento(db, a, "escalado", None, documento=nombre, destinatarios=destinatarios)
             informe["escalados"] += 1
     db.commit()
     return informe

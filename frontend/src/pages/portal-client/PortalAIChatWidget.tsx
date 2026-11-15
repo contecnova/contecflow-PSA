@@ -126,17 +126,8 @@ export default function PortalAIChatWidget() {
     return (
       <button
         onClick={() => setOpen(true)}
-        aria-label="Abrir asistente IA"
-        title="Asistente IA — pregunta sobre tus proyectos"
-        style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 'var(--z-modal)',
-          width: 56, height: 56, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
-          border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 10px 28px rgba(0,0,0,0.35)',
-          color: 'var(--on-accent-light)',
-        }}
+        aria-label={t('portalaichatwidget.abrir_asistente_ia')}
+        title={t('portalaichatwidget.asistente_ia_pregunta_sobre_tus_proyectos')} className="portalai-sx1"
       >
         <MessageCircle size={24} />
       </button>
@@ -145,44 +136,28 @@ export default function PortalAIChatWidget() {
 
   // ── Open panel ───────────────────────────────────────────────────────────
   return (
-    <div
-      style={{
-        position: 'fixed', bottom: 24, right: 24, zIndex: 'var(--z-modal)',
-        width: 380, maxWidth: 'calc(100vw - 32px)',
-        height: 560, maxHeight: 'calc(100vh - 48px)',
-        background: 'var(--surface-1)',
-        border: '1px solid var(--surface-4)',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: '0 18px 50px rgba(0,0,0,0.45)',
-        display: 'flex', flexDirection: 'column',
-        overflow: 'hidden',
-      }}
+    <div className="portalai-sx2"
     >
       {/* Header */}
       <div className="poaiwi-row-5">
         <div className="u-row-center-8">
           <Sparkles size={18} />
           <div>
-            <div className="poaiwi-txt-1">Asistente IA</div>
+            <div className="poaiwi-txt-1">{t('nexusassist.asistente_ia')}</div>
             <div className="poaiwi-box-1">
-              Pregunta sobre tus proyectos
+              {t('portalaichatwidget.pregunta_sobre_tus_proyectos')}
             </div>
           </div>
         </div>
         <div className="u-row-6">
           {messages.length > 0 && (
             <button onClick={handleClearSession}
-              aria-label={t('portalaichatwidget.nueva_conversacion')} title={t('portalaichatwidget.empezar_de_nuevo')}
-              style={{
-                background: 'rgba(255,255,255,0.15)', color: 'var(--on-accent-light)', border: 'none',
-                borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer',
-                fontSize: 11, fontWeight: 600,
-              }}>
+              aria-label={t('portalaichatwidget.nueva_conversacion')} title={t('portalaichatwidget.empezar_de_nuevo')} className="portalai-sx3">
               {t('portalaichatwidget.nueva')}
             </button>
           )}
           <button onClick={() => setOpen(false)}
-            aria-label="Cerrar asistente"
+            aria-label={t('portalaichatwidget.cerrar_asistente')}
             className="poaiwi-row-1">
             <X size={18} />
           </button>
@@ -197,7 +172,7 @@ export default function PortalAIChatWidget() {
               {t('portalaichatwidget.hola_soy_el_asistente_ia_del_portal')}
             </div>
             <div className="poaiwi-box-4">
-              Ejemplos
+              {t('nexusagent.ejemplos')}
             </div>
             <div className="u-stack-6">
               {SUGGESTIONS.map(s => (
@@ -210,7 +185,7 @@ export default function PortalAIChatWidget() {
           </div>
         ) : (
           messages.map((m, idx) => (
-            <div className="poaiwi-box-10" key={idx} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', background: m.role === 'user' ? 'var(--accent)' : 'var(--surface-1)', color: m.role === 'user' ? '#fff' : 'var(--text-1)', border: m.role === 'user' ? 'none' : '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
+            <div className="poaiwi-box-10 portalai-sx4" key={idx} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', background: m.role === 'user' ? 'var(--accent)' : 'var(--surface-1)', color: m.role === 'user' ? '#fff' : 'var(--text-1)', border: m.role === 'user' ? 'none' : '1px solid var(--surface-4)' }}>
               {m.content}
               {!!m.sources?.length && (
                 <div className="poaiwi-box-6">
@@ -224,16 +199,12 @@ export default function PortalAIChatWidget() {
         {sending && (
           <div className="poaiwi-box-7">
             <span className="poaiwi-box-8">
-              Pensando…
+              {t('portalaichatwidget.pensando')}
             </span>
           </div>
         )}
         {error && (
-          <div style={{
-            background: 'rgba(239,68,68,0.12)', color: 'var(--danger)',
-            border: '1px solid var(--danger)', borderRadius: 8,
-            padding: '8px 12px', fontSize: 12,
-          }}>
+          <div className="portalai-sx5">
             ⚠ {error}
           </div>
         )}
@@ -241,16 +212,16 @@ export default function PortalAIChatWidget() {
 
       {/* Input */}
       <div className="poaiwi-row-2">
-        <input aria-label="Escribe tu pregunta…"
+        <input aria-label={t('portalaichatwidget.escribe_tu_pregunta')}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
           disabled={sending}
-          placeholder="Escribe tu pregunta…"
+          placeholder={t('portalaichatwidget.escribe_tu_pregunta')}
           className="poaiwi-box-9"
         />
         <button className="poaiwi-row-4" onClick={() => handleSend()} disabled={!input.trim() || sending}
-          aria-label="Enviar"
+          aria-label={t('chat.send')}
           style={{ cursor: input.trim() && !sending ? 'pointer' : 'not-allowed', opacity: input.trim() && !sending ? 1 : 0.5 }}>
           <Send size={14} />
         </button>
@@ -276,9 +247,9 @@ function Voto({ id }: { id: string }) {
   return (
     <div className="poaiwi-row-3">
       {([true, false] as const).map(util => (
-        <button className="poaiwi-box-11" key={String(util)} type="button" aria-pressed={voto === util} aria-label={t(util ? 'portalaichatwidget.voto_up' : 'portalaichatwidget.voto_down')}
+        <button className="poaiwi-box-11 portalai-sx6" key={String(util)} type="button" aria-pressed={voto === util} aria-label={t(util ? 'portalaichatwidget.voto_up' : 'portalaichatwidget.voto_down')}
           onClick={() => votar(util)}
-          style={{ border: `1px solid ${voto === util ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
+          style={{ border: `1px solid ${voto === util ? 'var(--accent)' : 'var(--surface-4)'}` }}>
           {util ? '👍' : '👎'}
         </button>
       ))}

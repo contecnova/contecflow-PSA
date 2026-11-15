@@ -68,3 +68,23 @@
   font-weight: 600;
   margin-bottom: 6px;
 }
+
+/* ── Estilos estaticos extraidos de ProjectRiskBadge.tsx (#17) ── */
+.projectr-sx1.projectr-sx1 {
+  border-radius: 20px;
+}
+.projectr-sx2 {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  width: 240px;
+  box-shadow: var(--shadow-tip);
+  z-index: var(--z-modal);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}

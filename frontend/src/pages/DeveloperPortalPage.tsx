@@ -122,7 +122,7 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
           <label style={LS}>{t('developer.app_scopes_label')}</label>
           <div className="u-wrap-8">
             {AVAILABLE_SCOPES.map(s => (
-              <button key={s} onClick={() => toggleScope(s)} className="devp-btn" style={{ borderRadius: 20, border: `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}`, background: f.scopes.includes(s) ? 'var(--accent-muted)' : 'transparent', color: f.scopes.includes(s) ? 'var(--accent)' : 'var(--text-2)' }}>{s}</button>
+              <button key={s} onClick={() => toggleScope(s)} className={`devp-btn develope-sx3 ${f.scopes.includes(s) ? 'develope-sx4' : 'develope-sx5'}`} style={{ border: `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}` }}>{s}</button>
             ))}
           </div>
         </div>
@@ -159,7 +159,7 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
           <label style={LS}>{t('developer.client_id')}</label>
           <div className="u-row-center-8">
             <code style={{ ...MONO, flex: 1 }}>{app.client_id}</code>
-            <Button variant="secondary" onClick={() => copy(app.client_id)} style={{ fontSize: "var(--text-sm)", flexShrink: 0 }}>{t('developer.copy_btn')}</Button>
+            <Button variant="secondary" onClick={() => copy(app.client_id)} className="develope-sx1">{t('developer.copy_btn')}</Button>
           </div>
         </div>
         <div>
@@ -219,7 +219,7 @@ export default function DeveloperPortalPage(): JSX.Element {
   })
 
   return (
-    <PageShell style={{ maxWidth: 960, margin: '0 auto' }}>
+    <PageShell className="devp-box-4">
       <PageHeader
         icon={<Code2 size={18} />}
         title={t('developer.portal_title')}
@@ -242,7 +242,7 @@ export default function DeveloperPortalPage(): JSX.Element {
             <div key={app.id} className="devp-card-3">
               <div className="devp-row-2">
                 <div className="devp-box-2">{app.name}</div>
-                <span className="devp-label" style={{ background: app.is_active ? 'var(--success-border)' : 'var(--surface-4)', color: app.is_active ? 'var(--success)' : 'var(--text-3)' }}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</span>
+                <span className={`devp-label ${app.is_active ? 'develope-sx6' : 'develope-sx7'}`}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</span>
               </div>
               {app.description && <p className="devp-text-3">{app.description}</p>}
               <div className="u-mb-10">
@@ -255,9 +255,9 @@ export default function DeveloperPortalPage(): JSX.Element {
                 ))}
               </div>
               <div className="u-wrap-8">
-                <Button variant="secondary" onClick={() => setViewCreds(app)} style={{ fontSize: "var(--text-sm)" }}>{t('developer.credentials_btn')}</Button>
-                <Button variant="secondary" onClick={() => setEditing(app)} style={{ fontSize: "var(--text-sm)" }}>{t('developer.edit_btn')}</Button>
-                <Button variant="danger" style={{ fontSize: "var(--text-sm)" }} onClick={() =>
+                <Button variant="secondary" onClick={() => setViewCreds(app)} className="develope-sx2">{t('developer.credentials_btn')}</Button>
+                <Button variant="secondary" onClick={() => setEditing(app)} className="develope-sx2">{t('developer.edit_btn')}</Button>
+                <Button variant="danger" className="develope-sx2" onClick={() =>
                   openConfirmGlobal({ title: t('developer.delete_app_title'), message: t('developer.delete_app_confirm', { name: app.name }), onConfirm: () => deleteApp(app.id) })
                 }>{t('developer.delete_btn')}</Button>
               </div>

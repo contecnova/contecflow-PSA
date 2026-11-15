@@ -429,3 +429,18 @@
   box-sizing: border-box;
   flex: 1 1 220px;
 }
+
+/* ── Estilos estaticos extraidos de VoiceAgentPanel.tsx (#17) ── */
+.voiceage-sx1 {
+  color: var(--success);
+  flex-shrink: 0;
+}
+.voiceage-sx2.voiceage-sx2 {
+  border-radius: 8px;
+}
+.voiceage-sx3 {
+  padding: 20px 22px;
+}
+.voiceage-sx4 {
+  color: var(--success);
+}

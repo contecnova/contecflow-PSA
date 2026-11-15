@@ -179,7 +179,7 @@ export function PortalSupportDesk() {
       setShowCreate(false)
       setCreateForm({ title: '', description: '', ticket_type: 'incident', urgency: 'medium', impact: 'user', service_item_id: '', ci_id: '' })
       setDynamicValues({})
-      toast.success('Ticket abierto')
+      toast.success(traducir('portalsupportdesk.ticket_abierto'))
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -190,7 +190,7 @@ export function PortalSupportDesk() {
   })
   const { mutate: submitCSAT } = useMutation({
     mutationFn: (d: Record<string, unknown>) => CLIENT_API.post(`/sd/tickets/${selectedId}/csat`, d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-sd-ticket', selectedId] }); toast.success('Gracias por tu valoración') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-sd-ticket', selectedId] }); toast.success(traducir('portalsupportdesk.gracias_por_tu_valoracion')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -273,11 +273,11 @@ export function PortalSupportDesk() {
             ticketDetail.assigned_to_name && { value: ticketDetail.assigned_to_name, label: 'agente' },
             ticketDetail.sla_resolution_due && { value: ticketDetail.sla_resolution_due, label: 'SLA resolución' },
           ].filter(Boolean) : []}
-          actions={<PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={() => setSelectedId(null)}>Volver</PortalButton>}
+          actions={<PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={() => setSelectedId(null)}>{traducir('chat.back')}</PortalButton>}
         />
 
         {!ticketDetail ? (
-          <div className="posude-box-1">Cargando ticket...</div>
+          <div className="posude-box-1">{traducir('portalsupportdesk.cargando_ticket')}</div>
         ) : (
           <>
             <div className="posude-row-1">
@@ -285,33 +285,33 @@ export function PortalSupportDesk() {
               <PortalBadge tone={PRIORITY_TONE[ticketDetail.priority || ""] || 'default'}>{ticketDetail.priority_label}</PortalBadge>
             </div>
 
-            <PortalCard style={{ marginBottom: 14 }}>
-              <div className="posude-box-2">Objetos vinculados</div>
+            <PortalCard className="portalsu-sx1">
+              <div className="posude-box-2">{traducir('portalsupportdesk.objetos_vinculados')}</div>
               <div className="posude-grid-1">
                 <div className="posude-box-3">
-                  <div className="posude-txt-1">Cliente</div>
+                  <div className="posude-txt-1">{traducir('chat.client')}</div>
                   <div className="posude-box-4">{ticketDetail.client_name || '—'}</div>
                 </div>
                 <div className="posude-box-3">
-                  <div className="posude-txt-1">Servicio</div>
+                  <div className="posude-txt-1">{traducir('cmdb.type_service')}</div>
                   <div className="posude-box-4">{ticketDetail.service_item_name || '—'}</div>
                 </div>
                 <div className="posude-box-5">
-                  <div className="posude-txt-1">CI vinculado</div>
+                  <div className="posude-txt-1">{traducir('portalsupportdesk.ci_vinculado')}</div>
                   <div className="posude-box-4">{ticketDetail.ci_name || '—'}</div>
                 </div>
               </div>
             </PortalCard>
 
-              <PortalCard style={{ marginBottom: 14 }}>
+              <PortalCard className="portalsu-sx1">
               <div className="posude-box-2">{traducir('portalsupportdesk.descripcion_original')}</div>
               <p className="posude-box-6">{ticketDetail.description}</p>
             </PortalCard>
 
             {ticketDetail.dynamic_fields && Object.keys(ticketDetail.dynamic_fields).length > 0 && (
-              <PortalCard style={{ marginBottom: 14 }}>
+              <PortalCard className="portalsu-sx1">
                 <div className="posude-box-2">
-                  Campos adicionales
+                  {traducir('portalsupportdesk.campos_adicionales')}
                 </div>
                 <div className="posude-grid-1">
                   {Object.entries(ticketDetail.dynamic_fields).map(([k, v]) => (
@@ -325,7 +325,7 @@ export function PortalSupportDesk() {
             )}
 
             {ticketDetail.resolution && (
-              <PortalCard style={{ marginBottom: 14, borderColor: 'var(--success-border, rgba(16,185,129,0.3))' }}>
+              <PortalCard className="portalsu-sx2">
                 <div className="posude-row-2">
                   <CheckCircle2 size={13} /> {traducir('portalsupportdesk.resolucion_del_equipo')}
                 </div>
@@ -334,9 +334,9 @@ export function PortalSupportDesk() {
             )}
 
             {ticketDetail.csat_requested_at && !ticketDetail.csat_score && (
-              <PortalCard style={{ marginBottom: 14, borderColor: 'var(--success-border, rgba(16,185,129,0.3))' }}>
+              <PortalCard className="portalsu-sx2">
                 <div className="posude-row-3">
-                  <Star size={14} style={{ color: 'var(--warning)' }} /> {traducir('portalsupportdesk.como_valorarias_la_atencion_recibida')}
+                  <Star size={14} className="portalsu-sx3" /> {traducir('portalsupportdesk.como_valorarias_la_atencion_recibida')}
                 </div>
                 <div className="u-row-8">
                   {[1, 2, 3, 4, 5].map(n => (
@@ -350,7 +350,7 @@ export function PortalSupportDesk() {
             )}
 
             {Array.isArray(ticketDetail.history) && ticketDetail.history.length > 0 && (
-              <PortalCard style={{ marginBottom: 14 }}>
+              <PortalCard className="portalsu-sx1">
                 <div className="posude-box-2">{traducir('portalsupportdesk.actividad_del_ticket')}</div>
                 <div className="u-stack-8">
                   {ticketDetail.history.slice(-8).reverse().map((h, idx) => (
@@ -366,7 +366,7 @@ export function PortalSupportDesk() {
             )}
 
             {upcomingEvents.length > 0 && (
-              <PortalCard style={{ marginBottom: 14 }}>
+              <PortalCard className="portalsu-sx1">
                 <div className="posude-box-2">{traducir('portalsupportdesk.calendario_de_eventos')}</div>
                 <div className="u-stack-8">
                   {upcomingEvents.map((ev) => (
@@ -390,9 +390,9 @@ export function PortalSupportDesk() {
                     <div className="posude-row-5">
                       <span className="u-sm-700">{c.author_name}</span>
                       <span className="u-text3-xs">{c.created_at}</span>
-                      {c.author_type === 'agent' && <PortalBadge tone="accent">Agente</PortalBadge>}
+                      {c.author_type === 'agent' && <PortalBadge tone="accent">{traducir('agent_dashboard.agent')}</PortalBadge>}
                     </div>
-                    <div className="posude-box-18" style={{ background: c.author_type === 'agent' ? 'var(--surface-3)' : 'var(--accent-muted)', border: `1px solid ${c.author_type === 'agent' ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}`, borderRadius: 'var(--radius-md)' }}>{c.body}</div>
+                    <div className="posude-box-18 portalsu-sx4" style={{ background: c.author_type === 'agent' ? 'var(--surface-3)' : 'var(--accent-muted)', border: `1px solid ${c.author_type === 'agent' ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}` }}>{c.body}</div>
                   </div>
                 </div>
               ))}
@@ -400,13 +400,13 @@ export function PortalSupportDesk() {
 
             {!['closed', 'cancelled'].includes(ticketDetail.status || '') && (
               <PortalCard>
-                <PortalField label="Tu respuesta">
-                  <PortalTextarea rows={4} value={newComment} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setNewComment(e.target.value)} placeholder="Escribe tu respuesta..." />
+                <PortalField label={traducir('portalsupportdesk.tu_respuesta')}>
+                  <PortalTextarea rows={4} value={newComment} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setNewComment(e.target.value)} placeholder={traducir('portalsupportdesk.escribe_tu_respuesta')} />
                 </PortalField>
                 <div className="posude-row-6">
                   <PortalButton icon={<Send size={13} />} disabled={!newComment.trim()}
                     onClick={() => { addComment({ body: newComment, is_public: true }); setNewComment('') }}>
-                    Enviar respuesta
+                    {traducir('clientstabs.enviar_respuesta')}
                   </PortalButton>
                 </div>
               </PortalCard>
@@ -422,7 +422,7 @@ export function PortalSupportDesk() {
     <div>
       <PortalPageHeader
         title="Service Desk"
-        subtitle="Tickets de soporte, base de conocimiento y comunicados del equipo."
+        subtitle={traducir('portalsupportdesk.tickets_de_soporte_base_de_conocimiento_y')}
         icon={Headphones}
         meta={[
           { value: openTickets, label: 'tickets abiertos', color: 'var(--accent)' },
@@ -430,7 +430,7 @@ export function PortalSupportDesk() {
           { value: announcements.length, label: 'comunicados activos' },
         ]}
         actions={
-          <PortalButton icon={<Plus size={14} />} onClick={() => { setDynamicValues({}); setShowCreate(true) }}>Abrir ticket</PortalButton>
+          <PortalButton icon={<Plus size={14} />} onClick={() => { setDynamicValues({}); setShowCreate(true) }}>{traducir('portaldashboard.abrir_ticket')}</PortalButton>
         }
       />
 
@@ -462,8 +462,8 @@ export function PortalSupportDesk() {
       {tab === 'tickets' && (
         tickets.length === 0 ? (
           <PortalEmpty icon={Headphones} title={traducir('portalsupportdesk.no_tienes_tickets')}
-            description="¿Necesitas ayuda? Abre un ticket y el equipo te atenderá en plazo SLA."
-            action={<PortalButton icon={<Plus size={14} />} onClick={() => { setDynamicValues({}); setShowCreate(true) }}>Abrir ticket</PortalButton>}
+            description={traducir('portalsupportdesk.necesitas_ayuda_abre_un_ticket_y_el')}
+            action={<PortalButton icon={<Plus size={14} />} onClick={() => { setDynamicValues({}); setShowCreate(true) }}>{traducir('portaldashboard.abrir_ticket')}</PortalButton>}
           />
         ) : (
           <div className="u-stack-10">
@@ -479,8 +479,8 @@ export function PortalSupportDesk() {
                         <span className="u-sm-700">{tk.title}</span>
                       </div>
                       <div className="posude-row-10">
-                        <span>Creado: {tk.created_at}</span>
-                        {tk.assigned_to_name && <span>Asignado: {tk.assigned_to_name}</span>}
+                        <span>{traducir('portalsupportdesk.creado')} {tk.created_at}</span>
+                        {tk.assigned_to_name && <span>{traducir('portalsupportdesk.asignado')} {tk.assigned_to_name}</span>}
                       </div>
                     </div>
                     <div className="u-row-center-6">
@@ -508,7 +508,7 @@ export function PortalSupportDesk() {
       {tab === 'kb' && !articuloAbierto && (
         <>
           <div className="posude-box-11">
-            <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
+            <Search size={14} className="portalsu-sx5" />
             <PortalInput value={searchKB} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setSearchKB(e.target.value)} placeholder={traducir('portalsupportdesk.buscar_articulo')}
               style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
           </div>
@@ -564,13 +564,13 @@ export function PortalSupportDesk() {
         open={showCreate}
         onClose={() => { setDynamicValues({}); setShowCreate(false) }}
         title={traducir('portalsupportdesk.abrir_nuevo_ticket')}
-        subtitle="Cuéntanos qué necesitas. Sigue las plantillas si te ayuda."
+        subtitle={traducir('portalsupportdesk.cuentanos_que_necesitas_sigue_las_plantillas_si')}
         width={620}
         footer={
           <>
-            <PortalButton variant="secondary" onClick={() => { setDynamicValues({}); setShowCreate(false) }}>Cancelar</PortalButton>
+            <PortalButton variant="secondary" onClick={() => { setDynamicValues({}); setShowCreate(false) }}>{traducir('common.cancel')}</PortalButton>
             <PortalButton loading={creatingTicket} disabled={!createForm.title || !createForm.description}
-              onClick={() => createTicket({ ...createForm, dynamic_fields: dynamicValues })}>Abrir ticket</PortalButton>
+              onClick={() => createTicket({ ...createForm, dynamic_fields: dynamicValues })}>{traducir('portaldashboard.abrir_ticket')}</PortalButton>
           </>
         }
       >
@@ -581,20 +581,20 @@ export function PortalSupportDesk() {
           <PortalField label={traducir('portalsupportdesk.servicio_del_catalogo')}>
             <PortalSelect value={createForm.service_item_id}
               onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, service_item_id: e.target.value }))}>
-              <option value="">Seleccionar...</option>
+              <option value="">{traducir('invoices.select')}</option>
               {catalog.map(cat => (
                 <optgroup key={cat.id} label={`${cat.icon || ''} ${cat.name}`}>
-                  {cat.services.map(s => <option key={s.id} value={s.id}>{s.name} — SLA {s.sla_resolution_hours}h</option>)}
+                  {cat.services.map(s => <option key={s.id} value={s.id}>{s.name} {traducir('portalsupportdesk.sla')} {s.sla_resolution_hours}h</option>)}
                 </optgroup>
               ))}
             </PortalSelect>
           </PortalField>
         )}
         {(contextOptions.cis || []).length > 0 && (
-          <PortalField label="CI afectado (opcional)">
+          <PortalField label={traducir('portalsupportdesk.ci_afectado_opcional')}>
             <PortalSelect value={createForm.ci_id || ''}
               onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, ci_id: e.target.value }))}>
-              <option value="">Seleccionar...</option>
+              <option value="">{traducir('invoices.select')}</option>
               {(contextOptions.cis || []).map(ci => (
                 <option key={ci.id} value={ci.id}>{ci.code ? `${ci.code} - ` : ''}{ci.name}</option>
               ))}
@@ -609,7 +609,7 @@ export function PortalSupportDesk() {
                 ['service_request', 'Solicitud', ClipboardList],
                 ['question', 'Consulta', HelpCircle],
               ] as [string, string, typeof Bug][]).map(([v, l, Icon]) => (
-                <button className="posude-row-16" key={v} onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))} style={{ background: createForm.ticket_type === v ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${createForm.ticket_type === v ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, color: createForm.ticket_type === v ? 'var(--accent)' : 'var(--text-2)' }}><Icon size={14} /> {l}</button>
+                <button className="posude-row-16 portalsu-sx6" key={v} onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))} style={{ background: createForm.ticket_type === v ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${createForm.ticket_type === v ? 'var(--accent)' : 'var(--surface-4)'}`, color: createForm.ticket_type === v ? 'var(--accent)' : 'var(--text-2)' }}><Icon size={14} /> {l}</button>
               ))}
             </div>
           </PortalField>
@@ -621,18 +621,18 @@ export function PortalSupportDesk() {
             <PortalTextarea rows={4} value={createForm.description} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portalsupportdesk.describe_el_problema_o_solicitud')} />
           </PortalField>
           <div className="u-grid2-12">
-            <PortalField label="Urgencia">
+            <PortalField label={traducir('service_desk.edit_urgency')}>
               <PortalSelect value={createForm.urgency} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, urgency: e.target.value }))}>
                 <option value="critical">{traducir('portalsupportdesk.critica_el_negocio_esta_parado')}</option>
                 <option value="high">{traducir('portalsupportdesk.alta_funcionalidad_importante_no_funciona')}</option>
                 <option value="medium">{traducir('portalsupportdesk.media_hay_un_workaround')}</option>
-                <option value="low">Baja — problema menor</option>
+                <option value="low">{traducir('portalsupportdesk.baja_problema_menor')}</option>
               </PortalSelect>
             </PortalField>
-            <PortalField label="Impacto">
+            <PortalField label={traducir('cmdb.impact')}>
               <PortalSelect value={createForm.impact} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, impact: e.target.value }))}>
                 <option value="enterprise">{traducir('portalsupportdesk.toda_la_empresa')}</option>
-                <option value="department">Mi departamento</option>
+                <option value="department">{traducir('portalsupportdesk.mi_departamento')}</option>
                 <option value="user">{traducir('portalsupportdesk.solo_a_mi')}</option>
                 <option value="minimal">{traducir('portalsupportdesk.minimo')}</option>
               </PortalSelect>
@@ -655,7 +655,7 @@ export function PortalSupportDesk() {
                   value={dynamicValues[f.id] || ''}
                   onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 >
-                  <option value="">Seleccionar...</option>
+                  <option value="">{traducir('invoices.select')}</option>
                   {(f.options || []).map(op => <option key={op} value={op}>{op}</option>)}
                 </PortalSelect>
               ) : f.type === 'textarea' ? (

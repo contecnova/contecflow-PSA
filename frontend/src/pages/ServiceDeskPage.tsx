@@ -137,7 +137,7 @@ export default function ServiceDeskPage() {
       )}
 
       {/* Content */}
-      <div className={`min-w-0${!isMobile && splitMode ? ' sdp-split' : ''}`}>
+      <div className={`sdp-main${!isMobile && splitMode ? ' sdp-split' : ''}`}>
         {/* List panel — hidden on mobile when viewing detail */}
         {(!isMobile || !splitMode || mobileView === 'list') && (
           <div>
@@ -220,7 +220,7 @@ function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[
   }
   return (
     <div className="ds-card sdp-apr-list">
-      {items.map((a, i) => (
+      {items.map((a) => (
         <button key={a.approval_id} type="button" onClick={() => onSelect(a.ticket_id)}
           aria-pressed={seleccionado === a.ticket_id} className="sdp-apr-item">
           <span className="sdp-apr-number">{a.number}</span>

@@ -96,11 +96,17 @@ export function ariaSort(sort: SortState | undefined, col: string): 'ascending' 
 export function SortableTH({ col, sort, onSort, children, style = {}, align = 'left' }: SortableTHProps) {
   const isActive = sort?.key === col
   const dir: SortDir = sort?.dir ?? 'asc'
+  const t = useTextoUi()
+  const nombre = typeof children === 'string' ? children : col
+  // Estado actual (solo si esta columna ordena) y lo que hará el clic.
+  const estado = isActive ? t(dir === 'asc' ? 'uikit.orden_actual_asc' : 'uikit.orden_actual_desc') : ''
+  const accion = t(isActive && dir === 'asc' ? 'uikit.ordenar_desc' : 'uikit.ordenar_asc')
+  const etiqueta = estado ? `${nombre}, ${estado}; ${accion}` : `${nombre}, ${accion}`
   return (
     <button
       type="button"
       onClick={() => onSort(col)}
-      aria-label={`${typeof children === 'string' ? children : col}, ${isActive ? `orden ${dir === 'asc' ? 'ascendente' : 'descendente'}; ` : ''}ordenar ${isActive ? (dir === 'asc' ? 'descendente' : 'ascendente') : 'ascendente'}`}
+      aria-label={etiqueta}
       style={{
         display: 'flex', alignItems: 'center', gap: 4,
         justifyContent: align === 'right' ? 'flex-end' : 'flex-start',

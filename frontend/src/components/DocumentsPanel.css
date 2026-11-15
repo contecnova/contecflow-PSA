@@ -189,3 +189,19 @@
   cursor: pointer;
   color: var(--purple);
 }
+
+/* ── Estilos estaticos extraidos de DocumentsPanel.tsx (#17) ── */
+.document-sx2.document-sx2 {
+  border-radius: 8px;
+}
+.document-sx3 {
+  display: inline;
+  margin-right: 4px;
+}
+.document-sx4 {
+  animation: spin 0.8s linear infinite;
+}
+.document-sx5 {
+  animation: spin 0.8s linear infinite;
+  color: var(--text-3);
+}

@@ -10,7 +10,7 @@
 import type { CSSProperties, ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useId, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { userCostsApi, apiErrorMsg, unwrapList } from '../services/api'
+import { userCostsApi, usersApi, apiErrorMsg } from '../services/api'
 import type { PerfilDeCoste, PresetDePais, ResumenDeCostes } from '../services/api/tipos-finanzas'
 import { Button, Modal, Spinner, EmptyState, Input} from '../components/ui'
 import PageShell from '../components/layout/PageShell'
@@ -23,13 +23,13 @@ import StatusBadge from '../components/ui/StatusBadge'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { fmtDate, localeActivo } from '../utils/helpers'
-import { SELECTOR_LIST_SIZE } from '../constants/pagination'
 import './UserCostsPage.css'
 
 /** Un preset (serialize_country) o uno nuevo a medio rellenar. */
 type CountryRow = Partial<PresetDePais>
 type SummaryRow = ResumenDeCostes['users'][number]
-type UserRow = { [k: string]: unknown; id: string; full_name?: string }
+/** Lo que la pantalla usa de una persona: su id y su nombre. */
+type UserRow = { id: string; full_name?: string | null }
 type ProfileRow = PerfilDeCoste
 
 
@@ -54,9 +54,11 @@ export default function UserCostsPage() {
     queryFn: () => userCostsApi.listCountries().then(r => r.data),
   })
 
+  // Pantalla de administración: la ficha completa de toda la plantilla. Sin `page`,
+  // `usersApi.list` recorre todas las páginas (antes se cortaba en SELECTOR_LIST_SIZE).
   const { data: users = [] } = useQuery<UserRow[]>({
     queryKey: ['users-list-for-costs'],
-    queryFn: () => api.get('/users', { params: { page_size: SELECTOR_LIST_SIZE } }).then(unwrapList).catch(() => []) as Promise<UserRow[]>,
+    queryFn: () => usersApi.list().then(r => r.data.map(u => ({ id: u.id, full_name: u.full_name }))),
   })
 
   const seedCountriesMut = useMutation({

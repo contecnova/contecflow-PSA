@@ -293,6 +293,9 @@ def publicar(db: Session, usuario, politica_id: str) -> dict:
     p.estado, p.publicada_por, p.publicada_en, p.updated_at = "publicada", usuario.id, ahora, ahora
     db.commit()
     motor.invalidar(p.organization_id, p.dominio)
+    dominio = catalogo.dominio(p.dominio)
+    if dominio.al_publicar is not None:
+        dominio.al_publicar(db, politica_dict(p))
     return detalle(db, p.id)
 
 

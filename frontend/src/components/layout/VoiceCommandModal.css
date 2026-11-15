@@ -147,3 +147,35 @@
   margin-bottom: 14px;
   font-size: var(--text-sm);
 }
+
+/* ── Estilos estaticos extraidos de VoiceCommandModal.tsx (#17) ── */
+.voicecom-sx1 {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.voicecom-sx2 {
+  width: 480px;
+  max-width: 92vw;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 22px 26px;
+  box-shadow: var(--shadow-modal);
+}
+.voicecom-sx3 {
+  background: var(--danger-bg-strong);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: var(--text-sm);
+  margin-bottom: 14px;
+}
+.voicecom-sx4.voicecom-sx4 {
+  border-radius: 50%;
+}

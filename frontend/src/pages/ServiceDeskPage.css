@@ -39,3 +39,5 @@
 .sdp-apr-title { display: block; font-weight: 600; }
 .sdp-apr-meta { display: block; font-size: var(--text-xs); color: var(--text-3); }
 .sdp-apr-date { font-size: var(--text-xs); color: var(--text-3); white-space: nowrap; }
+
+.sdp-main { min-width: 0; }

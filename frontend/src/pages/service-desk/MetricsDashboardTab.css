@@ -262,3 +262,14 @@
   align-items: center;
   gap: 10px;
 }
+
+/* ── Estilos estaticos extraidos de MetricsDashboardTab.tsx (#17) ── */
+.metricsd-sx1.metricsd-sx1 {
+  border-radius: 8px;
+}
+.metricsd-sx2.metricsd-sx2 {
+  border-radius: 50%;
+}
+.metricsd-sx3.metricsd-sx3 {
+  border-radius: var(--radius-sm);
+}

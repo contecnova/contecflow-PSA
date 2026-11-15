@@ -372,3 +372,53 @@
   color: var(--text-3);
   margin-top: 6px;
 }
+
+/* ── Estilos en linea extraidos de NexusAgentPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.nexusage-sx1.nexusage-sx1 {
+  border-radius: var(--radius-sm);
+}
+.nexusage-sx2.nexusage-sx2 {
+  border-radius: var(--radius-md);
+}
+.nexusage-sx3.nexusage-sx3 {
+  border-radius: 9px;
+}
+.nexusage-sx4.nexusage-sx4 {
+  color: var(--accent);
+}
+.nexusage-sx5.nexusage-sx5 {
+  color: var(--text-3);
+}
+.nexusage-sx6.nexusage-sx6 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.nexusage-sx7.nexusage-sx7 {
+  grid-template-columns: minmax(0, 1fr) 260px;
+}
+.nexusage-sx8.nexusage-sx8 {
+  background: var(--accent);
+}
+.nexusage-sx9.nexusage-sx9 {
+  background: var(--surface-4);
+}
+.nexusage-sx10.nexusage-sx10 {
+  left: 14px;
+}
+.nexusage-sx11.nexusage-sx11 {
+  left: 2px;
+}
+.nexusage-sx12.nexusage-sx12 {
+  margin-bottom: 16px;
+}
+.nexusage-sx13.nexusage-sx13 {
+  margin-bottom: 0;
+}
+.nexusage-sx14.nexusage-sx14 {
+  border: none;
+}
+.nexusage-sx15.nexusage-sx15 {
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+}
+.nexusage-sx16.nexusage-sx16 {
+  border-bottom: none;
+}

@@ -156,7 +156,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
   }, [data, renderGraph])
 
   return (
-    <Card className={className} style={{ padding: '20px 22px' }}>
+    <Card className={`${className} cmdb3dgr-sx1`}>
       <div className="cmdb3d-row-1">
         <h2 className="cmdb3d-box-1">
           {t('sd.cmdb3d.title', 'Mapa 3D de Dependencias CMDB')}
@@ -205,9 +205,9 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
       <div className="cmdb3d-box-4">
         <div className="cmdb3d-fieldlabel">{t('sd.cmdb3d.blast_radius', 'Radio de impacto (Blast Radius)')}</div>
         <div className="cmdb3d-row-6">
-          <input aria-label="CI ID (ej: ci-app-server-01)"
+          <input aria-label={t('cmdb3dgraph.ci_id_ej_ci_app_server_01')}
             type="text"
-            placeholder="CI ID (ej: ci-app-server-01)"
+            placeholder={t('cmdb3dgraph.ci_id_ej_ci_app_server_01')}
             value={blastCiId}
             onChange={e => setBlastCiId(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleBlastRadius()}
@@ -229,9 +229,9 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
             <div className="cmdb3d-box-5">
               <div className="cmdb3d-sp-1">
                 <strong className="u-text1">{ciName}</strong>
-                {' afecta a '}
+                {` ${t('cmdb3dgraph.afecta_a')} `}
                 <strong style={{ color: total > 0 ? 'var(--danger)' : 'var(--success)' }}>{total}</strong>
-                {' CI(s) dependientes'}
+                {` ${t('cmdb3dgraph.ci_s_dependientes')}`}
               </div>
               {list.length === 0 ? (
                 <div className="u-text3-xs">

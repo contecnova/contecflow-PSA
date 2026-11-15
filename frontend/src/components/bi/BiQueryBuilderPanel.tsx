@@ -192,7 +192,7 @@ export default function BiQueryBuilderPanel() {
       {/* Header */}
       <div className="biqubupa-ps2">
         <div>
-          <div className="biqubupa-txt-2">🔧 Query Builder Visual</div>
+          <div className="biqubupa-txt-2">{traducir('biquerybuilder.query_builder_visual')}</div>
           <div className="biqubupa-box-1">
             {traducir('biquerybuilder.construye_consultas_bi_sin_sql_de_forma')}
           </div>
@@ -216,7 +216,7 @@ export default function BiQueryBuilderPanel() {
           <div className="biqubupa-ps">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="biqubupa-ls">Dataset</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="biqubupa-is" value={dataset} onChange={e => { setDataset(e.target.value); setSelectedFields([]); setGroupBy([]) }}>
-              <option value="">Seleccionar dataset…</option>
+              <option value="">{traducir('biquerybuilder.seleccionar_dataset')}</option>
               {datasets.map(d => <option key={d.name} value={d.name}>{d.label ?? d.name}</option>)}
             </select>
           </div>
@@ -225,7 +225,7 @@ export default function BiQueryBuilderPanel() {
             <>
               {/* Fields */}
               <div className="biqubupa-ps">
-                <div className="biqubupa-box-2">Campos a incluir</div>
+                <div className="biqubupa-box-2">{traducir('constructor_informes_ui.campos_incluir')}</div>
                 <div className="u-wrap-8">
                   {availableFields.map(f => (
                     <button key={f.name} onClick={() => toggleField(f.name)}
@@ -239,19 +239,19 @@ export default function BiQueryBuilderPanel() {
               {/* Filters */}
               <div className="biqubupa-ps">
                 <div className="biqubupa-row-2">
-                  <span className="u-base-600">Filtros</span>
+                  <span className="u-base-600">{traducir('visual_query_builder.filters')}</span>
                   <button style={btn(false)} onClick={addFilter}>{traducir('biquerybuilder.anadir_filtro')}</button>
                 </div>
                 {filters.map((f, i) => (
                   <div key={i} className="biqubupa-row-3">
                     <select className="biqubupa-is2" value={f.field} onChange={e => updateFilter(i, 'field', e.target.value)}>
-                      <option value="">Campo…</option>
+                      <option value="">{traducir('constructor_informes_ui.campo')}</option>
                       {availableFields.map(af => <option key={af.name} value={af.name}>{af.label ?? af.name}</option>)}
                     </select>
                     <select className="biqubupa-is3" value={f.operator} onChange={e => updateFilter(i, 'operator', e.target.value)}>
                       {Object.entries(operadores).map(([op, def]) => <option key={op} value={op}>{def.label}</option>)}
                     </select>
-                    <input aria-label="Valor" className="biqubupa-is2" placeholder={NULL_OPS.has(f.operator) ? 'N/A' : 'Valor'} value={f.value}
+                    <input aria-label={traducir('pol.valor')} className="biqubupa-is2" placeholder={NULL_OPS.has(f.operator) ? 'N/A' : 'Valor'} value={f.value}
                       disabled={NULL_OPS.has(f.operator)}
                       onChange={e => updateFilter(i, 'value', e.target.value)} />
                     <button style={{ ...btn(false), padding: '5px 10px', color: 'var(--danger)' }} onClick={() => removeFilter(i)}>✕</button>
@@ -271,7 +271,7 @@ export default function BiQueryBuilderPanel() {
                   ))}
                 </div>
                 <div className="biqubupa-row-5">
-                  <span className="u-base-600">Agregaciones</span>
+                  <span className="u-base-600">{traducir('biquerybuilder.agregaciones')}</span>
                   <button style={btn(false)} onClick={addAgg}>{traducir('biquerybuilder.anadir')}</button>
                 </div>
                 {aggregations.map((a, i) => (
@@ -282,7 +282,7 @@ export default function BiQueryBuilderPanel() {
                     <select className="biqubupa-is5" value={a.func} onChange={e => updateAgg(i, 'func', e.target.value)}>
                       {agregaciones.map(fn => <option key={fn} value={fn}>{fn}</option>)}
                     </select>
-                    <input aria-label="Alias (opcional)" className="biqubupa-is6" placeholder="Alias (opcional)" value={a.alias}
+                    <input aria-label={traducir('biquerybuilder.alias_opcional')} className="biqubupa-is6" placeholder={traducir('biquerybuilder.alias_opcional')} value={a.alias}
                       onChange={e => updateAgg(i, 'alias', e.target.value)} />
                     <button style={{ ...btn(false), color: 'var(--danger)', padding: '5px 10px' }}
                       onClick={() => setAggregations(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
@@ -302,8 +302,8 @@ export default function BiQueryBuilderPanel() {
                 <div className="biqubupa-box-4">
                   <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="biqubupa-ls">{traducir('biquerybuilder.direccion')}</label>
                   <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="biqubupa-is" value={sortDir} onChange={e => setSortDir(e.target.value)}>
-                    <option value="asc">ASC ↑</option>
-                    <option value="desc">DESC ↓</option>
+                    <option value="asc">{traducir('biquerybuilder.asc')}</option>
+                    <option value="desc">{traducir('biquerybuilder.desc')}</option>
                   </select>
                 </div>
                 <div className="biqubupa-box-4">
@@ -317,7 +317,7 @@ export default function BiQueryBuilderPanel() {
               <div className="biqubupa-row-7">
                 <div className="biqubupa-box-5">
                   <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="biqubupa-ls">{traducir('biquerybuilder.nombre_de_la_query_requerido_para_guardar')}</label>
-                  <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} className="biqubupa-is" placeholder="Mi query…" value={queryName}
+                  <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} className="biqubupa-is" placeholder={traducir('biquerybuilder.mi_query')} value={queryName}
                     onChange={e => setQueryName(e.target.value)} />
                 </div>
                 <button style={btn(false)} onClick={handleSaveBuilder}
@@ -349,13 +349,13 @@ export default function BiQueryBuilderPanel() {
                   <div>
                     <div className="u-md-600">{q.name}</div>
                     <div className="u-text3-sm">
-                      Dataset: <b>{q.dataset}</b> · Campos: {(q.fields ?? []).join(', ') || '—'}
+                      {traducir('biquerybuilder.dataset')} <b>{q.dataset}</b> {traducir('biquerybuilder.campos')} {(q.fields ?? []).join(', ') || '—'}
                     </div>
                   </div>
                   <div className="u-row-8">
-                    <button style={btn(false)} onClick={() => loadSavedQuery(q)}>✎ Cargar</button>
+                    <button style={btn(false)} onClick={() => loadSavedQuery(q)}>{traducir('biquerybuilder.cargar')}</button>
                     <button style={btn(true)} onClick={() => execSavedMut.mutate(q.id)}
-                      disabled={execSavedMut.isPending}>▶ Ejecutar</button>
+                      disabled={execSavedMut.isPending}>{traducir('biquerybuilder.ejecutar')}</button>
                     <button style={{ ...btn(false), color: 'var(--danger)' }} onClick={() => deleteMut.mutate(q.id)}>🗑</button>
                   </div>
                 </div>
@@ -375,7 +375,7 @@ export default function BiQueryBuilderPanel() {
           ) : (
             <div>
               <div className="biqubupa-box-8">
-                {results.row_count} registros · dataset: {results.dataset}
+                {results.row_count} {traducir('biquerybuilder.registros_dataset')} {results.dataset}
                 {results.truncated ? ` · limitados a ${results.row_count}` : ''}
               </div>
               {results.incompleto && (
@@ -394,7 +394,7 @@ export default function BiQueryBuilderPanel() {
                 />
                 {results.rows.length > 200 && (
                   <div className="biqubupa-box-10">
-                    {traducir('biquerybuilder.mostrando_200_de')} {results.rows.length} filas
+                    {traducir('biquerybuilder.mostrando_200_de')} {results.rows.length} {traducir('ci.n_filas')}
                   </div>
                 )}
               </div>

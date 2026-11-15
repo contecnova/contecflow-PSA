@@ -121,6 +121,11 @@ class VendorSerializer(ModelSerializer):
     related_counts = {'contracts': 'contracts_count'}
 
 
+# Un contrato es de renovación urgente si renueva dentro de este número de días
+# (hoy incluido). Lo usa el serializador y el filtro `renewal_urgent` del listado.
+DIAS_RENOVACION_URGENTE = 60
+
+
 class ContractSerializer(ModelSerializer):
     """Serializer para Contract."""
     fields = ['id', 'title', 'reference', 'type', 'status', 'vendor_id',
@@ -138,7 +143,7 @@ class ContractSerializer(ModelSerializer):
             'vendor_name': obj.vendor.name if obj.vendor else None,
             'owner_name': obj.owner.full_name if obj.owner else None,
             'days_to_renewal': days_to_renewal,
-            'renewal_urgent': days_to_renewal is not None and 0 <= days_to_renewal <= 60,
+            'renewal_urgent': days_to_renewal is not None and 0 <= days_to_renewal <= DIAS_RENOVACION_URGENTE,
             'licenses_count': len(obj.licenses) if obj.licenses else 0,
         }
 

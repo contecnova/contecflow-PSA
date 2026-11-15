@@ -29,7 +29,7 @@ export default function LeccionesDeOrigen({ id, origen = 'project', cerrado = fa
       <section aria-label={t(`lec.de_este_${origen}`)} className="ledeor-box-1">
         <div className="ledeor-row-1">
           <strong className="u-sm">{t(`lec.de_este_${origen}`)}</strong>
-          <Button size="sm" variant={cerrado && !lista.length ? 'primary' : 'secondary'} icon={<Plus size={13} />} style={{ marginLeft: 'auto' }} onClick={() => setNueva(true)}>
+          <Button size="sm" variant={cerrado && !lista.length ? 'primary' : 'secondary'} icon={<Plus size={13} />} className="leccione-sx1" onClick={() => setNueva(true)}>
             {t('lec.registrar')}
           </Button>
         </div>

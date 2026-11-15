@@ -108,7 +108,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
       {/* Header */}
       <div className="voagpa-row-1">
         <div className="voagpa-row-2">
-          <Mic size={14} style={{ color: 'var(--success)', flexShrink: 0 }} />
+          <Mic size={14} className="voiceage-sx1" />
           <span className="voagpa-txt-1">
             {session.caller_id}
           </span>
@@ -127,14 +127,14 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
               variant="ghost"
               icon={<ExternalLink size={13} />}
               onClick={() => openTicket(session.ticket_id!)}
-            >Ver ticket</Button>
+            >{t('voiceagent.ver_ticket')}</Button>
           ) : (
             <Button
               size="sm"
               variant="secondary"
               onClick={onCreateTicket}
               loading={creatingTicket}
-            >Crear ticket</Button>
+            >{t('sd.voice.create_ticket')}</Button>
           )}
           <button aria-label={t('voiceagent.cerrar_sesion')}
             type="button"
@@ -163,8 +163,8 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
             variant="danger"
             loading={closing}
             onClick={() => onClose(resolution)}
-          >Confirmar cierre</Button>
-          <Button size="sm" variant="secondary" onClick={() => setShowCloseConfirm(false)}>Cancelar</Button>
+          >{t('voiceagent.confirmar_cierre')}</Button>
+          <Button size="sm" variant="secondary" onClick={() => setShowCloseConfirm(false)}>{t('common.cancel')}</Button>
         </div>
       )}
 
@@ -206,7 +206,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
                 <div className="voagpa-box-14" style={{ textAlign: align === 'flex-end' ? 'right' : 'left' }}>
                   {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
                 </div>
-                <span className="voagpa-box-15" style={{ borderRadius: 8, background: bg, color: fg, border: `1px solid ${border}` }}>{turn.text}</span>
+                <span className="voagpa-box-15 voiceage-sx2" style={{ background: bg, color: fg, border: `1px solid ${border}` }}>{turn.text}</span>
               </div>
             </div>
           )
@@ -234,7 +234,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
             onClick={() => { if (turnText.trim()) { onAddTurn(turnText.trim()); setTurnText('') } }}
             disabled={!turnText.trim() || sending}
             loading={sending}
-          >Enviar</Button>
+          >{t('chat.send')}</Button>
         </div>
       )}
     </div>
@@ -331,7 +331,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
 
       <div className="u-grid2-12">
         <div>
-          <div className="voagpa-fieldlabel">Idioma (BCP-47)</div>
+          <div className="voagpa-fieldlabel">{t('voiceagent.idioma_bcp_47')}</div>
           <select value={draft.language} onChange={e => setField('language', e.target.value)} className="voagpa-inputbase">
             <option value="es-ES">{t('voiceagent.espanol_es_es')}</option>
             <option value="en-US">English (en-US)</option>
@@ -376,10 +376,10 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
               >
                 {intentList.map(i => <option key={i} value={i}>{i}</option>)}
               </select>
-              <button aria-label="Eliminar"
+              <button aria-label={t('common.delete')}
                 type="button"
                 onClick={() => removeDtmf(key)}
-                title="Eliminar"
+                title={t('common.delete')}
                 className="voagpa-box-7"
                 onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
                 onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
@@ -388,14 +388,14 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
           ))}
         </div>
         <div className="voagpa-row-8">
-          <input aria-label="Tecla (ej. 4)"
-            type="text" placeholder="Tecla (ej. 4)" value={newKey}
+          <input aria-label={t('voiceagent.tecla_ej_4')}
+            type="text" placeholder={t('voiceagent.tecla_ej_4')} value={newKey}
             onChange={e => setNewKey(e.target.value)}
             maxLength={2}
             className="voagpa-inputbase6"
           />
-          <input aria-label="Etiqueta visible"
-            type="text" placeholder="Etiqueta visible" value={newLabel}
+          <input aria-label={t('voiceagent.etiqueta_visible')}
+            type="text" placeholder={t('voiceagent.etiqueta_visible')} value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
             className="voagpa-inputbase7"
           />
@@ -424,7 +424,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
               <div key={intent} className="voagpa-box-9">
                 <div className="voagpa-row-9">
                   <span style={chip(color)}>{intent}</span>
-                  <span className="u-text3-xs">{kws.length} palabras</span>
+                  <span className="u-text3-xs">{kws.length} {t('voiceagent.palabras')}</span>
                   <button className="voagpa-row-22"
                     type="button"
                     onClick={() => { setEditingIntent(isEditing ? null : intent); setNewKw('') }}
@@ -461,7 +461,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
       </div>
 
       <div className="u-actions-8">
-        <Button variant="secondary" onClick={() => setDraft(null)}>Descartar cambios</Button>
+        <Button variant="secondary" onClick={() => setDraft(null)}>{t('voiceagent.descartar_cambios')}</Button>
         <Button onClick={() => onSave(draft)} loading={saving}>{t('voiceagent.guardar_configuracion')}</Button>
       </div>
     </div>
@@ -489,14 +489,14 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
           {session.channel && <span className="u-text3-xs">· {session.channel}</span>}
         </div>
         <div className="voagpa-row-13">
-          {session.created_at && <span><span className="u-text3">Inicio:</span> {new Date(session.created_at).toLocaleString(localeActivo())}</span>}
-          {session.closed_at && <span><span className="u-text3">Cierre:</span> {new Date(session.closed_at).toLocaleString(localeActivo())}</span>}
+          {session.created_at && <span><span className="u-text3">{t('voiceagent.inicio')}</span> {new Date(session.created_at).toLocaleString(localeActivo())}</span>}
+          {session.closed_at && <span><span className="u-text3">{t('voiceagent.cierre')}</span> {new Date(session.closed_at).toLocaleString(localeActivo())}</span>}
           {session.ticket_id && (
             <button
               type="button"
               onClick={() => openTicket(session.ticket_id!)}
               className="voagpa-box-11"
-            >Ver ticket vinculado ↗</button>
+            >{t('voiceagent.ver_ticket_vinculado')}</button>
           )}
         </div>
 
@@ -512,7 +512,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
         )}
 
         <div>
-          <div className="voagpa-fieldlabel">{t('voiceagent.transcripcion')}{transcript.length} turnos)</div>
+          <div className="voagpa-fieldlabel">{t('voiceagent.transcripcion')}{transcript.length} {t('voiceagent.turnos')}</div>
           <div className="voagpa-stack-3">
             {transcript.length === 0 ? (
               <div className="voagpa-box-4">
@@ -526,7 +526,7 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
                     <div className="voagpa-box-14" style={{ textAlign: isUser ? 'right' : 'left' }}>
                       {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
                     </div>
-                    <span className="voagpa-box-15" style={{ borderRadius: 8, background: isUser ? 'var(--accent-muted)' : 'var(--surface-3)', color: isUser ? 'var(--accent)' : 'var(--text-2)', border: `1px solid ${isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` }}>{turn.text}</span>
+                    <span className="voagpa-box-15 voiceage-sx2" style={{ background: isUser ? 'var(--accent-muted)' : 'var(--surface-3)', color: isUser ? 'var(--accent)' : 'var(--text-2)', border: `1px solid ${isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` }}>{turn.text}</span>
                   </div>
                 </div>
               )
@@ -584,7 +584,7 @@ export default function VoiceAgentPanel() {
     mutationFn: (payload: { caller_id: string; channel: string }) => voiceAgentApi.createSession(payload).then(r => r.data),
     onSuccess: (data) => {
       setActiveSessionId(data.session?.id ?? null)
-      toast.success(`Sesión iniciada · greeting: "${(data.greeting || '').slice(0, 60)}..."`)
+      toast.success(t('voiceagent.sesion_iniciada_greeting_v1', { v1: (data.greeting || '').slice(0, 60) }))
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
     onError: (e: unknown) => toast.error(errDetail(e) || 'Error al iniciar sesión'),
@@ -600,7 +600,7 @@ export default function VoiceAgentPanel() {
     mutationFn: ({ id, resolution }: { id: string | number; resolution: string }) => voiceAgentApi.closeSession(id, { resolution }).then(r => r.data),
     onSuccess: (data: { resolution?: string }) => {
       const r = data?.resolution || ''
-      toast.success(`Sesión cerrada · ${RESOLUTION_LABEL[r] || r}`)
+      toast.success(t('voiceagent.sesion_cerrada_resolution_label', { RESOLUTION_LABEL: RESOLUTION_LABEL[r] || r }))
       setActiveSessionId(null)
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
@@ -610,7 +610,7 @@ export default function VoiceAgentPanel() {
   const createTicketMutation = useMutation({
     mutationFn: (id: string | number) => voiceAgentApi.createTicket(id).then(r => r.data),
     onSuccess: (data: { number?: string }) => {
-      toast.success(`Ticket ${data.number} creado desde la sesión`)
+      toast.success(t('voiceagent.ticket_number_creado_desde_la_sesion', { number: data.number }))
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
     onError: (e: unknown) => toast.error(errDetail(e) || 'Error al crear ticket'),
@@ -619,7 +619,7 @@ export default function VoiceAgentPanel() {
   const saveConfigMutation = useMutation({
     mutationFn: (cfg: VoiceAgentConfig) => voiceAgentApi.updateConfig(cfg).then(r => r.data),
     onSuccess: () => {
-      toast.success('Configuración guardada')
+      toast.success(t('etl.guardado'))
       qc.invalidateQueries({ queryKey: ['voice-config'] })
     },
     onError: (e: unknown) => toast.error(errDetail(e) || 'Error al guardar configuración'),
@@ -628,17 +628,17 @@ export default function VoiceAgentPanel() {
   const openTicket = (ticketId: string | number) => navigate(`/service-desk?ticket=${ticketId}`)
 
   return (
-    <Card style={{ padding: '20px 22px' }}>
+    <Card className="voiceage-sx3">
       <div className="voagpa-row-14">
         <div className="u-row-center-8">
-          <Phone size={18} style={{ color: 'var(--success)' }} />
+          <Phone size={18} className="voiceage-sx4" />
           <h2 className="voagpa-box-12">
             {t('sd.voice.title', 'Agente de voz / IVR')}
           </h2>
         </div>
         <div className="voagpa-row-15">
-          <span style={chip('var(--accent)')}>{sessions.filter((s: VoiceSession) => s.status === 'active').length} activas</span>
-          <span style={chip('var(--text-3)')}>{sessions.filter((s: VoiceSession) => s.status === 'closed').length} cerradas</span>
+          <span style={chip('var(--accent)')}>{sessions.filter((s: VoiceSession) => s.status === 'active').length} {t('voiceagent.activas')}</span>
+          <span style={chip('var(--text-3)')}>{sessions.filter((s: VoiceSession) => s.status === 'closed').length} {t('voiceagent.cerradas')}</span>
         </div>
       </div>
 
@@ -676,7 +676,7 @@ export default function VoiceAgentPanel() {
                 disabled={createSessionMutation.isPending || !callerInput.trim()}
                 loading={createSessionMutation.isPending}
                 icon={<Plus size={14} />}
-              >Iniciar</Button>
+              >{t('timer.start')}</Button>
             </div>
             <div className="voagpa-box-13">
               {t('voiceagent.para_llamadas_reales_configura_el_webhook_de')} <span className="u-mono">POST /sd/voice/webhook/twilio</span> {t('voiceagent.con_tu_phone_number')}
@@ -699,7 +699,7 @@ export default function VoiceAgentPanel() {
 
           {/* Filtro + lista */}
           <div className="voagpa-row-16">
-            <div className="voagpa-fieldlabel">Sesiones recientes</div>
+            <div className="voagpa-fieldlabel">{t('voiceagent.sesiones_recientes')}</div>
             <div className="voagpa-row-17">
               {[['', 'Todas'], ['active', 'Activas'], ['closed', 'Cerradas']].map(([id, label]) => (
                 <button className="voagpa-box-16"
@@ -739,7 +739,7 @@ export default function VoiceAgentPanel() {
                       </span>
                     )}
                     <span className="u-text3-xs">
-                      · {(s.transcript || []).length} turnos
+                      · {(s.transcript || []).length} {t('voiceagent.turnos_2')}
                     </span>
                   </div>
                   <div className="voagpa-row-20">
@@ -752,7 +752,7 @@ export default function VoiceAgentPanel() {
                       </span>
                     )}
                     <span style={chip(STATUS_COLOR[s.status || ''] || 'var(--text-3)')}>{s.status}</span>
-                    {s.ticket_id && <span style={chip('var(--accent)')}>ticket ✓</span>}
+                    {s.ticket_id && <span style={chip('var(--accent)')}>{t('voiceagent.ticket')}</span>}
                   </div>
                 </button>
               ))}

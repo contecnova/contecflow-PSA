@@ -7,6 +7,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formsApi, projectsApi } from '../services/api'
 import type { FormularioPublico } from '../services/api/tipos-documentos'
 import { Button, Modal, EmptyState, Spinner, Table } from '../components/ui'
+import Pagination from '../components/ui/Pagination'
+import { SMALL_PAGE_SIZE } from '../constants/pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FileText } from 'lucide-react'
@@ -139,10 +141,19 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
 
 function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => void }) {
   const t = useAppT()
-  const { data: subs = [], isLoading } = useQuery({
-    queryKey: ['form-submissions', form.id],
-    queryFn: () => formsApi.submissions(form.id).then(r => r.data),
+  // Paginado en el servidor (page/page_size; total en meta.total o X-Total-Count).
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = useQuery({
+    queryKey: ['form-submissions', form.id, page],
+    queryFn: () => formsApi.submissions(form.id, { page, page_size: SMALL_PAGE_SIZE }).then(r => ({
+      items: r.data,
+      total: r.meta?.total ?? Number(r.headers?.['x-total-count'] ?? r.data.length),
+    })),
+    placeholderData: previo => previo,
   })
+  const subs = data?.items ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / SMALL_PAGE_SIZE))
 
   return (
     <Modal open title={`${t('public_forms.submissions_title')} — ${form.name}`} onClose={onClose} width={700}>
@@ -164,6 +175,7 @@ function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => 
               { key: 'created_entity_id', label: t('public_forms.col_ticket'), render: (_v, s) => <span className="pubf-text-accent-sm">{s.created_entity_id ? `#${String(s.created_entity_id).slice(0, 8)}` : '—'}</span> },
             ]}
           />
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} total={total} pageSize={SMALL_PAGE_SIZE} />
         </div>
       )}
     </Modal>
@@ -215,7 +227,7 @@ export default function PublicFormsPage() {
   }
 
   return (
-    <PageShell style={{ maxWidth: 1000, margin: '0 auto' }}>
+    <PageShell className="pubf-shell">
       <PageHeader
         icon={<FileText size={18} />}
         title={t('public_forms.title')}
@@ -238,7 +250,7 @@ export default function PublicFormsPage() {
               <div className="pubf-box-3">
                 <div className="pubf-row-3">
                   <span className="pubf-text-md-em-strong">{form.name}</span>
-                  <span className="pubf-box-4" style={{ '--pubf-box-4-background': form.is_active ? '#2d6a4f' : 'var(--surface-4)', '--pubf-box-4-color': form.is_active ? '#b7e4c7' : 'var(--text-3)' } as CSSProperties}>{form.is_active ? t('public_forms.status_active') : t('public_forms.status_inactive')}</span>
+                  <span className="pubf-box-4" style={{ '--pubf-box-4-background': form.is_active ? 'var(--success-bg)' : 'var(--surface-4)', '--pubf-box-4-color': form.is_active ? 'var(--success)' : 'var(--text-3)' } as CSSProperties}>{form.is_active ? t('public_forms.status_active') : t('public_forms.status_inactive')}</span>
                   <span className="pubf-text-muted-xs">
                     {form.form_type === 'ticket' ? `🎫 ${t('public_forms.type_ticket')}` : `✅ ${t('public_forms.type_task')}`}
                   </span>
@@ -254,13 +266,12 @@ export default function PublicFormsPage() {
                 </div>
               </div>
               <div className="u-wrap-8">
-                <Button variant="secondary" onClick={() => copyLink(form.token)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.copy_link')}</Button>
+                <Button variant="secondary" onClick={() => copyLink(form.token)} className="publicfo-sx1">{t('public_forms.copy_link')}</Button>
                 <Button variant="secondary" title={t('public_forms.copy_widget_help')}
-                  onClick={() => copyLink(form.token, getWidgetCode(form.token), t('public_forms.widget_copied'))}
-                  style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.copy_widget')}</Button>
-                <Button variant="secondary" onClick={() => setViewSubs(form)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.submissions')}</Button>
-                <Button variant="secondary" onClick={() => setEditing(form)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.edit_form')}</Button>
-                <Button variant="danger" style={{ fontSize: "var(--text-sm)" }} onClick={() =>
+                  onClick={() => copyLink(form.token, getWidgetCode(form.token), t('public_forms.widget_copied'))} className="publicfo-sx1">{t('public_forms.copy_widget')}</Button>
+                <Button variant="secondary" onClick={() => setViewSubs(form)} className="publicfo-sx1">{t('public_forms.submissions')}</Button>
+                <Button variant="secondary" onClick={() => setEditing(form)} className="publicfo-sx1">{t('public_forms.edit_form')}</Button>
+                <Button variant="danger" className="publicfo-sx1" onClick={() =>
                   openConfirmGlobal({
                     title: t('public_forms.delete_form'),
                     message: t('public_forms.delete_confirm').replace('{name}', form.name),

@@ -244,3 +244,79 @@
   font-size: var(--text-sm);
   font-family: var(--font-sans);
 }
+
+/* ── Button ─ base con especificidad 0 (:where) para que un className de quien lo usa gane siempre. */
+:where(.ui-btn) {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-sans); font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: opacity 0.15s, transform 0.1s, background 0.15s;
+}
+:where(.ui-btn:hover:not(:disabled)) { opacity: 0.85; }
+:where(.ui-btn:active:not(:disabled)) { transform: scale(0.97); }
+:where(.ui-btn:disabled) { cursor: not-allowed; opacity: 0.5; }
+:where(.ui-btn--primary) { background: var(--accent); color: var(--on-accent); border: none; box-shadow: 0 1px 3px var(--accent-border); }
+:where(.ui-btn--secondary) { background: var(--surface-3); color: var(--text-1); border: 1px solid var(--surface-4); }
+:where(.ui-btn--danger) { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+:where(.ui-btn--ghost) { background: transparent; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+:where(.ui-btn--subtle) { background: var(--accent-muted); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent); }
+:where(.ui-btn--xs) { font-size: var(--text-xs); padding: 4px 10px; border-radius: var(--radius-sm); gap: 4px; }
+:where(.ui-btn--sm) { font-size: var(--text-sm); padding: 6px 14px; border-radius: var(--radius-md); gap: 5px; }
+:where(.ui-btn--md) { font-size: var(--text-base); padding: 8px 18px; border-radius: var(--radius-md); gap: 6px; }
+:where(.ui-btn--lg) { font-size: var(--text-md); padding: 11px 24px; border-radius: var(--radius-lg); gap: 7px; }
+
+/* ── Card ─ idem. */
+:where(.ui-card) {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: none;
+  cursor: default;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+:where(.ui-card--accent) { border-color: color-mix(in srgb, var(--accent) 25%, transparent); box-shadow: var(--shadow-accent); }
+:where(.ui-card--click) { cursor: pointer; }
+:where(.ui-card--click:hover) { border-color: var(--surface-5); box-shadow: var(--shadow-md); }
+:where(.ui-card--click.ui-card--accent:hover) { border-color: var(--accent-border-strong); }
+
+/* ── Selects de entidad (EntitySelect.tsx) ─ especificidad 0 para que className gane. */
+:where(.ui-entity-select) {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+/* ── Estilos estaticos extraidos de index.tsx (#17) ── */
+.index-sx1.index-sx1 {
+  border-radius: var(--radius-full);
+}
+.index-sx2 {
+  flex: 1;
+  min-width: 140px;
+}
+.index-sx3.index-sx3 {
+  border-radius: var(--radius-md);
+}
+.index-sx4 {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-blur);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: 40px 24px;
+  overflow-y: auto;
+}
+.index-sx5.index-sx5 {
+  box-shadow: var(--shadow-dialog);
+}

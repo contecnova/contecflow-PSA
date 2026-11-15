@@ -33,3 +33,17 @@ def test_delete_bpmn_process_is_soft_and_hidden(client, pm_token, db):
     row = db.query(BPMNProcess).filter(BPMNProcess.id == pid).first()
     assert row is not None
     assert row.is_active is False
+
+
+def test_clave_duplicada_en_carrera_da_409(db):
+    """#33: si `clave_unica` pierde la carrera, el indice unico responde 409, no 500."""
+    import pytest
+    from app.core.errores import ErrorDeDominio
+    from app.services import bpmn_process_service as svc
+
+    svc.create_process(db, name="A", category="x", key="carrera_k", organization_id=None)
+    with pytest.raises(ErrorDeDominio) as e:
+        svc.create_process(db, name="B", category="x", key="carrera_k", organization_id=None)
+    assert e.value.status_code == 409
+    # la sesion sigue usable tras el rollback
+    assert db.query(BPMNProcess).count() >= 0

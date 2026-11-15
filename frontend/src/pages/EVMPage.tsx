@@ -267,7 +267,7 @@ export default function EVMPage(): JSX.Element {
             <thead>
               <tr className="evm-row-6">
                 {[t('pagina_evm.estado'), t('pagina_evm.proyecto'), t('pagina_evm.hecho'), 'BAC', 'EV', 'AC', 'CPI', 'SPI', 'EAC', ''].map(h => (
-                  <th key={h} className="evm-th" style={{ textAlign: h === '' ? 'center' : 'left' }}>{h}</th>
+                  <th key={h} className={`evm-th ${h === '' ? 'evmpage-sx1' : 'evmpage-sx2'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -279,7 +279,7 @@ export default function EVMPage(): JSX.Element {
                 return (
                   <tr key={p.project_id}
                     onClick={() => p.project_id != null && setSelected(p.project_id)}
-                    className="evm-row-7" style={{ borderTop: i > 0 ? '1px solid var(--surface-3)' : 'none' }}
+                    className={`evm-row-7 ${i > 0 ? 'evmpage-sx3' : 'evmpage-sx4'}`}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >

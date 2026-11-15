@@ -54,7 +54,7 @@ const st: Record<string, CSSProperties> = {
     border: '1px solid var(--surface-4)',
     borderRadius: 20,
     padding: '36px 32px',
-    boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
+    boxShadow: 'var(--shadow-lg)',
   },
   logo: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',

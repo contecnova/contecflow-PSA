@@ -107,3 +107,20 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ── Estilos estaticos extraidos de QuickCreateMenu.tsx (#17) ── */
+.quickcre-sx1 {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  z-index: 501;
+  width: 280px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+.quickcre-sx2.quickcre-sx2 {
+  border-radius: 8px;
+}

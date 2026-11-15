@@ -820,3 +820,16 @@ export interface WikiEtiquetaGuardada { id: string; name: string; color: string 
 
 /** GET /ws/ticket (endpoints/ws.py get_ws_ticket). */
 export interface TicketDeWebSocket { ticket: string; expires_in: number }
+
+/** Factura de `GET /clients/{cid}/invoices` (client_service.list_client_invoices). El importe llega como `total_amount`. */
+export interface FacturaDeCliente {
+  id: string
+  number: string | null
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | string
+  issue_date: string | null
+  due_date: string | null
+  total_amount: number | null
+  project_id: string | null
+  project_name: string | null
+  client_name: string | null
+}

@@ -102,7 +102,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
       {ts && (
         <div className="bigopa-row-3">
           <Clock size={12} />
-          Snapshot generado: <span className="u-text2">{ts.toLocaleString(localeActivo())}</span>
+          {t('bigovernance.snapshot_generado')} <span className="u-text2">{ts.toLocaleString(localeActivo())}</span>
         </div>
       )}
 
@@ -115,7 +115,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           badge={<span style={chip(olapColor)}>{olapAvailable ? 'Disponible' : 'No disponible'}</span>}
         >
           <MetricRow
-            label="Antigüedad"
+            label={t('bigovernance.antiguedad')}
             value={olapStaleness == null
               ? '—'
               : <span className="bigopa-txt-2" style={{ color: stalenessColor }}>
@@ -131,10 +131,10 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
         <OverviewSection
           icon={Calendar}
           iconColor={schedColor}
-          title="Reports programados"
-          badge={<span style={chip(schedColor)}>{schedActive} activos</span>}
+          title={t('bigovernance.reports_programados')}
+          badge={<span style={chip(schedColor)}>{schedActive} {t('bigovernance.activos')}</span>}
         >
-          <MetricRow label="Activos" value={schedActive} />
+          <MetricRow label={t('alm.assets')} value={schedActive} />
           <MetricRow
             label={t('bigovernance.con_error')}
             value={<span className="bigopa-txt-2" style={{ color: schedError > 0 ? 'var(--danger)' : 'var(--success)' }}>{schedError}</span>}
@@ -213,10 +213,10 @@ export default function BiGovernancePanel() {
   const auditItems = auditData?.items ?? []
 
   return (
-    <Card style={{ padding: '20px 22px' }}>
+    <Card className="bigovern-sx1">
       <div className="bigopa-row-4">
         <div className="u-row-center-8">
-          <Shield size={18} style={{ color: 'var(--warning)' }} />
+          <Shield size={18} className="bigovern-sx2" />
           <h2 className="bigopa-box-2">
             {t('bi.governance.title', 'Gobernanza BI')}
           </h2>
@@ -276,7 +276,7 @@ export default function BiGovernancePanel() {
         <div>
           <div className="bigopa-row-8">
             <div className="bigopa-box-4">
-              <div className="bigopa-fieldlabel">Ventana</div>
+              <div className="bigopa-fieldlabel">{t('approvals.ventana')}</div>
               <select value={auditDays} onChange={e => setAuditDays(Number(e.target.value))} className="bigopa-inputbase">
                 <option value={7}>{t('bigovernance.7_dias')}</option>
                 <option value={30}>{t('bigovernance.30_dias')}</option>
@@ -286,16 +286,16 @@ export default function BiGovernancePanel() {
             </div>
             <div className="bigopa-box-5">
               <div className="bigopa-fieldlabel">{t('bigovernance.filtrar_por_user_id')}</div>
-              <input aria-label="user_id (opcional)"
+              <input aria-label={t('bigovernance.user_id_opcional')}
                 type="text"
-                placeholder="user_id (opcional)"
+                placeholder={t('bigovernance.user_id_opcional')}
                 value={auditUserFilter}
                 onChange={e => setAuditUserFilter(e.target.value)}
                 className="bigopa-inputbase"
               />
             </div>
             <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} onClick={() => refetchAudit()}>
-              Actualizar
+              {t('common.update')}
             </Button>
           </div>
 
@@ -306,7 +306,7 @@ export default function BiGovernancePanel() {
           ) : (
             <div className="bigopa-stack-2">
               <div className="bigopa-box-6">
-                {auditItems.length} evento(s) {auditUserFilter && `· user ${auditUserFilter}`}
+                {auditItems.length} {t('bigovernance.evento_s')} {auditUserFilter && `· user ${auditUserFilter}`}
               </div>
               {auditItems.map((ev: AuditEvent, i: number) => {
                 const action = ev.action || 'view'

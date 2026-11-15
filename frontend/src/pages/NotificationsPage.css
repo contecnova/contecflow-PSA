@@ -191,3 +191,45 @@
   cursor: pointer;
   font-family: inherit;
 }
+
+/* ── Estilos en linea extraidos de NotificationsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.notifica-sx1.notifica-sx1 {
+  border-radius: var(--radius-md);
+}
+.notifica-sx2.notifica-sx2 {
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.notifica-sx3.notifica-sx3 {
+  background: transparent;
+  cursor: default;
+}
+.notifica-sx4.notifica-sx4 {
+  font-weight: 700;
+}
+.notifica-sx5.notifica-sx5 {
+  font-weight: 400;
+}
+.notifica-sx6.notifica-sx6 {
+  color: var(--success);
+}
+.notifica-sx7.notifica-sx7 {
+  color: var(--text-3);
+}
+.notifica-sx8.notifica-sx8 {
+  background: var(--success);
+}
+.notifica-sx9.notifica-sx9 {
+  background: var(--text-3);
+}
+.notifica-sx10.notifica-sx10 {
+  border-radius: 8px;
+}
+.notifica-sx11.notifica-sx11 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.notifica-sx12.notifica-sx12 {
+  background: transparent;
+  color: var(--text-2);
+}

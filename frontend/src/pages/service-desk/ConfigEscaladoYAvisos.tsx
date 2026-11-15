@@ -39,7 +39,7 @@ function lista(raw?: string | null): string[] {
 
 function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button className="coesya-box-13" type="button" onClick={onClick} aria-pressed={activo} style={{ borderRadius: 'var(--radius-full)', border: `1px solid ${activo ? 'var(--accent)' : 'var(--surface-4)'}`, background: activo ? 'var(--accent-muted)' : 'transparent', color: activo ? 'var(--accent)' : 'var(--text-2)' }}>{children}</button>
+    <button className="coesya-box-13 configes-sx1" type="button" onClick={onClick} aria-pressed={activo} style={{ border: `1px solid ${activo ? 'var(--accent)' : 'var(--surface-4)'}`, background: activo ? 'var(--accent-muted)' : 'transparent', color: activo ? 'var(--accent)' : 'var(--text-2)' }}>{children}</button>
   )
 }
 

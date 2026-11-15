@@ -151,7 +151,7 @@ export default function ChangeRolloutPanel() {
       }).then(r => r.data)
     },
     onSuccess: (_res, data) => {
-      toast.success('Plan de rollout creado')
+      toast.success(t('changerollout.plan_de_rollout_creado'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
       setChangeRequestFilter(data.change_request_id)
       setShowCreate(false)
@@ -163,7 +163,7 @@ export default function ChangeRolloutPanel() {
   const approveMutation = useMutation({
     mutationFn: (id: string | number) => changeRolloutApi.approvePlan(id).then(r => r.data),
     onSuccess: () => {
-      toast.success('Plan aprobado')
+      toast.success(t('changerollout.plan_aprobado'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
     onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al aprobar el plan'),
@@ -184,7 +184,7 @@ export default function ChangeRolloutPanel() {
     mutationFn: ({ changeId, reason }: { changeId: string; reason: string }) =>
       changeRolloutApi.rollback(changeId, { reason }).then(r => r.data),
     onSuccess: () => {
-      toast.success('Rollback ejecutado')
+      toast.success(t('changerollout.rollback_ejecutado'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
     onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al ejecutar rollback'),
@@ -212,10 +212,10 @@ export default function ChangeRolloutPanel() {
   }
 
   return (
-    <Card style={{ padding: '20px 22px' }}>
+    <Card className="changero-sx1">
       <div className="chropa-row-1">
         <div className="u-row-center-8">
-          <GitBranch size={18} style={{ color: 'var(--purple)' }} />
+          <GitBranch size={18} className="changero-sx2" />
           <h2 className="chropa-box-1">
             {t('sd.rollout.title', 'Planes de rollout de cambios')}
           </h2>
@@ -264,16 +264,16 @@ export default function ChangeRolloutPanel() {
               ))}
             </select>
             <div className="chropa-row-2">
-              <span className="u-text2-xs">Fases:</span>
+              <span className="u-text2-xs">{t('changerollout.fases')}</span>
               <input
-                aria-label="Fases"
+                aria-label={t('projects.phases')}
                 type="number" min={1} max={10}
                 value={form.phases}
                 onChange={e => setForm(f => ({ ...f, phases: Number(e.target.value) }))}
                 className="chropa-inputbase3"
               />
               <span className="u-text3-xs">
-                Vista previa: {buildPhases(form.strategy, form.phases).map(p => `${p.target_pct}%`).join(' → ')}
+                {t('changerollout.vista_previa')} {buildPhases(form.strategy, form.phases).map(p => `${p.target_pct}%`).join(' → ')}
               </span>
             </div>
           </div>
@@ -285,7 +285,7 @@ export default function ChangeRolloutPanel() {
             >
               {t('sd.rollout.create_plan', 'Crear plan')}
             </Button>
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
           </div>
         </div>
       )}
@@ -293,9 +293,9 @@ export default function ChangeRolloutPanel() {
       <div className="chropa-grid-2">
         {/* Plans list */}
         <div>
-          <div className="chropa-fieldlabel">Planes</div>
+          <div className="chropa-fieldlabel">{t('changerollout.planes')}</div>
           {!changeRequestFilter.trim() ? (
-            <EmptyState icon="🔎" title={t('changerollout.filtra_por_change_request_id')} description="Indica el ID del Change Request para listar sus planes de rollout." />
+            <EmptyState icon="🔎" title={t('changerollout.filtra_por_change_request_id')} description={t('changerollout.indica_el_id_del_change_request_para')} />
           ) : isLoading ? (
             <div className="chropa-row-3"><Spinner /></div>
           ) : !plans.length ? (
@@ -307,13 +307,13 @@ export default function ChangeRolloutPanel() {
                 const isSel = selectedId === plan.id
                 const totalPhases = plan.rollout_phases?.length ?? 0
                 return (
-                  <button className="chropa-box-7"
+                  <button className="chropa-box-7 changero-sx3"
                     key={plan.id}
                     type="button"
                     onClick={() => { setSelectedId(isSel ? null : plan.id); setSimulate(null) }}
                     style={{ background: isSel
                         ? 'color-mix(in srgb, var(--purple) 8%, var(--surface-3))'
-                        : 'var(--surface-3)', border: `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)' }}
+                        : 'var(--surface-3)', border: `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}` }}
                     onMouseEnter={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--accent)' }}
                     onMouseLeave={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--surface-4)' }}
                   >
@@ -324,9 +324,9 @@ export default function ChangeRolloutPanel() {
                       <span style={chip(meta.color)}>{meta.label}</span>
                     </div>
                     <div className="chropa-row-5">
-                      <span>Fase {(plan.current_phase_index ?? 0) + (plan.status === 'completed' ? 0 : 1)} / {totalPhases || '—'}</span>
+                      <span>{t('raci_ui.tipo_phase')} {(plan.current_phase_index ?? 0) + (plan.status === 'completed' ? 0 : 1)} / {totalPhases || '—'}</span>
                       {plan.created_at && (
-                        <span>Creado {new Date(plan.created_at).toLocaleDateString(localeActivo())}</span>
+                        <span>{t('cmdb.action_created')} {new Date(plan.created_at).toLocaleDateString(localeActivo())}</span>
                       )}
                     </div>
                   </button>
@@ -366,7 +366,7 @@ export default function ChangeRolloutPanel() {
                           <div className="u-text1-sm-600">
                             {phase.name}
                             <span className="chropa-box-5">
-                              {phase.target_pct}% · {phase.duration_minutes}min
+                              {phase.target_pct}% · {phase.duration_minutes}{t('ticketdetail.unidad_min')}
                             </span>
                           </div>
                           {phase.description && (
@@ -392,7 +392,7 @@ export default function ChangeRolloutPanel() {
                   onClick={() => approveMutation.mutate(selectedPlan.id)}
                   loading={approveMutation.isPending}
                   icon={<CheckCircle size={13} />}
-                >Aprobar</Button>
+                >{t('aus.aprobar')}</Button>
               )}
               {(selectedPlan.status === 'approved' || selectedPlan.status === 'in_progress') && (
                 <Button
@@ -400,7 +400,7 @@ export default function ChangeRolloutPanel() {
                   onClick={() => handleAdvance(selectedPlan.id)}
                   loading={advanceMutation.isPending}
                   icon={<ChevronRight size={13} />}
-                >Avanzar fase</Button>
+                >{t('changerollout.avanzar_fase')}</Button>
               )}
               {['approved', 'in_progress'].includes(selectedPlan.status || '') && (
                 <Button
@@ -416,7 +416,7 @@ export default function ChangeRolloutPanel() {
                 variant="ghost"
                 onClick={() => handleSimulate(selectedPlan)}
                 icon={<Play size={13} />}
-              >Simular</Button>
+              >{t('pol.simular')}</Button>
             </div>
 
             {/* Simulation result */}
@@ -426,17 +426,17 @@ export default function ChangeRolloutPanel() {
                   <div className="chropa-fieldlabel2">{t('sd.rollout.simulation', 'Simulación de impacto')}</div>
                   {simulate.risk_label && (
                     <span style={chip(RISK_COLOR[simulate.risk_label] || 'var(--text-3)')}>
-                      Riesgo {simulate.risk_label}
+                      {t('bi.col_riesgo')} {simulate.risk_label}
                       {simulate.risk_score != null && ` · ${Math.round(simulate.risk_score * 100)}%`}
                     </span>
                   )}
                 </div>
                 <div className="chropa-row-8">
                   {simulate.estimated_duration_minutes != null && (
-                    <span><span className="u-text3">{t('changerollout.duracion_estimada')}</span> <strong>{simulate.estimated_duration_minutes}min</strong></span>
+                    <span><span className="u-text3">{t('changerollout.duracion_estimada')}</span> <strong>{simulate.estimated_duration_minutes}{t('ticketdetail.unidad_min')}</strong></span>
                   )}
                   {simulate.recommended_window && (
-                    <span><span className="u-text3">Ventana:</span> <strong>{simulate.recommended_window}</strong></span>
+                    <span><span className="u-text3">{t('changerollout.ventana')}</span> <strong>{simulate.recommended_window}</strong></span>
                   )}
                   {simulate.rollback_readiness && (
                     <span><span className="u-text3">Rollback:</span> <strong>{simulate.rollback_readiness}</strong></span>
@@ -446,7 +446,7 @@ export default function ChangeRolloutPanel() {
                   <div className="chropa-stack-1">
                     {simulate.recommendations.map((r, i) => (
                       <div key={i} className="chropa-row-9">
-                        <AlertTriangle size={12} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+                        <AlertTriangle size={12} className="changero-sx4" />
                         <span>{r}</span>
                       </div>
                     ))}

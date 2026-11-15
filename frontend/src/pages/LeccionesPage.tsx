@@ -142,7 +142,7 @@ function Acciones({ onAbrir }: { onAbrir: (id: string) => void }) {
                 <span className="lecc-label">{a.leccion_codigo}</span>
                 <span className="u-flex1">{a.descripcion}</span>
                 <span className="u-text2-xs">{t(`lec.accion_${a.estado}`)}</span>
-                <span className="lecc-label-6" style={{ color: a.vencida ? 'var(--danger)' : 'var(--text-3)' }}>{a.fecha_limite ? fmtDate(a.fecha_limite) : '—'}</span>
+                <span className={`lecc-label-6 ${a.vencida ? 'leccione-sx2' : 'leccione-sx3'}`}>{a.fecha_limite ? fmtDate(a.fecha_limite) : '—'}</span>
               </button>
             ))}
           </div>

@@ -228,3 +228,36 @@
   text-align: right;
   font-weight: 700;
 }
+
+/* ── Estilos en linea extraidos de InvoicesPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.invoices-sx1 {
+  margin-bottom: 20px;
+}
+.invoices-sx2.invoices-sx2 {
+  color: var(--text-3);
+  cursor: wait;
+}
+.invoices-sx3.invoices-sx3 {
+  color: var(--success);
+  cursor: pointer;
+}
+.invoices-sx4.invoices-sx4 {
+  color: var(--text-3);
+}
+.invoices-sx5.invoices-sx5 {
+  color: var(--warning);
+}
+.invoices-sx6.invoices-sx6 {
+  color: var(--danger);
+}
+.invoices-sx7.invoices-sx7 {
+  color: var(--text-2);
+}
+.invoices-sx8.invoices-sx8 {
+  cursor: wait;
+  color: var(--warning);
+}
+.invoices-sx9.invoices-sx9 {
+  cursor: pointer;
+  color: var(--text-2);
+}

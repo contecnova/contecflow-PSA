@@ -84,3 +84,53 @@
   font-size: var(--text-xs);
   margin-top: 10px;
 }
+
+.exps-box-2 {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.exps-card {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+/* ── Estilos estaticos extraidos de ExportsPage.tsx (#17) ── */
+.exportsp-sx1 {
+  margin-bottom: 20px;
+}
+
+/* ── Estilos en linea extraidos de ExportsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.exportsp-sx2.exportsp-sx2 {
+  border-radius: 8px;
+}
+.exportsp-sx3.exportsp-sx3 {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.exportsp-sx4.exportsp-sx4 {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.exportsp-sx5.exportsp-sx5 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.exportsp-sx6.exportsp-sx6 {
+  background: transparent;
+  color: var(--text-2);
+}
+.exportsp-sx7.exportsp-sx7 {
+  color: var(--text-1);
+}
+.exportsp-sx8.exportsp-sx8 {
+  color: var(--text-2);
+}

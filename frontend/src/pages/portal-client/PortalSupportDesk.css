@@ -305,3 +305,29 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ── Estilos estaticos extraidos de PortalSupportDesk.tsx (#17) ── */
+.portalsu-sx1 {
+  margin-bottom: 14px;
+}
+.portalsu-sx2 {
+  margin-bottom: 14px;
+  border-color: var(--success-border, rgba(16,185,129,0.3));
+}
+.portalsu-sx3 {
+  color: var(--warning);
+}
+.portalsu-sx4.portalsu-sx4 {
+  border-radius: var(--radius-md);
+}
+.portalsu-sx5 {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  pointer-events: none;
+}
+.portalsu-sx6.portalsu-sx6 {
+  border-radius: 8px;
+}

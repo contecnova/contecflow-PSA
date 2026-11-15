@@ -37,9 +37,9 @@ const STAGE_TRANSLATION_KEYS: Record<string, string> = {
 
 const STAGE_COLORS: Record<string, string> = {
   lead: 'var(--accent)',
-  qualification: '#55c2ff',
+  qualification: 'var(--sky-blue)',
   proposal: 'var(--warning)',
-  negotiation: '#ff8b3d',
+  negotiation: 'var(--orange)',
   won: 'var(--success)',
   lost: 'var(--danger)',
   cancelled: 'var(--text-3)',
@@ -164,11 +164,11 @@ function ProposalStatusBadge({ status }: { status: string }) {
 
 function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label: ReactNode; value: ReactNode; tone?: string; subvalue?: ReactNode }) {
   return (
-    <Card style={{ minWidth: 180, padding: 18 }}>
+    <Card className="pipeline-sx1">
       <div className="pipe-box">
         {label}
       </div>
-      <div className="pipe-box-2" style={{ color: tone, marginBottom: subvalue ? 6 : 0 }}>
+      <div className={`pipe-box-2 ${subvalue ? 'pipeline-sx3' : 'pipeline-sx4'}`} style={{ color: tone }}>
         {value}
       </div>
       {subvalue ? <div className="u-text3-sm">{subvalue}</div> : null}
@@ -315,7 +315,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
           <div className="pipe-grid-5">
             <div className="pipe-row">
               <div className="u-row-center-10">
-                <FileText size={16} style={{ color: 'var(--accent)' }} />
+                <FileText size={16} className="u-accent" />
                 <span className="u-md-700">{t('pagina_pipe.propuesta_sow')}</span>
               </div>
               <ProposalStatusBadge status={proposalStatus} />
@@ -364,7 +364,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
           {/* Conversión a proyecto */}
           <div className="pipe-grid-5">
             <div className="u-row-center-10">
-              <Briefcase size={16} style={{ color: 'var(--success)' }} />
+              <Briefcase size={16} className="u-success" />
               <span className="u-md-700">{t('pipeline.conversion_a_proyecto')}</span>
             </div>
 
@@ -545,7 +545,7 @@ export default function PipelinePage() {
   }
 
   return (
-    <PageShell style={{ display: 'grid', gap: 18 }}>
+    <PageShell className="pipe-grid-11">
       <PageHeader
         icon={<Megaphone size={18} />}
         title={t('pipeline.title')}
@@ -642,7 +642,7 @@ export default function PipelinePage() {
                     const proposalStatus = opportunity.proposal_status || 'none'
                     const psCfg = PROPOSAL_STATUS_COLORS[proposalStatus]
                     return (
-                      <Card key={opportunity.id} style={{ padding: 14, display: 'grid', gap: 10 }}>
+                      <Card key={opportunity.id} className="pipeline-sx2">
                         <div className="pipe-row-6">
                           <div className="u-flex1-min0">
                             <div className="pipe-box-11">{opportunity.name}</div>

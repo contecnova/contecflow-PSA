@@ -191,3 +191,19 @@ def test_sin_proyecto_el_selector_vacio_no_rompe(client, dev_token):
     """Medido en el navegador el 09-11-2026: «Sin proyecto» enviaba "" y crear el gasto daba 500."""
     g = _gasto(client, dev_token, project_id="", contract_id="")
     assert g["project_id"] is None
+
+
+def test_listas_paginadas_con_busqueda_categoria_orden_y_totales_en_el_servidor(client, dev_token, pm_token):
+    """Fase 2 (rev. 166): paginar no limita la búsqueda, la categoría, el orden ni los totales a la página."""
+    for i, (cat, importe) in enumerate((("meals", 10), ("travel", 30), ("meals", 20))):
+        _gasto(client, dev_token, category=cat, amount=importe, description=f"Gasto {i} hotel" if i == 1 else f"Gasto {i}")
+    r = client.get(f"{URL}/my", headers=auth(dev_token),
+                   params={"category": "meals", "sort": "amount", "direction": "desc", "page": 1, "page_size": 1})
+    cuerpo = r.json()
+    assert r.status_code == 200 and cuerpo["meta"]["total"] == 2 and [g["amount"] for g in cuerpo["items"]] == [20.0]
+    assert client.get(f"{URL}/my", headers=auth(dev_token), params={"q": "hotel"}).json()["meta"]["total"] == 1
+    tot = client.get(f"{URL}/my/totals", headers=auth(dev_token), params={"category": "meals"}).json()["data"]
+    assert tot == {"count": 2, "total_amount": 30.0, "submitted_count": 0}
+    assert client.get(f"{URL}/my", headers=auth(dev_token), params={"sort": "inventado"}).status_code == 422
+    r = client.get(f"{URL}/team", headers=auth(pm_token), params={"category": "travel", "page": 1, "page_size": 10})
+    assert r.headers["X-Total-Count"] == "1" and r.json()["data"]["total"] == 30.0

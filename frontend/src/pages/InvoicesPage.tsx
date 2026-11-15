@@ -193,8 +193,7 @@ function InvoicesTab() {
         </div>
       )}
 
-      <Toolbar
-        style={{ marginBottom: 20 }}
+      <Toolbar className="invoices-sx1"
       >
         {/* Mismo reparto que left/right de Toolbar, pero el bloque derecho
             puede partir línea: en un móvil no cabe entero. */}
@@ -215,11 +214,11 @@ function InvoicesTab() {
               <option value="quickbooks">{t('invoices.sync_provider_quickbooks')}</option>
             </select>
             <button onClick={() => syncBulk()} disabled={syncing}
-              className="invs-btn" style={{ color: syncing ? 'var(--text-3)' : 'var(--success)', cursor: syncing ? 'wait' : 'pointer' }}>
+              className={`invs-btn ${syncing ? 'invoices-sx2' : 'invoices-sx3'}`}>
               {syncing ? t('invoices.syncing') : t('invoices.sync_bulk')}
             </button>
             {syncStatus && (
-              <span className="u-xs" style={{ color: ultimaSync ? 'var(--text-3)' : 'var(--warning)' }}>
+              <span className={`u-xs ${ultimaSync ? 'invoices-sx4' : 'invoices-sx5'}`}>
                 {ultimaSync
                   ? t('pagina_invs.ultima_sync', { v1: new Date(ultimaSync.replace(' ', 'T')).toLocaleDateString(localeActivo()) })
                   : t('pagina_invs.sin_sincronizar')}
@@ -266,7 +265,7 @@ function InvoicesTab() {
                   {inv.po_reference && <div className="u-text3-xs">{t('invoices.po', { ref: inv.po_reference })}</div>}
                 </div>
                 <span className="u-text2-sm">{inv.issue_date}</span>
-                <span className="u-sm" style={{ color:isOverdue?'var(--danger)':'var(--text-2)' }}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
+                <span className={`u-sm ${isOverdue ? 'invoices-sx6' : 'invoices-sx7'}`}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
                 <span className="invs-label-2">{fmtMoneda(inv.total||0, { moneda: inv.currency })}</span>
                 <span className="invs-label-3" style={{ background:alpha(cfg.color, '20'), color:cfg.color }}>{cfg.label}</span>
                 <div className="u-row-6">
@@ -275,7 +274,7 @@ function InvoicesTab() {
                   {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} className="invs-btn-5">{t('invoices.paid')}</button>}
                 </div>
                 <button onClick={() => downloadPdf(inv)} title={t('invoices.download_pdf')} disabled={pdfLoadingId === inv.id}
-                  className="invs-btn-6" style={{ cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer', color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)' }}>
+                  className={`invs-btn-6 ${pdfLoadingId === inv.id ? 'invoices-sx8' : 'invoices-sx9'}`}>
                   {pdfLoadingId === inv.id ? '⏳' : <Download size={13} />}
                 </button>
               </div>

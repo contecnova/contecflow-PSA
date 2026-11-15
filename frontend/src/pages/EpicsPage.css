@@ -254,3 +254,28 @@
   cursor: pointer;
   font-size: var(--text-xs);
 }
+
+/* ── Estilos en linea extraidos de EpicsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.epicspag-sx1.epicspag-sx1 {
+  border-radius: 50%;
+}
+.epicspag-sx2.epicspag-sx2 {
+  border: 3px solid var(--on-accent-light);
+}
+.epicspag-sx3.epicspag-sx3 {
+  border: 2px solid transparent;
+}
+.epicspag-sx4.epicspag-sx4 {
+  color: var(--success);
+}
+.epicspag-sx5.epicspag-sx5 {
+  color: var(--text-3);
+}
+.epicspag-sx6.epicspag-sx6 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.epicspag-sx7.epicspag-sx7 {
+  background: transparent;
+  color: var(--text-2);
+}

@@ -1,12 +1,14 @@
 """
 timesheet_service.py — Funciones de servicio para gestión de timesheets.
 """
+from sqlalchemy import String, cast, func, or_
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from datetime import date, timedelta
 
 from app.models.financial import Timesheet, TimesheetStatus
 from app.models.imputation import Imputation
+from app.models.user import User
 from app.core import timeutil
 from app.core.paginacion import Pagina, Paginacion, paginar
 
@@ -46,15 +48,51 @@ def get_timesheet_lines(db: Session, user_id: str, week_start: date) -> list:
     ]
 
 
-def list_pending_timesheets(db: Session, pagina: Optional[Paginacion] = None) -> Pagina:
+def _filtrar_listado(q, buscar: Optional[str], desde: Optional[date], hasta: Optional[date]):
+    """Filtros comunes de los listados de revisión: texto (persona o semana) y rango de semanas.
+
+    Se aplican en SQL para que la paginación cuente y corte sobre lo ya filtrado.
+    """
+    if buscar and buscar.strip():
+        patron = f"%{buscar.strip().lower()}%"
+        q = q.join(User, User.id == Timesheet.user_id).filter(or_(
+            func.lower(User.full_name).like(patron),
+            cast(Timesheet.week_start, String).like(patron),
+        ))
+    if desde:
+        q = q.filter(Timesheet.week_start >= desde)
+    if hasta:
+        q = q.filter(Timesheet.week_start <= hasta)
+    return q
+
+
+# Orden permitido en el listado del equipo (clave pública -> columna).
+ORDENES_DEL_EQUIPO = {
+    "week_start": Timesheet.week_start,
+    "total_hours": Timesheet.total_hours,
+    "billable_hours": Timesheet.billable_hours,
+    "total_cost": Timesheet.total_cost,
+    "status": Timesheet.status,
+    "user_name": User.full_name,
+}
+
+
+def list_pending_timesheets(
+    db: Session,
+    pagina: Optional[Paginacion] = None,
+    buscar: Optional[str] = None,
+    desde: Optional[date] = None,
+    hasta: Optional[date] = None,
+) -> Pagina:
     """Timesheets pendientes de revisión (una página; sin ella, hasta LIST_MAX_ROWS)."""
     q = (
         db.query(Timesheet)
         .options(joinedload(Timesheet.user))
         .filter(Timesheet.status == TimesheetStatus.submitted)
-        .order_by(Timesheet.week_start.desc(), Timesheet.id)
     )
-    return paginar(q, pagina, "timesheets.pending").mapear(_enrich_one)
+    q = _filtrar_listado(q, buscar, desde, hasta)
+    return paginar(q.order_by(Timesheet.week_start.desc(), Timesheet.id), pagina,
+                   "timesheets.pending").mapear(_enrich_one)
 
 
 def list_team_timesheets(
@@ -63,8 +101,13 @@ def list_team_timesheets(
     user_id: Optional[str],
     status: Optional[str],
     pagina: Optional[Paginacion] = None,
+    buscar: Optional[str] = None,
+    desde: Optional[date] = None,
+    hasta: Optional[date] = None,
+    orden: str = "week_start",
+    sentido: str = "desc",
 ) -> Pagina:
-    """Devuelve timesheets del equipo con filtros opcionales."""
+    """Devuelve timesheets del equipo con filtros opcionales, ordenados en SQL."""
     q = db.query(Timesheet).options(joinedload(Timesheet.user))
     if week_start:
         q = q.filter(Timesheet.week_start == week_start)
@@ -72,7 +115,12 @@ def list_team_timesheets(
         q = q.filter(Timesheet.user_id == user_id)
     if status:
         q = q.filter(Timesheet.status == status)
-    return paginar(q.order_by(Timesheet.week_start.desc(), Timesheet.id), pagina,
+    q = _filtrar_listado(q, buscar, desde, hasta)
+    columna = ORDENES_DEL_EQUIPO.get(orden, Timesheet.week_start)
+    if orden == "user_name" and not (buscar and buscar.strip()):
+        q = q.join(User, User.id == Timesheet.user_id)
+    criterio = columna.asc() if sentido == "asc" else columna.desc()
+    return paginar(q.order_by(criterio, Timesheet.id), pagina,
                    "timesheets.team").mapear(_enrich_one)
 
 

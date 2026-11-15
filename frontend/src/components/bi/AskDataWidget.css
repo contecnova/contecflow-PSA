@@ -169,3 +169,15 @@
   font-size: var(--text-xs);
   font-family: inherit;
 }
+
+/* ── Estilos estaticos extraidos de AskDataWidget.tsx (#17) ── */
+.askdataw-sx1.askdataw-sx1 {
+  border-radius: 7px;
+}
+.askdataw-sx2.askdataw-sx2 {
+  border-radius: 8px;
+}
+.askdataw-sx3 {
+  margin-top: 1px;
+  flex-shrink: 0;
+}

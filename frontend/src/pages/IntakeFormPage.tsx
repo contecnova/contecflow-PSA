@@ -146,7 +146,7 @@ export default function IntakeFormPage(): JSX.Element {
           <button
             onClick={() => mutate(fields)}
             disabled={isPending || !fields.subject}
-            className="intake-btn" style={{ background: isPending ? 'var(--text-3)' : 'var(--accent)', cursor: isPending || !fields.subject ? 'not-allowed' : 'pointer' }}
+            className={`intake-btn ${isPending ? 'intakefo-sx1' : 'intakefo-sx2'} ${isPending || !fields.subject ? 'intakefo-sx3' : 'intakefo-sx4'}`}
           >
             {isPending ? t('intake_form.sending_button') : t('intake_form.send_button')}
           </button>
@@ -163,7 +163,7 @@ const pageStyle: CSSProperties = {
 }
 
 const cardStyle: CSSProperties = {
-  background: 'var(--surface-1)', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+  background: 'var(--surface-1)', borderRadius: 16, boxShadow: 'var(--shadow-md)',
   border: '1px solid var(--surface-4)',
   padding: '36px 32px', width: '100%', maxWidth: 600,
 }

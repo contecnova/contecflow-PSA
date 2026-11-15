@@ -199,3 +199,30 @@
   color: var(--text-2);
   line-height: 1.8;
 }
+
+/* ── Estilos en linea extraidos de MentionsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.mentions-sx1.mentions-sx1 {
+  border-radius: 8px;
+}
+.mentions-sx2.mentions-sx2 {
+  background: transparent;
+}
+.mentions-sx3.mentions-sx3 {
+  background: var(--accent-muted);
+}
+.mentions-sx4.mentions-sx4 {
+  background: color-mix(in srgb, var(--text-1) 3%, transparent);
+  opacity: 0.6;
+}
+.mentions-sx5.mentions-sx5 {
+  background: var(--surface-1);
+  opacity: 1;
+}
+.mentions-sx6.mentions-sx6 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.mentions-sx7.mentions-sx7 {
+  background: transparent;
+  color: var(--text-2);
+}

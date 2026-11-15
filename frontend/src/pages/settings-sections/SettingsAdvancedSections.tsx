@@ -105,14 +105,14 @@ export function IdiomasSection() {
       try {
         const data = JSON.parse(String(ev.target?.result ?? ''))
         if (typeof data !== 'object' || !data[appLang]) {
-          toast.error('El JSON no contiene traducciones para el idioma seleccionado.')
+          toast.error(t('settingsadvanced.el_json_no_contiene_traducciones_para_el'))
           return
         }
         setAppEdits(data[appLang])
         setHasUnsaved(true)
-        toast.success('Traducciones importadas. Revisa y guarda para aplicar.')
+        toast.success(t('settingsadvanced.traducciones_importadas_revisa_y_guarda_para_aplicar'))
       } catch {
-        toast.error('Error al leer el archivo JSON')
+        toast.error(t('settingsadvanced.error_al_leer_el_archivo_json'))
       }
     }
     reader.readAsText(file)
@@ -154,14 +154,14 @@ export function IdiomasSection() {
   }
 
 
-  if (loadingAppLang) return <div>Cargando traducciones...</div>
+  if (loadingAppLang) return <div>{t('settingsadvanced.cargando_traducciones')}</div>
 
   return (
     <div className="u-stack-20">
       <div className="seadse-row-1">
         {[['operator', '⚙️ Idioma del operador'], ['app', '🖥 Traducciones del back-office'], ['portal', '🌐 Portal cliente']].map(([id, label]) => (
-          <button className="seadse-box-30" key={id} onClick={() => setActiveTab(id)}
-            style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)' }}>
+          <button className="seadse-box-30 settings-sx1" key={id} onClick={() => setActiveTab(id)}
+            style={{ border: `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)' }}>
             {label}
           </button>
         ))}
@@ -179,8 +179,8 @@ export function IdiomasSection() {
             <div className="u-wrap-10">
               {/* Operator-facing picker: only well-covered locales (pl/zh hidden). */}
               {AVAILABLE_LANGUAGES.map(l => (
-                <button className="seadse-box-31" key={l.code} onClick={() => setOperatorLang(l.code)}
-                  style={{ borderRadius: 'var(--radius-md)', border: `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: operatorLang === l.code ? 'var(--accent-muted)' : 'var(--surface-2)', color: operatorLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
+                <button className="seadse-box-31 settings-sx2" key={l.code} onClick={() => setOperatorLang(l.code)}
+                  style={{ border: `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: operatorLang === l.code ? 'var(--accent-muted)' : 'var(--surface-2)', color: operatorLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
                   {l.flag} {l.label}
                   {operatorLang === l.code && <span className="seadse-box-3">✓</span>}
                 </button>
@@ -197,46 +197,46 @@ export function IdiomasSection() {
         <div>
           <div className="seadse-row-2">
             <div>
-              <div className="u-text2-xs-mb4">IDIOMA A EDITAR</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.idioma_a_editar')}</div>
               <div className="u-row-6">
                 {APP_LANGUAGES.filter(l => l.code !== 'es').map(l => (
-                  <button className="seadse-box-30" key={l.code} onClick={() => setAppLang(l.code)}
-                    style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
+                  <button className="seadse-box-30 settings-sx1" key={l.code} onClick={() => setAppLang(l.code)}
+                    style={{ border: `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
                     {l.flag} {l.label}
                   </button>
                 ))}
               </div>
             </div>
             <div className="u-flex1">
-              <div className="u-text2-xs-mb4">BUSCAR CLAVE</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.buscar_clave')}</div>
               <input value={searchKey} onChange={e => setSearchKey(e.target.value)}
                 placeholder={t('settingsadvanced.buscar_clave_de_traduccion')} aria-label={t('settingsadvanced.buscar_clave_de_traduccion')} className="seadse-fs" />
             </div>
             <div>
-              <div className="u-text2-xs-mb4">MODULO</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.modulo')}</div>
               <select value={activeModule} onChange={e => setActiveModule(e.target.value)} className="seadse-fs2">
                 {modules.map(m => <option key={m} value={m}>{m === 'all' ? 'Todos los modulos' : m}</option>)}
               </select>
             </div>
             <div>
-              <div className="u-text2-xs-mb4">IMPORTAR JSON</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.importar_json')}</div>
               <label className="seadse-box-5">
-                📥 Importar JSON
-                <input type="file" accept="application/json" aria-label="Importar JSON" className="seadse-box-6" onChange={importJSON} />
+                {t('settingsadvanced.importar_json_2')}
+                <input type="file" accept="application/json" aria-label={t('i18n.import_json')} className="seadse-box-6" onChange={importJSON} />
               </label>
             </div>
             <div>
-              <div className="u-text2-xs-mb4">EXPORTAR JSON</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.exportar_json')}</div>
               <button type="button" onClick={exportJSON}
                 className="seadse-box-7">
-                📤 Exportar JSON
+                {t('settingsadvanced.exportar_json_2')}
               </button>
             </div>
           </div>
 
           <div className="seadse-grid-1">
             <span>Modulo.Clave</span>
-            <span>🇪🇸 Espanol (base)</span>
+            <span>{t('settingsadvanced.espanol_base')}</span>
             <span>{APP_LANGUAGES.find(l => l.code === appLang)?.flag} {APP_LANGUAGES.find(l => l.code === appLang)?.label}</span>
           </div>
           <div className="seadse-box-8">
@@ -272,12 +272,12 @@ export function IdiomasSection() {
 
           <div className="seadse-row-3">
             <div className="u-text2-sm">
-              {filteredKeys.length} claves · {allKeys.length} total · {hasUnsaved && <span className="u-warning">{t('settingsadvanced.cambios_sin_guardar')}</span>}
+              {filteredKeys.length} {t('settingsadvanced.claves')} {allKeys.length} {t('settingsadvanced.total')} {hasUnsaved && <span className="u-warning">{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div className="u-row-8">
               <button className="seadse-box-32" onClick={() => saveAppTrans()} disabled={!hasUnsaved}
                 style={{ background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default' }}>
-                💾 Guardar traduccion
+                {t('settingsadvanced.guardar_traduccion')}
               </button>
             </div>
           </div>
@@ -288,26 +288,26 @@ export function IdiomasSection() {
         <div>
           <div className="seadse-row-2">
             <div>
-              <div className="u-text2-xs-mb4">IDIOMA A EDITAR</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.idioma_a_editar')}</div>
               <div className="u-row-6">
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
-                  <button className="seadse-box-30" key={l.code} onClick={() => setPortalLang(l.code)}
-                    style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
+                  <button className="seadse-box-30 settings-sx1" key={l.code} onClick={() => setPortalLang(l.code)}
+                    style={{ border: `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
                     {l.flag} {l.label}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <div className="u-text2-xs-mb4">BUSCAR</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.buscar')}</div>
               <input value={portalSearch} onChange={e => setPortalSearch(e.target.value)}
                 placeholder={t('settingsadvanced.buscar_texto_del_portal')} aria-label={t('settingsadvanced.buscar_texto_del_portal')} className="seadse-fs4" />
             </div>
             <div>
-              <div className="u-text2-xs-mb4">IMPORTAR JSON</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.importar_json')}</div>
               <label className="seadse-box-5">
-                📥 Importar JSON
-                <input type="file" accept="application/json" aria-label="Importar JSON" className="seadse-box-6" onChange={e => {
+                {t('settingsadvanced.importar_json_2')}
+                <input type="file" accept="application/json" aria-label={t('i18n.import_json')} className="seadse-box-6" onChange={e => {
                   const file = e.target.files?.[0]
                   if (!file) return
                   const reader = new FileReader()
@@ -325,9 +325,9 @@ export function IdiomasSection() {
                         return merged
                       })
                       setHasUnsaved(true)
-                      toast.success('Traducciones importadas. Revisa y guarda para aplicar.')
+                      toast.success(t('settingsadvanced.traducciones_importadas_revisa_y_guarda_para_aplicar'))
                     } catch {
-                      toast.error('Error al leer el archivo JSON')
+                      toast.error(t('settingsadvanced.error_al_leer_el_archivo_json'))
                     }
                   }
                   reader.readAsText(file)
@@ -335,17 +335,17 @@ export function IdiomasSection() {
               </label>
             </div>
             <div>
-              <div className="u-text2-xs-mb4">EXPORTAR JSON</div>
+              <div className="u-text2-xs-mb4">{t('settingsadvanced.exportar_json')}</div>
               <button type="button" onClick={exportPortalJSON}
                 className="seadse-box-7">
-                📤 Exportar JSON
+                {t('settingsadvanced.exportar_json_2')}
               </button>
             </div>
           </div>
 
           <div className="seadse-grid-2">
             <span>Clave</span>
-            <span>🇪🇸 Espanol (base)</span>
+            <span>{t('settingsadvanced.espanol_base')}</span>
             <span>{PORTAL_LANGUAGES.find(l => l.code === portalLang)?.flag} {PORTAL_LANGUAGES.find(l => l.code === portalLang)?.label}</span>
           </div>
           <div className="seadse-box-8">
@@ -379,7 +379,7 @@ export function IdiomasSection() {
 
           <div className="seadse-row-3">
             <div className="u-text2-sm">
-              {getPortalKeys().length} claves · 8 idiomas
+              {getPortalKeys().length} {t('settingsadvanced.claves_8_idiomas')}
               {hasUnsaved && <span className="seadse-box-12">{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div className="u-row-8">
@@ -434,10 +434,10 @@ export function LogLevelSection() {
       const lvl = String(level).toUpperCase()
       setBackendLevel(lvl)
       await settingsApi.setLogLevel({ level: lvl as LogLevel })
-      toast.success(`Nivel backend cambiado a ${lvl}`)
+      toast.success(t('settingsadvanced.nivel_backend_cambiado_a_lvl', { lvl }))
       qc.invalidateQueries({ queryKey: ['log-level'] })
     } catch {
-      toast.error('Error al cambiar nivel de log')
+      toast.error(t('settingsadvanced.error_al_cambiar_nivel_de_log'))
     }
   }
 
@@ -446,32 +446,32 @@ export function LogLevelSection() {
     localStorage.setItem('contecflow_log_level', level)
     const logger = (window as VentanaConLogger).__contecflowLogger
     if (logger) logger.setLevel(level)
-    toast.success(`Nivel frontend cambiado a ${level.toUpperCase()} (activo hasta recarga)`)
+    toast.success(t('settingsadvanced.nivel_frontend_cambiado_a_level_activo_hasta', { level: level.toUpperCase() }))
   }
 
   const LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
   const LEVEL_COLORS: Record<string, string> = { DEBUG: 'var(--text-2)', INFO: 'var(--accent)', WARNING: 'var(--warning)', ERROR: 'var(--danger)', CRITICAL: '#c0392b' }
 
   return (
-    <SeccionDeAjustes icon="📋" title={t('settingsadvanced.nivel_de_log')} description="Controla la verbosidad del backend y frontend">
+    <SeccionDeAjustes icon="📋" title={t('settingsadvanced.nivel_de_log')} description={t('settingsadvanced.controla_la_verbosidad_del_backend_y_frontend')}>
       <div className="seadse-grid-3">
         <div className="seadse-box-13">
-          <div className="seadse-box-14">🖥️ Servidor (FastAPI / Uvicorn)</div>
+          <div className="seadse-box-14">{t('settingsadvanced.servidor_fastapi_uvicorn')}</div>
           <div className="seadse-box-15">
             {t('settingsadvanced.cambia_el_nivel_en_tiempo_real_sin')} <code className="seadse-box-16">LOG_LEVEL=INFO</code>
           </div>
           {!isLoading && serverLevel && (
             <div className="seadse-box-17">
-              Nivel actual: <strong>{serverLevel.contecflow}</strong>
+              {t('settingsadvanced.nivel_actual')} <strong>{serverLevel.contecflow}</strong>
               <span className="seadse-box-18">
-                (root: {serverLevel.root} · uvicorn: {serverLevel.uvicorn || serverLevel.root})
+                {t('settingsadvanced.root')} {serverLevel.root} {t('settingsadvanced.uvicorn')} {serverLevel.uvicorn || serverLevel.root})
               </span>
             </div>
           )}
           <div className="u-wrap-8">
             {LEVELS.map(l => (
-              <button className="seadse-box-33" key={l} onClick={() => handleSetBackend(l)}
-                style={{ borderRadius: 8, border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`, background: backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)', color: backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)' }}>
+              <button className="seadse-box-33 settings-sx3" key={l} onClick={() => handleSetBackend(l)}
+                style={{ border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`, background: backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)', color: backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)' }}>
                 {l}
               </button>
             ))}
@@ -479,17 +479,17 @@ export function LogLevelSection() {
         </div>
 
         <div className="seadse-box-13">
-          <div className="seadse-box-14">🌐 Navegador (React / Vite)</div>
+          <div className="seadse-box-14">{t('settingsadvanced.navegador_react_vite')}</div>
           <div className="seadse-box-15">
             {t('settingsadvanced.controla_la_consola_del_navegador_se_guarda')} <code className="seadse-box-16">{"__contecflowLogger.setLevel('debug')"}</code>
           </div>
           <div className="seadse-box-17">
-            Nivel actual: <strong>{frontendLevel.toUpperCase()}</strong>
+            {t('settingsadvanced.nivel_actual')} <strong>{frontendLevel.toUpperCase()}</strong>
           </div>
           <div className="u-wrap-8">
             {['DEBUG', 'INFO', 'WARN', 'ERROR', 'SILENT'].map(l => (
-              <button className="seadse-box-33" key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
-                style={{ borderRadius: 8, border: `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`, background: frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)', color: frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)' }}>
+              <button className="seadse-box-33 settings-sx3" key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
+                style={{ border: `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`, background: frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)', color: frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)' }}>
                 {l}
               </button>
             ))}
@@ -501,9 +501,10 @@ export function LogLevelSection() {
 }
 
 export function EmailInboundSection() {
+  const { t } = useAppLang()
   // La misma pantalla que Service Desk → Configuración → Correo entrante.
   return (
-    <SeccionDeAjustes icon="📧" title="Email a ticket" description="Correo entrante al Service Desk: buzón, pasarela y últimos mensajes">
+    <SeccionDeAjustes icon="📧" title={t('settingsadvanced.email_a_ticket')} description={t('settingsadvanced.correo_entrante_al_service_desk_buzon_pasarela')}>
       <ConfigCorreoEntrante />
     </SeccionDeAjustes>
   )
@@ -666,7 +667,7 @@ function AislamientoEnLaBase() {
   if (!data) return null
   const color = data.armed ? 'var(--success)' : 'var(--warning)'
   return (
-    <div className="seadse-box-34" role={data.armed ? undefined : 'alert'} style={{ borderRadius: 'var(--radius-md)', background: `color-mix(in srgb, ${color} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${color} 30%, var(--surface-4))` }}>
+    <div className="seadse-box-34 settings-sx2" role={data.armed ? undefined : 'alert'} style={{ background: `color-mix(in srgb, ${color} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${color} 30%, var(--surface-4))` }}>
       <strong style={{ color }}>{data.armed ? '🔒 ' + t('settingsadvanced.rls_armado') : '⚠ ' + t('settingsadvanced.rls_desarmado')}</strong>
       <div className="seadse-box-24">
         {t('settingsadvanced.rls_detalle', { rol: data.role ?? '—', n: data.tables_with_rls ?? 0, total: data.tables_expected ?? 0 })}
@@ -696,10 +697,10 @@ export function SystemStateSection() {
   const groupMeta = Object.fromEntries(SYSTEM_KEY_GROUPS.map(g => [g.label, g]))
 
   return (
-    <SeccionDeAjustes icon="🔧" title={t('settingsadvanced.estado_del_sistema')} description="Lectura del estado interno persistido por servicios BI / ITSM (admin · solo lectura)">
+    <SeccionDeAjustes icon="🔧" title={t('settingsadvanced.estado_del_sistema')} description={t('settingsadvanced.lectura_del_estado_interno_persistido_por_servicios')}>
       <AislamientoEnLaBase />
       {isLoading ? (
-        <div className="u-text3-sm">Cargando…</div>
+        <div className="u-text3-sm">{t('chat.loading')}</div>
       ) : internal.length === 0 ? (
         <div className="seadse-box-25">
           {t('settingsadvanced.sin_estado_interno_registrado')}
@@ -793,7 +794,7 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
     mutationFn: ({ key, value }: { key: string; value: string | boolean }) => settingsApi.setRuntime(groupId, key, value),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['runtime-flags', groupId] })
-      toast.success('Guardado')
+      toast.success(t('i18n.saved'))
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -807,7 +808,7 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
     }
   }, [data])
 
-  if (isLoading) return <div className="seadse-box-28">Cargando…</div>
+  if (isLoading) return <div className="seadse-box-28">{t('chat.loading')}</div>
   if (isError) return <div className="seadse-box-29">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
 
   const items = data?.items || []
@@ -843,6 +844,7 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
 
 
 function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSave }: { item: RuntimeSetting; current: string; isBool: boolean; dirty: boolean; disabled: boolean; onChange: (v: string) => void; onSave: () => void }) {
+  const { t } = useAppLang()
   return (
     <>
       <div className="seadse-stack-2">
@@ -852,8 +854,8 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
       <div>
         {isBool ? (
           <select value={String(current)} onChange={(e) => onChange(e.target.value)} className="seadse-inputstyle" disabled={disabled && item.plataforma}>
-            <option value="true">Activado</option>
-            <option value="false">Desactivado</option>
+            <option value="true">{t('settingsadvanced.activado')}</option>
+            <option value="false">{t('settingsadvanced.desactivado')}</option>
           </select>
         ) : (
           <input
@@ -872,7 +874,7 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
         onClick={onSave}
         disabled={!dirty || disabled}
         style={{ background: dirty ? 'var(--accent)' : 'var(--surface-3)', color: dirty ? '#fff' : 'var(--text-3)', cursor: dirty && !disabled ? 'pointer' : 'not-allowed' }}
-      >Guardar</button>
+      >{t('common.save')}</button>
     </>
   )
 }
@@ -892,7 +894,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
     mutationFn: ({ key, value }: { key: string; value: string }) => settingsApi.setIntegration(provider, key, value),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['integration', provider] })
-      toast.success('Guardado')
+      toast.success(t('i18n.saved'))
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -921,7 +923,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
     }
   }, [data])
 
-  if (isLoading) return <div className="seadse-box-28">Cargando…</div>
+  if (isLoading) return <div className="seadse-box-28">{t('chat.loading')}</div>
   if (isError)   return <div className="seadse-box-29">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
 
   const items = data?.items || []
@@ -944,7 +946,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
         >{testing ? 'Probando…' : 'Probar conexión'}</button>
       </div>
       {testResult && (
-        <div className="seadse-box-37" style={{ borderRadius: 8, background: testResult.ok ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)', border: '1px solid ' + (testResult.ok ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)'), color: testResult.ok ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)' }}>
+        <div className="seadse-box-37 settings-sx3" style={{ background: testResult.ok ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)', border: '1px solid ' + (testResult.ok ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)'), color: testResult.ok ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)' }}>
           <strong>{testResult.ok ? '✓ OK' : '✗ Error'}</strong> — {testResult.detail}
         </div>
       )}
@@ -957,7 +959,7 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
               <div className="seadse-stack-2">
                 <span className="u-text1-sm-600">{it.label}</span>
                 <span className="seadse-txt-2">
-                  {it.key}{it.is_secret ? ' • secreto' : ''} • origen: {it.source}
+                  {it.key}{it.is_secret ? ' • secreto' : ''} {t('settingsadvanced.origen')} {it.source}
                 </span>
               </div>
               <div>
@@ -976,14 +978,14 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
                 onClick={() => save({ key: it.key, value: current })}
                 disabled={!dirty || isPending}
                 style={{ background: dirty ? 'var(--accent)' : 'var(--surface-3)', color: dirty ? '#fff' : 'var(--text-3)', cursor: dirty && !isPending ? 'pointer' : 'not-allowed' }}
-              >Guardar</button>
+              >{t('common.save')}</button>
               <button className="seadse-box-38"
                 type="button"
                 onClick={() => save({ key: it.key, value: '' })}
                 disabled={isPending || (!it.configured)}
                 title={it.configured ? 'Borrar override (vuelve al valor del .env)' : 'No configurado'}
                 style={{ cursor: isPending || !it.configured ? 'not-allowed' : 'pointer' }}
-              >Borrar</button>
+              >{t('pol.borrar')}</button>
             </Fragment>
           )
         })}
@@ -1008,7 +1010,7 @@ export function IntegrationCredentialsSection() {
     if (!active && providers.length) setActive(providers[0].provider)
   }, [providers, active])
 
-  if (isLoading) return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div className="seadse-box-28">Cargando…</div></SeccionDeAjustes>
+  if (isLoading) return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div className="seadse-box-28">{t('chat.loading')}</div></SeccionDeAjustes>
   if (isError)   return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div className="seadse-box-29">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></SeccionDeAjustes>
 
   const currentProvider = providers.find(p => p.provider === active)
@@ -1017,15 +1019,15 @@ export function IntegrationCredentialsSection() {
     <SeccionDeAjustes
       icon="🔐"
       title={t('settingsadvanced.credenciales_de_integracion')}
-      description="SMTP, AWS S3, Microsoft Graph, Slack, Stripe, etc. Los secretos se cifran en reposo (Fernet/HKDF + opcional AWS KMS) y nunca se devuelven en las respuestas."
+      description={t('settingsadvanced.smtp_aws_s3_microsoft_graph_slack_stripe')}
     >
       <EstadoDeConectores />
       <div className="seadse-row-7">
         {providers.map(p => (
-          <button className="seadse-box-39"
+          <button className="seadse-box-39 settings-sx4"
             key={p.provider}
             onClick={() => setActive(p.provider)}
-            style={{ borderRadius: 'var(--radius-full)', border: '1px solid ' + (active === p.provider ? 'var(--accent)' : 'var(--surface-4)'), background: active === p.provider ? 'var(--accent-muted)' : 'transparent', color: active === p.provider ? 'var(--accent)' : 'var(--text-2)' }}
+            style={{ border: '1px solid ' + (active === p.provider ? 'var(--accent)' : 'var(--surface-4)'), background: active === p.provider ? 'var(--accent-muted)' : 'transparent', color: active === p.provider ? 'var(--accent)' : 'var(--text-2)' }}
           >{p.label}</button>
         ))}
       </div>
@@ -1042,13 +1044,13 @@ export function RuntimeFlagsSection() {
   const [active, setActive] = useState(RUNTIME_GROUPS[0].id)
   const current = RUNTIME_GROUPS.find(g => g.id === active) || RUNTIME_GROUPS[0]
   return (
-    <SeccionDeAjustes icon="⚙️" title={t('settingsadvanced.configuracion_dinamica')} description="Knobs operativos editables sin redeploy. Resuelven org → global → valor del .env.">
+    <SeccionDeAjustes icon="⚙️" title={t('settingsadvanced.configuracion_dinamica')} description={t('settingsadvanced.knobs_operativos_editables_sin_redeploy_resuelven_org')}>
       <div className="seadse-row-7">
         {RUNTIME_GROUPS.map(g => (
-          <button className="seadse-box-39"
+          <button className="seadse-box-39 settings-sx4"
             key={g.id}
             onClick={() => setActive(g.id)}
-            style={{ borderRadius: 'var(--radius-full)', border: '1px solid ' + (active === g.id ? 'var(--accent)' : 'var(--surface-4)'), background: active === g.id ? 'var(--accent-muted)' : 'transparent', color: active === g.id ? 'var(--accent)' : 'var(--text-2)' }}
+            style={{ border: '1px solid ' + (active === g.id ? 'var(--accent)' : 'var(--surface-4)'), background: active === g.id ? 'var(--accent-muted)' : 'transparent', color: active === g.id ? 'var(--accent)' : 'var(--text-2)' }}
           >{g.label}</button>
         ))}
       </div>

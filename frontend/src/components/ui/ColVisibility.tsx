@@ -70,12 +70,12 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
 
     return (
       <div ref={ref} className="uicolvisi-box-1">
-        <button className="uicolvisi-row-2"
+        <button className="uicolvisi-row-2 colvisib-sx1"
           onClick={() => setOpen((o) => !o)}
           type="button"
           title={t('uikit.mostrar_ocultar_columnas')}
           aria-expanded={open}
-          style={{ background: open ? 'var(--surface-4)' : 'transparent', border: `1px solid ${open ? 'var(--surface-5)' : 'transparent'}`, borderRadius: 'var(--radius-sm)', color: open ? 'var(--text-1)' : 'var(--text-3)' }}
+          style={{ background: open ? 'var(--surface-4)' : 'transparent', border: `1px solid ${open ? 'var(--surface-5)' : 'transparent'}`, color: open ? 'var(--text-1)' : 'var(--text-3)' }}
           onMouseEnter={(e) => { if (!open) { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text-2)' } }}
           onMouseLeave={(e) => { if (!open) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-3)' } }}
         >
@@ -112,7 +112,7 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
                     style={{ cursor: isFirst ? 'not-allowed' : 'pointer' }}
                   />
                   <span className="u-text2-sm">{col.label}</span>
-                  {isFirst && <span className="uicolvisi-box-4">fijo</span>}
+                  {isFirst && <span className="uicolvisi-box-4">{t('colvisibility.fijo')}</span>}
                 </label>
               )
             })}

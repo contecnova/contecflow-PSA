@@ -2,7 +2,6 @@
  * ProjectTemplatesPage — Manage and instantiate project templates.
  * Templates predefine phases, tasks, risks and deliverables for fast project creation.
  */
-import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { templatesApi, type ApiError } from '../services/api'

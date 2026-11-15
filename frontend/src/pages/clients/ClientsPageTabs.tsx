@@ -5,14 +5,15 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { clientExtApi, clientsApi, contractsApi, type ClientContact, type Contract, licensesApi, portalApi, wsApi, apiWsUrl } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
+import Pagination from '../../components/ui/Pagination'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
-import { fmtCurrency, extractErr } from '../../utils/helpers'
+import { fmtCurrency, fmtDate, extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 import { useAppLang } from '../../i18n/AppLangContext'
-import type { ClienteContrato, ClienteLicencia, ClientePortalConfig, ClienteProyecto, PortalDocumento, PortalPeticion, PortalSesionUat } from '../../services/api/tipos-alm'
+import type { FacturaDeCliente, ClienteContrato, ClienteLicencia, ClientePortalConfig, ClienteProyecto, PortalDocumento, PortalPeticion, PortalSesionUat } from '../../services/api/tipos-alm'
 import { alpha } from '../../constants/theme'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
@@ -451,8 +452,8 @@ export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDeta
     <div>
       <div className="clpata-row-6" role="tablist" aria-label={traducir('clientstabs.secciones_portal')}>
         {subTabs.map(t => (
-          <button type="button" role="tab" aria-selected={sub === t.id} className="clpata-box-31" key={t.id} onClick={() => setSub(t.id)}
-            style={{ borderRadius: 8, border: `1px solid ${sub === t.id ? 'var(--accent-glow)' : 'transparent'}`, background: sub === t.id ? 'var(--accent-muted)' : 'transparent', color: sub === t.id ? 'var(--accent)' : 'var(--text-2)', fontWeight: sub === t.id ? 700 : 400 }}>
+          <button type="button" role="tab" aria-selected={sub === t.id} className="clpata-box-31 clientsp-sx1" key={t.id} onClick={() => setSub(t.id)}
+            style={{ border: `1px solid ${sub === t.id ? 'var(--accent-glow)' : 'transparent'}`, background: sub === t.id ? 'var(--accent-muted)' : 'transparent', color: sub === t.id ? 'var(--accent)' : 'var(--text-2)', fontWeight: sub === t.id ? 700 : 400 }}>
             {t.label}
           </button>
         ))}
@@ -919,7 +920,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             { key: 'allowEdit', val: allowEdit, set: setAllowEdit, label: traducir('clientstabs.puede_editar_perfil'), desc: traducir('clientstabs.puede_editar_perfil_desc') },
             { key: 'allowPwd', val: allowPwd, set: setAllowPwd, label: traducir('clientstabs.puede_cambiar_pwd'), desc: traducir('clientstabs.puede_cambiar_pwd_desc') },
           ].map(opt => (
-            <label className="clpata-row-15" key={opt.key} style={{ background: opt.val ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${opt.val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
+            <label className="clpata-row-15 clientsp-sx1" key={opt.key} style={{ background: opt.val ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${opt.val ? 'var(--accent)' : 'var(--surface-4)'}` }}>
               <input type="checkbox" checked={opt.val} onChange={e => opt.set(e.target.checked)} className="clpata-box-27" />
               <div>
                 <div className="clpata-txt-7" style={{ color: opt.val ? 'var(--text-1)' : 'var(--text-2)' }}>{opt.label}</div>
@@ -933,10 +934,84 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
           </div>
         </div>
 
-        <Button onClick={() => save({ enabled_modules: modules, sd_without_project: sdWithout, sla_tier: slaTier || null, max_portal_users: maxUsers, default_language: defaultLang, allow_profile_edit: allowEdit, allow_pwd_change: allowPwd })} style={{ width: '100%' }} loading={saving}>
+        <Button onClick={() => save({ enabled_modules: modules, sd_without_project: sdWithout, sla_tier: slaTier || null, max_portal_users: maxUsers, default_language: defaultLang, allow_profile_edit: allowEdit, allow_pwd_change: allowPwd })} className="clientsp-sx2" loading={saving}>
           {traducir('clients.guardar_configuracion_del_portal')}
         </Button>
       </div>
+    </div>
+  )
+}
+
+// ── Facturas del cliente (#22) ───────────────────────────────────────────────
+// GET /clients/{cid}/invoices pagina en el servidor: el total llega en `meta.total`
+// (o `X-Total-Count`) y la pestana solo trae la pagina visible.
+const FACTURAS_POR_PAGINA = 20
+const FACTURA_ESTADOS = ['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const
+
+export function InvoicesTab({ cid }: { cid: string }) {
+  const { t: traducir } = useAppLang()
+  const dinero = useFormatoMoneda()
+  const [page, setPage] = useState(1)
+
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+    queryKey: ['client-invoices', cid, page],
+    queryFn: () => clientsApi.invoices(cid, { page, page_size: FACTURAS_POR_PAGINA }).then(r => ({
+      items: r.data,
+      total: r.meta?.total ?? Number(r.headers?.['x-total-count'] ?? r.data.length),
+    })),
+    placeholderData: previous => previous,
+  })
+
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / FACTURAS_POR_PAGINA))
+  // Si la pagina pedida queda fuera del total, vuelve a la ultima que existe.
+  useEffect(() => { if (data && page > totalPages) setPage(totalPages) }, [data, page, totalPages])
+  useEffect(() => { setPage(1) }, [cid])
+
+  const etiquetaEstado = (st: string) => (FACTURA_ESTADOS as readonly string[]).includes(st) ? traducir(`clientstabs.fact_estado_${st}`) : st
+
+  if (isLoading) return <Spinner />
+  if (isError) {
+    return (
+      <div className="clifac-error" role="alert">
+        <span>{traducir('clientstabs.fact_error')}</span>
+        <Button variant="secondary" size="sm" onClick={() => refetch()}>{traducir('clientstabs.fact_reintentar')}</Button>
+      </div>
+    )
+  }
+  const facturas: FacturaDeCliente[] = data?.items ?? []
+  if (facturas.length === 0) {
+    return <EmptyState icon="🧾" title={traducir('clientstabs.fact_vacio_titulo')} description={traducir('clientstabs.fact_vacio_desc')} />
+  }
+  return (
+    <div className="clifac" aria-busy={isFetching || undefined}>
+      <div className="clifac-scroll">
+        <table className="clifac-tabla">
+          <thead>
+            <tr>
+              <th scope="col">{traducir('clientstabs.fact_numero')}</th>
+              <th scope="col">{traducir('clientstabs.fact_proyecto')}</th>
+              <th scope="col">{traducir('clientstabs.fact_emision')}</th>
+              <th scope="col">{traducir('clientstabs.fact_vencimiento')}</th>
+              <th scope="col" className="clifac-num">{traducir('clientstabs.fact_importe')}</th>
+              <th scope="col">{traducir('clientstabs.fact_estado')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {facturas.map(f => (
+              <tr key={f.id}>
+                <td className="clifac-numero">{f.number ?? '—'}</td>
+                <td>{f.project_name ?? '—'}</td>
+                <td>{f.issue_date ? fmtDate(f.issue_date) : '—'}</td>
+                <td>{f.due_date ? fmtDate(f.due_date) : '—'}</td>
+                <td className="clifac-num">{f.total_amount == null ? '—' : dinero(f.total_amount)}</td>
+                <td><span className={`clifac-estado clifac-estado--${f.status}`}>{etiquetaEstado(f.status)}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} total={total} pageSize={FACTURAS_POR_PAGINA} maxVisible={5} />
     </div>
   )
 }

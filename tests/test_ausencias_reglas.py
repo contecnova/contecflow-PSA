@@ -150,6 +150,66 @@ def test_bloquear_si_lleno_rechaza_y_no_guarda_plaza(ctx):
     assert db.query(ReservaDeCupo).count() == 1
 
 
+def test_el_cupo_cuenta_las_ausencias_que_ya_existian_y_es_idempotente(ctx):
+    db, admin = ctx, _admin(ctx)
+    a, b, c = (_persona(db, x) for x in ("ana", "beto", "carla"))
+    _turnos_y_cuadrante(db, admin, [a, b, c])
+    tipo = catalogo.tipo_por_clave(db, "vacation")
+    previas = [Absence(id=str(uuid.uuid4()), organization_id=ORG, user_id=u.id, type="vacation", absence_type_id=tipo.id,
+                       start_date=d, end_date=d, working_days=1, amount=1, unit="dias", status=AbsenceStatus.approved,
+                       is_active=True, requested_at=cupos.ahora())
+               for u, d in ((a, LUNES), (a, LUNES + timedelta(days=1)))]
+    db.add_all(previas)
+    db.commit()
+    # Al publicar: la ausencia de ana del lunes (anterior a la política) ocupa su plaza.
+    _politica_de_cupo(db, admin, maximo=1)
+    assert db.query(ReservaDeCupo).filter_by(absence_id=previas[0].id, estado="ocupa").count() == 1
+    from app.models.politicas import Politica
+    pub = db.query(Politica).filter_by(dominio="ausencias", estado="publicada").one()
+    assert cupos.sembrar_politica(db, servicio.politica_dict(pub)) == 0          # idempotente
+    assert _pedir(db, b).status == AbsenceStatus.waitlisted
+    # Al crear una plaza nueva: una aprobada que aún no contaba (la de ana el martes) cuenta.
+    db.query(ReservaDeCupo).filter_by(absence_id=previas[1].id).delete()
+    from app.models.ausencias import HuecoDeCupo
+    db.query(HuecoDeCupo).filter(HuecoDeCupo.fecha == LUNES + timedelta(days=1)).delete()
+    db.commit()
+    assert _pedir(db, c, LUNES + timedelta(days=1)).status == AbsenceStatus.waitlisted
+    assert db.query(ReservaDeCupo).filter_by(absence_id=previas[1].id, estado="ocupa").count() == 1
+
+
+def test_ampliar_reevalua_reserva_y_vuelve_a_aprobacion_y_si_se_rechaza_vuelve_atras(ctx):
+    from app.models.billing_reports import ApprovalRequest, ApprovalStep, ApprovalWorkflow
+    from app.models.ausencias import EventoDeAusencia
+    db, admin = ctx, _admin(ctx)
+    a, b = _persona(db, "ana", jefe="pm-test-id"), _persona(db, "beto")
+    _turnos_y_cuadrante(db, admin, [a, b], dias=5)
+    _politica_de_cupo(db, admin, maximo=1)
+    x = _pedir(db, a)                                   # sin flujo: decide el responsable
+    solicitudes.aplicar_decision(db, x, True, admin, None)
+    assert x.status == AbsenceStatus.approved
+    # Ahora hay flujo para ausencias: la ampliación vuelve a aprobación.
+    wf = ApprovalWorkflow(id=str(uuid.uuid4()), organization_id=ORG, name="WF", entity_type="leave", is_active=True,
+                          is_default=True, trigger_conditions="{}")
+    db.add(wf)
+    db.add(ApprovalStep(id=str(uuid.uuid4()), organization_id=ORG, workflow_id=wf.id, step_order=1, name="Responsable",
+                        approver_type="manager", kind="approve", required_approvals=1))
+    db.commit()
+    hr, pm = db.get(User, "hr-test-id"), db.get(User, "pm-test-id")
+    solicitudes.ampliar(db, hr, x, LUNES + timedelta(days=2))
+    assert x.status == AbsenceStatus.pending and x.end_date == LUNES + timedelta(days=2)
+    assert db.query(ApprovalRequest).filter_by(entity_id=x.id, status="pending").count() == 1
+    assert {r["fecha"] for r in cupos.reservas_de(db, x.id)} == {(LUNES + timedelta(days=i)).isoformat() for i in range(3)}
+    solicitudes.revisar(db, pm, x, False, "No")         # rechazada: vuelve al fin anterior, sigue aprobada
+    assert (x.status, x.end_date) == (AbsenceStatus.approved, LUNES)
+    assert [r["fecha"] for r in cupos.reservas_de(db, x.id)] == [LUNES.isoformat()]
+    # Beto toma el miércoles; ampliar hasta el miércoles deja la ampliación en espera.
+    assert _pedir(db, b, LUNES + timedelta(days=2)).status == AbsenceStatus.pending
+    solicitudes.ampliar(db, hr, x, LUNES + timedelta(days=2))
+    assert x.status == AbsenceStatus.waitlisted
+    tipos = [e.tipo for e in db.query(EventoDeAusencia).filter_by(absence_id=x.id).order_by(EventoDeAusencia.created_at)]
+    assert {"ampliada", "ampliacion_rechazada", "en_espera"} <= set(tipos)
+
+
 # ── La carrera por la última plaza ───────────────────────────────────────────
 
 def test_dos_peticiones_a_la_vez_por_la_ultima_plaza(tmp_path):
@@ -159,8 +219,8 @@ def test_dos_peticiones_a_la_vez_por_la_ultima_plaza(tmp_path):
     from app.models.ausencias import ReservaDeCupo as R
     motor_ = sa.create_engine(f"sqlite:///{tmp_path / 'carrera.db'}", connect_args={"timeout": 30})
     HuecoDeCupo.__table__.create(motor_)
+    Absence.__table__.create(motor_)   # vacía: la siembra de una plaza nueva no encuentra ausencias previas
     with motor_.begin() as c:
-        c.exec_driver_sql("CREATE TABLE absences (id TEXT PRIMARY KEY)")
         c.exec_driver_sql("CREATE TABLE organizations (id TEXT PRIMARY KEY)")
     R.__table__.create(motor_)
     Sesion = sessionmaker(bind=motor_)

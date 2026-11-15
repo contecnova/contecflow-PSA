@@ -212,10 +212,10 @@ export default function BiEtlPanel() {
   const orden = [...conectores].sort((a, b) => Number(b.enabled) - Number(a.enabled) || Number(b.personalizado) - Number(a.personalizado) || Number(!b.falta) - Number(!a.falta))
 
   return (
-    <Card style={{ padding: '20px 22px' }}>
+    <Card className="bietlpan-sx1">
       <div className="bietpa-row-5">
         <div className="u-row-center-8">
-          <Database size={18} style={{ color: 'var(--accent)' }} />
+          <Database size={18} className="bietlpan-sx2" />
           <h2 className="bietpa-box-3">{t('etl.titulo')}</h2>
         </div>
         <div className="bietpa-row-6">

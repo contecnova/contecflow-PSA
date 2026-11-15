@@ -252,3 +252,51 @@
   font-size: var(--text-base);
   font-family: inherit;
 }
+
+.nps-box-15 {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Estilos en linea extraidos de NPSPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.npspage-sx1.npspage-sx1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.npspage-sx2.npspage-sx2 {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+.npspage-sx3.npspage-sx3 {
+  background: var(--surface-4);
+}
+.npspage-sx4.npspage-sx4 {
+  background: none;
+}
+.npspage-sx5.npspage-sx5 {
+  border: none;
+}
+.npspage-sx6.npspage-sx6 {
+  background: var(--surface-4);
+  border-left: 3px solid var(--info);
+}
+.npspage-sx7.npspage-sx7 {
+  background: none;
+  border-left: 3px solid transparent;
+}
+.npspage-sx8.npspage-sx8 {
+  padding: 32px 16px;
+}
+.npspage-sx9.npspage-sx9 {
+  padding: 60px;
+}
+.npspage-sx10.npspage-sx10 {
+  grid-template-columns: 120px minmax(0, 1fr);
+}
+.npspage-sx11.npspage-sx11 {
+  border-radius: var(--radius-sm);
+}
+.npspage-sx12.npspage-sx12 {
+  color: var(--text-1);
+}
+.npspage-sx13.npspage-sx13 {
+  color: var(--text-2);
+}

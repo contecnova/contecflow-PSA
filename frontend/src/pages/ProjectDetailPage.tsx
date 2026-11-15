@@ -4,13 +4,14 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, risksApi, type ProjectDetail, type ProjectUpdatePayload, type TaskListItem } from '../services/api'
 import { Spinner, LoadBar as LoadBarRaw } from '../components/ui'
-import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
+import { fmtDate, fmtCurrency } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles, FileText, Lightbulb } from 'lucide-react'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
 import LeccionesDelProyecto from '../components/lecciones/LeccionesDeOrigen'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { useAppT } from '../i18n/AppLangContext'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
@@ -77,7 +78,7 @@ function OverviewTab({ project }: { project: Project }) {
 
       {/* Metadata grid */}
       <div className="pd-grid">
-        <MetaItem label={t('project_detail.meta_type')} value={TYPE_LABELS[project.project_type] || project.project_type} />
+        <MetaItem label={t('project_detail.meta_type')} value={etiquetaCodigo(t, 'tipo_proyecto', project.project_type)} />
         <MetaItem label={t('project_detail.meta_pm')} value={project.pm_name} />
         <MetaItem label={t('project_detail.meta_client')} value={project.client_name} />
         <MetaItem label={t('project_detail.meta_department')} value={project.department} />

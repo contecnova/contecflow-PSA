@@ -45,7 +45,7 @@ export default function OfflineIndicator() {
       className="offlindi-stack-1"
     >
       {/* Main status pill */}
-      <div className="offlindi-row-2"
+      <div className="offlindi-row-2 offlinei-sx1"
         role="button"
         tabIndex={0}
         onClick={() => setExpanded(!expanded)}
@@ -55,7 +55,7 @@ export default function OfflineIndicator() {
             setExpanded((prev) => !prev);
           }
         }}
-        style={{ borderRadius: 20, background: isOnline ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isOnline ? 'var(--success-border)' : 'var(--danger-border)'}`, boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
+        style={{ background: isOnline ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isOnline ? 'var(--success-border)' : 'var(--danger-border)'}` }}
       >
         {/* Pulsing dot */}
         <span className="offlindi-box-7"
@@ -88,19 +88,7 @@ export default function OfflineIndicator() {
 
       {/* Expanded details */}
       {expanded && (
-        <div
-          style={{
-            background: 'var(--surface-2)',
-            border: '1px solid var(--surface-5)',
-            borderRadius: 8,
-            padding: 12,
-            fontSize: "var(--text-xs)",
-            color: 'var(--text-1)',
-            minWidth: 250,
-            maxWidth: 350,
-            pointerEvents: 'auto',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-          }}
+        <div className="offlinei-sx2"
         >
           {/* Stats */}
           <div className="offlindi-box-4">

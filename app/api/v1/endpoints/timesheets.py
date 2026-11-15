@@ -81,12 +81,15 @@ def submit_timesheet(
 @router.get("/pending", response_model=APIListResponse[TimesheetOut], summary="Timesheets pendientes de revisión (managers)")
 def get_pending_timesheets(
     response: Response,
+    q: Optional[str] = Query(None, max_length=200, description="Texto en persona o semana"),
+    date_from: Optional[date] = Query(None, description="Semanas desde (inclusive)"),
+    date_to: Optional[date] = Query(None, description="Semanas hasta (inclusive)"),
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     # Segunda auditoria 2026-11: `page`/`page_size` se aceptaban y se ignoraban.
-    return lista_paginada(response, _tsvc.list_pending_timesheets(db, pagina))
+    return lista_paginada(response, _tsvc.list_pending_timesheets(db, pagina, q, date_from, date_to))
 
 
 @router.get("/team", response_model=APIListResponse[TimesheetOut], summary="Todos los timesheets del equipo")
@@ -94,13 +97,19 @@ def get_team_timesheets(
     week_start: Optional[date] = None,
     user_id: Optional[str] = None,
     status: Optional[str] = None,
+    q: Optional[str] = Query(None, max_length=200, description="Texto en persona o semana"),
+    date_from: Optional[date] = Query(None, description="Semanas desde (inclusive)"),
+    date_to: Optional[date] = Query(None, description="Semanas hasta (inclusive)"),
+    sort: str = Query("week_start", pattern="^(week_start|total_hours|billable_hours|total_cost|status|user_name)$"),
+    direction: str = Query("desc", pattern="^(asc|desc)$"),
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "timesheet", action="read")
-    return lista_paginada(response, _tsvc.list_team_timesheets(db, week_start, user_id, status, pagina))
+    return lista_paginada(response, _tsvc.list_team_timesheets(
+        db, week_start, user_id, status, pagina, q, date_from, date_to, sort, direction))
 
 
 @router.post("/{timesheet_id}/review", summary="Aprobar o rechazar timesheet")

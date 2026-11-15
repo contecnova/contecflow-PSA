@@ -231,3 +231,26 @@
   padding: 1px 5px;
   border-radius: 3px;
 }
+
+/* ── Estilos en linea extraidos de EpicGanttPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.epicgant-sx1.epicgant-sx1 {
+  top: 50%;
+}
+.epicgant-sx2.epicgant-sx2 {
+  top: auto;
+}
+.epicgant-sx3.epicgant-sx3 {
+  bottom: 50%;
+}
+.epicgant-sx4.epicgant-sx4 {
+  bottom: auto;
+}
+.epicgant-sx5.epicgant-sx5 {
+  border-radius: 8px;
+}
+.epicgant-sx6.epicgant-sx6 {
+  font-weight: 600;
+}
+.epicgant-sx7.epicgant-sx7 {
+  font-weight: 400;
+}

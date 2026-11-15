@@ -179,7 +179,7 @@ export default function OrganizationsPage() {
   })
   const { mutate: entrarComo, isPending: entrando } = useMutation({
     mutationFn: ({ userId, reason }: { userId: string; reason: string }) => organizationsApi.impersonate(selected!, userId, reason),
-    onSuccess: () => { window.location.href = '/' },
+    onSuccess: () => { window.location.assign('/') },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   async function exportar() {
@@ -234,7 +234,7 @@ export default function OrganizationsPage() {
         <Button onClick={() => setShowCreate(true)}>{t('organizations.nueva_organizacion')}</Button>
       </div>
 
-      <div className="orgs-grid" style={{ gridTemplateColumns: selected ? '1fr 360px' : '1fr' }}>
+      <div className={`orgs-grid ${selected ? 'organiza-sx2' : 'organiza-sx3'}`}>
         <div>
           {isLoading ? <Spinner /> : orgs.length === 0 ? (
             <EmptyState icon="🏢" title={t('organizations.no_orgs')} description={t('pagina_orgs.crea_la_primera_organizacion_para_gestionar')} />
@@ -244,7 +244,7 @@ export default function OrganizationsPage() {
                 <div key={o.id} onClick={() => setSelected(selected===o.id?null:o.id)}
                   role="button" tabIndex={0} aria-labelledby={`${idCampo}-${o.id}-n`}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected===o.id?null:o.id) } }}
-                  style={{ ...card, padding:'16px 20px', cursor:'pointer', opacity: o.is_active ? 1 : 0.6, border:selected===o.id?'.5px solid rgba(0,212,255,0.25)':'var(--surface-4) .5px solid' }}>
+                  style={{ ...card, padding:'16px 20px', cursor:'pointer', opacity: o.is_active ? 1 : 0.6, border:selected===o.id?'.5px solid var(--accent-border)':'var(--surface-4) .5px solid' }}>
                   <div className="u-row-between">
                     <div>
                       <div className="orgs-row-2">
@@ -258,7 +258,7 @@ export default function OrganizationsPage() {
                       {/* Uso frente al límite del plan: el alta de usuarios y proyectos se para al llegar. */}
                       <div className="orgs-box">
                         {([['usuarios', o.user_count, o.max_users], ['proyectos', o.project_count, o.max_projects]] as const).map(([k, usados, limite]) => (
-                          <span key={k} className="orgs-label-2" style={{ color: limite != null && (usados ?? 0) >= limite ? 'var(--danger)' : 'var(--text-2)' }}>
+                          <span key={k} className={`orgs-label-2 ${limite != null && (usados ?? 0) >= limite ? 'organiza-sx4' : 'organiza-sx5'}`}>
                             {usados ?? 0}/{limite ?? '∞'} {k}
                           </span>
                         ))}
@@ -317,13 +317,13 @@ export default function OrganizationsPage() {
                 <div key={u.id} className="orgs-row-6">
                   <span>{u.full_name}</span>
                   <span className="u-text2">{u.role}</span>
-                  <Button size="xs" variant="secondary" style={{ marginLeft:8 }}
+                  <Button size="xs" variant="secondary" className="organiza-sx1"
                     title={t('pagina_orgs.entrar_como_este_usuario_soporte_queda')}
                     onClick={() => { setMotivo(''); setPidiendoMotivo({ tipo: 'entrar', userId: String(u.id), nombre: u.full_name }) }}>{t('pagina_orgs.entrar_como')}</Button>
                   <Button
                     size="xs"
                     variant="danger"
-                    style={{marginLeft:8, opacity: isLast ? 0.5 : 1, pointerEvents: isLast ? 'none' : 'auto'}}
+                    className={`organiza-sx1 ${isLast ? 'organiza-sx6' : 'organiza-sx7'}`}
                     disabled={isLast}
                     title={isLast ? t('pagina_orgs.no_puedes_quitar_el_ultimo_usuario') : t('pagina_orgs.quitar_usuario')}
                     onClick={()=>setRemovingUserId(u.id)}

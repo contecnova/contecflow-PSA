@@ -124,7 +124,7 @@ export default function BpmRunPanel() {
           <EmptyState title={t('bpm.bandeja_vacia')} description={t('bpm.bandeja_vacia_desc')} />
         ) : (
           <table className="table">
-            <thead><tr><th>{t('bpm.paso')}</th><th>{t('bpm.proceso')}</th><th>{t('bpm.rol')}</th><th><span className="u-sr-only">Acciones</span></th></tr></thead>
+            <thead><tr><th>{t('bpm.paso')}</th><th>{t('bpm.proceso')}</th><th>{t('bpm.rol')}</th><th><span className="u-sr-only">{t('cmdb.actions')}</span></th></tr></thead>
             <tbody>
               {inbox.map(s => (
                 <tr key={s.id}>
@@ -144,7 +144,7 @@ export default function BpmRunPanel() {
           <EmptyState title={t('bpm.sin_instancias')} description={t('bpm.sin_instancias_desc')} />
         ) : (
           <table className="table">
-            <thead><tr><th>{t('bpm.proceso')}</th><th>{t('bpm.estado')}</th><th>{t('bpm.pendiente')}</th><th>{t('bpm.inicio')}</th><th><span className="u-sr-only">Acciones</span></th></tr></thead>
+            <thead><tr><th>{t('bpm.proceso')}</th><th>{t('bpm.estado')}</th><th>{t('bpm.pendiente')}</th><th>{t('bpm.inicio')}</th><th><span className="u-sr-only">{t('cmdb.actions')}</span></th></tr></thead>
             <tbody>
               {instances.map(i => (
                 <tr key={i.id}>

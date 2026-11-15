@@ -160,3 +160,11 @@
   font-size: var(--text-sm);
   text-align: left;
 }
+
+/* ── Estilos en linea extraidos de LeccionesPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.leccione-sx2.leccione-sx2 {
+  color: var(--danger);
+}
+.leccione-sx3.leccione-sx3 {
+  color: var(--text-3);
+}

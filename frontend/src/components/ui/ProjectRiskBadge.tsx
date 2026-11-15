@@ -73,7 +73,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
       }}
     >
       {/* Badge pill */}
-      <div className="uiprriba-row-1" style={{ borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${alpha(cfg.color, '33')}` }}>
+      <div className="uiprriba-row-1 projectr-sx1" style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${alpha(cfg.color, '33')}` }}>
         <span className="uiprriba-box-8" style={{ background: cfg.dot }} />
         {t(cfg.label)}
         {data.used_heuristic && (
@@ -83,14 +83,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
 
       {/* Tooltip */}
       {showTooltip && (
-        <div style={{
-          position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-          borderRadius: 'var(--radius-md)', padding: '10px 14px', width: 240,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 'var(--z-modal)',
-          fontSize: 'var(--text-xs)', lineHeight: 1.5,
-        }}>
+        <div className="projectr-sx2">
           {/* Arrow */}
           <div className="uiprriba-box-3" />
 

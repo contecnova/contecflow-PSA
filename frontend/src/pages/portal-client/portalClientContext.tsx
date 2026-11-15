@@ -253,15 +253,8 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
     <ClientAuthContext.Provider value={{ client, login, logout, isReady }}>
       {children}
       {showWarning && (
-        <div role="presentation" style={{
-          position: 'fixed', inset: 0, zIndex: 'var(--z-drag)',
-          background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <div ref={avisoRef} role="alertdialog" aria-modal="true" aria-labelledby="aviso-portal-titulo" aria-describedby="aviso-portal-texto" tabIndex={-1} style={{
-            background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-            borderRadius: 16, padding: '28px 30px', maxWidth: 420, width: '90%',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.4)', textAlign: 'center',
-          }}>
+        <div role="presentation" className="portalcl-sx1">
+          <div ref={avisoRef} role="alertdialog" aria-modal="true" aria-labelledby="aviso-portal-titulo" aria-describedby="aviso-portal-texto" tabIndex={-1} className="portalcl-sx2">
             <div aria-hidden="true" className="poclco-box-1">⏱️</div>
             <h3 id="aviso-portal-titulo" className="poclco-box-2">
               {traducir('portalclientcontext.sesion_a_punto_de_expirar')}
@@ -320,9 +313,9 @@ export function LangSelector({ onChange, current, dark = false }: LangSelectorPr
   return (
     <div className="u-row-6">
       {LANGUAGES.map(l => (
-        <button className="poclco-box-12" key={l.code} onClick={() => onChange(l.code)}
+        <button className="poclco-box-12 portalcl-sx3" key={l.code} onClick={() => onChange(l.code)}
           title={l.label}
-          style={{ background: current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', border: `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}`, borderRadius: 8 }}>
+          style={{ background: current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', border: `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}` }}>
           {l.flag}
         </button>
       ))}
@@ -359,7 +352,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
           <div className="poclco-row-5">◈</div>
           <div>
             <div className="poclco-txt-1">{PRODUCT_NAME}</div>
-            <div className="poclco-txt-2">Portal cliente</div>
+            <div className="poclco-txt-2">{traducir('wiki.vis_portal_cliente')}</div>
           </div>
         </div>
         <div>
@@ -384,7 +377,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
           </div>
         </div>
         <div className="u-text3-xs">
-          © {new Date().getFullYear()} {PRODUCT_FULL_NAME} — Portal cliente
+          © {new Date().getFullYear()} {PRODUCT_FULL_NAME} {traducir('portalclientcontext.portal_cliente')}
         </div>
       </div>
 

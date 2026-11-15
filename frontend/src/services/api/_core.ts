@@ -1,7 +1,7 @@
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import type { CatalogoDeCorreo, ClaveDeApi, ClaveDeApiCreada, Client, ClientContact, ConfigJiraDelHub, ConfigSso, CorreoEnviado, EnvioDeCorreo, FlujoDeAutomatizacion, IntegracionDesactivada, IntegracionGuardada, IntegracionOAuth, LlamadaDeWebhook, PaginaDeAuditoria, PruebaDeJira, PruebaDeMensajeria, RiesgosDelProyecto, SincronizacionDeIntegracion, SlaCalendar, SlaCalendarCreado, SolicitudRgpd, SolicitudRgpdCreada, SolicitudRgpdProcesada, Sprint, ValidacionSso, VerificacionDeCadena, WebhookEntrante, WebhookEntranteCreado } from './tipos'
 import type { SdActivoDeCi, SdAgenteCmdb, SdAgenteRegistrado, SdAlertaDeMonitor, SdAnuncio, SdAprobacionDeTicket, SdAprobacionPendiente, SdArticuloCreado, SdArticuloKb, SdArticuloKbDetalle, SdAsignacionSla, SdAviso, SdAvisoGuardado, SdBlueprint, SdBlueprintArchivado, SdBlueprintPublicado, SdCalendarioDeCambios, SdCalendarioDeGuardia, SdCalidadKb, SdCambioDeCi, SdCamposDeClase, SdCategoriaDeCatalogo, SdCi, SdCiCreado, SdComentarioCreado, SdComiteDeCambio, SdComponenteDeEstado, SdComprobacionDeDia, SdCongelacion, SdCorreoEntrante, SdDeGuardiaAhora, SdDetalleDeBlueprint, SdDetalleDeEjecucion, SdDisparoDeEscalado, SdDivision, SdEjecucionCancelada, SdEjecucionDeFlujo, SdEnlaceDePaginaDeEstado, SdErrorConocido, SdEscalado, SdEstadisticasDeAsignacion, SdEstadoRca, SdEstadoRcaGuardado, SdFestivoSla, SdFusion, SdGrafo3d, SdGrupo, SdIdCreado, SdIdNombre, SdIncidenteMayor, SdInstantaneaDinamica, SdLecturaDeBuzon, SdMetricasItil, SdOk, SdOkConId, SdOkConMensaje, SdOpcionesDeContexto, SdPanelDeAgente, SdPasadaKb, SdPausaSla, SdPistaRca, SdPlantillaDeFlujo, SdPlantillaDeTicket, SdPoliticaSla, SdProblema, SdProblemaCerrado, SdProblemaCreado, SdPruebaDeBuzon, SdRadioDeImpacto, SdRcaCompletado, SdRecomendacionDeAsignacion, SdReglaDeEnrutado, SdReglaDeEscalado, SdReglasDinamicas, SdReglasDinamicasGuardadas, SdRelacionDeCi, SdRendimientoDeAgente, SdRespuestaRapida, SdRespuestaRapidaCompacta, SdRestauracion, SdRevisionKb, SdSeguir, SdSugerenciaIA, SdTicket, SdTicketDeErrorConocido, SdTicketDetalle, SdTicketEnlace, SdTicketSeguidor, SdTiempoRegistrado, SdTopologiaDeCi, SdValidacionDeFlujo, SdValoracionDeAutorresolucion, SdVersionDeBlueprint, SdVersionDeCambios, SdVistaPreviaDeAviso, SdVistaPreviaDeImportacion, SdVotoDeComite } from './tipos-sd'
-import type { AlmActivo, AlmActivoDetalle, AlmAsignacionDeLicencia, AlmCambioDeActivo, AlmCentroDeCoste, AlmCentroDeCosteGuardado, AlmContrato, AlmCumplimiento, AlmLicencia, AlmLicenciaDetalle, AlmPanel, AlmProveedor, AlmTicketDeRenovacion, AlmVencimiento, ClienteContactoCreado, ClienteContrato, ClienteContratoVinculado, ClienteDetalle, ClienteLicencia, ClienteLicenciaVinculada, ClientePortalConfig, ClientePortalConfigGuardada, ClienteProyecto, ClienteProyectoVinculado, ClienteResumen, ConfirmacionOk, Entregable, EntregablesDelProyecto, PortalCasoCreado, PortalDocumento, PortalEstadisticas, PortalMensajeDeConversacion, PortalPeticion, PortalPoliticaDeConversacion, PortalSesionUat, PortalTraducciones, PortalUsuario, PortalUsuarioActualizado, PortalUsuarioCreado, SkillDelCatalogo, SubAltaOk, SubAsignacion, SubFactura, SubPanel, SubParteDeHoras, SubTrabajador, SubTrabajadorCreado, Subcontratista, TicketDeWebSocket, VisibilidadDeWiki, WikiEspacio, WikiEspacioCreado, WikiEtiqueta, WikiEtiquetaGuardada, WikiPagina, WikiPaginaEnArbol, WikiPaginaResumen, WikiRestauracion, WikiResultadoDeBusqueda, WikiVersion } from './tipos-alm'
+import type { AlmActivo, AlmActivoDetalle, AlmAsignacionDeLicencia, AlmCambioDeActivo, AlmCentroDeCoste, AlmCentroDeCosteGuardado, AlmContrato, AlmCumplimiento, AlmLicencia, AlmLicenciaDetalle, AlmPanel, AlmProveedor, AlmTicketDeRenovacion, AlmVencimiento, ClienteContactoCreado, ClienteContrato, ClienteContratoVinculado, ClienteDetalle, FacturaDeCliente, ClienteLicencia, ClienteLicenciaVinculada, ClientePortalConfig, ClientePortalConfigGuardada, ClienteProyecto, ClienteProyectoVinculado, ClienteResumen, ConfirmacionOk, Entregable, EntregablesDelProyecto, PortalCasoCreado, PortalDocumento, PortalEstadisticas, PortalMensajeDeConversacion, PortalPeticion, PortalPoliticaDeConversacion, PortalSesionUat, PortalTraducciones, PortalUsuario, PortalUsuarioActualizado, PortalUsuarioCreado, SkillDelCatalogo, SubAltaOk, SubAsignacion, SubFactura, SubPanel, SubParteDeHoras, SubTrabajador, SubTrabajadorCreado, Subcontratista, TicketDeWebSocket, VisibilidadDeWiki, WikiEspacio, WikiEspacioCreado, WikiEtiqueta, WikiEtiquetaGuardada, WikiPagina, WikiPaginaEnArbol, WikiPaginaResumen, WikiRestauracion, WikiResultadoDeBusqueda, WikiVersion } from './tipos-alm'
 import type { Campana360, CampoPersonalizado, CamposPersonalizadosGuardados, CargaDeAprobadores, CicloDeEvaluacion, ColumnaDelTablero, ConfigDelTablero, ConfigDelTableroGuardada, ConfirmacionDeAprobaciones, CuellosDeBotella, EjecucionDeRecordatorios, EstadisticasDeAprobacion, EstadoDelFlujoDeProyecto, EstimacionDeEsfuerzo, EvaluacionDeDesempeno, EvaluadoresElegibles, FlujoDeAprobacion, FlujoDelProyecto, FueraDeLaOficina, GrupoDeAprobadores, Historico360, KpisDeCiclo, KpisDeDesempeno, ObjetivoDeDesarrollo, PanelDeCampana360, PasoDeAprobacion, PlanDeDesarrollo, PlantillaDeFlujo, PreguntaDeEvaluacion, SimulacionDeFlujo, SolicitudDeAprobacion, SolicitudPendienteDeMi, SugerenciaDeAsignacion, TipoDeIncidencia, ValidacionDeFlujo, ValorDeCampoPersonalizado } from './tipos-rendimiento'
 import type { AccesoBi, BloqueoLegal, CatalogoIa, ComentarioBi, ComprobacionSod, DiagnosticoIa, EjecucionDeGobiernoBi, EnrutadoIa, EstadisticasIa, EventoDeAuditoriaGrc, ExplicacionDeAcceso, GastoIaDeHoy, InformeDeCumplimiento, LinajeBi, ListaConCuenta, MarcadorBi, ModelosSincronizadosIa, PermisoGrcActualizado, PermisosGrc, PoliticaDeRetencion, PoliticasDeRetencion, ProveedorIa, PruebaDeProveedorIa, ReglaSod, ReglasDeGobiernoBi, ResultadoDeRetencion, ResumenDeGobiernoBi, RutaExplicable, RutasIa, SaludPredictiva, SensibilidadDeCampoBi, SincronizacionIa, ViolacionSod, VistaCompartidaBi, VistaPreviaDeRetencion } from './tipos-grc'
 import type { Absence, AusenciaRevisada, CalendarioDeAusencias, CambioDeNivelDeSkill, Certificacion, CertificacionBorrada, ComentarioEnHilo, ComentarioEnHiloCreado, ComentarioResuelto, Curso, CursoCreado, DisponibilidadDeRecursos, FotoDeSalud, FotoDeSaludCreada, IdCreado, Imputacion, Inscripcion, LineaDeTimesheet, MapaDeCarga, MatrizDeSkills, Mencion, MencionLeida, MencionesLeidas, Oportunidad, OportunidadConvertida, PersonaPorSkills, PlanDeCapacidad, PlanDeCapacidadCreado, PlanDeCapacidadMovido, Propuesta, PropuestaEnviada, PropuestaGenerada, ProyeccionDePersona, RespuestaNpsCreada, ResumenDeCapacidad, ResumenNps, ResumenSemanal, SaldoDeVacaciones, SaludDeClienteEnRanking, SesionDeCronometro, SkillAsignada, SkillCreada, SkillDePersona, SoloMensaje, Timesheet, TimesheetCambiado } from './tipos-personas'
@@ -451,6 +451,8 @@ export const clientsApi = {
   update:       (id: PathId, data: unknown): Promise<AxiosResponse<ClienteResumen>> => api.patch(`/clients/${id}`, data),
   delete:       (id: PathId): Promise<AxiosResponse<ConfirmacionOk>> => api.delete(`/clients/${id}`),
   contacts:     (id: PathId): Promise<AxiosResponse<ClientContact[]>>         => api.get(`/clients/${id}/contacts`),
+  /** Facturas del cliente y de sus proyectos. Paginado en el servidor (`page`/`page_size`); el total llega en `meta.total` y `X-Total-Count`. */
+  invoices:     (id: PathId, params?: { page?: number; page_size?: number }): Promise<AxiosResponse<FacturaDeCliente[]> & { meta?: MetaDeLista }> => api.get(`/clients/${id}/invoices`, { params }),
 }
 
 // ── Sprints ───────────────────────────────────────────────────────────────────
@@ -789,10 +791,28 @@ export const cmdbApi = {
 }
 
 // ── Timesheets ────────────────────────────────────────────────────────────────
+/** Filtros y página de `/timesheets/pending` (todo se aplica en SQL antes de paginar). */
+export interface FiltroDeTimesheets {
+  /** Texto en el nombre de la persona o en la semana (YYYY-MM-DD). */
+  q?: string
+  /** Semanas desde / hasta, inclusive (YYYY-MM-DD). */
+  date_from?: string
+  date_to?: string
+  page?: number
+  page_size?: number
+}
+/** `/timesheets/team`: lo de pendientes más estado, persona, semana exacta y orden. */
+export interface FiltroDeTimesheetsDelEquipo extends FiltroDeTimesheets {
+  status?: string
+  user_id?: string
+  week_start?: string
+  sort?: 'week_start' | 'total_hours' | 'billable_hours' | 'total_cost' | 'status' | 'user_name'
+  direction?: 'asc' | 'desc'
+}
 export const timesheetsApi = {
   my:          (): Promise<AxiosResponse<Timesheet[]>> => api.get('/timesheets/my'),
-  pending:     (): Promise<AxiosResponse<Timesheet[]>> => api.get('/timesheets/pending'),
-  team:        (): Promise<AxiosResponse<Timesheet[]>> => api.get('/timesheets/team'),
+  pending:     (params?: FiltroDeTimesheets): Promise<AxiosResponse<Timesheet[]> & { meta?: MetaDeLista }> => api.get('/timesheets/pending', { params }),
+  team:        (params?: FiltroDeTimesheetsDelEquipo): Promise<AxiosResponse<Timesheet[]> & { meta?: MetaDeLista }> => api.get('/timesheets/team', { params }),
   weekLines:   (weekStart: PathId): Promise<AxiosResponse<LineaDeTimesheet[]>> => api.get(`/timesheets/my/${weekStart}/lines`),
   submit:      (weekStart: PathId): Promise<AxiosResponse<TimesheetCambiado>> => api.post(`/timesheets/my/${weekStart}/submit`),
   review:      (id: PathId, data: unknown): Promise<AxiosResponse<TimesheetCambiado>> => api.post(`/timesheets/${id}/review`, data),
@@ -892,7 +912,7 @@ export const enterpriseSubsApi = {
 export const almExtApi = {
   dashboard:       (): Promise<AxiosResponse<AlmPanel>>              => api.get('/alm/dashboard'),
   /** `/alm/contracts` pagina con page/page_size (total en meta.total); sin ellos, la lista entera hasta el tope del servidor. */
-  contracts:       (params?: { vendor_id?: string; status?: string; expiring_days?: number; page?: number; page_size?: number }): Promise<AxiosResponse<AlmContrato[]> & { meta?: MetaDeLista }> => api.get('/alm/contracts', { params }),
+  contracts:       (params?: { vendor_id?: string; status?: string; expiring_days?: number; q?: string; renewal_urgent?: boolean; page?: number; page_size?: number }): Promise<AxiosResponse<AlmContrato[]> & { meta?: MetaDeLista }> => api.get('/alm/contracts', { params }),
   createContract:  (data: unknown): Promise<AxiosResponse<AlmContrato>>          => api.post('/alm/contracts', data),
   updateContract:  (id: PathId, data: unknown): Promise<AxiosResponse<AlmContrato>>      => api.patch(`/alm/contracts/${id}`, data),
   deleteContract:  (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>            => api.delete(`/alm/contracts/${id}`),
@@ -1127,7 +1147,8 @@ export const projectSprintsApi = {
 
 // ── Portal Clients ────────────────────────────────────────────────────────────
 export const portalClientsApi = {
-  list:         (params?: QueryParams): Promise<AxiosResponse<PortalUsuario[]>>   => api.get('/portal/clients', { params }),
+  /** `/portal/clients` pagina con page/page_size (total en meta.total); sin ellos, la lista entera hasta el tope del servidor. */
+  list:         (params?: { project_id?: string; client_org_id?: string; page?: number; page_size?: number }): Promise<AxiosResponse<PortalUsuario[]> & { meta?: MetaDeLista }>   => api.get('/portal/clients', { params }),
   create:       (data: unknown): Promise<AxiosResponse<PortalUsuarioCreado>>     => api.post('/portal/clients', data),
   update:       (id: PathId, data: unknown): Promise<AxiosResponse<PortalUsuarioActualizado>> => api.patch(`/portal/clients/${id}`, data),
   translations: (): Promise<AxiosResponse<PortalTraducciones>> => api.get('/portal/translations'),
@@ -1376,7 +1397,8 @@ export const webhooksApi = {
 }
 
 export const gdprApi = {
-  list:    (): Promise<AxiosResponse<SolicitudRgpd[]>> => api.get('/gdpr/requests'),
+  /** Paginado en el servidor (`page`/`page_size`); el total llega en `meta.total`. */
+  list:    (params?: QueryParams): Promise<AxiosResponse<SolicitudRgpd[]>> => api.get('/gdpr/requests', { params }),
   create:  (data: unknown): Promise<AxiosResponse<SolicitudRgpdCreada>> => api.post('/gdpr/requests', data),
   process: (id: PathId): Promise<AxiosResponse<SolicitudRgpdProcesada>> => api.post(`/gdpr/requests/${id}/process`),
 }
@@ -1599,7 +1621,7 @@ export const formsApi = {
   list:        (): Promise<AxiosResponse<FormularioPublico[]>> => api.get('/forms'),
   create:      (data: unknown): Promise<AxiosResponse<FormularioPublico>> => api.post('/forms', data),
   update:      (id: PathId, data: unknown): Promise<AxiosResponse<FormularioPublico>> => api.patch(`/forms/${id}`, data),
-  submissions: (id: PathId): Promise<AxiosResponse<EnvioDeFormulario[]>> => api.get(`/forms/${id}/submissions`),
+  submissions: (id: PathId, params?: { page?: number; page_size?: number }): Promise<AxiosResponse<EnvioDeFormulario[]> & { meta?: MetaDeLista }> => api.get(`/forms/${id}/submissions`, { params }),
   delete:      (id: PathId): Promise<AxiosResponse<ConfirmacionOk>> => api.delete(`/forms/${id}`),
 }
 

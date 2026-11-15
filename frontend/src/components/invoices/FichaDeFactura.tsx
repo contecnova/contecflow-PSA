@@ -75,7 +75,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
     <Modal open onClose={onClose} size="xl"
       title={<span className="u-row-center-10">
         <span className="u-mono">{f.number}</span>
-        <span className="fidefa-box-10" style={{ borderRadius: 20, color: estado.color, border: `1px solid ${estado.color}` }}>{estado.label}</span>
+        <span className="fidefa-box-10 fichadef-sx1" style={{ color: estado.color, border: `1px solid ${estado.color}` }}>{estado.label}</span>
       </span>}>
       <div className="fidefa-grid-1">
         {!borrador && <div role="status" className="u-text2-sm">{t('invoices.ficha_emitida')}</div>}

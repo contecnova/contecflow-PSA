@@ -143,3 +143,20 @@
 .findash-label-4 {
   margin-left: 4px;
 }
+
+/* ── Estilos en linea extraidos de FinanceDashboardPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.financed-sx1.financed-sx1 {
+  text-align: left;
+}
+.financed-sx2.financed-sx2 {
+  text-align: center;
+}
+.financed-sx3.financed-sx3 {
+  background: transparent;
+}
+.financed-sx4.financed-sx4 {
+  background: color-mix(in srgb, var(--text-1) 2%, transparent);
+}
+.financed-sx5.financed-sx5 {
+  border-radius: var(--radius-sm);
+}

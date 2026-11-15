@@ -8,10 +8,10 @@ import { searchApi } from '../../services/api'
 import type { ResultadoDeBusqueda } from '../../services/api/tipos-analitica'
 import { INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { useAppT } from '../../i18n/AppLangContext'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import './GlobalSearch.css'
 
 const ICON_MAP: Record<string, string> = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
-const TYPE_LABELS: Record<string, string> = { project:'Proyecto', task:'Tarea', ticket:'Ticket', user:'Usuario', invoice:'Factura', opportunity:'Oportunidad' }
 
 interface QuickAction {
   label: string
@@ -110,9 +110,9 @@ export default function GlobalSearch({ onClose }: Props) {
   let resultCursor = 0
 
   return (
-    <div role="presentation" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:'var(--z-drag)', display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:'15vh' }}
+    <div role="presentation" className="globalse-sx1"
       onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={t('globalsearch.busqueda_global')} style={{ width:'100%', maxWidth:620, background:'var(--surface-1)', borderRadius:16, border:'.5px solid var(--surface-4)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
+      <div role="dialog" aria-modal="true" aria-label={t('globalsearch.busqueda_global')} className="globalse-sx2"
         onMouseDown={e => e.stopPropagation()}>
         <div className="globsear-row-1">
           <span className="globsear-txt-1">⌕</span>
@@ -138,11 +138,11 @@ export default function GlobalSearch({ onClose }: Props) {
                 {QUICK_ACTIONS.map((action, idx) => {
                   const isSelected = selectedIdx === idx
                   return (
-                    <button className="globsear-row-3" key={action.path + action.label}
+                    <button className="globsear-row-3 globalse-sx3" key={action.path + action.label}
                       data-nav-item
                       onClick={() => runAction(action.path)}
                       type="button"
-                      style={{ background: isSelected ? 'var(--accent-muted)' : 'transparent', border: isSelected ? '1px solid var(--accent-glow)' : '1px solid transparent', borderRadius: 8 }}
+                      style={{ background: isSelected ? 'var(--accent-muted)' : 'transparent', border: isSelected ? '1px solid var(--accent-glow)' : '1px solid transparent' }}
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)' }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                     >
@@ -164,7 +164,7 @@ export default function GlobalSearch({ onClose }: Props) {
             Object.entries(grouped).filter(([, items]) => items?.length > 0).map(([type, items]) => (
               <div key={type}>
                 <div className="globsear-box-8">
-                  {TYPE_LABELS[type] || type}s
+                  {etiquetaCodigo(t, 'busqueda_tipo', type)}
                 </div>
                 {(items || []).map(item => {
                   const idx = resultCursor++

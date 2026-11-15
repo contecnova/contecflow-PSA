@@ -37,7 +37,7 @@ function PRStatusPill({ status }: { status?: EstadoDePullRequest }) {
   const t = useAppT()
   const s = (status && STATUS_PR[status]) || STATUS_PR.open
   return (
-    <span className="gitp-label" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}`, borderRadius: 12 }}>{t(s.key)}</span>
+    <span className="gitp-label gitpage-sx1" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}` }}>{t(s.key)}</span>
   )
 }
 
@@ -45,7 +45,7 @@ function DeployPill({ status }: { status?: EstadoDeDespliegue }) {
   const t = useAppT()
   const s = (status && STATUS_DEPLOY[status]) || STATUS_DEPLOY.pending
   return (
-    <span className="gitp-label" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}`, borderRadius: 12 }}>{t(s.key)}</span>
+    <span className="gitp-label gitpage-sx1" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}` }}>{t(s.key)}</span>
   )
 }
 
@@ -92,7 +92,7 @@ export default function GitPage(): JSX.Element {
   const failDeps  = deploys.filter(d => d.status === 'failure').length
 
   return (
-    <PageShell style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <PageShell className="gitp-box-7">
       <PageHeader
         icon={<GitBranch size={18} />}
         title={t('git_integration.title')}
@@ -269,14 +269,14 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
         <div className="u-text2-xs-mb4">{t('git_integration.webhook_url_label')}</div>
         <div className="u-row-center-8">
           <code className="gitp-card-5">{url}</code>
-          <button onClick={copy} className="gitp-btn" style={{ background: copied ? 'var(--success-bg)' : 'var(--surface-4)', border: `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-sm)', color: copied ? 'var(--success)' : 'var(--text-2)' }}>
+          <button onClick={copy} className={`gitp-btn gitpage-sx2 ${copied ? 'gitpage-sx3' : 'gitpage-sx4'}`} style={{ border: `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}` }}>
             {copied ? t('git_integration.copied') : t('git_integration.copy')}
           </button>
         </div>
       </div>
       <div className="u-mb-12">
         <div className="u-text2-xs-mb4">{t('git_integration.secreto_label')}</div>
-        <div className="gitp-box-4" style={{ color: webhook?.secreto ? 'var(--success)' : 'var(--warning)' }}>
+        <div className={`gitp-box-4 ${webhook?.secreto ? 'gitpage-sx5' : 'gitpage-sx6'}`}>
           {t(webhook?.secreto ? 'git_integration.secreto_puesto' : 'git_integration.secreto_falta', { clave })}
         </div>
       </div>

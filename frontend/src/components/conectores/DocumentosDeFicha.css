@@ -161,3 +161,8 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ── Estilos estaticos extraidos de DocumentosDeFicha.tsx (#17) ── */
+.document-sx1 {
+  margin-top: 3px;
+}

@@ -19,7 +19,7 @@ export default function PredictionsPage() {
   const isMobile = useMediaQuery('(max-width: 900px)')
 
   return (
-    <PageShell style={isMobile ? { paddingLeft: 14, paddingRight: 14 } : undefined}>
+    <PageShell className={isMobile ? 'pred-shell-movil' : undefined}>
       <PageHeader
         icon={<Brain size={18} />}
         title={t('predictions_page.title')}
@@ -33,10 +33,10 @@ export default function PredictionsPage() {
         <BiConditionalDeliveryPanel />
 
         <div className="pred-row-muted">
-          <Bell size={16} style={{ color: 'var(--accent)' }} />
+          <Bell size={16} className="u-accent" aria-hidden />
           <span>
             {t('predictions_page.alerts_hint_prefix')} <strong>{t('predictions_page.smart_alerts')}</strong> {t('predictions_page.alerts_hint_middle')}{' '}
-            <Link to="/alerts" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>/alerts</Link>, {t('predictions_page.alerts_hint_tab')} <em>{t('predictions_page.intelligent_tab')}</em>.
+            <Link to="/alerts" className="pred-enlace">/alerts</Link>, {t('predictions_page.alerts_hint_tab')} <em>{t('predictions_page.intelligent_tab')}</em>.
           </span>
         </div>
       </div>

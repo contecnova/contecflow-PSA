@@ -143,3 +143,14 @@
   box-sizing: border-box;
   resize: vertical;
 }
+
+/* ── Estilos estaticos extraidos de RcaWizardModal.tsx (#17) ── */
+.rcawizar-sx1.rcawizar-sx1 {
+  border-radius: var(--radius-md);
+}
+.rcawizar-sx2.rcawizar-sx2 {
+  border-radius: var(--radius-sm);
+}
+.rcawizar-sx3.rcawizar-sx3 {
+  border-radius: 8px;
+}

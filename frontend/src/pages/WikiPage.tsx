@@ -145,7 +145,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                       </div>
                     )}
                     <textarea aria-label={traducir('wiki.bloque_n', { n: i+1 })} value={block.content||''} onChange={e=>update(i,'content',e.target.value)}
-                      className={`wiki-ta wk-ta ${TA_CLASS[block.type] ?? ''}`}
+                      className={`wk-ta ${TA_CLASS[block.type] ?? ''}`}
                       rows={block.type==='code'?4:1}
                       onKeyDown={e=>{
                         if(e.key==='Enter'&&!e.shiftKey&&block.type!=='code'){e.preventDefault();add(i)}

@@ -106,7 +106,7 @@ export default function OraclePage() {
 
       {/* Analysis result banner */}
       {analysis && (
-        <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: 'rgba(52,211,153,0.25)', background: 'var(--success-bg)' }}>
+        <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: 'var(--success-border)', background: 'var(--success-bg)' }}>
           <div className="orcl-row">
             <div className="u-min0">
               <div className="orcl-box">{t('oracle.analisis_completado')}</div>
@@ -147,7 +147,7 @@ export default function OraclePage() {
 
       {/* Charts row */}
       {preds.length > 0 && (
-        <div className="orcl-grid-2" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 280px' }}>
+        <div className={`orcl-grid-2 ${isNarrow ? 'oraclepa-sx1' : 'oraclepa-sx2'}`}>
           <div style={{ ...card, padding: '16px 20px', minWidth: 0 }}>
             <div className="orcl-box-3">{t('oracle.predicciones_por_tipo')}</div>
             <ResponsiveContainer width="100%" height={160}>
@@ -178,7 +178,7 @@ export default function OraclePage() {
       <div className="orcl-row-2">
         {['all', 'critical', 'high', 'medium', 'low'].map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            className="orcl-btn-2" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${filter===s ? alpha(SEV[s]?.color, '60') || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontWeight: filter===s ? 700 : 400 }}>
+            className={`orcl-btn-2 oraclepa-sx3 ${filter===s ? 'oraclepa-sx4' : 'oraclepa-sx5'}`} style={{ border: `1px solid ${filter===s ? alpha(SEV[s]?.color, '60') || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)' }}>
             {s === 'all' ? t('pagina_orcl.todos', { length: preds.length }) : `${SEV[s] ? t(SEV[s].label) : s} (${preds.filter(p=>p.severity===s).length})`}
           </button>
         ))}
@@ -217,7 +217,7 @@ export default function OraclePage() {
                     )}
                   </div>
                 </div>
-                <div className="orcl-box-4" style={{ marginBottom: p.recommended_action ? 10 : 0 }}>
+                <div className={`orcl-box-4 ${p.recommended_action ? 'oraclepa-sx6' : 'oraclepa-sx7'}`}>
                   {p.explanation}
                 </div>
                 {p.recommended_action && (

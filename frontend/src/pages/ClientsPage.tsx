@@ -18,6 +18,7 @@ import {
   ContactsTab,
   LicensesTab,
   ContractsTab,
+  InvoicesTab,
   PortalConfigTab,
 } from './clients/ClientsPageTabs'
 import './ClientsPage.css'
@@ -210,6 +211,7 @@ export default function ClientsPage(): JSX.Element {
     { id: 'projects', label: t('clientspage.tab_proyectos') },
     { id: 'contracts', label: t('clientspage.tab_contratos') },
     { id: 'licenses', label: t('clientspage.tab_licencias') },
+    { id: 'invoices', label: t('clientspage.tab_facturas') },
     { id: 'tickets', label: t('clientspage.tab_tickets') },
     { id: 'portal', label: t('clientspage.tab_portal') },
   ]
@@ -367,6 +369,7 @@ export default function ClientsPage(): JSX.Element {
             {activeTab === 'projects' && <ProjectsTab cid={selected.id} />}
             {activeTab === 'contracts' && <ContractsTab cid={selected.id} />}
             {activeTab === 'licenses'  && <LicensesTab cid={selected.id} />}
+            {activeTab === 'invoices'  && <InvoicesTab cid={selected.id} />}
             {activeTab === 'tickets' && (
               <div>
                 {detail?.tickets?.length === 0

@@ -10,11 +10,13 @@ import React, { useState } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { z } from 'zod'
 import { portalApi, portalClientsApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
 import type { Entregable, PortalPeticion, PortalSesionUat, PortalUsuario, VisibilidadDeWiki, WikiPaginaEnArbol } from '../services/api/tipos-alm'
 import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
+import Pagination from '../components/ui/Pagination'
+import { SMALL_PAGE_SIZE } from '../constants/pagination'
 import { useTabListKeys } from '../components/ui/Tabs'
 import {
   Globe, Users, FlaskConical, Lightbulb, FileText, BookOpen,
@@ -135,17 +137,32 @@ function StatusBadge({ status, cfg }: { status: string; cfg: Record<string, Stat
 }
 
 // ── Client Users Management ───────────────────────────────────────────────────
+/** Contactos del portal por página (#22: /portal/clients pagina con page/page_size). */
+const CONTACTOS_POR_PAGINA = SMALL_PAGE_SIZE
+
 function ClientUsersTab({ projectId }: { projectId: string }) {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showCreate, setShowCreate] = useState(false)
   const [editingClient, setEditingClient] = useState<ClientePortal | null>(null)
-  const { data: clients = [], isLoading } = useQuery({
-    queryKey: ['portal-clients', projectId],
-    queryFn: () => portalClientsApi.list({ project_id: projectId }).then(r => r.data),
+  const [page, setPage] = useState(1)
+  // Paginada en el servidor (#22): total en meta.total / X-Total-Count.
+  const { data: pagina, isLoading } = useQuery({
+    queryKey: ['portal-clients', projectId, 'pagina', page],
+    queryFn: () => portalClientsApi.list({ project_id: projectId, page, page_size: CONTACTOS_POR_PAGINA }).then(r => ({
+      items: r.data,
+      total: r.meta?.total ?? Number(r.headers?.['x-total-count'] ?? r.data.length),
+    })),
     enabled: !!projectId,
+    placeholderData: keepPreviousData,
   })
+  const clients = pagina?.items ?? []
+  const total = pagina?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / CONTACTOS_POR_PAGINA))
+  // Al borrar el último de la última página, o al cambiar de proyecto, no quedarse en una página vacía.
+  React.useEffect(() => { if (pagina && page > totalPages) setPage(totalPages) }, [pagina, page, totalPages])
+  React.useEffect(() => { setPage(1) }, [projectId])
   const { mutate: deleteClient } = useMutation({
     mutationFn: (id: PathId) => portalApi.deleteClient(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }),
@@ -160,7 +177,7 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
   return (
     <div>
       <div className="u-row-between-mb16">
-        <div className="u-text2-base">{clients.length} {t('client_portal.contacts_count')}</div>
+        <div className="u-text2-base">{total} {t('client_portal.contacts_count')}</div>
         <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.add_contact')}</Button>
       </div>
       {isLoading ? <Spinner /> : clients.length === 0 ? (
@@ -200,6 +217,7 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
           ))}
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} total={total} pageSize={CONTACTOS_POR_PAGINA} maxVisible={5} />
       {showCreate && projectId && <CreateClientModal projectId={projectId} onClose={() => setShowCreate(false)} />}
       {editingClient && <EditClientModal client={editingClient} onClose={() => setEditingClient(null)} onSaved={() => { qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }); setEditingClient(null) }} />}
     </div>

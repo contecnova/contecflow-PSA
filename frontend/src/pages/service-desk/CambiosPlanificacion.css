@@ -173,3 +173,8 @@
   letter-spacing: 0.06em;
   margin-bottom: 0;
 }
+
+/* ── Estilos estaticos extraidos de CambiosPlanificacion.tsx (#17) ── */
+.cambiosp-sx1.cambiosp-sx1 {
+  border-radius: 8px;
+}

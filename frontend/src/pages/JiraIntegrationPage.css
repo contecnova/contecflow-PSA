@@ -163,3 +163,40 @@
   color: var(--accent);
   font-size: var(--text-sm);
 }
+
+.jira-box-6 {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.jira-box-7 {
+  color: var(--purple);
+  flex-shrink: 0;
+}
+
+.jira-box-8 {
+  color: var(--warning);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Estilos estaticos extraidos de JiraIntegrationPage.tsx (#17) ── */
+.jirainte-sx1 {
+  flex: 1;
+}
+
+/* ── Estilos en linea extraidos de JiraIntegrationPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.jirainte-sx2.jirainte-sx2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.jirainte-sx3.jirainte-sx3 {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+.jirainte-sx4.jirainte-sx4 {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.jirainte-sx5.jirainte-sx5 {
+  cursor: pointer;
+  opacity: 1;
+}

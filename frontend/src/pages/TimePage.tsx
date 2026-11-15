@@ -33,8 +33,7 @@ export default function TimePage() {
           items={TABS}
           active={tab}
           onChange={setTab}
-          ariaLabel={t('time_page.aria_label')}
-          style={{ marginBottom: 0 }}
+          ariaLabel={t('time_page.aria_label')} className="timepage-sx1"
         />
       </div>
 

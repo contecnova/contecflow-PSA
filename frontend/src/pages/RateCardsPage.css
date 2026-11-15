@@ -281,3 +281,9 @@
 .rc-btn:focus-visible {
   border-color: var(--accent-glow);
 }
+
+/* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
+.rc-inp:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

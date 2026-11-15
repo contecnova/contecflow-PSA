@@ -52,3 +52,21 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ── Estilos estaticos extraidos de PortalQuickCreateMenu.tsx (#17) ── */
+.portalqu-sx1 {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  z-index: 501;
+  width: 300px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  font-family: inherit;
+}
+.portalqu-sx2.portalqu-sx2 {
+  border-radius: 8px;
+}

@@ -166,11 +166,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
 
   if (!open) return null
   return (
-    <div style={{
-      position:'fixed', top:12, right:12, width:420, maxWidth:'calc(100vw - 24px)', maxHeight:'calc(100vh - 24px)', zIndex:'var(--z-modal)',
-      background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12,
-      display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'-4px 0 24px rgba(0,0,0,0.18)',
-    }}>
+    <div className="nexusass-sx1">
       {/* Revisión 2026-11: título, ruta y tres acciones no cabían en 420 px y la
           ✕ quedaba fuera del panel. La ruta va bajo el nombre y las acciones son
           iconos con su descripción. */}
@@ -257,8 +253,8 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder={t('nexusassist.escribe_aqui')} rows={2}
             className="neaspa-box-9" />
-          <button className="neaspa-box-14" onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
-            style={{ color:'white', opacity: !input.trim() || loading ? 0.5 : 1 }}>↑</button>
+          <button className="neaspa-box-14 nexusass-sx2" onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
+            style={{ opacity: !input.trim() || loading ? 0.5 : 1 }}>↑</button>
         </div>
         <div className="neaspa-box-10">{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>
       </div>

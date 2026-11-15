@@ -40,6 +40,22 @@ def _fecha(v) -> Optional[date]:
     return date.fromisoformat(str(v)[:10])
 
 
+def cargar_tablas(db, ids: list) -> dict:
+    """Las tablas de referencia y sus filas (vive aquí y no en motor: motor importa este módulo)."""
+    from app.models.politicas import FilaDeTablaDeReferencia, TablaDeReferencia
+    salida: dict = {}
+    if not ids:
+        return salida
+    tablas = {t.id: t for t in db.query(TablaDeReferencia).filter(TablaDeReferencia.id.in_(ids)).all()}
+    for t in tablas.values():
+        salida[t.id] = (t.tipo_de_valor, [])
+    for f in db.query(FilaDeTablaDeReferencia).filter(FilaDeTablaDeReferencia.tabla_id.in_(list(tablas))).all():
+        salida[f.tabla_id][1].append({"pais": f.pais, "ciudad": f.ciudad, "categoria": f.categoria, "valor": f.valor,
+                                      "moneda": f.moneda, "vigente_desde": f.vigente_desde,
+                                      "vigente_hasta": f.vigente_hasta})
+    return salida
+
+
 class Evaluador:
     """Evalúa condiciones de UN dominio contra UN contexto.
 
@@ -83,7 +99,6 @@ class Evaluador:
         categoría 1; gana la mayor y, a igualdad, la que empezó a regir más tarde.
         """
         if tabla_id not in self.tablas:
-            from app.services.politicas.motor import cargar_tablas
             self.tablas.update(cargar_tablas(self.db, [tabla_id]))
         if tabla_id not in self.tablas:
             raise Indeterminado("la tabla de referencia ya no existe")

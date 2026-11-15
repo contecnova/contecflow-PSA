@@ -199,7 +199,7 @@ export default function ProjectsDashboardPage() {
                   const RiskIcon = budPct > 100 ? AlertOctagon : AlertCircle
                   return (
                     <div key={p.project_id} className="ds-card--inset pdash-row-2" style={{ '--pdash-row-2-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>
-                      <RiskIcon size={16} style={{ color, flexShrink: 0 }} />
+                      <RiskIcon size={16} color={color} className="pdash-icono" aria-hidden />
                       <div className="u-flex1-min0">
                         <div className="pdash-box">
                           {p.project_code && <span className="ds-muted pdash-text-xs">{p.project_code}</span>}

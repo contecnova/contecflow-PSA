@@ -38,12 +38,21 @@ function esEjeDeMoneda(etiqueta: string | null | undefined, m: { moneda: string;
 const PALETTE = CHART_COLORS_EXTENDED
 
 // Shared style constants used across sub-components
-const _card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', cursor: 'pointer' }
 const STATUS_COLORS: Record<string, string> = {
   ok: 'var(--success)', warning: 'var(--warning)', critical: 'var(--danger)',
   Crítico: 'var(--danger)', Alto: 'var(--warning)', Medio: 'var(--accent)', Bajo: 'var(--success)',
 }
+const CAT_KEYS: Record<string, string> = {
+  Horas: 'reportes_ui.cat_horas', Costes: 'reportes_ui.cat_costes', Rentabilidad: 'reportes_ui.cat_rentabilidad', Capacidad: 'reportes_ui.cat_capacidad',
+  Proyectos: 'reportes_ui.cat_proyectos', Negocio: 'reportes_ui.cat_negocio', RRHH: 'reportes_ui.cat_rrhh', 'Service Desk': 'reportes_ui.cat_service_desk',
+  Agilidad: 'reportes_ui.cat_agilidad', ALM: 'reportes_ui.cat_alm', IA: 'reportes_ui.cat_ia', Estrategia: 'reportes_ui.cat_estrategia',
+  Bienestar: 'reportes_ui.cat_bienestar', OKR: 'reportes_ui.cat_okr', NPS: 'reportes_ui.cat_nps', Formación: 'reportes_ui.cat_formacion',
+  Git: 'reportes_ui.cat_git', Ingresos: 'reportes_ui.cat_ingresos', Gastos: 'reportes_ui.cat_gastos', Sprints: 'reportes_ui.cat_sprints',
+  Tareas: 'reportes_ui.cat_tareas', Portfolio: 'reportes_ui.cat_portfolio', Facturación: 'reportes_ui.cat_facturacion', Alertas: 'reportes_ui.cat_alertas',
+  Automatizaciones: 'reportes_ui.cat_automatizaciones', CMDB: 'reportes_ui.cat_cmdb',
+}
+/** Nombre visible de una categoría (las desconocidas, que vienen del catálogo, se muestran tal cual). */
+const etiquetaCategoria = (cat: string | undefined, t: (k: string) => string) => (cat && CAT_KEYS[cat] ? t(CAT_KEYS[cat]) : cat ?? '')
 const CAT_ICONS: Record<string, string> = { Horas: '⏱️', Costes: '💸', Rentabilidad: '💰', Capacidad: '📅', Proyectos: '⬡', Negocio: '💼', RRHH: '👥', 'Service Desk': '🎫', Agilidad: '🏃', ALM: '🔑', IA: '🧠', Estrategia: '🎯', Bienestar: '🧘', OKR: '🎯', NPS: '⭐', Formación: '🎓', Git: '🔀', Ingresos: '📈', Gastos: '🧾', Sprints: '🏃', Tareas: '✅', Portfolio: '🗂️', Facturación: '🧾', Alertas: '🔔', Automatizaciones: '⚙️', CMDB: '🖥️' }
 
 
@@ -243,16 +252,16 @@ interface TooltipEntry {
 }
 
 const CHART_TYPES = [
-  { id: 'bar',         label: 'Barras',          icon: '▬' },
-  { id: 'bar_grouped', label: 'Barras agrupadas', icon: '▮▮' },
-  { id: 'bar_stacked', label: 'Barras apiladas',  icon: '▰' },
-  { id: 'line',        label: 'Línea',            icon: '∿' },
-  { id: 'area',        label: 'Área',             icon: '◭' },
-  { id: 'pie',         label: 'Tarta',            icon: '◔' },
-  { id: 'donut',       label: 'Donut',            icon: '◎' },
-  { id: 'scatter',     label: 'Dispersión',       icon: '⁘' },
-  { id: 'heatmap',     label: 'Mapa calor',       icon: '▦' },
-  { id: 'table',       label: 'Tabla',            icon: '☰' },
+  { id: 'bar',         label: 'reportes_ui.graf_bar', icon: '▬' },
+  { id: 'bar_grouped', label: 'reportes_ui.graf_bar_grouped', icon: '▮▮' },
+  { id: 'bar_stacked', label: 'reportes_ui.graf_bar_stacked', icon: '▰' },
+  { id: 'line',        label: 'reportes_ui.graf_line', icon: '∿' },
+  { id: 'area',        label: 'reportes_ui.graf_area', icon: '◭' },
+  { id: 'pie',         label: 'reportes_ui.graf_pie', icon: '◔' },
+  { id: 'donut',       label: 'reportes_ui.graf_donut', icon: '◎' },
+  { id: 'scatter',     label: 'reportes_ui.graf_scatter', icon: '⁘' },
+  { id: 'heatmap',     label: 'reportes_ui.graf_heatmap', icon: '▦' },
+  { id: 'table',       label: 'reportes_ui.graf_table', icon: '☰' },
 ]
 
 // ── Tooltip customizado ───────────────────────────────────────────────────────
@@ -295,7 +304,7 @@ function HeatmapChart({ data, meta }: { data: MetricRow[]; meta?: ConsultaDeMetr
       <table className="rep-table">
         <thead>
           <tr>
-            <th className="rep-th">Persona</th>
+            <th className="rep-th">{traducir('reportes_ui.persona')}</th>
             {weeks.map(w => <th className="rep-th-2" key={w}>{w}</th>)}
           </tr>
         </thead>
@@ -318,7 +327,7 @@ function HeatmapChart({ data, meta }: { data: MetricRow[]; meta?: ConsultaDeMetr
         </tbody>
       </table>
       <div className="rep-row-muted">
-        {[['var(--success)', 'Bajo'], ['var(--accent)', 'Medio'], ['var(--warning)', 'Alto'], ['var(--danger)', 'Crítico']].map(([c, l]) => (
+        {[['var(--success)', traducir('reportes_ui.nivel_bajo')], ['var(--accent)', traducir('reportes_ui.nivel_medio')], ['var(--warning)', traducir('reportes_ui.nivel_alto')], ['var(--danger)', traducir('reportes_ui.nivel_critico')]].map(([c, l]) => (
           <div className="rep-row-2" key={l}>
             <div className="rep-box rep-box-9" style={{ '--rep-box-9-background': c } as CSSProperties} />{l}
           </div>
@@ -361,7 +370,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
   const traducir = useAppT()
   // Revisión 2026-11: un cálculo que falla lo dice; antes salía como «sin datos».
   if (meta?.error) return <EmptyState svgIcon={<BarChartBig size={36} />} title={meta.error} />
-  if (!data || data.length === 0) return <EmptyState svgIcon={<BarChartBig size={36} />} title={traducir('reports.sin_datos')} description="No hay datos disponibles para este gráfico" />
+  if (!data || data.length === 0) return <EmptyState svgIcon={<BarChartBig size={36} />} title={traducir('reports.sin_datos')} description={traducir('reportes_ui.sin_datos_desc')} />
 
   const isCurrency = esEjeDeMoneda(meta?.y_label, fmtMoneda)
   const isPercent = meta?.y_label?.includes('%')
@@ -521,10 +530,10 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: ResumenDeMetrica
   }
 
   const kpis = [
-    { label: 'Total',     value: summary.total,  prev: prevSummary?.total },
-    { label: 'Máximo',    value: summary.max,    prev: prevSummary?.max   },
-    { label: 'Media',     value: summary.avg,    prev: prevSummary?.avg   },
-    { label: 'Registros', value: summary.count,  prev: prevSummary?.count, raw: true },
+    { label: traducir('reportes_ui.kpi_total'), value: summary.total,  prev: prevSummary?.total },
+    { label: traducir('reportes_ui.kpi_maximo'), value: summary.max,    prev: prevSummary?.max   },
+    { label: traducir('reportes_ui.kpi_media'), value: summary.avg,    prev: prevSummary?.avg   },
+    { label: traducir('reportes_ui.kpi_registros'), value: summary.count,  prev: prevSummary?.count, raw: true },
   ]
 
   return (
@@ -631,7 +640,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <select className="rep-fs" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => handleMetricChange(e.target.value)}>
               <option value="">{traducir('reports.seleccionar_metrica')}</option>
               {catalogue && Object.entries(catalogue).map(([cat, items]) => (
-                <optgroup key={cat} label={`${CAT_ICONS[cat] || '📊'} ${cat}`}>
+                <optgroup key={cat} label={`${CAT_ICONS[cat] || '📊'} ${etiquetaCategoria(cat, traducir)}`}>
                   {items.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </optgroup>
               ))}
@@ -640,7 +649,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* Project filter */}
           <div>
-            <label className="rep-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>📁 Proyecto</label>
+            <label className="rep-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('reportes_ui.proyecto')}</label>
             <select className="rep-fs" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={projectId} onChange={e => setProjectId(e.target.value)}>
               <option value="">{traducir('reports.todos_los_proyectos')}</option>
               {filters?.projects?.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -649,7 +658,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* User filter */}
           <div>
-            <label className="rep-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>👤 Persona</label>
+            <label className="rep-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('reportes_ui.persona_icono')}</label>
             <select className="rep-fs" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={userId} onChange={e => setUserId(e.target.value)}>
               <option value="">{traducir('reports.todas_las_personas')}</option>
               {filters?.users?.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
@@ -658,7 +667,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* Dept filter */}
           <div>
-            <label className="rep-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>🏢 Departamento</label>
+            <label className="rep-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reportes_ui.departamento')}</label>
             <select className="rep-fs" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={department} onChange={e => setDepartment(e.target.value)}>
               <option value="">{traducir('reports.todos')}</option>
               {filters?.departments?.map(d => <option key={d} value={d}>{d}</option>)}
@@ -667,19 +676,19 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
           {/* Top N */}
           <div>
-            <label className="rep-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>Top N</label>
+            <label className="rep-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('reportes_ui.top_n')}</label>
             <input className="rep-fs" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} />
           </div>
 
           {/* Color */}
           <div>
-            <span className="rep-ls" id={`${idCampo}-eta746`}>🎨 Color</span>
+            <span className="rep-ls" id={`${idCampo}-eta746`}>{traducir('reportes_ui.color')}</span>
             <div className="rep-row-6" role="group" aria-labelledby={`${idCampo}-eta746`}>
               {PALETTE.slice(0, 5).map(c => (
-                <button className="rep-btn" key={c} aria-label={`Color ${c}`} onClick={() => setColor(c)}
+                <button className="rep-btn" key={c} aria-label={traducir('reportes_ui.color_n', { c })} onClick={() => setColor(c)}
                   style={{ '--rep-btn-border': color === c ? '2px solid #fff' : '2px solid transparent', '--rep-btn-background': c } as CSSProperties} />
               ))}
-              <input className="rep-input" type="color" aria-label="Color" value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : COLOR_DATO_POR_DEFECTO} onChange={e => setColor(e.target.value)} />
+              <input className="rep-input" type="color" aria-label={traducir('reportes_ui.color_personalizado')} value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : COLOR_DATO_POR_DEFECTO} onChange={e => setColor(e.target.value)} />
             </div>
           </div>
         </div>
@@ -687,10 +696,10 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         <div className="rep-row-7">
           {/* Date range */}
           <div className="u-wrap-center-8">
-            <label className="rep-ls rep-label" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>📅 Desde</label>
-            <DateInput id={`${idCampo}-6`} value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
-            <label className="rep-ls rep-label" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>Hasta</label>
-            <DateInput id={`${idCampo}-7`} value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...fs, width: 140, maxWidth: '100%' }} />
+            <label className="rep-ls rep-label" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{traducir('reportes_ui.desde')}</label>
+            <DateInput id={`${idCampo}-6`} value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="rep-fs rep-fecha" />
+            <label className="rep-ls rep-label" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{traducir('reportes_ui.hasta')}</label>
+            <DateInput id={`${idCampo}-7`} value={dateTo} onChange={e => setDateTo(e.target.value)} className="rep-fs rep-fecha" />
           </div>
 
           {/* Presets */}
@@ -705,7 +714,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Chart type */}
           <div className="rep-row-9">
             {CHART_TYPES.map(ct => (
-              <button className="rep-btn-sm" key={ct.id} onClick={() => setChartType(ct.id)} title={ct.label}
+              <button className="rep-btn-sm" key={ct.id} onClick={() => setChartType(ct.id)} title={traducir(ct.label)} aria-label={traducir(ct.label)} aria-pressed={chartType === ct.id}
                 style={{ '--rep-btn-sm-border': `1px solid ${chartType === ct.id ? 'var(--accent)' : 'var(--surface-4)'}`, '--rep-btn-sm-background': chartType === ct.id ? 'var(--accent-glow)' : 'var(--surface-2)', '--rep-btn-sm-color': chartType === ct.id ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
                 {ct.icon}
               </button>
@@ -720,26 +729,24 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           <div className="rep-state-muted">
             <div className="rep-text-42">📊</div>
             <div className="rep-text-muted-md-em-strong">{traducir('reports.selecciona_una_metrica_para_empezar')}</div>
-            <div className="u-text3-sm">Elige entre {Object.values(catalogue || {}).flat().length || '...'} {traducir('reports.metricas_disponibles')}</div>
+            <div className="u-text3-sm">{traducir('reportes_ui.elige_entre', { n: Object.values(catalogue || {}).flat().length || '…' })} {traducir('reports.metricas_disponibles')}</div>
           </div>
           {/* Métricas populares como acceso rápido */}
           <div className="rep-grid-2">
             {[
-              { id: 'hours_by_month', label: 'Horas por mes', icon: '⏱️', cat: 'Horas' },
-              { id: 'margin_by_project', label: 'Margen por proyecto', icon: '💰', cat: 'Rentabilidad' },
-              { id: 'ticket_volume_trend', label: 'Volumen de tickets', icon: '🎫', cat: 'Service Desk' },
-              { id: 'sprint_velocity', label: 'Velocidad de sprint', icon: '🏃', cat: 'Agilidad' },
-              { id: 'productivity_by_person', label: 'Productividad', icon: '📊', cat: 'RRHH' },
-              { id: 'pipeline_by_stage', label: 'Pipeline', icon: '🎪', cat: 'Negocio' },
-              { id: 'tasks_overdue', label: 'Tareas con retraso', icon: '⚠️', cat: 'Agilidad' },
-              { id: 'cost_vs_budget', label: 'Coste vs Presupuesto', icon: '💸', cat: 'Rentabilidad' },
+              { id: 'hours_by_month', label: traducir('reportes_ui.m_horas_mes'), icon: '⏱️', cat: 'Horas' },
+              { id: 'margin_by_project', label: traducir('reportes_ui.m_margen_proyecto'), icon: '💰', cat: 'Rentabilidad' },
+              { id: 'ticket_volume_trend', label: traducir('reportes_ui.m_volumen_tickets'), icon: '🎫', cat: 'Service Desk' },
+              { id: 'sprint_velocity', label: traducir('reportes_ui.m_velocidad_sprint'), icon: '🏃', cat: 'Agilidad' },
+              { id: 'productivity_by_person', label: traducir('reportes_ui.m_productividad'), icon: '📊', cat: 'RRHH' },
+              { id: 'pipeline_by_stage', label: traducir('reportes_ui.m_pipeline'), icon: '🎪', cat: 'Negocio' },
+              { id: 'tasks_overdue', label: traducir('reportes_ui.m_tareas_retraso'), icon: '⚠️', cat: 'Agilidad' },
+              { id: 'cost_vs_budget', label: traducir('reportes_ui.m_coste_presupuesto'), icon: '💸', cat: 'Rentabilidad' },
             ].map(m => (
-              <button className="rep-btn-2" key={m.id} onClick={() => handleMetricChange(m.id)}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.background = 'var(--accent-muted)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.background = 'var(--surface-2)' }}>
+              <button className="rep-btn-2" key={m.id} type="button" onClick={() => handleMetricChange(m.id)}>
                 <div className="rep-text-xl-em">{m.icon}</div>
                 <div className="u-text1-sm-600">{m.label}</div>
-                <div className="rep-text-muted-2xs">{m.cat}</div>
+                <div className="rep-text-muted-2xs">{etiquetaCategoria(m.cat, traducir)}</div>
               </button>
             ))}
           </div>
@@ -755,7 +762,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
                 <span className="rep-card-muted">
                   {result.meta?.category}
                 </span>
-                <span className="u-text3-xs">{result.total} registros</span>
+                <span className="u-text3-xs">{traducir('reportes_ui.n_registros', { n: result.total })}</span>
               </div>
               <p className="rep-text-muted-base">{result.meta?.description}</p>
             </div>
@@ -763,7 +770,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
               {onSave && (
                 <div className="rep-row-11">
                   <input className="rep-fs rep-input-2" aria-label={traducir('reports.report_name')} value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} />
-                  <Button size="sm" onClick={() => onSave({ name: reportName || result.meta?.label, metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>💾 Guardar</Button>
+                  <Button size="sm" onClick={() => onSave({ name: reportName || result.meta?.label, metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>{traducir('reportes_ui.guardar')}</Button>
                 </div>
               )}
               <button className="rep-btn-success-sm" onClick={() => {
@@ -774,12 +781,12 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
               }}>⬇ CSV</button>
               <button className="rep-btn-sm-2" onClick={() => {
                 const el = document.querySelector('.recharts-wrapper') || document.querySelector('[data-chart]')
-                if (!el) { toast.info('Selecciona un tipo de gráfico visual primero'); return }
+                if (!el) { toast.info(traducir('reportes_ui.elige_grafico')); return }
                 import('html2canvas').then(({ default: html2canvas }) => {
                   html2canvas(el as HTMLElement).then(canvas => {
                     const a = document.createElement('a'); a.href = canvas.toDataURL(); a.download = `${metric}.png`; a.click()
                   })
-                }).catch(() => toast.error('Error al exportar imagen'))
+                }).catch(() => toast.error(traducir('reportes_ui.error_imagen')))
               }}>📷 PNG</button>
             </div>
           </div>
@@ -790,7 +797,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Small data table below chart */}
           {chartType !== 'table' && result.rows.length > 0 && result.rows.length <= 30 && (
             <div className="rep-text-2">
-              <div className="rep-text-muted-xs-strong">Datos</div>
+              <div className="rep-text-muted-xs-strong">{traducir('reportes_ui.datos')}</div>
               <TablaDeMetrica data={result.rows} isCurrency={esEjeDeMoneda(result.meta?.y_label, fmtMoneda)} isPercent={result.meta?.y_label?.includes('%')} />
             </div>
           )}
@@ -799,7 +806,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         <EmptyState
           icon="⚠️"
           title={traducir('reports.plantilla_no_disponible')}
-          description="La métrica seleccionada no está disponible en este entorno o devolvió un error."
+          description={traducir('reportes_ui.no_disponible_desc')}
         />
       )}
     </div>
@@ -808,18 +815,19 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
 
 // ── Dashboard mode: multiple panels ──────────────────────────────────────────
 function ReportsDashboard({ saved, onRemove, onOpen }: { saved: SavedReport[]; onRemove?: (id: string) => void; onOpen?: (report: SavedReport) => void }) {
+  const traducir = useAppT()
   const _today = new Date().toISOString().split('T')[0]
   const _d90 = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
   return (
     <div className="rep-grid-3">
       {saved.map(r => (
-        <Card key={r.id} style={{ padding: 18 }}>
+        <Card key={r.id} className="reportsp-sx1">
           <div className="rep-row-12">
             <div className="u-md-700">{r.name}</div>
             <div className="u-row-6">
-              <button className="rep-btn-xs-2" onClick={() => onOpen(r)}>✏️ Editar</button>
-              <button className="rep-btn-danger-xs" onClick={() => onRemove(r.id)}>🗑</button>
+              <button className="rep-btn-xs-2" onClick={() => onOpen(r)}>{traducir('reportes_ui.editar')}</button>
+              <button className="rep-btn-danger-xs" type="button" aria-label={traducir('reportes_ui.eliminar_informe')} title={traducir('reportes_ui.eliminar_informe')} onClick={() => onRemove(r.id)}>🗑</button>
             </div>
           </div>
           <MiniPanel config={r} />
@@ -831,6 +839,7 @@ function ReportsDashboard({ saved, onRemove, onOpen }: { saved: SavedReport[]; o
 
 function MiniPanel({ config }: { config: SavedReport }) {
   const fmtMoneda = useFormatoMoneda()
+  const traducir = useAppT()
   const { data: result, isLoading } = useQuery<MetricResult | null>({
     queryKey: ['analytics-mini', config.metric, config.dateFrom, config.dateTo, config.projectId, config.userId],
     queryFn: () => analyticsApi.query(config.metric, { date_from: config.dateFrom, date_to: config.dateTo, project_id: config.projectId || undefined, user_id: config.userId || undefined, top_n: 10 }).then(r => r.data).catch(() => null),
@@ -844,7 +853,7 @@ function MiniPanel({ config }: { config: SavedReport }) {
       {result.summary?.total > 0 && (
         <div className="rep-text-xl-em-strong-mono rep-text-7" style={{ '--rep-text-7-color': config.color || 'var(--accent)' } as CSSProperties}>
           {esEjeDeMoneda(result.meta?.y_label, fmtMoneda) ? fmtMoneda(result.summary.total, { decimales: 0 }) : result.summary.total.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })}
-          <span className="rep-text-muted-sm">total</span>
+          <span className="rep-text-muted-sm">{traducir('reportes_ui.total')}</span>
         </div>
       )}
       <ChartRenderer data={result.rows} chartType={config.chartType || 'bar'} meta={result.meta} color={config.color || 'var(--accent)'} height={160} />
@@ -879,14 +888,14 @@ function ScheduledReportsTab() {
       qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       setShowCreate(false)
       setForm({ name: '', metric: 'hours_by_month', recipients: '', frequency: 'weekly', include_pdf: true })
-      toast.success('Informe programado creado correctamente')
+      toast.success(traducir('reportes_ui.programado_creado'))
     },
-    onError: e => toast.error(extractErr(e, 'Error al crear')),
+    onError: e => toast.error(extractErr(e, traducir('reportes_ui.error_crear'))),
   })
 
   const { mutate: remove } = useMutation({
     mutationFn: (id: string) => scheduledReportsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['scheduled-reps'] }); toast.success('Informe eliminado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['scheduled-reps'] }); toast.success(traducir('reportes_ui.informe_eliminado')) },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
@@ -896,9 +905,9 @@ function ScheduledReportsTab() {
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['scheduled-reps'] })
       const to = data.recipients.join(', ') || '—'
-      toast.success(data.status === 'queued' ? `Envío en curso a: ${to}` : `Informe enviado a: ${to}`)
+      toast.success(data.status === 'queued' ? traducir('reportes_ui.envio_en_curso', { to }) : traducir('reportes_ui.informe_enviado', { to }))
     },
-    onError: e => toast.error(extractErr(e, 'Error al ejecutar')),
+    onError: e => toast.error(extractErr(e, traducir('reportes_ui.error_ejecutar'))),
   })
 
   const { mutate: toggle } = useMutation({
@@ -907,18 +916,18 @@ function ScheduledReportsTab() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
-  const FREQ_LABELS: Record<string, string> = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual' }
+  const FREQ_LABELS: Record<string, string> = { daily: traducir('reportes_ui.frec_daily'), weekly: traducir('reportes_ui.frec_weekly'), monthly: traducir('reportes_ui.frec_monthly') }
   const FREQ_ICONS: Record<string, string>  = { daily: '📆', weekly: '📅', monthly: '🗓' }
 
   const METRICS = [
-    { id: 'hours_by_month',        label: 'Horas por mes' },
-    { id: 'margin_by_project',     label: 'Margen por proyecto' },
-    { id: 'ticket_volume_trend',   label: 'Volumen de tickets' },
-    { id: 'sprint_velocity',       label: 'Velocidad de sprint' },
-    { id: 'productivity_by_person',label: 'Productividad por persona' },
-    { id: 'pipeline_by_stage',     label: 'Pipeline por etapa' },
-    { id: 'tasks_overdue',         label: 'Tareas vencidas' },
-    { id: 'cost_vs_budget',        label: 'Coste vs Presupuesto' },
+    { id: 'hours_by_month',        label: traducir('reportes_ui.m_horas_mes') },
+    { id: 'margin_by_project',     label: traducir('reportes_ui.m_margen_proyecto') },
+    { id: 'ticket_volume_trend',   label: traducir('reportes_ui.m_volumen_tickets') },
+    { id: 'sprint_velocity',       label: traducir('reportes_ui.m_velocidad_sprint') },
+    { id: 'productivity_by_person',label: traducir('reportes_ui.m_productividad_persona') },
+    { id: 'pipeline_by_stage',     label: traducir('reportes_ui.m_pipeline_etapa') },
+    { id: 'tasks_overdue',         label: traducir('reportes_ui.m_tareas_vencidas') },
+    { id: 'cost_vs_budget',        label: traducir('reportes_ui.m_coste_presupuesto') },
   ]
 
 
@@ -937,13 +946,13 @@ function ScheduledReportsTab() {
     <div>
       <div className="u-row-between-mb16">
         <div>
-          <div className="rep-text-md-strong">Informes programados</div>
+          <div className="rep-text-md-strong">{traducir('reportes_ui.informes_programados')}</div>
           <div className="u-text2-sm">
             {traducir('reports.envio_automatico_por_email_los_informes_se')}
           </div>
         </div>
         <Button onClick={() => setShowCreate(s => !s)}>
-          {showCreate ? '✕ Cancelar' : '+ Nuevo informe'}
+          {showCreate ? traducir('reportes_ui.cancelar_x') : traducir('reportes_ui.nuevo_informe')}
         </Button>
       </div>
 
@@ -951,7 +960,7 @@ function ScheduledReportsTab() {
       <div className="rep-row-warning">
         <span className="rep-box-6">⚙️</span>
         <span>
-          Configura <strong>SMTP_HOST</strong>, <strong>SMTP_USER</strong> y <strong>SMTP_PASS</strong> {traducir('reports.en_las_variables_de_entorno_para_envio')}
+          {traducir('reportes_ui.configura')} <strong>SMTP_HOST</strong>, <strong>SMTP_USER</strong> {traducir('reportes_ui.y')} <strong>SMTP_PASS</strong> {traducir('reports.en_las_variables_de_entorno_para_envio')}
         </span>
       </div>
 
@@ -963,7 +972,7 @@ function ScheduledReportsTab() {
           </div>
           <div className="rep-grid-4">
             <div>
-              <label className="rep-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>Nombre *</label>
+              <label className="rep-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('reportes_ui.nombre_req')}</label>
               <input className="rep-is" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder={traducir('reports.report_name')} />
             </div>
@@ -974,7 +983,7 @@ function ScheduledReportsTab() {
               </select>
             </div>
             <div>
-              <label className="rep-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>Frecuencia</label>
+              <label className="rep-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('reportes_ui.frecuencia')}</label>
               <select className="rep-is" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
                 {Object.entries(FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{FREQ_ICONS[k]} {v}</option>)}
               </select>
@@ -982,7 +991,7 @@ function ScheduledReportsTab() {
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reports.destinatarios_emails_separados_por_coma')}</label>
               <input className="rep-is" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
-                placeholder="email1@empresa.com, email2@empresa.com" />
+                placeholder={traducir('reportes_ui.emails_ejemplo')} />
             </div>
           </div>
           <label className="rep-label-sm" style={{ '--rep-label-sm-color': form.include_pdf ? 'var(--text-1)' : 'var(--text-2)' } as CSSProperties}>
@@ -993,11 +1002,11 @@ function ScheduledReportsTab() {
           <div className="u-actions-8">
             <button onClick={() => setShowCreate(false)}
               className="u-btn-outline-sm">
-              Cancelar
+              {traducir('common.cancel')}
             </button>
             <Button onClick={submitForm} loading={creating}
               disabled={creating || !form.name || !form.recipients}>
-              📅 Programar informe
+              {traducir('reportes_ui.programar')}
             </Button>
           </div>
         </div>
@@ -1005,7 +1014,7 @@ function ScheduledReportsTab() {
 
       {/* Lista */}
       {isLoading ? (
-        <div className="rep-state-muted-2">Cargando...</div>
+        <div className="rep-state-muted-2">{traducir('common.loading')}</div>
       ) : scheduled.length === 0 ? (
         <div className="rep-ps rep-state-muted-3">
           <div className="rep-text-4xl">📅</div>
@@ -1021,7 +1030,7 @@ function ScheduledReportsTab() {
                   <span className="rep-text-lg">{FREQ_ICONS[rep.frequency]}</span>
                   <span className="u-md-700">{rep.name}</span>
                   {!rep.is_active && (
-                    <span className="rep-card-danger">Pausado</span>
+                    <span className="rep-card-danger">{traducir('reportes_ui.pausado')}</span>
                   )}
                   {rep.include_pdf && (
                     <span className="rep-card-purple">📎 PDF</span>
@@ -1036,27 +1045,27 @@ function ScheduledReportsTab() {
                 </div>
                 {(rep.last_run_at || rep.next_run_at) && (
                   <div className="rep-text-muted-2xs-2">
-                    {rep.last_run_at && `Último envío: ${rep.last_run_at}`}
+                    {rep.last_run_at && traducir('reportes_ui.ultimo_envio', { fecha: rep.last_run_at })}
                     {rep.last_run_at && rep.next_run_at && ' · '}
-                    {rep.next_run_at && `Próximo: ${rep.next_run_at}`}
+                    {rep.next_run_at && traducir('reportes_ui.proximo', { fecha: rep.next_run_at })}
                   </div>
                 )}
               </div>
               <div className="rep-row-16">
                 <button className="rep-btn-xs-3" onClick={() => toggle({ id: rep.id, val: !rep.is_active })}
                   style={{ '--rep-btn-xs-3-background': rep.is_active ? 'var(--warning-bg)' : 'var(--success-bg)', '--rep-btn-xs-3-border': `1px solid ${rep.is_active ? 'var(--warning-border)' : 'var(--success-border)'}`, '--rep-btn-xs-3-color': rep.is_active ? 'var(--warning)' : 'var(--success)' } as CSSProperties}>
-                  {rep.is_active ? '⏸ Pausar' : '▶ Activar'}
+                  {rep.is_active ? traducir('reportes_ui.pausar') : traducir('reportes_ui.activar')}
                 </button>
                 <button className="rep-btn-accent-xs" onClick={() => runNow(rep.id)} disabled={running || !rep.is_active}
                   style={{ '--rep-btn-accent-xs-cursor': running ? 'wait' : 'pointer', '--rep-btn-accent-xs-opacity': !rep.is_active ? '0.4' : '1' } as CSSProperties}>
-                  ▶ Enviar ahora
+                  {traducir('reportes_ui.enviar_ahora')}
                 </button>
                 {/* Enlace y no el cliente: el navegador abre el PDF en otra pestaña con la cookie de sesión. */}
                 <a className="rep-link-purple" href={apiUrl(`/billing-reports/scheduled-reports/${rep.id}/preview-pdf`)} target="_blank"
                   rel="noopener noreferrer">
                   📄 PDF
                 </a>
-                <button className="rep-btn-danger-xs-2" onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${rep.name}"?`, onConfirm: () => remove(rep.id), danger: true }) }}>
+                <button className="rep-btn-danger-xs-2" type="button" aria-label={traducir('common.delete')} title={traducir('common.delete')} onClick={() => { openConfirmGlobal({ message: traducir('reportes_ui.eliminar_confirm', { nombre: rep.name }), onConfirm: () => remove(rep.id), danger: true }) }}>
                   🗑
                 </button>
               </div>
@@ -1072,6 +1081,7 @@ function ScheduledReportsTab() {
 
 // ── PresetsTab ─────────────────────────────────────────────────────────────────
 function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly Preset[]; supportedMetrics?: Set<string> | null; onOpen?: (preset: Preset) => void }) {
+  const traducir = useAppT()
   const [filterCat, setFilterCat] = useState<string>('all')
   const [searchQ, setSearchQ] = useState('')
   // When supportedMetrics is null the analytics catalogue is unavailable (e.g. 503).
@@ -1083,46 +1093,42 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
   const byCat = filterCat === 'all' ? enabledPresets : enabledPresets.filter(p => p.cat === filterCat)
   const filtered = searchQ.trim().length < 2
     ? byCat
-    : byCat.filter(p => p.label.toLowerCase().includes(searchQ.toLowerCase()) || p.cat?.toLowerCase().includes(searchQ.toLowerCase()))
+    : byCat.filter(p => traducir(p.label).toLowerCase().includes(searchQ.toLowerCase()) || etiquetaCategoria(p.cat, traducir).toLowerCase().includes(searchQ.toLowerCase()))
   const catIcons: Record<string, string> = { Horas:'⏱️', Costes:'💸', Rentabilidad:'💰', Capacidad:'📅',
     Proyectos:'⬡', Negocio:'💼', RRHH:'👥', 'Service Desk':'🎫', Agilidad:'🏃', ALM:'🔑', IA:'🧠' }
-  const chartLabels: Record<string, string> = { bar:'Barras', bar_grouped:'Agrupadas', bar_stacked:'Apiladas',
-    line:'Línea', area:'Área', pie:'Tarta', donut:'Donut', heatmap:'Heatmap', table:'Tabla' }
+  const chartLabels: Record<string, string> = { bar: traducir('reportes_ui.graf_bar'), bar_grouped: traducir('reportes_ui.graf_agrupadas'), bar_stacked: traducir('reportes_ui.graf_apiladas'),
+    line: traducir('reportes_ui.graf_line'), area: traducir('reportes_ui.graf_area'), pie: traducir('reportes_ui.graf_pie'), donut: traducir('reportes_ui.graf_donut'), heatmap: traducir('reportes_ui.graf_heatmap'), table: traducir('reportes_ui.graf_table') }
 
   return (
     <div>
       <div className="u-mb-12">
-        <input className="rep-input-4" aria-label="Buscar plantilla..."
+        <input className="rep-input-4" aria-label={traducir('reportes_ui.buscar_plantilla')}
           value={searchQ}
           onChange={e => setSearchQ(e.target.value)}
-          placeholder="Buscar plantilla..."
-          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-          onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
+          placeholder={traducir('reportes_ui.buscar_plantilla')}
         />
       </div>
       <div className="rep-row-17">
         {cats.map(c => (
-          <button className="rep-btn-xs-4" key={c} onClick={() => setFilterCat(c)}
+          <button className="rep-btn-xs-4" type="button" aria-pressed={filterCat === c} key={c} onClick={() => setFilterCat(c)}
             style={{ '--rep-btn-xs-4-border': `1px solid ${filterCat === c ? 'var(--accent)' : 'var(--surface-4)'}`, '--rep-btn-xs-4-background': filterCat === c ? 'var(--accent-muted)' : 'transparent', '--rep-btn-xs-4-color': filterCat === c ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
-            {c === 'all' ? `✦ Todas (${enabledPresets.length})` : `${catIcons[c] || ''} ${c}`}
+            {c === 'all' ? traducir('reportes_ui.todas_n', { n: enabledPresets.length }) : `${catIcons[c] || ''} ${etiquetaCategoria(c, traducir)}`}
           </button>
         ))}
       </div>
       {searchQ.trim().length >= 2 && (
         <div className="rep-text-muted-sm-3">
-          {filtered.length === 0 ? 'Sin resultados' : `${filtered.length} plantilla${filtered.length !== 1 ? 's' : ''} encontrada${filtered.length !== 1 ? 's' : ''}`}
+          {filtered.length === 0 ? traducir('reportes_ui.sin_resultados') : filtered.length === 1 ? traducir('reportes_ui.una_plantilla') : traducir('reportes_ui.n_plantillas', { n: filtered.length })}
         </div>
       )}
       <div className="rep-grid-5">
         {filtered.map(p => (
           <button className="rep-btn-3" key={p.id} type="button" onClick={() => onOpen(p)}
-            style={{ '--rep-btn-3-border': `1px solid ${alpha(p.color, '25')}` } as CSSProperties}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(p.color, '70'); e.currentTarget.style.background = alpha(p.color, '08') }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = alpha(p.color, '25'); e.currentTarget.style.background = 'var(--surface-2)' }}>
+            style={{ '--rep-btn-3-border': `1px solid ${alpha(p.color, '25')}`, '--rep-btn-3-tono': p.color } as CSSProperties}>
             <div className="rep-text-2xl">{p.icon}</div>
-            <div className="rep-text-base-strong">{p.label}</div>
+            <div className="rep-text-base-strong">{traducir(p.label)}</div>
             <div className="rep-text-2xs-strong rep-text-8" style={{ '--rep-text-8-color': p.color } as CSSProperties}>
-              {p.cat} · {chartLabels[p.chart] || p.chart} →
+              {etiquetaCategoria(p.cat, traducir)} · {chartLabels[p.chart] || p.chart} →
             </div>
           </button>
         ))}
@@ -1154,7 +1160,7 @@ export default function ReportsPage() {
     mutationFn: (lista: SavedReport[]) => api.patch('/users/me/preferences', { extra: { informes_guardados: lista } }),
     onMutate: (lista: SavedReport[]) => qc.setQueryData<UserPreferences>(['user-preferences'], old => ({ ...(old || {}), extra: { ...(old?.extra || {}), informes_guardados: lista } })),
     onSettled: () => qc.invalidateQueries({ queryKey: ['user-preferences'] }),
-    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo guardar el informe')),
+    onError: (e: unknown) => toast.error(extractErr(e, traducir('reportes_ui.error_guardar'))),
   })
 
   const saveReport = (config: ReportConfig) => {
@@ -1178,11 +1184,11 @@ export default function ReportsPage() {
 
   const [_schedTab, _setSchedTab] = useState('main')
   const MODES = [
-    { id: 'overview',  label: 'Métricas',         Icon: Grid3X3 },
-    { id: 'explorer',  label: 'Explorador',       Icon: Search },
-    { id: 'presets',   label: 'Plantillas',       Icon: Zap },
-    { id: 'dashboard', label: `Guardados${saved.length ? ` (${saved.length})` : ''}`, Icon: Pin },
-    ...(veProgramados ? [{ id: 'scheduled', label: 'Programados', Icon: Calendar }] : []),
+    { id: 'overview',  label: traducir('reportes_ui.modo_metricas'), Icon: Grid3X3 },
+    { id: 'explorer',  label: traducir('reportes_ui.modo_explorador'), Icon: Search },
+    { id: 'presets',   label: traducir('reportes_ui.modo_plantillas'), Icon: Zap },
+    { id: 'dashboard', label: saved.length ? traducir('reportes_ui.modo_guardados_n', { n: saved.length }) : traducir('reportes_ui.modo_guardados'), Icon: Pin },
+    ...(veProgramados ? [{ id: 'scheduled', label: traducir('reportes_ui.modo_programados'), Icon: Calendar }] : []),
   ]
 
   return (
@@ -1215,14 +1221,12 @@ export default function ReportsPage() {
           {catalogue && Object.entries(catalogue).map(([cat, items]) => (
             <div className="rep-text-3" key={cat}>
               <div className="rep-row-muted-2">
-                <span>{CAT_ICONS[cat] || '📊'}</span> {cat}
+                <span>{CAT_ICONS[cat] || '📊'}</span> {etiquetaCategoria(cat, traducir)}
                 <span className="rep-text-muted-2xs-3">({items.length})</span>
               </div>
               <div className="u-wrap-8">
                 {items.map(item => (
-                  <button className="rep-btn-sm-3" key={item.id} onClick={() => { setEditingReport({ metric: item.id, chartType: item.default_chart }); setMode('explorer') }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-muted)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.background = 'var(--surface-2)' }}>
+                  <button className="rep-btn-sm-3" key={item.id} onClick={() => { setEditingReport({ metric: item.id, chartType: item.default_chart }); setMode('explorer') }}>
                     <span className="rep-text-muted-2xs-4">
                       {({bar:'▬',bar_grouped:'▮▮',bar_stacked:'▰',line:'∿',area:'◭',pie:'◔',donut:'◎',heatmap:'▦'} as Record<string, string>)[item.default_chart] || '📊'}
                     </span>
@@ -1237,7 +1241,7 @@ export default function ReportsPage() {
 
       {/* Explorer */}
       {mode === 'explorer' && (
-        <Card style={{ padding: 24 }}>
+        <Card className="reportsp-sx2">
           <ReportPanel
             key={editingReport ? `${editingReport.metric}-${editingReport.chartType || 'bar'}` : 'new'}
             initialMetric={editingReport?.metric}
@@ -1250,7 +1254,7 @@ export default function ReportsPage() {
       {/* Dashboard */}
       {mode === 'dashboard' && (
         saved.length === 0 ? (
-          <EmptyState svgIcon={<Pin size={36} />} title={traducir('reports.sin_informes_guardados')} description="Genera un informe y guárdalo para verlo aquí" />
+          <EmptyState svgIcon={<Pin size={36} />} title={traducir('reports.sin_informes_guardados')} description={traducir('reportes_ui.sin_guardados_desc')} />
         ) : (
           <ReportsDashboard saved={saved} onRemove={removeReport} onOpen={openReport} />
         )

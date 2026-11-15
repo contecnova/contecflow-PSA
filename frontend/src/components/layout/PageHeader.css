@@ -101,3 +101,10 @@
   margin-top: 10px;
   flex-wrap: wrap;
 }
+
+/* ── Estilos estaticos extraidos de PageHeader.tsx (#17) ── */
+.pagehead-sx1.pagehead-sx1 {
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--surface-4);
+}

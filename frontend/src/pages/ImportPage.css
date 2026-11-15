@@ -201,3 +201,11 @@
   font-size: var(--text-xs);
   color: var(--danger);
 }
+
+/* ── Estilos en linea extraidos de ImportPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.importpa-sx1.importpa-sx1 {
+  color: var(--success);
+}
+.importpa-sx2.importpa-sx2 {
+  color: var(--danger);
+}

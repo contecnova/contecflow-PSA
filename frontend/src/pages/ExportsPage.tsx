@@ -114,17 +114,17 @@ export default function ExportsPage(): JSX.Element {
   }
 
   return (
-    <PageShell style={{ maxWidth: 760, margin: '0 auto' }}>
+    <PageShell className="exps-box-2">
       <PageHeader icon={<Download size={18} />} title={t('exports.title')} subtitle={t('exports.subtitle')} showListExport={false} />
 
       {message && (
-        <div className="exps-box" style={{ background: message.startsWith('✅') ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${message.startsWith('✅') ? 'var(--success-border)' : 'var(--danger-border)'}`, borderRadius: 8, color: message.startsWith('✅') ? 'var(--success)' : 'var(--danger)' }}>
+        <div className={`exps-box exportsp-sx2 ${message.startsWith('✅') ? 'exportsp-sx3' : 'exportsp-sx4'}`} style={{ border: `1px solid ${message.startsWith('✅') ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
           {message}
         </div>
       )}
 
       {/* Imputations export */}
-      <Card style={{ marginBottom: 20 }}>
+      <Card className="exportsp-sx1">
         <h3 className="exps-title">{t('pagina_exps.exportar_imputaciones')}</h3>
         <p className="u-text2-base-mb20">
           {t('exports.descarga_el_registro_de_horas_en_excel')}
@@ -134,20 +134,20 @@ export default function ExportsPage(): JSX.Element {
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="exps-label">{t('pagina_exps.desde')}</label>
             <DateInput id={`${idCampo}-1`} value={imputForm.date_from}
               onChange={e => setImputForm(f => ({ ...f, date_from: e.target.value }))}
-              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              className="exps-card" />
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="exps-label">{t('pagina_exps.hasta')}</label>
             <DateInput id={`${idCampo}-2`} value={imputForm.date_to}
               onChange={e => setImputForm(f => ({ ...f, date_to: e.target.value }))}
-              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              className="exps-card" />
           </div>
         </div>
         <div className="exps-row">
           <div className="exps-row-2">
             {(['xlsx', 'csv'] as const).map((fmt) => (
               <button key={fmt} onClick={() => setImputForm(f => ({ ...f, format: fmt }))}
-                className="exps-btn" style={{ background: imputForm.format === fmt ? 'var(--accent-muted)' : 'transparent', color: imputForm.format === fmt ? 'var(--accent)' : 'var(--text-2)' }}>
+                className={`exps-btn ${imputForm.format === fmt ? 'exportsp-sx5' : 'exportsp-sx6'}`}>
                 {fmt.toUpperCase()}
               </button>
             ))}
@@ -169,7 +169,7 @@ export default function ExportsPage(): JSX.Element {
       </Card>
 
       {/* Projects export */}
-      <Card style={{ marginBottom: 20 }}>
+      <Card className="exportsp-sx1">
         <h3 className="exps-title">{t('pagina_exps.exportar_proyectos')}</h3>
         <p className="u-text2-base-mb20">
           {t('exports.informe_completo_de_todos_los_proyectos_con')}
@@ -182,7 +182,7 @@ export default function ExportsPage(): JSX.Element {
           <div className="exps-row-2">
             {(['xlsx', 'csv'] as const).map((fmt) => (
               <button key={fmt} onClick={() => setProjForm(f => ({ ...f, format: fmt }))}
-                className="exps-btn" style={{ background: projForm.format === fmt ? 'var(--accent-muted)' : 'transparent', color: projForm.format === fmt ? 'var(--accent)' : 'var(--text-2)' }}>
+                className={`exps-btn ${projForm.format === fmt ? 'exportsp-sx5' : 'exportsp-sx6'}`}>
                 {fmt.toUpperCase()}
               </button>
             ))}
@@ -209,7 +209,7 @@ export default function ExportsPage(): JSX.Element {
           </p>
           <div className="exps-row-3">
             <select value={jiraProject} onChange={e => setJiraProject(e.target.value)}
-              className="exps-input" style={{ color: jiraProject ? 'var(--text-1)' : 'var(--text-2)' }}>
+              className={`exps-input ${jiraProject ? 'exportsp-sx7' : 'exportsp-sx8'}`}>
               <option value="">{t('pagina_exps.selecciona_proyecto')}</option>
               {projects.filter(p => p.status === 'active').map(p => (
                 <option key={p.id} value={p.id}>{p.code} — {p.name}</option>

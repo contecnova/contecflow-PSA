@@ -59,7 +59,7 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
       </div>
       {isLoading ? <Spinner /> : <>
         {(data?.blackouts ?? []).map(b => (
-          <div className="cambplan-box-8" key={b.id} role="note" style={{ border: `1px solid ${alpha(COLOR.danger, '50')}`, background: alpha(COLOR.danger, '10'), borderRadius: 8 }}>
+          <div className="cambplan-box-8 cambiosp-sx1" key={b.id} role="note" style={{ border: `1px solid ${alpha(COLOR.danger, '50')}`, background: alpha(COLOR.danger, '10') }}>
             <strong style={{ color: COLOR.danger }}>❄ {b.name}</strong> · {fecha(b.start_at)} → {fecha(b.end_at)}
           </div>
         ))}

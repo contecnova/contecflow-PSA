@@ -205,7 +205,14 @@ export default [
       'jsx-a11y/role-has-required-aria-props': 'warn',
       'jsx-a11y/role-supports-aria-props': 'warn',
       'jsx-a11y/alt-text': 'warn',
-      'jsx-a11y/control-has-associated-label': 'warn',
+      // 2026-11: opciones del propio plugin (config recomendada). Sin ellas la regla
+      // marcaba inputs con <label htmlFor> como sin etiqueta; esos los vigila
+      // label-has-associated-control.
+      'jsx-a11y/control-has-associated-label': ['warn', {
+        ignoreElements: ['audio', 'canvas', 'embed', 'input', 'textarea', 'tr', 'video'],
+        ignoreRoles: ['grid', 'listbox', 'menu', 'menubar', 'radiogroup', 'row', 'tablist', 'toolbar', 'tree', 'treegrid'],
+        includeRoles: ['alert', 'dialog'],
+      }],
       'jsx-a11y/label-has-associated-control': 'warn',
       'jsx-a11y/click-events-have-key-events': 'error',
       'jsx-a11y/no-static-element-interactions': 'error',

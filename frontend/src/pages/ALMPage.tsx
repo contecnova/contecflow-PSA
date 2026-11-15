@@ -683,15 +683,16 @@ function ContractsTab() {
   const [urgentOnly, setUrgentOnly] = useState(false)
   const [page, setPage] = useState(1)
 
-  // /alm/contracts pagina y filtra por estado en el servidor, pero no por texto ni
-  // por «renovación urgente»: con búsqueda o urgentes se pide la lista entera (hasta
-  // el tope del servidor) y se filtra y pagina aquí; sin ellos, página a página.
-  const filtroLocal = !!(search.trim() || urgentOnly)
+  // Todo se filtra y pagina en el servidor: estado, texto (q: título, referencia y
+  // proveedor) y renovación urgente. El texto va con retardo para no pedir por tecla.
+  const q = useRetardado(search.trim())
   const { data: pagina, isLoading } = useQuery<PaginaAlm<AlmContract>>({
-    queryKey: ['alm-contracts', 'pagina', statusFilter, filtroLocal ? 'todas' : page],
+    queryKey: ['alm-contracts', 'pagina', statusFilter, q, urgentOnly, page],
     queryFn: () => almExtApi.contracts({
       status: statusFilter || undefined,
-      ...(filtroLocal ? {} : { page, page_size: ALM_PAGE_SIZE }),
+      q: q || undefined,
+      renewal_urgent: urgentOnly || undefined,
+      page, page_size: ALM_PAGE_SIZE,
     }).then(aPagina),
     placeholderData: keepPreviousData,
   })
@@ -705,22 +706,13 @@ function ContractsTab() {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const recibidos = pagina?.items ?? []
-  const texto = search.trim().toLowerCase()
-  const filtered = filtroLocal
-    ? recibidos.filter(c =>
-      (!texto || c.title.toLowerCase().includes(texto) || c.vendor_name?.toLowerCase().includes(texto)) &&
-      (!urgentOnly || c.renewal_urgent))
-    : recibidos
-  const total = filtroLocal ? filtered.length : pagina?.total ?? 0
+  const visibles = pagina?.items ?? []
+  const total = pagina?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / ALM_PAGE_SIZE))
   useAjustarPagina(page, totalPages, setPage, !!pagina)
-  const visibles = filtroLocal ? filtered.slice((page - 1) * ALM_PAGE_SIZE, page * ALM_PAGE_SIZE) : filtered
-  // Con paginación del servidor solo se conoce la página: el importe se rotula así.
-  const sumaDePagina = !filtroLocal && totalPages > 1
-
-  // Con filtro local, `filtered` es la lista entera filtrada; con el servidor, la página.
-  const totalAnnual = filtered.reduce((s: number, c) => s + (c.annual_value || 0), 0)
+  // Solo se conoce la página: el importe se rotula así cuando hay más de una.
+  const sumaDePagina = totalPages > 1
+  const totalAnnual = visibles.reduce((s: number, c) => s + (c.annual_value || 0), 0)
 
   return (
     <div>
@@ -738,7 +730,7 @@ function ContractsTab() {
         <Button onClick={() => setModal({})} icon="＋">{t('alm.action_new_contract')}</Button>
       </div>
 
-      {filtered.length > 0 && (
+      {visibles.length > 0 && (
         <div className="alm-summary">
           {t('alm.contracts_count', { n: total })} · {t('alm.contracts_total_annual')} <strong className="u-warning">{fmtCurrency(totalAnnual)}</strong>
           {sumaDePagina && <> <span className="u-text3">{t('alm.summary_this_page')}</span></>}
@@ -988,15 +980,14 @@ function LicensesTab() {
   const [page, setPage] = useState(1)
   const q = useRetardado(search.trim().toLowerCase())
 
-  // /alm/licenses pagina y filtra por estado en el servidor, pero no por texto ni
-  // por tipo: con búsqueda o tipo se pide la lista entera (hasta el tope del
-  // servidor) y se filtra y pagina aquí; sin ellos, página a página del servidor.
-  const filtroLocal = !!(q || typeFilter)
+  // Estado, texto (q: nombre y proveedor) y tipo se filtran y paginan en el servidor.
   const { data: pagina, isLoading } = useQuery<PaginaAlm<License>>({
-    queryKey: ['alm-licenses', 'pagina', statusFilter, filtroLocal ? 'todas' : page],
+    queryKey: ['alm-licenses', 'pagina', statusFilter, q, typeFilter, page],
     queryFn: () => licensesApi.list({
       status: statusFilter || undefined,
-      ...(filtroLocal ? {} : { page, page_size: ALM_PAGE_SIZE }),
+      q: q || undefined,
+      type: typeFilter || undefined,
+      page, page_size: ALM_PAGE_SIZE,
     }).then(aPagina),
     placeholderData: keepPreviousData,
   })
@@ -1010,22 +1001,16 @@ function LicensesTab() {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const recibidas = pagina?.items ?? []
-  const filtered = filtroLocal
-    ? recibidas.filter(l =>
-      (!q || l.name.toLowerCase().includes(q) || l.vendor_name?.toLowerCase().includes(q)) &&
-      (!typeFilter || l.type === typeFilter))
-    : recibidas
-  const total = filtroLocal ? filtered.length : pagina?.total ?? 0
+  const visibles = pagina?.items ?? []
+  const total = pagina?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / ALM_PAGE_SIZE))
   useAjustarPagina(page, totalPages, setPage, !!pagina)
-  const visibles = filtroLocal ? filtered.slice((page - 1) * ALM_PAGE_SIZE, page * ALM_PAGE_SIZE) : filtered
-  // Con paginación del servidor solo se conoce la página: los importes se rotulan así.
-  const sumaDePagina = !filtroLocal && totalPages > 1
+  // Solo se conoce la página: los importes se rotulan así cuando hay más de una.
+  const sumaDePagina = totalPages > 1
 
-  const totalAnnual = filtered.reduce((s: number, l) => s + (l.annual_cost || 0), 0)
-  const totalSeats  = filtered.reduce((s: number, l) => s + (l.total_seats || 0), 0)
-  const usedSeats   = filtered.reduce((s: number, l) => s + (l.used_seats || 0), 0)
+  const totalAnnual = visibles.reduce((s: number, l) => s + (l.annual_cost || 0), 0)
+  const totalSeats  = visibles.reduce((s: number, l) => s + (l.total_seats || 0), 0)
+  const usedSeats   = visibles.reduce((s: number, l) => s + (l.used_seats || 0), 0)
 
   return (
     <div>
@@ -1043,7 +1028,7 @@ function LicensesTab() {
         <Button onClick={() => setModal({})} icon="＋">{t('alm.action_register_license')}</Button>
       </div>
 
-      {filtered.length > 0 && (
+      {visibles.length > 0 && (
         <div className="alm-summary alm-summary--row">
           <span>{t('alm.licenses_count', { n: total })}</span>
           {totalAnnual > 0 && <span>💰 <strong className="u-warning">{fmtCurrency(totalAnnual)}</strong>{t('alm.ano')}</span>}

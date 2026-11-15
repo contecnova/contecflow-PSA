@@ -231,3 +231,14 @@
   font-family: var(--font-mono);
   line-height: 1.1;
 }
+
+/* ── Estilos en linea extraidos de OKRsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
+.okrspage-sx1.okrspage-sx1 {
+  font-size: 11px;
+}
+.okrspage-sx2.okrspage-sx2 {
+  font-size: 9px;
+}
+.okrspage-sx3.okrspage-sx3 {
+  border-radius: 12px;
+}

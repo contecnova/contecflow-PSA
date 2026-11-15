@@ -8,3 +8,8 @@
   font-family: inherit;
   transition: all 0.15s;
 }
+
+/* ── Estilos estaticos extraidos de LangSelector.tsx (#17) ── */
+.langsele-sx1.langsele-sx1 {
+  border-radius: 8px;
+}

@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.core.errores import ErrorDeDominio
 from app.models.politicas import EvaluacionDePolitica, FilaDeTablaDeReferencia, Politica, TablaDeReferencia
 from app.services.politicas import catalogo, resultados as res
-from app.services.politicas.condiciones import Evaluador, Indeterminado
+from app.services.politicas.condiciones import Evaluador, Indeterminado, cargar_tablas  # noqa: F401 (API de motor)
 
 logger = logging.getLogger(__name__)
 
@@ -72,20 +72,6 @@ def _firma(db: Session, org: Optional[str], dominio: str) -> tuple:
     t = t.filter(TablaDeReferencia.organization_id == org) if org else t.filter(TablaDeReferencia.organization_id.is_(None))
     b = t.one()
     return (a[0], str(a[1]), b[0], str(b[1]))
-
-
-def cargar_tablas(db: Session, ids: list) -> dict:
-    salida: dict = {}
-    if not ids:
-        return salida
-    tablas = {t.id: t for t in db.query(TablaDeReferencia).filter(TablaDeReferencia.id.in_(ids)).all()}
-    for t in tablas.values():
-        salida[t.id] = (t.tipo_de_valor, [])
-    for f in db.query(FilaDeTablaDeReferencia).filter(FilaDeTablaDeReferencia.tabla_id.in_(list(tablas))).all():
-        salida[f.tabla_id][1].append({"pais": f.pais, "ciudad": f.ciudad, "categoria": f.categoria, "valor": f.valor,
-                                      "moneda": f.moneda, "vigente_desde": f.vigente_desde,
-                                      "vigente_hasta": f.vigente_hasta})
-    return salida
 
 
 def _tablas_usadas(politicas: list) -> set:

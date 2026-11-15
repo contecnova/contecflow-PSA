@@ -48,3 +48,23 @@
   color: var(--text-3);
   font-size: var(--text-base);
 }
+
+.forb-card {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  text-decoration: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.forb-card-2 {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  text-decoration: none;
+  background: transparent;
+  color: var(--text-1);
+  font-weight: 600;
+}

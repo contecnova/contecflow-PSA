@@ -318,42 +318,44 @@ Rules enforced in `imputation_service.py`:
 - **Hard-coded Spanish.** Month and day names are hard-coded in Spanish.
 
 ### Absences — `/absences`
-*Roles:* Menu: admin, pm, hr, team_lead, employee. Route: any authenticated user. The *Pending* and *Team* tabs are shown only to admin, hr and pm.
+*Roles:* Menu: admin, pm, hr, team_lead, employee. Route: any authenticated user. *Calendar and coverage* is for admin, hr, pm and team_lead; *Settings* for admin and hr (task #25, revision 167).
 
-**Purpose.** Request and approve leave, see your vacation balance and the team absence calendar.
+**Purpose.** Absences governed by rules: configurable types, shifts and rosters, quotas per day × shift × group with a first-come-first-served waitlist, multi-level approval and information flows, and documents (e.g. a sick-leave certificate) attached over the whole life of the absence. Every rule is a policy of the common engine (domain `ausencias`, see [Policies & rules engine](#policies--rules-engine--settingspolicies)); nothing is typed as JSON or CSV.
 
-**How to use it.**
-1. **Mine** tab: see your vacation balance for the year (`GET /absences/my/vacation-balance`), then *New request*:
-   - type: `vacation | sick | personal | training | maternity | paternity | other`
-   - start date and end date
-   - reason
+**How to use it (people).**
+1. **My absences**: balances (vacation and every type with its own allowance), the list with the status — `pending`, `approved`, `rejected`, `cancelled` and `waitlisted` with the queue position — and the detail: timeline (requested, waitlisted, slot, each vote, documents, reminders, escalations), documents with versions (view, download, replace, add), what is still requested with its deadline, the approval steps and the slots held.
+2. **Request absence**: type (icon and colour), dates, half days or hours (by the type's unit), shift (or the one in the roster), substitute, reason and documents to attach now. The right column is a **live preview**: days that count with their shift, slots left per day and shift and where you would be on the waitlist, approvals that will be needed (flow + policies), documents that will be requested with their deadlines, balance before/after, coverage left, warnings and blocks.
+3. **To decide** (approvers): each request where it is your turn (or, without a flow, the ones of your reports) with *why* (the policy rules that matched), the coverage impact per day and shift (available if approved vs required), teammates absent, the balance after it and the quota slots. Approving or rejecting is a vote in that approval request (multi-level, parallel, delegation, escalation of the approval engine).
+4. **Calendar and coverage**: people × days of the month with the absences (a private type shows as «Absence»), and the coverage heatmap per shift (required vs available vs absent, pending and waitlisted).
+5. A **manager, HR or admin** in the detail can request another document with a deadline, waive one, extend an approved absence (new end date; the recurring reports keep coming) or grant a slot to a waitlisted request.
 
-   The server rejects:
-   - end date before start date
-   - overlap with another of your absences
+**How to configure it (admin, HR) — Settings tab.**
+1. **Types**: key, name in es/en/zh, colour, icon, unit (days, half days, hours), whether it counts against a balance and which (the person's vacation days, or an own yearly allowance), visibility (`todos`, `equipo`, `privada` = only the person, HR and the special-access list see the type and reason), default approval flow, requires approval, requires a substitute, special-category data (health), and the **document requirements** (document type, deadline in days from the request, the start or the end, repeat every N days, remind N days before, escalate N days after to people/roles/the manager…).
+2. **Documents**: the document types (key, names, special category).
+3. **Shifts**: name, colour, start and end (crossing midnight is shown), weekdays, team, department, office, people required (minimum coverage), works on holidays.
+4. **Roster**: the grid people × days. Pick a shift (or *Off* / *Remove change*) in the palette and click or drag-select cells, or drag the chip onto the cells. **Rotations**: a cycle of N days (shift or off per day) from a start date, with people, dates and an offset so they rotate staggered. A change on a day wins over the rotation and the holiday; a holiday (`/settings/holidays`, `applies_to` = country of the shift's office) frees a rotation day unless the shift works on holidays.
+5. **Special access**: who, besides the person and HR, may open special-category documents (an admin only if listed). GDPR art. 9.
+6. **Example**: *Load example* creates three shifts (morning, afternoon, night), a **draft** policy «max 2 on vacation per day and shift, first come first served at request, waitlist, inform the team lead when someone gets the slot» and an **inactive** flow «manager → HR, inform the team lead». Nothing applies until you publish the policy, activate the flow and pick it in the *Vacation* type.
+7. **Rules** live in **Policies** (`/settings/policies?dominio=ausencias`). Typical rules, all on screen: blackout (*Absence period overlaps 20/12–06/01* → block), minimum lead time (*Lead time < 15* → warn/block), maximum consecutive days (*Consecutive days > 15* → +1 approval level), minimum coverage (*Coverage left < 0* → block), mandatory substitute (*Substitute is empty* → block), balance (*Balance left < 0* → block), require a document (`require_attachment` with absence document types), inform (`notify`), waitlist (`waitlist`) and the **quota** outcome: max N, per (company, team, department, office, role, shift or custom group), counting each shift separately or not, the slot assigned **at request** (first come first served by request time) or **at approval** (first approved), and *if full* any engine outcomes (waitlist, block, warn, +levels…), plus whom to inform when the next one gets the slot.
 
-   It computes `working_days` excluding weekends and the `holidays` table.
-2. While a request is `pending` you can edit it (`PATCH /absences/my/{id}`). You can cancel it with `DELETE /absences/my/{id}` unless it is approved and has already started.
-3. **Pending** tab (managers): approve or reject with a reason (`POST /absences/{id}/review`). Only `pending` requests can be reviewed.
-4. Statuses: `pending → approved | rejected`; any user cancellation sets `cancelled`.
-5. **Calendar** tab: `GET /absences/calendar`.
-
-**Configuration.**
-- Entitlement = `user_vacation_balances.days_entitled` (+ `days_carried_over`), managed in Advanced config (`/advanced-config/vacation-balances`).
-- Fallback is the env setting `DEFAULT_VACATION_DAYS_PER_YEAR` (default 23).
-- Holidays come from `/settings/holidays`.
+**Behaviour (measured in `tests/test_ausencias_reglas.py`).**
+- A request is atomic: it holds a slot on every day/shift/quota or waits on all of them. On cancellation or rejection the slot is released and the earliest waiting request that now fits **entirely** is promoted (at request: it goes to pending and its flow opens; at approval: it becomes approved) and the configured people are informed. A daily job also retries the waitlist (a policy may have raised the maximum).
+- A quota also counts the absences that existed before it: publishing a quota policy, and creating a slot row, backfill the slot with the approved (and, for slots assigned at request, pending) absences of that day that match the rule, shift and group (idempotent: an absence is counted once per slot).
+- Extending an approved absence (HR, admin or the manager) runs the policies on the added period (a block stops it), takes or waitlists the extra slots, and reopens approval when the policies ask for review or the type has a flow; rejecting the extension returns the absence to its previous end date, still approved, and frees the extra slots. Everything stays in the timeline.
+- Slot allocation is race-free: `SELECT … FOR UPDATE` on the per-slot counter row in PostgreSQL (rows locked in id order), and in SQLite a process lock plus an `UPDATE` that takes the database write lock. 8 threads for the last slot → 1 holds, 7 wait.
+- Documents use the existing document storage (S3 or disk), upload validation and antivirus, and short-lived signed URLs. They do not appear in the general `/documents` list, and `/documents` applies the absence rule too (an admin cannot open a sick certificate there). Every view, download and denied attempt goes to `document_access_logs` and the audit log. Retention and legal hold: entity `absence_documents` in GRC.
+- Without any flow and without policy steps, a manager decides in *To decide* (as before), recorded in the timeline; `approved_by` keeps the final decider for compatibility, the full history is `approval_decisions` + `eventos_de_ausencia`.
 
 **Technical notes.**
-- Endpoints: `/api/v1/absences/my`, `/my/{id}`, `/my/vacation-balance`, `/pending`, `/team`, `/calendar`, `/{id}/review`, `/summary/{user_id}`.
-- Tables: `absences`, `holidays`, `user_vacation_balances`.
+- Old API kept: `/api/v1/absences/my` (POST also accepts `absence_type_id`, `shift_id`, `substitute_id`, `half_day_start|end`, `hours`; `type` with a key still works), `/my/{id}`, `/my/vacation-balance`, `/pending`, `/team`, `/calendar`, `/{id}/review`, `/summary/{user_id}`.
+- New: `/absences/types[/{id}]`, `/document-types[/{id}]`, `/special-access[/{user_id}]`, `/shifts[/{id}]`, `/rotations[/{id}]`, `/roster` (GET, PUT), `/coverage`, `/preview`, `/my/balances`, `/inbox`, `/examples`, `/{id}/detail`, `/{id}/documents`, `/{id}/documents/{doc_id}/open`, `/{id}/document-requests[/{rid}/waive]`, `/{id}/extend`, `/{id}/promote`.
+- Tables (migration `167_ausencias_reglas_turnos_y_documentos`): `tipos_de_ausencia`, `tipos_de_documento_de_ausencia`, `requisitos_documentales_de_tipo`, `turnos`, `patrones_de_turnos`, `miembros_de_patron`, `asignaciones_de_turno`, `huecos_de_cupo`, `reservas_de_cupo`, `requisitos_de_ausencia`, `documentos_de_ausencia`, `eventos_de_ausencia`, `acceso_especial_ausencias`; `absences.type` is now `VARCHAR(50)` (the type key; the 7 old enum values became system types of every company) plus `absence_type_id`, `shift_id`, `substitute_id`, `unit`, `amount`, `half_day_start|end`, `hours`, `requested_at`; `absencestatus` gains `waitlisted`.
+- Code: `app/services/ausencias/` (`catalogo`, `turnos`, `cupos`, `saldos`, `reglas`, `solicitudes`, `documentos`, `consultas`, `ejemplos`), domain `app/services/politicas/dominios/ausencias.py`, endpoints `app/api/v1/endpoints/ausencias.py` (+ `absences.py`). Worker: `app.worker.ausencias_pasada_diaria` (07:10, per organization).
+- UI: `pages/AbsencesPage.tsx`, `components/ausencias/*` (request form, detail, inbox, team calendar) and `components/ausencias/admin/*` (types, documents, shifts, roster, rotations, coverage, special access, example).
 
-**Limitations.**
-- **Vacation balance is enforced.** A vacation request (or an edit) that exceeds the remaining days of its year is rejected with 400. Other absence types don't use the balance.
-- **Nobody approves their own absence** (separation of duties on review).
-- **Notifications only through an approval workflow.** With a default workflow for `leave`, the approver is notified; without one, nothing is sent.
-- **Default vacation days come from Admin.** Without a per-user balance row, the balance uses the runtime setting `DEFAULT_VACATION_DAYS_PER_YEAR` of the user's company.
-- **Approval workflows.** If a default workflow exists for `leave`, a request opens one; deciding in either place closes the other.
-- **Pending and Team tabs** are shown to admin, hr, pm and team_lead, the same roles the backend allows to review.
+**Limitations (measured).**
+- A request with no working day in its dates (weekend, all off in the roster) is rejected (422); before, it was accepted with 0 days.
+- The policy simulator replays absences but the quota part only reads current occupancy (it does not replay the queue as it was).
 
 ### Documents — `/documents`
 
@@ -439,6 +441,7 @@ Rules enforced in `imputation_service.py`:
 
 **Technical notes.**
 - `/api/v1/expenses/my`, `/my/{id}`, `/my/{id}/submit`, `/my/{id}/recall`, `/pending`, `/team`, `/{id}/review`, `/{id}/reimburse`, `/ocr`, `/export` (Excel), `/summary/{project_id}`.
+- Lists (rev. 166, phase 2): `/my`, `/pending` and `/team` are paginated in the server (`page`/`page_size`; total in `meta.total` or `X-Total-Count`) and also search (`q`: code, description and, in pending/team, requester), filter by `category` and dates, and sort (`sort` = code, category, description, amount, status, expense_date or submitted_at; `direction` = asc/desc) there, so the screen's 25-row pages never limit them. `GET /my/totals` and `GET /pending/totals` return `{count, total_amount, submitted_count}` for the same filters (the KPIs), and `/team` keeps its totals over all the filtered rows.
 - `GET|POST /{id}/attachments` (form field `document_type`), `PATCH /attachments/{id}` (`{document_type}`), `GET /attachments/{id}/url`, `DELETE /attachments/{id}`; `GET|PUT /{id}/allocations`; `GET /{id}/policy-preview` (what submitting will do, no side effects). The old `/expenses/policies` and `/{id}/policy-check` are gone (rev. 166).
 - Review and reimburse are `require_any_manager` and pass the ABAC check (`action="approve"`).
 - Creating an expense emits no event; submitting emits `EXPENSE_SUBMITTED`.
@@ -4499,6 +4502,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 3. **Templates**: create a flow from a predefined template.
 4. **Simulator**: dry-run which flow and route a payload would take.
 6. **Workflow conditions** (detail of a workflow that is not for documents): *amount greater than*, *amount up to*, *department*, *category* and, for expenses, *exceeds an expense policy* (yes / no / either). They are stored in `trigger_conditions`; a request uses the most specific active workflow whose conditions match (`approval_engine._base.elegir_flujo`), otherwise the default one. The context of an expense carries `amount`, `category`, the requester's `department`, `project_id` and `policy_exceeded`. Component `components/aprobaciones/CondicionesDelFlujo.tsx`.
+7. **Step condition and auto-approval rules without JSON** (rev. 166, phase 2): a step's condition and a workflow's auto-approval rules are edited with controls (*amount greater than*, *amount less than*, *department*, *category*; rules are a list, each with a name), `components/aprobaciones/CondicionesSimples.tsx`. A step whose condition comes from the graphical designer says so and keeps it. The old free-text example for the rules (`condition`/`value`) did not match what the server reads (`conditions` with those four keys), so rules typed from it never auto-approved anything. The simulator chooses the requester from the people picker instead of a typed id.
 5. **Bottlenecks / Carga**: per-step delays and approver load.
 
 **Technical notes.**
@@ -4538,6 +4542,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 
 **Extension points (developers; #25 absences, #27 expenses).**
 - *Register a domain*: `app/services/politicas/dominios/<dominio>.py` with `registrar(Dominio(clave, etiqueta, campos=[Campo(...)], contexto, cargar, historicos, propietario, resumen, tipo_de_aprobacion, cumple_requisito, aplicar_campo))`, imported from `catalogo._cargar_dominios_incluidos`. `gastos` is the complete example. Field labels are translated with i18n keys `pol.campo_<dominio>_<clave>` and `pol.opcion_<dominio>_<campo>_<valor>` (the domain label is the fallback); the domain chip uses `pol.dominio_<clave>`.
+- *Domain outcomes, waitlist and company-dependent options* (#25, revision 167): `Dominio(resultados_propios=(ResultadoPropio(clave, etiqueta, parametros=(Parametro(...), …)),), resolver_propio=fn)` adds an outcome only that domain understands (absences: `cupo`); the policy editor draws each parameter with its control (number, list, yes/no, entity, nested engine outcomes, recipients, channels, an internal key generated on screen), `resultados.validar` checks them, and while evaluating the engine asks `resolver_propio(db, ctx, outcome)` which engine outcomes follow from it NOW (read only) and stores its detail in the explanation. `admite_lista_de_espera=True` enables the `waitlist` outcome (decision order `block > waitlist > review > auto_approve > allow`). `tipos_de_documento(db)` replaces `POLICY_DOCUMENT_TYPES` for that domain and `opciones_dinamicas(db)` gives the options of `enum` fields that depend on the company (`/policies/options` → `opciones_de_campos`). New field type `periodo` (`{desde, hasta}`) with operators `overlaps` / `not_overlaps` (blackouts). `/settings/policies?dominio=<clave>` opens the page on a domain. `ausencias` is the complete example.
 - *Use it when the entity is submitted*: `ev = politicas.evaluar(db, dominio, entidad)` (no side effects) → if `ev["decision"] == "block"` raise 422 → `politicas.requisitos_pendientes(...)` → `politicas.aplicar_campos(...)` → `politicas.registrar_evaluacion(db, dominio, id, ev, usuario_id=…)` (the explanation users see) → `fuentes.abrir(db, tipo, id, resumen, solicitante, contexto, evaluacion=ev)`: the approval request gets the extra levels/steps (`approval_request_steps`), the notifications are sent and an `auto_approve` closes it as approved.
 - *Explain*: `GET /api/v1/policies/explanations/{dominio}/{entity_id}` returns the saved evaluations with every compared value.
 - Expenses (#27, rev. 166) follow this sequence in `gastos_politicas.al_enviar` / `tras_enviar`; a missing requirement is also a 422 (it lists what is missing). Domain hooks added for it: `usos_de_tabla` (a table can have a *use* besides rules, e.g. the mileage rate) and `ejemplos` (**Load examples**, `POST /policies/examples/{dominio}`, drafts only, idempotent by name).

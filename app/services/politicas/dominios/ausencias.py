@@ -26,7 +26,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from app.services.politicas.catalogo import Campo, Dominio, Opcion, Parametro, ResultadoPropio, registrar
+from app.services.politicas.registro import Campo, Dominio, Opcion, Parametro, ResultadoPropio, registrar
 
 _NUMERO_ENTERO = ("gt", "gte", "lt", "lte", "eq", "ne", "between")
 
@@ -146,6 +146,11 @@ def opciones_dinamicas(db) -> dict:
             "ubicacion": [Opcion(o.id, o.name) for o in db.query(Office).order_by(Office.name).all()]}
 
 
+def al_publicar(db, politica: dict) -> None:
+    from app.services.ausencias import cupos
+    cupos.sembrar_politica(db, politica)
+
+
 def ejemplos(db, usuario) -> dict:
     from app.services.ausencias import ejemplos as ej
     return {"tablas": [], "politicas": [ej.politica_de_ejemplo()]}
@@ -156,5 +161,5 @@ registrar(Dominio(
     historicos=historicos, propietario=lambda a: a.user_id, resumen=resumen,
     tipo_de_aprobacion="leave", cumple_requisito=cumple_requisito, ejemplos=ejemplos,
     resultados_propios=(CUPO,), resolver_propio=resolver_propio, admite_lista_de_espera=True,
-    tipos_de_documento=tipos_de_documento, opciones_dinamicas=opciones_dinamicas,
+    tipos_de_documento=tipos_de_documento, opciones_dinamicas=opciones_dinamicas, al_publicar=al_publicar,
 ))

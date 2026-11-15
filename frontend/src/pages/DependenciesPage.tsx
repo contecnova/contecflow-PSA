@@ -61,12 +61,6 @@ const DEP_TYPES: Array<{ value: DependencyType; label: string; color: string; de
   { value:'FF', label: 'pagina_deps.fin_fin',              color:'var(--warning)', desc: 'pagina_deps.la_siguiente_acaba_cuando_acaba_la' },
   { value:'SF', label: 'pagina_deps.inicio_fin',           color:'var(--warning)', desc: 'pagina_deps.la_siguiente_acaba_cuando_empieza_la' },
 ];
-const _EPIC_DEP_TYPES = [
-  { value:'finish_to_start',  label: 'pagina_deps.finish_to_start',   color:'var(--danger)', desc: 'pagina_deps.la_epica_destino_comienza_cuando_la' },
-  { value:'start_to_start',   label: 'pagina_deps.start_to_start',    color:'var(--warning)', desc: 'pagina_deps.ambas_epicas_comienzan_coordinadas' },
-  { value:'finish_to_finish', label: 'pagina_deps.finish_to_finish',  color:'var(--accent)', desc: 'pagina_deps.ambas_epicas_deben_cerrarse_juntas' },
-  { value:'relates_to',       label: 'pagina_deps.relacionada',       color:'var(--text-2)', desc: 'pagina_deps.relacion_informativa_entre_epicas' },
-];
 
 const STATUS_COLOR: Record<string, string> = {todo:'var(--text-2)',in_progress:'var(--accent)',done:'var(--success)',blocked:'var(--danger)',in_review:'var(--warning)'}
 
@@ -116,13 +110,13 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
-                className="deps-btn" style={{ borderRadius:8, border:`1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, background:form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent' }}>
+                className="deps-btn dependen-sx1" style={{ border:`1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, background:form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent' }}>
                 <div className="deps-box" style={{ background:dt.color }} />
                 <div className="u-flex1">
-                  <div className="deps-box-2" style={{ fontWeight:form.dependency_type===dt.value?600:400, color:form.dependency_type===dt.value?dt.color:'var(--text-1)' }}>{t(dt.label)}</div>
+                  <div className={`deps-box-2 ${form.dependency_type===dt.value ? 'dependen-sx2' : 'dependen-sx3'}`} style={{ color:form.dependency_type===dt.value?dt.color:'var(--text-1)' }}>{t(dt.label)}</div>
                   <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
-                {form.dependency_type===dt.value && <span style={{color:dt.color}}>✓</span>}
+                {form.dependency_type===dt.value && <span className="dependen-sx5" style={{ '--dependen-v4': dt.color } as React.CSSProperties}>✓</span>}
               </button>
             ))}
           </div>
@@ -188,7 +182,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
           const isBlocked  = inEdges.filter(e => DE_ORDEN.has(String(e.dep_type))).length > 0
           const sc = STATUS_COLOR[node.status ?? ''] || 'var(--text-2)'
           return (
-            <div key={node.id} className="deps-grid-2" style={{ background: isBlocked ? 'var(--danger-bg)' : 'transparent' }}>
+            <div key={node.id} className={`deps-grid-2 ${isBlocked ? 'dependen-sx6' : 'dependen-sx7'}`}>
               <div className="deps-box-5">
                 {node.title}
               </div>
@@ -214,7 +208,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                   const source = nodeMap[String(e.from_task_id)]
                   return (
                     <div key={e.id} className="deps-row-3">
-                      <span style={{color:dt?.color || 'var(--text-2)'}}>←</span>
+                      <span className="dependen-sx9" style={{ '--dependen-v8': dt?.color || 'var(--text-2)' } as React.CSSProperties}>←</span>
                       <span className="deps-label-4">
                         {source?.title}
                       </span>
@@ -312,7 +306,7 @@ export default function DependenciesPage(): JSX.Element {
             <div className="u-row-6">
               {(['list','visual'] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
-                  className="deps-btn-2" style={{ background:view===v?'var(--accent-muted)':'transparent', color:view===v?'var(--accent)':'var(--text-2)' }}>
+                  className={`deps-btn-2 ${view===v ? 'dependen-sx10' : 'dependen-sx11'}`}>
                   {v === 'list' ? t('pagina_deps.lista') : t('pagina_deps.mapa_visual')}
                 </button>
               ))}
@@ -369,7 +363,7 @@ export default function DependenciesPage(): JSX.Element {
                     {edges.map((e, i) => {
                       const dt = DEP_TYPES.find(d => d.value === e.dep_type)
                       return (
-                        <tr key={e.id} className="u-border-b" style={{ background:i%2===0?'transparent':'rgba(255,255,255,0.02)' }}>
+                        <tr key={e.id} className={`u-border-b ${i%2===0 ? 'dependen-sx7' : 'dependen-sx12'}`}>
                           <td className="deps-td">
                             <div className="deps-box-10">
                               {e.from_task_title}

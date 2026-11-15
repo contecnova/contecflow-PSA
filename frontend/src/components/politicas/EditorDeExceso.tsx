@@ -3,6 +3,7 @@
  * dietas de la ciudad del gasto): «hasta +20 % → +1 nivel; más → +2 niveles».
  * La barra muestra las bandas a escala; cada banda tiene sus resultados.
  */
+import type { CSSProperties } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import type { BandaDeExceso, DominioDePoliticas, Exceso } from '../../services/api/tipos-politicas'
 import { Button } from '../ui'
@@ -52,7 +53,7 @@ export default function EditorDeExceso({ dominio, valor, onChange }: {
           const izq = (b.desde / techo) * 100
           const ancho = (((b.hasta ?? techo) - b.desde) / techo) * 100
           return (
-            <div key={i} className={`pol-banda-segmento pol-banda-segmento--${Math.min(i, 3)}`} style={{ left: `${izq}%`, width: `${ancho}%` }}>
+            <div key={i} className={`pol-banda-segmento pol-banda-segmento--${Math.min(i, 3)}`} style={{ '--pol-izq': `${izq}%`, '--pol-ancho': `${ancho}%` } as CSSProperties}>
               {b.hasta === null ? `> ${b.desde} %` : `${b.desde}–${b.hasta} %`}
             </div>
           )

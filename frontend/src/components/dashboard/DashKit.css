@@ -176,3 +176,18 @@
   flex-direction: column;
   gap: 10px;
 }
+
+/* ── Estilos estaticos extraidos de DashKit.tsx (#17) ── */
+.dashkit-sx1.dashkit-sx1 {
+  border-radius: 8px;
+}
+.dashkit-sx2 {
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.85;
+}
